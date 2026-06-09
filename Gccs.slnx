@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/apps/" />
+  <Folder Name="/apps/api/">
+    <Project Path="apps/api/Gccs.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Gccs.Application/Gccs.Application.csproj" />
+    <Project Path="src/Gccs.Domain/Gccs.Domain.csproj" />
+    <Project Path="src/Gccs.Infrastructure/Gccs.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,137 @@
+[
+  {
+    "id": "far-52-204-21",
+    "source": "FAR 52.204-21",
+    "title": "Basic Safeguarding of Covered Contractor Information Systems",
+    "trigger_condition": "Contract involves Federal Contract Information.",
+    "applies_to": ["prime", "subcontractor"],
+    "contract_types": ["federal contract", "subcontract"],
+    "data_types": ["FCI"],
+    "required_actions": [
+      "Apply baseline safeguarding controls.",
+      "Maintain evidence for covered information systems.",
+      "Flow down the substance of the clause where applicable."
+    ],
+    "evidence_examples": [
+      "Access control policy",
+      "MFA configuration",
+      "Media disposal record",
+      "Antivirus logs",
+      "Boundary protection records"
+    ],
+    "reporting_deadline": null,
+    "flow_down_requirement": "Include the substance of the clause in subcontracts where the subcontractor may have Federal Contract Information.",
+    "risk_level": "high",
+    "source_url": "https://www.acquisition.gov/far/52.204-21",
+    "last_reviewed_at": "2026-06-03",
+    "confidence": "high",
+    "requires_expert_review": false
+  },
+  {
+    "id": "far-52-204-25",
+    "source": "FAR 52.204-25",
+    "title": "Prohibition on Certain Telecommunications and Video Surveillance Services or Equipment",
+    "trigger_condition": "Clause appears in a solicitation, contract, subcontract, or purchase order.",
+    "applies_to": ["prime", "subcontractor"],
+    "contract_types": ["federal contract", "subcontract"],
+    "data_types": ["contractor IT", "supplier technology"],
+    "required_actions": [
+      "Screen internal technology and supplier technology for covered restrictions.",
+      "Collect supplier attestations where appropriate.",
+      "Retain inventory and procurement review evidence."
+    ],
+    "evidence_examples": [
+      "Supplier attestation",
+      "Technology inventory review",
+      "Procurement checklist"
+    ],
+    "reporting_deadline": null,
+    "flow_down_requirement": "Flow down as required by the clause and prime contract instructions.",
+    "risk_level": "high",
+    "source_url": "https://www.acquisition.gov/far/52.204-25",
+    "last_reviewed_at": "2026-06-03",
+    "confidence": "high",
+    "requires_expert_review": false
+  },
+  {
+    "id": "far-52-204-27",
+    "source": "FAR 52.204-27",
+    "title": "Prohibition on a ByteDance Covered Application",
+    "trigger_condition": "Contract includes the covered application prohibition.",
+    "applies_to": ["prime", "subcontractor"],
+    "contract_types": ["federal contract", "subcontract"],
+    "data_types": ["covered contractor IT"],
+    "required_actions": [
+      "Block prohibited covered applications on covered IT.",
+      "Maintain device inventory or MDM evidence.",
+      "Update acceptable use policy and user attestations."
+    ],
+    "evidence_examples": [
+      "MDM application inventory",
+      "Acceptable use policy",
+      "Employee attestation"
+    ],
+    "reporting_deadline": null,
+    "flow_down_requirement": "Flow down according to contract and clause instructions.",
+    "risk_level": "medium",
+    "source_url": "https://www.acquisition.gov/far/52.204-27",
+    "last_reviewed_at": "2026-06-03",
+    "confidence": "high",
+    "requires_expert_review": false
+  },
+  {
+    "id": "cmmc-32-cfr-170",
+    "source": "32 CFR Part 170",
+    "title": "Cybersecurity Maturity Model Certification Program",
+    "trigger_condition": "DoD contract or subcontract involves FCI or CUI and includes CMMC requirements.",
+    "applies_to": ["prime", "subcontractor"],
+    "contract_types": ["DoD contract", "DoD subcontract"],
+    "data_types": ["FCI", "CUI"],
+    "required_actions": [
+      "Determine applicable CMMC level.",
+      "Track assessment readiness and evidence.",
+      "Prepare annual affirmation and SSP or POA&M artifacts where applicable."
+    ],
+    "evidence_examples": [
+      "CMMC self-assessment",
+      "System security plan",
+      "POA&M tracker",
+      "Asset inventory",
+      "CUI data-flow diagram"
+    ],
+    "reporting_deadline": "Annual affirmation timing depends on assessment and contract context.",
+    "flow_down_requirement": "Subcontractor requirements depend on information and work flowed to the subcontractor.",
+    "risk_level": "critical",
+    "source_url": "https://www.ecfr.gov/current/title-32/subtitle-A/chapter-I/subchapter-G/part-170",
+    "last_reviewed_at": "2026-06-03",
+    "confidence": "high",
+    "requires_expert_review": true
+  },
+  {
+    "id": "far-52-222-41",
+    "source": "FAR 52.222-41",
+    "title": "Service Contract Labor Standards",
+    "trigger_condition": "Service contract labor standards clause appears in a covered service contract.",
+    "applies_to": ["prime", "subcontractor"],
+    "contract_types": ["service contract", "covered subcontract"],
+    "data_types": ["labor records", "payroll records"],
+    "required_actions": [
+      "Attach and track the applicable wage determination.",
+      "Map employees to labor categories.",
+      "Retain payroll, fringe, and classification evidence."
+    ],
+    "evidence_examples": [
+      "Wage determination",
+      "Labor category mapping",
+      "Payroll evidence",
+      "Fringe benefit records"
+    ],
+    "reporting_deadline": null,
+    "flow_down_requirement": "Flow down to covered service subcontracts as required.",
+    "risk_level": "high",
+    "source_url": "https://www.acquisition.gov/far/52.222-41",
+    "last_reviewed_at": "2026-06-03",
+    "confidence": "medium",
+    "requires_expert_review": true
+  }
+]

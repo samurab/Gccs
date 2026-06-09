@@ -1,0 +1,16 @@
+@Gccs.Api_HostAddress = http://localhost:5062
+
+GET {{Gccs.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
+GET {{Gccs.Api_HostAddress}}/api/compliance/overview
+Accept: application/json
+
+###
+
+GET {{Gccs.Api_HostAddress}}/api/obligations/far-52-204-21
+Accept: application/json
+
+###
