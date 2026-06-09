@@ -22,7 +22,7 @@ export type ComplianceOverview = {
   priorityObligations: ObligationSummary[];
 };
 
-const fallbackOverview: ComplianceOverview = {
+export const fallbackOverview: ComplianceOverview = {
   productPromise:
     "Help small government contractors know what applies, prove what they did, and stay ready for audits, renewals, bids, and certifications.",
   mvpDataPosture: "No-CUI / compliance management only",
@@ -75,12 +75,10 @@ const fallbackOverview: ComplianceOverview = {
 };
 
 export async function getComplianceOverview(): Promise<ComplianceOverview> {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5062";
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
-    const response = await fetch(`${apiBaseUrl}/api/compliance/overview`, {
-      next: { revalidate: 30 }
-    });
+    const response = await fetch(`${apiBaseUrl}/api/compliance/overview`);
 
     if (!response.ok) {
       return fallbackOverview;

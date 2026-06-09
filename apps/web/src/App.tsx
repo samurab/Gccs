@@ -8,13 +8,28 @@ import {
   GitBranch,
   ShieldCheck
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { ModuleCard } from "@/components/ModuleCard";
-import { getComplianceOverview } from "@/lib/api";
+import { fallbackOverview, getComplianceOverview } from "@/lib/api";
 
 const moduleIcons = [Building2, FileSearch, ClipboardCheck, CalendarClock, Archive, ShieldCheck, GitBranch, FolderKanban];
 
-export default async function HomePage() {
-  const overview = await getComplianceOverview();
+export function App() {
+  const [overview, setOverview] = useState(fallbackOverview);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getComplianceOverview().then((nextOverview) => {
+      if (isMounted) {
+        setOverview(nextOverview);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <main>

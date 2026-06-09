@@ -14,6 +14,7 @@
 ## Phase 1 - MVP
 
 - Tenant, user, and RBAC foundation.
+- React + Vite authenticated application shell backed by the ASP.NET Core API.
 - Company profile.
 - Contract upload and manual clause tagging.
 - Obligation dashboard.

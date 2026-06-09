@@ -7,13 +7,11 @@ GCCS is a starter application for a govcon-specific compliance operating system 
 ```text
 apps/
   api/                 ASP.NET Core 10 Web API
-  web/                 Next.js frontend shell
+  web/                 React + Vite frontend shell
 src/
   Gccs.Domain/         Core compliance entities and value objects
   Gccs.Application/    Use cases, DTOs, service interfaces
   Gccs.Infrastructure/ Persistence/integration adapters
-tests/
-  Gccs.Api.Tests/      Backend tests
 packages/
   compliance-content/  Source-backed obligation library seed data
 docs/                  Product, architecture, and governance notes
@@ -44,7 +42,9 @@ npm install
 npm run dev
 ```
 
-The frontend expects the API at `http://localhost:5217` by default. Override with `NEXT_PUBLIC_API_BASE_URL`.
+The frontend expects the API at `http://localhost:5062` by default. Override with `VITE_API_BASE_URL`.
+
+The authenticated SaaS app uses React + Vite. If SEO-heavy public content becomes a requirement later, add a separate marketing/content site, for example `www` on Next.js, while keeping this app at an application subdomain such as `app`.
 
 ### Local Services
 

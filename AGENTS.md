@@ -344,7 +344,8 @@ A sensible SaaS architecture:
 
 ```text
 Frontend:
-React / Next.js
+React + Vite for the authenticated SaaS app
+Optional separate Next.js site for SEO-heavy public content
 
 Backend:
 ASP.NET Core on .NET 10 LTS
