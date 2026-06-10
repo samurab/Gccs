@@ -18,6 +18,14 @@ docs/                  Product, architecture, and governance notes
 infra/                 Local and future cloud infrastructure
 ```
 
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Design flow diagrams](docs/design-flow-diagrams.md)
+- [Workflow diagram](docs/workflow-diagram.md)
+- [MVP roadmap](docs/mvp-roadmap.md)
+- [Compliance content governance](docs/compliance-content-governance.md)
+
 ## Local Development
 
 ### Backend

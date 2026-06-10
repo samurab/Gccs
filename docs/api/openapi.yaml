@@ -1,0 +1,3294 @@
+openapi: 3.1.0
+info:
+  title: GCCS API
+  version: 0.1.0
+  summary: Government Contractor Compliance SaaS API
+  description: >
+    API specification for the GCCS MVP. GCCS is a No-CUI compliance management
+    SaaS for small U.S. government contractors. The API is tenant-scoped and
+    supports company profiles, contract intake, clause obligations, evidence,
+    calendar tasks, CMMC readiness, subcontractor flow-downs, reports, and
+    source-backed compliance content.
+  contact:
+    name: GCCS Product Team
+servers:
+  - url: http://localhost:5062
+    description: Local ASP.NET Core API
+  - url: https://api.gccs.example.com
+    description: Production API placeholder
+security:
+  - bearerAuth: []
+tags:
+  - name: System
+    description: Health and API metadata.
+  - name: Compliance Overview
+    description: Product overview and dashboard summary.
+  - name: Company Profile
+    description: Tenant company registration, size, certification, and data posture.
+  - name: Contracts
+    description: Contract, solicitation, subcontract, and purchase order intake.
+  - name: Clauses
+    description: Contract clause capture and normalization.
+  - name: Obligations
+    description: Source-backed compliance obligations and contract obligation matrices.
+  - name: Tasks
+    description: Compliance calendar, reminders, and work assignment.
+  - name: Evidence
+    description: No-CUI evidence vault metadata, upload intents, versions, and reviews.
+  - name: CMMC
+    description: CMMC and NIST readiness assessments, controls, POA&M, and SPRS scoring.
+  - name: Subcontractors
+    description: Subcontractor profiles, flow-down clauses, and evidence requests.
+  - name: Reports
+    description: Report generation and exports.
+  - name: Audit Logs
+    description: Tenant audit trail.
+  - name: Source Library
+    description: Reviewed compliance sources and obligation library governance.
+paths:
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      operationId: getHealth
+      security: []
+      responses:
+        "200":
+          description: API is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/compliance/overview:
+    get:
+      tags:
+        - Compliance Overview
+      summary: Get compliance workspace overview
+      operationId: getComplianceOverview
+      responses:
+        "200":
+          description: Dashboard overview.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceOverview"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/company-profile:
+    get:
+      tags:
+        - Company Profile
+      summary: Get the tenant company profile
+      operationId: getCompanyProfile
+      responses:
+        "200":
+          description: Company profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - Company Profile
+      summary: Create or replace the tenant company profile
+      operationId: upsertCompanyProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyProfileUpsertRequest"
+      responses:
+        "200":
+          description: Saved company profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/company-profile/sam-lookup:
+    post:
+      tags:
+        - Company Profile
+      summary: Queue a SAM.gov profile lookup
+      operationId: createSamLookup
+      description: >
+        Creates a lookup job against an official entity data source. The MVP
+        stores the request and result metadata; API keys and adapter behavior are
+        implementation details.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SamLookupRequest"
+      responses:
+        "202":
+          description: Lookup accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/contracts:
+    get:
+      tags:
+        - Contracts
+      summary: List contracts
+      operationId: listContracts
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ContractStatus"
+        - name: agency
+          in: query
+          schema:
+            type: string
+        - name: role
+          in: query
+          schema:
+            $ref: "#/components/schemas/ContractorRole"
+      responses:
+        "200":
+          description: Paged contracts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PagedResult"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ContractSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags:
+        - Contracts
+      summary: Create a contract intake record
+      operationId: createContract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractCreateRequest"
+      responses:
+        "201":
+          description: Contract created.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/contracts/{contractId}:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    get:
+      tags:
+        - Contracts
+      summary: Get a contract
+      operationId: getContract
+      responses:
+        "200":
+          description: Contract detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Contracts
+      summary: Update contract metadata
+      operationId: updateContract
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/ContractPatchRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractPatchRequest"
+      responses:
+        "200":
+          description: Updated contract.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - Contracts
+      summary: Archive a contract
+      operationId: archiveContract
+      responses:
+        "204":
+          description: Contract archived.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/contracts/{contractId}/documents:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    get:
+      tags:
+        - Contracts
+      summary: List contract intake documents
+      operationId: listContractDocuments
+      responses:
+        "200":
+          description: Contract documents.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContractDocument"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Contracts
+      summary: Create a No-CUI contract document upload intent
+      operationId: createContractDocumentUploadIntent
+      description: >
+        Returns an upload intent for a contract file. Users must attest that the
+        file does not contain CUI, classified information, export-controlled
+        technical data, or other content excluded by the MVP No-CUI posture.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentUploadIntentRequest"
+      responses:
+        "201":
+          description: Upload intent created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadIntent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/contracts/{contractId}/documents/{documentId}/extraction-jobs:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - $ref: "#/components/parameters/DocumentId"
+    post:
+      tags:
+        - Contracts
+      summary: Queue contract document extraction
+      operationId: createContractExtractionJob
+      responses:
+        "202":
+          description: Extraction job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/contracts/{contractId}/clauses:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    get:
+      tags:
+        - Clauses
+      summary: List clauses captured for a contract
+      operationId: listContractClauses
+      responses:
+        "200":
+          description: Clauses.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContractClause"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Clauses
+      summary: Add a clause to a contract
+      operationId: addContractClause
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractClauseCreateRequest"
+      responses:
+        "201":
+          description: Clause added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractClause"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/contracts/{contractId}/obligations:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    get:
+      tags:
+        - Obligations
+      summary: List obligation matrix for a contract
+      operationId: listContractObligations
+      responses:
+        "200":
+          description: Contract obligation matrix.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContractObligation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/contracts/{contractId}/obligation-evaluations:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    post:
+      tags:
+        - Obligations
+      summary: Evaluate contract clauses against the obligation library
+      operationId: evaluateContractObligations
+      description: >
+        Produces or refreshes draft contract-specific obligations. Results must
+        retain source references and expert-review flags from the obligation
+        library.
+      responses:
+        "202":
+          description: Evaluation job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/obligations:
+    get:
+      tags:
+        - Obligations
+      summary: List source-backed obligation library records
+      operationId: listObligations
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: source
+          in: query
+          schema:
+            type: string
+            examples:
+              - FAR 52.204-21
+        - name: riskLevel
+          in: query
+          schema:
+            $ref: "#/components/schemas/RiskLevel"
+        - name: dataType
+          in: query
+          schema:
+            $ref: "#/components/schemas/DataType"
+      responses:
+        "200":
+          description: Paged obligations.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PagedResult"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Obligation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/obligations/{obligationId}:
+    parameters:
+      - $ref: "#/components/parameters/ObligationId"
+    get:
+      tags:
+        - Obligations
+      summary: Get an obligation library record
+      operationId: getObligationById
+      responses:
+        "200":
+          description: Obligation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Obligation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tasks:
+    get:
+      tags:
+        - Tasks
+      summary: List compliance tasks
+      operationId: listTasks
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/TaskStatus"
+        - name: ownerUserId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: dueFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dueTo
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Paged tasks.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PagedResult"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ComplianceTask"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags:
+        - Tasks
+      summary: Create a compliance task
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComplianceTaskCreateRequest"
+      responses:
+        "201":
+          description: Task created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceTask"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/tasks/{taskId}:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    patch:
+      tags:
+        - Tasks
+      summary: Update a compliance task
+      operationId: updateTask
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/ComplianceTaskPatchRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComplianceTaskPatchRequest"
+      responses:
+        "200":
+          description: Updated task.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceTask"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/calendar/events:
+    get:
+      tags:
+        - Tasks
+      summary: List calendar events
+      operationId: listCalendarEvents
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Calendar events.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarEvent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/evidence-items:
+    get:
+      tags:
+        - Evidence
+      summary: List evidence items
+      operationId: listEvidenceItems
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: obligationId
+          in: query
+          schema:
+            type: string
+        - name: contractId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: controlId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/EvidenceStatus"
+      responses:
+        "200":
+          description: Paged evidence items.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PagedResult"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/EvidenceItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags:
+        - Evidence
+      summary: Create evidence metadata
+      operationId: createEvidenceItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceItemCreateRequest"
+      responses:
+        "201":
+          description: Evidence item created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/evidence-items/{evidenceItemId}:
+    parameters:
+      - $ref: "#/components/parameters/EvidenceItemId"
+    get:
+      tags:
+        - Evidence
+      summary: Get an evidence item
+      operationId: getEvidenceItem
+      responses:
+        "200":
+          description: Evidence item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Evidence
+      summary: Update evidence metadata
+      operationId: updateEvidenceItem
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/EvidenceItemPatchRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceItemPatchRequest"
+      responses:
+        "200":
+          description: Updated evidence item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - Evidence
+      summary: Archive an evidence item
+      operationId: archiveEvidenceItem
+      responses:
+        "204":
+          description: Evidence item archived.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/evidence-items/{evidenceItemId}/upload-intents:
+    parameters:
+      - $ref: "#/components/parameters/EvidenceItemId"
+    post:
+      tags:
+        - Evidence
+      summary: Create a No-CUI evidence file upload intent
+      operationId: createEvidenceUploadIntent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceUploadIntentRequest"
+      responses:
+        "201":
+          description: Upload intent created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadIntent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/evidence-items/{evidenceItemId}/versions:
+    parameters:
+      - $ref: "#/components/parameters/EvidenceItemId"
+    get:
+      tags:
+        - Evidence
+      summary: List evidence versions
+      operationId: listEvidenceVersions
+      responses:
+        "200":
+          description: Evidence versions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EvidenceVersion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/evidence-items/{evidenceItemId}/reviews:
+    parameters:
+      - $ref: "#/components/parameters/EvidenceItemId"
+    post:
+      tags:
+        - Evidence
+      summary: Approve, reject, or request changes for evidence
+      operationId: createEvidenceReview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceReviewRequest"
+      responses:
+        "201":
+          description: Evidence review recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceReview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/cmmc/assessments:
+    get:
+      tags:
+        - CMMC
+      summary: List CMMC readiness assessments
+      operationId: listCmmcAssessments
+      responses:
+        "200":
+          description: Assessments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CmmcAssessment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags:
+        - CMMC
+      summary: Create a CMMC readiness assessment
+      operationId: createCmmcAssessment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmmcAssessmentCreateRequest"
+      responses:
+        "201":
+          description: Assessment created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmmcAssessment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/cmmc/assessments/{assessmentId}/controls:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentId"
+    get:
+      tags:
+        - CMMC
+      summary: List CMMC control statuses
+      operationId: listCmmcControlStatuses
+      responses:
+        "200":
+          description: Control statuses.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CmmcControlStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/cmmc/assessments/{assessmentId}/controls/{controlId}:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentId"
+      - $ref: "#/components/parameters/ControlId"
+    patch:
+      tags:
+        - CMMC
+      summary: Update a CMMC control status
+      operationId: updateCmmcControlStatus
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/CmmcControlStatusPatchRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmmcControlStatusPatchRequest"
+      responses:
+        "200":
+          description: Updated control status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmmcControlStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/cmmc/assessments/{assessmentId}/poam-items:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentId"
+    get:
+      tags:
+        - CMMC
+      summary: List POA&M items
+      operationId: listPoamItems
+      responses:
+        "200":
+          description: POA&M items.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PoamItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - CMMC
+      summary: Create a POA&M item
+      operationId: createPoamItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PoamItemCreateRequest"
+      responses:
+        "201":
+          description: POA&M item created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PoamItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/cmmc/assessments/{assessmentId}/sprs-score:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentId"
+    get:
+      tags:
+        - CMMC
+      summary: Calculate current SPRS-style score
+      operationId: getSprsScore
+      responses:
+        "200":
+          description: SPRS-style score.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SprsScore"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/subcontractors:
+    get:
+      tags:
+        - Subcontractors
+      summary: List subcontractors
+      operationId: listSubcontractors
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: handlesCui
+          in: query
+          schema:
+            type: boolean
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/SubcontractorStatus"
+      responses:
+        "200":
+          description: Paged subcontractors.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PagedResult"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Subcontractor"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags:
+        - Subcontractors
+      summary: Create a subcontractor
+      operationId: createSubcontractor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubcontractorCreateRequest"
+      responses:
+        "201":
+          description: Subcontractor created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subcontractor"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/subcontractors/{subcontractorId}/flow-downs:
+    parameters:
+      - $ref: "#/components/parameters/SubcontractorId"
+    get:
+      tags:
+        - Subcontractors
+      summary: List subcontractor flow-down clauses
+      operationId: listSubcontractorFlowDowns
+      responses:
+        "200":
+          description: Flow-down requirements.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FlowDownClause"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Subcontractors
+      summary: Add a flow-down clause to a subcontractor
+      operationId: addSubcontractorFlowDown
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlowDownClauseCreateRequest"
+      responses:
+        "201":
+          description: Flow-down clause added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlowDownClause"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/subcontractors/{subcontractorId}/evidence-requests:
+    parameters:
+      - $ref: "#/components/parameters/SubcontractorId"
+    post:
+      tags:
+        - Subcontractors
+      summary: Create a subcontractor evidence request
+      operationId: createSubcontractorEvidenceRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubcontractorEvidenceRequestCreateRequest"
+      responses:
+        "201":
+          description: Evidence request created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubcontractorEvidenceRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/reports:
+    get:
+      tags:
+        - Reports
+      summary: List generated reports
+      operationId: listReports
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/ReportType"
+      responses:
+        "200":
+          description: Paged reports.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PagedResult"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Report"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags:
+        - Reports
+      summary: Generate a report
+      operationId: createReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportCreateRequest"
+      responses:
+        "202":
+          description: Report generation accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/reports/{reportId}:
+    parameters:
+      - $ref: "#/components/parameters/ReportId"
+    get:
+      tags:
+        - Reports
+      summary: Get report metadata
+      operationId: getReport
+      responses:
+        "200":
+          description: Report metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/reports/{reportId}/download:
+    parameters:
+      - $ref: "#/components/parameters/ReportId"
+    get:
+      tags:
+        - Reports
+      summary: Download a generated report
+      operationId: downloadReport
+      responses:
+        "302":
+          description: Redirects to a time-limited report download URL.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/audit-logs:
+    get:
+      tags:
+        - Audit Logs
+      summary: List tenant audit log entries
+      operationId: listAuditLogs
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: actorUserId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: entityType
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Paged audit entries.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PagedResult"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/AuditLogEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/source-library/references:
+    get:
+      tags:
+        - Source Library
+      summary: List reviewed compliance source references
+      operationId: listSourceReferences
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: sourceType
+          in: query
+          schema:
+            $ref: "#/components/schemas/SourceType"
+      responses:
+        "200":
+          description: Paged source references.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PagedResult"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/SourceReference"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Tenant-scoped user access token. MVP implementation may use local development auth before SSO/MFA is enabled.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    ContractId:
+      name: contractId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ObligationId:
+      name: obligationId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: far-52-204-21
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    EvidenceItemId:
+      name: evidenceItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AssessmentId:
+      name: assessmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ControlId:
+      name: controlId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: AC.L2-3.1.1
+    SubcontractorId:
+      name: subcontractorId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ReportId:
+      name: reportId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Request validation failed.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+    Unauthorized:
+      description: Missing or invalid authentication.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+    Forbidden:
+      description: User is authenticated but not authorized for the requested tenant action.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+    NotFound:
+      description: Resource was not found in the current tenant scope.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+
+  schemas:
+    ProblemDetails:
+      type: object
+      additionalProperties: true
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        traceId:
+          type: string
+
+    PagedResult:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - totalItems
+        - totalPages
+      properties:
+        items:
+          type: array
+          items: {}
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+        - dataPosture
+        - checkedAt
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: gccs-api
+        dataPosture:
+          type: string
+          example: No-CUI / compliance management only
+        checkedAt:
+          type: string
+          format: date-time
+
+    ComplianceOverview:
+      type: object
+      required:
+        - productPromise
+        - mvpDataPosture
+        - modules
+        - priorityObligations
+      properties:
+        productPromise:
+          type: string
+        mvpDataPosture:
+          type: string
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleStatus"
+        priorityObligations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ObligationSummary"
+
+    ModuleStatus:
+      type: object
+      required:
+        - key
+        - name
+        - purpose
+        - status
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        purpose:
+          type: string
+        status:
+          type: string
+
+    ObligationSummary:
+      type: object
+      required:
+        - id
+        - source
+        - title
+        - ownerFunction
+        - riskLevel
+        - sourceUrl
+        - lastReviewedAt
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        title:
+          type: string
+        ownerFunction:
+          type: string
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+        sourceUrl:
+          type: string
+          format: uri
+        lastReviewedAt:
+          type: string
+          format: date
+
+    CompanyProfile:
+      allOf:
+        - $ref: "#/components/schemas/CompanyProfileUpsertRequest"
+        - type: object
+          required:
+            - id
+            - tenantId
+            - createdAt
+            - updatedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            tenantId:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    CompanyProfileUpsertRequest:
+      type: object
+      required:
+        - legalEntityName
+        - handlesFci
+        - handlesCui
+      properties:
+        legalEntityName:
+          type: string
+        uei:
+          type:
+            - string
+            - "null"
+        cageCode:
+          type:
+            - string
+            - "null"
+        samExpirationDate:
+          type:
+            - string
+            - "null"
+          format: date
+        naicsCodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/NaicsCodeProfile"
+        socioeconomicCertifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Certification"
+        agencyCustomers:
+          type: array
+          items:
+            type: string
+        contractorRoles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContractorRole"
+        productsAndServices:
+          type: array
+          items:
+            type: string
+        employeeRange:
+          type:
+            - string
+            - "null"
+        revenueRange:
+          type:
+            - string
+            - "null"
+        locations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Location"
+        itEnvironmentSummary:
+          type:
+            - string
+            - "null"
+        handlesFci:
+          $ref: "#/components/schemas/TriState"
+        handlesCui:
+          $ref: "#/components/schemas/TriState"
+        noCuiAcknowledgedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+
+    NaicsCodeProfile:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          pattern: "^[0-9]{2,6}$"
+        description:
+          type:
+            - string
+            - "null"
+        sizeStandard:
+          type:
+            - string
+            - "null"
+        smallBusinessStatus:
+          $ref: "#/components/schemas/TriState"
+        lastCheckedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+
+    Certification:
+      type: object
+      required:
+        - type
+        - status
+      properties:
+        type:
+          $ref: "#/components/schemas/CertificationType"
+        status:
+          type: string
+          enum:
+            - active
+            - pending
+            - expired
+            - not-applicable
+            - unknown
+        expiresAt:
+          type:
+            - string
+            - "null"
+          format: date
+        source:
+          type:
+            - string
+            - "null"
+
+    Location:
+      type: object
+      properties:
+        label:
+          type: string
+        street:
+          type:
+            - string
+            - "null"
+        city:
+          type:
+            - string
+            - "null"
+        state:
+          type:
+            - string
+            - "null"
+        postalCode:
+          type:
+            - string
+            - "null"
+        country:
+          type: string
+          default: US
+
+    SamLookupRequest:
+      type: object
+      properties:
+        uei:
+          type:
+            - string
+            - "null"
+        cageCode:
+          type:
+            - string
+            - "null"
+        legalEntityName:
+          type:
+            - string
+            - "null"
+
+    ContractSummary:
+      type: object
+      required:
+        - id
+        - title
+        - status
+        - role
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        contractNumber:
+          type:
+            - string
+            - "null"
+        agencyOrPrime:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/ContractStatus"
+        role:
+          $ref: "#/components/schemas/ContractorRole"
+        periodOfPerformanceStart:
+          type:
+            - string
+            - "null"
+          format: date
+        periodOfPerformanceEnd:
+          type:
+            - string
+            - "null"
+          format: date
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+        updatedAt:
+          type: string
+          format: date-time
+
+    Contract:
+      allOf:
+        - $ref: "#/components/schemas/ContractCreateRequest"
+        - type: object
+          required:
+            - id
+            - tenantId
+            - status
+            - createdAt
+            - updatedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            tenantId:
+              type: string
+              format: uuid
+            status:
+              $ref: "#/components/schemas/ContractStatus"
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    ContractCreateRequest:
+      type: object
+      required:
+        - title
+        - role
+      properties:
+        title:
+          type: string
+        contractNumber:
+          type:
+            - string
+            - "null"
+        agencyOrPrime:
+          type:
+            - string
+            - "null"
+        role:
+          $ref: "#/components/schemas/ContractorRole"
+        contractType:
+          type:
+            - string
+            - "null"
+          examples:
+            - federal contract
+            - subcontract
+            - purchase order
+        setAsideStatus:
+          type:
+            - string
+            - "null"
+        periodOfPerformanceStart:
+          type:
+            - string
+            - "null"
+          format: date
+        periodOfPerformanceEnd:
+          type:
+            - string
+            - "null"
+          format: date
+        placeOfPerformance:
+          type:
+            - string
+            - "null"
+        dataTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DataType"
+        notes:
+          type:
+            - string
+            - "null"
+
+    ContractPatchRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        contractNumber:
+          type:
+            - string
+            - "null"
+        agencyOrPrime:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/ContractStatus"
+        role:
+          $ref: "#/components/schemas/ContractorRole"
+        contractType:
+          type:
+            - string
+            - "null"
+        setAsideStatus:
+          type:
+            - string
+            - "null"
+        periodOfPerformanceStart:
+          type:
+            - string
+            - "null"
+          format: date
+        periodOfPerformanceEnd:
+          type:
+            - string
+            - "null"
+          format: date
+        placeOfPerformance:
+          type:
+            - string
+            - "null"
+        dataTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DataType"
+        notes:
+          type:
+            - string
+            - "null"
+
+    ContractDocument:
+      type: object
+      required:
+        - id
+        - contractId
+        - documentType
+        - fileName
+        - status
+        - noCuiAttestation
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        contractId:
+          type: string
+          format: uuid
+        documentType:
+          $ref: "#/components/schemas/ContractDocumentType"
+        fileName:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          minimum: 0
+        status:
+          $ref: "#/components/schemas/DocumentStatus"
+        noCuiAttestation:
+          $ref: "#/components/schemas/NoCuiAttestation"
+        createdAt:
+          type: string
+          format: date-time
+
+    DocumentUploadIntentRequest:
+      type: object
+      required:
+        - documentType
+        - fileName
+        - contentType
+        - sizeBytes
+        - noCuiAttestation
+      properties:
+        documentType:
+          $ref: "#/components/schemas/ContractDocumentType"
+        fileName:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          minimum: 1
+        noCuiAttestation:
+          $ref: "#/components/schemas/NoCuiAttestation"
+
+    ContractClause:
+      allOf:
+        - $ref: "#/components/schemas/ContractClauseCreateRequest"
+        - type: object
+          required:
+            - id
+            - contractId
+            - createdAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            contractId:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+
+    ContractClauseCreateRequest:
+      type: object
+      required:
+        - source
+        - title
+      properties:
+        source:
+          type: string
+          examples:
+            - FAR 52.204-21
+        title:
+          type: string
+        fullText:
+          type:
+            - string
+            - "null"
+        effectiveDate:
+          type:
+            - string
+            - "null"
+          format: date
+        sourceDocumentId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        extractionConfidence:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          maximum: 1
+        userVerified:
+          type: boolean
+          default: false
+
+    ContractObligation:
+      type: object
+      required:
+        - id
+        - contractId
+        - obligationId
+        - source
+        - title
+        - ownerFunction
+        - riskLevel
+        - status
+        - evidenceStatus
+        - sourceReference
+      properties:
+        id:
+          type: string
+          format: uuid
+        contractId:
+          type: string
+          format: uuid
+        obligationId:
+          type: string
+        source:
+          type: string
+        title:
+          type: string
+        plainEnglishSummary:
+          type: string
+        requiredAction:
+          type: string
+        ownerFunction:
+          type: string
+        dueDate:
+          type:
+            - string
+            - "null"
+          format: date
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+        status:
+          $ref: "#/components/schemas/ObligationStatus"
+        evidenceStatus:
+          $ref: "#/components/schemas/EvidenceCoverageStatus"
+        flowDownRequired:
+          type: boolean
+        requiresExpertReview:
+          type: boolean
+        sourceReference:
+          $ref: "#/components/schemas/SourceReference"
+
+    Obligation:
+      type: object
+      required:
+        - id
+        - source
+        - title
+        - plainEnglishSummary
+        - triggerCondition
+        - requiredActions
+        - ownerFunction
+        - riskLevel
+        - flowDownRequirement
+        - applicability
+        - evidenceExamples
+        - sourceReference
+        - confidence
+        - requiresExpertReview
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        title:
+          type: string
+        plainEnglishSummary:
+          type: string
+        triggerCondition:
+          type: string
+        requiredActions:
+          type: array
+          items:
+            type: string
+        ownerFunction:
+          type: string
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+        flowDownRequirement:
+          type: string
+        applicability:
+          $ref: "#/components/schemas/Applicability"
+        evidenceExamples:
+          type: array
+          items:
+            type: string
+        reportingDeadline:
+          type:
+            - string
+            - "null"
+        sourceReference:
+          $ref: "#/components/schemas/SourceReference"
+        confidence:
+          $ref: "#/components/schemas/Confidence"
+        requiresExpertReview:
+          type: boolean
+
+    Applicability:
+      type: object
+      properties:
+        appliesTo:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContractorRole"
+        contractTypes:
+          type: array
+          items:
+            type: string
+        dataTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DataType"
+        agencies:
+          type: array
+          items:
+            type: string
+        naicsCodes:
+          type: array
+          items:
+            type: string
+        placeOfPerformance:
+          type: array
+          items:
+            type: string
+
+    ComplianceTask:
+      allOf:
+        - $ref: "#/components/schemas/ComplianceTaskCreateRequest"
+        - type: object
+          required:
+            - id
+            - status
+            - createdAt
+            - updatedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              $ref: "#/components/schemas/TaskStatus"
+            completedAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    ComplianceTaskCreateRequest:
+      type: object
+      required:
+        - title
+        - category
+      properties:
+        title:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        category:
+          $ref: "#/components/schemas/TaskCategory"
+        dueDate:
+          type:
+            - string
+            - "null"
+          format: date
+        ownerUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        obligationId:
+          type:
+            - string
+            - "null"
+        contractId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        controlId:
+          type:
+            - string
+            - "null"
+        evidenceItemId:
+          type:
+            - string
+            - "null"
+          format: uuid
+
+    ComplianceTaskPatchRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        dueDate:
+          type:
+            - string
+            - "null"
+          format: date
+        ownerUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+
+    CalendarEvent:
+      type: object
+      required:
+        - id
+        - title
+        - date
+        - category
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        date:
+          type: string
+          format: date
+        category:
+          $ref: "#/components/schemas/TaskCategory"
+        relatedEntityType:
+          type:
+            - string
+            - "null"
+        relatedEntityId:
+          type:
+            - string
+            - "null"
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+
+    EvidenceItem:
+      allOf:
+        - $ref: "#/components/schemas/EvidenceItemCreateRequest"
+        - type: object
+          required:
+            - id
+            - status
+            - versionCount
+            - createdAt
+            - updatedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              $ref: "#/components/schemas/EvidenceStatus"
+            versionCount:
+              type: integer
+              minimum: 0
+            latestVersion:
+              $ref: "#/components/schemas/EvidenceVersion"
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    EvidenceItemCreateRequest:
+      type: object
+      required:
+        - title
+        - evidenceType
+      properties:
+        title:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        evidenceType:
+          $ref: "#/components/schemas/EvidenceType"
+        tags:
+          type: array
+          items:
+            type: string
+        obligationIds:
+          type: array
+          items:
+            type: string
+        contractIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        controlIds:
+          type: array
+          items:
+            type: string
+        vendorIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        employeeIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        expirationDate:
+          type:
+            - string
+            - "null"
+          format: date
+        ownerUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+
+    EvidenceItemPatchRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/EvidenceStatus"
+        tags:
+          type: array
+          items:
+            type: string
+        obligationIds:
+          type: array
+          items:
+            type: string
+        contractIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        controlIds:
+          type: array
+          items:
+            type: string
+        expirationDate:
+          type:
+            - string
+            - "null"
+          format: date
+        ownerUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+
+    EvidenceUploadIntentRequest:
+      type: object
+      required:
+        - fileName
+        - contentType
+        - sizeBytes
+        - noCuiAttestation
+      properties:
+        fileName:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          minimum: 1
+        noCuiAttestation:
+          $ref: "#/components/schemas/NoCuiAttestation"
+
+    EvidenceVersion:
+      type: object
+      required:
+        - id
+        - versionNumber
+        - fileName
+        - contentType
+        - sizeBytes
+        - malwareScanStatus
+        - uploadedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+          minimum: 1
+        fileName:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          minimum: 0
+        sha256:
+          type:
+            - string
+            - "null"
+        malwareScanStatus:
+          $ref: "#/components/schemas/MalwareScanStatus"
+        uploadedByUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        uploadedAt:
+          type: string
+          format: date-time
+
+    EvidenceReviewRequest:
+      type: object
+      required:
+        - decision
+      properties:
+        decision:
+          $ref: "#/components/schemas/EvidenceReviewDecision"
+        comment:
+          type:
+            - string
+            - "null"
+
+    EvidenceReview:
+      allOf:
+        - $ref: "#/components/schemas/EvidenceReviewRequest"
+        - type: object
+          required:
+            - id
+            - evidenceItemId
+            - reviewerUserId
+            - reviewedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            evidenceItemId:
+              type: string
+              format: uuid
+            reviewerUserId:
+              type: string
+              format: uuid
+            reviewedAt:
+              type: string
+              format: date-time
+
+    UploadIntent:
+      type: object
+      required:
+        - id
+        - uploadUrl
+        - method
+        - headers
+        - expiresAt
+        - maxSizeBytes
+        - noCuiAttestation
+      properties:
+        id:
+          type: string
+          format: uuid
+        uploadUrl:
+          type: string
+          format: uri
+        method:
+          type: string
+          enum:
+            - PUT
+            - POST
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+        maxSizeBytes:
+          type: integer
+        noCuiAttestation:
+          $ref: "#/components/schemas/NoCuiAttestation"
+
+    NoCuiAttestation:
+      type: object
+      required:
+        - attested
+        - attestedByUserId
+        - attestedAt
+      properties:
+        attested:
+          type: boolean
+          const: true
+        attestedByUserId:
+          type: string
+          format: uuid
+        attestedAt:
+          type: string
+          format: date-time
+        statement:
+          type: string
+          default: The uploaded file does not contain CUI, classified information, export-controlled technical data, or other prohibited MVP content.
+
+    CmmcAssessment:
+      allOf:
+        - $ref: "#/components/schemas/CmmcAssessmentCreateRequest"
+        - type: object
+          required:
+            - id
+            - status
+            - controlSummary
+            - createdAt
+            - updatedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum:
+                - draft
+                - in-progress
+                - ready-for-review
+                - completed
+                - archived
+            controlSummary:
+              $ref: "#/components/schemas/ControlSummary"
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    CmmcAssessmentCreateRequest:
+      type: object
+      required:
+        - name
+        - level
+        - framework
+      properties:
+        name:
+          type: string
+        level:
+          $ref: "#/components/schemas/CmmcLevel"
+        framework:
+          type: string
+          enum:
+            - FAR-52.204-21
+            - NIST-SP-800-171-Rev2
+            - NIST-SP-800-171-Rev3
+        contractId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        systemBoundaryId:
+          type:
+            - string
+            - "null"
+          format: uuid
+
+    ControlSummary:
+      type: object
+      required:
+        - total
+        - implemented
+        - partiallyImplemented
+        - notImplemented
+        - notApplicable
+      properties:
+        total:
+          type: integer
+        implemented:
+          type: integer
+        partiallyImplemented:
+          type: integer
+        notImplemented:
+          type: integer
+        notApplicable:
+          type: integer
+
+    CmmcControlStatus:
+      type: object
+      required:
+        - controlId
+        - title
+        - status
+        - evidenceItemIds
+      properties:
+        controlId:
+          type: string
+        title:
+          type: string
+        family:
+          type: string
+        status:
+          $ref: "#/components/schemas/ControlImplementationStatus"
+        assessmentObjectiveStatuses:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentObjectiveStatus"
+        evidenceItemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        ownerUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        notes:
+          type:
+            - string
+            - "null"
+
+    CmmcControlStatusPatchRequest:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ControlImplementationStatus"
+        assessmentObjectiveStatuses:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentObjectiveStatus"
+        evidenceItemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        ownerUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        notes:
+          type:
+            - string
+            - "null"
+
+    AssessmentObjectiveStatus:
+      type: object
+      required:
+        - objectiveId
+        - status
+      properties:
+        objectiveId:
+          type: string
+        status:
+          $ref: "#/components/schemas/ControlImplementationStatus"
+
+    PoamItem:
+      allOf:
+        - $ref: "#/components/schemas/PoamItemCreateRequest"
+        - type: object
+          required:
+            - id
+            - status
+            - createdAt
+            - updatedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum:
+                - open
+                - in-progress
+                - risk-accepted
+                - completed
+                - cancelled
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    PoamItemCreateRequest:
+      type: object
+      required:
+        - controlId
+        - weakness
+        - plannedRemediation
+      properties:
+        controlId:
+          type: string
+        weakness:
+          type: string
+        plannedRemediation:
+          type: string
+        dueDate:
+          type:
+            - string
+            - "null"
+          format: date
+        ownerUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+
+    SprsScore:
+      type: object
+      required:
+        - assessmentId
+        - score
+        - maxScore
+        - calculatedAt
+      properties:
+        assessmentId:
+          type: string
+          format: uuid
+        score:
+          type: integer
+        maxScore:
+          type: integer
+          default: 110
+        calculatedAt:
+          type: string
+          format: date-time
+        calculationNotes:
+          type: array
+          items:
+            type: string
+
+    Subcontractor:
+      allOf:
+        - $ref: "#/components/schemas/SubcontractorCreateRequest"
+        - type: object
+          required:
+            - id
+            - status
+            - createdAt
+            - updatedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              $ref: "#/components/schemas/SubcontractorStatus"
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    SubcontractorCreateRequest:
+      type: object
+      required:
+        - legalEntityName
+      properties:
+        legalEntityName:
+          type: string
+        uei:
+          type:
+            - string
+            - "null"
+        cageCode:
+          type:
+            - string
+            - "null"
+        smallBusinessStatus:
+          $ref: "#/components/schemas/TriState"
+        handlesFci:
+          $ref: "#/components/schemas/TriState"
+        handlesCui:
+          $ref: "#/components/schemas/TriState"
+        cmmcLevel:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 3
+        insuranceExpiresAt:
+          type:
+            - string
+            - "null"
+          format: date
+        ndaExpiresAt:
+          type:
+            - string
+            - "null"
+          format: date
+        worksharePercentage:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          maximum: 100
+
+    FlowDownClause:
+      allOf:
+        - $ref: "#/components/schemas/FlowDownClauseCreateRequest"
+        - type: object
+          required:
+            - id
+            - status
+            - createdAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum:
+                - pending
+                - sent
+                - signed
+                - exception-requested
+                - waived
+            createdAt:
+              type: string
+              format: date-time
+
+    FlowDownClauseCreateRequest:
+      type: object
+      required:
+        - source
+        - title
+        - contractId
+      properties:
+        source:
+          type: string
+        title:
+          type: string
+        contractId:
+          type: string
+          format: uuid
+        obligationId:
+          type:
+            - string
+            - "null"
+        dueDate:
+          type:
+            - string
+            - "null"
+          format: date
+
+    SubcontractorEvidenceRequestCreateRequest:
+      type: object
+      required:
+        - title
+        - requestedEvidenceTypes
+        - dueDate
+      properties:
+        title:
+          type: string
+        requestedEvidenceTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvidenceType"
+        dueDate:
+          type: string
+          format: date
+        relatedFlowDownClauseId:
+          type:
+            - string
+            - "null"
+          format: uuid
+
+    SubcontractorEvidenceRequest:
+      allOf:
+        - $ref: "#/components/schemas/SubcontractorEvidenceRequestCreateRequest"
+        - type: object
+          required:
+            - id
+            - status
+            - createdAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum:
+                - draft
+                - sent
+                - submitted
+                - approved
+                - overdue
+                - cancelled
+            createdAt:
+              type: string
+              format: date-time
+
+    Report:
+      type: object
+      required:
+        - id
+        - type
+        - status
+        - requestedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ReportType"
+        status:
+          type: string
+          enum:
+            - queued
+            - generating
+            - ready
+            - failed
+            - expired
+        title:
+          type: string
+        requestedAt:
+          type: string
+          format: date-time
+        readyAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        expiresAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+
+    ReportCreateRequest:
+      type: object
+      required:
+        - type
+        - format
+      properties:
+        type:
+          $ref: "#/components/schemas/ReportType"
+        format:
+          type: string
+          enum:
+            - pdf
+            - xlsx
+            - csv
+            - json
+        contractId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        assessmentId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        subcontractorId:
+          type:
+            - string
+            - "null"
+          format: uuid
+
+    AuditLogEntry:
+      type: object
+      required:
+        - id
+        - actorUserId
+        - action
+        - entityType
+        - entityId
+        - occurredAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        actorUserId:
+          type: string
+          format: uuid
+        action:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        ipAddress:
+          type:
+            - string
+            - "null"
+        userAgent:
+          type:
+            - string
+            - "null"
+        metadata:
+          type: object
+          additionalProperties: true
+
+    SourceReference:
+      type: object
+      required:
+        - source
+        - sourceUrl
+        - sourceType
+        - lastReviewedAt
+      properties:
+        source:
+          type: string
+          examples:
+            - FAR 52.204-21
+        sourceUrl:
+          type: string
+          format: uri
+        sourceType:
+          $ref: "#/components/schemas/SourceType"
+        effectiveDate:
+          type:
+            - string
+            - "null"
+          format: date
+        lastReviewedAt:
+          type: string
+          format: date
+        reviewedBy:
+          type:
+            - string
+            - "null"
+        changeSummary:
+          type:
+            - string
+            - "null"
+
+    JobAccepted:
+      type: object
+      required:
+        - jobId
+        - status
+        - acceptedAt
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - accepted
+            - queued
+        acceptedAt:
+          type: string
+          format: date-time
+
+    TriState:
+      type: string
+      enum:
+        - "yes"
+        - "no"
+        - unknown
+
+    RiskLevel:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+        - critical
+
+    Confidence:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+
+    ContractorRole:
+      type: string
+      enum:
+        - prime
+        - subcontractor
+        - both
+        - unknown
+
+    CertificationType:
+      type: string
+      enum:
+        - 8a
+        - wosb
+        - edwosb
+        - hubzone
+        - sdvosb
+        - vosb
+        - sdb
+        - other
+
+    ContractStatus:
+      type: string
+      enum:
+        - draft
+        - active
+        - pending-award
+        - option-period
+        - completed
+        - archived
+
+    ContractDocumentType:
+      type: string
+      enum:
+        - solicitation
+        - contract
+        - subcontract
+        - purchase-order
+        - statement-of-work
+        - flow-down-attachment
+        - wage-determination
+        - dd-254
+        - cui-marking-guide
+        - other
+
+    DocumentStatus:
+      type: string
+      enum:
+        - upload-pending
+        - uploaded
+        - malware-scan-pending
+        - malware-scan-failed
+        - extraction-pending
+        - extracted
+        - archived
+
+    DataType:
+      type: string
+      enum:
+        - none
+        - fci
+        - cui
+        - cdi
+        - classified
+        - export-controlled
+        - labor-records
+        - payroll-records
+        - contractor-it
+        - supplier-technology
+        - unknown
+
+    ObligationStatus:
+      type: string
+      enum:
+        - not-started
+        - in-progress
+        - blocked
+        - complete
+        - not-applicable
+        - expert-review-needed
+
+    EvidenceCoverageStatus:
+      type: string
+      enum:
+        - none
+        - partial
+        - sufficient
+        - expired
+        - review-needed
+
+    TaskStatus:
+      type: string
+      enum:
+        - open
+        - in-progress
+        - blocked
+        - completed
+        - cancelled
+
+    TaskCategory:
+      type: string
+      enum:
+        - sam-renewal
+        - sba-certification
+        - cmmc-affirmation
+        - sprs-review
+        - insurance
+        - training
+        - policy-review
+        - subcontractor-certification
+        - esrs-reporting
+        - wage-determination
+        - contract-deliverable
+        - option-period
+        - evidence-request
+        - other
+
+    EvidenceStatus:
+      type: string
+      enum:
+        - draft
+        - requested
+        - submitted
+        - under-review
+        - approved
+        - rejected
+        - expired
+        - archived
+
+    EvidenceType:
+      type: string
+      enum:
+        - policy
+        - training-record
+        - screenshot
+        - system-configuration
+        - vendor-attestation
+        - subcontractor-certification
+        - signed-flow-down
+        - payroll-record
+        - wage-record
+        - incident-record
+        - access-review
+        - risk-assessment
+        - meeting-note
+        - corrective-action-plan
+        - other
+
+    MalwareScanStatus:
+      type: string
+      enum:
+        - pending
+        - clean
+        - infected
+        - failed
+        - skipped
+
+    EvidenceReviewDecision:
+      type: string
+      enum:
+        - approve
+        - reject
+        - request-changes
+
+    CmmcLevel:
+      type: integer
+      enum:
+        - 1
+        - 2
+        - 3
+
+    ControlImplementationStatus:
+      type: string
+      enum:
+        - implemented
+        - partially-implemented
+        - not-implemented
+        - not-applicable
+        - inherited
+
+    SubcontractorStatus:
+      type: string
+      enum:
+        - active
+        - onboarding
+        - blocked
+        - inactive
+        - archived
+
+    ReportType:
+      type: string
+      enum:
+        - compliance-status
+        - contract-obligation-matrix
+        - cmmc-readiness
+        - prime-evidence-package
+        - sam-sba-profile
+        - subcontractor-compliance
+        - audit-trail
+        - executive-risk-dashboard
+
+    SourceType:
+      type: string
+      enum:
+        - far
+        - dfars
+        - cfr
+        - nist
+        - sba
+        - sam
+        - dol
+        - agency-guidance
+        - internal-policy
+        - other

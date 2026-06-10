@@ -13,6 +13,100 @@ The first release is a No-CUI compliance management SaaS. Users should be preven
 - `src/Gccs.Infrastructure`: database, object storage, queue, search, AI, and external API adapters.
 - `packages/compliance-content`: source-backed obligation seed data reviewed by compliance experts before production use.
 
+## Project Architecture Design Diagram
+
+```mermaid
+flowchart TB
+    owners["Small business owners<br/>Contract admins<br/>IT/MSP users<br/>Advisors and auditors"]
+    browser["Browser"]
+
+    subgraph client["Authenticated SaaS Workspace"]
+        web["React + Vite Web App<br/>apps/web"]
+        uiModules["Company profile<br/>Contract intake<br/>Obligation dashboard<br/>Calendar<br/>Evidence vault<br/>CMMC readiness<br/>Subcontractors<br/>Reports"]
+    end
+
+    subgraph apiBoundary["Backend API Boundary"]
+        api["ASP.NET Core API<br/>apps/api"]
+        auth["Auth, MFA-ready access,<br/>RBAC, tenant context"]
+        uploadGuard["No-CUI upload guard<br/>file limits and warnings"]
+        audit["Immutable audit logging"]
+    end
+
+    subgraph appLayer["Application Layer"]
+        useCases["Use cases and DTOs<br/>src/Gccs.Application"]
+        ports["Repository, storage,<br/>queue, search, AI,<br/>and external API ports"]
+    end
+
+    subgraph domainLayer["Domain Layer"]
+        domain["Framework-independent model<br/>src/Gccs.Domain"]
+        complianceModel["Tenant<br/>Company profile<br/>Contract and clause<br/>Obligation and task<br/>Evidence<br/>Control and assessment<br/>Subcontractor<br/>Report"]
+    end
+
+    subgraph infraLayer["Infrastructure Layer"]
+        adapters["Adapters<br/>src/Gccs.Infrastructure"]
+        postgres[("PostgreSQL<br/>tenant data")]
+        objectStorage[("Object storage / MinIO<br/>evidence files")]
+        redis[("Redis<br/>cache and job coordination")]
+        queue[["Queue<br/>background work"]]
+        search[("Search index<br/>content and metadata")]
+        contentRepo[("Compliance content package<br/>packages/compliance-content")]
+    end
+
+    subgraph workers["Background Workers"]
+        scan["Malware scan"]
+        extraction["Document parsing and<br/>future clause extraction"]
+        notifications["Notifications and reminders"]
+        reports["Report generation"]
+    end
+
+    subgraph external["External Systems"]
+        sam["SAM.gov / GSA APIs"]
+        sba["SBA and size standards sources"]
+        far["FAR / DFARS / eCFR sources"]
+        cmmc["DoD CMMC and NIST sources"]
+        email["Email provider"]
+        futureAi["Future cited AI/RAG service"]
+    end
+
+    owners --> browser --> web
+    web --> uiModules
+    web -->|"HTTPS JSON API"| api
+
+    api --> auth
+    api --> uploadGuard
+    api --> audit
+    api --> useCases
+    useCases --> ports
+    useCases --> domain
+    domain --> complianceModel
+
+    ports --> adapters
+    adapters --> postgres
+    adapters --> objectStorage
+    adapters --> redis
+    adapters --> queue
+    adapters --> search
+    adapters --> contentRepo
+
+    queue --> workers
+    workers --> scan
+    workers --> extraction
+    workers --> notifications
+    workers --> reports
+
+    adapters -. lookup and sync .-> sam
+    contentRepo -. reviewed source links .-> sba
+    contentRepo -. reviewed source links .-> far
+    contentRepo -. reviewed source links .-> cmmc
+    notifications -. send .-> email
+    extraction -. future source-backed draft assistance .-> futureAi
+
+    uploadGuard -. blocks intentional customer CUI until CUI-ready enclave exists .-> objectStorage
+    audit -. records sensitive actions .-> postgres
+```
+
+The MVP deployment keeps the product in a No-CUI posture. Evidence upload, document intake, AI-assisted extraction, and external integrations must preserve tenant isolation, source traceability, and auditability before the platform is expanded into a CUI-ready enclave.
+
 ## Frontend Strategy
 
 Use React + Vite for the authenticated application because the MVP is dashboard-heavy, workflow-oriented, and backed by the ASP.NET Core API. This keeps the app frontend lightweight, fast in local development, and cleanly separated from backend responsibilities.
