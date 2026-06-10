@@ -36,7 +36,7 @@ tags:
   - name: Evidence
     description: No-CUI evidence vault metadata, upload intents, versions, and reviews.
   - name: CMMC
-    description: CMMC and NIST readiness assessments, controls, POA&M, and SPRS scoring.
+    description: CMMC and NIST readiness assessments, controls, and POA&M metadata. SPRS scoring is deferred from the MVP.
   - name: Subcontractors
     description: Subcontractor profiles, flow-down clauses, and evidence requests.
   - name: Reports
@@ -977,8 +977,10 @@ paths:
     get:
       tags:
         - CMMC
-      summary: Calculate current SPRS-style score
+      summary: Calculate current SPRS-style score (deferred Phase 3)
       operationId: getSprsScore
+      x-gccs-phase: Phase 3
+      x-gccs-mvp-status: deferred
       responses:
         "200":
           description: SPRS-style score.

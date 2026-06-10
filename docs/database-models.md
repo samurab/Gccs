@@ -7,6 +7,7 @@ These artifacts turn the MVP domain model into a migration-ready PostgreSQL sche
 - EF Core DbContext: `src/Gccs.Infrastructure/Persistence/GccsDbContext.cs`
 - Persistence entities: `src/Gccs.Infrastructure/Persistence/Models/`
 - Initial migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260610031239_InitialDevelopmentSchema.cs`
+- Clause review/versioning migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260610051044_AddClauseReviewVersioning.cs`
 - Generated SQL script: `infra/database/development-schema.sql`
 - Local EF tool manifest: `dotnet-tools.json`
 
@@ -65,6 +66,7 @@ Host=localhost;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
 - Enums are stored as strings for readable migrations and safer future enum additions.
 - Frequently queried relationships are relational joins; descriptive lists such as tags, source clause numbers, applicability dimensions, and evidence examples are JSONB during development.
 - Source-backed compliance content keeps source name, source URL, last-reviewed date, effective date, confidence, and expert-review requirements as first-class data.
+- Clause records keep text version, effective date, source hash, review state, review owner, and superseded/replaced metadata so source updates remain auditable.
 - Evidence files are represented by metadata and storage URI only. Object storage, malware scan status, and CUI upload enforcement remain separate infrastructure and application concerns.
 - Tenant-scoped operational tables include `tenant_id` indexes to support later tenant isolation enforcement in repositories and query filters.
 
@@ -75,3 +77,4 @@ Host=localhost;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
 - Add migration seed data for the source-backed MVP obligation library.
 - Add upload scan status fields before enabling evidence file workflows.
 - Add explicit retention/export/deletion tables before production onboarding.
+- Add import/export tracking tables for CSV imports and customer evidence/audit exports before paid production onboarding.

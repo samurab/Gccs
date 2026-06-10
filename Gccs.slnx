@@ -8,4 +8,7 @@
     <Project Path="src/Gccs.Domain/Gccs.Domain.csproj" />
     <Project Path="src/Gccs.Infrastructure/Gccs.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj" />
+  </Folder>
 </Solution>

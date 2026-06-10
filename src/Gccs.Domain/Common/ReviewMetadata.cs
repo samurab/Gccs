@@ -5,4 +5,16 @@ public sealed record ReviewMetadata(
     Guid? ReviewedByUserId,
     DateOnly? NextReviewDueAt,
     string Confidence,
-    bool RequiresExpertReview);
+    bool RequiresExpertReview,
+    ReviewState State);
+
+public enum ReviewState
+{
+    Draft,
+    NeedsReview,
+    Approved,
+    Rejected,
+    CustomerDisputed,
+    Published,
+    Retired
+}

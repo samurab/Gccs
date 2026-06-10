@@ -1,8 +1,25 @@
+using Gccs.Api.Security;
 using Gccs.Application.Compliance;
 using Gccs.Application.Repositories;
+using Gccs.Domain.Identity;
 using Gccs.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (!builder.Environment.IsDevelopment())
+{
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+    if (allowedOrigins is null || allowedOrigins.Length == 0 || allowedOrigins.Any(origin => origin.Contains("localhost", StringComparison.OrdinalIgnoreCase)))
+    {
+        throw new InvalidOperationException("Production CORS origins must be explicitly configured and must not use localhost.");
+    }
+
+    var allowedHosts = builder.Configuration["AllowedHosts"];
+    if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts == "*")
+    {
+        throw new InvalidOperationException("Production AllowedHosts must be explicitly configured.");
+    }
+}
 
 builder.Services.AddCors(options =>
 {
@@ -16,6 +33,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddOpenApi();
+builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
 
 var app = builder.Build();
@@ -24,8 +42,17 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+else
+{
+    app.UseHsts();
+}
 
+app.UseHttpsRedirection();
+app.UseGccsSecurityHeaders();
 app.UseCors("web");
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new
 {
@@ -34,23 +61,30 @@ app.MapGet("/health", () => Results.Ok(new
     dataPosture = "No-CUI / compliance management only",
     checkedAt = DateTimeOffset.UtcNow
 }))
+.AllowAnonymous()
 .WithName("Health");
 
-app.MapGet("/api/compliance/overview", async (ComplianceOverviewService service, CancellationToken cancellationToken) =>
+var api = app.MapGroup("/api")
+    .RequireAuthorization()
+    .RequireRateLimiting("api");
+
+api.MapGet("/compliance/overview", async (ComplianceOverviewService service, ITenantContext tenantContext, CancellationToken cancellationToken) =>
     Results.Ok(await service.GetOverviewAsync(cancellationToken)))
 .WithName("GetComplianceOverview");
 
-app.MapGet("/api/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
+api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))
+.RequirePermission(Permission.AuditorReadOnly)
 .WithName("ListObligations");
 
-app.MapGet("/api/obligations/{id}", async (string id, IObligationRepository repository, CancellationToken cancellationToken) =>
+api.MapGet("/obligations/{id}", async (string id, IObligationRepository repository, CancellationToken cancellationToken) =>
 {
     var obligation = await repository.FindByIdAsync(id, cancellationToken);
     return obligation is null
         ? Results.NotFound(new { message = $"Obligation '{id}' was not found." })
         : Results.Ok(obligation);
 })
+.RequirePermission(Permission.AuditorReadOnly)
 .WithName("GetObligationById");
 
 app.Run();

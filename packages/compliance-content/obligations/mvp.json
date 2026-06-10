@@ -23,9 +23,15 @@
     "flow_down_requirement": "Include the substance of the clause in subcontracts where the subcontractor may have Federal Contract Information.",
     "risk_level": "high",
     "source_url": "https://www.acquisition.gov/far/52.204-21",
+    "effective_at": null,
+    "clause_text_version": "current as of 2026-06-10",
+    "source_hash": null,
     "last_reviewed_at": "2026-06-03",
     "confidence": "high",
-    "requires_expert_review": false
+    "requires_expert_review": false,
+    "review_owner": "compliance-content-owner",
+    "review_state": "approved",
+    "superseded_by": null
   },
   {
     "id": "far-52-204-25",
@@ -49,9 +55,15 @@
     "flow_down_requirement": "Flow down as required by the clause and prime contract instructions.",
     "risk_level": "high",
     "source_url": "https://www.acquisition.gov/far/52.204-25",
+    "effective_at": null,
+    "clause_text_version": "current as of 2026-06-10",
+    "source_hash": null,
     "last_reviewed_at": "2026-06-03",
     "confidence": "high",
-    "requires_expert_review": false
+    "requires_expert_review": false,
+    "review_owner": "compliance-content-owner",
+    "review_state": "approved",
+    "superseded_by": null
   },
   {
     "id": "far-52-204-27",
@@ -75,9 +87,155 @@
     "flow_down_requirement": "Flow down according to contract and clause instructions.",
     "risk_level": "medium",
     "source_url": "https://www.acquisition.gov/far/52.204-27",
+    "effective_at": null,
+    "clause_text_version": "current as of 2026-06-10",
+    "source_hash": null,
     "last_reviewed_at": "2026-06-03",
     "confidence": "high",
-    "requires_expert_review": false
+    "requires_expert_review": false,
+    "review_owner": "compliance-content-owner",
+    "review_state": "approved",
+    "superseded_by": null
+  },
+  {
+    "id": "dfars-252-204-7012",
+    "source": "DFARS 252.204-7012",
+    "title": "Safeguarding Covered Defense Information and Cyber Incident Reporting",
+    "trigger_condition": "DoD solicitation, contract, task order, delivery order, or subcontract includes the clause and is not solely for COTS items.",
+    "applies_to": ["prime", "subcontractor"],
+    "contract_types": ["DoD contract", "DoD subcontract", "task order", "delivery order"],
+    "data_types": ["covered defense information", "CUI", "covered contractor information system", "operationally critical support"],
+    "required_actions": [
+      "Identify covered contractor information systems that process, store, or transmit covered defense information.",
+      "Implement applicable NIST SP 800-171 security requirements or approved alternatives.",
+      "Maintain system security plan, assessment, and incident response evidence.",
+      "Report cyber incidents through required DoD channels within the clause timeline.",
+      "Preserve and protect incident-related images, monitoring data, and media as required."
+    ],
+    "evidence_examples": [
+      "System security plan",
+      "NIST SP 800-171 control evidence",
+      "Incident response procedure",
+      "DoD cyber incident report record",
+      "Media preservation record",
+      "Subcontractor flow-down record"
+    ],
+    "reporting_deadline": "Cyber incident reporting timeline is defined by the clause and contract context.",
+    "flow_down_requirement": "Flow down to subcontractors for operationally critical support or when subcontract performance will involve covered defense information.",
+    "risk_level": "critical",
+    "source_url": "https://www.acquisition.gov/dfars/252.204-7012-safeguarding-covered-defense-information-and-cyber-incident-reporting",
+    "effective_at": null,
+    "clause_text_version": "current as of 2026-06-10",
+    "source_hash": null,
+    "last_reviewed_at": "2026-06-10",
+    "confidence": "high",
+    "requires_expert_review": true,
+    "review_owner": "compliance-content-owner",
+    "review_state": "needs_review",
+    "superseded_by": null
+  },
+  {
+    "id": "dfars-252-204-7019",
+    "source": "DFARS 252.204-7019",
+    "title": "Notice of NIST SP 800-171 DoD Assessment Requirements",
+    "trigger_condition": "DoD solicitation includes the provision and the offeror is required to implement NIST SP 800-171.",
+    "applies_to": ["prime", "subcontractor"],
+    "contract_types": ["DoD solicitation", "DoD offer", "DoD subcontract offer"],
+    "data_types": ["covered contractor information system", "CUI"],
+    "required_actions": [
+      "Verify that current NIST SP 800-171 DoD Assessment summary scores are posted in SPRS for relevant covered contractor information systems.",
+      "Submit a Basic Assessment for posting when current scores are not available, if applicable.",
+      "Retain assessment submission and score verification evidence."
+    ],
+    "evidence_examples": [
+      "SPRS score verification",
+      "Basic Assessment submission record",
+      "Assessment date and scope",
+      "Covered system inventory"
+    ],
+    "reporting_deadline": "Assessment currency is generally not more than 3 years unless the solicitation specifies a shorter period.",
+    "flow_down_requirement": "Use in subcontract offer workflows when DoD requirements are flowed down by the prime or higher-tier subcontractor.",
+    "risk_level": "high",
+    "source_url": "https://www.acquisition.gov/dfars/252.204-7019-notice-nistsp-800-171-dod-assessment-requirements",
+    "effective_at": null,
+    "clause_text_version": "current as of 2026-06-10",
+    "source_hash": null,
+    "last_reviewed_at": "2026-06-10",
+    "confidence": "high",
+    "requires_expert_review": true,
+    "review_owner": "compliance-content-owner",
+    "review_state": "needs_review",
+    "superseded_by": null
+  },
+  {
+    "id": "dfars-252-204-7020",
+    "source": "DFARS 252.204-7020",
+    "title": "NIST SP 800-171 DoD Assessment Requirements",
+    "trigger_condition": "DoD solicitation, contract, task order, delivery order, or subcontract includes the clause and the contractor is required to implement NIST SP 800-171.",
+    "applies_to": ["prime", "subcontractor"],
+    "contract_types": ["DoD contract", "DoD subcontract", "task order", "delivery order"],
+    "data_types": ["covered contractor information system", "CUI"],
+    "required_actions": [
+      "Maintain current NIST SP 800-171 DoD Assessment results for relevant covered systems.",
+      "Provide access and information needed for Medium or High Assessments when required.",
+      "Track assessment scope, score, date, and covered systems.",
+      "Flow down applicable assessment requirements to subcontractors."
+    ],
+    "evidence_examples": [
+      "Assessment score record",
+      "Assessment methodology evidence",
+      "System security plan",
+      "Covered system inventory",
+      "Subcontractor assessment request"
+    ],
+    "reporting_deadline": "Assessment posting and access requirements depend on the clause and DoD assessment context.",
+    "flow_down_requirement": "Flow down to subcontractors when subcontract performance requires implementation of NIST SP 800-171.",
+    "risk_level": "high",
+    "source_url": "https://www.acquisition.gov/dfars/252.204-7020-nist-sp-800-171dod-assessment-requirements",
+    "effective_at": null,
+    "clause_text_version": "current as of 2026-06-10",
+    "source_hash": null,
+    "last_reviewed_at": "2026-06-10",
+    "confidence": "high",
+    "requires_expert_review": true,
+    "review_owner": "compliance-content-owner",
+    "review_state": "needs_review",
+    "superseded_by": null
+  },
+  {
+    "id": "dfars-252-204-7021",
+    "source": "DFARS 252.204-7021",
+    "title": "Contractor Compliance With the Cybersecurity Maturity Model Certification Level Requirements",
+    "trigger_condition": "DoD contract or subcontract includes CMMC level requirements for contractor information systems that process, store, or transmit FCI or CUI.",
+    "applies_to": ["prime", "subcontractor"],
+    "contract_types": ["DoD contract", "DoD subcontract", "task order", "delivery order"],
+    "data_types": ["FCI", "CUI", "contractor information system"],
+    "required_actions": [
+      "Identify contractor information systems in scope for CMMC requirements.",
+      "Track required CMMC level, CMMC status, and unique identifiers where applicable.",
+      "Maintain readiness and affirmation evidence.",
+      "Flow down CMMC requirements to subcontractors according to information handled and work performed."
+    ],
+    "evidence_examples": [
+      "CMMC requirement record",
+      "Assessment status evidence",
+      "CMMC UID or SPRS reference where applicable",
+      "Annual affirmation record",
+      "Subcontractor CMMC flow-down evidence"
+    ],
+    "reporting_deadline": "CMMC status and affirmation timing depend on contract, assessment, and 32 CFR Part 170 context.",
+    "flow_down_requirement": "Flow down applicable CMMC requirements to subcontractors based on FCI/CUI access and contract requirements.",
+    "risk_level": "critical",
+    "source_url": "https://www.acquisition.gov/dfars/252.204-7021-contractor-compliance-cybersecurity-maturity-model-certification-level-requirements",
+    "effective_at": null,
+    "clause_text_version": "current as of 2026-06-10",
+    "source_hash": null,
+    "last_reviewed_at": "2026-06-10",
+    "confidence": "high",
+    "requires_expert_review": true,
+    "review_owner": "compliance-content-owner",
+    "review_state": "needs_review",
+    "superseded_by": null
   },
   {
     "id": "cmmc-32-cfr-170",
@@ -103,9 +261,15 @@
     "flow_down_requirement": "Subcontractor requirements depend on information and work flowed to the subcontractor.",
     "risk_level": "critical",
     "source_url": "https://www.ecfr.gov/current/title-32/subtitle-A/chapter-I/subchapter-G/part-170",
+    "effective_at": null,
+    "clause_text_version": "current as of 2026-06-10",
+    "source_hash": null,
     "last_reviewed_at": "2026-06-03",
     "confidence": "high",
-    "requires_expert_review": true
+    "requires_expert_review": true,
+    "review_owner": "compliance-content-owner",
+    "review_state": "approved",
+    "superseded_by": null
   },
   {
     "id": "far-52-222-41",
@@ -130,8 +294,14 @@
     "flow_down_requirement": "Flow down to covered service subcontracts as required.",
     "risk_level": "high",
     "source_url": "https://www.acquisition.gov/far/52.222-41",
+    "effective_at": null,
+    "clause_text_version": "current as of 2026-06-10",
+    "source_hash": null,
     "last_reviewed_at": "2026-06-03",
     "confidence": "medium",
-    "requires_expert_review": true
+    "requires_expert_review": true,
+    "review_owner": "compliance-content-owner",
+    "review_state": "approved",
+    "superseded_by": null
   }
 ]

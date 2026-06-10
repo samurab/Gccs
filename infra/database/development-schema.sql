@@ -922,3 +922,25 @@ VALUES ('20260610031239_InitialDevelopmentSchema', '10.0.4');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE gccs.contract_clauses ADD review_state character varying(64) NOT NULL DEFAULT 'Draft';
+
+ALTER TABLE gccs.contract_clauses ADD source_hash character varying(128);
+
+ALTER TABLE gccs.clauses ADD clause_effective_at date;
+
+ALTER TABLE gccs.clauses ADD clause_text_version character varying(120) NOT NULL DEFAULT 'current';
+
+ALTER TABLE gccs.clauses ADD review_state character varying(64) NOT NULL DEFAULT 'Draft';
+
+ALTER TABLE gccs.clauses ADD source_hash character varying(128);
+
+ALTER TABLE gccs.clauses ADD superseded_at date;
+
+ALTER TABLE gccs.clauses ADD superseded_by_clause_id character varying(120);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260610051044_AddClauseReviewVersioning', '10.0.4');
+
+COMMIT;
+

@@ -53,6 +53,7 @@ public sealed record ContractClause(
     string? Alternate,
     string? FullText,
     ClauseSource Source,
+    string? SourceHash,
     IReadOnlyList<string> ObligationIds,
     bool RequiresFlowDown,
     ReviewMetadata Review);

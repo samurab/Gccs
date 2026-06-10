@@ -25,6 +25,8 @@ The first release should provide a reliable compliance operating workspace for:
 
 The MVP is **No-CUI / compliance management only**. Users must be warned and technically prevented from intentionally uploading CUI until a CUI-ready architecture, shared responsibility matrix, customer terms, operating controls, and assessment posture are complete.
 
+Allowed No-CUI MVP data includes company profile metadata, contract metadata, clause references, non-sensitive policies, screenshots, checklists, attestations, training records, vendor documents, and evidence metadata. Prohibited data includes CUI, classified data, ITAR/export-controlled technical data, SSNs, payroll records, protected medical or disability data, secrets, private keys, and unrestricted security logs unless a separately approved deployment posture exists.
+
 ## 2. Team And Cadence
 
 ### Suggested Team
@@ -76,7 +78,8 @@ The MVP is **No-CUI / compliance management only**. Users must be warned and tec
 
 #### Compliance Calendar
 
-- Track SAM renewal, certification renewals, CMMC affirmation, SPRS score review, insurance certificates, training, policy reviews, subcontractor expiration dates, eSRS reporting dates, wage determination updates, contract deliverables, and option period notices.
+- Track SAM renewal, certification renewals, CMMC affirmation, insurance certificates, training, policy reviews, subcontractor expiration dates, contract deliverables, and option period notices.
+- Defer SPRS score calculation, eSRS integration, and wage determination update automation to later phases unless pilot customers make them launch blockers.
 - Allow tasks to be linked to obligations, contracts, controls, subcontractors, or evidence.
 - Support due dates, reminders, assignment, status, priority, and audit trail.
 
@@ -153,6 +156,8 @@ The MVP is **No-CUI / compliance management only**. Users must be warned and tec
 #### Compliance Content Governance
 
 - Every obligation record must have source name, source URL, last reviewed date, trigger conditions, required actions, evidence examples, risk level, confidence, and review state.
+- Clauses must preserve text version, effective date when known, source URL, source hash when a source snapshot exists, review owner, review state, and superseded/replaced status.
+- Human review states must cover draft, needs review, approved, rejected, customer disputed, published, and retired content.
 - High-risk content requires expert review before production publication.
 - CMMC, FAR, DFARS, SBA, and labor content should be monitored monthly.
 - Customer-facing material changes should produce release notes.
@@ -388,6 +393,7 @@ Pipeline stages:
 - WAF configured.
 - Error tracking enabled.
 - Privacy, terms, No-CUI notice, and support paths published.
+- Customer-facing claims reviewed so the product does not imply legal advice, certification, CMMC approval, assessment success, or government endorsement.
 
 ## 8. Production Support
 
@@ -447,6 +453,8 @@ Monitor:
 7. Add regression test or runbook update for recurring issues.
 
 ## 9. Agile Epics, User Stories, And Acceptance Criteria
+
+See [Development Phase Use Cases, Stories, Tasks, And Acceptance Criteria](development-phase-use-cases.md) for the sequential Phase 1 MVP backlog that expands each development process into use cases, stories, tasks, and acceptance criteria.
 
 ### Epic 1: Tenant, Identity, And RBAC Foundation
 
@@ -921,4 +929,3 @@ The MVP is releasable when:
 - Tenant isolation, RBAC, audit logging, backup, and monitoring are verified.
 - Compliance content has source URLs, last-reviewed dates, and review status.
 - No-CUI posture is visible, acknowledged, and enforced in the upload workflow.
-

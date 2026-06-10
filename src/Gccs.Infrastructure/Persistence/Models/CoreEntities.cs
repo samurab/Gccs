@@ -1,6 +1,7 @@
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
 using Gccs.Domain.Contracts;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
@@ -230,12 +231,14 @@ public sealed class ContractClauseEntity
     public string? Alternate { get; set; }
     public string? FullText { get; set; }
     public ClauseSource Source { get; set; }
+    public string? SourceHash { get; set; }
     public bool RequiresFlowDown { get; set; }
     public DateOnly LastReviewedAt { get; set; }
     public Guid? ReviewedByUserId { get; set; }
     public DateOnly? NextReviewDueAt { get; set; }
     public string Confidence { get; set; } = "unknown";
     public bool RequiresExpertReview { get; set; }
+    public ReviewState ReviewState { get; set; } = ReviewState.Draft;
 
     public ContractEntity? Contract { get; set; }
     public ICollection<ContractClauseObligationEntity> Obligations { get; set; } = [];

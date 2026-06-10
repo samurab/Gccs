@@ -16,5 +16,15 @@ Regulation / Clause
 -> Flow-down requirement
 -> Penalty/risk
 -> Source URL
+-> Clause text version
+-> Effective date
+-> Source hash
 -> Last reviewed date
+-> Review owner
+-> Review state
+-> Superseded/replaced status
 ```
+
+The MVP package must include DFARS cyber clauses as first-class sources for DoD workflows: DFARS 252.204-7012, 252.204-7019, 252.204-7020, and 252.204-7021.
+
+Review states are `draft`, `needs_review`, `approved`, `rejected`, `customer_disputed`, `published`, and `retired`. Customer-facing publication must be blocked for draft, rejected, and retired content.

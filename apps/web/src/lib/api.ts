@@ -76,9 +76,15 @@ export const fallbackOverview: ComplianceOverview = {
 
 export async function getComplianceOverview(): Promise<ComplianceOverview> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  const headers =
+    import.meta.env.DEV
+      ? {
+          "X-Gccs-Dev-Auth": "true"
+        }
+      : undefined;
 
   try {
-    const response = await fetch(`${apiBaseUrl}/api/compliance/overview`);
+    const response = await fetch(`${apiBaseUrl}/api/compliance/overview`, { headers });
 
     if (!response.ok) {
       return fallbackOverview;

@@ -6,7 +6,7 @@ GCCS is a starter application for a govcon-specific compliance operating system 
 
 ```text
 apps/
-  api/                 ASP.NET Core 10 Web API
+  api/                 ASP.NET Core Web API on the repo-selected .NET runtime
   web/                 React + Vite frontend shell
 src/
   Gccs.Domain/         Core compliance entities and value objects
@@ -21,6 +21,9 @@ infra/                 Local and future cloud infrastructure
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Master project index](PROJECT_INDEX.md)
+- [Product strategy](docs/product-strategy.md)
+- [MVP execution plan](docs/mvp-execution-plan.md)
 - [Design flow diagrams](docs/design-flow-diagrams.md)
 - [Workflow diagram](docs/workflow-diagram.md)
 - [MVP roadmap](docs/mvp-roadmap.md)
@@ -42,6 +45,10 @@ Useful endpoints:
 - `GET /api/compliance/overview`
 - `GET /api/obligations`
 - `GET /api/obligations/{id}`
+
+All `/api` endpoints require authentication. In local development only, send
+`X-Gccs-Dev-Auth: true` to use the development auth handler. Production requires
+`Authentication:Authority` and `Authentication:Audience` for JWT bearer tokens.
 
 ### Frontend
 

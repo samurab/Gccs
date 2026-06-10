@@ -3,6 +3,7 @@ using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Companies;
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
 using Gccs.Domain.Contracts;
 using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
@@ -80,6 +81,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<RecurrencePattern>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ReportStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ReportType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ReviewState>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<RiskLevel>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
@@ -218,6 +220,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.Source, x.Number }).IsUnique();
             entity.Property(x => x.RequiredActionIdsJson).HasColumnType("jsonb");
+            entity.Property(x => x.ClauseTextVersion).HasMaxLength(120).HasDefaultValue("current").IsRequired();
+            entity.Property(x => x.SourceHash).HasMaxLength(128);
+            entity.Property(x => x.SupersededByClauseId).HasMaxLength(120);
+            entity.Property(x => x.ReviewState).HasDefaultValue(ReviewState.Draft);
         });
 
         modelBuilder.Entity<ObligationEntity>(entity =>
@@ -271,6 +277,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("contract_clauses");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.ContractId, x.ClauseNumber });
+            entity.Property(x => x.SourceHash).HasMaxLength(128);
+            entity.Property(x => x.ReviewState).HasDefaultValue(ReviewState.Draft);
             entity.HasOne(x => x.Contract).WithMany(x => x.Clauses).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
         });
 

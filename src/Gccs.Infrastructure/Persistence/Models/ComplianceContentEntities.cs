@@ -1,4 +1,5 @@
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
 
 namespace Gccs.Infrastructure.Persistence.Models;
 
@@ -10,6 +11,11 @@ public sealed class ClauseEntity
     public string Title { get; set; } = string.Empty;
     public string PlainEnglishSummary { get; set; } = string.Empty;
     public string ApplicabilityLogic { get; set; } = string.Empty;
+    public string ClauseTextVersion { get; set; } = "current";
+    public DateOnly? ClauseEffectiveAt { get; set; }
+    public string? SourceHash { get; set; }
+    public string? SupersededByClauseId { get; set; }
+    public DateOnly? SupersededAt { get; set; }
     public string RequiredActionIdsJson { get; set; } = "[]";
     public bool UsuallyRequiresFlowDown { get; set; }
     public string SourceName { get; set; } = string.Empty;
@@ -23,6 +29,7 @@ public sealed class ClauseEntity
     public DateOnly? NextReviewDueAt { get; set; }
     public string Confidence { get; set; } = "unknown";
     public bool RequiresExpertReview { get; set; }
+    public ReviewState ReviewState { get; set; } = ReviewState.Draft;
 }
 
 public sealed class ObligationEntity
