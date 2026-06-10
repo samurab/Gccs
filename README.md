@@ -24,6 +24,7 @@ infra/                 Local and future cloud infrastructure
 - [Design flow diagrams](docs/design-flow-diagrams.md)
 - [Workflow diagram](docs/workflow-diagram.md)
 - [MVP roadmap](docs/mvp-roadmap.md)
+- [Development database models](docs/database-models.md)
 - [Compliance content governance](docs/compliance-content-governance.md)
 
 ## Local Development

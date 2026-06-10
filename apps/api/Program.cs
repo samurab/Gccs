@@ -16,7 +16,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddOpenApi();
-builder.Services.AddGccsInfrastructure();
+builder.Services.AddGccsInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
