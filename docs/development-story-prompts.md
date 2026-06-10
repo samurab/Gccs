@@ -57,7 +57,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run. 
   
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 > Context:
 >
 > - Epic: Delivery Foundation
@@ -129,7 +129,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run. 
   
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 > Context:
 >
 > - Epic: Delivery Foundation
@@ -201,7 +201,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 > Context:
 >
 > - Epic: Delivery Foundation
@@ -275,7 +275,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -348,7 +348,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -421,7 +421,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -495,7 +495,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -571,7 +571,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -644,7 +644,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -719,7 +719,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -792,7 +792,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -868,7 +868,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 > Context:
 >
 > - Epic: Audit Logging
@@ -940,7 +940,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 > Context:
 >
 > - Epic: Audit Logging
@@ -1014,7 +1014,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1087,7 +1087,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1160,7 +1160,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1235,7 +1235,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1308,7 +1308,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1381,7 +1381,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1456,7 +1456,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1529,7 +1529,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1602,7 +1602,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1716,7 +1716,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1789,7 +1789,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1864,7 +1864,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -1937,7 +1937,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2010,7 +2010,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 > Context:
 >
 > - Epic: Obligation Dashboard
@@ -2084,7 +2084,7 @@ Important product rules:
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2157,7 +2157,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 > Context:
 >
 > - Epic: Task And Compliance Calendar
@@ -2229,7 +2229,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2304,7 +2304,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2377,7 +2377,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2450,7 +2450,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2525,7 +2525,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2598,7 +2598,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2671,7 +2671,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2744,7 +2744,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2819,7 +2819,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -2892,7 +2892,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3006,7 +3006,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3079,7 +3079,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3152,7 +3152,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3225,7 +3225,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3298,7 +3298,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3373,7 +3373,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3446,7 +3446,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3519,7 +3519,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3594,7 +3594,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3667,7 +3667,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3740,7 +3740,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
 
 > Context:
 >
@@ -3813,7 +3813,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
  
 > Context:
 >
