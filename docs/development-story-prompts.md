@@ -12,6 +12,7 @@ Use these requirements for every story:
 - Read the referenced story, tasks, and acceptance criteria before editing.
 - Keep changes scoped to the story unless a small supporting change is required.
 - Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
+- For each implemented user story, add or update backend xUnit tests for .NET behavior and frontend Vitest tests with React Testing Library for user-visible React behavior when that layer is affected.
 - Update docs, API contracts, seed content, or UI states when the behavior changes.
 - Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 

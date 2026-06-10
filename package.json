@@ -8,6 +8,8 @@
     "dev:web": "npm --workspace apps/web run dev",
     "build:web": "npm --workspace apps/web run build",
     "lint:web": "npm --workspace apps/web run lint",
+    "test:web": "npm --workspace apps/web run test:run",
+    "test": "npm run test:api && npm run test:web",
     "restore:api": "dotnet restore Gccs.slnx",
     "build:api": "dotnet build Gccs.slnx",
     "test:api": "dotnet test Gccs.slnx"

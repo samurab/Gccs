@@ -62,6 +62,14 @@ The frontend expects the API at `http://localhost:5062` by default. Override wit
 
 The authenticated SaaS app uses React + Vite. If SEO-heavy public content becomes a requirement later, add a separate marketing/content site, for example `www` on Next.js, while keeping this app at an application subdomain such as `app`.
 
+### Tests
+
+```bash
+npm test
+```
+
+The root test command runs the ASP.NET Core xUnit suite and the React Vitest suite. Backend user story work should add or update focused xUnit coverage, and frontend user story work should add or update Vitest tests with React Testing Library for user-visible behavior.
+
 ### Local Services
 
 ```bash
