@@ -16,6 +16,8 @@ const moduleIcons = [Building2, FileSearch, ClipboardCheck, CalendarClock, Archi
 
 export function App() {
   const [overview, setOverview] = useState(fallbackOverview);
+  const hasModules = overview.modules.length > 0;
+  const hasPriorityObligations = overview.priorityObligations.length > 0;
 
   useEffect(() => {
     let isMounted = true;
@@ -75,10 +77,17 @@ export function App() {
             <h2>Application structure</h2>
           </div>
           <div className="module-grid">
-            {overview.modules.map((module, index) => {
-              const Icon = moduleIcons[index % moduleIcons.length];
-              return <ModuleCard key={module.key} module={module} icon={Icon} />;
-            })}
+            {hasModules ? (
+              overview.modules.map((module, index) => {
+                const Icon = moduleIcons[index % moduleIcons.length];
+                return <ModuleCard key={module.key} module={module} icon={Icon} />;
+              })
+            ) : (
+              <div className="empty-state">
+                <h3>API overview unavailable</h3>
+                <p>Backend source data must load before module status is shown.</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -88,25 +97,32 @@ export function App() {
             <h2>Priority obligations</h2>
           </div>
           <div className="obligation-list">
-            {overview.priorityObligations.map((obligation) => (
-              <article key={obligation.id} className="obligation-item">
-                <div>
-                  <span className={`risk risk--${obligation.riskLevel.toLowerCase()}`}>{obligation.riskLevel}</span>
-                  <h3>{obligation.source}</h3>
-                </div>
-                <p>{obligation.title}</p>
-                <dl>
+            {hasPriorityObligations ? (
+              overview.priorityObligations.map((obligation) => (
+                <article key={obligation.id} className="obligation-item">
                   <div>
-                    <dt>Owner</dt>
-                    <dd>{obligation.ownerFunction}</dd>
+                    <span className={`risk risk--${obligation.riskLevel.toLowerCase()}`}>{obligation.riskLevel}</span>
+                    <h3>{obligation.source}</h3>
                   </div>
-                  <div>
-                    <dt>Reviewed</dt>
-                    <dd>{obligation.lastReviewedAt}</dd>
-                  </div>
-                </dl>
-              </article>
-            ))}
+                  <p>{obligation.title}</p>
+                  <dl>
+                    <div>
+                      <dt>Owner</dt>
+                      <dd>{obligation.ownerFunction}</dd>
+                    </div>
+                    <div>
+                      <dt>Reviewed</dt>
+                      <dd>{obligation.lastReviewedAt}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))
+            ) : (
+              <div className="empty-state">
+                <h3>Source data unavailable</h3>
+                <p>Priority obligations are provided by the API, not by UI-only fallback content.</p>
+              </div>
+            )}
           </div>
         </aside>
       </section>

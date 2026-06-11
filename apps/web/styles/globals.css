@@ -179,7 +179,8 @@ dt {
 }
 
 .module-card,
-.obligation-item {
+.obligation-item,
+.empty-state {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -226,11 +227,21 @@ dt {
 }
 
 .module-card p,
-.obligation-item p {
+.obligation-item p,
+.empty-state p {
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.5;
   margin-bottom: 0;
+}
+
+.empty-state {
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.empty-state h3 {
+  margin-bottom: 8px;
 }
 
 .obligation-rail {

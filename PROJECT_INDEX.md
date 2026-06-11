@@ -37,6 +37,7 @@ docs/
   database-models.md           EF Core schema, migration commands, model groups.
   mvp-roadmap.md               Phase 0-2 roadmap snapshot.
   software-delivery-plan.md    Delivery plan, requirements, roles, cadence.
+  glossary-and-acronyms.md     Plain-English govcon, compliance, security, and app terminology.
   compliance-content-governance.md
                                Source-backed content governance and review rules.
   design-flow-diagrams.md      Product and design workflow diagrams.
@@ -48,6 +49,21 @@ infra/
 packages/
   compliance-content/          Obligation library package and MVP seed data.
 ```
+
+## Ownership Boundaries
+
+| Boundary | Primary responsibility | Current implementation state |
+| --- | --- | --- |
+| `apps/web` | Authenticated React workspace, UI composition, client API calls, empty/loading/error states, and presentation concerns. | Renders the overview dashboard from the API with a No-CUI posture banner and posture-only fallback states when source data is unavailable. |
+| `apps/api` | HTTP boundary, local/prod auth configuration, tenant context, RBAC policies, rate limiting, security headers, and endpoint routing. | Exposes health, compliance overview, and source-backed obligation endpoints with auth and permission policies. |
+| `src/Gccs.Domain` | Framework-independent compliance model: tenants, users, roles, contracts, obligations, evidence, controls, reports, audit logs, and review metadata. | Domain records and enums exist for MVP modules and persistence mapping. |
+| `src/Gccs.Application` | Use cases, DTOs, repository/storage ports, and compliance workflow orchestration. | Builds the compliance overview and defines the obligation repository port. |
+| `src/Gccs.Infrastructure` | EF Core schema, migrations, repository adapters, local content adapters, and future infrastructure integrations. | Contains `GccsDbContext`, migrations, persistence models, dependency injection, and an in-memory obligation adapter. |
+| `packages/compliance-content` | Governed source-backed obligation package with source URLs, review metadata, confidence, expert-review flags, and publication state. | MVP JSON seed data exists; runtime repository loading from the package is still future work. |
+| `docs` | Product strategy, architecture, API contract, database model, governance, and delivery instructions. | Story 1.1 developer orientation and setup guidance are documented in `README.md` and this index. |
+| `infra` | Local service composition, generated schema, and future cloud infrastructure as code. | Docker Compose provides PostgreSQL, Redis, MinIO, and ClamAV placeholders; Terraform dev placeholder exists. |
+
+Compliance workflow logic should never exist only in `apps/web`. Tenant scoping, RBAC, No-CUI policy enforcement, audit logging decisions, source traceability, review metadata, and obligation applicability belong in the backend/application/domain boundary and must be covered by tests as the corresponding workflows are implemented.
 
 ## Product Modules
 
@@ -149,6 +165,21 @@ npm install
 npm run build:web
 ```
 
+Run focused verification:
+
+```bash
+npm run test:api
+npm run lint:web
+npm run test:web
+npm run build:web
+```
+
+Run all currently wired tests:
+
+```bash
+npm test
+```
+
 Run local services:
 
 ```bash
@@ -203,6 +234,10 @@ ruby -ryaml -e 'doc = YAML.load_file("docs/api/openapi.yaml"); puts doc["openapi
 6. `docs/api/README.md` and `docs/api/openapi.yaml` for API contract work.
 7. `docs/compliance-content-governance.md` before changing obligation content.
 8. `docs/mvp-roadmap.md` for phased delivery priorities.
+
+## Story 1.1 Status
+
+Story 1.1, "Repository And Project Structure," is satisfied when this index and `README.md` stay accurate, the solution builds with the documented commands, and compliance workflow logic remains outside UI-only code. The current codebase has the required directories/projects, documented ownership boundaries, No-CUI MVP posture, API/application/domain separation for the overview workflow, posture-only frontend fallback states, and tests guarding the API security boundary plus repository structure.
 
 ## Near-Term Implementation Priorities
 
