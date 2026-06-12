@@ -23,3 +23,4 @@ coverage/
 infra/**/.terraform/
 infra/**/*.tfstate
 infra/**/*.tfstate.*
+.DS_Store
