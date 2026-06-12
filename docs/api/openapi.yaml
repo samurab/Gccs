@@ -60,6 +60,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: API is reachable, but one or more local dependencies are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
 
   /api/compliance/overview:
     get:
@@ -1456,10 +1462,13 @@ components:
         - service
         - dataPosture
         - checkedAt
+        - dependencies
       properties:
         status:
           type: string
-          example: ok
+          enum:
+            - ok
+            - degraded
         service:
           type: string
           example: gccs-api
@@ -1469,6 +1478,28 @@ components:
         checkedAt:
           type: string
           format: date-time
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/DependencyHealth"
+
+    DependencyHealth:
+      type: object
+      required:
+        - name
+        - status
+        - detail
+      properties:
+        name:
+          type: string
+          example: postgresql
+        status:
+          type: string
+          enum:
+            - ok
+            - unhealthy
+        detail:
+          type: string
 
     ComplianceOverview:
       type: object

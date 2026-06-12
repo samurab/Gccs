@@ -1,10 +1,13 @@
 using Gccs.Api.Security;
+using Gccs.Api.LocalDevelopment;
 using Gccs.Application.Compliance;
 using Gccs.Application.Repositories;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+LocalDependencyOptions.ValidateRequiredConfiguration(builder.Configuration);
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -33,6 +36,9 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddOpenApi();
+builder.Services.AddHttpClient();
+builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSection(LocalDependencyOptions.SectionName));
+builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
 
@@ -54,13 +60,22 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new
+app.MapGet("/health", async (LocalDependencyHealthService healthService, CancellationToken cancellationToken) =>
 {
-    status = "ok",
-    service = "gccs-api",
-    dataPosture = "No-CUI / compliance management only",
-    checkedAt = DateTimeOffset.UtcNow
-}))
+    var localDependencies = await healthService.CheckAsync(cancellationToken);
+    var response = new
+    {
+        status = localDependencies.IsHealthy ? "ok" : "degraded",
+        service = "gccs-api",
+        dataPosture = "No-CUI / compliance management only",
+        checkedAt = DateTimeOffset.UtcNow,
+        dependencies = localDependencies.Dependencies
+    };
+
+    return localDependencies.IsHealthy
+        ? Results.Ok(response)
+        : Results.Json(response, statusCode: StatusCodes.Status503ServiceUnavailable);
+})
 .AllowAnonymous()
 .WithName("Health");
 

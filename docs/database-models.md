@@ -42,7 +42,7 @@ dotnet tool run dotnet-ef migrations script \
 Override the design-time connection string with `GCCS_DATABASE`. The development default matches the Docker Postgres service:
 
 ```text
-Host=localhost;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
+Host=localhost;Port=15432;Database=gccs;Username=gccs;Password=gccs_dev_password
 ```
 
 ## Model Groups

@@ -14,6 +14,7 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            builder.UseSetting("LocalDependencies:Enabled", "false");
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
         });
     }
