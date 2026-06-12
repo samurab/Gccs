@@ -101,15 +101,39 @@ The root `npm test` command runs the ASP.NET Core xUnit suite and the React Vite
 ### Local Services
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml up -d
+docker compose -f infra/docker/docker-compose.yml up -d --wait
 ```
 
-This starts PostgreSQL, Redis, MinIO, and ClamAV placeholders for the MVP architecture.
+This starts PostgreSQL, Redis, MinIO, creates the `gccs-evidence-dev` bucket, and starts the ClamAV malware-scanning placeholder for the MVP architecture. The credentials in `infra/docker/docker-compose.yml`, `apps/api/appsettings.Development.json`, and `.env.example` are local-only development placeholders and must not be reused as production secrets.
+
+To avoid common port conflicts with developer machines, the services are exposed on non-default host ports: PostgreSQL `15432`, Redis `16379`, MinIO API `19000`, MinIO console `19001`, and ClamAV `13310`.
+
+The API reads local dependency configuration from `apps/api/appsettings.Development.json` by default. If you prefer shell environment variables, use `.env.example` as the key template and export the values before running the API. When `LocalDependencies:Enabled` is `true`, startup fails with a clear error if PostgreSQL, Redis, object storage, or malware scanner configuration is missing.
 
 Apply development migrations after services are running:
 
 ```bash
 dotnet tool restore
+dotnet tool run dotnet-ef database update \
+  --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
+  --startup-project apps/api/Gccs.Api.csproj \
+  --context GccsDbContext
+```
+
+Check API dependency connectivity:
+
+```bash
+dotnet run --project apps/api
+curl http://localhost:5062/health
+```
+
+The health response includes `postgresql`, `redis`, `object-storage`, and `malware-scanner` dependency states when local dependency checks are enabled.
+
+Reset local service data and reapply migrations:
+
+```bash
+docker compose -f infra/docker/docker-compose.yml down -v
+docker compose -f infra/docker/docker-compose.yml up -d --wait
 dotnet tool run dotnet-ef database update \
   --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
   --startup-project apps/api/Gccs.Api.csproj \

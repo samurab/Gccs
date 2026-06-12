@@ -6,7 +6,7 @@ namespace Gccs.Infrastructure.Persistence;
 public sealed class GccsDbContextFactory : IDesignTimeDbContextFactory<GccsDbContext>
 {
     private const string DevelopmentConnectionString =
-        "Host=localhost;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password";
+        "Host=localhost;Port=15432;Database=gccs;Username=gccs;Password=gccs_dev_password";
 
     public GccsDbContext CreateDbContext(string[] args)
     {
