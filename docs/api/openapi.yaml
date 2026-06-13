@@ -23,6 +23,8 @@ tags:
     description: Health and API metadata.
   - name: Compliance Overview
     description: Product overview and dashboard summary.
+  - name: Tenants
+    description: Tenant creation, status, and current-tenant workspace metadata.
   - name: Company Profile
     description: Tenant company registration, size, certification, and data posture.
   - name: Contracts
@@ -82,6 +84,98 @@ paths:
                 $ref: "#/components/schemas/ComplianceOverview"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /api/tenants:
+    post:
+      tags:
+        - Tenants
+      summary: Create a No-CUI tenant workspace
+      operationId: createTenant
+      description: >
+        Creates an isolated customer tenant in the MVP No-CUI posture. Tenant
+        creation requires the ManageTenant permission and creates an audit event
+        in the new tenant scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTenantRequest"
+      responses:
+        "201":
+          description: Created tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/tenants/{tenantId}:
+    get:
+      tags:
+        - Tenants
+      summary: Get tenant metadata in the current tenant scope
+      operationId: getTenant
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Tenant metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tenants/{tenantId}/status:
+    patch:
+      tags:
+        - Tenants
+      summary: Update tenant status
+      operationId: updateTenantStatus
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTenantStatusRequest"
+      responses:
+        "200":
+          description: Updated tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/company-profile:
     get:
@@ -1500,6 +1594,77 @@ components:
             - unhealthy
         detail:
           type: string
+
+    Tenant:
+      type: object
+      required:
+        - id
+        - displayName
+        - status
+        - dataPosture
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          maxLength: 240
+        status:
+          $ref: "#/components/schemas/TenantStatus"
+        dataPosture:
+          $ref: "#/components/schemas/TenantDataPosture"
+        trialEndsAt:
+          type:
+            - string
+            - "null"
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+
+    CreateTenantRequest:
+      type: object
+      required:
+        - displayName
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 240
+        status:
+          $ref: "#/components/schemas/TenantStatus"
+        trialEndsAt:
+          type:
+            - string
+            - "null"
+          format: date
+
+    UpdateTenantStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: "#/components/schemas/TenantStatus"
+
+    TenantStatus:
+      type: string
+      enum:
+        - Active
+        - Trialing
+        - Suspended
+        - Archived
+
+    TenantDataPosture:
+      type: string
+      enum:
+        - NoCui
 
     ComplianceOverview:
       type: object

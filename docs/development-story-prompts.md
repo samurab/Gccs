@@ -164,6 +164,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 1.3: Continuous Integration Baseline
+## Done ##
 After this implementation the project will have CI implemented and CD planned/documented but not fully implemented yet.
 
 
@@ -240,7 +241,7 @@ Instructions:
 ## 2. Tenant, Identity, And RBAC
 
 ### Story 2.1: Tenant Creation
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  
 

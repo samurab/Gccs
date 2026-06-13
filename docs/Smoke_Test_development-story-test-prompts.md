@@ -31,6 +31,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-1.2.4:** Scan committed config examples and repository files for production credentials, tokens, or real customer data, then report any findings.
 #-----------------------------------
 ### Story 1.3: Continuous Integration Baseline
+### Done ## 
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-1.3.1:** Open or simulate a pull request and verify CI runs restore, backend build, frontend build, lint, tests, migration validation, and security scans.
@@ -39,7 +40,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-1.3.4:** Trigger or mock a dependency or secret scan finding and verify the failure is visible in pull request checks.
 #-----------------------------------
 ## 2. Tenant, Identity, And RBAC
-
+### Done ## 
 ### Story 2.1: Tenant Creation
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 

@@ -1,8 +1,5 @@
 namespace Gccs.Api.Security;
 
-public interface ITenantContext
+public interface ITenantContext : Gccs.Application.Security.ICurrentTenantContext
 {
-    Guid TenantId { get; }
-    Guid UserId { get; }
-    string UserEmail { get; }
 }

@@ -1,7 +1,9 @@
+using System.Text.Json.Serialization;
 using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
 using Gccs.Application.Compliance;
 using Gccs.Application.Repositories;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure;
 
@@ -36,6 +38,10 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddOpenApi();
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddHttpClient();
 builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSection(LocalDependencyOptions.SectionName));
 builder.Services.AddScoped<LocalDependencyHealthService>();
@@ -101,6 +107,66 @@ api.MapGet("/obligations/{id}", async (string id, IObligationRepository reposito
 })
 .RequirePermission(Permission.AuditorReadOnly)
 .WithName("GetObligationById");
+
+api.MapPost("/tenants", async (
+    CreateTenantRequest request,
+    TenantService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var tenant = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/tenants/{tenant.Id}", tenant);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["tenant"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CreateTenant");
+
+api.MapGet("/tenants/{tenantId:guid}", async (
+    Guid tenantId,
+    TenantService service,
+    CancellationToken cancellationToken) =>
+{
+    var tenant = await service.FindInCurrentTenantScopeAsync(tenantId, cancellationToken);
+    return tenant is null
+        ? Results.NotFound(new { message = "Tenant was not found in the current tenant scope." })
+        : Results.Ok(tenant);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("GetTenant");
+
+api.MapPatch("/tenants/{tenantId:guid}/status", async (
+    Guid tenantId,
+    UpdateTenantStatusRequest request,
+    TenantService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var tenant = await service.UpdateStatusAsync(tenantId, request, tenantContext.UserId, cancellationToken);
+        return tenant is null
+            ? Results.NotFound(new { message = "Tenant was not found in the current tenant scope." })
+            : Results.Ok(tenant);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["tenant"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("UpdateTenantStatus");
 
 app.Run();
 

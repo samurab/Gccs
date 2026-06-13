@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using System.Threading.RateLimiting;
+using Gccs.Application.Audit;
+using Gccs.Application.Security;
 using Gccs.Domain.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -85,6 +87,8 @@ public static class ApiSecurityExtensions
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();
+        services.AddScoped<ICurrentTenantContext>(serviceProvider => serviceProvider.GetRequiredService<ITenantContext>());
+        services.AddScoped<IAuditRequestMetadata, HttpAuditRequestMetadata>();
 
         services.AddRateLimiter(options =>
         {

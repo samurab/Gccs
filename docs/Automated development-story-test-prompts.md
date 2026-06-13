@@ -40,7 +40,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 #-----------------------------------
 
 ## 2. Tenant, Identity, And RBAC
-
+### Done ## 
 ### Please perform automated test on Story 2.1: Tenant Creation. Please provide the results of the tests.
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 

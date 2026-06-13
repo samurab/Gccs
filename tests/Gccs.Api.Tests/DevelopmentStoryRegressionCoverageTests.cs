@@ -241,7 +241,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-1.3.1"] = ["Tc_1_3_1_pull_request_validation_runs_required_backend_frontend_migration_and_scan_steps", "Tc_1_3_1_required_ci_steps_stay_in_the_expected_required_check"],
             ["TC-1.3.2"] = ["Tc_1_3_2_controlled_failing_steps_make_required_pull_request_checks_unmergeable"],
             ["TC-1.3.3"] = ["Tc_1_3_3_failing_ci_logs_identify_the_project_command_and_step_without_unrelated_job_inspection", "Tc_1_3_3_test_failures_upload_focused_backend_and_frontend_artifacts"],
-            ["TC-1.3.4"] = ["Tc_1_3_4_dependency_and_secret_scan_findings_are_visible_in_required_pull_request_checks", "Tc_1_3_4_security_scans_have_permissions_and_commands_reviewers_can_trace"]
+            ["TC-1.3.4"] = ["Tc_1_3_4_dependency_and_secret_scan_findings_are_visible_in_required_pull_request_checks", "Tc_1_3_4_security_scans_have_permissions_and_commands_reviewers_can_trace"],
+            ["TC-2.1.1"] = ["TC_2_1_1_Tenant_creation_persists_required_metadata"],
+            ["TC-2.1.2"] = ["TC_2_1_2_Tenant_owned_sample_records_store_correct_tenant_id"],
+            ["TC-2.1.3"] = ["TC_2_1_3_Cross_tenant_read_by_id_returns_not_found_without_data_leakage"],
+            ["TC-2.1.4"] = ["TC_2_1_4_Tenant_status_change_audit_event_contains_before_and_after_status"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

@@ -27,10 +27,10 @@ The regression coverage harness is useful, but it is not a substitute for functi
 | Security, RBAC, tenant isolation, upload, evidence, audit, or reporting changed | `dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj` and any matching frontend tests |
 
 
-```text
+
 The implementation for Story <story id>: <story title> is complete.
 
-Please execute the regression workflow for this story:
+Please execute the regression workflow for this story and please provide results of the test:
 
 1. Read docs/development-story-test-cases.md and locate Story <story id>.
 2. For every TC-* case under that story, confirm there is focused automated coverage or add/update it now.
@@ -41,4 +41,3 @@ Please execute the regression workflow for this story:
 7. Report exact commands, pass/fail results, any skipped checks, and any manual verification still required.
 
 Do not treat the manifest/coverage test as the only regression. Add focused functional tests for the story behavior before reporting completion.
-```
