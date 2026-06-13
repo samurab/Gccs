@@ -32,6 +32,7 @@ public sealed class TenantMembershipService(
             throw new DuplicateMembershipException("User is already a member of the current tenant.");
         }
 
+        var roleName = NormalizeRoleName(request.RoleName);
         var now = DateTimeOffset.UtcNow;
         var user = new User(
             request.UserId,
@@ -48,7 +49,7 @@ public sealed class TenantMembershipService(
             tenantContext.TenantId,
             request.UserId,
             request.Status,
-            request.RoleName.Trim(),
+            roleName,
             null,
             new EntityAudit(now, actorUserId, null, null));
 
@@ -128,6 +129,20 @@ public sealed class TenantMembershipService(
         {
             throw new ArgumentException("Membership role name is required and must be 120 characters or fewer.", nameof(request));
         }
+
+        NormalizeRoleName(request.RoleName);
+    }
+
+    private static string NormalizeRoleName(string roleName)
+    {
+        if (!RoleCatalog.TryNormalizeRoleName(roleName, out var canonicalRoleName))
+        {
+            throw new ArgumentException(
+                $"Membership role must be one of: {string.Join(", ", RoleCatalog.Roles)}.",
+                nameof(roleName));
+        }
+
+        return canonicalRoleName;
     }
 }
 

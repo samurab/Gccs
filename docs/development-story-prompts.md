@@ -387,7 +387,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 2.3: User Invitations
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  
 
@@ -461,7 +461,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 2.4: Role-Based Permissions
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  
 

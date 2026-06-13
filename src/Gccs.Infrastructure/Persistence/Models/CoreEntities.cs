@@ -26,6 +26,7 @@ public sealed class TenantEntity : AuditedEntity
 
     public ICollection<UserEntity> Users { get; set; } = [];
     public ICollection<TenantMembershipEntity> Memberships { get; set; } = [];
+    public ICollection<TenantInvitationEntity> Invitations { get; set; } = [];
     public ICollection<RoleEntity> Roles { get; set; } = [];
 }
 
@@ -55,6 +56,25 @@ public sealed class TenantMembershipEntity : AuditedEntity
 
     public TenantEntity? Tenant { get; set; }
     public UserEntity? User { get; set; }
+}
+
+public sealed class TenantInvitationEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string RoleName { get; set; } = string.Empty;
+    public string InvitationToken { get; set; } = string.Empty;
+    public TenantInvitationStatus Status { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? AcceptedAt { get; set; }
+    public Guid? AcceptedByUserId { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public Guid? RevokedByUserId { get; set; }
+    public DateTimeOffset? NotificationSentAt { get; set; }
+    public string NotificationPlaceholder { get; set; } = string.Empty;
+
+    public TenantEntity? Tenant { get; set; }
 }
 
 public sealed class RoleEntity : AuditedEntity

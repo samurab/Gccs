@@ -974,3 +974,39 @@ VALUES ('20260613213418_AddTenantMemberships', '10.0.4');
 
 COMMIT;
 
+START TRANSACTION;
+CREATE TABLE gccs.tenant_invitations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    email character varying(320) NOT NULL,
+    role_name character varying(120) NOT NULL,
+    invitation_token character varying(128) NOT NULL,
+    status character varying(64) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    accepted_at timestamp with time zone,
+    accepted_by_user_id uuid,
+    revoked_at timestamp with time zone,
+    revoked_by_user_id uuid,
+    notification_sent_at timestamp with time zone,
+    notification_placeholder character varying(600) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_tenant_invitations" PRIMARY KEY (id),
+    CONSTRAINT "FK_tenant_invitations_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_tenant_invitations_created_at_updated_at" ON gccs.tenant_invitations (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_tenant_invitations_invitation_token" ON gccs.tenant_invitations (invitation_token);
+
+CREATE INDEX "IX_tenant_invitations_tenant_id_email_status" ON gccs.tenant_invitations (tenant_id, email, status);
+
+CREATE INDEX "IX_tenant_invitations_tenant_id_status_expires_at" ON gccs.tenant_invitations (tenant_id, status, expires_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260613221118_AddTenantInvitations', '10.0.4');
+
+COMMIT;
+

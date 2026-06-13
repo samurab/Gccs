@@ -165,7 +165,7 @@ public sealed class RepositoryStructureTests
 
         Assert.Contains(".RequireAuthorization()", program);
         Assert.Contains("ITenantContext tenantContext", program);
-        Assert.Contains(".RequirePermission(Permission.AuditorReadOnly)", program);
+        Assert.Contains(".RequirePermission(Permission.ViewObligations)", program);
         Assert.Contains("RequireClaim(PermissionClaimType, permission.ToString())", apiSecurity);
         Assert.Contains("TenantIdClaimType", apiSecurity);
 

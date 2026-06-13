@@ -33,7 +33,7 @@ As the delivery team, we need a repeatable engineering foundation so that MVP fe
 ### User Stories
 
 #### Story 1.1: Repository And Project Structure
-
+## Done ##
 As a technical lead, I want the application structure to separate web, API, application, domain, infrastructure, docs, and compliance content so that development stays maintainable.
 
 Tasks:
@@ -51,7 +51,7 @@ Acceptance criteria:
 - Documentation points to the No-CUI MVP posture.
 
 #### Story 1.2: Local Development Services
-
+## Done ##
 As a developer, I want local database, cache, object storage, and malware-scanning placeholders so that feature work can run against realistic services.
 
 Tasks:
@@ -69,7 +69,7 @@ Acceptance criteria:
 - Local configuration does not contain production secrets.
 
 #### Story 1.3: Continuous Integration Baseline
-
+## Done ##
 As a delivery lead, I want automated validation so that broken builds and obvious regressions are caught before review.
 
 Tasks:
@@ -95,7 +95,7 @@ As a platform customer, I need my company data isolated from every other custome
 ### User Stories
 
 #### Story 2.1: Tenant Creation
-
+## Done ##
 As a platform admin, I want to create a tenant so that a customer organization can use GCCS in an isolated workspace.
 
 Tasks:
@@ -114,7 +114,7 @@ Acceptance criteria:
 - Tenant creation and status changes are audit logged.
 
 #### Story 2.2: User Memberships
-
+## Done ##
 As a tenant admin, I want to add team members to my tenant so that multiple people can work in the same compliance workspace.
 
 Tasks:
@@ -132,7 +132,7 @@ Acceptance criteria:
 - Membership changes are audit logged.
 
 #### Story 2.3: User Invitations
-
+## Done ##
 As a tenant admin, I want to invite users by email and role so that onboarding is controlled.
 
 Tasks:
@@ -151,7 +151,7 @@ Acceptance criteria:
 - Invitation actions are audit logged.
 
 #### Story 2.4: Role-Based Permissions
-
+## Done ##
 As a tenant admin, I want role-based permissions so that users only access workflows appropriate for their responsibilities.
 
 Tasks:

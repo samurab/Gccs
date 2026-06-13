@@ -3,8 +3,10 @@ using System.Threading.RateLimiting;
 using Gccs.Application.Audit;
 using Gccs.Application.Security;
 using Gccs.Domain.Identity;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Gccs.Api.Security;
@@ -14,6 +16,7 @@ public static class ApiSecurityExtensions
     public const string DevelopmentAuthenticationScheme = "Development";
     public const string JwtAuthenticationScheme = JwtBearerDefaults.AuthenticationScheme;
     public const string PermissionClaimType = "permission";
+    public const string RoleNameClaimType = "gccs_role";
     public const string TenantIdClaimType = "tenant_id";
 
     public static IServiceCollection AddGccsApiSecurity(
@@ -84,6 +87,8 @@ public static class ApiSecurityExtensions
                         .RequireClaim(PermissionClaimType, permission.ToString()));
             }
         });
+        services.AddTransient<IClaimsTransformation, RolePermissionClaimsTransformation>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, ProblemDetailsAuthorizationResultHandler>();
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();

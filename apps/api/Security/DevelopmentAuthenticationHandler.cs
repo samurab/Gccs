@@ -32,7 +32,13 @@ public sealed class DevelopmentAuthenticationHandler(
         var tenantId = Request.Headers["X-Gccs-Dev-Tenant"].FirstOrDefault() ?? Options.DefaultTenantId;
         var userId = Request.Headers["X-Gccs-Dev-User"].FirstOrDefault() ?? Options.DefaultUserId;
         var email = Request.Headers["X-Gccs-Dev-Email"].FirstOrDefault() ?? Options.DefaultEmail;
+        var roleName = Request.Headers["X-Gccs-Dev-Role"].FirstOrDefault();
         var permissions = Request.Headers["X-Gccs-Dev-Permissions"].FirstOrDefault();
+        var canonicalRoleName = RoleCatalog.TryNormalizeRoleName(
+            roleName ?? (string.IsNullOrWhiteSpace(permissions) ? RoleCatalog.Owner : string.Empty),
+            out var normalizedRoleName)
+            ? normalizedRoleName
+            : null;
 
         var claims = new List<Claim>
         {
@@ -41,9 +47,20 @@ public sealed class DevelopmentAuthenticationHandler(
             new(ApiSecurityExtensions.TenantIdClaimType, tenantId)
         };
 
-        var requestedPermissions = string.IsNullOrWhiteSpace(permissions)
-            ? Enum.GetNames<Permission>()
-            : permissions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (canonicalRoleName is not null)
+        {
+            claims.Add(new Claim(ApiSecurityExtensions.RoleNameClaimType, canonicalRoleName));
+        }
+
+        IEnumerable<Permission> rolePermissions = canonicalRoleName is null
+            ? Array.Empty<Permission>()
+            : RoleCatalog.GetPermissions(canonicalRoleName);
+        var requestedPermissions = rolePermissions
+            .Select(permission => permission.ToString())
+            .Concat(string.IsNullOrWhiteSpace(permissions)
+                ? Array.Empty<string>()
+                : permissions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
 
         foreach (var permission in requestedPermissions)
         {

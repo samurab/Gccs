@@ -1,9 +1,11 @@
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
 using Gccs.Application.Compliance;
 using Gccs.Application.Identity;
 using Gccs.Application.Repositories;
+using Gccs.Application.Reports;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure;
@@ -90,13 +92,41 @@ var api = app.MapGroup("/api")
     .RequireAuthorization()
     .RequireRateLimiting("api");
 
-api.MapGet("/compliance/overview", async (ComplianceOverviewService service, ITenantContext tenantContext, CancellationToken cancellationToken) =>
+api.MapGet("/me/access", (ClaimsPrincipal user) =>
+{
+    var roles = user
+        .FindAll(ApiSecurityExtensions.RoleNameClaimType)
+        .Concat(user.FindAll(ClaimTypes.Role))
+        .Select(claim => claim.Value)
+        .Where(roleName => !string.IsNullOrWhiteSpace(roleName))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+    var permissions = user
+        .FindAll(ApiSecurityExtensions.PermissionClaimType)
+        .Select(claim => claim.Value)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Order()
+        .ToArray();
+
+    return Results.Ok(new
+    {
+        roles,
+        permissions,
+        rolePermissionMatrix = RoleCatalog.PermissionsByRole.ToDictionary(
+            role => role.Key,
+            role => role.Value.Select(permission => permission.ToString()).Order().ToArray())
+    });
+})
+.WithName("GetCurrentUserAccess");
+
+api.MapGet("/compliance/overview", async (ComplianceOverviewService service, CancellationToken cancellationToken) =>
     Results.Ok(await service.GetOverviewAsync(cancellationToken)))
+.RequirePermission(Permission.ViewObligations)
 .WithName("GetComplianceOverview");
 
 api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))
-.RequirePermission(Permission.AuditorReadOnly)
+.RequirePermission(Permission.ViewObligations)
 .WithName("ListObligations");
 
 api.MapGet("/obligations/{id}", async (string id, IObligationRepository repository, CancellationToken cancellationToken) =>
@@ -106,8 +136,15 @@ api.MapGet("/obligations/{id}", async (string id, IObligationRepository reposito
         ? Results.NotFound(new { message = $"Obligation '{id}' was not found." })
         : Results.Ok(obligation);
 })
-.RequirePermission(Permission.AuditorReadOnly)
+.RequirePermission(Permission.ViewObligations)
 .WithName("GetObligationById");
+
+api.MapGet("/reports/approved-evidence-packages", async (
+    IReportRepository repository,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await repository.ListApprovedEvidencePackagesAsync(cancellationToken)))
+.RequirePermission(Permission.ViewReports)
+.WithName("ListApprovedEvidencePackages");
 
 api.MapGet("/tenant-members", async (
     TenantMembershipService service,
@@ -156,6 +193,104 @@ api.MapPatch("/tenant-members/{membershipId:guid}/status", async (
 })
 .RequirePermission(Permission.ManageUsers)
 .WithName("UpdateTenantMembershipStatus");
+
+api.MapGet("/tenant-invitations", async (
+    TenantInvitationService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantInvitationsAsync(cancellationToken)))
+.RequirePermission(Permission.ManageUsers)
+.WithName("ListCurrentTenantInvitations");
+
+api.MapPost("/tenant-invitations", async (
+    CreateTenantInvitationRequest request,
+    TenantInvitationService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var invitation = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/tenant-invitations/{invitation.InvitationId}", invitation);
+    }
+    catch (DuplicateInvitationException exception)
+    {
+        return Results.Conflict(new { message = exception.Message });
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["invitation"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("CreateTenantInvitation");
+
+api.MapPost("/invitations/{token}/accept", async (
+    string token,
+    AcceptTenantInvitationRequest request,
+    TenantInvitationService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var invitation = await service.AcceptAsync(
+            token,
+            request,
+            tenantContext.UserId,
+            tenantContext.UserEmail,
+            cancellationToken);
+
+        return invitation is null
+            ? Results.NotFound(new { message = "Invitation token was not found." })
+            : Results.Ok(invitation);
+    }
+    catch (InvalidInvitationStateException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["invitation"] = [exception.Message]
+        });
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["invitation"] = [exception.Message]
+        });
+    }
+})
+.WithName("AcceptTenantInvitation");
+
+api.MapPost("/tenant-invitations/{invitationId:guid}/expire", async (
+    Guid invitationId,
+    TenantInvitationService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    var invitation = await service.ExpireAsync(invitationId, tenantContext.UserId, cancellationToken);
+    return invitation is null
+        ? Results.NotFound(new { message = "Invitation was not found in the current tenant scope." })
+        : Results.Ok(invitation);
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("ExpireTenantInvitation");
+
+api.MapPost("/tenant-invitations/{invitationId:guid}/revoke", async (
+    Guid invitationId,
+    TenantInvitationService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    var invitation = await service.RevokeAsync(invitationId, tenantContext.UserId, cancellationToken);
+    return invitation is null
+        ? Results.NotFound(new { message = "Invitation was not found in the current tenant scope." })
+        : Results.Ok(invitation);
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("RevokeTenantInvitation");
 
 api.MapPost("/tenants", async (
     CreateTenantRequest request,

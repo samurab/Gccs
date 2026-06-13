@@ -6,29 +6,56 @@ import {
   FileSearch,
   FolderKanban,
   GitBranch,
+  Send,
   ShieldCheck,
+  UserPlus,
   UsersRound
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { ModuleCard } from "@/components/ModuleCard";
-import { fallbackOverview, getComplianceOverview, getTenantMembers, type TenantMember } from "@/lib/api";
+import {
+  createTenantInvitation,
+  fallbackAccess,
+  fallbackOverview,
+  getComplianceOverview,
+  getCurrentUserAccess,
+  getTenantInvitations,
+  getTenantMembers,
+  type CurrentUserAccess,
+  type TenantInvitation,
+  type TenantMember
+} from "@/lib/api";
 
 const moduleIcons = [Building2, FileSearch, ClipboardCheck, CalendarClock, Archive, ShieldCheck, GitBranch, FolderKanban];
 
 export function App() {
   const [overview, setOverview] = useState(fallbackOverview);
+  const [access, setAccess] = useState<CurrentUserAccess>(fallbackAccess);
   const [members, setMembers] = useState<TenantMember[]>([]);
+  const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("Contributor");
+  const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "created" | "failed">("idle");
   const hasModules = overview.modules.length > 0;
   const hasPriorityObligations = overview.priorityObligations.length > 0;
   const hasMembers = members.length > 0;
+  const hasInvitations = invitations.length > 0;
+  const canManageUsers = access.permissions.includes("ManageUsers");
 
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([getComplianceOverview(), getTenantMembers()]).then(([nextOverview, nextMembers]) => {
+    Promise.all([getComplianceOverview(), getCurrentUserAccess()]).then(async ([nextOverview, nextAccess]) => {
+      const canLoadUserManagement = nextAccess.permissions.includes("ManageUsers");
+      const [nextMembers, nextInvitations] = canLoadUserManagement
+        ? await Promise.all([getTenantMembers(), getTenantInvitations()])
+        : [[], []];
+
       if (isMounted) {
         setOverview(nextOverview);
+        setAccess(nextAccess);
         setMembers(nextMembers);
+        setInvitations(nextInvitations);
       }
     });
 
@@ -36,6 +63,27 @@ export function App() {
       isMounted = false;
     };
   }, []);
+
+  async function handleInvitationSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setInviteStatus("sending");
+
+    const createdInvitation = await createTenantInvitation({
+      email: inviteEmail,
+      roleName: inviteRole,
+      expiresInDays: 7
+    });
+
+    if (createdInvitation) {
+      setInvitations((currentInvitations) => [createdInvitation, ...currentInvitations]);
+      setInviteEmail("");
+      setInviteRole("Contributor");
+      setInviteStatus("created");
+      return;
+    }
+
+    setInviteStatus("failed");
+  }
 
   return (
     <main>
@@ -131,47 +179,113 @@ export function App() {
         </aside>
       </section>
 
-      <section className="section-shell members-section" aria-label="Tenant team members">
-        <div className="section-heading">
-          <p className="eyebrow">Tenant access</p>
-          <h2>Team members</h2>
-        </div>
-        {hasMembers ? (
-          <div className="member-table" role="table" aria-label="Current tenant members">
-            <div className="member-row member-row--header" role="row">
-              <span role="columnheader">Member</span>
-              <span role="columnheader">Role</span>
-              <span role="columnheader">Status</span>
-              <span role="columnheader">MFA</span>
+      {canManageUsers ? (
+        <>
+          <section className="section-shell members-section" aria-label="Tenant team members">
+            <div className="section-heading">
+              <p className="eyebrow">Tenant access</p>
+              <h2>Team members</h2>
             </div>
-            {members.map((member) => (
-              <article className="member-row" role="row" key={member.membershipId}>
-                <span className="member-person" role="cell">
-                  <span className="icon-box icon-box--small" aria-hidden="true">
-                    <UsersRound size={17} />
-                  </span>
-                  <span>
-                    <strong>{member.displayName}</strong>
-                    <small>{member.email}</small>
-                  </span>
-                </span>
-                <span role="cell">{member.roleName}</span>
-                <span role="cell">
-                  <span className={`status status--${member.membershipStatus.toLowerCase()}`}>
-                    {member.membershipStatus}
-                  </span>
-                </span>
-                <span role="cell">{member.mfaEnabled ? "Enabled" : "Not enabled"}</span>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <h3>No tenant members available</h3>
-            <p>Team membership is loaded from the active tenant context.</p>
-          </div>
-        )}
-      </section>
+            {hasMembers ? (
+              <div className="member-table" role="table" aria-label="Current tenant members">
+                <div className="member-row member-row--header" role="row">
+                  <span role="columnheader">Member</span>
+                  <span role="columnheader">Role</span>
+                  <span role="columnheader">Status</span>
+                  <span role="columnheader">MFA</span>
+                </div>
+                {members.map((member) => (
+                  <article className="member-row" role="row" key={member.membershipId}>
+                    <span className="member-person" role="cell">
+                      <span className="icon-box icon-box--small" aria-hidden="true">
+                        <UsersRound size={17} />
+                      </span>
+                      <span>
+                        <strong>{member.displayName}</strong>
+                        <small>{member.email}</small>
+                      </span>
+                    </span>
+                    <span role="cell">{member.roleName}</span>
+                    <span role="cell">
+                      <span className={`status status--${member.membershipStatus.toLowerCase()}`}>
+                        {member.membershipStatus}
+                      </span>
+                    </span>
+                    <span role="cell">{member.mfaEnabled ? "Enabled" : "Not enabled"}</span>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <h3>No tenant members available</h3>
+                <p>Team membership is loaded from the active tenant context.</p>
+              </div>
+            )}
+          </section>
+
+          <section className="section-shell invitation-section" aria-label="Tenant invitations">
+            <div className="section-heading section-heading--split">
+              <div>
+                <p className="eyebrow">Controlled onboarding</p>
+                <h2>User invitations</h2>
+              </div>
+              <form className="invite-form" onSubmit={handleInvitationSubmit}>
+                <label>
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    required
+                    maxLength={320}
+                  />
+                </label>
+                <label>
+                  <span>Role</span>
+                  <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value)}>
+                    <option>Admin</option>
+                    <option>Compliance Manager</option>
+                    <option>Contributor</option>
+                    <option>Auditor</option>
+                    <option>Advisor</option>
+                  </select>
+                </label>
+                <button type="submit" disabled={inviteStatus === "sending"}>
+                  {inviteStatus === "sending" ? <Send size={16} /> : <UserPlus size={16} />}
+                  <span>{inviteStatus === "sending" ? "Sending" : "Invite"}</span>
+                </button>
+              </form>
+            </div>
+            {inviteStatus === "created" ? <p className="form-status form-status--ok">Invitation created.</p> : null}
+            {inviteStatus === "failed" ? <p className="form-status form-status--error">Invitation was not created.</p> : null}
+            {hasInvitations ? (
+              <div className="invitation-list">
+                {invitations.map((invitation) => (
+                  <article className="invitation-item" key={invitation.invitationId}>
+                    <div className="invitation-item__main">
+                      <span className="icon-box icon-box--small" aria-hidden="true">
+                        <UserPlus size={17} />
+                      </span>
+                      <span>
+                        <strong>{invitation.email}</strong>
+                        <small>{invitation.roleName}</small>
+                      </span>
+                    </div>
+                    <span className={`status status--${invitation.status.toLowerCase()}`}>{invitation.status}</span>
+                    <span className="invitation-date">Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
+                    <small className="notification-placeholder">{invitation.notificationPlaceholder}</small>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <h3>No invitations available</h3>
+                <p>Invitation state is loaded from the active tenant context.</p>
+              </div>
+            )}
+          </section>
+        </>
+      ) : null}
     </main>
   );
 }

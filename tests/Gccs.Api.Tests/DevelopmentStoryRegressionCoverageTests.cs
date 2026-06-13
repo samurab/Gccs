@@ -226,6 +226,7 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             Environment.NewLine,
             Directory.EnumerateFiles(Path.Combine(FindRepositoryRoot(), "tests", "Gccs.Api.Tests"), "*.cs")
                 .Where(path => Path.GetFileName(path) != nameof(DevelopmentStoryRegressionCoverageTests) + ".cs")
+                .Concat(Directory.EnumerateFiles(Path.Combine(FindRepositoryRoot(), "apps", "web", "src"), "*.test.tsx"))
                 .Select(File.ReadAllText));
 
         var focusedCoverageSignals = new Dictionary<string, string[]>
@@ -249,7 +250,20 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-2.2.1"] = ["TC_2_2_1_Assigned_user_is_visible_only_when_that_tenant_is_active"],
             ["TC-2.2.2"] = ["TC_2_2_2_Tenant_member_list_excludes_users_from_other_tenants"],
             ["TC-2.2.3"] = ["TC_2_2_3_Duplicate_membership_creation_is_rejected"],
-            ["TC-2.2.4"] = ["TC_2_2_4_Membership_add_update_and_deactivate_actions_are_audit_logged"]
+            ["TC-2.2.4"] = ["TC_2_2_4_Membership_add_update_and_deactivate_actions_are_audit_logged"],
+            ["TC-2.3.1"] = ["TC_2_3_1_Admin_creates_invitation_with_token_expiration_pending_status_and_notification_placeholder"],
+            ["TC-2.3.2"] = ["TC_2_3_2_Contributor_and_auditor_cannot_manage_invitations"],
+            ["TC-2.3.3"] = ["TC_2_3_3_Expired_or_revoked_invitations_cannot_be_accepted"],
+            ["TC-2.3.4"] = ["TC_2_3_4_Invitation_create_accept_expire_and_revoke_actions_are_audit_logged"],
+            ["TC-2.4.1"] =
+            [
+                "TC_2_4_1_Role_catalog_maps_permissions_across_mvp_workflow_areas",
+                "TC_2_4_1_Server_side_permission_checks_use_role_derived_permissions",
+                "TC_2_4_1_Roles_match_permission_matrix_for_representative_implemented_endpoints"
+            ],
+            ["TC-2.4.2"] = ["TC-2.4.2 renders workspace actions"],
+            ["TC-2.4.3"] = ["TC_2_4_3_Permission_failures_return_standard_problem_details"],
+            ["TC-2.4.4"] = ["TC_2_4_4_Auditor_can_view_tenant_scoped_approved_evidence_packages_but_cannot_modify_data"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

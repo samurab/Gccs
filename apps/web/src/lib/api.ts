@@ -22,6 +22,12 @@ export type ComplianceOverview = {
   priorityObligations: ObligationSummary[];
 };
 
+export type CurrentUserAccess = {
+  roles: string[];
+  permissions: string[];
+  rolePermissionMatrix: Record<string, string[]>;
+};
+
 export type TenantMember = {
   membershipId: string;
   tenantId: string;
@@ -38,6 +44,30 @@ export type TenantMember = {
   updatedAt: string | null;
 };
 
+export type TenantInvitation = {
+  invitationId: string;
+  tenantId: string;
+  email: string;
+  roleName: string;
+  invitationToken: string;
+  status: "Pending" | "Accepted" | "Expired" | "Revoked" | string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  acceptedByUserId: string | null;
+  revokedAt: string | null;
+  revokedByUserId: string | null;
+  notificationSentAt: string | null;
+  notificationPlaceholder: string;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type CreateTenantInvitationRequest = {
+  email: string;
+  roleName: string;
+  expiresInDays: number;
+};
+
 export const fallbackOverview: ComplianceOverview = {
   productPromise:
     "Connect to the GCCS API to load source-backed modules, obligations, review metadata, and tenant-scoped compliance workflow state.",
@@ -46,25 +76,56 @@ export const fallbackOverview: ComplianceOverview = {
   priorityObligations: []
 };
 
+export const fallbackAccess: CurrentUserAccess = {
+  roles: [],
+  permissions: [],
+  rolePermissionMatrix: {}
+};
+
 export async function getComplianceOverview(): Promise<ComplianceOverview> {
   return getJson<ComplianceOverview>("/api/compliance/overview", fallbackOverview);
+}
+
+export async function getCurrentUserAccess(): Promise<CurrentUserAccess> {
+  return getJson<CurrentUserAccess>("/api/me/access", fallbackAccess);
 }
 
 export async function getTenantMembers(): Promise<TenantMember[]> {
   return getJson<TenantMember[]>("/api/tenant-members", []);
 }
 
-async function getJson<T>(path: string, fallback: T): Promise<T> {
+export async function getTenantInvitations(): Promise<TenantInvitation[]> {
+  return getJson<TenantInvitation[]>("/api/tenant-invitations", []);
+}
+
+export async function createTenantInvitation(request: CreateTenantInvitationRequest): Promise<TenantInvitation | null> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
-  const headers =
-    import.meta.env.DEV
-      ? {
-          "X-Gccs-Dev-Auth": "true"
-        }
-      : undefined;
 
   try {
-    const response = await fetch(`${apiBaseUrl}${path}`, { headers });
+    const response = await fetch(`${apiBaseUrl}/api/tenant-invitations`, {
+      method: "POST",
+      headers: {
+        ...(getDevelopmentHeaders() ?? {}),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function getJson<T>(path: string, fallback: T): Promise<T> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, { headers: getDevelopmentHeaders() });
 
     if (!response.ok) {
       return fallback;
@@ -74,4 +135,15 @@ async function getJson<T>(path: string, fallback: T): Promise<T> {
   } catch {
     return fallback;
   }
+}
+
+function getDevelopmentHeaders(): HeadersInit | undefined {
+  const role = import.meta.env.VITE_GCCS_DEV_ROLE;
+
+  return import.meta.env.DEV
+    ? {
+        "X-Gccs-Dev-Auth": "true",
+        ...(role ? { "X-Gccs-Dev-Role": role } : {})
+      }
+    : undefined;
 }

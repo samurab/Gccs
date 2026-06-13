@@ -9,6 +9,7 @@ These artifacts turn the MVP domain model into a migration-ready PostgreSQL sche
 - Initial migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260610031239_InitialDevelopmentSchema.cs`
 - Clause review/versioning migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260610051044_AddClauseReviewVersioning.cs`
 - Tenant membership migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260613213418_AddTenantMemberships.cs`
+- Tenant invitation migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260613221118_AddTenantInvitations.cs`
 - Generated SQL script: `infra/database/development-schema.sql`
 - Local EF tool manifest: `dotnet-tools.json`
 
@@ -50,7 +51,7 @@ Host=localhost;Port=15432;Database=gccs;Username=gccs;Password=gccs_dev_password
 
 | Group | Primary tables | Purpose |
 | --- | --- | --- |
-| Tenancy and RBAC | `tenants`, `users`, `tenant_memberships`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, explicit tenant membership assignments, MFA-ready user profile, and role permissions. |
+| Tenancy and RBAC | `tenants`, `users`, `tenant_memberships`, `tenant_invitations`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, explicit tenant membership assignments, invitation onboarding workflow, MFA-ready user profile, and role permissions. |
 | Company profile | `company_profiles`, `company_naics_codes`, `company_certifications`, `company_locations` | SAM/SBA profile data, NAICS size support, certifications, locations, IT posture, and data handling posture. |
 | Compliance content | `clauses`, `obligations`, `mvp_modules` | Source-backed clause and obligation library with source URL, review metadata, confidence, and expert-review flags. |
 | Contract intake | `contracts`, `solicitations`, `contract_documents`, `contract_clauses`, `contract_clause_obligations`, `contract_deliverables`, `contract_reporting_deadlines` | Contract records, document metadata, extracted/manual clauses, obligations, deliverables, reporting dates, and flow-down signals. |

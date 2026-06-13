@@ -59,6 +59,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-2.2.4:** Add, update, and deactivate a membership, then verify each action is audit logged.
 #-----------------------------------
 ### Story 2.3: User Invitations
+### Done ## 
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-2.3.1:** As a tenant admin, invite a user by email and role, then verify token, expiration, pending status, and local notification/email placeholder.
@@ -66,7 +67,10 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-2.3.3:** Attempt to accept expired and revoked invitations and verify no membership is created.
 - **TC-2.3.4:** Create, accept, expire, and revoke invitations, then verify each state change is audit logged.
 #-----------------------------------
+# *** TEST FAILS
+### Done ## PLEASE RERUN LATER *****Main missing coverage: profile, contract, task/calendar, direct evidence CRUD, and subcontractor API endpoints are not implemented yet, so TC-2.4 can’t verify runtime RBAC for those endpoint families.
 ### Story 2.4: Role-Based Permissions
+### Done ## 
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-2.4.1:** For each role, call representative profile, contract, obligation, task, evidence, report, subcontractor, and admin endpoints and verify results match the permission matrix.

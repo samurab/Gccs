@@ -23,6 +23,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
+    public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
     public DbSet<RoleEntity> Roles => Set<RoleEntity>();
     public DbSet<CompanyProfileEntity> CompanyProfiles => Set<CompanyProfileEntity>();
     public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
@@ -87,6 +88,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<RiskLevel>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TrainingStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TrainingType>().HaveConversion<string>().HaveMaxLength(64);
@@ -143,6 +145,21 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
             entity.HasOne(x => x.Tenant).WithMany(x => x.Memberships).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.User).WithMany(x => x.Memberships).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantInvitationEntity>(entity =>
+        {
+            entity.ToTable("tenant_invitations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.InvitationToken).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.ExpiresAt });
+            entity.HasIndex(x => new { x.TenantId, x.Email, x.Status });
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.InvitationToken).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.NotificationPlaceholder).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany(x => x.Invitations).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             ConfigureAuditColumns(entity);
         });
 

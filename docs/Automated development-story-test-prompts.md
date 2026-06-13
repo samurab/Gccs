@@ -60,6 +60,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 #-----------------------------------
 
 ### Please perform automated test on Story 2.3: User Invitations. Please provide the results of the tests.
+### Done ## 
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-2.3.1:** As a tenant admin, invite a user by email and role, then verify token, expiration, pending status, and local notification/email placeholder.
@@ -67,8 +68,10 @@ Using the existing GCCS architecture and test patterns, create or update automat
 - **TC-2.3.3:** Attempt to accept expired and revoked invitations and verify no membership is created.
 - **TC-2.3.4:** Create, accept, expire, and revoke invitations, then verify each state change is audit logged.
 #-----------------------------------
-
+# ******* TEST FAILS
+### Done ## PLEASE RERUN LATER *****Main missing coverage: profile, contract, task/calendar, direct evidence CRUD, and subcontractor API endpoints are not implemented yet, so TC-2.4 can’t verify runtime RBAC for those endpoint families.
 ###  Please perform automated test on Story 2.4: Role-Based Permissions. Please provide the results of the tests.
+
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-2.4.1:** For each role, call representative profile, contract, obligation, task, evidence, report, subcontractor, and admin endpoints and verify results match the permission matrix.

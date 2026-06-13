@@ -21,6 +21,8 @@ security:
 tags:
   - name: System
     description: Health and API metadata.
+  - name: Access
+    description: Current-user role and permission metadata for RBAC-driven UI states.
   - name: Compliance Overview
     description: Product overview and dashboard summary.
   - name: Tenants
@@ -68,6 +70,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+
+  /api/me/access:
+    get:
+      tags:
+        - Access
+      summary: Get current user roles and permissions
+      operationId: getCurrentUserAccess
+      description: >
+        Returns role-derived permissions for the authenticated tenant context so
+        clients can hide restricted actions. Server-side authorization remains
+        authoritative.
+      responses:
+        "200":
+          description: Current user access metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserAccess"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /api/compliance/overview:
     get:
@@ -260,6 +282,154 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TenantMember"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tenant-invitations:
+    get:
+      tags:
+        - Tenants
+      summary: List user invitations in the current tenant
+      operationId: listCurrentTenantInvitations
+      description: >
+        Returns only invitations for the authenticated active tenant. Requires
+        the ManageUsers permission.
+      responses:
+        "200":
+          description: Current-tenant invitations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TenantInvitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Tenants
+      summary: Invite a user to the current tenant
+      operationId: createTenantInvitation
+      description: >
+        Creates a pending invitation with a local notification placeholder. The
+        invited role is assigned when the token is accepted. Requires the
+        ManageUsers permission and writes an audit event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTenantInvitationRequest"
+      responses:
+        "201":
+          description: Created current-tenant invitation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantInvitation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: A pending invitation already exists for this email in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /api/invitations/{token}/accept:
+    post:
+      tags:
+        - Tenants
+      summary: Accept an invitation token
+      operationId: acceptTenantInvitation
+      description: >
+        Accepts a pending invitation token, creates an active tenant membership
+        with the invited role, and writes an audit event. Expired and revoked
+        invitations cannot be accepted.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptTenantInvitationRequest"
+      responses:
+        "200":
+          description: Accepted invitation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantInvitation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tenant-invitations/{invitationId}/expire:
+    post:
+      tags:
+        - Tenants
+      summary: Expire a current-tenant invitation
+      operationId: expireTenantInvitation
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Expired invitation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantInvitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tenant-invitations/{invitationId}/revoke:
+    post:
+      tags:
+        - Tenants
+      summary: Revoke a current-tenant invitation
+      operationId: revokeTenantInvitation
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Revoked invitation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantInvitation"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1365,6 +1535,30 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/reports/approved-evidence-packages:
+    get:
+      tags:
+        - Reports
+      summary: List approved evidence packages
+      operationId: listApprovedEvidencePackages
+      description: >
+        Returns completed prime evidence package reports in the current tenant
+        scope with approved evidence only. Auditor users may call this endpoint
+        but cannot use report or evidence modification endpoints.
+      responses:
+        "200":
+          description: Approved evidence packages.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApprovedEvidencePackage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/reports/{reportId}:
     parameters:
       - $ref: "#/components/parameters/ReportId"
@@ -1685,6 +1879,63 @@ components:
         detail:
           type: string
 
+    RoleName:
+      type: string
+      enum:
+        - Owner
+        - Admin
+        - Compliance Manager
+        - Contributor
+        - Auditor
+        - Advisor
+
+    PermissionName:
+      type: string
+      enum:
+        - ManageTenant
+        - ManageUsers
+        - ViewCompanyProfile
+        - ManageCompanyProfile
+        - ViewContracts
+        - ManageContracts
+        - ViewObligations
+        - ManageObligations
+        - ViewTasks
+        - ManageTasks
+        - ViewEvidence
+        - ManageEvidence
+        - ApproveEvidence
+        - ViewCmmc
+        - ManageCmmc
+        - ViewSubcontractors
+        - ManageSubcontractors
+        - ViewReports
+        - ManageReports
+        - ViewAuditLog
+        - AuditorReadOnly
+
+    CurrentUserAccess:
+      type: object
+      required:
+        - roles
+        - permissions
+        - rolePermissionMatrix
+      properties:
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleName"
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PermissionName"
+        rolePermissionMatrix:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: "#/components/schemas/PermissionName"
+
     Tenant:
       type: object
       required:
@@ -1753,8 +2004,7 @@ components:
         membershipStatus:
           $ref: "#/components/schemas/MembershipStatus"
         roleName:
-          type: string
-          maxLength: 120
+          $ref: "#/components/schemas/RoleName"
         mfaEnabled:
           type: boolean
         lastSignedInAt:
@@ -1796,9 +2046,7 @@ components:
           minLength: 1
           maxLength: 200
         roleName:
-          type: string
-          minLength: 1
-          maxLength: 120
+          $ref: "#/components/schemas/RoleName"
         status:
           $ref: "#/components/schemas/MembershipStatus"
 
@@ -1809,6 +2057,105 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/MembershipStatus"
+
+    TenantInvitation:
+      type: object
+      required:
+        - invitationId
+        - tenantId
+        - email
+        - roleName
+        - invitationToken
+        - status
+        - expiresAt
+        - notificationPlaceholder
+        - createdAt
+      properties:
+        invitationId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        roleName:
+          $ref: "#/components/schemas/RoleName"
+        invitationToken:
+          type: string
+          minLength: 1
+          maxLength: 128
+        status:
+          $ref: "#/components/schemas/TenantInvitationStatus"
+        expiresAt:
+          type: string
+          format: date-time
+        acceptedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        acceptedByUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        revokedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        revokedByUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        notificationSentAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        notificationPlaceholder:
+          type: string
+          maxLength: 600
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+
+    CreateTenantInvitationRequest:
+      type: object
+      required:
+        - email
+        - roleName
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        roleName:
+          $ref: "#/components/schemas/RoleName"
+        expiresInDays:
+          type: integer
+          minimum: 1
+          maximum: 30
+          default: 7
+
+    AcceptTenantInvitationRequest:
+      type: object
+      required:
+        - displayName
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
 
     CreateTenantRequest:
       type: object
@@ -1861,6 +2208,14 @@ components:
         - Active
         - Suspended
         - Deactivated
+
+    TenantInvitationStatus:
+      type: string
+      enum:
+        - Pending
+        - Accepted
+        - Expired
+        - Revoked
 
     ComplianceOverview:
       type: object
@@ -3329,6 +3684,69 @@ components:
             - string
             - "null"
           format: date-time
+
+    ApprovedEvidencePackage:
+      type: object
+      required:
+        - reportId
+        - tenantId
+        - type
+        - title
+        - status
+        - generatedAt
+        - generatedByUserId
+        - evidenceItems
+      properties:
+        reportId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ReportType"
+        title:
+          type: string
+        status:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        generatedByUserId:
+          type: string
+          format: uuid
+        evidenceItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApprovedEvidencePackageItem"
+
+    ApprovedEvidencePackageItem:
+      type: object
+      required:
+        - evidenceItemId
+        - name
+        - type
+        - status
+      properties:
+        evidenceItemId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/EvidenceType"
+        status:
+          $ref: "#/components/schemas/EvidenceStatus"
+        approvedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        approvedByUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
 
     ReportCreateRequest:
       type: object

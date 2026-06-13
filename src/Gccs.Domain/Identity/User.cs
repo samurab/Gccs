@@ -35,3 +35,27 @@ public enum MembershipStatus
     Suspended,
     Deactivated
 }
+
+public sealed record TenantInvitation(
+    Guid Id,
+    Guid TenantId,
+    string Email,
+    string RoleName,
+    string InvitationToken,
+    TenantInvitationStatus Status,
+    DateTimeOffset ExpiresAt,
+    DateTimeOffset? AcceptedAt,
+    Guid? AcceptedByUserId,
+    DateTimeOffset? RevokedAt,
+    Guid? RevokedByUserId,
+    DateTimeOffset? NotificationSentAt,
+    string NotificationPlaceholder,
+    EntityAudit Audit);
+
+public enum TenantInvitationStatus
+{
+    Pending,
+    Accepted,
+    Expired,
+    Revoked
+}
