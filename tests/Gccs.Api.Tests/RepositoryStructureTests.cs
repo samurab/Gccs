@@ -161,6 +161,7 @@ public sealed class RepositoryStructureTests
         var sourceReference = File.ReadAllText(Path.Combine(root, "src", "Gccs.Domain", "Compliance", "SourceReference.cs"));
         var securityTests = File.ReadAllText(Path.Combine(root, "tests", "Gccs.Api.Tests", "SecurityBoundaryTests.cs"));
         var projectIndex = File.ReadAllText(Path.Combine(root, "PROJECT_INDEX.md"));
+        var storyTestCases = File.ReadAllText(Path.Combine(root, "docs", "development-story-test-cases.md"));
 
         Assert.Contains(".RequireAuthorization()", program);
         Assert.Contains("ITenantContext tenantContext", program);
@@ -178,6 +179,8 @@ public sealed class RepositoryStructureTests
         Assert.Contains("Permission_policy_rejects_missing_permission", securityTests);
         Assert.Contains("Tenant scoping, RBAC, No-CUI policy enforcement, audit logging decisions", projectIndex);
         Assert.Contains("compliance workflow logic remains outside UI-only code", projectIndex);
+        Assert.Contains("empty/loading/error states", projectIndex);
+        Assert.Contains("User-facing errors are clear and use the standard API/UI error pattern.", storyTestCases);
     }
 
     [Fact]
