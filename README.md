@@ -98,6 +98,19 @@ npm test
 
 The root `npm test` command runs the ASP.NET Core xUnit suite and the React Vitest suite. Backend user story work should add or update focused xUnit coverage, and frontend user story work should add or update Vitest tests with React Testing Library for user-visible behavior. For frontend changes, run lint, Vitest, and the production build before handoff.
 
+### Continuous Integration
+
+Pull requests run the GitHub Actions workflow in `.github/workflows/ci.yml`. The pipeline is split into clearly named backend, frontend, and secret-scan jobs so reviewers can identify the failing project and step from the check name and logs.
+
+CI validates:
+
+- Backend dependency restore, dependency vulnerability scans, solution build, EF Core migration validation, and xUnit unit/integration tests.
+- Frontend dependency restore with `npm ci`, dependency vulnerability scans, ESLint, Vitest/React Testing Library tests, and production build.
+- Repository secret scanning with Gitleaks.
+- Backend and frontend test result artifacts for failed and successful runs.
+
+Configure repository branch protection to require the `Backend validation`, `Frontend validation`, and `Secret scan` checks before merge. A failing build, lint, test, migration validation, dependency vulnerability scan, or secret scanning step should block pull request merge.
+
 ### Local Services
 
 ```bash
