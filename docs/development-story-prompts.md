@@ -19,7 +19,7 @@ Use these requirements for every story:
 ## 1. Delivery Foundation
 
 ### Story 1.1: Repository And Project Structure
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  
 
@@ -91,7 +91,7 @@ Instructions:
 
 #-----------------------------------------
 ### Story 1.2: Local Development Services
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  
 
@@ -164,6 +164,8 @@ Instructions:
 #-----------------------------------------
 
 ### Story 1.3: Continuous Integration Baseline
+After this implementation the project will have CI implemented and CD planned/documented but not fully implemented yet.
+
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

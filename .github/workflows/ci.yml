@@ -5,25 +5,109 @@ on:
     branches: ["main"]
   pull_request:
 
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
+    name: Backend validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v5
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: "10.0.x"
-      - run: dotnet restore Gccs.slnx
-      - run: dotnet build Gccs.slnx --no-restore --configuration Release
-      - run: dotnet test Gccs.slnx --no-build --configuration Release
+          global-json-file: global.json
+
+      - name: Restore backend dependencies
+        run: dotnet restore Gccs.slnx
+
+      - name: Scan backend dependencies for known vulnerabilities
+        run: dotnet list Gccs.slnx package --vulnerable --include-transitive
+
+      - name: Build backend solution
+        run: dotnet build Gccs.slnx --no-restore --configuration Release
+
+      - name: Validate EF Core migrations
+        run: |
+          dotnet tool restore
+          dotnet tool run dotnet-ef migrations has-pending-model-changes \
+            --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
+            --startup-project apps/api/Gccs.Api.csproj \
+            --context GccsDbContext
+          dotnet tool run dotnet-ef migrations script --idempotent \
+            --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
+            --startup-project apps/api/Gccs.Api.csproj \
+            --context GccsDbContext \
+            --output "$RUNNER_TEMP/gccs-idempotent-migrations.sql"
+
+      - name: Run backend unit and integration tests
+        run: >
+          dotnet test Gccs.slnx
+          --no-build
+          --configuration Release
+          --logger "trx;LogFileName=gccs-backend-tests.trx"
+          --results-directory TestResults/backend
+
+      - name: Upload backend test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: backend-test-results
+          path: TestResults/backend
 
   frontend:
+    name: Frontend validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
         with:
           node-version: "25"
           cache: npm
-      - run: npm install
-      - run: npm run build:web
+
+      - name: Restore frontend dependencies
+        run: npm ci
+
+      - name: Scan frontend dependencies for known vulnerabilities
+        run: npm audit --audit-level=high
+
+      - name: Lint frontend workspace
+        run: npm run lint:web
+
+      - name: Run frontend unit tests
+        run: npm --workspace apps/web run test:run -- --reporter=default --reporter=junit --outputFile=TestResults/web/vitest-junit.xml
+
+      - name: Build frontend workspace
+        run: npm run build:web
+
+      - name: Upload frontend test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: frontend-test-results
+          path: apps/web/TestResults/web
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository for committed secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -180,6 +180,20 @@ Run all currently wired tests:
 npm test
 ```
 
+## Continuous Integration
+
+Pull requests run `.github/workflows/ci.yml`. The required branch protection checks should be:
+
+- `Backend validation`
+- `Frontend validation`
+- `Secret scan`
+
+The backend job restores .NET dependencies, runs dependency vulnerability scans, builds `Gccs.slnx`, validates EF Core migrations with pending-model-change and idempotent script generation checks, and runs xUnit unit/integration tests with uploaded TRX results.
+
+The frontend job restores packages with `npm ci`, runs dependency vulnerability scans, lints the React workspace, runs Vitest/React Testing Library tests with JUnit output, builds the Vite app, and uploads test results.
+
+The secret-scan job runs repository secret scanning with Gitleaks. Failing build, lint, test, migration validation, dependency vulnerability scan, or secret scanning steps are blocking job failures so reviewers can see the affected project and step directly in CI logs.
+
 Run local services:
 
 ```bash
