@@ -49,7 +49,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 - **TC-2.1.3:** As a user in tenant A, request tenant B data by ID and verify a 404/403-style response with no data leakage.
 - **TC-2.1.4:** Create a tenant and change its status, then verify audit events include tenant, actor, action, timestamps, and before/after status.
 #-----------------------------------
-
+### Done ## 
 ### Please perform automated test on Story 2.2: User Memberships. Please provide the results of the tests.
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 

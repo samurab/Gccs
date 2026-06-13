@@ -49,7 +49,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-2.1.3:** As a user in tenant A, request tenant B data by ID and verify a 404/403-style response with no data leakage.
 - **TC-2.1.4:** Create a tenant and change its status, then verify audit events include tenant, actor, action, timestamps, and before/after status.
 #-----------------------------------
-### Story 2.2: User Memberships
+### Story 2.2: User 
+### Done ## 
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-2.2.1:** Assign one user to two tenants and verify each membership is visible only when that tenant is active.

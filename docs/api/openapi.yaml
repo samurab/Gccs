@@ -177,6 +177,96 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/tenant-members:
+    get:
+      tags:
+        - Tenants
+      summary: List users assigned to the current tenant
+      operationId: listCurrentTenantMembers
+      description: >
+        Returns only memberships for the authenticated active tenant. Requires
+        the ManageUsers permission.
+      responses:
+        "200":
+          description: Current-tenant members.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TenantMember"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Tenants
+      summary: Assign a user to the current tenant
+      operationId: assignTenantMember
+      description: >
+        Adds an explicit membership between an existing or newly recorded user
+        and the authenticated tenant. Duplicate user membership in the same
+        tenant is rejected and successful changes are audit logged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignTenantMemberRequest"
+      responses:
+        "201":
+          description: Created current-tenant membership.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantMember"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: User already has a membership in the current tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+  /api/tenant-members/{membershipId}/status:
+    patch:
+      tags:
+        - Tenants
+      summary: Update current-tenant membership status
+      operationId: updateTenantMembershipStatus
+      parameters:
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTenantMembershipStatusRequest"
+      responses:
+        "200":
+          description: Updated current-tenant membership.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantMember"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/company-profile:
     get:
       tags:
@@ -1628,6 +1718,98 @@ components:
             - "null"
           format: date-time
 
+    TenantMember:
+      type: object
+      required:
+        - membershipId
+        - tenantId
+        - userId
+        - email
+        - displayName
+        - userStatus
+        - membershipStatus
+        - roleName
+        - mfaEnabled
+        - createdAt
+      properties:
+        membershipId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        displayName:
+          type: string
+          maxLength: 200
+        userStatus:
+          $ref: "#/components/schemas/UserStatus"
+        membershipStatus:
+          $ref: "#/components/schemas/MembershipStatus"
+        roleName:
+          type: string
+          maxLength: 120
+        mfaEnabled:
+          type: boolean
+        lastSignedInAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        lastAccessedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+
+    AssignTenantMemberRequest:
+      type: object
+      required:
+        - userId
+        - email
+        - displayName
+        - roleName
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        roleName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        status:
+          $ref: "#/components/schemas/MembershipStatus"
+
+    UpdateTenantMembershipStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: "#/components/schemas/MembershipStatus"
+
     CreateTenantRequest:
       type: object
       required:
@@ -1665,6 +1847,20 @@ components:
       type: string
       enum:
         - NoCui
+
+    UserStatus:
+      type: string
+      enum:
+        - Invited
+        - Active
+        - Disabled
+
+    MembershipStatus:
+      type: string
+      enum:
+        - Active
+        - Suspended
+        - Deactivated
 
     ComplianceOverview:
       type: object

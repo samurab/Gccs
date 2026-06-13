@@ -245,7 +245,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-2.1.1"] = ["TC_2_1_1_Tenant_creation_persists_required_metadata"],
             ["TC-2.1.2"] = ["TC_2_1_2_Tenant_owned_sample_records_store_correct_tenant_id"],
             ["TC-2.1.3"] = ["TC_2_1_3_Cross_tenant_read_by_id_returns_not_found_without_data_leakage"],
-            ["TC-2.1.4"] = ["TC_2_1_4_Tenant_status_change_audit_event_contains_before_and_after_status"]
+            ["TC-2.1.4"] = ["TC_2_1_4_Tenant_status_change_audit_event_contains_before_and_after_status"],
+            ["TC-2.2.1"] = ["TC_2_2_1_Assigned_user_is_visible_only_when_that_tenant_is_active"],
+            ["TC-2.2.2"] = ["TC_2_2_2_Tenant_member_list_excludes_users_from_other_tenants"],
+            ["TC-2.2.3"] = ["TC_2_2_3_Duplicate_membership_creation_is_rejected"],
+            ["TC-2.2.4"] = ["TC_2_2_4_Membership_add_update_and_deactivate_actions_are_audit_logged"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

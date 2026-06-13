@@ -6,25 +6,29 @@ import {
   FileSearch,
   FolderKanban,
   GitBranch,
-  ShieldCheck
+  ShieldCheck,
+  UsersRound
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ModuleCard } from "@/components/ModuleCard";
-import { fallbackOverview, getComplianceOverview } from "@/lib/api";
+import { fallbackOverview, getComplianceOverview, getTenantMembers, type TenantMember } from "@/lib/api";
 
 const moduleIcons = [Building2, FileSearch, ClipboardCheck, CalendarClock, Archive, ShieldCheck, GitBranch, FolderKanban];
 
 export function App() {
   const [overview, setOverview] = useState(fallbackOverview);
+  const [members, setMembers] = useState<TenantMember[]>([]);
   const hasModules = overview.modules.length > 0;
   const hasPriorityObligations = overview.priorityObligations.length > 0;
+  const hasMembers = members.length > 0;
 
   useEffect(() => {
     let isMounted = true;
 
-    getComplianceOverview().then((nextOverview) => {
+    Promise.all([getComplianceOverview(), getTenantMembers()]).then(([nextOverview, nextMembers]) => {
       if (isMounted) {
         setOverview(nextOverview);
+        setMembers(nextMembers);
       }
     });
 
@@ -125,6 +129,48 @@ export function App() {
             )}
           </div>
         </aside>
+      </section>
+
+      <section className="section-shell members-section" aria-label="Tenant team members">
+        <div className="section-heading">
+          <p className="eyebrow">Tenant access</p>
+          <h2>Team members</h2>
+        </div>
+        {hasMembers ? (
+          <div className="member-table" role="table" aria-label="Current tenant members">
+            <div className="member-row member-row--header" role="row">
+              <span role="columnheader">Member</span>
+              <span role="columnheader">Role</span>
+              <span role="columnheader">Status</span>
+              <span role="columnheader">MFA</span>
+            </div>
+            {members.map((member) => (
+              <article className="member-row" role="row" key={member.membershipId}>
+                <span className="member-person" role="cell">
+                  <span className="icon-box icon-box--small" aria-hidden="true">
+                    <UsersRound size={17} />
+                  </span>
+                  <span>
+                    <strong>{member.displayName}</strong>
+                    <small>{member.email}</small>
+                  </span>
+                </span>
+                <span role="cell">{member.roleName}</span>
+                <span role="cell">
+                  <span className={`status status--${member.membershipStatus.toLowerCase()}`}>
+                    {member.membershipStatus}
+                  </span>
+                </span>
+                <span role="cell">{member.mfaEnabled ? "Enabled" : "Not enabled"}</span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <h3>No tenant members available</h3>
+            <p>Team membership is loaded from the active tenant context.</p>
+          </div>
+        )}
       </section>
     </main>
   );

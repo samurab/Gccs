@@ -944,3 +944,33 @@ VALUES ('20260610051044_AddClauseReviewVersioning', '10.0.4');
 
 COMMIT;
 
+START TRANSACTION;
+CREATE TABLE gccs.tenant_memberships (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    status character varying(64) NOT NULL,
+    role_name character varying(120) NOT NULL,
+    last_accessed_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_tenant_memberships" PRIMARY KEY (id),
+    CONSTRAINT "FK_tenant_memberships_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_tenant_memberships_users_user_id" FOREIGN KEY (user_id) REFERENCES gccs.users (id) ON DELETE CASCADE
+);
+
+CREATE INDEX "IX_tenant_memberships_created_at_updated_at" ON gccs.tenant_memberships (created_at, updated_at);
+
+CREATE INDEX "IX_tenant_memberships_tenant_id_status" ON gccs.tenant_memberships (tenant_id, status);
+
+CREATE UNIQUE INDEX "IX_tenant_memberships_tenant_id_user_id" ON gccs.tenant_memberships (tenant_id, user_id);
+
+CREATE INDEX "IX_tenant_memberships_user_id" ON gccs.tenant_memberships (user_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260613213418_AddTenantMemberships', '10.0.4');
+
+COMMIT;
+

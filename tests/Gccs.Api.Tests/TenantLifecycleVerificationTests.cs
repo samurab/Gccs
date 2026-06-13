@@ -90,7 +90,7 @@ public sealed class TenantLifecycleVerificationTests : IClassFixture<WebApplicat
             {
                 Id = userId,
                 TenantId = tenantId,
-                Email = "tc-2.1.2.owner@example.test",
+                Email = "tc-2.1.2.owner@example.com",
                 DisplayName = "TC-2.1.2 Owner",
                 Status = UserStatus.Active,
                 MfaEnabled = true,

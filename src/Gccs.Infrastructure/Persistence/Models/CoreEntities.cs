@@ -25,6 +25,7 @@ public sealed class TenantEntity : AuditedEntity
     public DateOnly? TrialEndsAt { get; set; }
 
     public ICollection<UserEntity> Users { get; set; } = [];
+    public ICollection<TenantMembershipEntity> Memberships { get; set; } = [];
     public ICollection<RoleEntity> Roles { get; set; } = [];
 }
 
@@ -40,6 +41,20 @@ public sealed class UserEntity : AuditedEntity
 
     public TenantEntity? Tenant { get; set; }
     public ICollection<UserRoleEntity> UserRoles { get; set; } = [];
+    public ICollection<TenantMembershipEntity> Memberships { get; set; } = [];
+}
+
+public sealed class TenantMembershipEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid UserId { get; set; }
+    public MembershipStatus Status { get; set; }
+    public string RoleName { get; set; } = string.Empty;
+    public DateTimeOffset? LastAccessedAt { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public UserEntity? User { get; set; }
 }
 
 public sealed class RoleEntity : AuditedEntity

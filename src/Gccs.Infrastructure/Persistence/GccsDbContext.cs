@@ -22,6 +22,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 {
     public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<RoleEntity> Roles => Set<RoleEntity>();
     public DbSet<CompanyProfileEntity> CompanyProfiles => Set<CompanyProfileEntity>();
     public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
@@ -76,6 +77,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<EvidenceStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<EvidenceType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<FlowDownStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<MembershipStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<Permission>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<PoamStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<RecurrencePattern>().HaveConversion<string>().HaveMaxLength(64);
@@ -129,6 +131,18 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
             entity.HasOne(x => x.Tenant).WithMany(x => x.Users).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantMembershipEntity>(entity =>
+        {
+            entity.ToTable("tenant_memberships");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.UserId }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany(x => x.Memberships).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.User).WithMany(x => x.Memberships).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             ConfigureAuditColumns(entity);
         });
 

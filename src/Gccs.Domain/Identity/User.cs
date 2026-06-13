@@ -19,3 +19,19 @@ public enum UserStatus
     Active,
     Disabled
 }
+
+public sealed record TenantMembership(
+    Guid Id,
+    Guid TenantId,
+    Guid UserId,
+    MembershipStatus Status,
+    string RoleName,
+    DateTimeOffset? LastAccessedAt,
+    EntityAudit Audit);
+
+public enum MembershipStatus
+{
+    Active,
+    Suspended,
+    Deactivated
+}

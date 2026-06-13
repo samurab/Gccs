@@ -314,7 +314,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 2.2: User Memberships
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  
 

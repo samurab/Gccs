@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
 using Gccs.Application.Compliance;
+using Gccs.Application.Identity;
 using Gccs.Application.Repositories;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Identity;
@@ -107,6 +108,54 @@ api.MapGet("/obligations/{id}", async (string id, IObligationRepository reposito
 })
 .RequirePermission(Permission.AuditorReadOnly)
 .WithName("GetObligationById");
+
+api.MapGet("/tenant-members", async (
+    TenantMembershipService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantMembersAsync(cancellationToken)))
+.RequirePermission(Permission.ManageUsers)
+.WithName("ListCurrentTenantMembers");
+
+api.MapPost("/tenant-members", async (
+    AssignTenantMemberRequest request,
+    TenantMembershipService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var member = await service.AssignAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/tenant-members/{member.MembershipId}", member);
+    }
+    catch (DuplicateMembershipException exception)
+    {
+        return Results.Conflict(new { message = exception.Message });
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["membership"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("AssignTenantMember");
+
+api.MapPatch("/tenant-members/{membershipId:guid}/status", async (
+    Guid membershipId,
+    UpdateTenantMembershipStatusRequest request,
+    TenantMembershipService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    var member = await service.UpdateStatusAsync(membershipId, request, tenantContext.UserId, cancellationToken);
+    return member is null
+        ? Results.NotFound(new { message = "Tenant membership was not found in the current tenant scope." })
+        : Results.Ok(member);
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("UpdateTenantMembershipStatus");
 
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
