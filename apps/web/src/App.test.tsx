@@ -19,11 +19,17 @@ const {
   createTenantInvitationMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
   adminAccess: {
+    tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+    userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+    userEmail: "admin@example.com",
     roles: ["Admin"],
     permissions: ["ManageUsers", "ViewObligations", "ViewReports"],
     rolePermissionMatrix: {}
   },
   fallbackAccess: {
+    tenantId: null,
+    userId: null,
+    userEmail: null,
     roles: [],
     permissions: [],
     rolePermissionMatrix: {}
@@ -40,31 +46,49 @@ const {
   getTenantMembersMock: vi.fn(),
   accessByRole: {
     Owner: {
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      userEmail: "owner@example.com",
       roles: ["Owner"],
       permissions: ["ManageUsers", "ViewObligations", "ViewReports"],
       rolePermissionMatrix: {}
     },
     Admin: {
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      userEmail: "admin@example.com",
       roles: ["Admin"],
       permissions: ["ManageUsers", "ViewObligations", "ViewReports"],
       rolePermissionMatrix: {}
     },
     "Compliance Manager": {
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      userEmail: "compliance.manager@example.com",
       roles: ["Compliance Manager"],
       permissions: ["ViewObligations", "ViewReports"],
       rolePermissionMatrix: {}
     },
     Contributor: {
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      userEmail: "contributor@example.com",
       roles: ["Contributor"],
       permissions: ["ViewObligations", "ViewReports"],
       rolePermissionMatrix: {}
     },
     Auditor: {
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      userEmail: "auditor@example.com",
       roles: ["Auditor"],
       permissions: ["AuditorReadOnly", "ViewObligations", "ViewReports"],
       rolePermissionMatrix: {}
     },
     Advisor: {
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      userEmail: "advisor@example.com",
       roles: ["Advisor"],
       permissions: ["ViewObligations", "ViewReports"],
       rolePermissionMatrix: {}

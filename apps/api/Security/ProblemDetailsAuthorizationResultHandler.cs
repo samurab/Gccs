@@ -15,28 +15,26 @@ public sealed class ProblemDetailsAuthorizationResultHandler : IAuthorizationMid
     {
         if (authorizeResult.Forbidden)
         {
-            await Results.Problem(
-                    title: "Permission denied",
-                    detail: "You do not have permission to perform this tenant-scoped action.",
-                    statusCode: StatusCodes.Status403Forbidden,
-                    extensions: new Dictionary<string, object?>
-                    {
-                        ["errorCode"] = "permission_denied"
-                    })
+            await ApiProblemDetails
+                .Create(
+                    context,
+                    "Permission denied",
+                    "You do not have permission to perform this tenant-scoped action.",
+                    StatusCodes.Status403Forbidden,
+                    "permission_denied")
                 .ExecuteAsync(context);
             return;
         }
 
         if (authorizeResult.Challenged)
         {
-            await Results.Problem(
-                    title: "Authentication required",
-                    detail: "Authentication is required to access this tenant-scoped API.",
-                    statusCode: StatusCodes.Status401Unauthorized,
-                    extensions: new Dictionary<string, object?>
-                    {
-                        ["errorCode"] = "authentication_required"
-                    })
+            await ApiProblemDetails
+                .Create(
+                    context,
+                    "Authentication required",
+                    "Authentication is required to access this tenant-scoped API.",
+                    StatusCodes.Status401Unauthorized,
+                    "authentication_required")
                 .ExecuteAsync(context);
             return;
         }

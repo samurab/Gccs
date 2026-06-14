@@ -23,6 +23,9 @@ export type ComplianceOverview = {
 };
 
 export type CurrentUserAccess = {
+  tenantId: string | null;
+  userId: string | null;
+  userEmail: string | null;
   roles: string[];
   permissions: string[];
   rolePermissionMatrix: Record<string, string[]>;
@@ -77,6 +80,9 @@ export const fallbackOverview: ComplianceOverview = {
 };
 
 export const fallbackAccess: CurrentUserAccess = {
+  tenantId: null,
+  userId: null,
+  userEmail: null,
   roles: [],
   permissions: [],
   rolePermissionMatrix: {}

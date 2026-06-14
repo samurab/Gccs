@@ -18,6 +18,12 @@ public sealed class EfAuditEventWriter(GccsDbContext dbContext, IAuditRequestMet
         IReadOnlyDictionary<string, string>? metadata = null,
         CancellationToken cancellationToken = default)
     {
+        var eventMetadata = new Dictionary<string, string>(metadata ?? new Dictionary<string, string>());
+        if (!string.IsNullOrWhiteSpace(requestMetadata.CorrelationId))
+        {
+            eventMetadata["correlationId"] = requestMetadata.CorrelationId;
+        }
+
         dbContext.AuditLogEntries.Add(new AuditLogEntryEntity
         {
             Id = Guid.NewGuid(),
@@ -30,7 +36,7 @@ public sealed class EfAuditEventWriter(GccsDbContext dbContext, IAuditRequestMet
             IpAddress = requestMetadata.IpAddress,
             UserAgent = requestMetadata.UserAgent,
             Summary = summary,
-            MetadataJson = JsonSerializer.Serialize(metadata ?? new Dictionary<string, string>())
+            MetadataJson = JsonSerializer.Serialize(eventMetadata)
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);

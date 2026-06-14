@@ -263,7 +263,19 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ],
             ["TC-2.4.2"] = ["TC-2.4.2 renders workspace actions"],
             ["TC-2.4.3"] = ["TC_2_4_3_Permission_failures_return_standard_problem_details"],
-            ["TC-2.4.4"] = ["TC_2_4_4_Auditor_can_view_tenant_scoped_approved_evidence_packages_but_cannot_modify_data"]
+            ["TC-2.4.4"] = ["TC_2_4_4_Auditor_can_view_tenant_scoped_approved_evidence_packages_but_cannot_modify_data"],
+            ["TC-3.1.1"] = ["Api_routes_require_authentication"],
+            ["TC-3.1.2"] =
+            [
+                "Development_auth_allows_authenticated_api_access_and_resolves_current_context",
+                "Authenticated_permissioned_api_request_preserves_tenant_scoped_no_cui_response_shape"
+            ],
+            ["TC-3.1.3"] = ["Authenticated_api_request_without_tenant_returns_standard_missing_tenant_error"],
+            ["TC-3.1.4"] =
+            [
+                "Compliance_relevant_audit_events_include_request_correlation_id",
+                "Failed_api_responses_and_logs_include_request_correlation_id"
+            ]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

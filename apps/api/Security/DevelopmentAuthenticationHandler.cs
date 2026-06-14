@@ -29,8 +29,10 @@ public sealed class DevelopmentAuthenticationHandler(
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        var tenantId = Request.Headers["X-Gccs-Dev-Tenant"].FirstOrDefault() ?? Options.DefaultTenantId;
-        var userId = Request.Headers["X-Gccs-Dev-User"].FirstOrDefault() ?? Options.DefaultUserId;
+        var tenantHeader = Request.Headers["X-Gccs-Dev-Tenant"].FirstOrDefault();
+        var userHeader = Request.Headers["X-Gccs-Dev-User"].FirstOrDefault();
+        var tenantId = tenantHeader is null ? Options.DefaultTenantId : tenantHeader;
+        var userId = userHeader is null ? Options.DefaultUserId : userHeader;
         var email = Request.Headers["X-Gccs-Dev-Email"].FirstOrDefault() ?? Options.DefaultEmail;
         var roleName = Request.Headers["X-Gccs-Dev-Role"].FirstOrDefault();
         var permissions = Request.Headers["X-Gccs-Dev-Permissions"].FirstOrDefault();
@@ -42,10 +44,20 @@ public sealed class DevelopmentAuthenticationHandler(
 
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, userId),
-            new(ClaimTypes.Email, email),
-            new(ApiSecurityExtensions.TenantIdClaimType, tenantId)
+            new(ClaimTypes.Email, email)
         };
+
+        if (!string.IsNullOrWhiteSpace(userId) &&
+            !string.Equals(userId, "none", StringComparison.OrdinalIgnoreCase))
+        {
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, userId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(tenantId) &&
+            !string.Equals(tenantId, "none", StringComparison.OrdinalIgnoreCase))
+        {
+            claims.Add(new Claim(ApiSecurityExtensions.TenantIdClaimType, tenantId));
+        }
 
         if (canonicalRoleName is not null)
         {

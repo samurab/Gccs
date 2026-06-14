@@ -1807,6 +1807,10 @@ components:
           type: string
         traceId:
           type: string
+        correlationId:
+          type: string
+        errorCode:
+          type: string
 
     PagedResult:
       type: object
@@ -1917,10 +1921,22 @@ components:
     CurrentUserAccess:
       type: object
       required:
+        - tenantId
+        - userId
+        - userEmail
         - roles
         - permissions
         - rolePermissionMatrix
       properties:
+        tenantId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        userEmail:
+          type: string
+          format: email
         roles:
           type: array
           items:

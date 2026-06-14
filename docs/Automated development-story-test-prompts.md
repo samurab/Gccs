@@ -81,7 +81,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 #-----------------------------------
 
 ## 3. Authenticated Application Shell
-
+### Done ##
 ###  Please perform automated test on Story 3.1: Protected API Access. Please provide the results of the tests.
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 

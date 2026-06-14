@@ -7,4 +7,9 @@ public sealed class HttpAuditRequestMetadata(IHttpContextAccessor httpContextAcc
     public string IpAddress => httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
 
     public string UserAgent => httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString() ?? string.Empty;
+
+    public string CorrelationId =>
+        httpContextAccessor.HttpContext is { } httpContext
+            ? ApiCorrelation.Get(httpContext)
+            : string.Empty;
 }

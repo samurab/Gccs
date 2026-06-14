@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Gccs.Api.Security;
@@ -135,6 +136,108 @@ public static class ApiSecurityExtensions
             }
 
             await next();
+        });
+    }
+
+    public static IApplicationBuilder UseGccsCorrelationIds(this IApplicationBuilder app)
+    {
+        return app.Use(async (context, next) =>
+        {
+            var correlationId = ApiCorrelation.Ensure(context);
+            context.Response.OnStarting(() =>
+            {
+                context.Response.Headers[ApiCorrelation.HeaderName] = correlationId;
+                return Task.CompletedTask;
+            });
+
+            await next();
+        });
+    }
+
+    public static IApplicationBuilder UseGccsApiFailureLogging(this IApplicationBuilder app)
+    {
+        return app.Use(async (context, next) =>
+        {
+            await next();
+
+            if (!context.Request.Path.StartsWithSegments("/api") ||
+                context.Response.StatusCode < StatusCodes.Status400BadRequest)
+            {
+                return;
+            }
+
+            var correlationId = ApiCorrelation.Get(context);
+            var loggerFactory = context.RequestServices.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("Gccs.Api.Security.ApiFailureLogging");
+            var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
+            var tenantId = context.User.FindFirstValue(TenantIdClaimType) ?? "none";
+
+            if (context.Response.StatusCode >= StatusCodes.Status500InternalServerError)
+            {
+                logger.LogError(
+                    "API request failed. StatusCode={StatusCode} Method={Method} Path={Path} CorrelationId={CorrelationId} TraceId={TraceId} UserId={UserId} TenantId={TenantId}",
+                    context.Response.StatusCode,
+                    context.Request.Method,
+                    context.Request.Path.Value,
+                    correlationId,
+                    context.TraceIdentifier,
+                    userId,
+                    tenantId);
+                return;
+            }
+
+            logger.LogWarning(
+                "API request failed. StatusCode={StatusCode} Method={Method} Path={Path} CorrelationId={CorrelationId} TraceId={TraceId} UserId={UserId} TenantId={TenantId}",
+                context.Response.StatusCode,
+                context.Request.Method,
+                context.Request.Path.Value,
+                correlationId,
+                context.TraceIdentifier,
+                userId,
+                tenantId);
+        });
+    }
+
+    public static IApplicationBuilder UseGccsApiProblemDetails(this IApplicationBuilder app)
+    {
+        return app.UseExceptionHandler(errorApp =>
+        {
+            errorApp.Run(async context =>
+            {
+                var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+                if (exception is null)
+                {
+                    return;
+                }
+
+                if (!context.Request.Path.StartsWithSegments("/api"))
+                {
+                    throw exception;
+                }
+
+                var (statusCode, title, detail, errorCode) = exception switch
+                {
+                    MissingTenantContextException => (
+                        StatusCodes.Status400BadRequest,
+                        "Tenant context required",
+                        "An active tenant context is required for this tenant-scoped API request.",
+                        "missing_tenant_context"),
+                    InvalidUserContextException => (
+                        StatusCodes.Status400BadRequest,
+                        "User context required",
+                        "A valid authenticated user context is required for this API request.",
+                        "invalid_user_context"),
+                    _ => (
+                        StatusCodes.Status500InternalServerError,
+                        "API request failed",
+                        "The API request could not be completed.",
+                        "api_request_failed")
+                };
+
+                await ApiProblemDetails
+                    .Create(context, title, detail, statusCode, errorCode)
+                    .ExecuteAsync(context);
+            });
         });
     }
 

@@ -63,6 +63,9 @@ else
 }
 
 app.UseHttpsRedirection();
+app.UseGccsCorrelationIds();
+app.UseGccsApiFailureLogging();
+app.UseGccsApiProblemDetails();
 app.UseGccsSecurityHeaders();
 app.UseCors("web");
 app.UseRateLimiter();
@@ -92,7 +95,7 @@ var api = app.MapGroup("/api")
     .RequireAuthorization()
     .RequireRateLimiting("api");
 
-api.MapGet("/me/access", (ClaimsPrincipal user) =>
+api.MapGet("/me/access", (ClaimsPrincipal user, ITenantContext tenantContext) =>
 {
     var roles = user
         .FindAll(ApiSecurityExtensions.RoleNameClaimType)
@@ -110,6 +113,9 @@ api.MapGet("/me/access", (ClaimsPrincipal user) =>
 
     return Results.Ok(new
     {
+        tenantId = tenantContext.TenantId,
+        userId = tenantContext.UserId,
+        userEmail = tenantContext.UserEmail,
         roles,
         permissions,
         rolePermissionMatrix = RoleCatalog.PermissionsByRole.ToDictionary(
@@ -129,11 +135,16 @@ api.MapGet("/obligations", async (IObligationRepository repository, Cancellation
 .RequirePermission(Permission.ViewObligations)
 .WithName("ListObligations");
 
-api.MapGet("/obligations/{id}", async (string id, IObligationRepository repository, CancellationToken cancellationToken) =>
+api.MapGet("/obligations/{id}", async (string id, IObligationRepository repository, HttpContext httpContext, CancellationToken cancellationToken) =>
 {
     var obligation = await repository.FindByIdAsync(id, cancellationToken);
     return obligation is null
-        ? Results.NotFound(new { message = $"Obligation '{id}' was not found." })
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Obligation '{id}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
         : Results.Ok(obligation);
 })
 .RequirePermission(Permission.ViewObligations)
@@ -157,6 +168,7 @@ api.MapPost("/tenant-members", async (
     AssignTenantMemberRequest request,
     TenantMembershipService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
@@ -166,7 +178,12 @@ api.MapPost("/tenant-members", async (
     }
     catch (DuplicateMembershipException exception)
     {
-        return Results.Conflict(new { message = exception.Message });
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Duplicate tenant membership",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "duplicate_membership");
     }
     catch (ArgumentException exception)
     {
@@ -184,11 +201,17 @@ api.MapPatch("/tenant-members/{membershipId:guid}/status", async (
     UpdateTenantMembershipStatusRequest request,
     TenantMembershipService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     var member = await service.UpdateStatusAsync(membershipId, request, tenantContext.UserId, cancellationToken);
     return member is null
-        ? Results.NotFound(new { message = "Tenant membership was not found in the current tenant scope." })
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            "Tenant membership was not found in the current tenant scope.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
         : Results.Ok(member);
 })
 .RequirePermission(Permission.ManageUsers)
@@ -205,6 +228,7 @@ api.MapPost("/tenant-invitations", async (
     CreateTenantInvitationRequest request,
     TenantInvitationService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
@@ -214,7 +238,12 @@ api.MapPost("/tenant-invitations", async (
     }
     catch (DuplicateInvitationException exception)
     {
-        return Results.Conflict(new { message = exception.Message });
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Duplicate tenant invitation",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "duplicate_invitation");
     }
     catch (ArgumentException exception)
     {
@@ -232,6 +261,7 @@ api.MapPost("/invitations/{token}/accept", async (
     AcceptTenantInvitationRequest request,
     TenantInvitationService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
@@ -244,7 +274,12 @@ api.MapPost("/invitations/{token}/accept", async (
             cancellationToken);
 
         return invitation is null
-            ? Results.NotFound(new { message = "Invitation token was not found." })
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "Invitation token was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
             : Results.Ok(invitation);
     }
     catch (InvalidInvitationStateException exception)
@@ -268,11 +303,17 @@ api.MapPost("/tenant-invitations/{invitationId:guid}/expire", async (
     Guid invitationId,
     TenantInvitationService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     var invitation = await service.ExpireAsync(invitationId, tenantContext.UserId, cancellationToken);
     return invitation is null
-        ? Results.NotFound(new { message = "Invitation was not found in the current tenant scope." })
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            "Invitation was not found in the current tenant scope.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
         : Results.Ok(invitation);
 })
 .RequirePermission(Permission.ManageUsers)
@@ -282,11 +323,17 @@ api.MapPost("/tenant-invitations/{invitationId:guid}/revoke", async (
     Guid invitationId,
     TenantInvitationService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     var invitation = await service.RevokeAsync(invitationId, tenantContext.UserId, cancellationToken);
     return invitation is null
-        ? Results.NotFound(new { message = "Invitation was not found in the current tenant scope." })
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            "Invitation was not found in the current tenant scope.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
         : Results.Ok(invitation);
 })
 .RequirePermission(Permission.ManageUsers)
@@ -317,11 +364,17 @@ api.MapPost("/tenants", async (
 api.MapGet("/tenants/{tenantId:guid}", async (
     Guid tenantId,
     TenantService service,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     var tenant = await service.FindInCurrentTenantScopeAsync(tenantId, cancellationToken);
     return tenant is null
-        ? Results.NotFound(new { message = "Tenant was not found in the current tenant scope." })
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            "Tenant was not found in the current tenant scope.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
         : Results.Ok(tenant);
 })
 .RequirePermission(Permission.ManageTenant)
@@ -332,13 +385,19 @@ api.MapPatch("/tenants/{tenantId:guid}/status", async (
     UpdateTenantStatusRequest request,
     TenantService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
         var tenant = await service.UpdateStatusAsync(tenantId, request, tenantContext.UserId, cancellationToken);
         return tenant is null
-            ? Results.NotFound(new { message = "Tenant was not found in the current tenant scope." })
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "Tenant was not found in the current tenant scope.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
             : Results.Ok(tenant);
     }
     catch (ArgumentException exception)
