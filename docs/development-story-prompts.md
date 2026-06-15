@@ -1697,6 +1697,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 9.2: Attach Clause To Contract
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

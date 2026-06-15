@@ -275,16 +275,23 @@ public sealed class ContractDocumentEntity
     public ContractEntity? Contract { get; set; }
 }
 
-public sealed class ContractClauseEntity
+public sealed class ContractClauseEntity : AuditedEntity
 {
     public Guid Id { get; set; }
     public Guid ContractId { get; set; }
+    public string ClauseLibraryId { get; set; } = string.Empty;
     public string ClauseNumber { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Alternate { get; set; }
     public string? FullText { get; set; }
     public ClauseSource Source { get; set; }
+    public string SourceUrl { get; set; } = string.Empty;
     public string? SourceHash { get; set; }
+    public string AttachmentReason { get; set; } = string.Empty;
+    public string? SourceDocumentReference { get; set; }
+    public DateTimeOffset? RemovedAt { get; set; }
+    public Guid? RemovedByUserId { get; set; }
+    public string? RemovalReason { get; set; }
     public bool RequiresFlowDown { get; set; }
     public DateOnly LastReviewedAt { get; set; }
     public Guid? ReviewedByUserId { get; set; }

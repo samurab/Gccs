@@ -767,8 +767,8 @@ paths:
     post:
       tags:
         - Clauses
-      summary: Add a clause to a contract
-      operationId: addContractClause
+      summary: Attach a published library clause to a contract
+      operationId: attachContractClause
       requestBody:
         required: true
         content:
@@ -786,6 +786,42 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/contracts/{contractId}/clauses/{contractClauseId}:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - name: contractClauseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags:
+        - Clauses
+      summary: Remove an attached clause from a contract
+      operationId: removeContractClause
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractClauseRemoveRequest"
+      responses:
+        "200":
+          description: Clause removed with reason.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractClause"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -2852,6 +2888,11 @@ components:
           required:
             - id
             - contractId
+            - clauseNumber
+            - title
+            - source
+            - sourceUrl
+            - lastReviewedAt
             - createdAt
           properties:
             id:
@@ -2860,6 +2901,18 @@ components:
             contractId:
               type: string
               format: uuid
+            clauseNumber:
+              type: string
+            title:
+              type: string
+            source:
+              type: string
+            sourceUrl:
+              type: string
+              format: uri
+            lastReviewedAt:
+              type: string
+              format: date
             createdAt:
               type: string
               format: date-time
@@ -2902,38 +2955,25 @@ components:
     ContractClauseCreateRequest:
       type: object
       required:
-        - source
-        - title
+        - clauseLibraryId
+        - attachmentReason
       properties:
-        source:
+        clauseLibraryId:
           type: string
-          examples:
-            - FAR 52.204-21
-        title:
+        attachmentReason:
           type: string
-        fullText:
+        sourceDocumentReference:
           type:
             - string
             - "null"
-        effectiveDate:
-          type:
-            - string
-            - "null"
-          format: date
-        sourceDocumentId:
-          type:
-            - string
-            - "null"
-          format: uuid
-        extractionConfidence:
-          type:
-            - number
-            - "null"
-          minimum: 0
-          maximum: 1
-        userVerified:
-          type: boolean
-          default: false
+
+    ContractClauseRemoveRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
 
     ContractObligation:
       type: object

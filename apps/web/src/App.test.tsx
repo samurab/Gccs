@@ -5,8 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   acknowledgeNoCuiNoticeMock,
   allWorkflowAccess,
+  attachContractClauseMock,
   clauseLibraryItem,
   contract,
+  contractClause,
   contractDeliverable,
   contractDocument,
   createContractDeliverableMock,
@@ -17,6 +19,7 @@ const {
   deleteContractDocumentMock,
   fallbackOverview,
   getCompanyProfileMock,
+  getContractClausesMock,
   getContractDeliverablesMock,
   getContractDocumentsMock,
   getContractsMock,
@@ -31,12 +34,14 @@ const {
   overview,
   profile,
   restrictedAccess,
+  removeContractClauseMock,
   saveCompanyProfileMock,
   searchClauseLibraryMock,
   updateContractDeliverableMock,
   updateContractMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
+  attachContractClauseMock: vi.fn(),
   createContractDeliverableMock: vi.fn(),
   createContractMock: vi.fn(),
   createContractDocumentMock: vi.fn(),
@@ -45,6 +50,7 @@ const {
   deleteContractDocumentMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
   getCompanyProfileMock: vi.fn(),
+  getContractClausesMock: vi.fn(),
   getContractDeliverablesMock: vi.fn(),
   getContractDocumentsMock: vi.fn(),
   getContractsMock: vi.fn(),
@@ -53,6 +59,7 @@ const {
   getNoCuiAcknowledgementStatusMock: vi.fn(),
   getTenantInvitationsMock: vi.fn(),
   getTenantMembersMock: vi.fn(),
+  removeContractClauseMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
   updateContractDeliverableMock: vi.fn(),
@@ -237,6 +244,20 @@ const {
     lastReviewedAt: "2026-06-03",
     isMappable: true
   },
+  contractClause: {
+    id: "55555555-5555-5555-5555-555555555551",
+    contractId: "88888888-8888-8888-8888-888888888881",
+    clauseLibraryId: "far-52-204-27",
+    clauseNumber: "52.204-27",
+    title: "Prohibition on a ByteDance Covered Application",
+    source: "Far",
+    sourceUrl: "https://www.acquisition.gov/far/52.204-27",
+    lastReviewedAt: "2026-06-03",
+    attachmentReason: "Required by prime flow-down.",
+    sourceDocumentReference: "flowdown.pdf section 4",
+    attachedAt: "2026-06-15T12:00:00Z",
+    attachedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1"
+  },
   contractDocument: {
     id: "77777777-7777-7777-7777-777777777771",
     contractId: "88888888-8888-8888-8888-888888888881",
@@ -266,15 +287,18 @@ const {
 }));
 
 vi.mock("@/lib/api", () => ({
+  attachContractClause: attachContractClauseMock,
   createTenantInvitation: createTenantInvitationMock,
   createContractDeliverable: createContractDeliverableMock,
   createContract: createContractMock,
   createContractDocument: createContractDocumentMock,
   deleteContractDocument: deleteContractDocumentMock,
   getCompanyProfile: getCompanyProfileMock,
+  getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
   getContractDocuments: getContractDocumentsMock,
   getContracts: getContractsMock,
+  removeContractClause: removeContractClauseMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
   updateContractDeliverable: updateContractDeliverableMock,
@@ -321,6 +345,7 @@ describe("App", () => {
   beforeEach(() => {
     window.location.hash = "";
     acknowledgeNoCuiNoticeMock.mockReset();
+    attachContractClauseMock.mockReset();
     createEvidenceUploadIntentMock.mockReset();
     createContractDeliverableMock.mockReset();
     createContractMock.mockReset();
@@ -330,6 +355,7 @@ describe("App", () => {
     updateContractDeliverableMock.mockReset();
     updateContractMock.mockReset();
     saveCompanyProfileMock.mockReset();
+    removeContractClauseMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
     getAuditLogsMock.mockReset();
@@ -337,6 +363,7 @@ describe("App", () => {
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
     getContractsMock.mockReset();
+    getContractClausesMock.mockReset();
     getContractDeliverablesMock.mockReset();
     getContractDocumentsMock.mockReset();
     searchClauseLibraryMock.mockReset();
@@ -359,6 +386,7 @@ describe("App", () => {
     });
     getCompanyProfileMock.mockResolvedValue(profile);
     getContractsMock.mockResolvedValue([]);
+    getContractClausesMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
     getContractDocumentsMock.mockResolvedValue([]);
     searchClauseLibraryMock.mockResolvedValue([]);
@@ -403,6 +431,8 @@ describe("App", () => {
       })
     );
     createContractDocumentMock.mockResolvedValue({ data: contractDocument, error: null });
+    attachContractClauseMock.mockResolvedValue({ data: contractClause, error: null });
+    removeContractClauseMock.mockResolvedValue({ data: contractClause, error: null });
     createContractDeliverableMock.mockResolvedValue({
       data: {
         ...contractDeliverable,
@@ -694,6 +724,57 @@ describe("App", () => {
         status: "Submitted"
       })
     );
+  });
+
+  it("TC-9.2.1 and TC-9.2.3 attaches and removes contract clauses with reasons", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractClausesMock.mockResolvedValueOnce([contractClause]);
+    attachContractClauseMock.mockResolvedValueOnce({
+      data: {
+        ...contractClause,
+        id: "55555555-5555-5555-5555-555555555552",
+        clauseLibraryId: "far-52-204-21",
+        clauseNumber: "52.204-21",
+        title: "Basic Safeguarding"
+      },
+      error: null
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+    expect(await screen.findByText("Prohibition on a ByteDance Covered Application")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Published clause ID"), "far-52-204-21");
+    await user.type(screen.getByLabelText("Attachment reason"), "Required by award package.");
+    await user.type(screen.getByLabelText("Source document reference"), "contract.pdf section 12");
+    await user.click(screen.getByRole("button", { name: /attach clause/i }));
+
+    expect(attachContractClauseMock).toHaveBeenCalledWith(
+      contract.id,
+      expect.objectContaining({
+        clauseLibraryId: "far-52-204-21",
+        attachmentReason: "Required by award package.",
+        sourceDocumentReference: "contract.pdf section 12"
+      })
+    );
+    expect(await screen.findByText("Clause attached to contract.")).toBeInTheDocument();
+
+    const removalReason = screen.getByLabelText("Removal reason for 52.204-27");
+    await user.type(removalReason, "Removed from revised flow-down.");
+    const removalForm = removalReason.closest("form");
+    expect(removalForm).not.toBeNull();
+    await user.click(within(removalForm as HTMLElement).getByRole("button", { name: /remove/i }));
+
+    expect(removeContractClauseMock).toHaveBeenCalledWith(contract.id, contractClause.id, {
+      reason: "Removed from revised flow-down."
+    });
+    expect(await screen.findByText("Clause removed from contract.")).toBeInTheDocument();
   });
 
   it("TC-9.1.1 and TC-9.1.3 searches published clauses and shows source metadata", async () => {

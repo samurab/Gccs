@@ -236,6 +236,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-9.1.4:** Verify clause search does not expose draft, retired, or other-tenant custom content.
 #-----------------------------------
 ### Story 9.2: Attach Clause To Contract
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-9.2.1:** Attach a published clause to a contract with reason and source document reference.

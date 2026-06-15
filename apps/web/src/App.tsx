@@ -23,6 +23,7 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "re
 import { ModuleCard } from "@/components/ModuleCard";
 import {
   acknowledgeNoCuiNotice,
+  attachContractClause,
   createContract,
   createContractDeliverable,
   createContractDocument,
@@ -34,6 +35,7 @@ import {
   fallbackNoCuiAcknowledgementStatus,
   fallbackOverview,
   getCompanyProfile,
+  getContractClauses,
   getContractDeliverables,
   getContractDocuments,
   getContracts,
@@ -45,6 +47,7 @@ import {
   getTenantMembers,
   saveCompanyProfile,
   searchClauseLibrary,
+  removeContractClause,
   updateContract,
   updateContractDeliverable,
   type AuditLogEntry,
@@ -53,6 +56,7 @@ import {
   type CompanyCertification,
   type CompanyProfile,
   type ComplianceOverview,
+  type ContractClause,
   type ContractDeliverable,
   type ContractDocument,
   type ContractRecord,
@@ -60,6 +64,7 @@ import {
   type NoCuiAcknowledgementStatus,
   type PagedResult,
   type TenantInvitation,
+  type AttachContractClauseRequest,
   type UpsertContractDeliverableRequest,
   type UpsertContractRequest,
   type UpsertCompanyProfileRequest,
@@ -357,6 +362,7 @@ export function App() {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [clauseResults, setClauseResults] = useState<ClauseLibraryItem[]>([]);
+  const [contractClauses, setContractClauses] = useState<ContractClause[]>([]);
   const [contractDeliverables, setContractDeliverables] = useState<ContractDeliverable[]>([]);
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
@@ -375,6 +381,8 @@ export function App() {
   const [profileMessage, setProfileMessage] = useState("");
   const [contractStatus, setContractStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [contractMessage, setContractMessage] = useState("");
+  const [contractClauseStatus, setContractClauseStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [contractClauseMessage, setContractClauseMessage] = useState("");
   const [clauseSearchStatus, setClauseSearchStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [clauseSearchMessage, setClauseSearchMessage] = useState("");
   const [deliverableStatus, setDeliverableStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -437,6 +445,7 @@ export function App() {
           : fallbackNoCuiAcknowledgementStatus;
         const nextCompanyProfile = canLoadCompanyProfile ? await getCompanyProfile() : null;
         const nextContracts = canLoadContracts ? await getContracts() : [];
+        const nextContractClauses = nextContracts[0] ? await getContractClauses(nextContracts[0].id) : [];
         const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
 
@@ -447,6 +456,7 @@ export function App() {
           setInvitations(nextInvitations);
           setCompanyProfile(nextCompanyProfile);
           setContracts(nextContracts);
+          setContractClauses(nextContractClauses);
           setContractDeliverables(nextContractDeliverables);
           setContractDocuments(nextContractDocuments);
           setSelectedContractId(nextContracts[0]?.id ?? null);
@@ -464,6 +474,7 @@ export function App() {
           setInvitations([]);
           setCompanyProfile(null);
           setContracts([]);
+          setContractClauses([]);
           setContractDeliverables([]);
           setContractDocuments([]);
           setSelectedContractId(null);
@@ -557,13 +568,47 @@ export function App() {
 
   async function handleContractSelect(contractId: string | null) {
     setSelectedContractId(contractId);
+    setContractClauseMessage("");
     setDeliverableMessage("");
     setContractDocumentMessage("");
-    const [nextDeliverables, nextDocuments] = contractId
-      ? await Promise.all([getContractDeliverables(contractId), getContractDocuments(contractId)])
-      : [[], []];
+    const [nextClauses, nextDeliverables, nextDocuments] = contractId
+      ? await Promise.all([getContractClauses(contractId), getContractDeliverables(contractId), getContractDocuments(contractId)])
+      : [[], [], []];
+    setContractClauses(nextClauses);
     setContractDeliverables(nextDeliverables);
     setContractDocuments(nextDocuments);
+  }
+
+  async function handleContractClauseAttach(contractId: string, request: AttachContractClauseRequest) {
+    setContractClauseStatus("saving");
+    setContractClauseMessage("");
+
+    const result = await attachContractClause(contractId, request);
+    if (result.data) {
+      setContractClauses((currentClauses) => [result.data!, ...currentClauses]);
+      setContractClauseStatus("saved");
+      setContractClauseMessage("Clause attached to contract.");
+      return;
+    }
+
+    setContractClauseStatus("failed");
+    setContractClauseMessage(result.error ?? "Clause could not be attached.");
+  }
+
+  async function handleContractClauseRemove(contractId: string, contractClauseId: string, reason: string) {
+    setContractClauseStatus("saving");
+    setContractClauseMessage("");
+
+    const result = await removeContractClause(contractId, contractClauseId, { reason });
+    if (result.data) {
+      setContractClauses((currentClauses) => currentClauses.filter((clause) => clause.id !== contractClauseId));
+      setContractClauseStatus("saved");
+      setContractClauseMessage("Clause removed from contract.");
+      return;
+    }
+
+    setContractClauseStatus("failed");
+    setContractClauseMessage(result.error ?? "Clause could not be removed.");
   }
 
   async function handleDeliverableSave(
@@ -772,6 +817,9 @@ export function App() {
             <ContractsView
               canManageContracts={canManageContracts}
               contracts={contracts}
+              contractClauses={contractClauses}
+              contractClauseMessage={contractClauseMessage}
+              contractClauseStatus={contractClauseStatus}
               contractDeliverables={contractDeliverables}
               contractDocuments={contractDocuments}
               deliverableMessage={deliverableMessage}
@@ -783,6 +831,8 @@ export function App() {
               noCuiAcknowledgement={noCuiAcknowledgement}
               selectedContractId={selectedContractId}
               onDeleteDocument={handleContractDocumentDelete}
+              onAttachClause={handleContractClauseAttach}
+              onRemoveClause={handleContractClauseRemove}
               onSaveDeliverable={handleDeliverableSave}
               onUploadDocument={handleContractDocumentUpload}
               onSave={handleContractSave}
@@ -1235,6 +1285,9 @@ function ClauseLibraryView({
 function ContractsView({
   canManageContracts,
   contracts,
+  contractClauses,
+  contractClauseMessage,
+  contractClauseStatus,
   contractDeliverables,
   contractDocuments,
   deliverableMessage,
@@ -1246,6 +1299,8 @@ function ContractsView({
   noCuiAcknowledgement,
   selectedContractId,
   onDeleteDocument,
+  onAttachClause,
+  onRemoveClause,
   onSaveDeliverable,
   onUploadDocument,
   onSave,
@@ -1253,6 +1308,9 @@ function ContractsView({
 }: {
   canManageContracts: boolean;
   contracts: ContractRecord[];
+  contractClauses: ContractClause[];
+  contractClauseMessage: string;
+  contractClauseStatus: "idle" | "saving" | "saved" | "failed";
   contractDeliverables: ContractDeliverable[];
   contractDocuments: ContractDocument[];
   deliverableMessage: string;
@@ -1264,6 +1322,8 @@ function ContractsView({
   noCuiAcknowledgement: NoCuiAcknowledgementStatus;
   selectedContractId: string | null;
   onDeleteDocument: (contractId: string, documentId: string) => Promise<void>;
+  onAttachClause: (contractId: string, request: AttachContractClauseRequest) => Promise<void>;
+  onRemoveClause: (contractId: string, contractClauseId: string, reason: string) => Promise<void>;
   onSaveDeliverable: (
     contractId: string,
     deliverableId: string | null,
@@ -1276,6 +1336,12 @@ function ContractsView({
   const selectedContract = contracts.find((contract) => contract.id === selectedContractId) ?? null;
   const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState("Contract");
+  const [clauseDraft, setClauseDraft] = useState<AttachContractClauseRequest>({
+    clauseLibraryId: "",
+    attachmentReason: "",
+    sourceDocumentReference: ""
+  });
+  const [removalReasons, setRemovalReasons] = useState<Record<string, string>>({});
   const [deliverableDraft, setDeliverableDraft] = useState<UpsertContractDeliverableRequest>({
     name: "",
     description: "",
@@ -1285,7 +1351,38 @@ function ContractsView({
   });
   const uploadDisabled =
     !canManageContracts || !selectedContract || !noCuiAcknowledgement.isAcknowledged || contractDocumentStatus === "saving";
+  const clauseDisabled = !canManageContracts || !selectedContract || contractClauseStatus === "saving";
   const deliverableDisabled = !canManageContracts || !selectedContract || deliverableStatus === "saving";
+
+  async function attachClause() {
+    if (!selectedContract) {
+      return;
+    }
+
+    await onAttachClause(selectedContract.id, {
+      clauseLibraryId: clauseDraft.clauseLibraryId.trim(),
+      attachmentReason: clauseDraft.attachmentReason.trim(),
+      sourceDocumentReference: clauseDraft.sourceDocumentReference?.trim() || null
+    });
+    setClauseDraft({
+      clauseLibraryId: "",
+      attachmentReason: "",
+      sourceDocumentReference: ""
+    });
+  }
+
+  async function removeClause(contractClauseId: string) {
+    if (!selectedContract) {
+      return;
+    }
+
+    await onRemoveClause(selectedContract.id, contractClauseId, removalReasons[contractClauseId] ?? "");
+    setRemovalReasons((currentReasons) => {
+      const nextReasons = { ...currentReasons };
+      delete nextReasons[contractClauseId];
+      return nextReasons;
+    });
+  }
 
   async function saveNewDeliverable() {
     if (!selectedContract) {
@@ -1393,6 +1490,100 @@ function ContractsView({
             </div>
           </section>
         ) : null}
+
+        <section className="contract-clauses" aria-label="Attached contract clauses">
+          <div className="contract-documents__header">
+            <div>
+              <span>Attached clauses</span>
+              <strong>{contractClauses.length}</strong>
+            </div>
+          </div>
+          <form
+            className="contract-clause-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void attachClause();
+            }}
+          >
+            <label>
+              Published clause ID
+              <input
+                value={clauseDraft.clauseLibraryId}
+                onChange={(event) => setClauseDraft((current) => ({ ...current, clauseLibraryId: event.target.value }))}
+                disabled={clauseDisabled}
+                required
+              />
+            </label>
+            <label>
+              Attachment reason
+              <input
+                value={clauseDraft.attachmentReason}
+                onChange={(event) => setClauseDraft((current) => ({ ...current, attachmentReason: event.target.value }))}
+                disabled={clauseDisabled}
+                required
+              />
+            </label>
+            <label>
+              Source document reference
+              <input
+                value={clauseDraft.sourceDocumentReference ?? ""}
+                onChange={(event) => setClauseDraft((current) => ({ ...current, sourceDocumentReference: event.target.value }))}
+                disabled={clauseDisabled}
+              />
+            </label>
+            <button type="submit" disabled={clauseDisabled}>
+              Attach clause
+            </button>
+          </form>
+          {contractClauseMessage ? (
+            <p className={`form-status ${contractClauseStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
+              {contractClauseMessage}
+            </p>
+          ) : null}
+          <div className="contract-clause-list">
+            {contractClauses.length > 0 ? (
+              contractClauses.map((clause) => (
+                <article className="contract-clause-item" key={clause.id}>
+                  <div>
+                    <strong>{clause.clauseNumber}</strong>
+                    <span>{clause.title}</span>
+                    <small>
+                      Reviewed {clause.lastReviewedAt} · {clause.attachmentReason}
+                    </small>
+                    <a href={clause.sourceUrl} target="_blank" rel="noreferrer">
+                      {clause.sourceUrl}
+                    </a>
+                  </div>
+                  <form
+                    className="contract-clause-remove"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void removeClause(clause.id);
+                    }}
+                  >
+                    <input
+                      aria-label={`Removal reason for ${clause.clauseNumber}`}
+                      value={removalReasons[clause.id] ?? ""}
+                      onChange={(event) =>
+                        setRemovalReasons((currentReasons) => ({
+                          ...currentReasons,
+                          [clause.id]: event.target.value
+                        }))
+                      }
+                      placeholder="Removal reason"
+                      disabled={clauseDisabled}
+                    />
+                    <button type="submit" disabled={clauseDisabled}>
+                      Remove
+                    </button>
+                  </form>
+                </article>
+              ))
+            ) : (
+              <EmptyState title="No clauses attached yet" body="Attach published clauses from the library to begin contract-specific tracking." />
+            )}
+          </div>
+        </section>
 
         <section className="contract-deliverables" aria-label="Contract deliverables">
           <div className="contract-documents__header">

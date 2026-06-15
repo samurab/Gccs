@@ -27,6 +27,11 @@ public sealed class ContractService(
         CancellationToken cancellationToken = default) =>
         repository.ListDeliverablesAsync(contractId, cancellationToken);
 
+    public Task<IReadOnlyList<ContractClauseDto>?> ListClausesAsync(
+        Guid contractId,
+        CancellationToken cancellationToken = default) =>
+        repository.ListClausesAsync(contractId, cancellationToken);
+
     public async Task<ContractDto> CreateCurrentTenantAsync(
         UpsertContractRequest request,
         Guid actorUserId,
@@ -172,6 +177,43 @@ public sealed class ContractService(
         return deliverable;
     }
 
+    public async Task<ContractClauseDto?> AttachClauseAsync(
+        Guid contractId,
+        AttachContractClauseRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeClauseAttachment(request);
+        ValidateClauseAttachment(normalized);
+        var clause = await repository.AttachClauseAsync(contractId, normalized, actorUserId, cancellationToken);
+
+        if (clause is not null)
+        {
+            await WriteClauseAuditAsync(clause, actorUserId, AuditAction.Created, normalized.AttachmentReason, cancellationToken);
+        }
+
+        return clause;
+    }
+
+    public async Task<ContractClauseDto?> RemoveClauseAsync(
+        Guid contractId,
+        Guid contractClauseId,
+        RemoveContractClauseRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeClauseRemoval(request);
+        ValidateClauseRemoval(normalized);
+        var clause = await repository.RemoveClauseAsync(contractId, contractClauseId, normalized, actorUserId, cancellationToken);
+
+        if (clause is not null)
+        {
+            await WriteClauseAuditAsync(clause, actorUserId, AuditAction.Deleted, normalized.Reason, cancellationToken);
+        }
+
+        return clause;
+    }
+
     private async Task WriteAuditAsync(
         ContractDto contract,
         Guid actorUserId,
@@ -221,6 +263,22 @@ public sealed class ContractService(
             Name = request.Name.Trim(),
             Description = request.Description.Trim(),
             OwnerFunction = request.OwnerFunction.Trim()
+        };
+
+    private static AttachContractClauseRequest NormalizeClauseAttachment(AttachContractClauseRequest request) =>
+        request with
+        {
+            ClauseLibraryId = request.ClauseLibraryId.Trim(),
+            AttachmentReason = request.AttachmentReason.Trim(),
+            SourceDocumentReference = string.IsNullOrWhiteSpace(request.SourceDocumentReference)
+                ? null
+                : request.SourceDocumentReference.Trim()
+        };
+
+    private static RemoveContractClauseRequest NormalizeClauseRemoval(RemoveContractClauseRequest request) =>
+        request with
+        {
+            Reason = request.Reason.Trim()
         };
 
     private async Task WriteDocumentAuditAsync(
@@ -292,6 +350,31 @@ public sealed class ContractService(
         }
     }
 
+    private static void ValidateClauseAttachment(AttachContractClauseRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+        AddIf(errors, string.IsNullOrWhiteSpace(request.ClauseLibraryId), "clauseLibraryId", "Published clause id is required.");
+        AddIf(errors, string.IsNullOrWhiteSpace(request.AttachmentReason), "attachmentReason", "Attachment reason is required.");
+
+        if (errors.Count > 0)
+        {
+            throw new ContractValidationException(errors);
+        }
+    }
+
+    private static void ValidateClauseRemoval(RemoveContractClauseRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+        AddIf(errors, string.IsNullOrWhiteSpace(request.Reason), "reason", "Removal reason is required.");
+
+        if (errors.Count > 0)
+        {
+            throw new ContractValidationException(errors);
+        }
+    }
+
     private async Task WriteDeliverableAuditAsync(
         ContractDeliverableDto deliverable,
         Guid actorUserId,
@@ -321,6 +404,40 @@ public sealed class ContractService(
                 ["dueAt"] = deliverable.DueAt?.ToString("yyyy-MM-dd") ?? string.Empty,
                 ["ownerFunction"] = deliverable.OwnerFunction,
                 ["isOverdue"] = deliverable.IsOverdue.ToString()
+            },
+            cancellationToken);
+    }
+
+    private async Task WriteClauseAuditAsync(
+        ContractClauseDto clause,
+        Guid actorUserId,
+        AuditAction action,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        var contract = await repository.FindCurrentTenantAsync(clause.ContractId, cancellationToken);
+        if (contract is null)
+        {
+            return;
+        }
+
+        await auditEventWriter.WriteAsync(
+            contract.TenantId,
+            actorUserId,
+            action,
+            "ContractClause",
+            clause.Id.ToString(),
+            action == AuditAction.Created
+                ? $"Clause '{clause.ClauseNumber}' was attached to contract '{contract.ContractNumber}'."
+                : $"Clause '{clause.ClauseNumber}' was removed from contract '{contract.ContractNumber}'.",
+            new Dictionary<string, string>
+            {
+                ["contractId"] = clause.ContractId.ToString(),
+                ["contractNumber"] = contract.ContractNumber,
+                ["clauseLibraryId"] = clause.ClauseLibraryId,
+                ["clauseNumber"] = clause.ClauseNumber,
+                ["reason"] = reason,
+                ["sourceDocumentReference"] = clause.SourceDocumentReference ?? string.Empty
             },
             cancellationToken);
     }
@@ -419,6 +536,10 @@ public interface IContractRepository
         Guid contractId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ContractClauseDto>?> ListClausesAsync(
+        Guid contractId,
+        CancellationToken cancellationToken = default);
+
     Task<ContractDeliverableDto?> CreateDeliverableAsync(
         Guid contractId,
         UpsertContractDeliverableRequest request,
@@ -429,6 +550,19 @@ public interface IContractRepository
         Guid contractId,
         Guid deliverableId,
         UpsertContractDeliverableRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<ContractClauseDto?> AttachClauseAsync(
+        Guid contractId,
+        AttachContractClauseRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<ContractClauseDto?> RemoveClauseAsync(
+        Guid contractId,
+        Guid contractClauseId,
+        RemoveContractClauseRequest request,
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 }

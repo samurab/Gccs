@@ -13,6 +13,7 @@ using Gccs.Application.Reports;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -412,6 +413,90 @@ api.MapPut("/contracts/{contractId:guid}/deliverables/{deliverableId:guid}", asy
 })
 .RequirePermission(Permission.ManageContracts)
 .WithName("UpdateContractDeliverable");
+
+api.MapGet("/contracts/{contractId:guid}/clauses", async (
+    Guid contractId,
+    ContractService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var clauses = await service.ListClausesAsync(contractId, cancellationToken);
+    return clauses is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract '{contractId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(clauses);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractClauses");
+
+api.MapPost("/contracts/{contractId:guid}/clauses", async (
+    Guid contractId,
+    AttachContractClauseRequest request,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var clause = await service.AttachClauseAsync(contractId, request, tenantContext.UserId, cancellationToken);
+        return clause is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Contract '{contractId}' or clause '{request.ClauseLibraryId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/clauses/{clause.Id}", clause);
+    }
+    catch (ContractValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Contract clause attachment invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("AttachContractClause");
+
+api.MapDelete("/contracts/{contractId:guid}/clauses/{contractClauseId:guid}", async (
+    Guid contractId,
+    Guid contractClauseId,
+    [FromBody] RemoveContractClauseRequest request,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var clause = await service.RemoveClauseAsync(contractId, contractClauseId, request, tenantContext.UserId, cancellationToken);
+        return clause is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Contract clause '{contractClauseId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(clause);
+    }
+    catch (ContractValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Contract clause removal invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("RemoveContractClause");
 
 api.MapGet("/clauses", async (
     string? query,

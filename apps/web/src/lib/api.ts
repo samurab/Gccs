@@ -249,6 +249,31 @@ export type ContractDeliverable = {
 
 export type UpsertContractDeliverableRequest = Omit<ContractDeliverable, "id" | "contractId" | "isOverdue">;
 
+export type ContractClause = {
+  id: string;
+  contractId: string;
+  clauseLibraryId: string;
+  clauseNumber: string;
+  title: string;
+  source: string;
+  sourceUrl: string;
+  lastReviewedAt: string;
+  attachmentReason: string;
+  sourceDocumentReference: string | null;
+  attachedAt: string;
+  attachedByUserId: string;
+};
+
+export type AttachContractClauseRequest = {
+  clauseLibraryId: string;
+  attachmentReason: string;
+  sourceDocumentReference: string | null;
+};
+
+export type RemoveContractClauseRequest = {
+  reason: string;
+};
+
 export type UpsertCompanyProfileRequest = Omit<
   CompanyProfile,
   "id" | "tenantId" | "completionPercentage" | "isComplete" | "validationErrors" | "createdAt" | "updatedAt"
@@ -384,6 +409,10 @@ export async function getContractDeliverables(contractId: string): Promise<Contr
   return getJson<ContractDeliverable[]>(`/api/contracts/${contractId}/deliverables`, []);
 }
 
+export async function getContractClauses(contractId: string): Promise<ContractClause[]> {
+  return getJson<ContractClause[]>(`/api/contracts/${contractId}/clauses`, []);
+}
+
 export async function searchClauseLibrary(params: ClauseSearchParams = {}): Promise<ClauseLibraryItem[]> {
   const searchParams = new URLSearchParams();
 
@@ -473,6 +502,40 @@ export async function updateContractDeliverable(
   request: UpsertContractDeliverableRequest
 ): Promise<ApiMutationResult<ContractDeliverable>> {
   return putJsonResult<ContractDeliverable>(`/api/contracts/${contractId}/deliverables/${deliverableId}`, request);
+}
+
+export async function attachContractClause(
+  contractId: string,
+  request: AttachContractClauseRequest
+): Promise<ApiMutationResult<ContractClause>> {
+  return postJsonResult<ContractClause>(`/api/contracts/${contractId}/clauses`, request);
+}
+
+export async function removeContractClause(
+  contractId: string,
+  contractClauseId: string,
+  request: RemoveContractClauseRequest
+): Promise<ApiMutationResult<ContractClause>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}/clauses/${contractClauseId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...getDevelopmentHeaders()
+      },
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
 }
 
 export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<NoCuiAcknowledgementStatus | null> {

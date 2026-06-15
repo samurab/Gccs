@@ -930,6 +930,7 @@ dt {
 }
 
 .contract-documents,
+.contract-clauses,
 .contract-deliverables {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -941,6 +942,8 @@ dt {
 }
 
 .contract-documents__header,
+.contract-clause-form,
+.contract-clause-item,
 .contract-document-upload,
 .contract-document-item,
 .deliverable-item {
@@ -951,6 +954,8 @@ dt {
 }
 
 .contract-documents__header span,
+.contract-clause-item span,
+.contract-clause-item small,
 .contract-document-item span,
 .deliverable-item span {
   color: var(--muted);
@@ -959,6 +964,8 @@ dt {
 }
 
 .contract-documents__header select,
+.contract-clause-form input,
+.contract-clause-remove input,
 .contract-document-upload input,
 .deliverable-form input,
 .deliverable-form select,
@@ -973,6 +980,8 @@ dt {
 }
 
 .contract-document-upload button,
+.contract-clause-form button,
+.contract-clause-remove button,
 .contract-document-item button,
 .deliverable-form button {
   background: var(--ink);
@@ -988,6 +997,10 @@ dt {
 }
 
 .contract-document-upload button:disabled,
+.contract-clause-form button:disabled,
+.contract-clause-form input:disabled,
+.contract-clause-remove button:disabled,
+.contract-clause-remove input:disabled,
 .contract-document-upload input:disabled,
 .contract-document-item button:disabled,
 .contract-documents__header select:disabled,
@@ -1000,18 +1013,55 @@ dt {
   opacity: 0.58;
 }
 
+.contract-clause-list,
 .contract-document-list,
 .deliverable-list {
   display: grid;
   gap: 8px;
 }
 
+.contract-clause-item,
 .contract-document-item,
 .deliverable-item {
   border: 1px solid var(--line);
   border-radius: 6px;
   min-height: 58px;
   padding: 10px;
+}
+
+.contract-clause-form {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.2fr) minmax(160px, 1fr) auto;
+}
+
+.contract-clause-form label {
+  color: var(--muted);
+  display: grid;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 6px;
+  text-transform: uppercase;
+}
+
+.contract-clause-item {
+  align-items: flex-start;
+}
+
+.contract-clause-item a,
+.contract-clause-item small {
+  display: block;
+  margin-top: 5px;
+}
+
+.contract-clause-remove {
+  display: flex;
+  gap: 8px;
+  min-width: 300px;
+}
+
+.contract-clause-remove input {
+  min-width: 0;
+  width: 100%;
 }
 
 .deliverable-form {
@@ -1420,11 +1470,15 @@ dt {
   }
 
   .contract-documents,
+  .contract-clauses,
   .contract-deliverables {
     grid-column: auto;
   }
 
   .contract-documents__header,
+  .contract-clause-form,
+  .contract-clause-item,
+  .contract-clause-remove,
   .contract-document-upload,
   .contract-document-item,
   .clause-result-item,

@@ -299,7 +299,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-9.1.1"] = ["TC_9_1_1_Search_clause_library_by_number_title_and_category"],
             ["TC-9.1.2"] = ["TC_9_1_2_Only_published_clauses_are_available_for_customer_mapping"],
             ["TC-9.1.3"] = ["TC_9_1_3_Search_results_show_source_url_and_last_reviewed_date"],
-            ["TC-9.1.4"] = ["TC_9_1_4_Search_does_not_expose_draft_retired_or_other_tenant_custom_content"]
+            ["TC-9.1.4"] = ["TC_9_1_4_Search_does_not_expose_draft_retired_or_other_tenant_custom_content"],
+            ["TC-9.2.1"] = ["TC_9_2_1_Attach_published_clause_to_contract_with_reason_and_source_reference"],
+            ["TC-9.2.2"] = ["TC_9_2_2_Duplicate_clause_attachment_is_prevented"],
+            ["TC-9.2.3"] = ["TC_9_2_3_Removing_clause_requires_reason_and_then_succeeds"],
+            ["TC-9.2.4"] = ["TC_9_2_4_Add_remove_are_audit_logged_and_cross_tenant_ids_are_denied"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

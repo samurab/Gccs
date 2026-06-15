@@ -329,9 +329,16 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("contract_clauses");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.ContractId, x.ClauseNumber });
+            entity.HasIndex(x => new { x.ContractId, x.ClauseLibraryId, x.RemovedAt });
+            entity.Property(x => x.ClauseLibraryId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.SourceUrl).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.AttachmentReason).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.SourceDocumentReference).HasMaxLength(300);
+            entity.Property(x => x.RemovalReason).HasMaxLength(600);
             entity.Property(x => x.SourceHash).HasMaxLength(128);
             entity.Property(x => x.ReviewState).HasDefaultValue(ReviewState.Draft);
             entity.HasOne(x => x.Contract).WithMany(x => x.Clauses).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
         });
 
         modelBuilder.Entity<ContractClauseObligationEntity>(entity =>

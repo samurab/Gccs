@@ -74,3 +74,24 @@ public sealed record UpsertContractDeliverableRequest(
     DateOnly? DueAt,
     string OwnerFunction,
     DeliverableStatus Status);
+
+public sealed record ContractClauseDto(
+    Guid Id,
+    Guid ContractId,
+    string ClauseLibraryId,
+    string ClauseNumber,
+    string Title,
+    ClauseSource Source,
+    string SourceUrl,
+    DateOnly LastReviewedAt,
+    string AttachmentReason,
+    string? SourceDocumentReference,
+    DateTimeOffset AttachedAt,
+    Guid AttachedByUserId);
+
+public sealed record AttachContractClauseRequest(
+    string ClauseLibraryId,
+    string AttachmentReason,
+    string? SourceDocumentReference);
+
+public sealed record RemoveContractClauseRequest(string Reason);
