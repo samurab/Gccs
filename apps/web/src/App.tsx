@@ -70,14 +70,21 @@ type AuditLogFilters = {
   to: string;
 };
 
+type NaicsFormRow = {
+  code: string;
+  title: string;
+  isPrimary: boolean;
+  sizeStandard: string;
+  qualifiesAsSmall: string;
+};
+
 type ProfileFormState = {
   legalEntityName: string;
   doingBusinessAs: string;
   uei: string;
   cageCode: string;
   samRegistrationExpiresAt: string;
-  naicsCode: string;
-  naicsTitle: string;
+  naicsRows: NaicsFormRow[];
   agencyCustomers: string;
   contractorRole: string;
   productsAndServices: string;
@@ -191,8 +198,7 @@ const defaultProfileForm: ProfileFormState = {
   uei: "",
   cageCode: "",
   samRegistrationExpiresAt: "",
-  naicsCode: "",
-  naicsTitle: "",
+  naicsRows: [{ code: "", title: "", isPrimary: true, sizeStandard: "", qualifiesAsSmall: "" }],
   agencyCustomers: "",
   contractorRole: "Unknown",
   productsAndServices: "",
@@ -711,7 +717,6 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
 }
 
 function profileToForm(profile: CompanyProfile | null): ProfileFormState {
-  const primaryNaics = profile?.naicsCodes[0];
   const primaryLocation = profile?.locations[0];
 
   return {
@@ -721,8 +726,16 @@ function profileToForm(profile: CompanyProfile | null): ProfileFormState {
     uei: profile?.uei ?? "",
     cageCode: profile?.cageCode ?? "",
     samRegistrationExpiresAt: profile?.samRegistrationExpiresAt ?? "",
-    naicsCode: primaryNaics?.code ?? "",
-    naicsTitle: primaryNaics?.title ?? "",
+    naicsRows:
+      profile && profile.naicsCodes.length > 0
+        ? profile.naicsCodes.map((naics) => ({
+            code: naics.code,
+            title: naics.title,
+            isPrimary: naics.isPrimary,
+            sizeStandard: naics.sizeStandard ?? "",
+            qualifiesAsSmall: naics.qualifiesAsSmall === null ? "" : String(naics.qualifiesAsSmall)
+          }))
+        : defaultProfileForm.naicsRows,
     agencyCustomers: profile?.agencyCustomers.join(", ") ?? "",
     contractorRole: profile?.contractorRole ?? "Unknown",
     productsAndServices: profile?.productsAndServices ?? "",
@@ -743,19 +756,16 @@ function profileToForm(profile: CompanyProfile | null): ProfileFormState {
 }
 
 function formToRequest(form: ProfileFormState, completeProfile: boolean): UpsertCompanyProfileRequest {
-  const naicsCodes =
-    form.naicsCode.trim() && form.naicsTitle.trim()
-      ? [
-          {
-            code: form.naicsCode.trim(),
-            title: form.naicsTitle.trim(),
-            isPrimary: true,
-            sizeStandard: null,
-            qualifiesAsSmall: null,
-            lastCheckedAt: null
-          }
-        ]
-      : [];
+  const naicsCodes = form.naicsRows
+    .filter((naics) => naics.code.trim() && naics.title.trim())
+    .map((naics, index) => ({
+      code: naics.code.trim(),
+      title: naics.title.trim(),
+      isPrimary: naics.isPrimary || (index === 0 && !form.naicsRows.some((candidate) => candidate.isPrimary)),
+      sizeStandard: naics.sizeStandard.trim() || null,
+      qualifiesAsSmall: naics.qualifiesAsSmall === "" ? null : naics.qualifiesAsSmall === "true",
+      lastCheckedAt: null
+    }));
   const locations = form.locationName.trim()
     ? [
         {
@@ -820,6 +830,46 @@ function ProfileView({
 
   function updateField<TKey extends keyof ProfileFormState>(field: TKey, value: ProfileFormState[TKey]) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateNaicsRow<TKey extends keyof NaicsFormRow>(index: number, field: TKey, value: NaicsFormRow[TKey]) {
+    setForm((current) => ({
+      ...current,
+      naicsRows: current.naicsRows.map((naics, candidateIndex) =>
+        candidateIndex === index ? { ...naics, [field]: value } : naics
+      )
+    }));
+  }
+
+  function setPrimaryNaics(index: number) {
+    setForm((current) => ({
+      ...current,
+      naicsRows: current.naicsRows.map((naics, candidateIndex) => ({ ...naics, isPrimary: candidateIndex === index }))
+    }));
+  }
+
+  function addNaicsRow() {
+    setForm((current) => ({
+      ...current,
+      naicsRows: [
+        ...current.naicsRows,
+        { code: "", title: "", isPrimary: current.naicsRows.length === 0, sizeStandard: "", qualifiesAsSmall: "" }
+      ]
+    }));
+  }
+
+  function removeNaicsRow(index: number) {
+    setForm((current) => {
+      const nextRows = current.naicsRows.filter((_, candidateIndex) => candidateIndex !== index);
+      const hasPrimary = nextRows.some((naics) => naics.isPrimary);
+      return {
+        ...current,
+        naicsRows: nextRows.map((naics, candidateIndex) => ({
+          ...naics,
+          isPrimary: hasPrimary ? naics.isPrimary : candidateIndex === 0
+        }))
+      };
+    });
   }
 
   async function save(completeProfile: boolean) {
@@ -891,14 +941,56 @@ function ProfileView({
                 <option value="Both">Both</option>
               </select>
             </label>
-            <label>
-              <span>NAICS</span>
-              <input value={form.naicsCode} onChange={(event) => updateField("naicsCode", event.target.value)} />
-            </label>
-            <label>
-              <span>NAICS title</span>
-              <input value={form.naicsTitle} onChange={(event) => updateField("naicsTitle", event.target.value)} />
-            </label>
+            <div className="naics-editor span-2">
+              <div className="naics-editor__header">
+                <span>NAICS codes</span>
+                <button type="button" onClick={() => addNaicsRow()} disabled={!canManageCompanyProfile || profileStatus === "saving"}>
+                  Add NAICS
+                </button>
+              </div>
+              {form.naicsRows.map((naics, index) => (
+                <div className="naics-row" key={index}>
+                  <label>
+                    <span>Primary</span>
+                    <input
+                      checked={naics.isPrimary}
+                      name="primary-naics"
+                      type="radio"
+                      onChange={() => setPrimaryNaics(index)}
+                    />
+                  </label>
+                  <label>
+                    <span>Code</span>
+                    <input value={naics.code} onChange={(event) => updateNaicsRow(index, "code", event.target.value)} />
+                  </label>
+                  <label>
+                    <span>Title</span>
+                    <input value={naics.title} onChange={(event) => updateNaicsRow(index, "title", event.target.value)} />
+                  </label>
+                  <label>
+                    <span>Size basis</span>
+                    <input
+                      value={naics.sizeStandard}
+                      onChange={(event) => updateNaicsRow(index, "sizeStandard", event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>Status</span>
+                    <select
+                      value={naics.qualifiesAsSmall}
+                      onChange={(event) => updateNaicsRow(index, "qualifiesAsSmall", event.target.value)}
+                    >
+                      <option value="">Unknown</option>
+                      <option value="true">Small</option>
+                      <option value="false">Other than small</option>
+                    </select>
+                  </label>
+                  <button type="button" onClick={() => removeNaicsRow(index)} disabled={form.naicsRows.length === 1}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
             <label className="span-2">
               <span>Agency customers</span>
               <input value={form.agencyCustomers} onChange={(event) => updateField("agencyCustomers", event.target.value)} />

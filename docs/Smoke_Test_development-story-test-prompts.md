@@ -178,6 +178,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-7.1.4:** Create and update a profile as tenant A, verify audit events, and verify tenant B cannot see it.
 #-----------------------------------
 ### Story 7.2: NAICS And Size Status
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-7.2.1:** Add multiple valid NAICS codes and verify all are stored on the profile.

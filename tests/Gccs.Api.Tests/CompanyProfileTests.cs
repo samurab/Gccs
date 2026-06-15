@@ -216,6 +216,115 @@ public sealed class CompanyProfileTests : IClassFixture<WebApplicationFactory<Pr
         Assert.All(auditEvents, audit => Assert.Equal(actorUserId, audit.ActorUserId));
     }
 
+    [Fact]
+    public async Task TC_7_2_1_Add_multiple_naics_codes_to_profile()
+    {
+        var tenantId = Guid.Parse("72727272-7272-7272-7272-7272727272a1");
+        await using var factory = CreateFactory("tc-7-2-1", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var requestBody = CreateRequestBody(completeProfile: false) with
+        {
+            NaicsCodes =
+            [
+                new CompanyNaicsCodeDto("541330", "Engineering Services", true, "$25.5M", true, new DateOnly(2026, 6, 15)),
+                new CompanyNaicsCodeDto("541511", "Custom Computer Programming Services", false, "$34M", true, new DateOnly(2026, 6, 15))
+            ]
+        };
+
+        using var saveRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", requestBody, tenantId, Guid.NewGuid(), Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.Equal(["541330", "541511"], saved.NaicsCodes.Select(naics => naics.Code).ToArray());
+    }
+
+    [Fact]
+    public async Task TC_7_2_2_Only_one_naics_code_is_primary_and_primary_can_switch()
+    {
+        var tenantId = Guid.Parse("72727272-7272-7272-7272-7272727272a2");
+        await using var factory = CreateFactory("tc-7-2-2", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var actorUserId = Guid.NewGuid();
+        var initial = CreateRequestBody(completeProfile: false) with
+        {
+            NaicsCodes =
+            [
+                new CompanyNaicsCodeDto("541330", "Engineering Services", true, "$25.5M", true, null),
+                new CompanyNaicsCodeDto("541511", "Custom Computer Programming Services", false, "$34M", true, null)
+            ]
+        };
+        var switched = initial with
+        {
+            NaicsCodes =
+            [
+                new CompanyNaicsCodeDto("541330", "Engineering Services", false, "$25.5M", true, null),
+                new CompanyNaicsCodeDto("541511", "Custom Computer Programming Services", true, "$34M", true, null)
+            ]
+        };
+
+        using var initialRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", initial, tenantId, actorUserId, Permission.ManageCompanyProfile);
+        await client.SendAsync(initialRequest);
+        using var switchedRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", switched, tenantId, actorUserId, Permission.ManageCompanyProfile);
+        var switchedResponse = await client.SendAsync(switchedRequest);
+        var saved = await switchedResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, switchedResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.Equal("541511", Assert.Single(saved.NaicsCodes, naics => naics.IsPrimary).Code);
+    }
+
+    [Fact]
+    public async Task TC_7_2_3_Size_status_and_basis_are_stored_per_naics()
+    {
+        var tenantId = Guid.Parse("72727272-7272-7272-7272-7272727272a3");
+        await using var factory = CreateFactory("tc-7-2-3", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var requestBody = CreateRequestBody(completeProfile: false) with
+        {
+            NaicsCodes =
+            [
+                new CompanyNaicsCodeDto("541330", "Engineering Services", true, "$25.5M receipts basis", true, new DateOnly(2026, 6, 15)),
+                new CompanyNaicsCodeDto("236220", "Commercial Building Construction", false, "$45M receipts basis", false, new DateOnly(2026, 6, 15))
+            ]
+        };
+
+        using var saveRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", requestBody, tenantId, Guid.NewGuid(), Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.True(saved.NaicsCodes.Single(naics => naics.Code == "541330").QualifiesAsSmall);
+        Assert.False(saved.NaicsCodes.Single(naics => naics.Code == "236220").QualifiesAsSmall);
+        Assert.Equal("$45M receipts basis", saved.NaicsCodes.Single(naics => naics.Code == "236220").SizeStandard);
+    }
+
+    [Fact]
+    public async Task TC_7_2_4_Missing_naics_size_status_appears_in_profile_gaps()
+    {
+        var tenantId = Guid.Parse("72727272-7272-7272-7272-7272727272a4");
+        await using var factory = CreateFactory("tc-7-2-4", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var requestBody = CreateRequestBody(completeProfile: false) with
+        {
+            NaicsCodes =
+            [
+                new CompanyNaicsCodeDto("541330", "Engineering Services", true, null, null, null)
+            ]
+        };
+
+        using var saveRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", requestBody, tenantId, Guid.NewGuid(), Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.Contains("naicsCodes[0].sizeStatus", saved.ValidationErrors.Keys);
+        Assert.Contains("541330", saved.ValidationErrors["naicsCodes[0].sizeStatus"][0], StringComparison.Ordinal);
+    }
+
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
         _factory.WithWebHostBuilder(builder =>
         {

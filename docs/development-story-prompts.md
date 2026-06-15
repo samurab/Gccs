@@ -1283,6 +1283,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 7.2: NAICS And Size Status
+## Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

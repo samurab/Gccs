@@ -188,6 +188,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 #-----------------------------------
 
 ###  Please perform automated test on Story 7.2: NAICS And Size Status. Please provide the results of the tests.
+### Done ##
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-7.2.1:** Add multiple valid NAICS codes and verify all are stored on the profile.

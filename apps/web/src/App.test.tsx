@@ -345,12 +345,25 @@ describe("App", () => {
     const legalEntity = screen.getByLabelText("Legal entity");
     await user.clear(legalEntity);
     await user.type(legalEntity, "Acme Federal Services Updated");
+    await user.click(screen.getByRole("button", { name: /add naics/i }));
+    const codeInputs = screen.getAllByLabelText("Code");
+    const titleInputs = screen.getAllByLabelText("Title");
+    const basisInputs = screen.getAllByLabelText("Size basis");
+    const statusInputs = screen.getAllByLabelText("Status");
+    await user.type(codeInputs[1], "541511");
+    await user.type(titleInputs[1], "Custom Computer Programming Services");
+    await user.type(basisInputs[1], "$34M");
+    await user.selectOptions(statusInputs[1], "true");
     await user.click(screen.getByRole("button", { name: /save draft/i }));
 
     expect(saveCompanyProfileMock).toHaveBeenCalledWith(
       expect.objectContaining({
         legalEntityName: "Acme Federal Services Updated",
-        completeProfile: false
+        completeProfile: false,
+        naicsCodes: expect.arrayContaining([
+          expect.objectContaining({ code: "541330", qualifiesAsSmall: true, sizeStandard: "$25.5M" }),
+          expect.objectContaining({ code: "541511", qualifiesAsSmall: true, sizeStandard: "$34M" })
+        ])
       })
     );
     expect(await screen.findByText("Draft saved.")).toBeInTheDocument();

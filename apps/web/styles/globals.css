@@ -778,6 +778,58 @@ dt {
   width: auto;
 }
 
+.naics-editor {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.naics-editor__header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.naics-editor__header span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.naics-editor__header button,
+.naics-row button {
+  background: var(--ink);
+  border: 0;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.naics-row {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 72px minmax(82px, 0.4fr) minmax(160px, 1fr) minmax(130px, 0.7fr) minmax(130px, 0.7fr) auto;
+}
+
+.naics-row input[type="radio"] {
+  min-height: 20px;
+  width: 20px;
+}
+
+.naics-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .form-actions {
   border-top: 1px solid var(--line);
   display: flex;
@@ -1007,7 +1059,8 @@ dt {
 
   .invite-form,
   .invitation-item,
-  .form-grid {
+  .form-grid,
+  .naics-row {
     grid-template-columns: 1fr;
   }
 

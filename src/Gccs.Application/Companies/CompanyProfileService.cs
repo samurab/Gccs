@@ -72,12 +72,7 @@ public sealed class CompanyProfileService(
             Uei = NormalizeOptional(request.Uei)?.ToUpperInvariant(),
             CageCode = NormalizeOptional(request.CageCode)?.ToUpperInvariant(),
             ProductsAndServices = request.ProductsAndServices.Trim(),
-            NaicsCodes = request.NaicsCodes.Select(naics => naics with
-            {
-                Code = naics.Code.Trim(),
-                Title = naics.Title.Trim(),
-                SizeStandard = NormalizeOptional(naics.SizeStandard)
-            }).Where(naics => !string.IsNullOrWhiteSpace(naics.Code)).ToArray(),
+            NaicsCodes = NormalizeNaicsCodes(request.NaicsCodes),
             Certifications = request.Certifications.Select(certification => certification with
             {
                 Issuer = certification.Issuer.Trim(),
@@ -120,6 +115,7 @@ public sealed class CompanyProfileService(
         AddIf(errors, string.IsNullOrWhiteSpace(request.CageCode), "cageCode", "CAGE code is required before profile completion.");
         AddIf(errors, request.SamRegistrationExpiresAt is null, "samRegistrationExpiresAt", "SAM expiration date is required before profile completion.");
         AddIf(errors, request.NaicsCodes.Count == 0, "naicsCodes", "At least one NAICS code is required before profile completion.");
+        AddNaicsSizeStatusGaps(errors, request.NaicsCodes);
         AddIf(errors, request.ContractorRole is ContractorRole.Unknown, "contractorRole", "Contractor role is required before profile completion.");
         AddIf(errors, string.IsNullOrWhiteSpace(request.ProductsAndServices), "productsAndServices", "Products and services are required before profile completion.");
         AddIf(errors, request.EmployeeRange is CompanyRange.Unknown, "employeeRange", "Employee range is required before profile completion.");
@@ -174,6 +170,43 @@ public sealed class CompanyProfileService(
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static IReadOnlyList<CompanyNaicsCodeDto> NormalizeNaicsCodes(IReadOnlyList<CompanyNaicsCodeDto> naicsCodes)
+    {
+        var normalized = naicsCodes
+            .Select(naics => naics with
+            {
+                Code = naics.Code.Trim(),
+                Title = naics.Title.Trim(),
+                SizeStandard = NormalizeOptional(naics.SizeStandard)
+            })
+            .Where(naics => !string.IsNullOrWhiteSpace(naics.Code))
+            .GroupBy(naics => naics.Code, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+
+        if (normalized.Length == 0)
+        {
+            return normalized;
+        }
+
+        var primaryCode = normalized.FirstOrDefault(naics => naics.IsPrimary)?.Code ?? normalized[0].Code;
+        return normalized
+            .Select(naics => naics with { IsPrimary = string.Equals(naics.Code, primaryCode, StringComparison.OrdinalIgnoreCase) })
+            .ToArray();
+    }
+
+    private static void AddNaicsSizeStatusGaps(IDictionary<string, string[]> errors, IReadOnlyList<CompanyNaicsCodeDto> naicsCodes)
+    {
+        for (var index = 0; index < naicsCodes.Count; index++)
+        {
+            var naics = naicsCodes[index];
+            if (string.IsNullOrWhiteSpace(naics.SizeStandard) || naics.QualifiesAsSmall is null)
+            {
+                errors[$"naicsCodes[{index}].sizeStatus"] = [$"NAICS {naics.Code} is missing size status or size basis."];
+            }
+        }
+    }
 
     private static void AddIf(IDictionary<string, string[]> errors, bool condition, string field, string message)
     {
