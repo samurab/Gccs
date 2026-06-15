@@ -2417,6 +2417,35 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/reports/subcontractor-compliance:
+    post:
+      tags:
+        - Reports
+      summary: Generate a subcontractor compliance report
+      operationId: generateSubcontractorComplianceReport
+      parameters:
+        - name: contractId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      description: >
+        Generates a tenant-scoped subcontractor compliance report with optional
+        contract filtering, profile status, flow-down status, evidence request
+        gaps, overdue items, risk summary, and CSV export content.
+      responses:
+        "201":
+          description: Subcontractor compliance report generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubcontractorComplianceReport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/reports/{reportId}:
     parameters:
       - $ref: "#/components/parameters/ReportId"
@@ -6213,6 +6242,184 @@ components:
         manifestedAt:
           type: string
           format: date-time
+
+    SubcontractorComplianceReport:
+      type: object
+      required:
+        - id
+        - tenantId
+        - type
+        - status
+        - title
+        - generatedAt
+        - generatedByUserId
+        - snapshot
+        - exportCsv
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ReportType"
+        status:
+          $ref: "#/components/schemas/ReportStatus"
+        title:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        generatedByUserId:
+          type: string
+          format: uuid
+        snapshot:
+          $ref: "#/components/schemas/SubcontractorComplianceSnapshot"
+        exportCsv:
+          type: string
+
+    SubcontractorComplianceSnapshot:
+      type: object
+      required:
+        - generatedAt
+        - totalSubcontractors
+        - missingEvidenceRequests
+        - overdueEvidenceRequests
+        - openFlowDowns
+        - rows
+      properties:
+        contractId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        generatedAt:
+          type: string
+          format: date-time
+        totalSubcontractors:
+          type: integer
+        missingEvidenceRequests:
+          type: integer
+        overdueEvidenceRequests:
+          type: integer
+        openFlowDowns:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubcontractorComplianceRow"
+
+    SubcontractorComplianceRow:
+      type: object
+      required:
+        - subcontractorId
+        - name
+        - status
+        - cmmcStatus
+        - ndaStatus
+        - flowDowns
+        - evidenceRequests
+        - hasMissingEvidence
+        - hasOverdueEvidence
+      properties:
+        subcontractorId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+        cmmcStatus:
+          type: string
+        insuranceExpiresAt:
+          type:
+            - string
+            - "null"
+          format: date
+        ndaStatus:
+          type: string
+        flowDowns:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubcontractorReportFlowDown"
+        evidenceRequests:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubcontractorReportEvidenceRequest"
+        hasMissingEvidence:
+          type: boolean
+        hasOverdueEvidence:
+          type: boolean
+
+    SubcontractorReportFlowDown:
+      type: object
+      required:
+        - id
+        - clauseNumber
+        - title
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        contractId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        clauseNumber:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum:
+            - NotRequired
+            - Required
+            - Sent
+            - Acknowledged
+            - Signed
+            - Expired
+            - Waived
+            - NotApplicable
+
+    SubcontractorReportEvidenceRequest:
+      type: object
+      required:
+        - id
+        - requestedItem
+        - dueDate
+        - status
+        - isMissing
+        - isOverdue
+      properties:
+        id:
+          type: string
+          format: uuid
+        requestedItem:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - Draft
+            - Sent
+            - Submitted
+            - Satisfied
+            - Overdue
+            - Cancelled
+        relatedFlowDownClauseId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        isMissing:
+          type: boolean
+        isOverdue:
+          type: boolean
 
     ReportCreateRequest:
       type: object

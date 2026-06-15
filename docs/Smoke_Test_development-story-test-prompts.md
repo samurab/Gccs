@@ -446,6 +446,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-15.4.4:** Verify the evidence package view is read-only and package generation is audit logged.
 #-----------------------------------
 ### Story 15.5: Subcontractor Compliance Report
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-15.5.1:** Generate a subcontractor compliance report filtered by contract and verify subcontractor data matches scope.

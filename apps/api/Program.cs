@@ -796,6 +796,18 @@ api.MapPost("/reports/cmmc-readiness", async (
 .RequirePermission(Permission.ViewReports)
 .WithName("GenerateCmmcReadinessReport");
 
+api.MapPost("/reports/subcontractor-compliance", async (
+    Guid? contractId,
+    SubcontractorComplianceReportService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    var report = await service.GenerateAsync(contractId, tenantContext.UserId, cancellationToken);
+    return Results.Created($"/api/reports/{report.Id}", report);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GenerateSubcontractorComplianceReport");
+
 api.MapGet("/subcontractors", async (
     SubcontractorService service,
     CancellationToken cancellationToken) =>

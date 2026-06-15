@@ -219,6 +219,136 @@ public sealed class EfReportRepository(
         return ToDto(entity, manifest);
     }
 
+    public async Task<SubcontractorComplianceReportDto> GenerateSubcontractorComplianceReportAsync(
+        Guid? contractId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var generatedAt = DateTimeOffset.UtcNow;
+        var today = DateOnly.FromDateTime(generatedAt.UtcDateTime);
+        Guid[]? scopedSubcontractorIds = null;
+        if (contractId.HasValue)
+        {
+            scopedSubcontractorIds = await dbContext.Set<ContractSubcontractorEntity>()
+                .AsNoTracking()
+                .Join(
+                    dbContext.Contracts.AsNoTracking().Where(contract => contract.TenantId == tenantContext.TenantId),
+                    link => link.ContractId,
+                    contract => contract.Id,
+                    (link, contract) => new { link.ContractId, link.SubcontractorId })
+                .Where(link => link.ContractId == contractId.Value)
+                .Select(link => link.SubcontractorId)
+                .Distinct()
+                .ToArrayAsync(cancellationToken);
+        }
+
+        var subcontractors = await dbContext.Subcontractors
+            .AsNoTracking()
+            .Where(subcontractor =>
+                subcontractor.TenantId == tenantContext.TenantId &&
+                (scopedSubcontractorIds == null || scopedSubcontractorIds.Contains(subcontractor.Id)))
+            .OrderBy(subcontractor => subcontractor.Name)
+            .ToArrayAsync(cancellationToken);
+        var subcontractorIds = subcontractors.Select(subcontractor => subcontractor.Id).ToArray();
+        var flowDowns = await dbContext.FlowDownClauses
+            .AsNoTracking()
+            .Where(flowDown =>
+                subcontractorIds.Contains(flowDown.SubcontractorId) &&
+                (!contractId.HasValue || flowDown.ContractId == contractId.Value))
+            .OrderBy(flowDown => flowDown.ClauseNumber)
+            .ToArrayAsync(cancellationToken);
+        var flowDownIds = flowDowns.Select(flowDown => flowDown.Id).ToArray();
+        var evidenceRequests = await dbContext.SubcontractorEvidenceRequests
+            .AsNoTracking()
+            .Where(request =>
+                request.TenantId == tenantContext.TenantId &&
+                subcontractorIds.Contains(request.SubcontractorId) &&
+                (!contractId.HasValue ||
+                    (request.RelatedFlowDownClauseId.HasValue && flowDownIds.Contains(request.RelatedFlowDownClauseId.Value))))
+            .OrderBy(request => request.DueDate)
+            .ToArrayAsync(cancellationToken);
+        var flowDownsBySubcontractor = flowDowns
+            .GroupBy(flowDown => flowDown.SubcontractorId)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+        var requestsBySubcontractor = evidenceRequests
+            .GroupBy(request => request.SubcontractorId)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+        var rows = subcontractors
+            .Select(subcontractor =>
+            {
+                var subcontractorFlowDowns = flowDownsBySubcontractor.GetValueOrDefault(subcontractor.Id, []);
+                var subcontractorRequests = requestsBySubcontractor.GetValueOrDefault(subcontractor.Id, []);
+                var requestDtos = subcontractorRequests
+                    .Select(request =>
+                    {
+                        var isTerminal = request.Status is SubcontractorEvidenceRequestStatus.Satisfied or SubcontractorEvidenceRequestStatus.Cancelled;
+                        var isMissing = request.ReceivedEvidenceItemId is null && !isTerminal;
+                        var isOverdue = !isTerminal && (request.Status == SubcontractorEvidenceRequestStatus.Overdue || request.DueDate < today);
+                        return new SubcontractorReportEvidenceRequestDto(
+                            request.Id,
+                            request.RequestedItem,
+                            request.DueDate,
+                            request.Status,
+                            request.RelatedFlowDownClauseId,
+                            isMissing,
+                            isOverdue);
+                    })
+                    .ToArray();
+                return new SubcontractorComplianceRowDto(
+                    subcontractor.Id,
+                    subcontractor.Name,
+                    subcontractor.Status,
+                    subcontractor.CmmcStatus,
+                    subcontractor.InsuranceExpiresAt,
+                    subcontractor.NdaStatus,
+                    subcontractorFlowDowns
+                        .Select(flowDown => new SubcontractorReportFlowDownDto(
+                            flowDown.Id,
+                            flowDown.ContractId,
+                            flowDown.ClauseNumber,
+                            flowDown.Title,
+                            flowDown.Status))
+                        .ToArray(),
+                    requestDtos,
+                    requestDtos.Any(request => request.IsMissing),
+                    requestDtos.Any(request => request.IsOverdue));
+            })
+            .ToArray();
+        var openFlowDowns = rows.Sum(row => row.FlowDowns.Count(flowDown =>
+            flowDown.Status is not FlowDownStatus.Signed and not FlowDownStatus.Waived and not FlowDownStatus.NotApplicable));
+        var snapshot = new SubcontractorComplianceSnapshotDto(
+            contractId,
+            generatedAt,
+            rows.Length,
+            rows.Sum(row => row.EvidenceRequests.Count(request => request.IsMissing)),
+            rows.Sum(row => row.EvidenceRequests.Count(request => request.IsOverdue)),
+            openFlowDowns,
+            rows);
+        var exportCsv = BuildCsv(snapshot);
+        var entity = new ReportEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantContext.TenantId,
+            Type = ReportType.SubcontractorCompliance,
+            Title = contractId.HasValue ? "Subcontractor compliance report - contract" : "Subcontractor compliance report",
+            Status = ReportStatus.Complete,
+            GeneratedAt = generatedAt,
+            GeneratedByUserId = actorUserId,
+            SnapshotJson = JsonSerializer.Serialize(snapshot, JsonOptions),
+            ExportHtml = exportCsv,
+            CreatedAt = generatedAt,
+            CreatedByUserId = actorUserId
+        };
+        if (contractId.HasValue)
+        {
+            entity.Contracts = [new ReportContractEntity { ReportId = entity.Id, ContractId = contractId.Value }];
+        }
+
+        dbContext.Reports.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity, snapshot);
+    }
+
     public async Task<ComplianceStatusReportDto> GenerateComplianceStatusReportAsync(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
@@ -501,6 +631,18 @@ public sealed class EfReportRepository(
             manifest,
             entity.ExportHtml);
 
+    private static SubcontractorComplianceReportDto ToDto(ReportEntity entity, SubcontractorComplianceSnapshotDto snapshot) =>
+        new(
+            entity.Id,
+            entity.TenantId,
+            entity.Type,
+            entity.Status,
+            entity.Title,
+            entity.GeneratedAt,
+            entity.GeneratedByUserId,
+            snapshot,
+            entity.ExportHtml);
+
     private static string BuildHtml(ComplianceStatusReportSnapshotDto snapshot)
     {
         var html = new StringBuilder();
@@ -554,6 +696,33 @@ public sealed class EfReportRepository(
         html.Append("</body></html>");
         return html.ToString();
     }
+
+    private static string BuildCsv(SubcontractorComplianceSnapshotDto snapshot)
+    {
+        var csv = new StringBuilder();
+        csv.AppendLine("subcontractorId,name,status,cmmcStatus,insuranceExpiresAt,ndaStatus,flowDownStatuses,missingEvidenceRequests,overdueEvidenceRequests");
+        foreach (var row in snapshot.Rows)
+        {
+            csv.AppendLine(string.Join(
+                ',',
+                EscapeCsv(row.SubcontractorId.ToString()),
+                EscapeCsv(row.Name),
+                EscapeCsv(row.Status.ToString()),
+                EscapeCsv(row.CmmcStatus),
+                EscapeCsv(row.InsuranceExpiresAt?.ToString("O") ?? string.Empty),
+                EscapeCsv(row.NdaStatus),
+                EscapeCsv(string.Join('|', row.FlowDowns.Select(flowDown => $"{flowDown.ClauseNumber}:{flowDown.Status}"))),
+                row.EvidenceRequests.Count(request => request.IsMissing).ToString(),
+                row.EvidenceRequests.Count(request => request.IsOverdue).ToString()));
+        }
+
+        return csv.ToString();
+    }
+
+    private static string EscapeCsv(string value) =>
+        value.Contains(',') || value.Contains('"') || value.Contains('\n')
+            ? $"\"{value.Replace("\"", "\"\"")}\""
+            : value;
 
     private IQueryable<ControlEntity> QueryControlsForLevel(CmmcLevel level)
     {

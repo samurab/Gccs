@@ -26,6 +26,11 @@ public interface IReportRepository
     Task<EvidencePackageReportDto?> GetEvidencePackageAsync(
         Guid reportId,
         CancellationToken cancellationToken = default);
+
+    Task<SubcontractorComplianceReportDto> GenerateSubcontractorComplianceReportAsync(
+        Guid? contractId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record ComplianceStatusReportDto(
