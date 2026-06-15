@@ -4,7 +4,12 @@ namespace Gccs.Api.Security;
 
 public sealed class HttpAuditRequestMetadata(IHttpContextAccessor httpContextAccessor) : IAuditRequestMetadata
 {
-    public string IpAddress => httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
+    public string IpAddress =>
+        httpContextAccessor.HttpContext is { } httpContext
+            ? httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim() ??
+              httpContext.Connection.RemoteIpAddress?.ToString() ??
+              string.Empty
+            : string.Empty;
 
     public string UserAgent => httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString() ?? string.Empty;
 

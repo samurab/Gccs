@@ -1052,3 +1052,11 @@ VALUES ('20260615005659_AddEvidenceUploadGuardrails', '10.0.4');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE gccs.audit_log_entries ADD correlation_id character varying(120) NOT NULL DEFAULT '';
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615010139_AddAuditRequestMetadata', '10.0.4');
+
+COMMIT;
+

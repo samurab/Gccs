@@ -14,3 +14,6 @@ public interface IAuditEventWriter
         IReadOnlyDictionary<string, string>? metadata = null,
         CancellationToken cancellationToken = default);
 }
+
+public sealed class AuditWriteException(string message, Exception? innerException = null)
+    : InvalidOperationException(message, innerException);

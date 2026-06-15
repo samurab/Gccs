@@ -120,6 +120,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 5. Audit Logging
 
 ### Story 5.1: Append-Only Audit Events
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-5.1.1:** Perform representative sensitive actions and verify audit events include tenant, actor, action, entity, timestamp, and summary.

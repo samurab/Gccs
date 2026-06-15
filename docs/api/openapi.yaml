@@ -1697,6 +1697,34 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/audit-logs/{auditLogEntryId}:
+    parameters:
+      - $ref: "#/components/parameters/AuditLogEntryId"
+    put:
+      tags:
+        - Audit Logs
+      summary: Reject audit log mutation
+      operationId: rejectAuditLogPut
+      responses:
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+    patch:
+      tags:
+        - Audit Logs
+      summary: Reject audit log mutation
+      operationId: rejectAuditLogPatch
+      responses:
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+    delete:
+      tags:
+        - Audit Logs
+      summary: Reject audit log deletion
+      operationId: rejectAuditLogDelete
+      responses:
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
   /api/source-library/references:
     get:
       tags:
@@ -1786,6 +1814,13 @@ components:
       schema:
         type: string
         format: uuid
+    AuditLogEntryId:
+      name: auditLogEntryId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     AssessmentId:
       name: assessmentId
       in: path
@@ -1842,6 +1877,12 @@ components:
             $ref: "#/components/schemas/ProblemDetails"
     PreconditionRequired:
       description: A required No-CUI acknowledgement or similar tenant precondition is missing.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+    MethodNotAllowed:
+      description: The requested method is not allowed for append-only resources.
       content:
         application/problem+json:
           schema:
@@ -3960,13 +4001,18 @@ components:
       type: object
       required:
         - id
+        - tenantId
         - actorUserId
         - action
         - entityType
         - entityId
         - occurredAt
+        - correlationId
       properties:
         id:
+          type: string
+          format: uuid
+        tenantId:
           type: string
           format: uuid
         actorUserId:
@@ -3989,6 +4035,8 @@ components:
           type:
             - string
             - "null"
+        correlationId:
+          type: string
         metadata:
           type: object
           additionalProperties: true

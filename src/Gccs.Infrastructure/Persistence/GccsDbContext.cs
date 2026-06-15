@@ -640,6 +640,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.OccurredAt });
             entity.HasIndex(x => new { x.TenantId, x.EntityType, x.EntityId });
+            entity.Property(x => x.CorrelationId).HasMaxLength(120);
             entity.Property(x => x.MetadataJson).HasColumnType("jsonb");
         });
     }

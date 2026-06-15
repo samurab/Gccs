@@ -279,7 +279,15 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-4.1.1"] = ["TC_4_1_1_No_cui_notice_is_returned_before_first_upload"],
             ["TC-4.1.2"] = ["TC_4_1_2_Upload_intent_is_blocked_until_acknowledgement_and_permission_are_present"],
             ["TC-4.1.3"] = ["TC_4_1_3_Acknowledgement_persists_user_tenant_timestamp_and_notice_version"],
-            ["TC-4.1.4"] = ["TC_4_1_4_Acknowledgement_is_audit_logged_and_copy_states_no_cui_posture"]
+            ["TC-4.1.4"] = ["TC_4_1_4_Acknowledgement_is_audit_logged_and_copy_states_no_cui_posture"],
+            ["TC-4.2.1"] = ["TC_4_2_1_Disallowed_file_type_is_rejected_without_usable_evidence"],
+            ["TC-4.2.2"] = ["TC_4_2_2_Oversized_file_is_rejected_server_side"],
+            ["TC-4.2.3"] = ["TC_4_2_3_Valid_upload_metadata_records_validation_and_scan_status"],
+            ["TC-4.2.4"] = ["TC_4_2_4_Failed_upload_validation_is_audit_logged_and_not_usable"],
+            ["TC-5.1.1"] = ["TC_5_1_1_Sensitive_action_creates_audit_event_with_required_fields"],
+            ["TC-5.1.2"] = ["TC_5_1_2_Audit_events_are_append_only_through_normal_apis"],
+            ["TC-5.1.3"] = ["TC_5_1_3_Critical_audit_writer_failure_surfaces_clear_error"],
+            ["TC-5.1.4"] = ["TC_5_1_4_Request_metadata_is_captured_when_available"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

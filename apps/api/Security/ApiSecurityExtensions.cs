@@ -217,6 +217,11 @@ public static class ApiSecurityExtensions
 
                 var (statusCode, title, detail, errorCode) = exception switch
                 {
+                    AuditWriteException => (
+                        StatusCodes.Status500InternalServerError,
+                        "Critical audit failure",
+                        "A required audit event could not be written for this compliance-relevant action.",
+                        "audit_write_failed"),
                     MissingTenantContextException => (
                         StatusCodes.Status400BadRequest,
                         "Tenant context required",

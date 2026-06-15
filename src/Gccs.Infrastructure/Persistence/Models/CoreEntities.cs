@@ -196,6 +196,7 @@ public sealed class AuditLogEntryEntity
     public DateTimeOffset OccurredAt { get; set; }
     public string IpAddress { get; set; } = string.Empty;
     public string UserAgent { get; set; } = string.Empty;
+    public string CorrelationId { get; set; } = string.Empty;
     public string Summary { get; set; } = string.Empty;
     public string MetadataJson { get; set; } = "{}";
 }

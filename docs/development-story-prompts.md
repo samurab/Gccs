@@ -836,6 +836,7 @@ Instructions:
 ## 5. Audit Logging
 
 ### Story 5.1: Append-Only Audit Events
+## Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

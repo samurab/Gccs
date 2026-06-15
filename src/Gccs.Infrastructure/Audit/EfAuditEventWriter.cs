@@ -24,21 +24,29 @@ public sealed class EfAuditEventWriter(GccsDbContext dbContext, IAuditRequestMet
             eventMetadata["correlationId"] = requestMetadata.CorrelationId;
         }
 
-        dbContext.AuditLogEntries.Add(new AuditLogEntryEntity
+        try
         {
-            Id = Guid.NewGuid(),
-            TenantId = tenantId,
-            ActorUserId = actorUserId,
-            Action = action,
-            EntityType = entityType,
-            EntityId = entityId,
-            OccurredAt = DateTimeOffset.UtcNow,
-            IpAddress = requestMetadata.IpAddress,
-            UserAgent = requestMetadata.UserAgent,
-            Summary = summary,
-            MetadataJson = JsonSerializer.Serialize(eventMetadata)
-        });
+            dbContext.AuditLogEntries.Add(new AuditLogEntryEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                ActorUserId = actorUserId,
+                Action = action,
+                EntityType = entityType,
+                EntityId = entityId,
+                OccurredAt = DateTimeOffset.UtcNow,
+                IpAddress = requestMetadata.IpAddress,
+                UserAgent = requestMetadata.UserAgent,
+                CorrelationId = requestMetadata.CorrelationId,
+                Summary = summary,
+                MetadataJson = JsonSerializer.Serialize(eventMetadata)
+            });
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is not AuditWriteException)
+        {
+            throw new AuditWriteException("A critical audit event could not be written.", exception);
+        }
     }
 }

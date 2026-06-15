@@ -124,6 +124,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 ## 5. Audit Logging
 
 ###  Please perform an automated test on Story 5.1: Append-Only Audit Events. Please provide the results of the tests.
+### Done ##
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-5.1.1:** Perform representative sensitive actions and verify audit events include tenant, actor, action, entity, timestamp, and summary.

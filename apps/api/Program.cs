@@ -158,6 +158,18 @@ api.MapGet("/reports/approved-evidence-packages", async (
 .RequirePermission(Permission.ViewReports)
 .WithName("ListApprovedEvidencePackages");
 
+api.MapMethods("/audit-logs/{auditLogEntryId:guid}", [HttpMethods.Put, HttpMethods.Patch, HttpMethods.Delete], (
+    Guid auditLogEntryId,
+    HttpContext httpContext) =>
+    ApiProblemDetails.Create(
+        httpContext,
+        "Audit events are append-only",
+        $"Audit log entry '{auditLogEntryId}' cannot be updated or deleted through application APIs.",
+        StatusCodes.Status405MethodNotAllowed,
+        "audit_log_append_only"))
+.RequirePermission(Permission.ViewAuditLog)
+.WithName("RejectAuditLogMutation");
+
 api.MapGet("/no-cui-acknowledgement", async (
     NoCuiAcknowledgementService service,
     CancellationToken cancellationToken) =>
