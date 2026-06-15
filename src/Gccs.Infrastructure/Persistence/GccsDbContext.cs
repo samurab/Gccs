@@ -25,6 +25,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
     public DbSet<NoCuiAcknowledgementEntity> NoCuiAcknowledgements => Set<NoCuiAcknowledgementEntity>();
+    public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
     public DbSet<RoleEntity> Roles => Set<RoleEntity>();
     public DbSet<CompanyProfileEntity> CompanyProfiles => Set<CompanyProfileEntity>();
     public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
@@ -176,6 +177,15 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.TenantId, x.UserId, x.NoticeVersion }).IsUnique();
             entity.Property(x => x.NoticeVersion).HasMaxLength(80).IsRequired();
             entity.Property(x => x.NoticeCopy).HasMaxLength(1000).IsRequired();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<NotificationPreferenceEntity>(entity =>
+        {
+            entity.ToTable("notification_preferences");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.UserId }).IsUnique();
+            entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
             ConfigureAuditColumns(entity);
         });
 

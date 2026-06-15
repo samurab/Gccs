@@ -495,6 +495,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 ## 16. Notifications
 
 ###  Please perform automated test on Story 16.1: Notification Preferences. Please provide the results of the tests.
+### Done ##
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-16.1.1:** Create users by role and verify default notification preferences are assigned.

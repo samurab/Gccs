@@ -457,6 +457,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 16. Notifications
 
 ### Story 16.1: Notification Preferences
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-16.1.1:** Create users by role and verify default notification preferences are assigned.

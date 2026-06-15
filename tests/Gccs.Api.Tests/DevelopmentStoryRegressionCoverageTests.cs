@@ -391,7 +391,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-15.5.1"] = ["TC_15_5_1_Generate_subcontractor_compliance_report_filtered_by_contract"],
             ["TC-15.5.2"] = ["TC_15_5_2_Subcontractor_report_highlights_missing_and_overdue_evidence_requests"],
             ["TC-15.5.3"] = ["TC_15_5_3_Subcontractor_report_includes_flow_down_statuses_by_subcontractor_and_contract"],
-            ["TC-15.5.4"] = ["TC_15_5_4_Subcontractor_report_export_is_tenant_scoped"]
+            ["TC-15.5.4"] = ["TC_15_5_4_Subcontractor_report_export_is_tenant_scoped"],
+            ["TC-16.1.1"] = ["TC_16_1_1_Create_users_by_role_assigns_default_notification_preferences"],
+            ["TC-16.1.2"] = ["TC_16_1_2_Update_preferences_for_all_notification_categories"],
+            ["TC-16.1.3"] = ["TC_16_1_3_Notification_preferences_are_tenant_scoped_for_multi_tenant_user"],
+            ["TC-16.1.4"] = ["TC_16_1_4_Notification_preference_changes_are_audit_logged"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

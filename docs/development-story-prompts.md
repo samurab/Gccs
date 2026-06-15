@@ -3377,6 +3377,7 @@ Instructions:
 ## 16. Notifications
 
 ### Story 16.1: Notification Preferences
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

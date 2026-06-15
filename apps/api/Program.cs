@@ -11,6 +11,7 @@ using Gccs.Application.Contracts;
 using Gccs.Application.Evidence;
 using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
+using Gccs.Application.Notifications;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
 using Gccs.Application.Subcontractors;
@@ -134,6 +135,38 @@ api.MapGet("/me/access", (ClaimsPrincipal user, ITenantContext tenantContext) =>
     });
 })
 .WithName("GetCurrentUserAccess");
+
+api.MapGet("/notification-preferences", async (
+    NotificationPreferenceService service,
+    ITenantContext tenantContext,
+    ClaimsPrincipal user,
+    CancellationToken cancellationToken) =>
+{
+    var roleName = user.FindFirstValue(ApiSecurityExtensions.RoleNameClaimType) ?? RoleCatalog.Contributor;
+    return Results.Ok(await service.GetOrCreateAsync(
+        tenantContext.TenantId,
+        tenantContext.UserId,
+        roleName,
+        cancellationToken));
+})
+.WithName("GetNotificationPreferences");
+
+api.MapPut("/notification-preferences", async (
+    NotificationPreferenceUpdateRequest request,
+    NotificationPreferenceService service,
+    ITenantContext tenantContext,
+    ClaimsPrincipal user,
+    CancellationToken cancellationToken) =>
+{
+    var roleName = user.FindFirstValue(ApiSecurityExtensions.RoleNameClaimType) ?? RoleCatalog.Contributor;
+    return Results.Ok(await service.UpdateAsync(
+        tenantContext.TenantId,
+        tenantContext.UserId,
+        roleName,
+        request,
+        cancellationToken));
+})
+.WithName("UpdateNotificationPreferences");
 
 api.MapGet("/compliance/overview", async (ComplianceOverviewService service, CancellationToken cancellationToken) =>
     Results.Ok(await service.GetOverviewAsync(cancellationToken)))

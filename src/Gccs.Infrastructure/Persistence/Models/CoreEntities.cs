@@ -87,6 +87,20 @@ public sealed class NoCuiAcknowledgementEntity : AuditedEntity
     public DateTimeOffset AcknowledgedAt { get; set; }
 }
 
+public sealed class NotificationPreferenceEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid UserId { get; set; }
+    public string RoleName { get; set; } = string.Empty;
+    public bool AssignmentNotificationsEnabled { get; set; }
+    public bool DueSoonNotificationsEnabled { get; set; }
+    public bool OverdueNotificationsEnabled { get; set; }
+    public bool EvidenceRequestNotificationsEnabled { get; set; }
+    public bool CertificationRenewalNotificationsEnabled { get; set; }
+    public bool CmmcAffirmationNotificationsEnabled { get; set; }
+}
+
 public sealed class RoleEntity : AuditedEntity
 {
     public Guid Id { get; set; }

@@ -91,6 +91,47 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/notification-preferences:
+    get:
+      tags:
+        - Notifications
+      summary: Get current user's notification preferences
+      operationId: getNotificationPreferences
+      description: >
+        Returns the current user's tenant-scoped notification preferences,
+        creating role-based defaults when preferences do not yet exist.
+      responses:
+        "200":
+          description: Notification preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreference"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags:
+        - Notifications
+      summary: Update current user's notification preferences
+      operationId: updateNotificationPreferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferenceUpdateRequest"
+      responses:
+        "200":
+          description: Updated notification preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreference"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/compliance/overview:
     get:
       tags:
@@ -2887,6 +2928,60 @@ components:
             type: array
             items:
               $ref: "#/components/schemas/PermissionName"
+
+    NotificationPreference:
+      allOf:
+        - $ref: "#/components/schemas/NotificationPreferenceUpdateRequest"
+        - type: object
+          required:
+            - id
+            - tenantId
+            - userId
+            - roleName
+            - createdAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            tenantId:
+              type: string
+              format: uuid
+            userId:
+              type: string
+              format: uuid
+            roleName:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+
+    NotificationPreferenceUpdateRequest:
+      type: object
+      required:
+        - assignmentNotificationsEnabled
+        - dueSoonNotificationsEnabled
+        - overdueNotificationsEnabled
+        - evidenceRequestNotificationsEnabled
+        - certificationRenewalNotificationsEnabled
+        - cmmcAffirmationNotificationsEnabled
+      properties:
+        assignmentNotificationsEnabled:
+          type: boolean
+        dueSoonNotificationsEnabled:
+          type: boolean
+        overdueNotificationsEnabled:
+          type: boolean
+        evidenceRequestNotificationsEnabled:
+          type: boolean
+        certificationRenewalNotificationsEnabled:
+          type: boolean
+        cmmcAffirmationNotificationsEnabled:
+          type: boolean
 
     Tenant:
       type: object

@@ -7,6 +7,7 @@ using Gccs.Application.Contracts;
 using Gccs.Application.Evidence;
 using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
+using Gccs.Application.Notifications;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
 using Gccs.Application.Subcontractors;
@@ -21,6 +22,7 @@ using Gccs.Infrastructure.Contracts;
 using Gccs.Infrastructure.Evidence;
 using Gccs.Infrastructure.Identity;
 using Gccs.Infrastructure.NoCui;
+using Gccs.Infrastructure.Notifications;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Reports;
 using Gccs.Infrastructure.Subcontractors;
@@ -46,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
+        services.AddScoped<NotificationPreferenceService>();
         services.AddScoped<AuditLogService>();
         services.AddScoped<ComplianceTaskService>();
         services.AddScoped<RenewalGenerationService>();
@@ -71,6 +74,7 @@ public static class DependencyInjection
             services.AddScoped<ITenantMembershipRepository, EfTenantMembershipRepository>();
             services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
             services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
+            services.AddScoped<INotificationPreferenceRepository, EfNotificationPreferenceRepository>();
             services.AddScoped<IReportRepository, EfReportRepository>();
             services.AddScoped<IContractObligationMatrixRepository, EfContractObligationMatrixRepository>();
             services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
@@ -104,6 +108,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Tenant invitation persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<INoCuiAcknowledgementRepository>(_ =>
                 throw new InvalidOperationException("No-CUI acknowledgement persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<INotificationPreferenceRepository>(_ =>
+                throw new InvalidOperationException("Notification preference persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IReportRepository>(_ =>
                 throw new InvalidOperationException("Report persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IContractObligationMatrixRepository>(_ =>
