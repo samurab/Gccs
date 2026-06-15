@@ -1161,6 +1161,94 @@ api.MapPatch("/cmmc/assessments/{assessmentId:guid}/controls/{controlId}", async
 .RequirePermission(Permission.ManageCmmc)
 .WithName("UpdateCmmcControlStatus");
 
+api.MapGet("/cmmc/assessments/{assessmentId:guid}/poam-items", async (
+    Guid assessmentId,
+    CmmcPoamService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var items = await service.ListCurrentTenantAsync(assessmentId, cancellationToken);
+    return items is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"CMMC assessment '{assessmentId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(items);
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListCmmcPoamItems");
+
+api.MapPost("/cmmc/assessments/{assessmentId:guid}/poam-items", async (
+    Guid assessmentId,
+    UpsertCmmcPoamItemRequest request,
+    CmmcPoamService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(assessmentId, request, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC assessment '{assessmentId}' or control '{request.ControlId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/cmmc/assessments/{assessmentId}/poam-items/{created.Id}", created);
+    }
+    catch (CmmcPoamValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cmmcPoamItem"] = [exception.Message]
+        },
+        title: "CMMC POA&M item invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("CreateCmmcPoamItem");
+
+api.MapPatch("/cmmc/assessments/{assessmentId:guid}/poam-items/{poamItemId:guid}", async (
+    Guid assessmentId,
+    Guid poamItemId,
+    UpsertCmmcPoamItemRequest request,
+    CmmcPoamService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(assessmentId, poamItemId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC POA&M item '{poamItemId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (CmmcPoamValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cmmcPoamItem"] = [exception.Message]
+        },
+        title: "CMMC POA&M item invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("UpdateCmmcPoamItem");
+
 api.MapGet("/evidence-items/{evidenceItemId:guid}/download", async (
     Guid evidenceItemId,
     NoCuiAcknowledgementService service,

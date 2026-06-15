@@ -38,14 +38,17 @@ public sealed record ControlAssessment(
 public sealed record PoamItem(
     Guid Id,
     Guid TenantId,
+    Guid AssessmentId,
     string ControlId,
     string Weakness,
     string PlannedRemediation,
     RiskLevel RiskLevel,
     PoamStatus Status,
     Guid? OwnerUserId,
+    string OwnerFunction,
     DateOnly TargetCompletionAt,
     DateOnly? CompletedAt,
+    Guid? RemediationTaskId,
     IReadOnlyList<Guid> EvidenceItemIds,
     EntityAudit Audit);
 

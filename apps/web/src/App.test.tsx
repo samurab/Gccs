@@ -13,6 +13,7 @@ const {
   contractDeliverable,
   contractDocument,
   createCmmcAssessmentMock,
+  createCmmcPoamItemMock,
   createContractDeliverableMock,
   createContractMock,
   createContractDocumentMock,
@@ -24,6 +25,7 @@ const {
   getCompanyProfileMock,
   getCmmcAssessmentsMock,
   getCmmcControlStatusesMock,
+  getCmmcPoamItemsMock,
   getCalendarEventsMock,
   getContractClausesMock,
   getContractDeliverablesMock,
@@ -42,6 +44,7 @@ const {
   calendarEvents,
   cmmcAssessment,
   cmmcControl,
+  cmmcPoamItem,
   evidenceMetadata,
   members,
   obligationDashboardItem,
@@ -62,6 +65,7 @@ const {
   attachContractClauseMock: vi.fn(),
   createContractDeliverableMock: vi.fn(),
   createCmmcAssessmentMock: vi.fn(),
+  createCmmcPoamItemMock: vi.fn(),
   createContractMock: vi.fn(),
   createContractDocumentMock: vi.fn(),
   createEvidenceMetadataMock: vi.fn(),
@@ -72,6 +76,7 @@ const {
   getCalendarEventsMock: vi.fn(),
   getCmmcAssessmentsMock: vi.fn(),
   getCmmcControlStatusesMock: vi.fn(),
+  getCmmcPoamItemsMock: vi.fn(),
   getCompanyProfileMock: vi.fn(),
   getContractClausesMock: vi.fn(),
   getContractDeliverablesMock: vi.fn(),
@@ -381,6 +386,8 @@ const {
       needsReview: 0,
       completionPercentage: 0
     },
+    openPoamItemCount: 1,
+    overduePoamItemCount: 1,
     createdAt: "2026-06-15T12:00:00Z",
     updatedAt: null
   },
@@ -404,6 +411,25 @@ const {
     assessedByUserId: null,
     assessedAt: "2026-06-15",
     notes: "Evidence reviewed."
+  },
+  cmmcPoamItem: {
+    id: "p133p133-1331-4331-9331-133133133133",
+    tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+    assessmentId: "c131c131-c131-c131-c131-c131c131c131",
+    controlId: "AC.L1-3.1.1",
+    weakness: "MFA evidence gap",
+    plannedRemediation: "Collect configuration export and validate access review.",
+    riskLevel: "High",
+    status: "Open",
+    ownerUserId: null,
+    ownerFunction: "Security",
+    targetCompletionAt: "2026-07-15",
+    completedAt: null,
+    remediationTaskId: "44444444-4444-4444-4444-444444444444",
+    evidenceItemIds: [],
+    isOverdue: true,
+    createdAt: "2026-06-15T12:00:00Z",
+    updatedAt: null
   },
   evidenceMetadata: {
     id: "edededed-eded-eded-eded-edededededed",
@@ -513,6 +539,7 @@ vi.mock("@/lib/api", () => ({
   attachContractClause: attachContractClauseMock,
   createTenantInvitation: createTenantInvitationMock,
   createCmmcAssessment: createCmmcAssessmentMock,
+  createCmmcPoamItem: createCmmcPoamItemMock,
   createContractDeliverable: createContractDeliverableMock,
   createContract: createContractMock,
   createContractDocument: createContractDocumentMock,
@@ -521,6 +548,7 @@ vi.mock("@/lib/api", () => ({
   getCalendarEvents: getCalendarEventsMock,
   getCmmcAssessments: getCmmcAssessmentsMock,
   getCmmcControlStatuses: getCmmcControlStatusesMock,
+  getCmmcPoamItems: getCmmcPoamItemsMock,
   getCompanyProfile: getCompanyProfileMock,
   getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
@@ -583,6 +611,7 @@ describe("App", () => {
     createEvidenceUploadIntentMock.mockReset();
     createEvidenceMetadataMock.mockReset();
     createCmmcAssessmentMock.mockReset();
+    createCmmcPoamItemMock.mockReset();
     createContractDeliverableMock.mockReset();
     createContractMock.mockReset();
     createContractDocumentMock.mockReset();
@@ -600,6 +629,7 @@ describe("App", () => {
     getCalendarEventsMock.mockReset();
     getCmmcAssessmentsMock.mockReset();
     getCmmcControlStatusesMock.mockReset();
+    getCmmcPoamItemsMock.mockReset();
     getNoCuiAcknowledgementStatusMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
@@ -633,6 +663,7 @@ describe("App", () => {
     getEvidenceItemsMock.mockResolvedValue([]);
     getCmmcAssessmentsMock.mockResolvedValue([]);
     getCmmcControlStatusesMock.mockResolvedValue([]);
+    getCmmcPoamItemsMock.mockResolvedValue([]);
     getCalendarEventsMock.mockResolvedValue([]);
     getContractClausesMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
@@ -686,11 +717,27 @@ describe("App", () => {
         data: {
           ...cmmcAssessment,
           ...request,
-          id: cmmcAssessment.id,
+          id: "c232c232-c232-c232-c232-c232c232c232",
           tenantId: cmmcAssessment.tenantId,
           controlSummary: cmmcAssessment.controlSummary,
           createdAt: cmmcAssessment.createdAt,
           updatedAt: "2026-06-15T13:30:00Z"
+        },
+        error: null
+      })
+    );
+    createCmmcPoamItemMock.mockImplementation((_assessmentId, request) =>
+      Promise.resolve({
+        data: {
+          ...cmmcPoamItem,
+          ...request,
+          id: cmmcPoamItem.id,
+          tenantId: cmmcPoamItem.tenantId,
+          assessmentId: cmmcPoamItem.assessmentId,
+          remediationTaskId: cmmcPoamItem.remediationTaskId,
+          isOverdue: cmmcPoamItem.isOverdue,
+          createdAt: cmmcPoamItem.createdAt,
+          updatedAt: "2026-06-15T13:45:00Z"
         },
         error: null
       })
@@ -1597,23 +1644,30 @@ describe("App", () => {
     expect(await screen.findByText("File size exceeds the No-CUI MVP upload limit.")).toBeInTheDocument();
   });
 
-  it("TC-13.1 renders and creates a CMMC Level 2 readiness assessment", async () => {
+  it("TC-13.1 and TC-13.3 renders CMMC readiness and creates assessment POA&M work", async () => {
     getComplianceOverviewMock.mockResolvedValueOnce(overview);
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
     getContractsMock.mockResolvedValueOnce([contract]);
-    getCmmcAssessmentsMock.mockResolvedValueOnce([cmmcAssessment]);
-    getCmmcControlStatusesMock.mockResolvedValueOnce([cmmcControl]);
+    getCmmcAssessmentsMock.mockResolvedValueOnce([cmmcAssessment]).mockResolvedValueOnce([cmmcAssessment]);
+    getCmmcControlStatusesMock
+      .mockResolvedValueOnce([cmmcControl])
+      .mockResolvedValueOnce([cmmcControl])
+      .mockResolvedValueOnce([cmmcControl]);
+    getCmmcPoamItemsMock.mockResolvedValueOnce([cmmcPoamItem]).mockResolvedValueOnce([]);
     const user = userEvent.setup();
 
     render(<App />);
 
     await user.click(await screen.findByRole("link", { name: /cmmc/i }));
     expect(await screen.findByText("Level 1 workspace")).toBeInTheDocument();
-    expect(screen.getByText("AC.L1-3.1.1 · Authorized access control")).toBeInTheDocument();
-    expect(screen.getByText("Implemented · Met · CMMC Level 1 baseline reviewed 2026-06-15")).toBeInTheDocument();
-    expect(screen.getByText("Evidence 1 · Tasks 1 · Assets 1 · POA&M 1")).toBeInTheDocument();
+    expect(screen.getByText("POA&M 1 open · 1 overdue")).toBeInTheDocument();
+    const controlsRegion = screen.getByRole("region", { name: /cmmc control readiness/i });
+    expect(within(controlsRegion).getByText("AC.L1-3.1.1 · Authorized access control")).toBeInTheDocument();
+    expect(within(controlsRegion).getByText("Implemented · Met · CMMC Level 1 baseline reviewed 2026-06-15")).toBeInTheDocument();
+    expect(within(controlsRegion).getByText("Evidence 1 · Tasks 1 · Assets 1 · POA&M 1")).toBeInTheDocument();
+    expect(screen.getByText("AC.L1-3.1.1 · MFA evidence gap")).toBeInTheDocument();
     await user.clear(screen.getByLabelText("Assessment name"));
     await user.type(screen.getByLabelText("Assessment name"), "Level 2 workspace");
     await user.selectOptions(screen.getByLabelText("Target level"), "Level2");
@@ -1630,6 +1684,28 @@ describe("App", () => {
       })
     );
     expect(await screen.findByText("CMMC readiness assessment created.")).toBeInTheDocument();
+
+    const poamRegion = screen.getByRole("region", { name: /cmmc poa&m remediation/i });
+    await user.selectOptions(within(poamRegion).getByLabelText("Control"), "AC.L1-3.1.1");
+    await user.clear(within(poamRegion).getByLabelText("Gap"));
+    await user.type(within(poamRegion).getByLabelText("Gap"), "MFA evidence gap");
+    await user.clear(within(poamRegion).getByLabelText("Remediation plan"));
+    await user.type(within(poamRegion).getByLabelText("Remediation plan"), "Collect configuration export and validate access review.");
+    await user.click(within(poamRegion).getByRole("button", { name: /create poa&m/i }));
+
+    expect(createCmmcPoamItemMock).toHaveBeenCalledWith(
+      "c232c232-c232-c232-c232-c232c232c232",
+      expect.objectContaining({
+        controlId: "AC.L1-3.1.1",
+        weakness: "MFA evidence gap",
+        plannedRemediation: "Collect configuration export and validate access review.",
+        riskLevel: "High",
+        status: "Open",
+        ownerFunction: "Security",
+        targetCompletionAt: "2026-07-15"
+      })
+    );
+    expect(await screen.findByText("POA&M item created.")).toBeInTheDocument();
   });
 
   it("TC-11.2.1, TC-11.2.2, and TC-11.2.3 renders calendar events, filters them, and marks overdue items", async () => {

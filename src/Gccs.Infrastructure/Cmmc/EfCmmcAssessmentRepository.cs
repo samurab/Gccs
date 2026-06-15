@@ -189,6 +189,15 @@ public sealed class EfCmmcAssessmentRepository(
         var scopedControlIds = await QueryControlsForLevel(entity.Level)
             .Select(control => control.Id)
             .ToArrayAsync(cancellationToken);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var poamStatuses = await dbContext.PoamItems
+            .AsNoTracking()
+            .Where(item => item.TenantId == tenantContext.TenantId && item.AssessmentId == entity.Id)
+            .Select(item => new { item.Status, item.TargetCompletionAt })
+            .ToArrayAsync(cancellationToken);
+        var openPoamItems = poamStatuses
+            .Where(item => item.Status is not PoamStatus.Closed and not PoamStatus.AcceptedRisk)
+            .ToArray();
         return new CmmcAssessmentDto(
             entity.Id,
             entity.TenantId,
@@ -204,6 +213,8 @@ public sealed class EfCmmcAssessmentRepository(
             entity.CompanyProfileId,
             ReadGuidArray(entity.ContractIdsJson),
             CalculateSummary(scopedControlIds, entity.Controls),
+            openPoamItems.Length,
+            openPoamItems.Count(item => item.TargetCompletionAt < today),
             entity.CreatedAt,
             entity.UpdatedAt);
     }

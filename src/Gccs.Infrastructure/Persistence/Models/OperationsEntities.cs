@@ -162,14 +162,17 @@ public sealed class PoamItemEntity : AuditedEntity
 {
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
+    public Guid AssessmentId { get; set; }
     public string ControlId { get; set; } = string.Empty;
     public string Weakness { get; set; } = string.Empty;
     public string PlannedRemediation { get; set; } = string.Empty;
     public RiskLevel RiskLevel { get; set; }
     public PoamStatus Status { get; set; }
     public Guid? OwnerUserId { get; set; }
+    public string OwnerFunction { get; set; } = string.Empty;
     public DateOnly TargetCompletionAt { get; set; }
     public DateOnly? CompletedAt { get; set; }
+    public Guid? RemediationTaskId { get; set; }
 
     public ICollection<PoamEvidenceEntity> EvidenceItems { get; set; } = [];
 }

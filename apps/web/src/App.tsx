@@ -27,6 +27,7 @@ import {
   attachContractClause,
   createContract,
   createCmmcAssessment,
+  createCmmcPoamItem,
   createContractDeliverable,
   createContractDocument,
   createTenantInvitation,
@@ -40,6 +41,7 @@ import {
   getCompanyProfile,
   getCmmcAssessments,
   getCmmcControlStatuses,
+  getCmmcPoamItems,
   getCalendarEvents,
   getContractClauses,
   getContractDeliverables,
@@ -70,6 +72,7 @@ import {
   type CompanyProfile,
   type CmmcAssessment,
   type CmmcControlStatus,
+  type CmmcPoamItem,
   type ComplianceOverview,
   type ContractClause,
   type ContractDeliverable,
@@ -87,6 +90,7 @@ import {
   type UpsertContractDeliverableRequest,
   type UpsertContractRequest,
   type UpsertCmmcAssessmentRequest,
+  type UpsertCmmcPoamItemRequest,
   type UpsertCompanyProfileRequest,
   type UpsertEvidenceMetadataRequest,
   type TenantMember
@@ -429,6 +433,7 @@ export function App() {
   const [evidenceItems, setEvidenceItems] = useState<EvidenceMetadata[]>([]);
   const [cmmcAssessments, setCmmcAssessments] = useState<CmmcAssessment[]>([]);
   const [cmmcControls, setCmmcControls] = useState<CmmcControlStatus[]>([]);
+  const [cmmcPoamItems, setCmmcPoamItems] = useState<CmmcPoamItem[]>([]);
   const [selectedEvidenceItemId, setSelectedEvidenceItemId] = useState<string | null>(null);
   const [calendarFilters, setCalendarFilters] = useState<CalendarFilters>(defaultCalendarFilters);
   const [calendarStatus, setCalendarStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
@@ -469,6 +474,8 @@ export function App() {
   const [evidenceMetadataMessage, setEvidenceMetadataMessage] = useState("");
   const [cmmcStatus, setCmmcStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [cmmcMessage, setCmmcMessage] = useState("");
+  const [cmmcPoamStatus, setCmmcPoamStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [cmmcPoamMessage, setCmmcPoamMessage] = useState("");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
@@ -531,6 +538,7 @@ export function App() {
         const nextCalendarEvents = canLoadCalendar ? await getCalendarEvents(defaultCalendarQuery()) : [];
         const nextCmmcAssessments = canLoadCmmc ? await getCmmcAssessments() : [];
         const nextCmmcControls = nextCmmcAssessments[0] ? await getCmmcControlStatuses(nextCmmcAssessments[0].id) : [];
+        const nextCmmcPoamItems = nextCmmcAssessments[0] ? await getCmmcPoamItems(nextCmmcAssessments[0].id) : [];
         const nextContractClauses = nextContracts[0] ? await getContractClauses(nextContracts[0].id) : [];
         const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
@@ -557,6 +565,7 @@ export function App() {
           setEvidenceItems(nextEvidenceItems);
           setCmmcAssessments(nextCmmcAssessments);
           setCmmcControls(nextCmmcControls);
+          setCmmcPoamItems(nextCmmcPoamItems);
           setCmmcStatus(canLoadCmmc ? "idle" : "idle");
           setSelectedEvidenceItemId(nextEvidenceItems[0]?.id ?? null);
           setLoadState("ready");
@@ -585,6 +594,7 @@ export function App() {
           setEvidenceItems([]);
           setCmmcAssessments([]);
           setCmmcControls([]);
+          setCmmcPoamItems([]);
           setCmmcStatus("idle");
           setSelectedEvidenceItemId(null);
           setLoadState("error");
@@ -971,7 +981,14 @@ export function App() {
     const result = await createCmmcAssessment(request);
 
     if (result.data) {
-      setCmmcAssessments((currentAssessments) => [result.data!, ...currentAssessments]);
+      const createdAssessment = result.data;
+      const [nextControls, nextPoamItems] = await Promise.all([
+        getCmmcControlStatuses(createdAssessment.id),
+        getCmmcPoamItems(createdAssessment.id)
+      ]);
+      setCmmcAssessments((currentAssessments) => [createdAssessment, ...currentAssessments]);
+      setCmmcControls(nextControls);
+      setCmmcPoamItems(nextPoamItems);
       setCmmcStatus("saved");
       setCmmcMessage("CMMC readiness assessment created.");
       return;
@@ -979,6 +996,33 @@ export function App() {
 
     setCmmcStatus("failed");
     setCmmcMessage(result.error ?? "CMMC assessment could not be created.");
+  }
+
+  async function handleCmmcPoamCreate(request: UpsertCmmcPoamItemRequest) {
+    const assessment = cmmcAssessments[0];
+    if (!assessment) {
+      setCmmcPoamStatus("failed");
+      setCmmcPoamMessage("Create a CMMC assessment before adding POA&M items.");
+      return;
+    }
+
+    setCmmcPoamStatus("saving");
+    setCmmcPoamMessage("");
+    const result = await createCmmcPoamItem(assessment.id, request);
+
+    if (result.data) {
+      setCmmcPoamItems((currentItems) => [result.data!, ...currentItems.filter((item) => item.id !== result.data!.id)]);
+      const nextAssessments = await getCmmcAssessments();
+      const nextControls = await getCmmcControlStatuses(assessment.id);
+      setCmmcAssessments(nextAssessments);
+      setCmmcControls(nextControls);
+      setCmmcPoamStatus("saved");
+      setCmmcPoamMessage("POA&M item created.");
+      return;
+    }
+
+    setCmmcPoamStatus("failed");
+    setCmmcPoamMessage(result.error ?? "POA&M item could not be created.");
   }
 
   async function handleAuditLogFilterSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1173,8 +1217,12 @@ export function App() {
               controls={cmmcControls}
               contracts={contracts}
               message={cmmcMessage}
+              poamItems={cmmcPoamItems}
+              poamMessage={cmmcPoamMessage}
+              poamStatus={cmmcPoamStatus}
               status={cmmcStatus}
               onCreate={handleCmmcAssessmentCreate}
+              onCreatePoam={handleCmmcPoamCreate}
             />
           ) : activeRoute === "settings" ? (
             <SettingsView
@@ -3284,13 +3332,37 @@ const defaultCmmcAssessmentForm: CmmcAssessmentFormState = {
   contractId: ""
 };
 
+type CmmcPoamFormState = {
+  controlId: string;
+  weakness: string;
+  plannedRemediation: string;
+  ownerFunction: string;
+  targetCompletionAt: string;
+  riskLevel: string;
+  status: string;
+};
+
+const defaultCmmcPoamForm: CmmcPoamFormState = {
+  controlId: "",
+  weakness: "",
+  plannedRemediation: "",
+  ownerFunction: "Security",
+  targetCompletionAt: "2026-07-15",
+  riskLevel: "High",
+  status: "Open"
+};
+
 function CmmcView({
   assessments,
   canManageCmmc,
   controls,
   contracts,
   message,
+  poamItems,
+  poamMessage,
+  poamStatus,
   onCreate,
+  onCreatePoam,
   status
 }: {
   assessments: CmmcAssessment[];
@@ -3298,10 +3370,15 @@ function CmmcView({
   controls: CmmcControlStatus[];
   contracts: ContractRecord[];
   message: string;
+  poamItems: CmmcPoamItem[];
+  poamMessage: string;
+  poamStatus: "idle" | "saving" | "saved" | "failed";
   onCreate: (request: UpsertCmmcAssessmentRequest) => Promise<void>;
+  onCreatePoam: (request: UpsertCmmcPoamItemRequest) => Promise<void>;
   status: "idle" | "saving" | "saved" | "failed";
 }) {
   const [form, setForm] = useState<CmmcAssessmentFormState>(defaultCmmcAssessmentForm);
+  const [poamForm, setPoamForm] = useState<CmmcPoamFormState>(defaultCmmcPoamForm);
 
   function updateField<TKey extends keyof CmmcAssessmentFormState>(field: TKey, value: CmmcAssessmentFormState[TKey]) {
     setForm((current) => ({
@@ -3327,6 +3404,30 @@ function CmmcView({
       ownerFunction: form.ownerFunction.trim(),
       companyProfileId: null,
       contractIds: form.contractId ? [form.contractId] : []
+    });
+  }
+
+  function updatePoamField<TKey extends keyof CmmcPoamFormState>(field: TKey, value: CmmcPoamFormState[TKey]) {
+    setPoamForm((current) => ({
+      ...current,
+      [field]: value
+    }));
+  }
+
+  function submitPoam(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void onCreatePoam({
+      controlId: poamForm.controlId || controls[0]?.controlId || "",
+      weakness: poamForm.weakness.trim(),
+      plannedRemediation: poamForm.plannedRemediation.trim(),
+      riskLevel: poamForm.riskLevel,
+      status: poamForm.status,
+      ownerUserId: null,
+      ownerFunction: poamForm.ownerFunction.trim(),
+      targetCompletionAt: poamForm.targetCompletionAt,
+      completedAt: poamForm.status === "Closed" ? poamForm.targetCompletionAt : null,
+      remediationTaskId: null,
+      evidenceItemIds: []
     });
   }
 
@@ -3422,6 +3523,9 @@ function CmmcView({
                   {assessment.controlSummary.completionPercentage}% complete · {assessment.controlSummary.implemented}/
                   {assessment.controlSummary.total} implemented · affirmation {assessment.affirmationDueAt ?? "not scheduled"}
                 </span>
+                <span>
+                  POA&M {assessment.openPoamItemCount} open · {assessment.overduePoamItemCount} overdue
+                </span>
               </article>
             ))}
           </div>
@@ -3452,6 +3556,100 @@ function CmmcView({
           </div>
         ) : (
           <EmptyState title="No controls loaded yet" body="Controls appear after a selected assessment has a Level 1 or Level 2 baseline." />
+        )}
+      </section>
+
+      <section className="cmmc-poam" aria-label="CMMC POA&M remediation">
+        <div className="section-heading--split">
+          <div>
+            <h3>POA&M remediation</h3>
+            <p>Track control gaps, remediation owners, due dates, risk, and task-backed calendar work.</p>
+          </div>
+        </div>
+        <form className="cmmc-create" onSubmit={submitPoam}>
+          <fieldset disabled={!canManageCmmc || poamStatus === "saving" || assessments.length === 0}>
+            <div className="form-grid">
+              <label>
+                <span>Control</span>
+                <select value={poamForm.controlId} onChange={(event) => updatePoamField("controlId", event.target.value)}>
+                  <option value="">Select control</option>
+                  {controls.map((control) => (
+                    <option key={control.controlId} value={control.controlId}>
+                      {control.controlId} · {control.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Risk</span>
+                <select value={poamForm.riskLevel} onChange={(event) => updatePoamField("riskLevel", event.target.value)}>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select value={poamForm.status} onChange={(event) => updatePoamField("status", event.target.value)}>
+                  <option value="Open">Open</option>
+                  <option value="InProgress">In progress</option>
+                  <option value="WaitingForValidation">Waiting for validation</option>
+                  <option value="Closed">Closed</option>
+                  <option value="AcceptedRisk">Accepted risk</option>
+                </select>
+              </label>
+              <label>
+                <span>Owner</span>
+                <input value={poamForm.ownerFunction} onChange={(event) => updatePoamField("ownerFunction", event.target.value)} />
+              </label>
+              <label>
+                <span>Due date</span>
+                <input
+                  type="date"
+                  value={poamForm.targetCompletionAt}
+                  onChange={(event) => updatePoamField("targetCompletionAt", event.target.value)}
+                />
+              </label>
+              <label className="span-2">
+                <span>Gap</span>
+                <input value={poamForm.weakness} onChange={(event) => updatePoamField("weakness", event.target.value)} />
+              </label>
+              <label className="span-2">
+                <span>Remediation plan</span>
+                <textarea
+                  value={poamForm.plannedRemediation}
+                  onChange={(event) => updatePoamField("plannedRemediation", event.target.value)}
+                />
+              </label>
+            </div>
+          </fieldset>
+          <div className="form-actions">
+            <button type="submit" disabled={!canManageCmmc || poamStatus === "saving" || assessments.length === 0}>
+              <ClipboardCheck size={16} aria-hidden="true" />
+              <span>{poamStatus === "saving" ? "Creating" : "Create POA&M"}</span>
+            </button>
+          </div>
+          {poamMessage ? <p className={`form-status ${poamStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>{poamMessage}</p> : null}
+        </form>
+        {poamItems.length > 0 ? (
+          <div className="evidence-list">
+            {poamItems.map((item) => (
+              <article className="evidence-list__item" key={item.id}>
+                <strong>{item.controlId} · {item.weakness}</strong>
+                <span>
+                  {item.status} · {item.riskLevel} · owner {item.ownerFunction} · due {item.targetCompletionAt}
+                </span>
+                <span>{item.plannedRemediation}</span>
+                <span>
+                  Task {item.remediationTaskId ? "linked" : "not linked"} · Evidence {item.evidenceItemIds.length}
+                  {item.isOverdue ? " · overdue" : ""}
+                </span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No POA&M items yet" body="Create remediation items for control gaps that need owner-tracked follow-up." />
         )}
       </section>
     </section>

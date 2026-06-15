@@ -361,6 +361,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-13.2.4:** Verify the control baseline source is visible and control status contributes to assessment progress.
 #-----------------------------------
 ### Story 13.3: POA&M Items
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-13.3.1:** Create a POA&M item with control, gap, remediation plan, owner, due date, risk, and status.

@@ -172,6 +172,7 @@ public sealed class EfCalendarRepository(
             {
                 "obligation" => "Obligations",
                 "contract" => "Contract",
+                "control" => "CMMC",
                 "evidence" => "Evidence",
                 _ => "Tasks"
             }

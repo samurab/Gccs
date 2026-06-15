@@ -1713,7 +1713,7 @@ paths:
       tags:
         - CMMC
       summary: List POA&M items
-      operationId: listPoamItems
+      operationId: listCmmcPoamItems
       responses:
         "200":
           description: POA&M items.
@@ -1725,13 +1725,15 @@ paths:
                   $ref: "#/components/schemas/PoamItem"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
     post:
       tags:
         - CMMC
       summary: Create a POA&M item
-      operationId: createPoamItem
+      operationId: createCmmcPoamItem
       requestBody:
         required: true
         content:
@@ -1749,6 +1751,47 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/cmmc/assessments/{assessmentId}/poam-items/{poamItemId}:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentId"
+      - name: poamItemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags:
+        - CMMC
+      summary: Update a POA&M item
+      operationId: updateCmmcPoamItem
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/PoamItemCreateRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PoamItemCreateRequest"
+      responses:
+        "200":
+          description: POA&M item updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PoamItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -4371,6 +4414,8 @@ components:
             - tenantId
             - status
             - controlSummary
+            - openPoamItemCount
+            - overduePoamItemCount
             - createdAt
           properties:
             id:
@@ -4389,6 +4434,10 @@ components:
                 - Superseded
             controlSummary:
               $ref: "#/components/schemas/ControlSummary"
+            openPoamItemCount:
+              type: integer
+            overduePoamItemCount:
+              type: integer
             createdAt:
               type: string
               format: date-time
@@ -4651,26 +4700,41 @@ components:
         - type: object
           required:
             - id
-            - status
+            - tenantId
+            - assessmentId
+            - remediationTaskId
+            - evidenceItemIds
+            - isOverdue
             - createdAt
-            - updatedAt
           properties:
             id:
               type: string
               format: uuid
-            status:
+            tenantId:
               type: string
-              enum:
-                - open
-                - in-progress
-                - risk-accepted
-                - completed
-                - cancelled
+              format: uuid
+            assessmentId:
+              type: string
+              format: uuid
+            remediationTaskId:
+              type:
+                - string
+                - "null"
+              format: uuid
+            evidenceItemIds:
+              type: array
+              items:
+                type: string
+                format: uuid
+            isOverdue:
+              type: boolean
             createdAt:
               type: string
               format: date-time
             updatedAt:
-              type: string
+              type:
+                - string
+                - "null"
               format: date-time
 
     PoamItemCreateRequest:
@@ -4679,6 +4743,10 @@ components:
         - controlId
         - weakness
         - plannedRemediation
+        - riskLevel
+        - status
+        - ownerFunction
+        - targetCompletionAt
       properties:
         controlId:
           type: string
@@ -4686,16 +4754,47 @@ components:
           type: string
         plannedRemediation:
           type: string
-        dueDate:
-          type:
-            - string
-            - "null"
-          format: date
+        riskLevel:
+          type: string
+          enum:
+            - Low
+            - Medium
+            - High
+            - Critical
+        status:
+          type: string
+          enum:
+            - Open
+            - InProgress
+            - WaitingForValidation
+            - Closed
+            - AcceptedRisk
         ownerUserId:
           type:
             - string
             - "null"
           format: uuid
+        ownerFunction:
+          type: string
+          maxLength: 120
+        targetCompletionAt:
+          type: string
+          format: date
+        completedAt:
+          type:
+            - string
+            - "null"
+          format: date
+        remediationTaskId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        evidenceItemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     SprsScore:
       type: object

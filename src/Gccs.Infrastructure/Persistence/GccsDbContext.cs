@@ -479,6 +479,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("poam_items");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Status, x.TargetCompletionAt });
+            entity.HasIndex(x => new { x.AssessmentId, x.ControlId });
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).HasDefaultValue("Security").IsRequired();
             ConfigureAuditColumns(entity);
         });
 

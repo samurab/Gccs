@@ -162,11 +162,16 @@ export type CmmcAssessment = {
   companyProfileId: string | null;
   contractIds: string[];
   controlSummary: ControlSummary;
+  openPoamItemCount: number;
+  overduePoamItemCount: number;
   createdAt: string;
   updatedAt: string | null;
 };
 
-export type UpsertCmmcAssessmentRequest = Omit<CmmcAssessment, "id" | "tenantId" | "controlSummary" | "createdAt" | "updatedAt">;
+export type UpsertCmmcAssessmentRequest = Omit<
+  CmmcAssessment,
+  "id" | "tenantId" | "controlSummary" | "openPoamItemCount" | "overduePoamItemCount" | "createdAt" | "updatedAt"
+>;
 
 export type CmmcControlStatus = {
   assessmentId: string;
@@ -189,6 +194,28 @@ export type CmmcControlStatus = {
   assessedAt: string | null;
   notes: string;
 };
+
+export type CmmcPoamItem = {
+  id: string;
+  tenantId: string;
+  assessmentId: string;
+  controlId: string;
+  weakness: string;
+  plannedRemediation: string;
+  riskLevel: string;
+  status: string;
+  ownerUserId: string | null;
+  ownerFunction: string;
+  targetCompletionAt: string;
+  completedAt: string | null;
+  remediationTaskId: string | null;
+  evidenceItemIds: string[];
+  isOverdue: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertCmmcPoamItemRequest = Omit<CmmcPoamItem, "id" | "tenantId" | "assessmentId" | "isOverdue" | "createdAt" | "updatedAt">;
 
 export type AuditLogEntry = {
   id: string;
@@ -556,6 +583,10 @@ export async function getCmmcControlStatuses(assessmentId: string): Promise<Cmmc
   return getJson<CmmcControlStatus[]>(`/api/cmmc/assessments/${assessmentId}/controls`, []);
 }
 
+export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamItem[]> {
+  return getJson<CmmcPoamItem[]>(`/api/cmmc/assessments/${assessmentId}/poam-items`, []);
+}
+
 export async function getCompanyProfile(): Promise<CompanyProfile | null> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
@@ -835,6 +866,13 @@ export async function createCmmcAssessment(
   request: UpsertCmmcAssessmentRequest
 ): Promise<ApiMutationResult<CmmcAssessment>> {
   return postJsonResult<CmmcAssessment>("/api/cmmc/assessments", request);
+}
+
+export async function createCmmcPoamItem(
+  assessmentId: string,
+  request: UpsertCmmcPoamItemRequest
+): Promise<ApiMutationResult<CmmcPoamItem>> {
+  return postJsonResult<CmmcPoamItem>(`/api/cmmc/assessments/${assessmentId}/poam-items`, request);
 }
 
 export async function updateEvidenceMetadata(

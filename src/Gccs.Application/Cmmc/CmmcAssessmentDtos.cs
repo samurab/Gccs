@@ -17,6 +17,8 @@ public sealed record CmmcAssessmentDto(
     Guid? CompanyProfileId,
     IReadOnlyList<Guid> ContractIds,
     ControlSummaryDto ControlSummary,
+    int OpenPoamItemCount,
+    int OverduePoamItemCount,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
 
