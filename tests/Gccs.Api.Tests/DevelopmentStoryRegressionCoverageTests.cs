@@ -383,7 +383,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-15.3.1"] = ["TC_15_3_1_Cmmc_readiness_report_rolls_up_control_status_by_family"],
             ["TC-15.3.2"] = ["TC_15_3_2_Cmmc_readiness_report_includes_poam_gaps_evidence_and_affirmations"],
             ["TC-15.3.3"] = ["TC_15_3_3_Cmmc_readiness_report_omits_evidence_links_without_evidence_permission"],
-            ["TC-15.3.4"] = ["TC_15_3_4_Cmmc_readiness_report_is_rbac_protected_and_retains_snapshots"]
+            ["TC-15.3.4"] = ["TC_15_3_4_Cmmc_readiness_report_is_rbac_protected_and_retains_snapshots"],
+            ["TC-15.4.1"] = ["TC_15_4_1_Generate_evidence_package_scoped_by_obligations_contract_controls_or_subcontractor"],
+            ["TC-15.4.2"] = ["TC_15_4_2_Approved_evidence_is_default_and_draft_rejected_require_authorized_override"],
+            ["TC-15.4.3"] = ["TC_15_4_3_Evidence_package_manifest_includes_required_metadata"],
+            ["TC-15.4.4"] = ["TC_15_4_4_Evidence_package_view_is_read_only_and_generation_is_audit_logged"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

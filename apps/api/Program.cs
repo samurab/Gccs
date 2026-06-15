@@ -709,6 +709,61 @@ api.MapGet("/reports/approved-evidence-packages", async (
 .RequirePermission(Permission.ViewReports)
 .WithName("ListApprovedEvidencePackages");
 
+api.MapPost("/reports/evidence-packages", async (
+    EvidencePackageGenerateRequest request,
+    EvidencePackageReportService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if ((request.ObligationIds.Count + request.ContractIds.Count + request.ControlIds.Count + request.SubcontractorIds.Count) == 0)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["scope"] = ["Evidence package scope must include at least one obligation, contract, CMMC control, or subcontractor."]
+        });
+    }
+
+    if (request.IncludeDraftOrRejectedEvidence &&
+        !httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ApproveEvidence.ToString()))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Forbidden",
+            "Including draft or rejected evidence requires evidence approval permission.",
+            StatusCodes.Status403Forbidden,
+            "forbidden");
+    }
+
+    var report = await service.GenerateAsync(
+        request,
+        tenantContext.UserId,
+        request.IncludeDraftOrRejectedEvidence,
+        cancellationToken);
+    return Results.Created($"/api/reports/evidence-packages/{report.Id}", report);
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("GenerateEvidencePackage");
+
+api.MapGet("/reports/evidence-packages/{reportId:guid}", async (
+    Guid reportId,
+    EvidencePackageReportService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var report = await service.GetAsync(reportId, cancellationToken);
+    return report is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Evidence package '{reportId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(report);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetEvidencePackage");
+
 api.MapPost("/reports/compliance-status", async (
     ComplianceStatusReportService service,
     ITenantContext tenantContext,

@@ -16,6 +16,16 @@ public interface IReportRepository
         Guid actorUserId,
         bool includeEvidenceLinks,
         CancellationToken cancellationToken = default);
+
+    Task<EvidencePackageReportDto> GenerateEvidencePackageAsync(
+        EvidencePackageGenerateRequest request,
+        Guid actorUserId,
+        bool includeDraftOrRejectedEvidence,
+        CancellationToken cancellationToken = default);
+
+    Task<EvidencePackageReportDto?> GetEvidencePackageAsync(
+        Guid reportId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record ComplianceStatusReportDto(

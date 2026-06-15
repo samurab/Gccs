@@ -84,6 +84,141 @@ public sealed class EfReportRepository(
             .ToArray();
     }
 
+    public async Task<EvidencePackageReportDto> GenerateEvidencePackageAsync(
+        EvidencePackageGenerateRequest request,
+        Guid actorUserId,
+        bool includeDraftOrRejectedEvidence,
+        CancellationToken cancellationToken = default)
+    {
+        var generatedAt = DateTimeOffset.UtcNow;
+        var obligationIds = NormalizeStrings(request.ObligationIds);
+        var contractIds = NormalizeGuids(request.ContractIds);
+        var controlIds = NormalizeStrings(request.ControlIds);
+        var subcontractorIds = NormalizeGuids(request.SubcontractorIds);
+        var allowedStatuses = includeDraftOrRejectedEvidence
+            ? new[] { EvidenceStatus.Approved, EvidenceStatus.Draft, EvidenceStatus.Rejected }
+            : [EvidenceStatus.Approved];
+
+        var evidenceItems = await dbContext.EvidenceItems
+            .AsNoTracking()
+            .Include(evidence => evidence.Obligations)
+            .Include(evidence => evidence.Contracts)
+            .Include(evidence => evidence.Controls)
+            .Where(evidence =>
+                evidence.TenantId == tenantContext.TenantId &&
+                allowedStatuses.Contains(evidence.Status) &&
+                (
+                    (obligationIds.Count > 0 && evidence.Obligations.Any(link => obligationIds.Contains(link.ObligationId))) ||
+                    (contractIds.Count > 0 && evidence.Contracts.Any(link => contractIds.Contains(link.ContractId))) ||
+                    (controlIds.Count > 0 && evidence.Controls.Any(link => controlIds.Contains(link.ControlId))) ||
+                    (subcontractorIds.Count > 0 && dbContext.Set<SubcontractorEvidenceEntity>().Any(link =>
+                        link.EvidenceItemId == evidence.Id &&
+                        subcontractorIds.Contains(link.SubcontractorId)))))
+            .OrderBy(evidence => evidence.Name)
+            .ThenBy(evidence => evidence.Id)
+            .ToArrayAsync(cancellationToken);
+
+        var evidenceIds = evidenceItems.Select(evidence => evidence.Id).ToArray();
+        var subcontractorLinks = await dbContext.Set<SubcontractorEvidenceEntity>()
+            .AsNoTracking()
+            .Where(link => evidenceIds.Contains(link.EvidenceItemId))
+            .ToListAsync(cancellationToken);
+        var subcontractorsByEvidenceId = subcontractorLinks
+            .GroupBy(link => link.EvidenceItemId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<Guid>)group.Select(link => link.SubcontractorId).Distinct().Order().ToArray());
+        var title = string.IsNullOrWhiteSpace(request.Title)
+            ? "Evidence package"
+            : request.Title.Trim();
+        var scope = new EvidencePackageScopeDto(
+            obligationIds,
+            contractIds,
+            controlIds,
+            subcontractorIds,
+            includeDraftOrRejectedEvidence);
+        var manifestItems = evidenceItems
+            .Select(evidence => new EvidencePackageManifestItemDto(
+                evidence.Id,
+                evidence.Name,
+                evidence.Type,
+                evidence.Status,
+                evidence.ApprovedAt,
+                evidence.ApprovedByUserId,
+                evidence.Obligations.Select(link => link.ObligationId).Distinct().Order(StringComparer.Ordinal).ToArray(),
+                evidence.Contracts.Select(link => link.ContractId).Distinct().Order().ToArray(),
+                evidence.Controls.Select(link => link.ControlId).Distinct().Order(StringComparer.Ordinal).ToArray(),
+                subcontractorsByEvidenceId.GetValueOrDefault(evidence.Id, []),
+                generatedAt))
+            .ToArray();
+        var manifest = new EvidencePackageManifestDto(title, generatedAt, scope, manifestItems);
+        var entity = new ReportEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantContext.TenantId,
+            Type = ReportType.PrimeEvidencePackage,
+            Title = title,
+            Status = ReportStatus.Complete,
+            GeneratedAt = generatedAt,
+            GeneratedByUserId = actorUserId,
+            SnapshotJson = JsonSerializer.Serialize(manifest, JsonOptions),
+            ExportHtml = BuildHtml(manifest),
+            CreatedAt = generatedAt,
+            CreatedByUserId = actorUserId
+        };
+        entity.Contracts = contractIds
+            .Select(contractId => new ReportContractEntity
+            {
+                ReportId = entity.Id,
+                ContractId = contractId
+            })
+            .ToArray();
+        entity.Obligations = obligationIds
+            .Select(obligationId => new ReportObligationEntity
+            {
+                ReportId = entity.Id,
+                ObligationId = obligationId
+            })
+            .ToArray();
+        entity.EvidenceItems = evidenceIds
+            .Select(evidenceItemId => new ReportEvidenceEntity
+            {
+                ReportId = entity.Id,
+                EvidenceItemId = evidenceItemId
+            })
+            .ToArray();
+
+        dbContext.Reports.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity, manifest);
+    }
+
+    public async Task<EvidencePackageReportDto?> GetEvidencePackageAsync(
+        Guid reportId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.Reports
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                report =>
+                    report.Id == reportId &&
+                    report.TenantId == tenantContext.TenantId &&
+                    report.Type == ReportType.PrimeEvidencePackage,
+                cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        var manifest = JsonSerializer.Deserialize<EvidencePackageManifestDto>(entity.SnapshotJson, JsonOptions) ??
+            new EvidencePackageManifestDto(
+                entity.Title,
+                entity.GeneratedAt,
+                new EvidencePackageScopeDto([], [], [], [], false),
+                []);
+        return ToDto(entity, manifest);
+    }
+
     public async Task<ComplianceStatusReportDto> GenerateComplianceStatusReportAsync(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
@@ -354,6 +489,18 @@ public sealed class EfReportRepository(
             snapshot,
             entity.ExportHtml);
 
+    private static EvidencePackageReportDto ToDto(ReportEntity entity, EvidencePackageManifestDto manifest) =>
+        new(
+            entity.Id,
+            entity.TenantId,
+            entity.Type,
+            entity.Status,
+            entity.Title,
+            entity.GeneratedAt,
+            entity.GeneratedByUserId,
+            manifest,
+            entity.ExportHtml);
+
     private static string BuildHtml(ComplianceStatusReportSnapshotDto snapshot)
     {
         var html = new StringBuilder();
@@ -380,6 +527,30 @@ public sealed class EfReportRepository(
         html.Append("<p>Generated at ").Append(snapshot.GeneratedAt.ToString("O")).Append("</p>");
         html.Append("<p>Open gaps: ").Append(snapshot.OpenGaps.Count).Append("</p>");
         html.Append("<p>Open POA&M items: ").Append(snapshot.OpenPoamItems.Count).Append("</p>");
+        html.Append("</body></html>");
+        return html.ToString();
+    }
+
+    private static string BuildHtml(EvidencePackageManifestDto manifest)
+    {
+        var html = new StringBuilder();
+        html.Append("<!doctype html><html><head><meta charset=\"utf-8\"><title>Evidence package</title></head><body>");
+        html.Append("<h1>").Append(manifest.Title).Append("</h1>");
+        html.Append("<p>Generated at ").Append(manifest.GeneratedAt.ToString("O")).Append("</p>");
+        html.Append("<p>Evidence items: ").Append(manifest.Items.Count).Append("</p>");
+        html.Append("<ul>");
+        foreach (var item in manifest.Items)
+        {
+            html.Append("<li>")
+                .Append(item.Title)
+                .Append(" - ")
+                .Append(item.Type)
+                .Append(" - ")
+                .Append(item.Status)
+                .Append("</li>");
+        }
+
+        html.Append("</ul>");
         html.Append("</body></html>");
         return html.ToString();
     }
@@ -424,6 +595,21 @@ public sealed class EfReportRepository(
             return [];
         }
     }
+
+    private static IReadOnlyList<string> NormalizeStrings(IEnumerable<string>? values) =>
+        values?
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.Ordinal)
+            .ToArray() ?? [];
+
+    private static IReadOnlyList<Guid> NormalizeGuids(IEnumerable<Guid>? values) =>
+        values?
+            .Where(value => value != Guid.Empty)
+            .Distinct()
+            .Order()
+            .ToArray() ?? [];
 
     private sealed record CmmcControlReportRow(
         ControlEntity Control,

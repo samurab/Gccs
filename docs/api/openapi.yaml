@@ -2188,6 +2188,59 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/reports/evidence-packages:
+    post:
+      tags:
+        - Reports
+      summary: Generate an evidence package
+      operationId: generateEvidencePackage
+      description: >
+        Generates a read-only evidence package for selected obligations,
+        contracts, CMMC controls, or subcontractors. Approved evidence is
+        included by default; draft and rejected evidence require an explicit
+        request and evidence approval permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidencePackageGenerateRequest"
+      responses:
+        "201":
+          description: Evidence package generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidencePackageReport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/reports/evidence-packages/{reportId}:
+    parameters:
+      - $ref: "#/components/parameters/ReportId"
+    get:
+      tags:
+        - Reports
+      summary: Get a read-only evidence package
+      operationId: getEvidencePackage
+      responses:
+        "200":
+          description: Evidence package.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidencePackageReport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/cmmc/affirmations:
     get:
       tags:
@@ -5987,6 +6040,179 @@ components:
             - string
             - "null"
           format: uuid
+
+    EvidencePackageGenerateRequest:
+      type: object
+      required:
+        - title
+        - obligationIds
+        - contractIds
+        - controlIds
+        - subcontractorIds
+        - includeDraftOrRejectedEvidence
+      properties:
+        title:
+          type: string
+        obligationIds:
+          type: array
+          items:
+            type: string
+        contractIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        controlIds:
+          type: array
+          items:
+            type: string
+        subcontractorIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        includeDraftOrRejectedEvidence:
+          type: boolean
+
+    EvidencePackageReport:
+      type: object
+      required:
+        - id
+        - tenantId
+        - type
+        - status
+        - title
+        - generatedAt
+        - generatedByUserId
+        - manifest
+        - exportHtml
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ReportType"
+        status:
+          $ref: "#/components/schemas/ReportStatus"
+        title:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        generatedByUserId:
+          type: string
+          format: uuid
+        manifest:
+          $ref: "#/components/schemas/EvidencePackageManifest"
+        exportHtml:
+          type: string
+
+    EvidencePackageManifest:
+      type: object
+      required:
+        - title
+        - generatedAt
+        - scope
+        - items
+      properties:
+        title:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        scope:
+          $ref: "#/components/schemas/EvidencePackageScope"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvidencePackageManifestItem"
+
+    EvidencePackageScope:
+      type: object
+      required:
+        - obligationIds
+        - contractIds
+        - controlIds
+        - subcontractorIds
+        - includesDraftOrRejectedEvidence
+      properties:
+        obligationIds:
+          type: array
+          items:
+            type: string
+        contractIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        controlIds:
+          type: array
+          items:
+            type: string
+        subcontractorIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        includesDraftOrRejectedEvidence:
+          type: boolean
+
+    EvidencePackageManifestItem:
+      type: object
+      required:
+        - evidenceItemId
+        - title
+        - type
+        - status
+        - obligationIds
+        - contractIds
+        - controlIds
+        - subcontractorIds
+        - manifestedAt
+      properties:
+        evidenceItemId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        type:
+          $ref: "#/components/schemas/EvidenceType"
+        status:
+          $ref: "#/components/schemas/EvidenceStatus"
+        approvedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        approvedByUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        obligationIds:
+          type: array
+          items:
+            type: string
+        contractIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        controlIds:
+          type: array
+          items:
+            type: string
+        subcontractorIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        manifestedAt:
+          type: string
+          format: date-time
 
     ReportCreateRequest:
       type: object

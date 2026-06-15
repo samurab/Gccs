@@ -437,6 +437,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-15.3.4:** Verify CMMC readiness report access is role-protected and generated snapshots are retained.
 #-----------------------------------
 ### Story 15.4: Evidence Package
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-15.4.1:** Generate an evidence package scoped by selected obligations, contract, CMMC controls, or subcontractor.
