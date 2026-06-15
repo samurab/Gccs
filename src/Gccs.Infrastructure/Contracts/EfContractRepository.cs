@@ -1,5 +1,8 @@
 using Gccs.Application.Contracts;
 using Gccs.Application.Security;
+using Gccs.Domain.Common;
+using Gccs.Domain.Compliance;
+using Gccs.Domain.Contracts;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +49,28 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             .Where(document => document.ContractId == contractId)
             .OrderByDescending(document => document.UploadedAt)
             .Select(document => ToDocumentDto(document))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ContractDeliverableDto>?> ListDeliverablesAsync(
+        Guid contractId,
+        CancellationToken cancellationToken = default)
+    {
+        var exists = await dbContext.Contracts.AnyAsync(
+            contract => contract.TenantId == tenantContext.TenantId && contract.Id == contractId,
+            cancellationToken);
+
+        if (!exists)
+        {
+            return null;
+        }
+
+        return await dbContext.Set<ContractDeliverableEntity>()
+            .AsNoTracking()
+            .Where(deliverable => deliverable.ContractId == contractId)
+            .OrderBy(deliverable => deliverable.DueAt ?? DateOnly.MaxValue)
+            .ThenBy(deliverable => deliverable.Name)
+            .Select(deliverable => ToDeliverableDto(deliverable))
             .ToArrayAsync(cancellationToken);
     }
 
@@ -160,6 +185,62 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         return dto;
     }
 
+    public async Task<ContractDeliverableDto?> CreateDeliverableAsync(
+        Guid contractId,
+        UpsertContractDeliverableRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var contractExists = await dbContext.Contracts.AnyAsync(
+            contract => contract.TenantId == tenantContext.TenantId && contract.Id == contractId,
+            cancellationToken);
+
+        if (!contractExists)
+        {
+            return null;
+        }
+
+        var deliverable = new ContractDeliverableEntity
+        {
+            Id = Guid.NewGuid(),
+            ContractId = contractId
+        };
+
+        Apply(deliverable, request);
+        dbContext.Set<ContractDeliverableEntity>().Add(deliverable);
+        SyncDeliverableTask(contractId, deliverable, actorUserId);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDeliverableDto(deliverable);
+    }
+
+    public async Task<ContractDeliverableDto?> UpdateDeliverableAsync(
+        Guid contractId,
+        Guid deliverableId,
+        UpsertContractDeliverableRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var deliverable = await dbContext.Set<ContractDeliverableEntity>()
+            .Include(item => item.Contract)
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == deliverableId &&
+                    item.ContractId == contractId &&
+                    item.Contract != null &&
+                    item.Contract.TenantId == tenantContext.TenantId,
+                cancellationToken);
+
+        if (deliverable is null)
+        {
+            return null;
+        }
+
+        Apply(deliverable, request);
+        SyncDeliverableTask(contractId, deliverable, actorUserId);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDeliverableDto(deliverable);
+    }
+
     private static void Apply(ContractEntity entity, UpsertContractRequest request)
     {
         entity.ContractNumber = request.ContractNumber;
@@ -174,6 +255,53 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         entity.PlaceOfPerformance = request.PlaceOfPerformance;
         entity.Description = request.Description;
         entity.DataHandlingPosture = request.DataHandlingPosture;
+    }
+
+    private static void Apply(ContractDeliverableEntity entity, UpsertContractDeliverableRequest request)
+    {
+        entity.Name = request.Name;
+        entity.Description = request.Description;
+        entity.DueAt = request.DueAt;
+        entity.OwnerFunction = request.OwnerFunction;
+        entity.Status = request.Status;
+    }
+
+    private void SyncDeliverableTask(Guid contractId, ContractDeliverableEntity deliverable, Guid actorUserId)
+    {
+        if (deliverable.DueAt is null)
+        {
+            return;
+        }
+
+        var task = dbContext.ComplianceTasks.Local.FirstOrDefault(task => task.ContractId == contractId && task.Title == deliverable.Name) ??
+            dbContext.ComplianceTasks.FirstOrDefault(task => task.ContractId == contractId && task.Title == deliverable.Name);
+        var now = DateTimeOffset.UtcNow;
+
+        if (task is null)
+        {
+            task = new ComplianceTaskEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                ContractId = contractId,
+                Type = ComplianceTaskType.CalendarReminder,
+                RiskLevel = RiskLevel.Medium,
+                CreatedAt = now,
+                CreatedByUserId = actorUserId
+            };
+            dbContext.ComplianceTasks.Add(task);
+        }
+        else
+        {
+            task.UpdatedAt = now;
+            task.UpdatedByUserId = actorUserId;
+        }
+
+        task.Title = deliverable.Name;
+        task.Description = deliverable.Description;
+        task.OwnerFunction = deliverable.OwnerFunction;
+        task.DueAt = deliverable.DueAt;
+        task.Status = IsComplete(deliverable.Status) ? ComplianceTaskStatus.Done : ComplianceTaskStatus.Open;
     }
 
     private static ContractDto ToDto(ContractEntity entity) =>
@@ -211,4 +339,18 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             entity.UploadedAt,
             entity.UploadedByUserId,
             entity.ContainsPotentialCui);
+
+    private static ContractDeliverableDto ToDeliverableDto(ContractDeliverableEntity entity) =>
+        new(
+            entity.Id,
+            entity.ContractId,
+            entity.Name,
+            entity.Description,
+            entity.DueAt,
+            entity.OwnerFunction,
+            entity.Status,
+            entity.DueAt < DateOnly.FromDateTime(DateTime.UtcNow) && !IsComplete(entity.Status));
+
+    private static bool IsComplete(DeliverableStatus status) =>
+        status is DeliverableStatus.Submitted or DeliverableStatus.Accepted or DeliverableStatus.Waived;
 }

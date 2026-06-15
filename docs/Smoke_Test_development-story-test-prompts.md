@@ -216,6 +216,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-8.2.4:** Upload and delete a contract document and verify both actions are audit logged.
 #-----------------------------------
 ### Story 8.3: Contract Dates And Deliverables
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-8.3.1:** Create deliverables with owner, due date, status, and description and verify they appear on contract detail.

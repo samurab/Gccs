@@ -6,7 +6,9 @@ const {
   acknowledgeNoCuiNoticeMock,
   allWorkflowAccess,
   contract,
+  contractDeliverable,
   contractDocument,
+  createContractDeliverableMock,
   createContractMock,
   createContractDocumentMock,
   createEvidenceUploadIntentMock,
@@ -14,6 +16,7 @@ const {
   deleteContractDocumentMock,
   fallbackOverview,
   getCompanyProfileMock,
+  getContractDeliverablesMock,
   getContractDocumentsMock,
   getContractsMock,
   getAuditLogsMock,
@@ -28,9 +31,11 @@ const {
   profile,
   restrictedAccess,
   saveCompanyProfileMock,
+  updateContractDeliverableMock,
   updateContractMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
+  createContractDeliverableMock: vi.fn(),
   createContractMock: vi.fn(),
   createContractDocumentMock: vi.fn(),
   createEvidenceUploadIntentMock: vi.fn(),
@@ -38,6 +43,7 @@ const {
   deleteContractDocumentMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
   getCompanyProfileMock: vi.fn(),
+  getContractDeliverablesMock: vi.fn(),
   getContractDocumentsMock: vi.fn(),
   getContractsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
@@ -46,6 +52,7 @@ const {
   getTenantInvitationsMock: vi.fn(),
   getTenantMembersMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
+  updateContractDeliverableMock: vi.fn(),
   updateContractMock: vi.fn(),
   allWorkflowAccess: {
     tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
@@ -231,18 +238,31 @@ const {
     uploadedAt: "2026-06-15T12:00:00Z",
     uploadedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
     containsPotentialCui: false
+  },
+  contractDeliverable: {
+    id: "66666666-6666-6666-6666-666666666661",
+    contractId: "88888888-8888-8888-8888-888888888881",
+    name: "Monthly status report",
+    description: "Submit the monthly performance package to the prime.",
+    dueAt: "2026-06-01",
+    ownerFunction: "Contracts",
+    status: "InProgress",
+    isOverdue: true
   }
 }));
 
 vi.mock("@/lib/api", () => ({
   createTenantInvitation: createTenantInvitationMock,
+  createContractDeliverable: createContractDeliverableMock,
   createContract: createContractMock,
   createContractDocument: createContractDocumentMock,
   deleteContractDocument: deleteContractDocumentMock,
   getCompanyProfile: getCompanyProfileMock,
+  getContractDeliverables: getContractDeliverablesMock,
   getContractDocuments: getContractDocumentsMock,
   getContracts: getContractsMock,
   saveCompanyProfile: saveCompanyProfileMock,
+  updateContractDeliverable: updateContractDeliverableMock,
   updateContract: updateContractMock,
   acknowledgeNoCuiNotice: acknowledgeNoCuiNoticeMock,
   createEvidenceUploadIntent: createEvidenceUploadIntentMock,
@@ -287,10 +307,12 @@ describe("App", () => {
     window.location.hash = "";
     acknowledgeNoCuiNoticeMock.mockReset();
     createEvidenceUploadIntentMock.mockReset();
+    createContractDeliverableMock.mockReset();
     createContractMock.mockReset();
     createContractDocumentMock.mockReset();
     createTenantInvitationMock.mockReset();
     deleteContractDocumentMock.mockReset();
+    updateContractDeliverableMock.mockReset();
     updateContractMock.mockReset();
     saveCompanyProfileMock.mockReset();
     getComplianceOverviewMock.mockReset();
@@ -300,6 +322,7 @@ describe("App", () => {
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
     getContractsMock.mockReset();
+    getContractDeliverablesMock.mockReset();
     getContractDocumentsMock.mockReset();
     getAuditLogsMock.mockResolvedValue({
       items: [],
@@ -320,6 +343,7 @@ describe("App", () => {
     });
     getCompanyProfileMock.mockResolvedValue(profile);
     getContractsMock.mockResolvedValue([]);
+    getContractDeliverablesMock.mockResolvedValue([]);
     getContractDocumentsMock.mockResolvedValue([]);
     saveCompanyProfileMock.mockImplementation((request) =>
       Promise.resolve({
@@ -362,6 +386,28 @@ describe("App", () => {
       })
     );
     createContractDocumentMock.mockResolvedValue({ data: contractDocument, error: null });
+    createContractDeliverableMock.mockResolvedValue({
+      data: {
+        ...contractDeliverable,
+        id: "66666666-6666-6666-6666-666666666662",
+        name: "Final acceptance package",
+        description: "Closeout evidence and deliverable package.",
+        dueAt: "2026-08-15",
+        status: "NotStarted",
+        isOverdue: false
+      },
+      error: null
+    });
+    updateContractDeliverableMock.mockImplementation((_contractId, _deliverableId, request) =>
+      Promise.resolve({
+        data: {
+          ...contractDeliverable,
+          ...request,
+          isOverdue: false
+        },
+        error: null
+      })
+    );
     deleteContractDocumentMock.mockResolvedValue({ data: null, error: null });
   });
 
@@ -585,6 +631,52 @@ describe("App", () => {
       })
     );
     expect(await screen.findByText(/Document metadata captured/i)).toBeInTheDocument();
+  });
+
+  it("TC-8.3.1, TC-8.3.3, and TC-8.3.4 manages contract deliverables", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractDeliverablesMock.mockResolvedValueOnce([contractDeliverable]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+
+    expect(await screen.findByText("Monthly status report")).toBeInTheDocument();
+    expect(screen.getByText(/Contracts . 2026-06-01 . Overdue/i)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Name"), "Final acceptance package");
+    await user.clear(screen.getByLabelText("Owner"));
+    await user.type(screen.getByLabelText("Owner"), "Program manager");
+    await user.type(screen.getByLabelText("Due date"), "2026-08-15");
+    await user.type(screen.getByLabelText("Deliverable description"), "Closeout evidence and deliverable package.");
+    await user.click(screen.getByRole("button", { name: /add deliverable/i }));
+
+    expect(createContractDeliverableMock).toHaveBeenCalledWith(
+      contract.id,
+      expect.objectContaining({
+        name: "Final acceptance package",
+        ownerFunction: "Program manager",
+        dueAt: "2026-08-15",
+        status: "NotStarted"
+      })
+    );
+    expect(await screen.findByText(/Deliverable added to the contract calendar/i)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Status for Monthly status report"), "Submitted");
+
+    expect(updateContractDeliverableMock).toHaveBeenCalledWith(
+      contract.id,
+      contractDeliverable.id,
+      expect.objectContaining({
+        name: contractDeliverable.name,
+        status: "Submitted"
+      })
+    );
   });
 
   it("TC-2.4.2 renders workspace actions and TC-3.2.3 hides restricted navigation", async () => {

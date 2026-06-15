@@ -329,6 +329,90 @@ api.MapDelete("/contracts/{contractId:guid}/documents/{documentId:guid}", async 
 .RequirePermission(Permission.ManageContracts)
 .WithName("DeleteContractDocument");
 
+api.MapGet("/contracts/{contractId:guid}/deliverables", async (
+    Guid contractId,
+    ContractService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var deliverables = await service.ListDeliverablesAsync(contractId, cancellationToken);
+    return deliverables is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract '{contractId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(deliverables);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractDeliverables");
+
+api.MapPost("/contracts/{contractId:guid}/deliverables", async (
+    Guid contractId,
+    UpsertContractDeliverableRequest request,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var deliverable = await service.CreateDeliverableAsync(contractId, request, tenantContext.UserId, cancellationToken);
+        return deliverable is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Contract '{contractId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/deliverables/{deliverable.Id}", deliverable);
+    }
+    catch (ContractValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Contract deliverable invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractDeliverable");
+
+api.MapPut("/contracts/{contractId:guid}/deliverables/{deliverableId:guid}", async (
+    Guid contractId,
+    Guid deliverableId,
+    UpsertContractDeliverableRequest request,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var deliverable = await service.UpdateDeliverableAsync(contractId, deliverableId, request, tenantContext.UserId, cancellationToken);
+        return deliverable is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Contract deliverable '{deliverableId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(deliverable);
+    }
+    catch (ContractValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Contract deliverable invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractDeliverable");
+
 api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))
 .RequirePermission(Permission.ViewObligations)

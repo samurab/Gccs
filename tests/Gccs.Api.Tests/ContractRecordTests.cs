@@ -7,6 +7,7 @@ using Gccs.Application.Contracts;
 using Gccs.Application.NoCui;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
+using Gccs.Domain.Compliance;
 using Gccs.Domain.Contracts;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
@@ -307,6 +308,145 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
         Assert.Equal([AuditAction.Uploaded, AuditAction.Deleted], auditEvents.Select(audit => audit.Action).ToArray());
     }
 
+    [Fact]
+    public async Task TC_8_3_1_Deliverables_appear_on_contract_detail()
+    {
+        var tenantId = Guid.Parse("83838383-8383-8383-8383-8383838383a1");
+        var contractId = Guid.Parse("83838383-8383-8383-8383-8383838383b1");
+        await using var factory = CreateFactory("tc-8-3-1", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DEL-DETAIL", "Deliverable detail contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var createRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/deliverables",
+            CreateDeliverableRequest("Monthly status report", new DateOnly(2026, 8, 15)),
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageContracts);
+        var createResponse = await client.SendAsync(createRequest);
+        using var listRequest = CreateRequest(HttpMethod.Get, $"/api/contracts/{contractId}/deliverables", tenantId, Guid.NewGuid(), Permission.ViewContracts);
+        var listResponse = await client.SendAsync(listRequest);
+        var deliverables = await listResponse.Content.ReadFromJsonAsync<ContractDeliverableDto[]>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        var deliverable = Assert.Single(deliverables ?? []);
+        Assert.Equal("Monthly status report", deliverable.Name);
+        Assert.Equal("Contracts", deliverable.OwnerFunction);
+        Assert.Equal(DeliverableStatus.NotStarted, deliverable.Status);
+    }
+
+    [Fact]
+    public async Task TC_8_3_2_Deliverable_due_dates_create_calendar_tasks()
+    {
+        var tenantId = Guid.Parse("83838383-8383-8383-8383-8383838383a2");
+        var contractId = Guid.Parse("83838383-8383-8383-8383-8383838383b2");
+        var actorUserId = Guid.Parse("83838383-8383-8383-8383-8383838383c2");
+        var dueAt = new DateOnly(2026, 9, 1);
+        await using var factory = CreateFactory("tc-8-3-2", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DEL-TASK", "Deliverable task contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var createRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/deliverables",
+            CreateDeliverableRequest("Submit security plan", dueAt),
+            tenantId,
+            actorUserId,
+            Permission.ManageContracts);
+        var createResponse = await client.SendAsync(createRequest);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var task = await dbContext.ComplianceTasks.SingleAsync(task => task.ContractId == contractId && task.Title == "Submit security plan");
+        Assert.Equal(tenantId, task.TenantId);
+        Assert.Equal(ComplianceTaskType.CalendarReminder, task.Type);
+        Assert.Equal(dueAt, task.DueAt);
+        Assert.Equal(actorUserId, task.CreatedByUserId);
+    }
+
+    [Fact]
+    public async Task TC_8_3_3_Past_due_incomplete_deliverables_are_flagged()
+    {
+        var tenantId = Guid.Parse("83838383-8383-8383-8383-8383838383a3");
+        var contractId = Guid.Parse("83838383-8383-8383-8383-8383838383b3");
+        await using var factory = CreateFactory("tc-8-3-3", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DEL-LATE", "Deliverable overdue contract", contractId));
+            dbContext.Set<ContractDeliverableEntity>().Add(new ContractDeliverableEntity
+            {
+                Id = Guid.Parse("83838383-8383-8383-8383-8383838383c3"),
+                ContractId = contractId,
+                Name = "Late report",
+                Description = "Past due",
+                DueAt = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-2),
+                OwnerFunction = "Contracts",
+                Status = DeliverableStatus.InProgress
+            });
+        });
+        using var client = factory.CreateClient();
+
+        using var listRequest = CreateRequest(HttpMethod.Get, $"/api/contracts/{contractId}/deliverables", tenantId, Guid.NewGuid(), Permission.ViewContracts);
+        var listResponse = await client.SendAsync(listRequest);
+        var deliverables = await listResponse.Content.ReadFromJsonAsync<ContractDeliverableDto[]>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.True(Assert.Single(deliverables ?? []).IsOverdue);
+    }
+
+    [Fact]
+    public async Task TC_8_3_4_Deliverable_status_changes_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("83838383-8383-8383-8383-8383838383a4");
+        var contractId = Guid.Parse("83838383-8383-8383-8383-8383838383b4");
+        var actorUserId = Guid.Parse("83838383-8383-8383-8383-8383838383c4");
+        await using var factory = CreateFactory("tc-8-3-4", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DEL-AUDIT", "Deliverable audit contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var createRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/deliverables",
+            CreateDeliverableRequest("Closeout package", new DateOnly(2026, 10, 1)),
+            tenantId,
+            actorUserId,
+            Permission.ManageContracts);
+        var createResponse = await client.SendAsync(createRequest);
+        var created = await createResponse.Content.ReadFromJsonAsync<ContractDeliverableDto>(JsonOptions);
+        Assert.NotNull(created);
+        using var updateRequest = CreateRequest(
+            HttpMethod.Put,
+            $"/api/contracts/{contractId}/deliverables/{created.Id}",
+            CreateDeliverableRequest("Closeout package", new DateOnly(2026, 10, 1)) with { Status = DeliverableStatus.Submitted },
+            tenantId,
+            actorUserId,
+            Permission.ManageContracts);
+        var updateResponse = await client.SendAsync(updateRequest);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var auditEvents = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "ContractDeliverable")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+
+        Assert.Equal([AuditAction.Created, AuditAction.Updated], auditEvents.Select(audit => audit.Action).ToArray());
+    }
+
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
         _factory.WithWebHostBuilder(builder =>
         {
@@ -372,6 +512,14 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             contentType,
             2048,
             false);
+
+    private static UpsertContractDeliverableRequest CreateDeliverableRequest(string name, DateOnly dueAt) =>
+        new(
+            name,
+            "Deliverable tracked from contract intake.",
+            dueAt,
+            "Contracts",
+            DeliverableStatus.NotStarted);
 
     private static NoCuiAcknowledgementEntity CreateAcknowledgement(Guid tenantId, Guid userId) =>
         new()

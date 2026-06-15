@@ -1581,6 +1581,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 8.3: Contract Dates And Deliverables
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

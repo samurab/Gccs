@@ -22,6 +22,11 @@ public sealed class ContractService(
         CancellationToken cancellationToken = default) =>
         repository.ListDocumentsAsync(contractId, cancellationToken);
 
+    public Task<IReadOnlyList<ContractDeliverableDto>?> ListDeliverablesAsync(
+        Guid contractId,
+        CancellationToken cancellationToken = default) =>
+        repository.ListDeliverablesAsync(contractId, cancellationToken);
+
     public async Task<ContractDto> CreateCurrentTenantAsync(
         UpsertContractRequest request,
         Guid actorUserId,
@@ -130,6 +135,43 @@ public sealed class ContractService(
         return deleted is not null;
     }
 
+    public async Task<ContractDeliverableDto?> CreateDeliverableAsync(
+        Guid contractId,
+        UpsertContractDeliverableRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeDeliverable(request);
+        ValidateDeliverable(normalized);
+        var deliverable = await repository.CreateDeliverableAsync(contractId, normalized, actorUserId, cancellationToken);
+
+        if (deliverable is not null)
+        {
+            await WriteDeliverableAuditAsync(deliverable, actorUserId, AuditAction.Created, cancellationToken);
+        }
+
+        return deliverable;
+    }
+
+    public async Task<ContractDeliverableDto?> UpdateDeliverableAsync(
+        Guid contractId,
+        Guid deliverableId,
+        UpsertContractDeliverableRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeDeliverable(request);
+        ValidateDeliverable(normalized);
+        var deliverable = await repository.UpdateDeliverableAsync(contractId, deliverableId, normalized, actorUserId, cancellationToken);
+
+        if (deliverable is not null)
+        {
+            await WriteDeliverableAuditAsync(deliverable, actorUserId, AuditAction.Updated, cancellationToken);
+        }
+
+        return deliverable;
+    }
+
     private async Task WriteAuditAsync(
         ContractDto contract,
         Guid actorUserId,
@@ -171,6 +213,14 @@ public sealed class ContractService(
         {
             FileName = request.FileName.Trim(),
             ContentType = request.ContentType.Trim().ToLowerInvariant()
+        };
+
+    private static UpsertContractDeliverableRequest NormalizeDeliverable(UpsertContractDeliverableRequest request) =>
+        request with
+        {
+            Name = request.Name.Trim(),
+            Description = request.Description.Trim(),
+            OwnerFunction = request.OwnerFunction.Trim()
         };
 
     private async Task WriteDocumentAuditAsync(
@@ -227,6 +277,52 @@ public sealed class ContractService(
         {
             throw new ContractValidationException(errors);
         }
+    }
+
+    private static void ValidateDeliverable(UpsertContractDeliverableRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+        AddIf(errors, string.IsNullOrWhiteSpace(request.Name), "name", "Deliverable name is required.");
+        AddIf(errors, string.IsNullOrWhiteSpace(request.OwnerFunction), "ownerFunction", "Deliverable owner function is required.");
+
+        if (errors.Count > 0)
+        {
+            throw new ContractValidationException(errors);
+        }
+    }
+
+    private async Task WriteDeliverableAuditAsync(
+        ContractDeliverableDto deliverable,
+        Guid actorUserId,
+        AuditAction action,
+        CancellationToken cancellationToken)
+    {
+        var contract = await repository.FindCurrentTenantAsync(deliverable.ContractId, cancellationToken);
+        if (contract is null)
+        {
+            return;
+        }
+
+        await auditEventWriter.WriteAsync(
+            contract.TenantId,
+            actorUserId,
+            action,
+            "ContractDeliverable",
+            deliverable.Id.ToString(),
+            action == AuditAction.Created
+                ? $"Contract deliverable '{deliverable.Name}' was created."
+                : $"Contract deliverable '{deliverable.Name}' was updated.",
+            new Dictionary<string, string>
+            {
+                ["contractId"] = deliverable.ContractId.ToString(),
+                ["name"] = deliverable.Name,
+                ["status"] = deliverable.Status.ToString(),
+                ["dueAt"] = deliverable.DueAt?.ToString("yyyy-MM-dd") ?? string.Empty,
+                ["ownerFunction"] = deliverable.OwnerFunction,
+                ["isOverdue"] = deliverable.IsOverdue.ToString()
+            },
+            cancellationToken);
     }
 
     private static Dictionary<string, string[]> ValidateDocumentUpload(ContractDocumentUploadRequest request)
@@ -316,6 +412,23 @@ public interface IContractRepository
     Task<ContractDocumentDto?> DeleteDocumentAsync(
         Guid contractId,
         Guid documentId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ContractDeliverableDto>?> ListDeliverablesAsync(
+        Guid contractId,
+        CancellationToken cancellationToken = default);
+
+    Task<ContractDeliverableDto?> CreateDeliverableAsync(
+        Guid contractId,
+        UpsertContractDeliverableRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<ContractDeliverableDto?> UpdateDeliverableAsync(
+        Guid contractId,
+        Guid deliverableId,
+        UpsertContractDeliverableRequest request,
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 }

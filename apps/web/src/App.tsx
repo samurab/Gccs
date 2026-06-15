@@ -24,6 +24,7 @@ import { ModuleCard } from "@/components/ModuleCard";
 import {
   acknowledgeNoCuiNotice,
   createContract,
+  createContractDeliverable,
   createContractDocument,
   createTenantInvitation,
   createEvidenceUploadIntent,
@@ -33,6 +34,7 @@ import {
   fallbackNoCuiAcknowledgementStatus,
   fallbackOverview,
   getCompanyProfile,
+  getContractDeliverables,
   getContractDocuments,
   getContracts,
   getAuditLogs,
@@ -43,16 +45,19 @@ import {
   getTenantMembers,
   saveCompanyProfile,
   updateContract,
+  updateContractDeliverable,
   type AuditLogEntry,
   type CompanyCertification,
   type CompanyProfile,
   type ComplianceOverview,
+  type ContractDeliverable,
   type ContractDocument,
   type ContractRecord,
   type CurrentUserAccess,
   type NoCuiAcknowledgementStatus,
   type PagedResult,
   type TenantInvitation,
+  type UpsertContractDeliverableRequest,
   type UpsertContractRequest,
   type UpsertCompanyProfileRequest,
   type TenantMember
@@ -348,6 +353,7 @@ export function App() {
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
+  const [contractDeliverables, setContractDeliverables] = useState<ContractDeliverable[]>([]);
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [auditLogs, setAuditLogs] = useState<PagedResult<AuditLogEntry>>(fallbackAuditLogs);
@@ -365,6 +371,8 @@ export function App() {
   const [profileMessage, setProfileMessage] = useState("");
   const [contractStatus, setContractStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [contractMessage, setContractMessage] = useState("");
+  const [deliverableStatus, setDeliverableStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [deliverableMessage, setDeliverableMessage] = useState("");
   const [contractDocumentStatus, setContractDocumentStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [contractDocumentMessage, setContractDocumentMessage] = useState("");
   const [selectedEvidenceFile, setSelectedEvidenceFile] = useState<File | null>(null);
@@ -423,6 +431,7 @@ export function App() {
           : fallbackNoCuiAcknowledgementStatus;
         const nextCompanyProfile = canLoadCompanyProfile ? await getCompanyProfile() : null;
         const nextContracts = canLoadContracts ? await getContracts() : [];
+        const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
 
         if (isMounted) {
@@ -432,6 +441,7 @@ export function App() {
           setInvitations(nextInvitations);
           setCompanyProfile(nextCompanyProfile);
           setContracts(nextContracts);
+          setContractDeliverables(nextContractDeliverables);
           setContractDocuments(nextContractDocuments);
           setSelectedContractId(nextContracts[0]?.id ?? null);
           setAuditLogs(nextAuditLogs);
@@ -448,6 +458,7 @@ export function App() {
           setInvitations([]);
           setCompanyProfile(null);
           setContracts([]);
+          setContractDeliverables([]);
           setContractDocuments([]);
           setSelectedContractId(null);
           setAuditLogs(fallbackAuditLogs);
@@ -524,8 +535,42 @@ export function App() {
 
   async function handleContractSelect(contractId: string | null) {
     setSelectedContractId(contractId);
+    setDeliverableMessage("");
     setContractDocumentMessage("");
-    setContractDocuments(contractId ? await getContractDocuments(contractId) : []);
+    const [nextDeliverables, nextDocuments] = contractId
+      ? await Promise.all([getContractDeliverables(contractId), getContractDocuments(contractId)])
+      : [[], []];
+    setContractDeliverables(nextDeliverables);
+    setContractDocuments(nextDocuments);
+  }
+
+  async function handleDeliverableSave(
+    contractId: string,
+    deliverableId: string | null,
+    request: UpsertContractDeliverableRequest
+  ) {
+    setDeliverableStatus("saving");
+    setDeliverableMessage("");
+
+    const result = deliverableId
+      ? await updateContractDeliverable(contractId, deliverableId, request)
+      : await createContractDeliverable(contractId, request);
+
+    if (result.data) {
+      const savedDeliverable = result.data;
+      setContractDeliverables((currentDeliverables) => {
+        const exists = currentDeliverables.some((deliverable) => deliverable.id === savedDeliverable.id);
+        return exists
+          ? currentDeliverables.map((deliverable) => (deliverable.id === savedDeliverable.id ? savedDeliverable : deliverable))
+          : [savedDeliverable, ...currentDeliverables];
+      });
+      setDeliverableStatus("saved");
+      setDeliverableMessage(deliverableId ? "Deliverable updated." : "Deliverable added to the contract calendar.");
+      return;
+    }
+
+    setDeliverableStatus("failed");
+    setDeliverableMessage(result.error ?? "Deliverable could not be saved.");
   }
 
   async function handleContractDocumentUpload(contractId: string, documentType: string, file: File | null) {
@@ -705,7 +750,10 @@ export function App() {
             <ContractsView
               canManageContracts={canManageContracts}
               contracts={contracts}
+              contractDeliverables={contractDeliverables}
               contractDocuments={contractDocuments}
+              deliverableMessage={deliverableMessage}
+              deliverableStatus={deliverableStatus}
               contractDocumentMessage={contractDocumentMessage}
               contractDocumentStatus={contractDocumentStatus}
               contractMessage={contractMessage}
@@ -713,6 +761,7 @@ export function App() {
               noCuiAcknowledgement={noCuiAcknowledgement}
               selectedContractId={selectedContractId}
               onDeleteDocument={handleContractDocumentDelete}
+              onSaveDeliverable={handleDeliverableSave}
               onUploadDocument={handleContractDocumentUpload}
               onSave={handleContractSave}
               onSelectContract={handleContractSelect}
@@ -1038,7 +1087,10 @@ function contractFormToRequest(form: ContractFormState): UpsertContractRequest {
 function ContractsView({
   canManageContracts,
   contracts,
+  contractDeliverables,
   contractDocuments,
+  deliverableMessage,
+  deliverableStatus,
   contractDocumentMessage,
   contractDocumentStatus,
   contractMessage,
@@ -1046,13 +1098,17 @@ function ContractsView({
   noCuiAcknowledgement,
   selectedContractId,
   onDeleteDocument,
+  onSaveDeliverable,
   onUploadDocument,
   onSave,
   onSelectContract
 }: {
   canManageContracts: boolean;
   contracts: ContractRecord[];
+  contractDeliverables: ContractDeliverable[];
   contractDocuments: ContractDocument[];
+  deliverableMessage: string;
+  deliverableStatus: "idle" | "saving" | "saved" | "failed";
   contractDocumentMessage: string;
   contractDocumentStatus: "idle" | "saving" | "saved" | "failed";
   contractMessage: string;
@@ -1060,6 +1116,11 @@ function ContractsView({
   noCuiAcknowledgement: NoCuiAcknowledgementStatus;
   selectedContractId: string | null;
   onDeleteDocument: (contractId: string, documentId: string) => Promise<void>;
+  onSaveDeliverable: (
+    contractId: string,
+    deliverableId: string | null,
+    request: UpsertContractDeliverableRequest
+  ) => Promise<void>;
   onUploadDocument: (contractId: string, documentType: string, file: File | null) => Promise<void>;
   onSave: (contractId: string | null, request: UpsertContractRequest) => Promise<void>;
   onSelectContract: (contractId: string | null) => void;
@@ -1067,8 +1128,51 @@ function ContractsView({
   const selectedContract = contracts.find((contract) => contract.id === selectedContractId) ?? null;
   const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState("Contract");
+  const [deliverableDraft, setDeliverableDraft] = useState<UpsertContractDeliverableRequest>({
+    name: "",
+    description: "",
+    dueAt: "",
+    ownerFunction: "Contracts",
+    status: "NotStarted"
+  });
   const uploadDisabled =
     !canManageContracts || !selectedContract || !noCuiAcknowledgement.isAcknowledged || contractDocumentStatus === "saving";
+  const deliverableDisabled = !canManageContracts || !selectedContract || deliverableStatus === "saving";
+
+  async function saveNewDeliverable() {
+    if (!selectedContract) {
+      return;
+    }
+
+    await onSaveDeliverable(selectedContract.id, null, {
+      ...deliverableDraft,
+      name: deliverableDraft.name.trim(),
+      description: deliverableDraft.description.trim(),
+      ownerFunction: deliverableDraft.ownerFunction.trim(),
+      dueAt: deliverableDraft.dueAt || null
+    });
+    setDeliverableDraft({
+      name: "",
+      description: "",
+      dueAt: "",
+      ownerFunction: "Contracts",
+      status: "NotStarted"
+    });
+  }
+
+  async function updateDeliverableStatus(deliverable: ContractDeliverable, status: string) {
+    if (!selectedContract) {
+      return;
+    }
+
+    await onSaveDeliverable(selectedContract.id, deliverable.id, {
+      name: deliverable.name,
+      description: deliverable.description,
+      dueAt: deliverable.dueAt,
+      ownerFunction: deliverable.ownerFunction,
+      status
+    });
+  }
 
   return (
     <section className="route-panel contracts-route">
@@ -1141,6 +1245,113 @@ function ContractsView({
             </div>
           </section>
         ) : null}
+
+        <section className="contract-deliverables" aria-label="Contract deliverables">
+          <div className="contract-documents__header">
+            <div>
+              <span>Deliverables</span>
+              <strong>{contractDeliverables.length}</strong>
+            </div>
+          </div>
+          <form
+            className="deliverable-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveNewDeliverable();
+            }}
+          >
+            <label>
+              Name
+              <input
+                value={deliverableDraft.name}
+                onChange={(event) => setDeliverableDraft((current) => ({ ...current, name: event.target.value }))}
+                disabled={deliverableDisabled}
+                required
+              />
+            </label>
+            <label>
+              Owner
+              <input
+                value={deliverableDraft.ownerFunction}
+                onChange={(event) => setDeliverableDraft((current) => ({ ...current, ownerFunction: event.target.value }))}
+                disabled={deliverableDisabled}
+                required
+              />
+            </label>
+            <label>
+              Due date
+              <input
+                type="date"
+                value={deliverableDraft.dueAt ?? ""}
+                onChange={(event) => setDeliverableDraft((current) => ({ ...current, dueAt: event.target.value }))}
+                disabled={deliverableDisabled}
+              />
+            </label>
+            <label>
+              Deliverable status
+              <select
+                value={deliverableDraft.status}
+                onChange={(event) => setDeliverableDraft((current) => ({ ...current, status: event.target.value }))}
+                disabled={deliverableDisabled}
+              >
+                <option value="NotStarted">Not started</option>
+                <option value="InProgress">In progress</option>
+                <option value="Submitted">Submitted</option>
+                <option value="Accepted">Accepted</option>
+                <option value="Waived">Waived</option>
+              </select>
+            </label>
+            <label className="deliverable-form__description">
+              Deliverable description
+              <textarea
+                value={deliverableDraft.description}
+                onChange={(event) => setDeliverableDraft((current) => ({ ...current, description: event.target.value }))}
+                disabled={deliverableDisabled}
+              />
+            </label>
+            <button type="submit" disabled={deliverableDisabled}>
+              Add deliverable
+            </button>
+          </form>
+          {deliverableMessage ? (
+            <p className={`form-status ${deliverableStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
+              {deliverableMessage}
+            </p>
+          ) : null}
+          <div className="deliverable-list">
+            {contractDeliverables.length > 0 ? (
+              contractDeliverables.map((deliverable) => (
+                <article
+                  className={deliverable.isOverdue ? "deliverable-item deliverable-item--overdue" : "deliverable-item"}
+                  key={deliverable.id}
+                >
+                  <div>
+                    <strong>{deliverable.name}</strong>
+                    <span>
+                      {deliverable.ownerFunction} · {deliverable.dueAt ?? "No due date"}
+                      {deliverable.isOverdue ? " · Overdue" : ""}
+                    </span>
+                    {deliverable.description ? <p>{deliverable.description}</p> : null}
+                  </div>
+                  <select
+                    aria-label={`Status for ${deliverable.name}`}
+                    value={deliverable.status}
+                    onChange={(event) => void updateDeliverableStatus(deliverable, event.target.value)}
+                    disabled={deliverableDisabled}
+                  >
+                    <option value="NotStarted">Not started</option>
+                    <option value="InProgress">In progress</option>
+                    <option value="Submitted">Submitted</option>
+                    <option value="Accepted">Accepted</option>
+                    <option value="Waived">Waived</option>
+                  </select>
+                </article>
+              ))
+            ) : (
+              <EmptyState title="No deliverables yet" body="Add due dates and owners so contract obligations appear on the calendar." />
+            )}
+          </div>
+        </section>
 
         <section className="contract-documents" aria-label="Contract documents">
           <div className="contract-documents__header">

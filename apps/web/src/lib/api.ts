@@ -219,6 +219,19 @@ export type ContractDocumentUploadRequest = {
   containsPotentialCui: boolean;
 };
 
+export type ContractDeliverable = {
+  id: string;
+  contractId: string;
+  name: string;
+  description: string;
+  dueAt: string | null;
+  ownerFunction: string;
+  status: string;
+  isOverdue: boolean;
+};
+
+export type UpsertContractDeliverableRequest = Omit<ContractDeliverable, "id" | "contractId" | "isOverdue">;
+
 export type UpsertCompanyProfileRequest = Omit<
   CompanyProfile,
   "id" | "tenantId" | "completionPercentage" | "isComplete" | "validationErrors" | "createdAt" | "updatedAt"
@@ -350,6 +363,10 @@ export async function getContractDocuments(contractId: string): Promise<Contract
   return getJson<ContractDocument[]>(`/api/contracts/${contractId}/documents`, []);
 }
 
+export async function getContractDeliverables(contractId: string): Promise<ContractDeliverable[]> {
+  return getJson<ContractDeliverable[]>(`/api/contracts/${contractId}/deliverables`, []);
+}
+
 export async function getContract(contractId: string): Promise<ContractRecord | null> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
@@ -409,6 +426,21 @@ export async function deleteContractDocument(contractId: string, documentId: str
   } catch {
     return { data: null, error: "The API request could not be completed." };
   }
+}
+
+export async function createContractDeliverable(
+  contractId: string,
+  request: UpsertContractDeliverableRequest
+): Promise<ApiMutationResult<ContractDeliverable>> {
+  return postJsonResult<ContractDeliverable>(`/api/contracts/${contractId}/deliverables`, request);
+}
+
+export async function updateContractDeliverable(
+  contractId: string,
+  deliverableId: string,
+  request: UpsertContractDeliverableRequest
+): Promise<ApiMutationResult<ContractDeliverable>> {
+  return putJsonResult<ContractDeliverable>(`/api/contracts/${contractId}/deliverables/${deliverableId}`, request);
 }
 
 export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<NoCuiAcknowledgementStatus | null> {

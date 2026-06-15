@@ -57,3 +57,20 @@ public sealed record ContractDocumentUploadRequest(
     string ContentType,
     long SizeBytes,
     bool ContainsPotentialCui);
+
+public sealed record ContractDeliverableDto(
+    Guid Id,
+    Guid ContractId,
+    string Name,
+    string Description,
+    DateOnly? DueAt,
+    string OwnerFunction,
+    DeliverableStatus Status,
+    bool IsOverdue);
+
+public sealed record UpsertContractDeliverableRequest(
+    string Name,
+    string Description,
+    DateOnly? DueAt,
+    string OwnerFunction,
+    DeliverableStatus Status);
