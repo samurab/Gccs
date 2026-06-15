@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<NoCuiAcknowledgementService>();
         services.AddScoped<AuditLogService>();
         services.AddScoped<ComplianceTaskService>();
+        services.AddScoped<RenewalGenerationService>();
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
@@ -66,6 +67,7 @@ public static class DependencyInjection
             services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
             services.AddScoped<IComplianceTaskRepository, EfComplianceTaskRepository>();
+            services.AddScoped<IRenewalTaskRepository, EfRenewalTaskRepository>();
             services.AddScoped<ICalendarRepository, EfCalendarRepository>();
         }
         else
@@ -100,6 +102,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Obligation detail persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceTaskRepository>(_ =>
                 throw new InvalidOperationException("Task persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IRenewalTaskRepository>(_ =>
+                throw new InvalidOperationException("Renewal task generation requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICalendarRepository>(_ =>
                 throw new InvalidOperationException("Calendar persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }

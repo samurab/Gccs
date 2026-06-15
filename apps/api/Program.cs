@@ -734,6 +734,30 @@ api.MapPatch("/tasks/{taskId:guid}", async (
 .RequirePermission(Permission.ManageTasks)
 .WithName("UpdateComplianceTask");
 
+api.MapPost("/tasks/renewals/generate", async (
+    GenerateRenewalTasksRequest request,
+    RenewalGenerationService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GenerateAsync(request, tenantContext.UserId, tenantContext.TenantId, cancellationToken));
+    }
+    catch (ComplianceTaskValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["leadTimeDays"] = [exception.Message]
+        },
+        title: "Renewal generation invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageTasks)
+.WithName("GenerateRenewalTasks");
+
 api.MapGet("/calendar/events", async (
     DateOnly from,
     DateOnly? to,

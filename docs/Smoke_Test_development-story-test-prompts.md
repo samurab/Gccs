@@ -303,6 +303,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-11.2.4:** Verify the calendar excludes items from other tenants.
 #-----------------------------------
 ### Story 11.3: Renewal Generation
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-11.3.1:** Generate renewal tasks for SAM, certifications, evidence, insurance, policy review, and CMMC affirmation dates.

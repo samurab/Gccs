@@ -1200,6 +1200,30 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/tasks/renewals/generate:
+    post:
+      tags:
+        - Tasks
+      summary: Generate renewal tasks from dated compliance records
+      operationId: generateRenewalTasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateRenewalTasksRequest"
+      responses:
+        "200":
+          description: Renewal generation result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RenewalTaskGenerationResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/tasks/{taskId}:
     parameters:
       - $ref: "#/components/parameters/TaskId"
@@ -3706,6 +3730,94 @@ components:
           type:
             - string
             - "null"
+
+    GenerateRenewalTasksRequest:
+      type: object
+      properties:
+        leadTimeDays:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 365
+
+    RenewalTaskGenerationResult:
+      type: object
+      required:
+        - leadTimeDays
+        - createdCount
+        - skippedDuplicateCount
+        - items
+      properties:
+        leadTimeDays:
+          type: integer
+        createdCount:
+          type: integer
+        skippedDuplicateCount:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RenewalTaskGenerationItem"
+
+    RenewalTaskGenerationItem:
+      type: object
+      required:
+        - sourceType
+        - sourceId
+        - title
+        - taskType
+        - riskLevel
+        - sourceDueAt
+        - reminderDueAt
+        - linkedEntityType
+        - created
+      properties:
+        taskId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        sourceType:
+          type: string
+          enum:
+            - sam_registration
+            - certification
+            - evidence_expiration
+            - insurance
+            - policy_review
+            - cmmc_affirmation
+        sourceId:
+          type: string
+        title:
+          type: string
+        taskType:
+          type: string
+          enum:
+            - ObligationAction
+            - CalendarReminder
+            - EvidenceRequest
+            - ControlAssessment
+            - PolicyReview
+            - Renewal
+            - Report
+            - CorrectiveAction
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+        sourceDueAt:
+          type: string
+          format: date
+        reminderDueAt:
+          type: string
+          format: date
+        linkedEntityType:
+          type: string
+        linkedEntityId:
+          type:
+            - string
+            - "null"
+        created:
+          type: boolean
 
     CalendarEvent:
       type: object

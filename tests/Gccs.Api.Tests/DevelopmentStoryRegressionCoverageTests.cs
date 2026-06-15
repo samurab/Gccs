@@ -327,7 +327,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-11.2.1"] = ["TC_11_2_1_Calendar_aggregates_tasks_renewals_reports_deadlines_deliverables_and_policy_reviews"],
             ["TC-11.2.2"] = ["TC_11_2_2_Calendar_filters_by_owner_status_risk_contract_and_module"],
             ["TC-11.2.3"] = ["TC_11_2_3_Calendar_flags_overdue_items"],
-            ["TC-11.2.4"] = ["TC_11_2_4_Calendar_excludes_other_tenant_items"]
+            ["TC-11.2.4"] = ["TC_11_2_4_Calendar_excludes_other_tenant_items"],
+            ["TC-11.3.1"] = ["TC_11_3_1_Generates_renewal_tasks_for_profile_evidence_insurance_policy_and_cmmc_dates"],
+            ["TC-11.3.2"] = ["TC_11_3_2_Running_generation_twice_skips_duplicate_source_and_due_date_tasks"],
+            ["TC-11.3.3"] = ["TC_11_3_3_Default_and_configured_lead_times_produce_expected_reminder_due_dates"],
+            ["TC-11.3.4"] = ["TC_11_3_4_Generated_renewal_tasks_link_back_to_originating_source_records"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)
