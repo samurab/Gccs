@@ -513,6 +513,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-17.3.4:** Run staging smoke tests after deployment and verify success/failure is visible in CI/CD.
 #-----------------------------------
 ### Story 17.4: Production Readiness Checklist
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-17.4.1:** Verify release cannot proceed until production readiness checklist items are complete and approved.

@@ -415,7 +415,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-17.3.1"] = ["TC_17_3_1_Staging_deployment_workflow_covers_core_services_and_migrations"],
             ["TC-17.3.2"] = ["TC_17_3_2_Staging_contract_blocks_production_customer_data_and_secrets"],
             ["TC-17.3.3"] = ["TC_17_3_3_Staging_health_checks_cover_api_database_cache_storage_and_jobs"],
-            ["TC-17.3.4"] = ["TC_17_3_4_Staging_smoke_tests_are_visible_in_ci_cd"]
+            ["TC-17.3.4"] = ["TC_17_3_4_Staging_smoke_tests_are_visible_in_ci_cd"],
+            ["TC-17.4.1"] = ["TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete"],
+            ["TC-17.4.2"] = ["TC_17_4_2_No_cui_limits_malware_support_and_prohibited_upload_guidance_are_documented"],
+            ["TC-17.4.3"] = ["TC_17_4_3_Launch_obligations_have_source_urls_review_dates_confidence_and_review_metadata"],
+            ["TC-17.4.4"] = ["TC_17_4_4_Staging_rollback_simulation_steps_timing_and_outcome_are_documented"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)
