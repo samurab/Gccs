@@ -466,6 +466,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-16.1.4:** Change notification preferences and verify audit events.
 #-----------------------------------
 ### Story 16.2: Due-Date Reminders
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-16.2.1:** Run the due-date reminder job and verify tasks within configured lead time are selected.

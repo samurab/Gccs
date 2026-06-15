@@ -395,7 +395,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-16.1.1"] = ["TC_16_1_1_Create_users_by_role_assigns_default_notification_preferences"],
             ["TC-16.1.2"] = ["TC_16_1_2_Update_preferences_for_all_notification_categories"],
             ["TC-16.1.3"] = ["TC_16_1_3_Notification_preferences_are_tenant_scoped_for_multi_tenant_user"],
-            ["TC-16.1.4"] = ["TC_16_1_4_Notification_preference_changes_are_audit_logged"]
+            ["TC-16.1.4"] = ["TC_16_1_4_Notification_preference_changes_are_audit_logged"],
+            ["TC-16.2.1"] = ["TC_16_2_1_Due_date_reminder_job_selects_tasks_within_configured_lead_time"],
+            ["TC-16.2.2"] = ["TC_16_2_2_Due_date_reminder_job_is_idempotent_for_same_event"],
+            ["TC-16.2.3"] = ["TC_16_2_3_Overdue_reminders_are_categorized_separately"],
+            ["TC-16.2.4"] = ["TC_16_2_4_Delivery_failure_is_logged_without_crashing_unrelated_deliveries"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

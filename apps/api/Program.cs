@@ -168,6 +168,15 @@ api.MapPut("/notification-preferences", async (
 })
 .WithName("UpdateNotificationPreferences");
 
+api.MapPost("/notifications/due-date-reminders", async (
+    RunDueDateReminderRequest request,
+    DueDateReminderService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.RunAsync(tenantContext.TenantId, tenantContext.UserId, request, cancellationToken)))
+.RequirePermission(Permission.ManageTasks)
+.WithName("RunDueDateReminders");
+
 api.MapGet("/compliance/overview", async (ComplianceOverviewService service, CancellationToken cancellationToken) =>
     Results.Ok(await service.GetOverviewAsync(cancellationToken)))
 .RequirePermission(Permission.ViewObligations)

@@ -26,6 +26,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
     public DbSet<NoCuiAcknowledgementEntity> NoCuiAcknowledgements => Set<NoCuiAcknowledgementEntity>();
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
+    public DbSet<NotificationDeliveryEntity> NotificationDeliveries => Set<NotificationDeliveryEntity>();
     public DbSet<RoleEntity> Roles => Set<RoleEntity>();
     public DbSet<CompanyProfileEntity> CompanyProfiles => Set<CompanyProfileEntity>();
     public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
@@ -186,6 +187,19 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.UserId }).IsUnique();
             entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<NotificationDeliveryEntity>(entity =>
+        {
+            entity.ToTable("notification_deliveries");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SourceTaskId, x.Category }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.AttemptedAt });
+            entity.Property(x => x.Category).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Placeholder).HasMaxLength(800).IsRequired();
+            entity.Property(x => x.FailureMessage).HasMaxLength(800);
             ConfigureAuditColumns(entity);
         });
 

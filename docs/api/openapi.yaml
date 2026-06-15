@@ -132,6 +132,36 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/notifications/due-date-reminders:
+    post:
+      tags:
+        - Notifications
+      summary: Run due-date reminder job
+      operationId: runDueDateReminders
+      description: >
+        Finds upcoming and overdue open tasks for the current tenant, creates
+        idempotent local notification/email placeholders, and records delivery
+        failures without stopping unrelated reminders.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunDueDateReminderRequest"
+      responses:
+        "200":
+          description: Reminder job result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DueDateReminderRunResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/compliance/overview:
     get:
       tags:
@@ -2982,6 +3012,78 @@ components:
           type: boolean
         cmmcAffirmationNotificationsEnabled:
           type: boolean
+
+    RunDueDateReminderRequest:
+      type: object
+      properties:
+        leadTimeDays:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 365
+        simulatedFailureTaskId:
+          type:
+            - string
+            - "null"
+          format: uuid
+
+    DueDateReminderRunResult:
+      type: object
+      required:
+        - upcomingSelected
+        - overdueSelected
+        - created
+        - skipped
+        - failed
+        - items
+      properties:
+        upcomingSelected:
+          type: integer
+        overdueSelected:
+          type: integer
+        created:
+          type: integer
+        skipped:
+          type: integer
+        failed:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DueDateReminderResultItem"
+
+    DueDateReminderResultItem:
+      type: object
+      required:
+        - taskId
+        - title
+        - category
+        - status
+        - placeholder
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        category:
+          type: string
+          enum:
+            - upcoming
+            - overdue
+        status:
+          type: string
+          enum:
+            - Delivered
+            - Skipped
+            - Failed
+        placeholder:
+          type: string
+        failureMessage:
+          type:
+            - string
+            - "null"
 
     Tenant:
       type: object

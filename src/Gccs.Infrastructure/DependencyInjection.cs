@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
         services.AddScoped<NotificationPreferenceService>();
+        services.AddScoped<DueDateReminderService>();
         services.AddScoped<AuditLogService>();
         services.AddScoped<ComplianceTaskService>();
         services.AddScoped<RenewalGenerationService>();
@@ -75,6 +76,7 @@ public static class DependencyInjection
             services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
             services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
             services.AddScoped<INotificationPreferenceRepository, EfNotificationPreferenceRepository>();
+            services.AddScoped<IDueDateReminderRepository, EfDueDateReminderRepository>();
             services.AddScoped<IReportRepository, EfReportRepository>();
             services.AddScoped<IContractObligationMatrixRepository, EfContractObligationMatrixRepository>();
             services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
@@ -110,6 +112,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("No-CUI acknowledgement persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<INotificationPreferenceRepository>(_ =>
                 throw new InvalidOperationException("Notification preference persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IDueDateReminderRepository>(_ =>
+                throw new InvalidOperationException("Due-date reminder persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IReportRepository>(_ =>
                 throw new InvalidOperationException("Report persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IContractObligationMatrixRepository>(_ =>
