@@ -13,6 +13,7 @@ using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
+using Gccs.Application.Subcontractors;
 using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Identity;
@@ -669,6 +670,91 @@ api.MapGet("/reports/approved-evidence-packages", async (
     Results.Ok(await repository.ListApprovedEvidencePackagesAsync(cancellationToken)))
 .RequirePermission(Permission.ViewReports)
 .WithName("ListApprovedEvidencePackages");
+
+api.MapGet("/subcontractors", async (
+    SubcontractorService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
+.RequirePermission(Permission.ViewSubcontractors)
+.WithName("ListSubcontractors");
+
+api.MapGet("/subcontractors/{subcontractorId:guid}", async (
+    Guid subcontractorId,
+    SubcontractorService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var subcontractor = await service.FindCurrentTenantAsync(subcontractorId, cancellationToken);
+    return subcontractor is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Subcontractor '{subcontractorId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(subcontractor);
+})
+.RequirePermission(Permission.ViewSubcontractors)
+.WithName("GetSubcontractor");
+
+api.MapPost("/subcontractors", async (
+    UpsertSubcontractorRequest request,
+    SubcontractorService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/subcontractors/{created.Id}", created);
+    }
+    catch (SubcontractorValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["subcontractor"] = [exception.Message]
+        },
+        title: "Subcontractor invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageSubcontractors)
+.WithName("CreateSubcontractor");
+
+api.MapPut("/subcontractors/{subcontractorId:guid}", async (
+    Guid subcontractorId,
+    UpsertSubcontractorRequest request,
+    SubcontractorService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(subcontractorId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Subcontractor '{subcontractorId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (SubcontractorValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["subcontractor"] = [exception.Message]
+        },
+        title: "Subcontractor invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageSubcontractors)
+.WithName("UpdateSubcontractor");
 
 api.MapGet("/tasks", async (
     ComplianceTaskService service,

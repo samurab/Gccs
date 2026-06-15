@@ -9,6 +9,7 @@ using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
+using Gccs.Application.Subcontractors;
 using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
 using Gccs.Infrastructure.Audit;
@@ -22,6 +23,7 @@ using Gccs.Infrastructure.Identity;
 using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Reports;
+using Gccs.Infrastructure.Subcontractors;
 using Gccs.Infrastructure.Tenancy;
 using Gccs.Infrastructure.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<CmmcAssessmentService>();
         services.AddScoped<CmmcPoamService>();
         services.AddScoped<CmmcAffirmationService>();
+        services.AddScoped<SubcontractorService>();
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
@@ -82,6 +85,7 @@ public static class DependencyInjection
             services.AddScoped<ICmmcAssessmentRepository, EfCmmcAssessmentRepository>();
             services.AddScoped<ICmmcPoamRepository, EfCmmcPoamRepository>();
             services.AddScoped<ICmmcAffirmationRepository, EfCmmcAffirmationRepository>();
+            services.AddScoped<ISubcontractorRepository, EfSubcontractorRepository>();
         }
         else
         {
@@ -127,6 +131,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("CMMC POA&M persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICmmcAffirmationRepository>(_ =>
                 throw new InvalidOperationException("CMMC affirmation persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ISubcontractorRepository>(_ =>
+                throw new InvalidOperationException("Subcontractor persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

@@ -359,7 +359,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-13.4.1"] = ["TC_13_4_1_Set_annual_affirmation_due_date_appears_on_calendar"],
             ["TC-13.4.2"] = ["TC_13_4_2_Upcoming_annual_affirmation_creates_reminder_task"],
             ["TC-13.4.3"] = ["TC_13_4_3_Link_evidence_to_affirmation_record_and_display_it"],
-            ["TC-13.4.4"] = ["TC_13_4_4_Update_dates_evidence_links_and_status_are_audit_logged"]
+            ["TC-13.4.4"] = ["TC_13_4_4_Update_dates_evidence_links_and_status_are_audit_logged"],
+            ["TC-14.1.1"] = ["TC_14_1_1_Create_and_update_subcontractor_profile_fields"],
+            ["TC-14.1.2"] = ["TC_14_1_2_Subcontractor_contract_links_display_in_list_and_detail"],
+            ["TC-14.1.3"] = ["TC_14_1_3_Cui_and_export_control_flags_are_visible_without_implying_storage"],
+            ["TC-14.1.4"] = ["TC_14_1_4_Cross_tenant_access_is_denied_and_changes_are_audit_logged"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

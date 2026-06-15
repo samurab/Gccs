@@ -381,6 +381,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 14. Subcontractor Flow-Down Tracker
 
 ### Story 14.1: Subcontractor Profile
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-14.1.1:** Create and update a subcontractor with legal name, POC, role, statuses, flags, dates, and workshare percentage.

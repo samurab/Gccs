@@ -560,6 +560,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Name });
             entity.HasIndex(x => new { x.TenantId, x.Uei });
+            entity.Property(x => x.RoleDescription).HasMaxLength(160).HasDefaultValue("").IsRequired();
+            entity.Property(x => x.SmallBusinessStatus).HasMaxLength(120).HasDefaultValue("Unknown").IsRequired();
+            entity.Property(x => x.CmmcStatus).HasMaxLength(120).HasDefaultValue("Unknown").IsRequired();
+            entity.Property(x => x.NdaStatus).HasMaxLength(120).HasDefaultValue("NotOnFile").IsRequired();
             entity.Property(x => x.WorksharePercentage).HasPrecision(5, 2);
             ConfigureAuditColumns(entity);
         });

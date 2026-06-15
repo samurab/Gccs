@@ -276,10 +276,16 @@ public sealed class SubcontractorEntity : AuditedEntity
     public string? Uei { get; set; }
     public string? CageCode { get; set; }
     public SubcontractorStatus Status { get; set; }
+    public string RoleDescription { get; set; } = string.Empty;
+    public string SmallBusinessStatus { get; set; } = string.Empty;
+    public string CmmcStatus { get; set; } = string.Empty;
+    public DateOnly? InsuranceExpiresAt { get; set; }
+    public string NdaStatus { get; set; } = string.Empty;
     public string WorkshareDescription { get; set; } = string.Empty;
     public decimal? WorksharePercentage { get; set; }
     public bool HasFciAccess { get; set; }
     public bool HasCuiAccess { get; set; }
+    public bool HasExportControlledAccess { get; set; }
     public string? RequiredCmmcLevel { get; set; }
     public string? ContactName { get; set; }
     public string? ContactEmail { get; set; }

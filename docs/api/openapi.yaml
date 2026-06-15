@@ -1823,33 +1823,19 @@ paths:
         - Subcontractors
       summary: List subcontractors
       operationId: listSubcontractors
-      parameters:
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-        - name: handlesCui
-          in: query
-          schema:
-            type: boolean
-        - name: status
-          in: query
-          schema:
-            $ref: "#/components/schemas/SubcontractorStatus"
       responses:
         "200":
-          description: Paged subcontractors.
+          description: Subcontractors for the current tenant.
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "#/components/schemas/PagedResult"
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/Subcontractor"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subcontractor"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       tags:
         - Subcontractors
@@ -1872,6 +1858,56 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/subcontractors/{subcontractorId}:
+    parameters:
+      - $ref: "#/components/parameters/SubcontractorId"
+    get:
+      tags:
+        - Subcontractors
+      summary: Get a subcontractor
+      operationId: getSubcontractor
+      responses:
+        "200":
+          description: Subcontractor detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subcontractor"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - Subcontractors
+      summary: Update a subcontractor
+      operationId: updateSubcontractor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubcontractorCreateRequest"
+      responses:
+        "200":
+          description: Subcontractor updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subcontractor"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/subcontractors/{subcontractorId}/flow-downs:
     parameters:
@@ -4976,28 +5012,49 @@ components:
         - type: object
           required:
             - id
+            - tenantId
             - status
+            - contractIds
             - createdAt
-            - updatedAt
           properties:
             id:
               type: string
               format: uuid
+            tenantId:
+              type: string
+              format: uuid
             status:
               $ref: "#/components/schemas/SubcontractorStatus"
+            contractIds:
+              type: array
+              items:
+                type: string
+                format: uuid
             createdAt:
               type: string
               format: date-time
             updatedAt:
-              type: string
+              type:
+                - string
+                - "null"
               format: date-time
 
     SubcontractorCreateRequest:
       type: object
       required:
-        - legalEntityName
+        - name
+        - status
+        - roleDescription
+        - smallBusinessStatus
+        - cmmcStatus
+        - ndaStatus
+        - workshareDescription
+        - hasFciAccess
+        - hasCuiAccess
+        - hasExportControlledAccess
+        - contractIds
       properties:
-        legalEntityName:
+        name:
           type: string
         uei:
           type:
@@ -5008,33 +5065,57 @@ components:
             - string
             - "null"
         smallBusinessStatus:
-          $ref: "#/components/schemas/TriState"
-        handlesFci:
-          $ref: "#/components/schemas/TriState"
-        handlesCui:
-          $ref: "#/components/schemas/TriState"
-        cmmcLevel:
-          type:
-            - integer
-            - "null"
-          minimum: 1
-          maximum: 3
+          type: string
+        cmmcStatus:
+          type: string
         insuranceExpiresAt:
           type:
             - string
             - "null"
           format: date
-        ndaExpiresAt:
+        ndaStatus:
+          type: string
+        roleDescription:
+          type: string
+        workshareDescription:
+          type: string
+        hasFciAccess:
+          type: boolean
+        hasCuiAccess:
+          type: boolean
+        hasExportControlledAccess:
+          type: boolean
+        requiredCmmcLevel:
           type:
             - string
             - "null"
-          format: date
+        contactName:
+          type:
+            - string
+            - "null"
+        contactEmail:
+          type:
+            - string
+            - "null"
+        contactPhone:
+          type:
+            - string
+            - "null"
+        contactTitle:
+          type:
+            - string
+            - "null"
         worksharePercentage:
           type:
             - number
             - "null"
           minimum: 0
           maximum: 100
+        contractIds:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     FlowDownClause:
       allOf:

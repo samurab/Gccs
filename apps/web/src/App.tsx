@@ -28,6 +28,7 @@ import {
   createContract,
   createCmmcAssessment,
   createCmmcPoamItem,
+  createSubcontractor,
   createContractDeliverable,
   createContractDocument,
   createTenantInvitation,
@@ -42,6 +43,7 @@ import {
   getCmmcAssessments,
   getCmmcControlStatuses,
   getCmmcPoamItems,
+  getSubcontractors,
   getCalendarEvents,
   getContractClauses,
   getContractDeliverables,
@@ -85,6 +87,7 @@ import {
   type EvidenceMetadata,
   type NoCuiAcknowledgementStatus,
   type PagedResult,
+  type Subcontractor,
   type TenantInvitation,
   type AttachContractClauseRequest,
   type UpsertContractDeliverableRequest,
@@ -93,6 +96,7 @@ import {
   type UpsertCmmcPoamItemRequest,
   type UpsertCompanyProfileRequest,
   type UpsertEvidenceMetadataRequest,
+  type UpsertSubcontractorRequest,
   type TenantMember
 } from "@/lib/api";
 
@@ -434,6 +438,7 @@ export function App() {
   const [cmmcAssessments, setCmmcAssessments] = useState<CmmcAssessment[]>([]);
   const [cmmcControls, setCmmcControls] = useState<CmmcControlStatus[]>([]);
   const [cmmcPoamItems, setCmmcPoamItems] = useState<CmmcPoamItem[]>([]);
+  const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
   const [selectedEvidenceItemId, setSelectedEvidenceItemId] = useState<string | null>(null);
   const [calendarFilters, setCalendarFilters] = useState<CalendarFilters>(defaultCalendarFilters);
   const [calendarStatus, setCalendarStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
@@ -476,6 +481,8 @@ export function App() {
   const [cmmcMessage, setCmmcMessage] = useState("");
   const [cmmcPoamStatus, setCmmcPoamStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [cmmcPoamMessage, setCmmcPoamMessage] = useState("");
+  const [subcontractorStatus, setSubcontractorStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [subcontractorMessage, setSubcontractorMessage] = useState("");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
@@ -524,6 +531,7 @@ export function App() {
         const canLoadObligations = hasAnyPermission(nextAccess, ["ViewObligations", "ManageObligations"]);
         const canLoadCalendar = hasAnyPermission(nextAccess, ["ViewTasks", "ManageTasks"]);
         const canLoadCmmc = hasAnyPermission(nextAccess, ["ViewCmmc", "ManageCmmc"]);
+        const canLoadSubcontractors = hasAnyPermission(nextAccess, ["ViewSubcontractors", "ManageSubcontractors"]);
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
@@ -539,6 +547,7 @@ export function App() {
         const nextCmmcAssessments = canLoadCmmc ? await getCmmcAssessments() : [];
         const nextCmmcControls = nextCmmcAssessments[0] ? await getCmmcControlStatuses(nextCmmcAssessments[0].id) : [];
         const nextCmmcPoamItems = nextCmmcAssessments[0] ? await getCmmcPoamItems(nextCmmcAssessments[0].id) : [];
+        const nextSubcontractors = canLoadSubcontractors ? await getSubcontractors() : [];
         const nextContractClauses = nextContracts[0] ? await getContractClauses(nextContracts[0].id) : [];
         const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
@@ -566,6 +575,7 @@ export function App() {
           setCmmcAssessments(nextCmmcAssessments);
           setCmmcControls(nextCmmcControls);
           setCmmcPoamItems(nextCmmcPoamItems);
+          setSubcontractors(nextSubcontractors);
           setCmmcStatus(canLoadCmmc ? "idle" : "idle");
           setSelectedEvidenceItemId(nextEvidenceItems[0]?.id ?? null);
           setLoadState("ready");
@@ -595,6 +605,7 @@ export function App() {
           setCmmcAssessments([]);
           setCmmcControls([]);
           setCmmcPoamItems([]);
+          setSubcontractors([]);
           setCmmcStatus("idle");
           setSelectedEvidenceItemId(null);
           setLoadState("error");
@@ -1025,6 +1036,22 @@ export function App() {
     setCmmcPoamMessage(result.error ?? "POA&M item could not be created.");
   }
 
+  async function handleSubcontractorCreate(request: UpsertSubcontractorRequest) {
+    setSubcontractorStatus("saving");
+    setSubcontractorMessage("");
+    const result = await createSubcontractor(request);
+
+    if (result.data) {
+      setSubcontractors((currentItems) => [result.data!, ...currentItems.filter((item) => item.id !== result.data!.id)]);
+      setSubcontractorStatus("saved");
+      setSubcontractorMessage("Subcontractor profile created.");
+      return;
+    }
+
+    setSubcontractorStatus("failed");
+    setSubcontractorMessage(result.error ?? "Subcontractor profile could not be created.");
+  }
+
   async function handleAuditLogFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await loadAuditLogs(1, auditLogFilters);
@@ -1223,6 +1250,15 @@ export function App() {
               status={cmmcStatus}
               onCreate={handleCmmcAssessmentCreate}
               onCreatePoam={handleCmmcPoamCreate}
+            />
+          ) : activeRoute === "subcontractors" ? (
+            <SubcontractorsView
+              canManageSubcontractors={access.permissions.includes("ManageSubcontractors")}
+              contracts={contracts}
+              message={subcontractorMessage}
+              status={subcontractorStatus}
+              subcontractors={subcontractors}
+              onCreate={handleSubcontractorCreate}
             />
           ) : activeRoute === "settings" ? (
             <SettingsView
@@ -3660,7 +3696,196 @@ function formatCmmcLevel(level: string) {
   return level === "Level1" ? "Level 1" : level === "Level2" ? "Level 2" : level;
 }
 
-function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence" | "profile" | "contracts" | "cmmc"> }) {
+type SubcontractorFormState = {
+  name: string;
+  contactName: string;
+  contactEmail: string;
+  roleDescription: string;
+  smallBusinessStatus: string;
+  cmmcStatus: string;
+  insuranceExpiresAt: string;
+  ndaStatus: string;
+  worksharePercentage: string;
+  contractId: string;
+  hasCuiAccess: boolean;
+  hasExportControlledAccess: boolean;
+};
+
+const defaultSubcontractorForm: SubcontractorFormState = {
+  name: "Mission Supplier LLC",
+  contactName: "Jane Contracts",
+  contactEmail: "jane@example.com",
+  roleDescription: "CUI helpdesk support",
+  smallBusinessStatus: "Small",
+  cmmcStatus: "Level 1 complete",
+  insuranceExpiresAt: "2027-01-31",
+  ndaStatus: "Executed",
+  worksharePercentage: "35.5",
+  contractId: "",
+  hasCuiAccess: true,
+  hasExportControlledAccess: true
+};
+
+function SubcontractorsView({
+  canManageSubcontractors,
+  contracts,
+  message,
+  onCreate,
+  status,
+  subcontractors
+}: {
+  canManageSubcontractors: boolean;
+  contracts: ContractRecord[];
+  message: string;
+  onCreate: (request: UpsertSubcontractorRequest) => Promise<void>;
+  status: "idle" | "saving" | "saved" | "failed";
+  subcontractors: Subcontractor[];
+}) {
+  const [form, setForm] = useState<SubcontractorFormState>(defaultSubcontractorForm);
+
+  function updateField<TKey extends keyof SubcontractorFormState>(field: TKey, value: SubcontractorFormState[TKey]) {
+    setForm((current) => ({
+      ...current,
+      [field]: value
+    }));
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void onCreate({
+      name: form.name.trim(),
+      uei: null,
+      cageCode: null,
+      status: "Prospective",
+      roleDescription: form.roleDescription.trim(),
+      smallBusinessStatus: form.smallBusinessStatus.trim(),
+      cmmcStatus: form.cmmcStatus.trim(),
+      insuranceExpiresAt: form.insuranceExpiresAt || null,
+      ndaStatus: form.ndaStatus.trim(),
+      workshareDescription: form.roleDescription.trim(),
+      worksharePercentage: form.worksharePercentage ? Number(form.worksharePercentage) : null,
+      hasFciAccess: true,
+      hasCuiAccess: form.hasCuiAccess,
+      hasExportControlledAccess: form.hasExportControlledAccess,
+      requiredCmmcLevel: form.cmmcStatus.trim(),
+      contactName: form.contactName.trim(),
+      contactEmail: form.contactEmail.trim(),
+      contactPhone: null,
+      contactTitle: "Contracts Manager",
+      contractIds: form.contractId ? [form.contractId] : []
+    });
+  }
+
+  return (
+    <section className="route-panel" aria-label="Subcontractor management">
+      <div className="route-panel__intro">
+        <p className="eyebrow">Flow-down tracking</p>
+        <h2>Subcontractor management</h2>
+        <p>Track supplier profile, contract links, CMMC posture, CUI access, export-control exposure, insurance, and NDA status.</p>
+      </div>
+      <form className="cmmc-create" onSubmit={submit}>
+        <fieldset disabled={!canManageSubcontractors || status === "saving"}>
+          <div className="form-grid">
+            <label>
+              <span>Legal name</span>
+              <input value={form.name} onChange={(event) => updateField("name", event.target.value)} />
+            </label>
+            <label>
+              <span>Point of contact</span>
+              <input value={form.contactName} onChange={(event) => updateField("contactName", event.target.value)} />
+            </label>
+            <label>
+              <span>Contact email</span>
+              <input value={form.contactEmail} onChange={(event) => updateField("contactEmail", event.target.value)} />
+            </label>
+            <label>
+              <span>Small business</span>
+              <input value={form.smallBusinessStatus} onChange={(event) => updateField("smallBusinessStatus", event.target.value)} />
+            </label>
+            <label>
+              <span>CMMC status</span>
+              <input value={form.cmmcStatus} onChange={(event) => updateField("cmmcStatus", event.target.value)} />
+            </label>
+            <label>
+              <span>Insurance expires</span>
+              <input type="date" value={form.insuranceExpiresAt} onChange={(event) => updateField("insuranceExpiresAt", event.target.value)} />
+            </label>
+            <label>
+              <span>NDA status</span>
+              <input value={form.ndaStatus} onChange={(event) => updateField("ndaStatus", event.target.value)} />
+            </label>
+            <label>
+              <span>Workshare %</span>
+              <input value={form.worksharePercentage} onChange={(event) => updateField("worksharePercentage", event.target.value)} />
+            </label>
+            <label>
+              <span>Contract link</span>
+              <select value={form.contractId} onChange={(event) => updateField("contractId", event.target.value)}>
+                <option value="">No contract selected</option>
+                {contracts.map((contract) => (
+                  <option key={contract.id} value={contract.id}>
+                    {contract.contractNumber} · {contract.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="checkbox-label">
+              <input
+                checked={form.hasCuiAccess}
+                type="checkbox"
+                onChange={(event) => updateField("hasCuiAccess", event.target.checked)}
+              />
+              <span>CUI access allowed</span>
+            </label>
+            <label className="checkbox-label">
+              <input
+                checked={form.hasExportControlledAccess}
+                type="checkbox"
+                onChange={(event) => updateField("hasExportControlledAccess", event.target.checked)}
+              />
+              <span>Export-control exposure</span>
+            </label>
+            <label className="span-2">
+              <span>Role</span>
+              <textarea value={form.roleDescription} onChange={(event) => updateField("roleDescription", event.target.value)} />
+            </label>
+          </div>
+        </fieldset>
+        <div className="form-actions">
+          <button type="submit" disabled={!canManageSubcontractors || status === "saving"}>
+            <GitBranch size={16} aria-hidden="true" />
+            <span>{status === "saving" ? "Creating" : "Create subcontractor"}</span>
+          </button>
+        </div>
+        {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
+      </form>
+      {subcontractors.length > 0 ? (
+        <div className="evidence-list">
+          {subcontractors.map((subcontractor) => (
+            <article className="evidence-list__item" key={subcontractor.id}>
+              <strong>{subcontractor.name}</strong>
+              <span>
+                {subcontractor.status} · {subcontractor.smallBusinessStatus} · {subcontractor.cmmcStatus}
+              </span>
+              <span>
+                CUI access {subcontractor.hasCuiAccess ? "yes" : "no"} · export-control{" "}
+                {subcontractor.hasExportControlledAccess ? "yes" : "no"} · insurance {subcontractor.insuranceExpiresAt ?? "not tracked"}
+              </span>
+              <span>
+                NDA {subcontractor.ndaStatus} · contracts {subcontractor.contractIds.length} · workshare{" "}
+                {subcontractor.worksharePercentage ?? "not set"}%
+              </span>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="No subcontractors have been added yet" body="Create a profile to track flow-downs, access flags, and supplier readiness." />
+      )}
+    </section>
+  );
+}
+
+function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence" | "profile" | "contracts" | "cmmc" | "subcontractors"> }) {
   const content = placeholderContent[route];
 
   return (

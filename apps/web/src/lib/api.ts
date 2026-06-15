@@ -217,6 +217,35 @@ export type CmmcPoamItem = {
 
 export type UpsertCmmcPoamItemRequest = Omit<CmmcPoamItem, "id" | "tenantId" | "assessmentId" | "isOverdue" | "createdAt" | "updatedAt">;
 
+export type Subcontractor = {
+  id: string;
+  tenantId: string;
+  name: string;
+  uei: string | null;
+  cageCode: string | null;
+  status: string;
+  roleDescription: string;
+  smallBusinessStatus: string;
+  cmmcStatus: string;
+  insuranceExpiresAt: string | null;
+  ndaStatus: string;
+  workshareDescription: string;
+  worksharePercentage: number | null;
+  hasFciAccess: boolean;
+  hasCuiAccess: boolean;
+  hasExportControlledAccess: boolean;
+  requiredCmmcLevel: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  contactTitle: string | null;
+  contractIds: string[];
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertSubcontractorRequest = Omit<Subcontractor, "id" | "tenantId" | "createdAt" | "updatedAt">;
+
 export type AuditLogEntry = {
   id: string;
   tenantId: string;
@@ -587,6 +616,10 @@ export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamIt
   return getJson<CmmcPoamItem[]>(`/api/cmmc/assessments/${assessmentId}/poam-items`, []);
 }
 
+export async function getSubcontractors(): Promise<Subcontractor[]> {
+  return getJson<Subcontractor[]>("/api/subcontractors", []);
+}
+
 export async function getCompanyProfile(): Promise<CompanyProfile | null> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
@@ -873,6 +906,10 @@ export async function createCmmcPoamItem(
   request: UpsertCmmcPoamItemRequest
 ): Promise<ApiMutationResult<CmmcPoamItem>> {
   return postJsonResult<CmmcPoamItem>(`/api/cmmc/assessments/${assessmentId}/poam-items`, request);
+}
+
+export async function createSubcontractor(request: UpsertSubcontractorRequest): Promise<ApiMutationResult<Subcontractor>> {
+  return postJsonResult<Subcontractor>("/api/subcontractors", request);
 }
 
 export async function updateEvidenceMetadata(

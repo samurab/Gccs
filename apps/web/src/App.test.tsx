@@ -14,6 +14,7 @@ const {
   contractDocument,
   createCmmcAssessmentMock,
   createCmmcPoamItemMock,
+  createSubcontractorMock,
   createContractDeliverableMock,
   createContractMock,
   createContractDocumentMock,
@@ -26,6 +27,7 @@ const {
   getCmmcAssessmentsMock,
   getCmmcControlStatusesMock,
   getCmmcPoamItemsMock,
+  getSubcontractorsMock,
   getCalendarEventsMock,
   getContractClausesMock,
   getContractDeliverablesMock,
@@ -45,6 +47,7 @@ const {
   cmmcAssessment,
   cmmcControl,
   cmmcPoamItem,
+  subcontractor,
   evidenceMetadata,
   members,
   obligationDashboardItem,
@@ -66,6 +69,7 @@ const {
   createContractDeliverableMock: vi.fn(),
   createCmmcAssessmentMock: vi.fn(),
   createCmmcPoamItemMock: vi.fn(),
+  createSubcontractorMock: vi.fn(),
   createContractMock: vi.fn(),
   createContractDocumentMock: vi.fn(),
   createEvidenceMetadataMock: vi.fn(),
@@ -77,6 +81,7 @@ const {
   getCmmcAssessmentsMock: vi.fn(),
   getCmmcControlStatusesMock: vi.fn(),
   getCmmcPoamItemsMock: vi.fn(),
+  getSubcontractorsMock: vi.fn(),
   getCompanyProfileMock: vi.fn(),
   getContractClausesMock: vi.fn(),
   getContractDeliverablesMock: vi.fn(),
@@ -116,6 +121,7 @@ const {
       "ViewCmmc",
       "ManageCmmc",
       "ViewSubcontractors",
+      "ManageSubcontractors",
       "ViewReports",
       "ViewAuditLog"
     ],
@@ -431,6 +437,32 @@ const {
     createdAt: "2026-06-15T12:00:00Z",
     updatedAt: null
   },
+  subcontractor: {
+    id: "51515151-5151-5151-5151-515151515151",
+    tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+    name: "Mission Supplier LLC",
+    uei: "SUBUEI123456",
+    cageCode: "7SUB1",
+    status: "Prospective",
+    roleDescription: "CUI helpdesk support",
+    smallBusinessStatus: "Small",
+    cmmcStatus: "Level 1 complete",
+    insuranceExpiresAt: "2027-01-31",
+    ndaStatus: "Executed",
+    workshareDescription: "Tier 2 support workshare",
+    worksharePercentage: 35.5,
+    hasFciAccess: true,
+    hasCuiAccess: true,
+    hasExportControlledAccess: true,
+    requiredCmmcLevel: "Level 2",
+    contactName: "Jane Contracts",
+    contactEmail: "jane@example.com",
+    contactPhone: "555-0100",
+    contactTitle: "Contracts Manager",
+    contractIds: ["88888888-8888-8888-8888-888888888881"],
+    createdAt: "2026-06-15T12:00:00Z",
+    updatedAt: null
+  },
   evidenceMetadata: {
     id: "edededed-eded-eded-eded-edededededed",
     tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
@@ -540,6 +572,7 @@ vi.mock("@/lib/api", () => ({
   createTenantInvitation: createTenantInvitationMock,
   createCmmcAssessment: createCmmcAssessmentMock,
   createCmmcPoamItem: createCmmcPoamItemMock,
+  createSubcontractor: createSubcontractorMock,
   createContractDeliverable: createContractDeliverableMock,
   createContract: createContractMock,
   createContractDocument: createContractDocumentMock,
@@ -549,6 +582,7 @@ vi.mock("@/lib/api", () => ({
   getCmmcAssessments: getCmmcAssessmentsMock,
   getCmmcControlStatuses: getCmmcControlStatusesMock,
   getCmmcPoamItems: getCmmcPoamItemsMock,
+  getSubcontractors: getSubcontractorsMock,
   getCompanyProfile: getCompanyProfileMock,
   getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
@@ -612,6 +646,7 @@ describe("App", () => {
     createEvidenceMetadataMock.mockReset();
     createCmmcAssessmentMock.mockReset();
     createCmmcPoamItemMock.mockReset();
+    createSubcontractorMock.mockReset();
     createContractDeliverableMock.mockReset();
     createContractMock.mockReset();
     createContractDocumentMock.mockReset();
@@ -630,6 +665,7 @@ describe("App", () => {
     getCmmcAssessmentsMock.mockReset();
     getCmmcControlStatusesMock.mockReset();
     getCmmcPoamItemsMock.mockReset();
+    getSubcontractorsMock.mockReset();
     getNoCuiAcknowledgementStatusMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
@@ -664,6 +700,7 @@ describe("App", () => {
     getCmmcAssessmentsMock.mockResolvedValue([]);
     getCmmcControlStatusesMock.mockResolvedValue([]);
     getCmmcPoamItemsMock.mockResolvedValue([]);
+    getSubcontractorsMock.mockResolvedValue([]);
     getCalendarEventsMock.mockResolvedValue([]);
     getContractClausesMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
@@ -738,6 +775,19 @@ describe("App", () => {
           isOverdue: cmmcPoamItem.isOverdue,
           createdAt: cmmcPoamItem.createdAt,
           updatedAt: "2026-06-15T13:45:00Z"
+        },
+        error: null
+      })
+    );
+    createSubcontractorMock.mockImplementation((request) =>
+      Promise.resolve({
+        data: {
+          ...subcontractor,
+          ...request,
+          id: subcontractor.id,
+          tenantId: subcontractor.tenantId,
+          createdAt: subcontractor.createdAt,
+          updatedAt: "2026-06-15T14:00:00Z"
         },
         error: null
       })
@@ -1706,6 +1756,38 @@ describe("App", () => {
       })
     );
     expect(await screen.findByText("POA&M item created.")).toBeInTheDocument();
+  });
+
+  it("TC-14.1 renders subcontractor profiles and creates a linked subcontractor", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getSubcontractorsMock.mockResolvedValueOnce([subcontractor]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /subcontractors/i }));
+    expect(await screen.findByText("Mission Supplier LLC")).toBeInTheDocument();
+    expect(screen.getByText("CUI access yes · export-control yes · insurance 2027-01-31")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Contract link"), contract.id);
+    await user.click(screen.getByRole("button", { name: /create subcontractor/i }));
+
+    expect(createSubcontractorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Mission Supplier LLC",
+        contactName: "Jane Contracts",
+        roleDescription: "CUI helpdesk support",
+        smallBusinessStatus: "Small",
+        cmmcStatus: "Level 1 complete",
+        hasCuiAccess: true,
+        hasExportControlledAccess: true,
+        contractIds: [contract.id]
+      })
+    );
+    expect(await screen.findByText("Subcontractor profile created.")).toBeInTheDocument();
   });
 
   it("TC-11.2.1, TC-11.2.2, and TC-11.2.3 renders calendar events, filters them, and marks overdue items", async () => {

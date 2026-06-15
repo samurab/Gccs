@@ -411,6 +411,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 ## 14. Subcontractor Flow-Down Tracker
 
 ###  Please perform automated test on Story 14.1: Subcontractor Profile. Please provide the results of the tests.
+### Done ##
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-14.1.1:** Create and update a subcontractor with legal name, POC, role, statuses, flags, dates, and workshare percentage.
