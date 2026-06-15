@@ -2023,6 +2023,85 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/cmmc/affirmations:
+    get:
+      tags:
+        - CMMC
+      summary: List CMMC annual affirmations
+      operationId: listCmmcAffirmations
+      responses:
+        "200":
+          description: CMMC affirmation records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CmmcAffirmation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - CMMC
+      summary: Create a CMMC annual affirmation
+      operationId: createCmmcAffirmation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmmcAffirmationCreateRequest"
+      responses:
+        "201":
+          description: CMMC affirmation created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmmcAffirmation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/cmmc/affirmations/{affirmationId}:
+    parameters:
+      - name: affirmationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags:
+        - CMMC
+      summary: Update a CMMC annual affirmation
+      operationId: updateCmmcAffirmation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmmcAffirmationCreateRequest"
+      responses:
+        "200":
+          description: CMMC affirmation updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmmcAffirmation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/no-cui-acknowledgement:
     get:
       tags:
@@ -4795,6 +4874,77 @@ components:
           items:
             type: string
             format: uuid
+
+    CmmcAffirmation:
+      allOf:
+        - $ref: "#/components/schemas/CmmcAffirmationCreateRequest"
+        - type: object
+          required:
+            - id
+            - tenantId
+            - isDueSoon
+            - isOverdue
+            - createdAt
+          properties:
+            id:
+              type: string
+              format: uuid
+            tenantId:
+              type: string
+              format: uuid
+            isDueSoon:
+              type: boolean
+            isOverdue:
+              type: boolean
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+
+    CmmcAffirmationCreateRequest:
+      type: object
+      required:
+        - level
+        - dueAt
+        - evidenceItemIds
+        - status
+      properties:
+        level:
+          $ref: "#/components/schemas/CmmcLevel"
+        dueAt:
+          type: string
+          format: date
+        submittedAt:
+          type:
+            - string
+            - "null"
+          format: date
+        submittedByUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        confirmationReference:
+          type:
+            - string
+            - "null"
+        evidenceItemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        status:
+          type: string
+          enum:
+            - NotDue
+            - DueSoon
+            - Submitted
+            - Overdue
+            - NotRequired
 
     SprsScore:
       type: object

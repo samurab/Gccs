@@ -538,6 +538,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("annual_affirmations");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Status, x.DueAt });
+            entity.Property(x => x.EvidenceItemIdsJson).HasColumnType("jsonb");
+            ConfigureAuditColumns(entity);
         });
     }
 

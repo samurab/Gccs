@@ -240,7 +240,7 @@ public sealed class SystemBoundaryEvidenceEntity
     public EvidenceItemEntity? EvidenceItem { get; set; }
 }
 
-public sealed class AnnualAffirmationEntity
+public sealed class AnnualAffirmationEntity : AuditedEntity
 {
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
@@ -249,6 +249,7 @@ public sealed class AnnualAffirmationEntity
     public DateOnly? SubmittedAt { get; set; }
     public Guid? SubmittedByUserId { get; set; }
     public string? ConfirmationReference { get; set; }
+    public string EvidenceItemIdsJson { get; set; } = "[]";
     public AffirmationStatus Status { get; set; }
 }
 

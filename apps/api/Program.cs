@@ -1249,6 +1249,72 @@ api.MapPatch("/cmmc/assessments/{assessmentId:guid}/poam-items/{poamItemId:guid}
 .RequirePermission(Permission.ManageCmmc)
 .WithName("UpdateCmmcPoamItem");
 
+api.MapGet("/cmmc/affirmations", async (
+    CmmcAffirmationService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListCmmcAffirmations");
+
+api.MapPost("/cmmc/affirmations", async (
+    UpsertCmmcAffirmationRequest request,
+    CmmcAffirmationService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/cmmc/affirmations/{created.Id}", created);
+    }
+    catch (CmmcAffirmationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cmmcAffirmation"] = [exception.Message]
+        },
+        title: "CMMC affirmation invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("CreateCmmcAffirmation");
+
+api.MapPatch("/cmmc/affirmations/{affirmationId:guid}", async (
+    Guid affirmationId,
+    UpsertCmmcAffirmationRequest request,
+    CmmcAffirmationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(affirmationId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC affirmation '{affirmationId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (CmmcAffirmationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cmmcAffirmation"] = [exception.Message]
+        },
+        title: "CMMC affirmation invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("UpdateCmmcAffirmation");
+
 api.MapGet("/evidence-items/{evidenceItemId:guid}/download", async (
     Guid evidenceItemId,
     NoCuiAcknowledgementService service,

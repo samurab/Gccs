@@ -355,7 +355,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-13.3.1"] = ["TC_13_3_1_Creates_poam_item_with_control_gap_plan_owner_due_date_risk_and_status"],
             ["TC-13.3.2"] = ["TC_13_3_2_Poam_task_is_created_and_appears_on_calendar"],
             ["TC-13.3.3"] = ["TC_13_3_3_Open_and_overdue_poam_items_roll_into_cmmc_summary"],
-            ["TC-13.3.4"] = ["TC_13_3_4_Create_update_and_status_changes_are_audit_logged"]
+            ["TC-13.3.4"] = ["TC_13_3_4_Create_update_and_status_changes_are_audit_logged"],
+            ["TC-13.4.1"] = ["TC_13_4_1_Set_annual_affirmation_due_date_appears_on_calendar"],
+            ["TC-13.4.2"] = ["TC_13_4_2_Upcoming_annual_affirmation_creates_reminder_task"],
+            ["TC-13.4.3"] = ["TC_13_4_3_Link_evidence_to_affirmation_record_and_display_it"],
+            ["TC-13.4.4"] = ["TC_13_4_4_Update_dates_evidence_links_and_status_are_audit_logged"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

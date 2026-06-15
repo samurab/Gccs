@@ -84,6 +84,7 @@ public sealed record AnnualAffirmation(
     DateOnly? SubmittedAt,
     Guid? SubmittedByUserId,
     string? ConfirmationReference,
+    IReadOnlyList<Guid> EvidenceItemIds,
     AffirmationStatus Status);
 
 public enum ControlFramework

@@ -51,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<EvidenceApprovalService>();
         services.AddScoped<CmmcAssessmentService>();
         services.AddScoped<CmmcPoamService>();
+        services.AddScoped<CmmcAffirmationService>();
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
@@ -80,6 +81,7 @@ public static class DependencyInjection
             services.AddScoped<IEvidenceMetadataRepository, EfEvidenceMetadataRepository>();
             services.AddScoped<ICmmcAssessmentRepository, EfCmmcAssessmentRepository>();
             services.AddScoped<ICmmcPoamRepository, EfCmmcPoamRepository>();
+            services.AddScoped<ICmmcAffirmationRepository, EfCmmcAffirmationRepository>();
         }
         else
         {
@@ -123,6 +125,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("CMMC assessment persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICmmcPoamRepository>(_ =>
                 throw new InvalidOperationException("CMMC POA&M persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ICmmcAffirmationRepository>(_ =>
+                throw new InvalidOperationException("CMMC affirmation persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

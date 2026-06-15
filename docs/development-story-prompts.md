@@ -2739,6 +2739,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 13.4: Annual Affirmation Tracker
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

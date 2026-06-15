@@ -1,5 +1,6 @@
 using Gccs.Application.Calendar;
 using Gccs.Application.Security;
+using Gccs.Domain.Cmmc;
 using Gccs.Domain.Compliance;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
@@ -111,6 +112,27 @@ public sealed class EfCalendarRepository(
             null,
             false)));
 
+        var affirmations = await dbContext.AnnualAffirmations
+            .AsNoTracking()
+            .Where(affirmation =>
+                affirmation.TenantId == tenantContext.TenantId &&
+                affirmation.DueAt >= query.From &&
+                affirmation.DueAt <= to)
+            .ToArrayAsync(cancellationToken);
+        events.AddRange(affirmations.Select(affirmation => new CalendarEventDto(
+            $"cmmc-affirmation:{affirmation.Id}",
+            $"CMMC {FormatCmmcLevel(affirmation.Level)} annual affirmation",
+            affirmation.DueAt,
+            "cmmc_affirmation",
+            affirmation.Status.ToString(),
+            RiskLevel.High,
+            "Security",
+            "CMMC",
+            "cmmc-affirmation",
+            affirmation.Id.ToString(),
+            null,
+            affirmation.DueAt < today && affirmation.Status is not AffirmationStatus.Submitted and not AffirmationStatus.NotRequired)));
+
         return ApplyFilters(events, query)
             .OrderBy(calendarEvent => calendarEvent.Date)
             .ThenByDescending(calendarEvent => calendarEvent.IsOverdue)
@@ -176,6 +198,15 @@ public sealed class EfCalendarRepository(
                 "evidence" => "Evidence",
                 _ => "Tasks"
             }
+        };
+
+    private static string FormatCmmcLevel(CmmcLevel level) =>
+        level switch
+        {
+            CmmcLevel.Level1 => "Level 1",
+            CmmcLevel.Level2 => "Level 2",
+            CmmcLevel.Level3 => "Level 3",
+            _ => level.ToString()
         };
 
     private static (string Type, string? Id) ReadLink(ComplianceTaskEntity entity)

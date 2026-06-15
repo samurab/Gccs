@@ -370,6 +370,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-13.3.4:** Create, update, and change POA&M status and verify audit events.
 #-----------------------------------
 ### Story 13.4: Annual Affirmation Tracker
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-13.4.1:** Set an annual affirmation due date and verify it appears on the calendar.
