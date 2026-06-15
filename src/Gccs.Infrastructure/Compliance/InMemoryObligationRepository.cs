@@ -6,7 +6,19 @@ namespace Gccs.Infrastructure.Compliance;
 
 public sealed class InMemoryObligationRepository : IObligationRepository
 {
-    private static readonly Obligation[] Obligations =
+    private readonly IReadOnlyList<Obligation> _obligations;
+
+    public InMemoryObligationRepository()
+        : this(DefaultObligations)
+    {
+    }
+
+    public InMemoryObligationRepository(IReadOnlyList<Obligation> obligations)
+    {
+        _obligations = obligations;
+    }
+
+    private static readonly Obligation[] DefaultObligations =
     [
         new(
             "far-52-204-21",
@@ -104,11 +116,15 @@ public sealed class InMemoryObligationRepository : IObligationRepository
     ];
 
     public Task<IReadOnlyList<Obligation>> ListAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<Obligation>>(Obligations);
+        Task.FromResult<IReadOnlyList<Obligation>>(_obligations
+            .Where(obligation => obligation.Review.State == ReviewState.Published)
+            .ToArray());
 
     public Task<Obligation?> FindByIdAsync(string id, CancellationToken cancellationToken = default)
     {
-        var obligation = Obligations.FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase));
+        var obligation = _obligations.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase) &&
+            candidate.Review.State == ReviewState.Published);
         return Task.FromResult(obligation);
     }
 

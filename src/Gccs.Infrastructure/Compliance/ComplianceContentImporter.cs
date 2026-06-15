@@ -402,10 +402,12 @@ public sealed class ComplianceContentImporter(GccsDbContext dbContext) : ICompli
     private static ReviewState MapReviewState(string value) =>
         value.Trim().ToLowerInvariant() switch
         {
-            "approved" => ReviewState.Published,
+            "approved" => ReviewState.Approved,
             "published" => ReviewState.Published,
-            "needs_review" => ReviewState.NeedsReview,
-            "needs-review" => ReviewState.NeedsReview,
+            "in_review" => ReviewState.InReview,
+            "in-review" => ReviewState.InReview,
+            "needs_review" => ReviewState.InReview,
+            "needs-review" => ReviewState.InReview,
             "draft" => ReviewState.Draft,
             "retired" => ReviewState.Retired,
             _ => ReviewState.Draft

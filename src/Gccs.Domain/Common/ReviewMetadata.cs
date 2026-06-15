@@ -11,6 +11,7 @@ public sealed record ReviewMetadata(
 public enum ReviewState
 {
     Draft,
+    InReview,
     NeedsReview,
     Approved,
     Rejected,

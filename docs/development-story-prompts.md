@@ -1133,6 +1133,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 6.3: Content Review State
+## Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

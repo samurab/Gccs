@@ -43,6 +43,12 @@ public static class ObligationPublicationValidator
             errors.Add("review.lastReviewedAt is required before publication.");
         }
 
+        if ((obligation.Review.RequiresExpertReview || obligation.SourceReference.RequiresExpertReview) &&
+            obligation.Review.ReviewedByUserId is null)
+        {
+            errors.Add("reviewedByUserId is required before expert-review-required content can be published.");
+        }
+
         if (obligation.Review.State is not ReviewState.Published)
         {
             errors.Add("reviewState must be Published before customer-facing publication.");

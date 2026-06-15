@@ -30,7 +30,7 @@
     "confidence": "high",
     "requires_expert_review": false,
     "review_owner": "compliance-content-owner",
-    "review_state": "approved",
+    "review_state": "published",
     "superseded_by": null
   },
   {
@@ -62,7 +62,7 @@
     "confidence": "high",
     "requires_expert_review": false,
     "review_owner": "compliance-content-owner",
-    "review_state": "approved",
+    "review_state": "published",
     "superseded_by": null
   },
   {
@@ -94,7 +94,7 @@
     "confidence": "high",
     "requires_expert_review": false,
     "review_owner": "compliance-content-owner",
-    "review_state": "approved",
+    "review_state": "published",
     "superseded_by": null
   },
   {

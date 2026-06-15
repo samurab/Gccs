@@ -22,8 +22,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddGccsInfrastructure(this IServiceCollection services, IConfiguration? configuration = null)
     {
-        services.AddSingleton<IObligationRepository, InMemoryObligationRepository>();
         services.AddScoped<ComplianceOverviewService>();
+        services.AddScoped<ComplianceContentReviewService>();
         services.AddScoped<TenantService>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
@@ -45,9 +45,12 @@ public static class DependencyInjection
             services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
             services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
             services.AddScoped<IComplianceContentImporter, ComplianceContentImporter>();
+            services.AddScoped<IComplianceContentReviewRepository, EfComplianceContentReviewRepository>();
+            services.AddScoped<IObligationRepository, EfObligationRepository>();
         }
         else
         {
+            services.AddSingleton<IObligationRepository, InMemoryObligationRepository>();
             services.AddScoped<ITenantRepository>(_ =>
                 throw new InvalidOperationException("Tenant persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ITenantMembershipRepository>(_ =>
@@ -64,6 +67,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Audit persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceContentImporter>(_ =>
                 throw new InvalidOperationException("Compliance content import requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IComplianceContentReviewRepository>(_ =>
+                throw new InvalidOperationException("Compliance content review persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

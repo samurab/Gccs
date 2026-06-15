@@ -158,6 +158,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-6.2.4:** Verify successful and failed imports produce logs or failure reports useful for maintainers.
 #-----------------------------------
 ### Story 6.3: Content Review State
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-6.3.1:** Seed draft and published content, then verify only published content appears in customer-facing search and mapping.
