@@ -13,7 +13,16 @@ public interface INoCuiAcknowledgementRepository
         DateTimeOffset acknowledgedAt,
         CancellationToken cancellationToken = default);
 
-    Task RecordAcceptedEvidenceUploadIntentAsync(
+    Task<EvidenceFileVersionDto> RecordAcceptedEvidenceUploadIntentAsync(
         EvidenceUploadIntentDto uploadIntent,
+        CancellationToken cancellationToken = default);
+
+    Task<EvidenceFileVersionDto?> FindLatestCurrentTenantFileVersionAsync(
+        Guid evidenceItemId,
+        CancellationToken cancellationToken = default);
+
+    Task<EvidenceFileVersionDto?> MarkLatestCurrentTenantFileVersionDeletedAsync(
+        Guid evidenceItemId,
+        Guid actorUserId,
         CancellationToken cancellationToken = default);
 }

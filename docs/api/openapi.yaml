@@ -1452,11 +1452,55 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UploadIntent"
+                $ref: "#/components/schemas/EvidenceUploadIntent"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/evidence-items/{evidenceItemId}/download:
+    parameters:
+      - $ref: "#/components/parameters/EvidenceItemId"
+    get:
+      tags:
+        - Evidence
+      summary: Download the latest evidence file metadata
+      operationId: downloadEvidenceFileMetadata
+      responses:
+        "200":
+          description: Latest evidence file metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceFileAccess"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/evidence-items/{evidenceItemId}/file:
+    parameters:
+      - $ref: "#/components/parameters/EvidenceItemId"
+    delete:
+      tags:
+        - Evidence
+      summary: Delete the latest evidence file metadata
+      operationId: deleteEvidenceFileMetadata
+      responses:
+        "200":
+          description: Deleted evidence file metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceFileAccess"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -4033,6 +4077,50 @@ components:
         expiresAt:
           type: string
           format: date-time
+
+    EvidenceFileAccess:
+      type: object
+      required:
+        - evidenceItemId
+        - versionId
+        - versionNumber
+        - fileName
+        - contentType
+        - sizeBytes
+        - validationStatus
+        - malwareScanStatus
+        - isUsable
+        - message
+      properties:
+        evidenceItemId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+          minimum: 1
+        fileName:
+          type: string
+          maxLength: 240
+        contentType:
+          type: string
+          maxLength: 160
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 1
+        validationStatus:
+          type: string
+          example: accepted
+        malwareScanStatus:
+          type: string
+          example: scan-pending
+        isUsable:
+          type: boolean
+        message:
+          type: string
 
     EvidenceVersion:
       type: object

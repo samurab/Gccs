@@ -39,6 +39,31 @@ public sealed record EvidenceUploadIntentDto(
     string NoticeVersion,
     DateTimeOffset ExpiresAt);
 
+public sealed record EvidenceFileVersionDto(
+    Guid Id,
+    Guid EvidenceItemId,
+    int VersionNumber,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    string ValidationStatus,
+    string MalwareScanStatus,
+    bool IsUsable,
+    DateTimeOffset UploadedAt,
+    DateTimeOffset? DeletedAt);
+
+public sealed record EvidenceFileAccessDto(
+    Guid EvidenceItemId,
+    Guid VersionId,
+    int VersionNumber,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    string ValidationStatus,
+    string MalwareScanStatus,
+    bool IsUsable,
+    string Message);
+
 public static class EvidenceUploadGuardrails
 {
     public const long MaxSizeBytes = 25L * 1024L * 1024L;

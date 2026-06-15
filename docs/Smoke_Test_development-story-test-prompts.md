@@ -323,6 +323,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-12.1.4:** Add an evidence expiration date and verify task generation plus metadata-change audit events.
 #-----------------------------------
 ### Story 12.2: Evidence File Upload
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-12.2.1:** Attempt evidence upload before No-CUI acknowledgement and verify it is blocked.

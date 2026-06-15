@@ -335,7 +335,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-12.1.1"] = ["TC_12_1_1_Creates_evidence_metadata_with_required_fields_tags_dates_and_source_links"],
             ["TC-12.1.2"] = ["TC_12_1_2_Links_evidence_to_multiple_obligations_and_controls_for_detail_reuse"],
             ["TC-12.1.3"] = ["TC_12_1_3_Filters_evidence_by_folderless_tags"],
-            ["TC-12.1.4"] = ["TC_12_1_4_Evidence_expiration_generates_task_and_metadata_changes_are_audit_logged"]
+            ["TC-12.1.4"] = ["TC_12_1_4_Evidence_expiration_generates_task_and_metadata_changes_are_audit_logged"],
+            ["TC-12.2.1"] = ["TC_12_2_1_Upload_before_no_cui_acknowledgement_is_blocked"],
+            ["TC-12.2.2"] = ["TC_12_2_2_Uploaded_file_is_not_usable_until_validation_and_scan_allow_it"],
+            ["TC-12.2.3"] = ["TC_12_2_3_Replacement_upload_creates_new_version_without_overwriting_history"],
+            ["TC-12.2.4"] = ["TC_12_2_4_Download_and_delete_are_permissioned_and_audit_logged"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

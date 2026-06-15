@@ -982,6 +982,46 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
 .RequirePermission(Permission.ManageEvidence)
 .WithName("CreateEvidenceUploadIntent");
 
+api.MapGet("/evidence-items/{evidenceItemId:guid}/download", async (
+    Guid evidenceItemId,
+    NoCuiAcknowledgementService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var file = await service.GetLatestFileForDownloadAsync(evidenceItemId, tenantContext.UserId, cancellationToken);
+    return file is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Evidence file for item '{evidenceItemId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(file);
+})
+.RequirePermission(Permission.ViewEvidence)
+.WithName("DownloadEvidenceFileMetadata");
+
+api.MapDelete("/evidence-items/{evidenceItemId:guid}/file", async (
+    Guid evidenceItemId,
+    NoCuiAcknowledgementService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var deleted = await service.DeleteLatestFileAsync(evidenceItemId, tenantContext.UserId, cancellationToken);
+    return deleted is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Evidence file for item '{evidenceItemId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(deleted);
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithName("DeleteEvidenceFileMetadata");
+
 api.MapGet("/tenant-members", async (
     TenantMembershipService service,
     CancellationToken cancellationToken) =>

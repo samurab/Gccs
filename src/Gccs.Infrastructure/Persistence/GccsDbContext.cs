@@ -33,6 +33,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
     public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
+    public DbSet<EvidenceFileVersionEntity> EvidenceFileVersions => Set<EvidenceFileVersionEntity>();
     public DbSet<ControlEntity> Controls => Set<ControlEntity>();
     public DbSet<AssessmentEntity> Assessments => Set<AssessmentEntity>();
     public DbSet<PoamItemEntity> PoamItems => Set<PoamItemEntity>();
@@ -423,6 +424,18 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => new { x.EvidenceItemId, x.EmployeeId });
             entity.HasOne(x => x.EvidenceItem).WithMany(x => x.Employees).HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EvidenceFileVersionEntity>(entity =>
+        {
+            entity.ToTable("evidence_file_versions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.EvidenceItemId, x.VersionNumber }).IsUnique();
+            entity.Property(x => x.FileName).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.ValidationStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.MalwareScanStatus).HasMaxLength(80).IsRequired();
+            entity.HasOne(x => x.EvidenceItem).WithMany(x => x.FileVersions).HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 

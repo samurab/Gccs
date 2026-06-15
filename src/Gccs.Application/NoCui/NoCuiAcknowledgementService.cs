@@ -105,9 +105,74 @@ public sealed class NoCuiAcknowledgementService(
             acknowledgement.NoticeVersion,
             DateTimeOffset.UtcNow.AddMinutes(15));
 
-        await repository.RecordAcceptedEvidenceUploadIntentAsync(uploadIntent, cancellationToken);
+        var version = await repository.RecordAcceptedEvidenceUploadIntentAsync(uploadIntent, cancellationToken);
+        await auditEventWriter.WriteAsync(
+            tenantContext.TenantId,
+            actorUserId,
+            AuditAction.Uploaded,
+            "EvidenceFileVersion",
+            version.Id.ToString(),
+            "Evidence file upload metadata was accepted and versioned.",
+            new Dictionary<string, string>
+            {
+                ["evidenceItemId"] = evidenceItemId.ToString(),
+                ["versionNumber"] = version.VersionNumber.ToString(),
+                ["fileName"] = version.FileName,
+                ["validationStatus"] = version.ValidationStatus,
+                ["malwareScanStatus"] = version.MalwareScanStatus,
+                ["isUsable"] = version.IsUsable.ToString()
+            },
+            cancellationToken);
 
         return uploadIntent;
+    }
+
+    public async Task<EvidenceFileAccessDto?> GetLatestFileForDownloadAsync(
+        Guid evidenceItemId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var version = await repository.FindLatestCurrentTenantFileVersionAsync(evidenceItemId, cancellationToken);
+        if (version is null)
+        {
+            return null;
+        }
+
+        await auditEventWriter.WriteAsync(
+            tenantContext.TenantId,
+            actorUserId,
+            AuditAction.Downloaded,
+            "EvidenceFileVersion",
+            version.Id.ToString(),
+            "Evidence file download metadata was requested.",
+            ToAuditMetadata(version),
+            cancellationToken);
+
+        return ToAccessDto(version, "File storage is represented as metadata in the No-CUI MVP.");
+    }
+
+    public async Task<EvidenceFileAccessDto?> DeleteLatestFileAsync(
+        Guid evidenceItemId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var version = await repository.MarkLatestCurrentTenantFileVersionDeletedAsync(evidenceItemId, actorUserId, cancellationToken);
+        if (version is null)
+        {
+            return null;
+        }
+
+        await auditEventWriter.WriteAsync(
+            tenantContext.TenantId,
+            actorUserId,
+            AuditAction.Deleted,
+            "EvidenceFileVersion",
+            version.Id.ToString(),
+            "Evidence file version was deleted.",
+            ToAuditMetadata(version),
+            cancellationToken);
+
+        return ToAccessDto(version, "Evidence file version was deleted.");
     }
 
     private static void ValidateAcknowledgement(AcknowledgeNoCuiRequest request)
@@ -192,6 +257,30 @@ public sealed class NoCuiAcknowledgementService(
             },
             cancellationToken);
     }
+
+    private static EvidenceFileAccessDto ToAccessDto(EvidenceFileVersionDto version, string message) =>
+        new(
+            version.EvidenceItemId,
+            version.Id,
+            version.VersionNumber,
+            version.FileName,
+            version.ContentType,
+            version.SizeBytes,
+            version.ValidationStatus,
+            version.MalwareScanStatus,
+            version.IsUsable,
+            message);
+
+    private static Dictionary<string, string> ToAuditMetadata(EvidenceFileVersionDto version) =>
+        new()
+        {
+            ["evidenceItemId"] = version.EvidenceItemId.ToString(),
+            ["versionNumber"] = version.VersionNumber.ToString(),
+            ["fileName"] = version.FileName,
+            ["validationStatus"] = version.ValidationStatus,
+            ["malwareScanStatus"] = version.MalwareScanStatus,
+            ["isUsable"] = version.IsUsable.ToString()
+        };
 }
 
 public sealed class NoCuiAcknowledgementRequiredException(string message) : InvalidOperationException(message);

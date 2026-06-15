@@ -52,7 +52,7 @@ public sealed class EfNoCuiAcknowledgementRepository(
         return ToDto(acknowledgement);
     }
 
-    public async Task RecordAcceptedEvidenceUploadIntentAsync(
+    public async Task<EvidenceFileVersionDto> RecordAcceptedEvidenceUploadIntentAsync(
         EvidenceUploadIntentDto uploadIntent,
         CancellationToken cancellationToken = default)
     {
@@ -73,6 +73,7 @@ public sealed class EfNoCuiAcknowledgementRepository(
                 Description = "Upload intent metadata captured by No-CUI guardrails. File storage is not enabled for CUI in the MVP.",
                 Type = EvidenceType.Other,
                 Status = EvidenceStatus.InReview,
+                OwnerFunction = "Compliance",
                 TagsJson = "[\"no-cui\",\"upload-intent\"]",
                 CreatedAt = now,
                 CreatedByUserId = uploadIntent.CreatedByUserId
@@ -94,8 +95,72 @@ public sealed class EfNoCuiAcknowledgementRepository(
         evidenceItem.StorageUri = null;
         evidenceItem.FileHash = null;
 
+        var nextVersionNumber = await dbContext.EvidenceFileVersions
+            .Where(version => version.EvidenceItemId == evidenceItem.Id)
+            .Select(version => (int?)version.VersionNumber)
+            .MaxAsync(cancellationToken) ?? 0;
+        var version = new EvidenceFileVersionEntity
+        {
+            Id = uploadIntent.Id,
+            EvidenceItemId = evidenceItem.Id,
+            VersionNumber = nextVersionNumber + 1,
+            FileName = uploadIntent.FileName,
+            ContentType = uploadIntent.ContentType,
+            SizeBytes = uploadIntent.SizeBytes,
+            ValidationStatus = uploadIntent.ValidationStatus,
+            MalwareScanStatus = uploadIntent.MalwareScanStatus,
+            StorageUri = null,
+            FileHash = null,
+            UploadedAt = now,
+            UploadedByUserId = uploadIntent.CreatedByUserId
+        };
+        dbContext.EvidenceFileVersions.Add(version);
+
         await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(version);
     }
+
+    public async Task<EvidenceFileVersionDto?> FindLatestCurrentTenantFileVersionAsync(
+        Guid evidenceItemId,
+        CancellationToken cancellationToken = default)
+    {
+        var version = await QueryCurrentTenantVersions(evidenceItemId)
+            .AsNoTracking()
+            .Where(candidate => candidate.DeletedAt == null)
+            .OrderByDescending(candidate => candidate.VersionNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return version is null ? null : ToDto(version);
+    }
+
+    public async Task<EvidenceFileVersionDto?> MarkLatestCurrentTenantFileVersionDeletedAsync(
+        Guid evidenceItemId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var version = await QueryCurrentTenantVersions(evidenceItemId)
+            .Where(candidate => candidate.DeletedAt == null)
+            .OrderByDescending(candidate => candidate.VersionNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (version is null)
+        {
+            return null;
+        }
+
+        version.DeletedAt = DateTimeOffset.UtcNow;
+        version.DeletedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(version);
+    }
+
+    private IQueryable<EvidenceFileVersionEntity> QueryCurrentTenantVersions(Guid evidenceItemId) =>
+        dbContext.EvidenceFileVersions
+            .Include(version => version.EvidenceItem)
+            .Where(version =>
+                version.EvidenceItemId == evidenceItemId &&
+                version.EvidenceItem != null &&
+                version.EvidenceItem.TenantId == tenantContext.TenantId);
 
     private static NoCuiAcknowledgementStatusDto ToDto(NoCuiAcknowledgementEntity acknowledgement) =>
         new(
@@ -105,4 +170,22 @@ public sealed class EfNoCuiAcknowledgementRepository(
             acknowledgement.TenantId,
             acknowledgement.UserId,
             acknowledgement.AcknowledgedAt);
+
+    private static EvidenceFileVersionDto ToDto(EvidenceFileVersionEntity version) =>
+        new(
+            version.Id,
+            version.EvidenceItemId,
+            version.VersionNumber,
+            version.FileName,
+            version.ContentType,
+            version.SizeBytes,
+            version.ValidationStatus,
+            version.MalwareScanStatus,
+            IsUsable(version.ValidationStatus, version.MalwareScanStatus),
+            version.UploadedAt,
+            version.DeletedAt);
+
+    private static bool IsUsable(string validationStatus, string malwareScanStatus) =>
+        string.Equals(validationStatus, EvidenceUploadGuardrails.AcceptedValidationStatus, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(malwareScanStatus, "clean", StringComparison.OrdinalIgnoreCase);
 }

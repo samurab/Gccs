@@ -35,6 +35,27 @@ public sealed class EvidenceItemEntity : AuditedEntity
     public ICollection<EvidenceControlEntity> Controls { get; set; } = [];
     public ICollection<EvidenceVendorEntity> Vendors { get; set; } = [];
     public ICollection<EvidenceEmployeeEntity> Employees { get; set; } = [];
+    public ICollection<EvidenceFileVersionEntity> FileVersions { get; set; } = [];
+}
+
+public sealed class EvidenceFileVersionEntity
+{
+    public Guid Id { get; set; }
+    public Guid EvidenceItemId { get; set; }
+    public int VersionNumber { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    public string ValidationStatus { get; set; } = string.Empty;
+    public string MalwareScanStatus { get; set; } = string.Empty;
+    public string? StorageUri { get; set; }
+    public string? FileHash { get; set; }
+    public DateTimeOffset UploadedAt { get; set; }
+    public Guid UploadedByUserId { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
+    public Guid? DeletedByUserId { get; set; }
+
+    public EvidenceItemEntity? EvidenceItem { get; set; }
 }
 
 public sealed class EvidenceObligationEntity
