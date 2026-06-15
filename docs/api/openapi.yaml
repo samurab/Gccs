@@ -1168,18 +1168,13 @@ paths:
             format: date
       responses:
         "200":
-          description: Paged tasks.
+          description: Tenant-scoped compliance tasks.
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "#/components/schemas/PagedResult"
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/ComplianceTask"
+                type: array
+                items:
+                  $ref: "#/components/schemas/ComplianceTask"
         "401":
           $ref: "#/components/responses/Unauthorized"
     post:
@@ -3604,44 +3599,51 @@ components:
       type: object
       required:
         - title
-        - category
+        - status
+        - priority
+        - ownerFunction
+        - linkedEntityType
       properties:
         title:
           type: string
         description:
+          type: string
+        status:
+          type: string
+          enum:
+            - open
+            - in_progress
+            - blocked
+            - completed
+            - canceled
+        priority:
+          $ref: "#/components/schemas/RiskLevel"
+        assignedToUserId:
           type:
             - string
             - "null"
-        category:
-          $ref: "#/components/schemas/TaskCategory"
-        dueDate:
+          format: uuid
+        ownerFunction:
+          type: string
+        dueAt:
           type:
             - string
             - "null"
           format: date
-        ownerUserId:
+        linkedEntityType:
+          type: string
+          enum:
+            - general
+            - obligation
+            - contract
+            - control
+            - evidence
+            - subcontractor
+            - certification
+        linkedEntityId:
           type:
             - string
             - "null"
-          format: uuid
-        obligationId:
-          type:
-            - string
-            - "null"
-        contractId:
-          type:
-            - string
-            - "null"
-          format: uuid
-        controlId:
-          type:
-            - string
-            - "null"
-        evidenceItemId:
-          type:
-            - string
-            - "null"
-          format: uuid
 
     ComplianceTaskPatchRequest:
       type: object
@@ -3653,17 +3655,31 @@ components:
             - string
             - "null"
         status:
-          $ref: "#/components/schemas/TaskStatus"
-        dueDate:
-          type:
-            - string
-            - "null"
-          format: date
-        ownerUserId:
+          type: string
+        priority:
+          $ref: "#/components/schemas/RiskLevel"
+        assignedToUserId:
           type:
             - string
             - "null"
           format: uuid
+        ownerFunction:
+          type:
+            - string
+            - "null"
+        dueAt:
+          type:
+            - string
+            - "null"
+          format: date
+        linkedEntityType:
+          type:
+            - string
+            - "null"
+        linkedEntityId:
+          type:
+            - string
+            - "null"
 
     CalendarEvent:
       type: object

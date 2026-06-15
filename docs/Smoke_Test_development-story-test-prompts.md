@@ -285,6 +285,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 11. Task And Compliance Calendar
 
 ### Story 11.1: Task Management
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-11.1.1:** Create tasks linked to obligations, contracts, controls, evidence, subcontractors, and certifications.

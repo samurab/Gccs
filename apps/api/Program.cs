@@ -10,6 +10,7 @@ using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
+using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure;
@@ -665,6 +666,72 @@ api.MapGet("/reports/approved-evidence-packages", async (
     Results.Ok(await repository.ListApprovedEvidencePackagesAsync(cancellationToken)))
 .RequirePermission(Permission.ViewReports)
 .WithName("ListApprovedEvidencePackages");
+
+api.MapGet("/tasks", async (
+    ComplianceTaskService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
+.RequirePermission(Permission.ViewTasks)
+.WithName("ListComplianceTasks");
+
+api.MapPost("/tasks", async (
+    CreateComplianceTaskRequest request,
+    ComplianceTaskService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var task = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/tasks/{task.Id}", task);
+    }
+    catch (ComplianceTaskValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["task"] = [exception.Message]
+        },
+        title: "Task invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageTasks)
+.WithName("CreateComplianceTask");
+
+api.MapPatch("/tasks/{taskId:guid}", async (
+    Guid taskId,
+    UpdateComplianceTaskRequest request,
+    ComplianceTaskService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var task = await service.UpdateAsync(taskId, request, tenantContext.UserId, cancellationToken);
+        return task is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Task '{taskId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(task);
+    }
+    catch (ComplianceTaskValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["task"] = [exception.Message]
+        },
+        title: "Task invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageTasks)
+.WithName("UpdateComplianceTask");
 
 api.MapGet("/audit-logs", async (
     AuditLogService service,

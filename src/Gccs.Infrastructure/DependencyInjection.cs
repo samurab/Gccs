@@ -6,6 +6,7 @@ using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
+using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
 using Gccs.Infrastructure.Audit;
 using Gccs.Infrastructure.Companies;
@@ -16,6 +17,7 @@ using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Reports;
 using Gccs.Infrastructure.Tenancy;
+using Gccs.Infrastructure.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
         services.AddScoped<AuditLogService>();
+        services.AddScoped<ComplianceTaskService>();
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
@@ -60,6 +63,7 @@ public static class DependencyInjection
             services.AddScoped<IObligationDashboardRepository, EfObligationDashboardRepository>();
             services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
+            services.AddScoped<IComplianceTaskRepository, EfComplianceTaskRepository>();
         }
         else
         {
@@ -91,6 +95,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Obligation dashboard persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IObligationDetailRepository>(_ =>
                 throw new InvalidOperationException("Obligation detail persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IComplianceTaskRepository>(_ =>
+                throw new InvalidOperationException("Task persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

@@ -305,6 +305,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 ## 11. Task And Compliance Calendar
 
 ###  Please perform automated test on Story 11.1: Task Management. Please provide the results of the tests.
+### Done ##
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-11.1.1:** Create tasks linked to obligations, contracts, controls, evidence, subcontractors, and certifications.
