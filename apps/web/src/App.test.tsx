@@ -22,6 +22,7 @@ const {
   getContractClausesMock,
   getContractDeliverablesMock,
   getContractDocumentsMock,
+  getContractObligationsMock,
   getContractsMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
@@ -31,6 +32,7 @@ const {
   getTenantMembersMock,
   invitations,
   members,
+  obligationDashboardItem,
   overview,
   profile,
   restrictedAccess,
@@ -53,6 +55,7 @@ const {
   getContractClausesMock: vi.fn(),
   getContractDeliverablesMock: vi.fn(),
   getContractDocumentsMock: vi.fn(),
+  getContractObligationsMock: vi.fn(),
   getContractsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
@@ -283,6 +286,31 @@ const {
     ownerFunction: "Contracts",
     status: "InProgress",
     isOverdue: true
+  },
+  obligationDashboardItem: {
+    id: "55555555555555555555555555555551:obligation-fci-safeguards",
+    contractId: "88888888-8888-8888-8888-888888888881",
+    contractNumber: "W15QKN-26-C-0001",
+    contractTitle: "Base operations support services",
+    contractClauseId: "55555555-5555-5555-5555-555555555551",
+    clauseNumber: "52.204-21",
+    obligationId: "obligation-fci-safeguards",
+    source: "FAR 52.204-21",
+    sourceUrl: "https://www.acquisition.gov/far/52.204-21",
+    title: "Apply FCI safeguards",
+    plainEnglishSummary: "Apply basic safeguarding controls to systems that handle FCI.",
+    requiredAction: "Apply basic safeguarding controls.",
+    ownerFunction: "IT/security",
+    riskLevel: "High",
+    status: "Open",
+    dueAt: "2026-06-01",
+    module: "Cybersecurity",
+    isOverdue: true,
+    isHighRisk: true,
+    evidenceExamples: ["Access control policy"],
+    confidence: "high",
+    lastReviewedAt: "2026-06-03",
+    requiresExpertReview: false
   }
 }));
 
@@ -297,6 +325,7 @@ vi.mock("@/lib/api", () => ({
   getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
   getContractDocuments: getContractDocumentsMock,
+  getContractObligations: getContractObligationsMock,
   getContracts: getContractsMock,
   removeContractClause: removeContractClauseMock,
   saveCompanyProfile: saveCompanyProfileMock,
@@ -366,6 +395,7 @@ describe("App", () => {
     getContractClausesMock.mockReset();
     getContractDeliverablesMock.mockReset();
     getContractDocumentsMock.mockReset();
+    getContractObligationsMock.mockReset();
     searchClauseLibraryMock.mockReset();
     getAuditLogsMock.mockResolvedValue({
       items: [],
@@ -389,6 +419,7 @@ describe("App", () => {
     getContractClausesMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
     getContractDocumentsMock.mockResolvedValue([]);
+    getContractObligationsMock.mockResolvedValue([]);
     searchClauseLibraryMock.mockResolvedValue([]);
     saveCompanyProfileMock.mockImplementation((request) =>
       Promise.resolve({
@@ -806,6 +837,62 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /select clause/i }));
 
     expect(screen.getByText("Selected 52.204-27")).toBeInTheDocument();
+  });
+
+  it("TC-10.1.2 and TC-10.1.3 filters the obligation work queue and highlights priority items", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
+    getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    expect(await screen.findByText("Obligation work queue")).toBeInTheDocument();
+    expect(screen.getByText("Apply FCI safeguards")).toBeInTheDocument();
+    expect(screen.getByLabelText("High risk obligation")).toBeInTheDocument();
+    expect(screen.getByLabelText("Overdue obligation")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Contract"), contract.id);
+    await user.selectOptions(screen.getByLabelText("Risk"), "High");
+    await user.type(screen.getByLabelText("Owner"), "IT/security");
+    await user.selectOptions(screen.getByLabelText("Status"), "Open");
+    await user.selectOptions(screen.getByLabelText("Module"), "Cybersecurity");
+    await user.selectOptions(screen.getByLabelText("Due date"), "overdue");
+    await user.type(screen.getByLabelText("Source"), "52.204-21");
+    await user.click(screen.getByRole("button", { name: /apply filters/i }));
+
+    expect(getContractObligationsMock).toHaveBeenLastCalledWith({
+      contractId: contract.id,
+      riskLevel: "High",
+      owner: "IT/security",
+      status: "Open",
+      module: "Cybersecurity",
+      dueDate: "overdue",
+      source: "52.204-21"
+    });
+    expect(await screen.findByText("1 tenant-scoped obligations matched.")).toBeInTheDocument();
+  });
+
+  it("TC-10.1.4 guides setup when the obligation work queue is empty", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractObligationsMock.mockResolvedValueOnce([]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+
+    expect(await screen.findByText("Start with company profile or contract intake")).toBeInTheDocument();
+    expect(screen.getByText(/add a contract, and attach mapped clauses/i)).toBeInTheDocument();
+    expect(screen.getByText("Clause library search")).toBeInTheDocument();
   });
 
   it("TC-2.4.2 renders workspace actions and TC-3.2.3 hides restricted navigation", async () => {

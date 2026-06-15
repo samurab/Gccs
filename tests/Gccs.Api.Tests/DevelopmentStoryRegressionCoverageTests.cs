@@ -307,7 +307,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-9.3.1"] = ["TC_9_3_1_Attaching_clause_with_mapped_templates_generates_contract_obligations"],
             ["TC-9.3.2"] = ["TC_9_3_2_Generated_obligations_preserve_links_and_source_metadata"],
             ["TC-9.3.3"] = ["TC_9_3_3_Default_tasks_are_created_and_linked_to_generated_obligations"],
-            ["TC-9.3.4"] = ["TC_9_3_4_Regeneration_is_idempotent_for_obligations_and_tasks"]
+            ["TC-9.3.4"] = ["TC_9_3_4_Regeneration_is_idempotent_for_obligations_and_tasks"],
+            ["TC-10.1.1"] = ["TC_10_1_1_Dashboard_returns_current_tenant_obligations_only"],
+            ["TC-10.1.2"] = ["TC_10_1_2_Filters_return_matching_obligation_data"],
+            ["TC-10.1.3"] = ["TC_10_1_3_High_risk_and_overdue_obligations_are_flagged"],
+            ["TC-10.1.4"] = ["TC_10_1_4_Empty_dashboard_returns_no_obligations"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

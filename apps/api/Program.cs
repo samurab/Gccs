@@ -546,6 +546,22 @@ api.MapGet("/clauses", async (
 .RequirePermission(Permission.ViewContracts)
 .WithName("SearchClauseLibrary");
 
+api.MapGet("/contract-obligations", async (
+    Guid? contractId,
+    Gccs.Domain.Compliance.RiskLevel? riskLevel,
+    string? owner,
+    Gccs.Domain.Compliance.ComplianceTaskStatus? status,
+    string? module,
+    string? dueDate,
+    string? source,
+    IObligationDashboardRepository repository,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await repository.ListCurrentTenantAsync(
+        new ObligationDashboardQuery(contractId, riskLevel, owner, status, module, dueDate, source),
+        cancellationToken)))
+.RequirePermission(Permission.ViewObligations)
+.WithName("ListContractObligationDashboard");
+
 api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))
 .RequirePermission(Permission.ViewObligations)

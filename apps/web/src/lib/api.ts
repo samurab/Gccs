@@ -264,6 +264,42 @@ export type ContractClause = {
   attachedByUserId: string;
 };
 
+export type ContractObligationDashboardItem = {
+  id: string;
+  contractId: string;
+  contractNumber: string;
+  contractTitle: string;
+  contractClauseId: string;
+  clauseNumber: string;
+  obligationId: string;
+  source: string;
+  sourceUrl: string;
+  title: string;
+  plainEnglishSummary: string;
+  requiredAction: string;
+  ownerFunction: string;
+  riskLevel: string;
+  status: string;
+  dueAt: string | null;
+  module: string;
+  isOverdue: boolean;
+  isHighRisk: boolean;
+  evidenceExamples: string[];
+  confidence: string;
+  lastReviewedAt: string;
+  requiresExpertReview: boolean;
+};
+
+export type ContractObligationQueryParams = {
+  contractId?: string;
+  riskLevel?: string;
+  owner?: string;
+  status?: string;
+  module?: string;
+  dueDate?: string;
+  source?: string;
+};
+
 export type AttachContractClauseRequest = {
   clauseLibraryId: string;
   attachmentReason: string;
@@ -411,6 +447,21 @@ export async function getContractDeliverables(contractId: string): Promise<Contr
 
 export async function getContractClauses(contractId: string): Promise<ContractClause[]> {
   return getJson<ContractClause[]>(`/api/contracts/${contractId}/clauses`, []);
+}
+
+export async function getContractObligations(
+  params: ContractObligationQueryParams = {}
+): Promise<ContractObligationDashboardItem[]> {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      searchParams.set(key, value);
+    }
+  }
+
+  const queryString = searchParams.toString();
+  return getJson<ContractObligationDashboardItem[]>(`/api/contract-obligations${queryString ? `?${queryString}` : ""}`, []);
 }
 
 export async function searchClauseLibrary(params: ClauseSearchParams = {}): Promise<ClauseLibraryItem[]> {

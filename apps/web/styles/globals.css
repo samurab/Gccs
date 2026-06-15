@@ -407,6 +407,11 @@ dt {
   color: var(--red);
 }
 
+.status--overdue {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
 .module-card p,
 .obligation-item p,
 .empty-state p {
@@ -790,7 +795,15 @@ dt {
   grid-template-columns: minmax(240px, 2fr) minmax(180px, 1fr) auto;
 }
 
-.clause-search-form label {
+.obligation-filter-form {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(140px, 1fr)) auto;
+}
+
+.clause-search-form label,
+.obligation-filter-form label {
   color: var(--muted);
   display: grid;
   font-size: 0.78rem;
@@ -800,7 +813,9 @@ dt {
 }
 
 .clause-search-form input,
-.clause-search-form select {
+.clause-search-form select,
+.obligation-filter-form input,
+.obligation-filter-form select {
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
@@ -810,15 +825,20 @@ dt {
 }
 
 .clause-search-form button,
+.obligation-filter-form button,
 .clause-result-item button {
+  align-items: center;
   background: var(--ink);
   border: 0;
   border-radius: 6px;
   color: white;
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
   font-size: 0.86rem;
   font-weight: 800;
+  gap: 8px;
+  justify-content: center;
   min-height: 40px;
   padding: 8px 12px;
 }
@@ -826,9 +846,101 @@ dt {
 .clause-search-form button:disabled,
 .clause-search-form input:disabled,
 .clause-search-form select:disabled,
+.obligation-filter-form button:disabled,
+.obligation-filter-form input:disabled,
+.obligation-filter-form select:disabled,
 .clause-result-item button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
+}
+
+.queue-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.queue-metrics span {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  display: inline-flex;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
+.queue-metrics strong {
+  color: var(--ink);
+}
+
+.obligation-dashboard-list {
+  display: grid;
+  gap: 10px;
+}
+
+.obligation-dashboard-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--blue);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.obligation-dashboard-item--high-risk {
+  border-left-color: var(--amber);
+}
+
+.obligation-dashboard-item--overdue {
+  border-left-color: var(--red);
+}
+
+.obligation-dashboard-item__main {
+  display: grid;
+  gap: 6px;
+}
+
+.obligation-dashboard-item__badges {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.obligation-dashboard-item h3,
+.obligation-dashboard-item p,
+.obligation-dashboard-item dl {
+  margin: 0;
+}
+
+.obligation-dashboard-item p,
+.obligation-dashboard-item dd {
+  color: var(--muted);
+}
+
+.obligation-dashboard-item dl {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  padding-top: 12px;
+}
+
+.obligation-dashboard-item dd {
+  font-size: 0.86rem;
+  font-weight: 750;
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.obligation-required-action {
+  background: var(--surface-strong);
+  border-radius: 6px;
+  padding: 10px 12px;
 }
 
 .clause-result-list {

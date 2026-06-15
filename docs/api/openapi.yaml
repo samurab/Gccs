@@ -904,6 +904,62 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/contract-obligations:
+    get:
+      tags:
+        - Obligations
+      summary: List tenant-scoped contract obligations for the dashboard
+      operationId: listContractObligationDashboard
+      parameters:
+        - name: contractId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: riskLevel
+          in: query
+          schema:
+            $ref: "#/components/schemas/RiskLevel"
+        - name: owner
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ComplianceTaskStatus"
+        - name: module
+          in: query
+          schema:
+            type: string
+            enum:
+              - Cybersecurity
+              - Labor
+              - Supply chain
+              - Contract
+        - name: dueDate
+          in: query
+          schema:
+            type: string
+            description: Use overdue, next30, none, or an exact ISO date.
+        - name: source
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tenant-scoped obligation dashboard rows.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContractObligationDashboardItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/obligations:
     get:
       tags:
@@ -3025,6 +3081,88 @@ components:
         tasksCreated:
           type: integer
           minimum: 0
+
+    ContractObligationDashboardItem:
+      type: object
+      required:
+        - id
+        - contractId
+        - contractNumber
+        - contractTitle
+        - contractClauseId
+        - clauseNumber
+        - obligationId
+        - source
+        - sourceUrl
+        - title
+        - plainEnglishSummary
+        - requiredAction
+        - ownerFunction
+        - riskLevel
+        - status
+        - module
+        - isOverdue
+        - isHighRisk
+        - evidenceExamples
+        - confidence
+        - lastReviewedAt
+        - requiresExpertReview
+      properties:
+        id:
+          type: string
+        contractId:
+          type: string
+          format: uuid
+        contractNumber:
+          type: string
+        contractTitle:
+          type: string
+        contractClauseId:
+          type: string
+          format: uuid
+        clauseNumber:
+          type: string
+        obligationId:
+          type: string
+        source:
+          type: string
+        sourceUrl:
+          type: string
+          format: uri
+        title:
+          type: string
+        plainEnglishSummary:
+          type: string
+        requiredAction:
+          type: string
+        ownerFunction:
+          type: string
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+        status:
+          type: string
+        dueAt:
+          type:
+            - string
+            - "null"
+          format: date
+        module:
+          type: string
+        isOverdue:
+          type: boolean
+        isHighRisk:
+          type: boolean
+        evidenceExamples:
+          type: array
+          items:
+            type: string
+        confidence:
+          type: string
+        lastReviewedAt:
+          type: string
+          format: date
+        requiresExpertReview:
+          type: boolean
 
     ContractObligation:
       type: object

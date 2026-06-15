@@ -38,6 +38,7 @@ import {
   getContractClauses,
   getContractDeliverables,
   getContractDocuments,
+  getContractObligations,
   getContracts,
   getAuditLogs,
   getComplianceOverview,
@@ -59,6 +60,8 @@ import {
   type ContractClause,
   type ContractDeliverable,
   type ContractDocument,
+  type ContractObligationDashboardItem,
+  type ContractObligationQueryParams,
   type ContractRecord,
   type CurrentUserAccess,
   type NoCuiAcknowledgementStatus,
@@ -362,6 +365,7 @@ export function App() {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [clauseResults, setClauseResults] = useState<ClauseLibraryItem[]>([]);
+  const [obligationDashboardItems, setObligationDashboardItems] = useState<ContractObligationDashboardItem[]>([]);
   const [contractClauses, setContractClauses] = useState<ContractClause[]>([]);
   const [contractDeliverables, setContractDeliverables] = useState<ContractDeliverable[]>([]);
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
@@ -385,6 +389,8 @@ export function App() {
   const [contractClauseMessage, setContractClauseMessage] = useState("");
   const [clauseSearchStatus, setClauseSearchStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [clauseSearchMessage, setClauseSearchMessage] = useState("");
+  const [obligationDashboardStatus, setObligationDashboardStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
+  const [obligationDashboardMessage, setObligationDashboardMessage] = useState("");
   const [deliverableStatus, setDeliverableStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [deliverableMessage, setDeliverableMessage] = useState("");
   const [contractDocumentStatus, setContractDocumentStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -436,6 +442,7 @@ export function App() {
         const canLoadNoCuiStatus = hasAnyPermission(nextAccess, ["ViewEvidence", "ManageEvidence"]);
         const canLoadCompanyProfile = hasAnyPermission(nextAccess, ["ViewCompanyProfile", "ManageCompanyProfile"]);
         const canLoadContracts = hasAnyPermission(nextAccess, ["ViewContracts", "ManageContracts"]);
+        const canLoadObligations = hasAnyPermission(nextAccess, ["ViewObligations", "ManageObligations"]);
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
@@ -445,6 +452,7 @@ export function App() {
           : fallbackNoCuiAcknowledgementStatus;
         const nextCompanyProfile = canLoadCompanyProfile ? await getCompanyProfile() : null;
         const nextContracts = canLoadContracts ? await getContracts() : [];
+        const nextObligationDashboardItems = canLoadObligations ? await getContractObligations() : [];
         const nextContractClauses = nextContracts[0] ? await getContractClauses(nextContracts[0].id) : [];
         const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
@@ -456,6 +464,8 @@ export function App() {
           setInvitations(nextInvitations);
           setCompanyProfile(nextCompanyProfile);
           setContracts(nextContracts);
+          setObligationDashboardItems(nextObligationDashboardItems);
+          setObligationDashboardStatus(canLoadObligations ? "ready" : "idle");
           setContractClauses(nextContractClauses);
           setContractDeliverables(nextContractDeliverables);
           setContractDocuments(nextContractDocuments);
@@ -474,6 +484,8 @@ export function App() {
           setInvitations([]);
           setCompanyProfile(null);
           setContracts([]);
+          setObligationDashboardItems([]);
+          setObligationDashboardStatus("idle");
           setContractClauses([]);
           setContractDeliverables([]);
           setContractDocuments([]);
@@ -563,6 +575,24 @@ export function App() {
       setClauseResults([]);
       setClauseSearchStatus("failed");
       setClauseSearchMessage("Clause search could not be completed.");
+    }
+  }
+
+  async function handleObligationFilter(params: ContractObligationQueryParams) {
+    setObligationDashboardStatus("loading");
+    setObligationDashboardMessage("");
+
+    try {
+      const results = await getContractObligations(params);
+      setObligationDashboardItems(results);
+      setObligationDashboardStatus("ready");
+      setObligationDashboardMessage(
+        results.length > 0 ? `${results.length} tenant-scoped obligations matched.` : "No obligations matched."
+      );
+    } catch {
+      setObligationDashboardItems([]);
+      setObligationDashboardStatus("failed");
+      setObligationDashboardMessage("Obligations could not be loaded.");
     }
   }
 
@@ -839,11 +869,20 @@ export function App() {
               onSelectContract={handleContractSelect}
             />
           ) : activeRoute === "obligations" ? (
-            <ClauseLibraryView
-              results={clauseResults}
-              searchMessage={clauseSearchMessage}
-              searchStatus={clauseSearchStatus}
-              onSearch={handleClauseSearch}
+            <ObligationsView
+              contracts={contracts}
+              items={obligationDashboardItems}
+              message={obligationDashboardMessage}
+              status={obligationDashboardStatus}
+              onFilter={handleObligationFilter}
+              clauseLibrary={
+                <ClauseLibraryView
+                  results={clauseResults}
+                  searchMessage={clauseSearchMessage}
+                  searchStatus={clauseSearchStatus}
+                  onSearch={handleClauseSearch}
+                />
+              }
             />
           ) : activeRoute === "evidence" ? (
             <EvidenceView
@@ -1161,6 +1200,199 @@ function contractFormToRequest(form: ContractFormState): UpsertContractRequest {
     description: form.description.trim(),
     dataHandlingPosture: form.dataHandlingPosture
   };
+}
+
+function ObligationsView({
+  clauseLibrary,
+  contracts,
+  items,
+  message,
+  onFilter,
+  status
+}: {
+  clauseLibrary: ReactNode;
+  contracts: ContractRecord[];
+  items: ContractObligationDashboardItem[];
+  message: string;
+  onFilter: (params: ContractObligationQueryParams) => Promise<void>;
+  status: "idle" | "loading" | "ready" | "failed";
+}) {
+  const [contractId, setContractId] = useState("");
+  const [riskLevel, setRiskLevel] = useState("");
+  const [owner, setOwner] = useState("");
+  const [taskStatus, setTaskStatus] = useState("");
+  const [module, setModule] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [source, setSource] = useState("");
+  const overdueCount = items.filter((item) => item.isOverdue).length;
+  const highRiskCount = items.filter((item) => item.isHighRisk).length;
+
+  return (
+    <section className="route-panel obligations-route">
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">Obligation dashboard</p>
+          <h2>Obligation work queue</h2>
+        </div>
+        <div className="queue-metrics" aria-label="Obligation priority counts">
+          <span>
+            <strong>{overdueCount}</strong> overdue
+          </span>
+          <span>
+            <strong>{highRiskCount}</strong> high risk
+          </span>
+        </div>
+      </div>
+
+      <form
+        className="obligation-filter-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onFilter({
+            contractId: contractId || undefined,
+            riskLevel: riskLevel || undefined,
+            owner: owner.trim() || undefined,
+            status: taskStatus || undefined,
+            module: module || undefined,
+            dueDate: dueDate || undefined,
+            source: source.trim() || undefined
+          });
+        }}
+      >
+        <label>
+          Contract
+          <select value={contractId} onChange={(event) => setContractId(event.target.value)} disabled={status === "loading"}>
+            <option value="">All contracts</option>
+            {contracts.map((contract) => (
+              <option key={contract.id} value={contract.id}>
+                {contract.contractNumber}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Risk
+          <select value={riskLevel} onChange={(event) => setRiskLevel(event.target.value)} disabled={status === "loading"}>
+            <option value="">All risk</option>
+            <option value="Critical">Critical</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+        </label>
+        <label>
+          Owner
+          <input value={owner} onChange={(event) => setOwner(event.target.value)} placeholder="IT/security" disabled={status === "loading"} />
+        </label>
+        <label>
+          Status
+          <select value={taskStatus} onChange={(event) => setTaskStatus(event.target.value)} disabled={status === "loading"}>
+            <option value="">All status</option>
+            <option value="Open">Open</option>
+            <option value="InProgress">In progress</option>
+            <option value="Blocked">Blocked</option>
+            <option value="WaitingForReview">Waiting for review</option>
+            <option value="Done">Done</option>
+          </select>
+        </label>
+        <label>
+          Module
+          <select value={module} onChange={(event) => setModule(event.target.value)} disabled={status === "loading"}>
+            <option value="">All modules</option>
+            <option value="Cybersecurity">Cybersecurity</option>
+            <option value="Labor">Labor</option>
+            <option value="Supply chain">Supply chain</option>
+            <option value="Contract">Contract</option>
+          </select>
+        </label>
+        <label>
+          Due date
+          <select value={dueDate} onChange={(event) => setDueDate(event.target.value)} disabled={status === "loading"}>
+            <option value="">Any due date</option>
+            <option value="overdue">Overdue</option>
+            <option value="next30">Next 30 days</option>
+            <option value="none">No due date</option>
+          </select>
+        </label>
+        <label>
+          Source
+          <input value={source} onChange={(event) => setSource(event.target.value)} placeholder="Clause or source" disabled={status === "loading"} />
+        </label>
+        <button type="submit" disabled={status === "loading"}>
+          <SlidersHorizontal size={16} aria-hidden="true" />
+          Apply filters
+        </button>
+      </form>
+
+      {message ? (
+        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+      ) : null}
+
+      {items.length > 0 ? (
+        <div className="obligation-dashboard-list" aria-label="Tenant obligation work queue">
+          {items.map((item) => (
+            <article
+              key={item.id}
+              className={`obligation-dashboard-item${item.isOverdue ? " obligation-dashboard-item--overdue" : ""}${
+                item.isHighRisk ? " obligation-dashboard-item--high-risk" : ""
+              }`}
+            >
+              <div className="obligation-dashboard-item__main">
+                <div className="obligation-dashboard-item__badges">
+                  <span className={`risk risk--${item.riskLevel.toLowerCase()}`} aria-label={`${item.riskLevel} risk obligation`}>
+                    {item.riskLevel}
+                  </span>
+                  {item.isOverdue ? (
+                    <span className="status status--overdue" aria-label="Overdue obligation">
+                      <AlertTriangle size={14} aria-hidden="true" />
+                      Overdue
+                    </span>
+                  ) : null}
+                  <span className="status status--active">{item.status}</span>
+                </div>
+                <h3>{item.title}</h3>
+                <p>{item.plainEnglishSummary}</p>
+              </div>
+              <dl>
+                <div>
+                  <dt>Contract</dt>
+                  <dd>{item.contractNumber}</dd>
+                </div>
+                <div>
+                  <dt>Owner</dt>
+                  <dd>{item.ownerFunction}</dd>
+                </div>
+                <div>
+                  <dt>Due</dt>
+                  <dd>{item.dueAt ?? "No date"}</dd>
+                </div>
+                <div>
+                  <dt>Module</dt>
+                  <dd>{item.module}</dd>
+                </div>
+                <div>
+                  <dt>Source</dt>
+                  <dd>
+                    <a href={item.sourceUrl} target="_blank" rel="noreferrer">
+                      {item.source}
+                    </a>
+                  </dd>
+                </div>
+              </dl>
+              <p className="obligation-required-action">{item.requiredAction}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="Start with company profile or contract intake"
+          body="Complete the company profile, add a contract, and attach mapped clauses to generate tenant-scoped obligations."
+        />
+      )}
+
+      {clauseLibrary}
+    </section>
+  );
 }
 
 function ClauseLibraryView({

@@ -256,6 +256,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 10. Obligation Dashboard
 
 ### Story 10.1: Obligation List And Filters
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-10.1.1:** Seed obligations in multiple tenants and verify only current-tenant obligations appear on the dashboard.
