@@ -2333,6 +2333,37 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/reports/cmmc-readiness:
+    post:
+      tags:
+        - Reports
+      summary: Generate a CMMC readiness report
+      operationId: generateCmmcReadinessReport
+      parameters:
+        - name: assessmentId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      description: >
+        Generates a tenant-scoped CMMC readiness report snapshot for the selected
+        assessment. Evidence links are included only when the caller also has
+        evidence-view permission.
+      responses:
+        "201":
+          description: CMMC readiness report generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmmcReadinessReport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/reports/{reportId}:
     parameters:
       - $ref: "#/components/parameters/ReportId"
@@ -5678,6 +5709,221 @@ components:
           type: array
           items:
             type: string
+
+    CmmcReadinessReport:
+      type: object
+      required:
+        - id
+        - tenantId
+        - type
+        - status
+        - title
+        - generatedAt
+        - generatedByUserId
+        - snapshot
+        - exportHtml
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ReportType"
+        status:
+          $ref: "#/components/schemas/ReportStatus"
+        title:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        generatedByUserId:
+          type: string
+          format: uuid
+        snapshot:
+          $ref: "#/components/schemas/CmmcReadinessSnapshot"
+        exportHtml:
+          type: string
+
+    CmmcReadinessSnapshot:
+      type: object
+      required:
+        - assessmentId
+        - assessmentName
+        - targetLevel
+        - generatedAt
+        - progressByFamily
+        - openGaps
+        - openPoamItems
+        - evidenceLinks
+        - affirmations
+        - snapshotHistoryCount
+      properties:
+        assessmentId:
+          type: string
+          format: uuid
+        assessmentName:
+          type: string
+        targetLevel:
+          $ref: "#/components/schemas/CmmcLevel"
+        generatedAt:
+          type: string
+          format: date-time
+        progressByFamily:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmmcFamilyProgress"
+        openGaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmmcControlGap"
+        openPoamItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmmcReportPoamItem"
+        evidenceLinks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmmcReportEvidenceLink"
+        affirmations:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmmcReportAffirmation"
+        snapshotHistoryCount:
+          type: integer
+
+    CmmcFamilyProgress:
+      type: object
+      required:
+        - family
+        - total
+        - implemented
+        - partial
+        - notStarted
+        - needsReview
+        - notApplicable
+      properties:
+        family:
+          type: string
+        total:
+          type: integer
+        implemented:
+          type: integer
+        partial:
+          type: integer
+        notStarted:
+          type: integer
+        needsReview:
+          type: integer
+        notApplicable:
+          type: integer
+
+    CmmcControlGap:
+      type: object
+      required:
+        - controlId
+        - family
+        - title
+        - status
+        - result
+      properties:
+        controlId:
+          type: string
+        family:
+          type: string
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/ControlImplementationStatus"
+        result:
+          type: string
+          enum:
+            - NotAssessed
+            - Met
+            - NotMet
+            - NotApplicable
+
+    CmmcReportPoamItem:
+      type: object
+      required:
+        - id
+        - controlId
+        - weakness
+        - riskLevel
+        - status
+        - targetCompletionAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        controlId:
+          type: string
+        weakness:
+          type: string
+        riskLevel:
+          type: string
+          enum:
+            - Low
+            - Medium
+            - High
+            - Critical
+        status:
+          type: string
+          enum:
+            - Open
+            - InProgress
+            - WaitingForValidation
+            - Closed
+            - AcceptedRisk
+        targetCompletionAt:
+          type: string
+          format: date
+
+    CmmcReportEvidenceLink:
+      type: object
+      required:
+        - evidenceItemId
+        - name
+        - controlId
+      properties:
+        evidenceItemId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        controlId:
+          type: string
+
+    CmmcReportAffirmation:
+      type: object
+      required:
+        - id
+        - level
+        - dueAt
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        level:
+          $ref: "#/components/schemas/CmmcLevel"
+        dueAt:
+          type: string
+          format: date
+        submittedAt:
+          type:
+            - string
+            - "null"
+          format: date
+        status:
+          type: string
+          enum:
+            - NotDue
+            - DueSoon
+            - Submitted
+            - Overdue
+            - NotRequired
 
     ApprovedEvidencePackage:
       type: object

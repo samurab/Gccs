@@ -10,6 +10,12 @@ public interface IReportRepository
     Task<ComplianceStatusReportDto> GenerateComplianceStatusReportAsync(
         Guid actorUserId,
         CancellationToken cancellationToken = default);
+
+    Task<CmmcReadinessReportDto?> GenerateCmmcReadinessReportAsync(
+        Guid assessmentId,
+        Guid actorUserId,
+        bool includeEvidenceLinks,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record ComplianceStatusReportDto(

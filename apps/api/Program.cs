@@ -720,6 +720,27 @@ api.MapPost("/reports/compliance-status", async (
 .RequirePermission(Permission.ViewReports)
 .WithName("GenerateComplianceStatusReport");
 
+api.MapPost("/reports/cmmc-readiness", async (
+    Guid assessmentId,
+    CmmcReadinessReportService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var includeEvidenceLinks = httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewEvidence.ToString());
+    var report = await service.GenerateAsync(assessmentId, tenantContext.UserId, includeEvidenceLinks, cancellationToken);
+    return report is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"CMMC assessment '{assessmentId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Created($"/api/reports/{report.Id}", report);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GenerateCmmcReadinessReport");
+
 api.MapGet("/subcontractors", async (
     SubcontractorService service,
     CancellationToken cancellationToken) =>

@@ -428,6 +428,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-15.2.4:** Export the contract obligation matrix and compare exported rows/fields to the on-screen data.
 #-----------------------------------
 ### Story 15.3: CMMC Readiness Report
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-15.3.1:** Generate a CMMC readiness report and verify control status rollups by family/category.

@@ -213,6 +213,135 @@ public sealed class EfReportRepository(
         return ToDto(entity, snapshot);
     }
 
+    public async Task<CmmcReadinessReportDto?> GenerateCmmcReadinessReportAsync(
+        Guid assessmentId,
+        Guid actorUserId,
+        bool includeEvidenceLinks,
+        CancellationToken cancellationToken = default)
+    {
+        var assessment = await dbContext.Assessments
+            .AsNoTracking()
+            .Include(candidate => candidate.Controls)
+            .SingleOrDefaultAsync(
+                candidate => candidate.Id == assessmentId && candidate.TenantId == tenantContext.TenantId,
+                cancellationToken);
+        if (assessment is null)
+        {
+            return null;
+        }
+
+        var generatedAt = DateTimeOffset.UtcNow;
+        var scopedControls = await QueryControlsForLevel(assessment.Level)
+            .OrderBy(control => control.Family)
+            .ThenBy(control => control.Id)
+            .ToArrayAsync(cancellationToken);
+        var statusLookup = assessment.Controls.ToDictionary(control => control.ControlId, StringComparer.OrdinalIgnoreCase);
+        var controlRows = scopedControls.Select(control =>
+        {
+            statusLookup.TryGetValue(control.Id, out var status);
+            return new CmmcControlReportRow(
+                control,
+                status?.ImplementationStatus ?? ControlImplementationStatus.NotStarted,
+                status?.Result ?? AssessmentResult.NotAssessed,
+                ReadGuidArray(status?.EvidenceItemIdsJson ?? "[]"));
+        }).ToArray();
+        var progress = controlRows
+            .GroupBy(row => row.Control.Family)
+            .Select(group => new CmmcFamilyProgressDto(
+                group.Key,
+                group.Count(),
+                group.Count(row => row.Status == ControlImplementationStatus.Implemented),
+                group.Count(row => row.Status == ControlImplementationStatus.PartiallyImplemented),
+                group.Count(row => row.Status == ControlImplementationStatus.NotStarted),
+                group.Count(row => row.Status == ControlImplementationStatus.NeedsReview),
+                group.Count(row => row.Status == ControlImplementationStatus.NotApplicable)))
+            .OrderBy(item => item.Family)
+            .ToArray();
+        var gaps = controlRows
+            .Where(row => row.Status is ControlImplementationStatus.NotStarted or ControlImplementationStatus.PartiallyImplemented or ControlImplementationStatus.NeedsReview)
+            .Select(row => new CmmcControlGapDto(
+                row.Control.Id,
+                row.Control.Family,
+                row.Control.Title,
+                row.Status,
+                row.Result))
+            .ToArray();
+        var poamItems = await dbContext.PoamItems
+            .AsNoTracking()
+            .Where(item =>
+                item.TenantId == tenantContext.TenantId &&
+                item.AssessmentId == assessment.Id &&
+                item.Status != PoamStatus.Closed &&
+                item.Status != PoamStatus.AcceptedRisk)
+            .OrderBy(item => item.TargetCompletionAt)
+            .Select(item => new CmmcReportPoamItemDto(
+                item.Id,
+                item.ControlId,
+                item.Weakness,
+                item.RiskLevel,
+                item.Status,
+                item.TargetCompletionAt))
+            .ToArrayAsync(cancellationToken);
+        var evidenceLinks = includeEvidenceLinks
+            ? await BuildEvidenceLinksAsync(controlRows, cancellationToken)
+            : [];
+        var affirmations = await dbContext.AnnualAffirmations
+            .AsNoTracking()
+            .Where(affirmation => affirmation.TenantId == tenantContext.TenantId)
+            .OrderBy(affirmation => affirmation.DueAt)
+            .Select(affirmation => new CmmcReportAffirmationDto(
+                affirmation.Id,
+                affirmation.Level,
+                affirmation.DueAt,
+                affirmation.SubmittedAt,
+                affirmation.Status))
+            .ToArrayAsync(cancellationToken);
+        var historyCount = await dbContext.Reports
+            .AsNoTracking()
+            .CountAsync(
+                report => report.TenantId == tenantContext.TenantId && report.Type == ReportType.CmmcReadiness,
+                cancellationToken) + 1;
+        var snapshot = new CmmcReadinessSnapshotDto(
+            assessment.Id,
+            assessment.Name,
+            assessment.Level,
+            generatedAt,
+            progress,
+            gaps,
+            poamItems,
+            evidenceLinks,
+            affirmations,
+            historyCount);
+        var exportHtml = BuildHtml(snapshot);
+        var entity = new ReportEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantContext.TenantId,
+            Type = ReportType.CmmcReadiness,
+            Title = $"CMMC readiness report - {assessment.Name}",
+            Status = ReportStatus.Complete,
+            GeneratedAt = generatedAt,
+            GeneratedByUserId = actorUserId,
+            SnapshotJson = JsonSerializer.Serialize(snapshot, JsonOptions),
+            ExportHtml = exportHtml,
+            CreatedAt = generatedAt,
+            CreatedByUserId = actorUserId
+        };
+
+        dbContext.Reports.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new CmmcReadinessReportDto(
+            entity.Id,
+            entity.TenantId,
+            entity.Type,
+            entity.Status,
+            entity.Title,
+            entity.GeneratedAt,
+            entity.GeneratedByUserId,
+            snapshot,
+            entity.ExportHtml);
+    }
+
     private static ComplianceStatusReportDto ToDto(ReportEntity entity, ComplianceStatusReportSnapshotDto snapshot) =>
         new(
             entity.Id,
@@ -241,4 +370,64 @@ public sealed class EfReportRepository(
         html.Append("</body></html>");
         return html.ToString();
     }
+
+    private static string BuildHtml(CmmcReadinessSnapshotDto snapshot)
+    {
+        var html = new StringBuilder();
+        html.Append("<!doctype html><html><head><meta charset=\"utf-8\"><title>CMMC readiness report</title></head><body>");
+        html.Append("<h1>CMMC readiness report</h1>");
+        html.Append("<p>Target level: ").Append(snapshot.TargetLevel).Append("</p>");
+        html.Append("<p>Generated at ").Append(snapshot.GeneratedAt.ToString("O")).Append("</p>");
+        html.Append("<p>Open gaps: ").Append(snapshot.OpenGaps.Count).Append("</p>");
+        html.Append("<p>Open POA&M items: ").Append(snapshot.OpenPoamItems.Count).Append("</p>");
+        html.Append("</body></html>");
+        return html.ToString();
+    }
+
+    private IQueryable<ControlEntity> QueryControlsForLevel(CmmcLevel level)
+    {
+        var controls = dbContext.Controls.AsNoTracking();
+        return level switch
+        {
+            CmmcLevel.Level1 => controls.Where(control => control.CmmcLevel == CmmcLevel.Level1),
+            CmmcLevel.Level2 => controls.Where(control => control.CmmcLevel == CmmcLevel.Level1 || control.CmmcLevel == CmmcLevel.Level2),
+            _ => controls
+        };
+    }
+
+    private async Task<IReadOnlyList<CmmcReportEvidenceLinkDto>> BuildEvidenceLinksAsync(
+        IEnumerable<CmmcControlReportRow> controlRows,
+        CancellationToken cancellationToken)
+    {
+        var pairs = controlRows
+            .SelectMany(row => row.EvidenceItemIds.Select(id => new { EvidenceItemId = id, row.Control.Id }))
+            .ToArray();
+        var evidenceIds = pairs.Select(pair => pair.EvidenceItemId).Distinct().ToArray();
+        var evidence = await dbContext.EvidenceItems
+            .AsNoTracking()
+            .Where(item => item.TenantId == tenantContext.TenantId && evidenceIds.Contains(item.Id))
+            .ToDictionaryAsync(item => item.Id, item => item.Name, cancellationToken);
+        return pairs
+            .Where(pair => evidence.ContainsKey(pair.EvidenceItemId))
+            .Select(pair => new CmmcReportEvidenceLinkDto(pair.EvidenceItemId, evidence[pair.EvidenceItemId], pair.Id))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<Guid> ReadGuidArray(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<Guid[]>(json, JsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private sealed record CmmcControlReportRow(
+        ControlEntity Control,
+        ControlImplementationStatus Status,
+        AssessmentResult Result,
+        IReadOnlyList<Guid> EvidenceItemIds);
 }
