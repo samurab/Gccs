@@ -756,6 +756,95 @@ api.MapPut("/subcontractors/{subcontractorId:guid}", async (
 .RequirePermission(Permission.ManageSubcontractors)
 .WithName("UpdateSubcontractor");
 
+api.MapGet("/subcontractors/{subcontractorId:guid}/flow-downs", async (
+    Guid subcontractorId,
+    Guid? contractId,
+    SubcontractorService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var flowDowns = await service.ListFlowDownsAsync(subcontractorId, contractId, cancellationToken);
+    return flowDowns is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Subcontractor '{subcontractorId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(flowDowns);
+})
+.RequirePermission(Permission.ViewSubcontractors)
+.WithName("ListSubcontractorFlowDowns");
+
+api.MapPost("/subcontractors/{subcontractorId:guid}/flow-downs", async (
+    Guid subcontractorId,
+    UpsertSubcontractorFlowDownRequest request,
+    SubcontractorService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateFlowDownAsync(subcontractorId, request, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Subcontractor '{subcontractorId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/subcontractors/{subcontractorId}/flow-downs/{created.Id}", created);
+    }
+    catch (SubcontractorValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["flowDown"] = [exception.Message]
+        },
+        title: "Flow-down invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageSubcontractors)
+.WithName("CreateSubcontractorFlowDown");
+
+api.MapPut("/subcontractors/{subcontractorId:guid}/flow-downs/{flowDownId:guid}", async (
+    Guid subcontractorId,
+    Guid flowDownId,
+    UpsertSubcontractorFlowDownRequest request,
+    SubcontractorService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateFlowDownAsync(subcontractorId, flowDownId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Flow-down '{flowDownId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (SubcontractorValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["flowDown"] = [exception.Message]
+        },
+        title: "Flow-down invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageSubcontractors)
+.WithName("UpdateSubcontractorFlowDown");
+
 api.MapGet("/tasks", async (
     ComplianceTaskService service,
     CancellationToken cancellationToken) =>

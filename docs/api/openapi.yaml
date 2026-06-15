@@ -1917,6 +1917,13 @@ paths:
         - Subcontractors
       summary: List subcontractor flow-down clauses
       operationId: listSubcontractorFlowDowns
+      parameters:
+        - name: contractId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: Flow-down requirements.
@@ -1928,6 +1935,8 @@ paths:
                   $ref: "#/components/schemas/FlowDownClause"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
     post:
@@ -1952,6 +1961,44 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/subcontractors/{subcontractorId}/flow-downs/{flowDownId}:
+    parameters:
+      - $ref: "#/components/parameters/SubcontractorId"
+      - name: flowDownId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags:
+        - Subcontractors
+      summary: Update a subcontractor flow-down clause
+      operationId: updateSubcontractorFlowDown
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlowDownClauseCreateRequest"
+      responses:
+        "200":
+          description: Flow-down clause updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlowDownClause"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -5123,47 +5170,93 @@ components:
         - type: object
           required:
             - id
+            - subcontractorId
             - status
             - createdAt
           properties:
             id:
               type: string
               format: uuid
+            subcontractorId:
+              type: string
+              format: uuid
             status:
               type: string
               enum:
-                - pending
-                - sent
-                - signed
-                - exception-requested
-                - waived
+                - Required
+                - Sent
+                - Acknowledged
+                - Signed
+                - Waived
+                - NotApplicable
             createdAt:
               type: string
+              format: date-time
+            updatedAt:
+              type:
+                - string
+                - "null"
               format: date-time
 
     FlowDownClauseCreateRequest:
       type: object
       required:
-        - source
+        - clauseNumber
         - title
-        - contractId
+        - status
       properties:
-        source:
-          type: string
-        title:
-          type: string
         contractId:
-          type: string
+          type:
+            - string
+            - "null"
+          format: uuid
+        contractClauseId:
+          type:
+            - string
+            - "null"
           format: uuid
         obligationId:
           type:
             - string
             - "null"
-        dueDate:
+        clauseNumber:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum:
+            - Required
+            - Sent
+            - Acknowledged
+            - Signed
+            - Waived
+            - NotApplicable
+        sentAt:
           type:
             - string
             - "null"
           format: date
+        acknowledgedAt:
+          type:
+            - string
+            - "null"
+          format: date
+        signedAt:
+          type:
+            - string
+            - "null"
+          format: date
+        waivedAt:
+          type:
+            - string
+            - "null"
+          format: date
+        signedEvidenceItemId:
+          type:
+            - string
+            - "null"
+          format: uuid
 
     SubcontractorEvidenceRequestCreateRequest:
       type: object

@@ -682,13 +682,26 @@ CREATE TABLE gccs.contract_subcontractors (
 CREATE TABLE gccs.flow_down_clauses (
     id uuid NOT NULL,
     subcontractor_id uuid NOT NULL,
+    contract_id uuid,
+    contract_clause_id uuid,
+    obligation_id character varying(160),
     clause_number text NOT NULL,
     title text NOT NULL,
     status character varying(64) NOT NULL,
     sent_at date,
+    acknowledged_at date,
     signed_at date,
+    waived_at date,
     signed_evidence_item_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
     CONSTRAINT "PK_flow_down_clauses" PRIMARY KEY (id),
+    CONSTRAINT "FK_flow_down_clauses_contract_clauses_contract_clause_id" FOREIGN KEY (contract_clause_id) REFERENCES gccs.contract_clauses (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_flow_down_clauses_contracts_contract_id" FOREIGN KEY (contract_id) REFERENCES gccs.contracts (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_flow_down_clauses_evidence_items_signed_evidence_item_id" FOREIGN KEY (signed_evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_flow_down_clauses_obligations_obligation_id" FOREIGN KEY (obligation_id) REFERENCES gccs.obligations (id) ON DELETE RESTRICT,
     CONSTRAINT "FK_flow_down_clauses_subcontractors_subcontractor_id" FOREIGN KEY (subcontractor_id) REFERENCES gccs.subcontractors (id) ON DELETE CASCADE
 );
 
@@ -840,6 +853,18 @@ CREATE INDEX "IX_evidence_obligations_obligation_id" ON gccs.evidence_obligation
 CREATE INDEX "IX_evidence_vendors_vendor_id" ON gccs.evidence_vendors (vendor_id);
 
 CREATE INDEX "IX_flow_down_clauses_subcontractor_id_clause_number" ON gccs.flow_down_clauses (subcontractor_id, clause_number);
+
+CREATE INDEX "IX_flow_down_clauses_subcontractor_id_contract_id" ON gccs.flow_down_clauses (subcontractor_id, contract_id);
+
+CREATE INDEX "IX_flow_down_clauses_contract_clause_id" ON gccs.flow_down_clauses (contract_clause_id);
+
+CREATE INDEX "IX_flow_down_clauses_contract_id_clause_number" ON gccs.flow_down_clauses (contract_id, clause_number);
+
+CREATE INDEX "IX_flow_down_clauses_created_at_updated_at" ON gccs.flow_down_clauses (created_at, updated_at);
+
+CREATE INDEX "IX_flow_down_clauses_obligation_id" ON gccs.flow_down_clauses (obligation_id);
+
+CREATE INDEX "IX_flow_down_clauses_signed_evidence_item_id" ON gccs.flow_down_clauses (signed_evidence_item_id);
 
 CREATE INDEX "IX_labor_category_rates_wage_determination_id" ON gccs.labor_category_rates (wage_determination_id);
 
@@ -1079,4 +1104,3 @@ INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260615011257_AddObligationPublicationMetadata', '10.0.4');
 
 COMMIT;
-

@@ -390,6 +390,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-14.1.4:** Verify cross-tenant subcontractor access is denied and profile changes are audit logged.
 #-----------------------------------
 ### Story 14.2: Flow-Down Clause Tracking
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-14.2.1:** Assign required flow-down clauses from contract obligations to a subcontractor.

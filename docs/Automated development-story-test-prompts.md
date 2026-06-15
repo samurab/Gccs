@@ -421,6 +421,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 #-----------------------------------
 
 ###  Please perform automated test on Story 14.2: Flow-Down Clause Tracking. Please provide the results of the tests.
+### Done ##
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-14.2.1:** Assign required flow-down clauses from contract obligations to a subcontractor.

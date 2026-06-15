@@ -50,6 +50,36 @@ public sealed record UpsertSubcontractorRequest(
     string? ContactTitle,
     IReadOnlyList<Guid> ContractIds);
 
+public sealed record SubcontractorFlowDownDto(
+    Guid Id,
+    Guid SubcontractorId,
+    Guid? ContractId,
+    Guid? ContractClauseId,
+    string? ObligationId,
+    string ClauseNumber,
+    string Title,
+    FlowDownStatus Status,
+    DateOnly? SentAt,
+    DateOnly? AcknowledgedAt,
+    DateOnly? SignedAt,
+    DateOnly? WaivedAt,
+    Guid? SignedEvidenceItemId,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? UpdatedAt);
+
+public sealed record UpsertSubcontractorFlowDownRequest(
+    Guid? ContractId,
+    Guid? ContractClauseId,
+    string? ObligationId,
+    string ClauseNumber,
+    string Title,
+    FlowDownStatus Status,
+    DateOnly? SentAt,
+    DateOnly? AcknowledgedAt,
+    DateOnly? SignedAt,
+    DateOnly? WaivedAt,
+    Guid? SignedEvidenceItemId);
+
 public interface ISubcontractorRepository
 {
     Task<IReadOnlyList<SubcontractorDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default);
@@ -64,6 +94,24 @@ public interface ISubcontractorRepository
     Task<SubcontractorDto?> UpdateAsync(
         Guid subcontractorId,
         UpsertSubcontractorRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SubcontractorFlowDownDto>?> ListFlowDownsAsync(
+        Guid subcontractorId,
+        Guid? contractId,
+        CancellationToken cancellationToken = default);
+
+    Task<SubcontractorFlowDownDto?> CreateFlowDownAsync(
+        Guid subcontractorId,
+        UpsertSubcontractorFlowDownRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<SubcontractorFlowDownDto?> UpdateFlowDownAsync(
+        Guid subcontractorId,
+        Guid flowDownId,
+        UpsertSubcontractorFlowDownRequest request,
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 }

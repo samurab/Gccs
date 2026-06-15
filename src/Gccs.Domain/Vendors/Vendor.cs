@@ -40,11 +40,16 @@ public sealed record Subcontractor(
 
 public sealed record FlowDownClause(
     Guid Id,
+    Guid? ContractId,
+    Guid? ContractClauseId,
+    string? ObligationId,
     string ClauseNumber,
     string Title,
     FlowDownStatus Status,
     DateOnly? SentAt,
+    DateOnly? AcknowledgedAt,
     DateOnly? SignedAt,
+    DateOnly? WaivedAt,
     Guid? SignedEvidenceItemId);
 
 public enum VendorType
@@ -81,7 +86,9 @@ public enum FlowDownStatus
     NotRequired,
     Required,
     Sent,
+    Acknowledged,
     Signed,
     Expired,
-    Waived
+    Waived,
+    NotApplicable
 }

@@ -363,7 +363,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-14.1.1"] = ["TC_14_1_1_Create_and_update_subcontractor_profile_fields"],
             ["TC-14.1.2"] = ["TC_14_1_2_Subcontractor_contract_links_display_in_list_and_detail"],
             ["TC-14.1.3"] = ["TC_14_1_3_Cui_and_export_control_flags_are_visible_without_implying_storage"],
-            ["TC-14.1.4"] = ["TC_14_1_4_Cross_tenant_access_is_denied_and_changes_are_audit_logged"]
+            ["TC-14.1.4"] = ["TC_14_1_4_Cross_tenant_access_is_denied_and_changes_are_audit_logged"],
+            ["TC-14.2.1"] = ["TC_14_2_1_Assign_required_flow_down_clauses_from_contract_obligations"],
+            ["TC-14.2.2"] = ["TC_14_2_2_Status_visibility_by_subcontractor_and_contract"],
+            ["TC-14.2.3"] = ["TC_14_2_3_Link_approved_signed_evidence_to_flow_down_record"],
+            ["TC-14.2.4"] = ["TC_14_2_4_Flow_down_assignment_and_status_changes_are_audit_logged"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

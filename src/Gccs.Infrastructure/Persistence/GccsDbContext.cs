@@ -43,6 +43,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<AnnualAffirmationEntity> AnnualAffirmations => Set<AnnualAffirmationEntity>();
     public DbSet<VendorEntity> Vendors => Set<VendorEntity>();
     public DbSet<SubcontractorEntity> Subcontractors => Set<SubcontractorEntity>();
+    public DbSet<FlowDownClauseEntity> FlowDownClauses => Set<FlowDownClauseEntity>();
     public DbSet<EmployeeEntity> Employees => Set<EmployeeEntity>();
     public DbSet<TrainingRecordEntity> TrainingRecords => Set<TrainingRecordEntity>();
     public DbSet<WageDeterminationEntity> WageDeterminations => Set<WageDeterminationEntity>();
@@ -573,7 +574,15 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("flow_down_clauses");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.SubcontractorId, x.ClauseNumber });
+            entity.HasIndex(x => new { x.SubcontractorId, x.ContractId });
+            entity.HasIndex(x => new { x.ContractId, x.ClauseNumber });
+            entity.Property(x => x.ObligationId).HasMaxLength(160);
             entity.HasOne(x => x.Subcontractor).WithMany(x => x.FlowDownClauses).HasForeignKey(x => x.SubcontractorId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ContractClause).WithMany().HasForeignKey(x => x.ContractClauseId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Obligation).WithMany().HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.SignedEvidenceItem).WithMany().HasForeignKey(x => x.SignedEvidenceItemId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
         });
 
         modelBuilder.Entity<ContractSubcontractorEntity>(entity =>

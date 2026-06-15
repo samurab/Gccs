@@ -1,5 +1,6 @@
 using Gccs.Application.Audit;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Vendors;
 
 namespace Gccs.Application.Subcontractors;
 
@@ -12,6 +13,12 @@ public sealed class SubcontractorService(
 
     public Task<SubcontractorDto?> FindCurrentTenantAsync(Guid subcontractorId, CancellationToken cancellationToken = default) =>
         repository.FindCurrentTenantAsync(subcontractorId, cancellationToken);
+
+    public Task<IReadOnlyList<SubcontractorFlowDownDto>?> ListFlowDownsAsync(
+        Guid subcontractorId,
+        Guid? contractId,
+        CancellationToken cancellationToken = default) =>
+        repository.ListFlowDownsAsync(subcontractorId, contractId, cancellationToken);
 
     public async Task<SubcontractorDto> CreateAsync(
         UpsertSubcontractorRequest request,
@@ -38,6 +45,55 @@ public sealed class SubcontractorService(
         if (updated is not null)
         {
             await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, "Subcontractor profile was updated.", before?.Status.ToString(), cancellationToken);
+        }
+
+        return updated;
+    }
+
+    public async Task<SubcontractorFlowDownDto?> CreateFlowDownAsync(
+        Guid subcontractorId,
+        UpsertSubcontractorFlowDownRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = Normalize(request);
+        Validate(normalized);
+        var created = await repository.CreateFlowDownAsync(subcontractorId, normalized, actorUserId, cancellationToken);
+        if (created is not null)
+        {
+            await WriteFlowDownAuditAsync(
+                created,
+                actorUserId,
+                AuditAction.Created,
+                "Subcontractor flow-down clause was assigned.",
+                null,
+                cancellationToken);
+        }
+
+        return created;
+    }
+
+    public async Task<SubcontractorFlowDownDto?> UpdateFlowDownAsync(
+        Guid subcontractorId,
+        Guid flowDownId,
+        UpsertSubcontractorFlowDownRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var before = await repository.ListFlowDownsAsync(subcontractorId, null, cancellationToken);
+        var previous = before?.SingleOrDefault(candidate => candidate.Id == flowDownId);
+        var normalized = Normalize(request);
+        Validate(normalized);
+        var updated = await repository.UpdateFlowDownAsync(subcontractorId, flowDownId, normalized, actorUserId, cancellationToken);
+        if (updated is not null)
+        {
+            await WriteFlowDownAuditAsync(
+                updated,
+                actorUserId,
+                AuditAction.Updated,
+                "Subcontractor flow-down clause was updated.",
+                previous?.Status.ToString(),
+                cancellationToken);
         }
 
         return updated;
@@ -75,6 +131,59 @@ public sealed class SubcontractorService(
             cancellationToken);
     }
 
+    private async Task WriteFlowDownAuditAsync(
+        SubcontractorFlowDownDto flowDown,
+        Guid actorUserId,
+        AuditAction action,
+        string summary,
+        string? previousStatus,
+        CancellationToken cancellationToken)
+    {
+        var subcontractor = await repository.FindCurrentTenantAsync(flowDown.SubcontractorId, cancellationToken) ??
+            throw new SubcontractorValidationException("Subcontractor was not found.");
+        var metadata = new Dictionary<string, string>
+        {
+            ["subcontractorId"] = flowDown.SubcontractorId.ToString(),
+            ["clauseNumber"] = flowDown.ClauseNumber,
+            ["status"] = flowDown.Status.ToString()
+        };
+
+        if (flowDown.ContractId is not null)
+        {
+            metadata["contractId"] = flowDown.ContractId.Value.ToString();
+        }
+
+        if (flowDown.ContractClauseId is not null)
+        {
+            metadata["contractClauseId"] = flowDown.ContractClauseId.Value.ToString();
+        }
+
+        if (flowDown.ObligationId is not null)
+        {
+            metadata["obligationId"] = flowDown.ObligationId;
+        }
+
+        if (flowDown.SignedEvidenceItemId is not null)
+        {
+            metadata["signedEvidenceItemId"] = flowDown.SignedEvidenceItemId.Value.ToString();
+        }
+
+        if (previousStatus is not null)
+        {
+            metadata["previousStatus"] = previousStatus;
+        }
+
+        await auditEventWriter.WriteAsync(
+            subcontractor.TenantId,
+            actorUserId,
+            action,
+            "SubcontractorFlowDown",
+            flowDown.Id.ToString(),
+            summary,
+            metadata,
+            cancellationToken);
+    }
+
     private static UpsertSubcontractorRequest Normalize(UpsertSubcontractorRequest request) =>
         request with
         {
@@ -94,6 +203,14 @@ public sealed class SubcontractorService(
             ContractIds = request.ContractIds.Distinct().OrderBy(id => id).ToArray()
         };
 
+    private static UpsertSubcontractorFlowDownRequest Normalize(UpsertSubcontractorFlowDownRequest request) =>
+        request with
+        {
+            ObligationId = TrimOptional(request.ObligationId),
+            ClauseNumber = request.ClauseNumber.Trim(),
+            Title = request.Title.Trim()
+        };
+
     private static void Validate(UpsertSubcontractorRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -104,6 +221,24 @@ public sealed class SubcontractorService(
         if (request.WorksharePercentage is < 0 or > 100)
         {
             throw new SubcontractorValidationException("Workshare percentage must be between 0 and 100.");
+        }
+    }
+
+    private static void Validate(UpsertSubcontractorFlowDownRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ClauseNumber))
+        {
+            throw new SubcontractorValidationException("Flow-down clause number is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            throw new SubcontractorValidationException("Flow-down title is required.");
+        }
+
+        if (request.Status is FlowDownStatus.NotRequired or FlowDownStatus.Expired)
+        {
+            throw new SubcontractorValidationException("Flow-down status must be required, sent, acknowledged, signed, waived, or not applicable.");
         }
     }
 

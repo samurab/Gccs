@@ -297,18 +297,27 @@ public sealed class SubcontractorEntity : AuditedEntity
     public ICollection<SubcontractorEvidenceEntity> EvidenceItems { get; set; } = [];
 }
 
-public sealed class FlowDownClauseEntity
+public sealed class FlowDownClauseEntity : AuditedEntity
 {
     public Guid Id { get; set; }
     public Guid SubcontractorId { get; set; }
+    public Guid? ContractId { get; set; }
+    public Guid? ContractClauseId { get; set; }
+    public string? ObligationId { get; set; }
     public string ClauseNumber { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public FlowDownStatus Status { get; set; }
     public DateOnly? SentAt { get; set; }
+    public DateOnly? AcknowledgedAt { get; set; }
     public DateOnly? SignedAt { get; set; }
+    public DateOnly? WaivedAt { get; set; }
     public Guid? SignedEvidenceItemId { get; set; }
 
     public SubcontractorEntity? Subcontractor { get; set; }
+    public ContractEntity? Contract { get; set; }
+    public ContractClauseEntity? ContractClause { get; set; }
+    public ObligationEntity? Obligation { get; set; }
+    public EvidenceItemEntity? SignedEvidenceItem { get; set; }
 }
 
 public sealed class ContractSubcontractorEntity
