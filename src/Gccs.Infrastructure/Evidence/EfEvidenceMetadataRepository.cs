@@ -3,6 +3,7 @@ using Gccs.Application.Evidence;
 using Gccs.Application.Security;
 using Gccs.Domain.Common;
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Evidence;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -105,6 +106,49 @@ public sealed class EfEvidenceMetadataRepository(
         return ToDto(entity);
     }
 
+    public async Task<EvidenceReviewDto?> ApplyCurrentTenantReviewAsync(
+        Guid evidenceItemId,
+        EvidenceReviewDecision decision,
+        string? comment,
+        Guid actorUserId,
+        DateTimeOffset reviewedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await QueryCurrentTenant()
+            .SingleOrDefaultAsync(evidence => evidence.Id == evidenceItemId, cancellationToken);
+
+        if (entity is null)
+        {
+            return null;
+        }
+
+        entity.Status = ToStatus(decision);
+        entity.UpdatedAt = reviewedAt;
+        entity.UpdatedByUserId = actorUserId;
+        if (entity.Status == EvidenceStatus.Approved)
+        {
+            entity.ApprovedAt = reviewedAt;
+            entity.ApprovedByUserId = actorUserId;
+        }
+        else
+        {
+            entity.ApprovedAt = null;
+            entity.ApprovedByUserId = null;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new EvidenceReviewDto(
+            Guid.NewGuid(),
+            entity.Id,
+            entity.TenantId,
+            decision,
+            entity.Status,
+            comment,
+            actorUserId,
+            reviewedAt,
+            entity.Status == EvidenceStatus.Approved);
+    }
+
     private IQueryable<EvidenceItemEntity> QueryCurrentTenant() =>
         dbContext.EvidenceItems
             .Include(evidence => evidence.Obligations)
@@ -167,6 +211,16 @@ public sealed class EfEvidenceMetadataRepository(
             ReportId = id
         }));
     }
+
+    private static EvidenceStatus ToStatus(EvidenceReviewDecision decision) =>
+        decision switch
+        {
+            EvidenceReviewDecision.Approve => EvidenceStatus.Approved,
+            EvidenceReviewDecision.Reject or EvidenceReviewDecision.RequestChanges => EvidenceStatus.Rejected,
+            EvidenceReviewDecision.Archive => EvidenceStatus.Archived,
+            EvidenceReviewDecision.Expire => EvidenceStatus.Expired,
+            _ => EvidenceStatus.InReview
+        };
 
     private async Task SyncExpirationTaskAsync(
         EvidenceItemEntity entity,

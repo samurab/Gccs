@@ -936,6 +936,40 @@ api.MapPut("/evidence-items/{evidenceItemId:guid}", async (
 .RequirePermission(Permission.ManageEvidence)
 .WithName("UpdateEvidenceItem");
 
+api.MapPost("/evidence-items/{evidenceItemId:guid}/reviews", async (
+    Guid evidenceItemId,
+    EvidenceReviewRequest request,
+    EvidenceApprovalService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var review = await service.ReviewAsync(evidenceItemId, request, tenantContext.UserId, cancellationToken);
+        return review is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Evidence item '{evidenceItemId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/evidence-items/{evidenceItemId}/reviews/{review.Id}", review);
+    }
+    catch (EvidenceReviewValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["evidenceReview"] = [exception.Message]
+        },
+        title: "Evidence review invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ApproveEvidence)
+.WithName("CreateEvidenceReview");
+
 api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
     Guid evidenceItemId,
     EvidenceUploadIntentRequest request,

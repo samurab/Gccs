@@ -380,6 +380,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -4180,8 +4182,12 @@ components:
           required:
             - id
             - evidenceItemId
+            - tenantId
+            - decision
+            - status
             - reviewerUserId
             - reviewedAt
+            - eligibleForReports
           properties:
             id:
               type: string
@@ -4189,12 +4195,19 @@ components:
             evidenceItemId:
               type: string
               format: uuid
+            tenantId:
+              type: string
+              format: uuid
+            status:
+              $ref: "#/components/schemas/EvidenceStatus"
             reviewerUserId:
               type: string
               format: uuid
             reviewedAt:
               type: string
               format: date-time
+            eligibleForReports:
+              type: boolean
 
     UploadIntent:
       type: object
@@ -5088,6 +5101,8 @@ components:
         - approve
         - reject
         - request-changes
+        - archive
+        - expire
 
     CmmcLevel:
       type: integer

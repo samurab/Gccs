@@ -23,6 +23,8 @@ public enum AuditAction
     Downloaded,
     Approved,
     Rejected,
+    Archived,
+    Expired,
     Exported,
     SignedIn,
     SignedOut,

@@ -332,6 +332,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-12.2.4:** Verify allowed users can download/delete evidence per RBAC and all download/delete actions are audit logged.
 #-----------------------------------
 ### Story 12.3: Evidence Approval
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-12.3.1:** Verify only configured roles can approve evidence.

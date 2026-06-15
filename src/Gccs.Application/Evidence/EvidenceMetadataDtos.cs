@@ -42,6 +42,30 @@ public sealed record UpsertEvidenceMetadataRequest(
 
 public sealed record EvidenceMetadataQuery(string? Tag);
 
+public sealed record EvidenceReviewRequest(
+    EvidenceReviewDecision Decision,
+    string? Comment);
+
+public sealed record EvidenceReviewDto(
+    Guid Id,
+    Guid EvidenceItemId,
+    Guid TenantId,
+    EvidenceReviewDecision Decision,
+    EvidenceStatus Status,
+    string? Comment,
+    Guid ReviewerUserId,
+    DateTimeOffset ReviewedAt,
+    bool EligibleForReports);
+
+public enum EvidenceReviewDecision
+{
+    Approve,
+    Reject,
+    RequestChanges,
+    Archive,
+    Expire
+}
+
 public interface IEvidenceMetadataRepository
 {
     Task<IReadOnlyList<EvidenceMetadataDto>> ListCurrentTenantAsync(
@@ -61,5 +85,13 @@ public interface IEvidenceMetadataRepository
         Guid evidenceItemId,
         UpsertEvidenceMetadataRequest request,
         Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<EvidenceReviewDto?> ApplyCurrentTenantReviewAsync(
+        Guid evidenceItemId,
+        EvidenceReviewDecision decision,
+        string? comment,
+        Guid actorUserId,
+        DateTimeOffset reviewedAt,
         CancellationToken cancellationToken = default);
 }

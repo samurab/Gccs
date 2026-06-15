@@ -43,8 +43,10 @@ public enum EvidenceType
 
 public enum EvidenceStatus
 {
+    Draft,
     Requested,
     Uploaded,
+    Submitted,
     InReview,
     Approved,
     Rejected,
