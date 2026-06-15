@@ -910,6 +910,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 5.2: Audit Log Viewer
+## Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

@@ -14,6 +14,7 @@ import {
   Send,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   UploadCloud,
   UserPlus,
   UsersRound
@@ -24,17 +25,21 @@ import {
   acknowledgeNoCuiNotice,
   createTenantInvitation,
   createEvidenceUploadIntent,
+  fallbackAuditLogs,
   fallbackAccess,
   fallbackNoCuiAcknowledgementStatus,
   fallbackOverview,
+  getAuditLogs,
   getComplianceOverview,
   getCurrentUserAccess,
   getNoCuiAcknowledgementStatus,
   getTenantInvitations,
   getTenantMembers,
+  type AuditLogEntry,
   type ComplianceOverview,
   type CurrentUserAccess,
   type NoCuiAcknowledgementStatus,
+  type PagedResult,
   type TenantInvitation,
   type TenantMember
 } from "@/lib/api";
@@ -52,6 +57,14 @@ type WorkspaceRoute =
   | "settings";
 
 type LoadState = "loading" | "ready" | "error";
+
+type AuditLogFilters = {
+  actorUserId: string;
+  action: string;
+  entityType: string;
+  from: string;
+  to: string;
+};
 
 type NavigationItem = {
   route: WorkspaceRoute;
@@ -134,6 +147,13 @@ const navigationItems: NavigationItem[] = [
 ];
 
 const moduleIcons = [Building2, FileSearch, ClipboardCheck, CalendarClock, Archive, ShieldCheck, GitBranch, FolderKanban];
+const defaultAuditLogFilters: AuditLogFilters = {
+  actorUserId: "",
+  action: "",
+  entityType: "",
+  from: "",
+  to: ""
+};
 
 const placeholderContent: Record<
   Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence">,
@@ -212,6 +232,9 @@ export function App() {
   const [access, setAccess] = useState<CurrentUserAccess>(fallbackAccess);
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
+  const [auditLogs, setAuditLogs] = useState<PagedResult<AuditLogEntry>>(fallbackAuditLogs);
+  const [auditLogFilters, setAuditLogFilters] = useState<AuditLogFilters>(defaultAuditLogFilters);
+  const [auditLogStatus, setAuditLogStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [noCuiAcknowledgement, setNoCuiAcknowledgement] = useState<NoCuiAcknowledgementStatus>(
     fallbackNoCuiAcknowledgementStatus
   );
@@ -231,6 +254,7 @@ export function App() {
   );
   const canManageUsers = access.permissions.includes("ManageUsers");
   const canManageEvidence = access.permissions.includes("ManageEvidence");
+  const canViewAuditLog = access.permissions.includes("ViewAuditLog");
 
   useEffect(() => {
     function handleHashChange() {
@@ -260,10 +284,12 @@ export function App() {
     Promise.all([getComplianceOverview(), getCurrentUserAccess()])
       .then(async ([nextOverview, nextAccess]) => {
         const canLoadUserManagement = nextAccess.permissions.includes("ManageUsers");
+        const canLoadAuditLogs = nextAccess.permissions.includes("ViewAuditLog");
         const canLoadNoCuiStatus = hasAnyPermission(nextAccess, ["ViewEvidence", "ManageEvidence"]);
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
+        const nextAuditLogs = canLoadAuditLogs ? await getAuditLogs({ page: 1, pageSize: 5 }) : fallbackAuditLogs;
         const nextNoCuiAcknowledgement = canLoadNoCuiStatus
           ? await getNoCuiAcknowledgementStatus()
           : fallbackNoCuiAcknowledgementStatus;
@@ -273,6 +299,8 @@ export function App() {
           setAccess(nextAccess);
           setMembers(nextMembers);
           setInvitations(nextInvitations);
+          setAuditLogs(nextAuditLogs);
+          setAuditLogStatus(canLoadAuditLogs ? "ready" : "idle");
           setNoCuiAcknowledgement(nextNoCuiAcknowledgement);
           setLoadState("ready");
         }
@@ -283,6 +311,8 @@ export function App() {
           setAccess(fallbackAccess);
           setMembers([]);
           setInvitations([]);
+          setAuditLogs(fallbackAuditLogs);
+          setAuditLogStatus("idle");
           setNoCuiAcknowledgement(fallbackNoCuiAcknowledgementStatus);
           setLoadState("error");
         }
@@ -350,6 +380,27 @@ export function App() {
 
     setUploadStatus("blocked");
     setUploadMessage(uploadIntent.error ?? "The API blocked the upload intent.");
+  }
+
+  async function handleAuditLogFilterSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await loadAuditLogs(1, auditLogFilters);
+  }
+
+  async function handleAuditLogPageChange(page: number) {
+    await loadAuditLogs(page, auditLogFilters);
+  }
+
+  async function loadAuditLogs(page: number, filters: AuditLogFilters) {
+    setAuditLogStatus("loading");
+    const nextAuditLogs = await getAuditLogs({
+      page,
+      pageSize: auditLogs.pageSize || 5,
+      ...filters
+    });
+
+    setAuditLogs(nextAuditLogs);
+    setAuditLogStatus("ready");
   }
 
   function handleRouteClick(route: WorkspaceRoute) {
@@ -425,11 +476,18 @@ export function App() {
           ) : activeRoute === "settings" ? (
             <SettingsView
               canManageUsers={canManageUsers}
+              canViewAuditLog={canViewAuditLog}
+              auditLogFilters={auditLogFilters}
+              auditLogStatus={auditLogStatus}
+              auditLogs={auditLogs}
               inviteEmail={inviteEmail}
               inviteRole={inviteRole}
               inviteStatus={inviteStatus}
               invitations={invitations}
               members={members}
+              onAuditLogFilterChange={setAuditLogFilters}
+              onAuditLogFilterSubmit={handleAuditLogFilterSubmit}
+              onAuditLogPageChange={handleAuditLogPageChange}
               onInviteEmailChange={setInviteEmail}
               onInviteRoleChange={setInviteRole}
               onInvitationSubmit={handleInvitationSubmit}
@@ -689,27 +747,41 @@ function EvidenceView({
 }
 
 function SettingsView({
+  auditLogFilters,
+  auditLogStatus,
+  auditLogs,
   canManageUsers,
+  canViewAuditLog,
   inviteEmail,
   inviteRole,
   inviteStatus,
   invitations,
   members,
+  onAuditLogFilterChange,
+  onAuditLogFilterSubmit,
+  onAuditLogPageChange,
   onInviteEmailChange,
   onInviteRoleChange,
   onInvitationSubmit
 }: {
+  auditLogFilters: AuditLogFilters;
+  auditLogStatus: "idle" | "loading" | "ready" | "failed";
+  auditLogs: PagedResult<AuditLogEntry>;
   canManageUsers: boolean;
+  canViewAuditLog: boolean;
   inviteEmail: string;
   inviteRole: string;
   inviteStatus: "idle" | "sending" | "created" | "failed";
   invitations: TenantInvitation[];
   members: TenantMember[];
+  onAuditLogFilterChange: (filters: AuditLogFilters) => void;
+  onAuditLogFilterSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onAuditLogPageChange: (page: number) => void;
   onInviteEmailChange: (email: string) => void;
   onInviteRoleChange: (roleName: string) => void;
   onInvitationSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
-  if (!canManageUsers) {
+  if (!canManageUsers && !canViewAuditLog) {
     return (
       <section className="route-panel">
         <EmptyState
@@ -722,103 +794,200 @@ function SettingsView({
 
   return (
     <>
-      <section className="members-section" aria-label="Tenant team members">
-        <div className="section-heading">
-          <p className="eyebrow">Tenant access</p>
-          <h2>Team members</h2>
-        </div>
-        {members.length > 0 ? (
-          <div className="member-table" role="table" aria-label="Current tenant members">
-            <div className="member-row member-row--header" role="row">
-              <span role="columnheader">Member</span>
-              <span role="columnheader">Role</span>
-              <span role="columnheader">Status</span>
-              <span role="columnheader">MFA</span>
+      {canManageUsers ? (
+        <>
+          <section className="members-section" aria-label="Tenant team members">
+            <div className="section-heading">
+              <p className="eyebrow">Tenant access</p>
+              <h2>Team members</h2>
             </div>
-            {members.map((member) => (
-              <article className="member-row" role="row" key={member.membershipId}>
-                <span className="member-person" role="cell">
-                  <span className="icon-box icon-box--small" aria-hidden="true">
-                    <UsersRound size={17} />
-                  </span>
-                  <span>
-                    <strong>{member.displayName}</strong>
-                    <small>{member.email}</small>
-                  </span>
-                </span>
-                <span role="cell">{member.roleName}</span>
-                <span role="cell">
-                  <span className={`status status--${member.membershipStatus.toLowerCase()}`}>
-                    {member.membershipStatus}
-                  </span>
-                </span>
-                <span role="cell">{member.mfaEnabled ? "Enabled" : "Not enabled"}</span>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <EmptyState title="No tenant members available" body="Team membership is loaded from the active tenant context." />
-        )}
-      </section>
-
-      <section className="invitation-section" aria-label="Tenant invitations">
-        <div className="section-heading section-heading--split">
-          <div>
-            <p className="eyebrow">Controlled onboarding</p>
-            <h2>User invitations</h2>
-          </div>
-          <form className="invite-form" onSubmit={onInvitationSubmit}>
-            <label>
-              <span>Email</span>
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(event) => onInviteEmailChange(event.target.value)}
-                required
-                maxLength={320}
-              />
-            </label>
-            <label>
-              <span>Role</span>
-              <select value={inviteRole} onChange={(event) => onInviteRoleChange(event.target.value)}>
-                <option>Admin</option>
-                <option>Compliance Manager</option>
-                <option>Contributor</option>
-                <option>Auditor</option>
-                <option>Advisor</option>
-              </select>
-            </label>
-            <button type="submit" disabled={inviteStatus === "sending"}>
-              {inviteStatus === "sending" ? <Send size={16} /> : <UserPlus size={16} />}
-              <span>{inviteStatus === "sending" ? "Sending" : "Invite"}</span>
-            </button>
-          </form>
-        </div>
-        {inviteStatus === "created" ? <p className="form-status form-status--ok">Invitation created.</p> : null}
-        {inviteStatus === "failed" ? <p className="form-status form-status--error">Invitation was not created.</p> : null}
-        {invitations.length > 0 ? (
-          <div className="invitation-list">
-            {invitations.map((invitation) => (
-              <article className="invitation-item" key={invitation.invitationId}>
-                <div className="invitation-item__main">
-                  <span className="icon-box icon-box--small" aria-hidden="true">
-                    <UserPlus size={17} />
-                  </span>
-                  <span>
-                    <strong>{invitation.email}</strong>
-                    <small>{invitation.roleName}</small>
-                  </span>
+            {members.length > 0 ? (
+              <div className="member-table" role="table" aria-label="Current tenant members">
+                <div className="member-row member-row--header" role="row">
+                  <span role="columnheader">Member</span>
+                  <span role="columnheader">Role</span>
+                  <span role="columnheader">Status</span>
+                  <span role="columnheader">MFA</span>
                 </div>
-                <span className={`status status--${invitation.status.toLowerCase()}`}>{invitation.status}</span>
-                <span className="invitation-date">Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
-                <small className="notification-placeholder">{invitation.notificationPlaceholder}</small>
-              </article>
-            ))}
+                {members.map((member) => (
+                  <article className="member-row" role="row" key={member.membershipId}>
+                    <span className="member-person" role="cell">
+                      <span className="icon-box icon-box--small" aria-hidden="true">
+                        <UsersRound size={17} />
+                      </span>
+                      <span>
+                        <strong>{member.displayName}</strong>
+                        <small>{member.email}</small>
+                      </span>
+                    </span>
+                    <span role="cell">{member.roleName}</span>
+                    <span role="cell">
+                      <span className={`status status--${member.membershipStatus.toLowerCase()}`}>
+                        {member.membershipStatus}
+                      </span>
+                    </span>
+                    <span role="cell">{member.mfaEnabled ? "Enabled" : "Not enabled"}</span>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="No tenant members available" body="Team membership is loaded from the active tenant context." />
+            )}
+          </section>
+
+          <section className="invitation-section" aria-label="Tenant invitations">
+            <div className="section-heading section-heading--split">
+              <div>
+                <p className="eyebrow">Controlled onboarding</p>
+                <h2>User invitations</h2>
+              </div>
+              <form className="invite-form" onSubmit={onInvitationSubmit}>
+                <label>
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(event) => onInviteEmailChange(event.target.value)}
+                    required
+                    maxLength={320}
+                  />
+                </label>
+                <label>
+                  <span>Role</span>
+                  <select value={inviteRole} onChange={(event) => onInviteRoleChange(event.target.value)}>
+                    <option>Admin</option>
+                    <option>Compliance Manager</option>
+                    <option>Contributor</option>
+                    <option>Auditor</option>
+                    <option>Advisor</option>
+                  </select>
+                </label>
+                <button type="submit" disabled={inviteStatus === "sending"}>
+                  {inviteStatus === "sending" ? <Send size={16} /> : <UserPlus size={16} />}
+                  <span>{inviteStatus === "sending" ? "Sending" : "Invite"}</span>
+                </button>
+              </form>
+            </div>
+            {inviteStatus === "created" ? <p className="form-status form-status--ok">Invitation created.</p> : null}
+            {inviteStatus === "failed" ? <p className="form-status form-status--error">Invitation was not created.</p> : null}
+            {invitations.length > 0 ? (
+              <div className="invitation-list">
+                {invitations.map((invitation) => (
+                  <article className="invitation-item" key={invitation.invitationId}>
+                    <div className="invitation-item__main">
+                      <span className="icon-box icon-box--small" aria-hidden="true">
+                        <UserPlus size={17} />
+                      </span>
+                      <span>
+                        <strong>{invitation.email}</strong>
+                        <small>{invitation.roleName}</small>
+                      </span>
+                    </div>
+                    <span className={`status status--${invitation.status.toLowerCase()}`}>{invitation.status}</span>
+                    <span className="invitation-date">Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
+                    <small className="notification-placeholder">{invitation.notificationPlaceholder}</small>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="No invitations available" body="Invitation state is loaded from the active tenant context." />
+            )}
+          </section>
+        </>
+      ) : null}
+
+      {canViewAuditLog ? (
+        <section className="members-section" aria-label="Audit log viewer">
+          <div className="section-heading section-heading--split">
+            <div>
+              <p className="eyebrow">Audit trail</p>
+              <h2>Audit log</h2>
+            </div>
+            <form className="invite-form" onSubmit={onAuditLogFilterSubmit}>
+              <label>
+                <span>Actor ID</span>
+                <input
+                  value={auditLogFilters.actorUserId}
+                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, actorUserId: event.target.value })}
+                />
+              </label>
+              <label>
+                <span>Action</span>
+                <select
+                  value={auditLogFilters.action}
+                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, action: event.target.value })}
+                >
+                  <option value="">Any</option>
+                  <option value="Created">Created</option>
+                  <option value="Updated">Updated</option>
+                  <option value="Deleted">Deleted</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </label>
+              <label>
+                <span>Entity</span>
+                <input
+                  value={auditLogFilters.entityType}
+                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, entityType: event.target.value })}
+                />
+              </label>
+              <label>
+                <span>From</span>
+                <input
+                  type="datetime-local"
+                  value={auditLogFilters.from}
+                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, from: event.target.value })}
+                />
+              </label>
+              <label>
+                <span>To</span>
+                <input
+                  type="datetime-local"
+                  value={auditLogFilters.to}
+                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, to: event.target.value })}
+                />
+              </label>
+              <button type="submit" disabled={auditLogStatus === "loading"}>
+                <SlidersHorizontal size={16} />
+                <span>{auditLogStatus === "loading" ? "Filtering" : "Filter"}</span>
+              </button>
+            </form>
           </div>
-        ) : (
-          <EmptyState title="No invitations available" body="Invitation state is loaded from the active tenant context." />
-        )}
-      </section>
+          {auditLogs.items.length > 0 ? (
+            <div className="member-table" role="table" aria-label="Tenant audit logs">
+              <div className="member-row member-row--header" role="row">
+                <span role="columnheader">Date</span>
+                <span role="columnheader">Actor</span>
+                <span role="columnheader">Action</span>
+                <span role="columnheader">Entity</span>
+                <span role="columnheader">Summary</span>
+              </div>
+              {auditLogs.items.map((entry) => (
+                <article className="member-row" role="row" key={entry.id}>
+                  <span role="cell">{new Date(entry.occurredAt).toLocaleString()}</span>
+                  <span role="cell">{entry.actorUserId ?? "System"}</span>
+                  <span role="cell">{entry.action}</span>
+                  <span role="cell">{entry.entityType}</span>
+                  <span role="cell">{entry.summary}</span>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No audit events match" body="Audit events are tenant-scoped and filtered by the controls above." />
+          )}
+          <div className="form-status">
+            Page {auditLogs.page} of {Math.max(1, Math.ceil(auditLogs.totalCount / Math.max(1, auditLogs.pageSize)))} · {auditLogs.totalCount} events
+          </div>
+          <div className="form-status">
+            <button type="button" disabled={!auditLogs.hasPreviousPage} onClick={() => onAuditLogPageChange(auditLogs.page - 1)}>
+              Previous
+            </button>
+            <button type="button" disabled={!auditLogs.hasNextPage} onClick={() => onAuditLogPageChange(auditLogs.page + 1)}>
+              Next
+            </button>
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }

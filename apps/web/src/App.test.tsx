@@ -8,6 +8,7 @@ const {
   createEvidenceUploadIntentMock,
   createTenantInvitationMock,
   fallbackOverview,
+  getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
   getComplianceOverviewMock,
   getCurrentUserAccessMock,
@@ -21,6 +22,7 @@ const {
   acknowledgeNoCuiNoticeMock: vi.fn(),
   createEvidenceUploadIntentMock: vi.fn(),
   createTenantInvitationMock: vi.fn(),
+  getAuditLogsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
   getNoCuiAcknowledgementStatusMock: vi.fn(),
@@ -41,7 +43,8 @@ const {
       "ManageEvidence",
       "ViewCmmc",
       "ViewSubcontractors",
-      "ViewReports"
+      "ViewReports",
+      "ViewAuditLog"
     ],
     rolePermissionMatrix: {}
   },
@@ -151,6 +154,15 @@ vi.mock("@/lib/api", () => ({
   fallbackOverview,
   getComplianceOverview: getComplianceOverviewMock,
   getCurrentUserAccess: getCurrentUserAccessMock,
+  getAuditLogs: getAuditLogsMock,
+  fallbackAuditLogs: {
+    items: [],
+    page: 1,
+    pageSize: 5,
+    totalCount: 0,
+    hasNextPage: false,
+    hasPreviousPage: false
+  },
   getNoCuiAcknowledgementStatus: getNoCuiAcknowledgementStatusMock,
   getTenantInvitations: getTenantInvitationsMock,
   getTenantMembers: getTenantMembersMock
@@ -166,9 +178,18 @@ describe("App", () => {
     createTenantInvitationMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
+    getAuditLogsMock.mockReset();
     getNoCuiAcknowledgementStatusMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
+    getAuditLogsMock.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 5,
+      totalCount: 0,
+      hasNextPage: false,
+      hasPreviousPage: false
+    });
     getNoCuiAcknowledgementStatusMock.mockResolvedValue({
       isAcknowledged: false,
       noticeVersion: "no-cui-mvp-v1",
@@ -310,6 +331,79 @@ describe("App", () => {
     });
     expect(await screen.findByText("Invitation created.")).toBeInTheDocument();
     expect(screen.getByText("new.invite@example.com")).toBeInTheDocument();
+  });
+
+  it("TC-5.2.1, TC-5.2.3, and TC-5.2.4 renders tenant audit logs with filters and pagination", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(fallbackOverview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce([]);
+    getTenantMembersMock.mockResolvedValueOnce([]);
+    getAuditLogsMock.mockResolvedValueOnce({
+      items: [
+        {
+          id: "51515151-5151-5151-5151-515151515101",
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          actorUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+          action: "Created",
+          entityType: "TenantInvitation",
+          entityId: "dddddddd-dddd-dddd-dddd-ddddddddddd1",
+          occurredAt: "2026-06-15T12:00:00Z",
+          ipAddress: "203.0.113.10",
+          userAgent: "test",
+          correlationId: "audit-table",
+          summary: "Invitation was created.",
+          metadata: {}
+        }
+      ],
+      page: 1,
+      pageSize: 5,
+      totalCount: 6,
+      hasNextPage: true,
+      hasPreviousPage: false
+    });
+    getAuditLogsMock.mockResolvedValueOnce({
+      items: [],
+      page: 2,
+      pageSize: 5,
+      totalCount: 6,
+      hasNextPage: false,
+      hasPreviousPage: true
+    });
+    getAuditLogsMock.mockResolvedValueOnce({
+      items: [],
+      page: 1,
+      pageSize: 5,
+      totalCount: 0,
+      hasNextPage: false,
+      hasPreviousPage: false
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /settings/i }));
+    expect(await screen.findByRole("table", { name: /tenant audit logs/i })).toBeInTheDocument();
+    expect(screen.getByText("Invitation was created.")).toBeInTheDocument();
+    expect(screen.getByText(/Page 1 of 2/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /next/i }));
+    expect(getAuditLogsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, pageSize: 5 }));
+
+    await user.type(screen.getByLabelText("Actor ID"), "cccccccc-cccc-cccc-cccc-ccccccccccc1");
+    await user.selectOptions(screen.getByLabelText("Action"), "Created");
+    await user.type(screen.getByLabelText("Entity"), "TenantInvitation");
+    await user.click(screen.getByRole("button", { name: /filter/i }));
+
+    expect(getAuditLogsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        page: 1,
+        pageSize: 5,
+        actorUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+        action: "Created",
+        entityType: "TenantInvitation"
+      })
+    );
+    expect(await screen.findByText("No audit events match")).toBeInTheDocument();
   });
 
   it("TC-4.1.1 and TC-4.1.2 shows the No-CUI notice before upload and disables upload controls", async () => {

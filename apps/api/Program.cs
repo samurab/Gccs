@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
+using Gccs.Application.Audit;
 using Gccs.Application.Compliance;
 using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
@@ -157,6 +158,41 @@ api.MapGet("/reports/approved-evidence-packages", async (
     Results.Ok(await repository.ListApprovedEvidencePackagesAsync(cancellationToken)))
 .RequirePermission(Permission.ViewReports)
 .WithName("ListApprovedEvidencePackages");
+
+api.MapGet("/audit-logs", async (
+    AuditLogService service,
+    int? page,
+    int? pageSize,
+    Guid? actorUserId,
+    string? action,
+    string? entityType,
+    DateTimeOffset? from,
+    DateTimeOffset? to,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var request = new AuditLogQueryRequest(
+            page ?? 1,
+            pageSize ?? 25,
+            actorUserId,
+            action,
+            entityType,
+            from,
+            to);
+
+        return Results.Ok(await service.ListCurrentTenantAsync(request, cancellationToken));
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["auditLogQuery"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ViewAuditLog)
+.WithName("ListAuditLogs");
 
 api.MapMethods("/audit-logs/{auditLogEntryId:guid}", [HttpMethods.Put, HttpMethods.Patch, HttpMethods.Delete], (
     Guid auditLogEntryId,

@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
+        services.AddScoped<AuditLogService>();
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
@@ -41,6 +42,7 @@ public static class DependencyInjection
             services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
             services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
             services.AddScoped<IReportRepository, EfReportRepository>();
+            services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
             services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
         }
         else
@@ -55,6 +57,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("No-CUI acknowledgement persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IReportRepository>(_ =>
                 throw new InvalidOperationException("Report persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IAuditLogRepository>(_ =>
+                throw new InvalidOperationException("Audit log persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IAuditEventWriter>(_ =>
                 throw new InvalidOperationException("Audit persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }

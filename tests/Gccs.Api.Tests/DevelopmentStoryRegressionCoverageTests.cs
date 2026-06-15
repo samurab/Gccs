@@ -287,7 +287,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-5.1.1"] = ["TC_5_1_1_Sensitive_action_creates_audit_event_with_required_fields"],
             ["TC-5.1.2"] = ["TC_5_1_2_Audit_events_are_append_only_through_normal_apis"],
             ["TC-5.1.3"] = ["TC_5_1_3_Critical_audit_writer_failure_surfaces_clear_error"],
-            ["TC-5.1.4"] = ["TC_5_1_4_Request_metadata_is_captured_when_available"]
+            ["TC-5.1.4"] = ["TC_5_1_4_Request_metadata_is_captured_when_available"],
+            ["TC-5.2.1"] = ["TC_5_2_1_Admin_owner_or_advisor_sees_only_current_tenant_events"],
+            ["TC-5.2.2"] = ["TC_5_2_2_Contributor_and_auditor_cannot_access_audit_logs"],
+            ["TC-5.2.3"] = ["TC_5_2_3_Audit_log_pagination_uses_page_size_and_stable_ordering"],
+            ["TC-5.2.4"] = ["TC_5_2_4_Audit_log_filters_are_correct_and_tenant_scoped"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

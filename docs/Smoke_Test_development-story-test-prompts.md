@@ -129,6 +129,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-5.1.4:** Verify source IP, correlation ID, and request metadata are stored when available.
 #-----------------------------------
 ### Story 5.2: Audit Log Viewer
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-5.2.1:** As admin, owner, or advisor, view audit logs and verify only current-tenant events appear.

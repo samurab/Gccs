@@ -96,6 +96,40 @@ export type EvidenceUploadIntent = {
   expiresAt: string;
 };
 
+export type AuditLogEntry = {
+  id: string;
+  tenantId: string;
+  actorUserId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  occurredAt: string;
+  ipAddress: string;
+  userAgent: string;
+  correlationId: string;
+  summary: string;
+  metadata: Record<string, string>;
+};
+
+export type PagedResult<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
+export type AuditLogQueryParams = {
+  page?: number;
+  pageSize?: number;
+  actorUserId?: string;
+  action?: string;
+  entityType?: string;
+  from?: string;
+  to?: string;
+};
+
 export type ApiMutationResult<T> = {
   data: T | null;
   error: string | null;
@@ -128,6 +162,15 @@ export const fallbackNoCuiAcknowledgementStatus: NoCuiAcknowledgementStatus = {
   acknowledgedAt: null
 };
 
+export const fallbackAuditLogs: PagedResult<AuditLogEntry> = {
+  items: [],
+  page: 1,
+  pageSize: 5,
+  totalCount: 0,
+  hasNextPage: false,
+  hasPreviousPage: false
+};
+
 export async function getComplianceOverview(): Promise<ComplianceOverview> {
   return getJson<ComplianceOverview>("/api/compliance/overview", fallbackOverview);
 }
@@ -142,6 +185,20 @@ export async function getTenantMembers(): Promise<TenantMember[]> {
 
 export async function getTenantInvitations(): Promise<TenantInvitation[]> {
   return getJson<TenantInvitation[]>("/api/tenant-invitations", []);
+}
+
+export async function getAuditLogs(params: AuditLogQueryParams = {}): Promise<PagedResult<AuditLogEntry>> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(params.page ?? 1));
+  searchParams.set("pageSize", String(params.pageSize ?? 5));
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      searchParams.set(key, String(value));
+    }
+  }
+
+  return getJson<PagedResult<AuditLogEntry>>(`/api/audit-logs?${searchParams.toString()}`, fallbackAuditLogs);
 }
 
 export async function getNoCuiAcknowledgementStatus(): Promise<NoCuiAcknowledgementStatus> {
