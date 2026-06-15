@@ -2,6 +2,7 @@ using Gccs.Application.Calendar;
 using Gccs.Application.Security;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Vendors;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -133,6 +134,28 @@ public sealed class EfCalendarRepository(
             null,
             affirmation.DueAt < today && affirmation.Status is not AffirmationStatus.Submitted and not AffirmationStatus.NotRequired)));
 
+        var subcontractorEvidenceRequests = await dbContext.SubcontractorEvidenceRequests
+            .AsNoTracking()
+            .Include(request => request.RelatedFlowDownClause)
+            .Where(request =>
+                request.TenantId == tenantContext.TenantId &&
+                request.DueDate >= query.From &&
+                request.DueDate <= to)
+            .ToArrayAsync(cancellationToken);
+        events.AddRange(subcontractorEvidenceRequests.Select(request => new CalendarEventDto(
+            $"subcontractor-evidence-request:{request.Id}",
+            request.RequestedItem,
+            request.DueDate,
+            "subcontractor_evidence_request",
+            ToStatus(request.Status, request.DueDate, today),
+            request.DueDate < today ? RiskLevel.High : RiskLevel.Medium,
+            "Subcontractors",
+            "Subcontractors",
+            "subcontractor_evidence_request",
+            request.Id.ToString(),
+            request.RelatedFlowDownClause?.ContractId,
+            IsOverdue(request, today))));
+
         return ApplyFilters(events, query)
             .OrderBy(calendarEvent => calendarEvent.Date)
             .ThenByDescending(calendarEvent => calendarEvent.IsOverdue)
@@ -183,6 +206,22 @@ public sealed class EfCalendarRepository(
             _ => status.ToString().ToLowerInvariant()
         };
 
+    private static string ToStatus(SubcontractorEvidenceRequestStatus status, DateOnly dueDate, DateOnly today) =>
+        IsOpenEvidenceRequest(status) && dueDate < today
+            ? "overdue"
+            : status switch
+            {
+                SubcontractorEvidenceRequestStatus.Satisfied => "satisfied",
+                SubcontractorEvidenceRequestStatus.Cancelled => "cancelled",
+                _ => status.ToString().ToLowerInvariant()
+            };
+
+    private static bool IsOverdue(SubcontractorEvidenceRequestEntity request, DateOnly today) =>
+        request.DueDate < today && IsOpenEvidenceRequest(request.Status);
+
+    private static bool IsOpenEvidenceRequest(SubcontractorEvidenceRequestStatus status) =>
+        status is not SubcontractorEvidenceRequestStatus.Satisfied and not SubcontractorEvidenceRequestStatus.Cancelled;
+
     private static string ToModule(ComplianceTaskEntity task) =>
         task.Type switch
         {
@@ -196,6 +235,7 @@ public sealed class EfCalendarRepository(
                 "contract" => "Contract",
                 "control" => "CMMC",
                 "evidence" => "Evidence",
+                "subcontractor" => "Subcontractors",
                 _ => "Tasks"
             }
         };

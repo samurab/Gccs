@@ -92,3 +92,13 @@ public enum FlowDownStatus
     Waived,
     NotApplicable
 }
+
+public enum SubcontractorEvidenceRequestStatus
+{
+    Draft,
+    Sent,
+    Submitted,
+    Satisfied,
+    Overdue,
+    Cancelled
+}

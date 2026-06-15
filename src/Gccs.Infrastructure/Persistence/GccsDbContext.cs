@@ -44,6 +44,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<VendorEntity> Vendors => Set<VendorEntity>();
     public DbSet<SubcontractorEntity> Subcontractors => Set<SubcontractorEntity>();
     public DbSet<FlowDownClauseEntity> FlowDownClauses => Set<FlowDownClauseEntity>();
+    public DbSet<SubcontractorEvidenceRequestEntity> SubcontractorEvidenceRequests => Set<SubcontractorEvidenceRequestEntity>();
     public DbSet<EmployeeEntity> Employees => Set<EmployeeEntity>();
     public DbSet<TrainingRecordEntity> TrainingRecords => Set<TrainingRecordEntity>();
     public DbSet<WageDeterminationEntity> WageDeterminations => Set<WageDeterminationEntity>();
@@ -91,6 +92,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<ReviewState>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<RiskLevel>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SubcontractorEvidenceRequestStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantStatus>().HaveConversion<string>().HaveMaxLength(64);
@@ -599,6 +601,24 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => new { x.SubcontractorId, x.EvidenceItemId });
             entity.HasOne(x => x.Subcontractor).WithMany(x => x.EvidenceItems).HasForeignKey(x => x.SubcontractorId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SubcontractorEvidenceRequestEntity>(entity =>
+        {
+            entity.ToTable("subcontractor_evidence_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.DueDate });
+            entity.HasIndex(x => new { x.SubcontractorId, x.DueDate });
+            entity.Property(x => x.RequestedItem).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.RequestedEvidenceTypesJson).HasColumnType("jsonb");
+            entity.Property(x => x.RecipientName).HasMaxLength(160);
+            entity.Property(x => x.RecipientEmail).HasMaxLength(320);
+            entity.Property(x => x.ObligationId).HasMaxLength(160);
+            entity.HasOne(x => x.Subcontractor).WithMany(x => x.EvidenceRequests).HasForeignKey(x => x.SubcontractorId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Obligation).WithMany().HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.RelatedFlowDownClause).WithMany().HasForeignKey(x => x.RelatedFlowDownClauseId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ReceivedEvidenceItem).WithMany().HasForeignKey(x => x.ReceivedEvidenceItemId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
         });
     }
 

@@ -295,6 +295,7 @@ public sealed class SubcontractorEntity : AuditedEntity
     public ICollection<FlowDownClauseEntity> FlowDownClauses { get; set; } = [];
     public ICollection<ContractSubcontractorEntity> Contracts { get; set; } = [];
     public ICollection<SubcontractorEvidenceEntity> EvidenceItems { get; set; } = [];
+    public ICollection<SubcontractorEvidenceRequestEntity> EvidenceRequests { get; set; } = [];
 }
 
 public sealed class FlowDownClauseEntity : AuditedEntity
@@ -336,6 +337,28 @@ public sealed class SubcontractorEvidenceEntity
 
     public SubcontractorEntity? Subcontractor { get; set; }
     public EvidenceItemEntity? EvidenceItem { get; set; }
+}
+
+public sealed class SubcontractorEvidenceRequestEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid SubcontractorId { get; set; }
+    public string RequestedItem { get; set; } = string.Empty;
+    public string RequestedEvidenceTypesJson { get; set; } = "[]";
+    public DateOnly DueDate { get; set; }
+    public SubcontractorEvidenceRequestStatus Status { get; set; }
+    public string? RecipientName { get; set; }
+    public string? RecipientEmail { get; set; }
+    public string? ObligationId { get; set; }
+    public Guid? RelatedFlowDownClauseId { get; set; }
+    public Guid? ReceivedEvidenceItemId { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+
+    public SubcontractorEntity? Subcontractor { get; set; }
+    public ObligationEntity? Obligation { get; set; }
+    public FlowDownClauseEntity? RelatedFlowDownClause { get; set; }
+    public EvidenceItemEntity? ReceivedEvidenceItem { get; set; }
 }
 
 public sealed class EmployeeEntity : AuditedEntity

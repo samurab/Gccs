@@ -2005,6 +2005,26 @@ paths:
   /api/subcontractors/{subcontractorId}/evidence-requests:
     parameters:
       - $ref: "#/components/parameters/SubcontractorId"
+    get:
+      tags:
+        - Subcontractors
+      summary: List subcontractor evidence requests
+      operationId: listSubcontractorEvidenceRequests
+      responses:
+        "200":
+          description: Evidence requests.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubcontractorEvidenceRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
     post:
       tags:
         - Subcontractors
@@ -2027,6 +2047,44 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/subcontractors/{subcontractorId}/evidence-requests/{evidenceRequestId}:
+    parameters:
+      - $ref: "#/components/parameters/SubcontractorId"
+      - name: evidenceRequestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags:
+        - Subcontractors
+      summary: Update a subcontractor evidence request
+      operationId: updateSubcontractorEvidenceRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubcontractorEvidenceRequestCreateRequest"
+      responses:
+        "200":
+          description: Evidence request updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubcontractorEvidenceRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -5261,11 +5319,12 @@ components:
     SubcontractorEvidenceRequestCreateRequest:
       type: object
       required:
-        - title
+        - requestedItem
         - requestedEvidenceTypes
         - dueDate
+        - status
       properties:
-        title:
+        requestedItem:
           type: string
         requestedEvidenceTypes:
           type: array
@@ -5274,7 +5333,32 @@ components:
         dueDate:
           type: string
           format: date
+        status:
+          type: string
+          enum:
+            - Draft
+            - Sent
+            - Submitted
+            - Satisfied
+            - Cancelled
+        recipientName:
+          type:
+            - string
+            - "null"
+        recipientEmail:
+          type:
+            - string
+            - "null"
+        obligationId:
+          type:
+            - string
+            - "null"
         relatedFlowDownClauseId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        receivedEvidenceItemId:
           type:
             - string
             - "null"
@@ -5286,23 +5370,44 @@ components:
         - type: object
           required:
             - id
+            - tenantId
+            - subcontractorId
             - status
+            - isOverdue
             - createdAt
           properties:
             id:
               type: string
               format: uuid
+            tenantId:
+              type: string
+              format: uuid
+            subcontractorId:
+              type: string
+              format: uuid
             status:
               type: string
               enum:
-                - draft
-                - sent
-                - submitted
-                - approved
-                - overdue
-                - cancelled
+                - Draft
+                - Sent
+                - Submitted
+                - Satisfied
+                - Overdue
+                - Cancelled
+            completedAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+            isOverdue:
+              type: boolean
             createdAt:
               type: string
+              format: date-time
+            updatedAt:
+              type:
+                - string
+                - "null"
               format: date-time
 
     Report:

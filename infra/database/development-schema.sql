@@ -713,6 +713,32 @@ CREATE TABLE gccs.subcontractor_evidence (
     CONSTRAINT "FK_subcontractor_evidence_subcontractors_subcontractor_id" FOREIGN KEY (subcontractor_id) REFERENCES gccs.subcontractors (id) ON DELETE CASCADE
 );
 
+CREATE TABLE gccs.subcontractor_evidence_requests (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    subcontractor_id uuid NOT NULL,
+    requested_item character varying(300) NOT NULL,
+    requested_evidence_types_json jsonb NOT NULL,
+    due_date date NOT NULL,
+    status character varying(64) NOT NULL,
+    recipient_name character varying(160),
+    recipient_email character varying(320),
+    obligation_id character varying(160),
+    related_flow_down_clause_id uuid,
+    received_evidence_item_id uuid,
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_subcontractor_evidence_requests" PRIMARY KEY (id),
+    CONSTRAINT "FK_subcontractor_evidence_requests_evidence_items_received_evi~" FOREIGN KEY (received_evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_subcontractor_evidence_requests_flow_down_clauses_related_f~" FOREIGN KEY (related_flow_down_clause_id) REFERENCES gccs.flow_down_clauses (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_subcontractor_evidence_requests_obligations_obligation_id" FOREIGN KEY (obligation_id) REFERENCES gccs.obligations (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_subcontractor_evidence_requests_subcontractors_subcontracto~" FOREIGN KEY (subcontractor_id) REFERENCES gccs.subcontractors (id) ON DELETE CASCADE,
+    CONSTRAINT "FK_subcontractor_evidence_requests_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
 CREATE TABLE gccs.system_boundary_assets (
     system_boundary_id uuid NOT NULL,
     asset_id uuid NOT NULL,
@@ -903,6 +929,18 @@ CREATE INDEX "IX_solicitations_created_at_updated_at" ON gccs.solicitations (cre
 CREATE UNIQUE INDEX "IX_solicitations_tenant_id_solicitation_number" ON gccs.solicitations (tenant_id, solicitation_number);
 
 CREATE INDEX "IX_subcontractor_evidence_evidence_item_id" ON gccs.subcontractor_evidence (evidence_item_id);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_created_at_updated_at" ON gccs.subcontractor_evidence_requests (created_at, updated_at);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_obligation_id" ON gccs.subcontractor_evidence_requests (obligation_id);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_received_evidence_item_id" ON gccs.subcontractor_evidence_requests (received_evidence_item_id);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_related_flow_down_clause_id" ON gccs.subcontractor_evidence_requests (related_flow_down_clause_id);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_subcontractor_id_due_date" ON gccs.subcontractor_evidence_requests (subcontractor_id, due_date);
+
+CREATE INDEX "IX_subcontractor_evidence_requests_tenant_id_status_due_date" ON gccs.subcontractor_evidence_requests (tenant_id, status, due_date);
 
 CREATE INDEX "IX_subcontractors_created_at_updated_at" ON gccs.subcontractors (created_at, updated_at);
 

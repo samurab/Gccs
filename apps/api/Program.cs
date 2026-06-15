@@ -845,6 +845,94 @@ api.MapPut("/subcontractors/{subcontractorId:guid}/flow-downs/{flowDownId:guid}"
 .RequirePermission(Permission.ManageSubcontractors)
 .WithName("UpdateSubcontractorFlowDown");
 
+api.MapGet("/subcontractors/{subcontractorId:guid}/evidence-requests", async (
+    Guid subcontractorId,
+    SubcontractorService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var requests = await service.ListEvidenceRequestsAsync(subcontractorId, cancellationToken);
+    return requests is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Subcontractor '{subcontractorId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(requests);
+})
+.RequirePermission(Permission.ViewSubcontractors)
+.WithName("ListSubcontractorEvidenceRequests");
+
+api.MapPost("/subcontractors/{subcontractorId:guid}/evidence-requests", async (
+    Guid subcontractorId,
+    UpsertSubcontractorEvidenceRequestRequest request,
+    SubcontractorService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateEvidenceRequestAsync(subcontractorId, request, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Subcontractor '{subcontractorId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/subcontractors/{subcontractorId}/evidence-requests/{created.Id}", created);
+    }
+    catch (SubcontractorValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["evidenceRequest"] = [exception.Message]
+        },
+        title: "Evidence request invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageSubcontractors)
+.WithName("CreateSubcontractorEvidenceRequest");
+
+api.MapPut("/subcontractors/{subcontractorId:guid}/evidence-requests/{evidenceRequestId:guid}", async (
+    Guid subcontractorId,
+    Guid evidenceRequestId,
+    UpsertSubcontractorEvidenceRequestRequest request,
+    SubcontractorService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateEvidenceRequestAsync(subcontractorId, evidenceRequestId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Evidence request '{evidenceRequestId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (SubcontractorValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["evidenceRequest"] = [exception.Message]
+        },
+        title: "Evidence request invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageSubcontractors)
+.WithName("UpdateSubcontractorEvidenceRequest");
+
 api.MapGet("/tasks", async (
     ComplianceTaskService service,
     CancellationToken cancellationToken) =>

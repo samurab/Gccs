@@ -399,6 +399,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-14.2.4:** Verify flow-down assignment and status changes are audit logged.
 #-----------------------------------
 ### Story 14.3: Subcontractor Evidence Requests
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-14.3.1:** Create a subcontractor evidence request with requested item, due date, status, recipient, and linked obligation.

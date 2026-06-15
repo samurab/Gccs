@@ -20,6 +20,11 @@ public sealed class SubcontractorService(
         CancellationToken cancellationToken = default) =>
         repository.ListFlowDownsAsync(subcontractorId, contractId, cancellationToken);
 
+    public Task<IReadOnlyList<SubcontractorEvidenceRequestDto>?> ListEvidenceRequestsAsync(
+        Guid subcontractorId,
+        CancellationToken cancellationToken = default) =>
+        repository.ListEvidenceRequestsAsync(subcontractorId, cancellationToken);
+
     public async Task<SubcontractorDto> CreateAsync(
         UpsertSubcontractorRequest request,
         Guid actorUserId,
@@ -45,6 +50,55 @@ public sealed class SubcontractorService(
         if (updated is not null)
         {
             await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, "Subcontractor profile was updated.", before?.Status.ToString(), cancellationToken);
+        }
+
+        return updated;
+    }
+
+    public async Task<SubcontractorEvidenceRequestDto?> CreateEvidenceRequestAsync(
+        Guid subcontractorId,
+        UpsertSubcontractorEvidenceRequestRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = Normalize(request);
+        Validate(normalized);
+        var created = await repository.CreateEvidenceRequestAsync(subcontractorId, normalized, actorUserId, cancellationToken);
+        if (created is not null)
+        {
+            await WriteEvidenceRequestAuditAsync(
+                created,
+                actorUserId,
+                AuditAction.Created,
+                "Subcontractor evidence request was created.",
+                null,
+                cancellationToken);
+        }
+
+        return created;
+    }
+
+    public async Task<SubcontractorEvidenceRequestDto?> UpdateEvidenceRequestAsync(
+        Guid subcontractorId,
+        Guid evidenceRequestId,
+        UpsertSubcontractorEvidenceRequestRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var before = await repository.ListEvidenceRequestsAsync(subcontractorId, cancellationToken);
+        var previous = before?.SingleOrDefault(candidate => candidate.Id == evidenceRequestId);
+        var normalized = Normalize(request);
+        Validate(normalized);
+        var updated = await repository.UpdateEvidenceRequestAsync(subcontractorId, evidenceRequestId, normalized, actorUserId, cancellationToken);
+        if (updated is not null)
+        {
+            await WriteEvidenceRequestAuditAsync(
+                updated,
+                actorUserId,
+                AuditAction.Updated,
+                "Subcontractor evidence request was updated.",
+                previous?.Status.ToString(),
+                cancellationToken);
         }
 
         return updated;
@@ -184,6 +238,53 @@ public sealed class SubcontractorService(
             cancellationToken);
     }
 
+    private async Task WriteEvidenceRequestAuditAsync(
+        SubcontractorEvidenceRequestDto evidenceRequest,
+        Guid actorUserId,
+        AuditAction action,
+        string summary,
+        string? previousStatus,
+        CancellationToken cancellationToken)
+    {
+        var metadata = new Dictionary<string, string>
+        {
+            ["subcontractorId"] = evidenceRequest.SubcontractorId.ToString(),
+            ["status"] = evidenceRequest.Status.ToString(),
+            ["dueDate"] = evidenceRequest.DueDate.ToString("O"),
+            ["isOverdue"] = evidenceRequest.IsOverdue.ToString()
+        };
+
+        if (evidenceRequest.ObligationId is not null)
+        {
+            metadata["obligationId"] = evidenceRequest.ObligationId;
+        }
+
+        if (evidenceRequest.RelatedFlowDownClauseId is not null)
+        {
+            metadata["relatedFlowDownClauseId"] = evidenceRequest.RelatedFlowDownClauseId.Value.ToString();
+        }
+
+        if (evidenceRequest.ReceivedEvidenceItemId is not null)
+        {
+            metadata["receivedEvidenceItemId"] = evidenceRequest.ReceivedEvidenceItemId.Value.ToString();
+        }
+
+        if (previousStatus is not null)
+        {
+            metadata["previousStatus"] = previousStatus;
+        }
+
+        await auditEventWriter.WriteAsync(
+            evidenceRequest.TenantId,
+            actorUserId,
+            action,
+            "SubcontractorEvidenceRequest",
+            evidenceRequest.Id.ToString(),
+            summary,
+            metadata,
+            cancellationToken);
+    }
+
     private static UpsertSubcontractorRequest Normalize(UpsertSubcontractorRequest request) =>
         request with
         {
@@ -209,6 +310,16 @@ public sealed class SubcontractorService(
             ObligationId = TrimOptional(request.ObligationId),
             ClauseNumber = request.ClauseNumber.Trim(),
             Title = request.Title.Trim()
+        };
+
+    private static UpsertSubcontractorEvidenceRequestRequest Normalize(UpsertSubcontractorEvidenceRequestRequest request) =>
+        request with
+        {
+            RequestedItem = request.RequestedItem.Trim(),
+            RequestedEvidenceTypes = request.RequestedEvidenceTypes.Distinct().OrderBy(type => type.ToString()).ToArray(),
+            RecipientName = TrimOptional(request.RecipientName),
+            RecipientEmail = TrimOptional(request.RecipientEmail),
+            ObligationId = TrimOptional(request.ObligationId)
         };
 
     private static void Validate(UpsertSubcontractorRequest request)
@@ -239,6 +350,29 @@ public sealed class SubcontractorService(
         if (request.Status is FlowDownStatus.NotRequired or FlowDownStatus.Expired)
         {
             throw new SubcontractorValidationException("Flow-down status must be required, sent, acknowledged, signed, waived, or not applicable.");
+        }
+    }
+
+    private static void Validate(UpsertSubcontractorEvidenceRequestRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RequestedItem))
+        {
+            throw new SubcontractorValidationException("Requested evidence item is required.");
+        }
+
+        if (request.RequestedEvidenceTypes.Count == 0)
+        {
+            throw new SubcontractorValidationException("At least one requested evidence type is required.");
+        }
+
+        if (request.Status is SubcontractorEvidenceRequestStatus.Overdue)
+        {
+            throw new SubcontractorValidationException("Overdue is derived from due date and open status.");
+        }
+
+        if (request.Status is SubcontractorEvidenceRequestStatus.Satisfied && request.ReceivedEvidenceItemId is null)
+        {
+            throw new SubcontractorValidationException("Received evidence is required to satisfy an evidence request.");
         }
     }
 
