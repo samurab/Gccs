@@ -1,7 +1,9 @@
 import {
   Archive,
+  AlertTriangle,
   Building2,
   CalendarClock,
+  CheckCircle2,
   ClipboardCheck,
   FileSearch,
   FolderKanban,
@@ -12,21 +14,27 @@ import {
   Send,
   Settings,
   ShieldCheck,
+  UploadCloud,
   UserPlus,
   UsersRound
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { ModuleCard } from "@/components/ModuleCard";
 import {
+  acknowledgeNoCuiNotice,
   createTenantInvitation,
+  createEvidenceUploadIntent,
   fallbackAccess,
+  fallbackNoCuiAcknowledgementStatus,
   fallbackOverview,
   getComplianceOverview,
   getCurrentUserAccess,
+  getNoCuiAcknowledgementStatus,
   getTenantInvitations,
   getTenantMembers,
   type ComplianceOverview,
   type CurrentUserAccess,
+  type NoCuiAcknowledgementStatus,
   type TenantInvitation,
   type TenantMember
 } from "@/lib/api";
@@ -128,7 +136,7 @@ const navigationItems: NavigationItem[] = [
 const moduleIcons = [Building2, FileSearch, ClipboardCheck, CalendarClock, Archive, ShieldCheck, GitBranch, FolderKanban];
 
 const placeholderContent: Record<
-  Exclude<WorkspaceRoute, "dashboard" | "settings">,
+  Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence">,
   { eyebrow: string; title: string; description: string; emptyTitle: string; emptyBody: string }
 > = {
   profile: {
@@ -158,13 +166,6 @@ const placeholderContent: Record<
     description: "Track SAM renewals, certifications, CMMC affirmations, evidence reviews, reports, and contract deliverables.",
     emptyTitle: "No calendar items yet",
     emptyBody: "Tasks and reminders will be created from obligations, controls, evidence expiration, and contract deadlines."
-  },
-  evidence: {
-    eyebrow: "Evidence vault",
-    title: "No-CUI evidence management",
-    description: "Organize evidence by obligation, contract, control, vendor, employee, expiration, approval status, and audit history.",
-    emptyTitle: "No evidence has been uploaded yet",
-    emptyBody: "The MVP is compliance management only; upload flows must block CUI until a CUI-ready enclave is approved."
   },
   cmmc: {
     eyebrow: "CMMC readiness",
@@ -211,17 +212,24 @@ export function App() {
   const [access, setAccess] = useState<CurrentUserAccess>(fallbackAccess);
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
+  const [noCuiAcknowledgement, setNoCuiAcknowledgement] = useState<NoCuiAcknowledgementStatus>(
+    fallbackNoCuiAcknowledgementStatus
+  );
   const [activeRoute, setActiveRoute] = useState<WorkspaceRoute>(getInitialRoute);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Contributor");
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "created" | "failed">("idle");
+  const [selectedEvidenceFileName, setSelectedEvidenceFileName] = useState("");
+  const [acknowledgementStatus, setAcknowledgementStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "creating" | "created" | "blocked">("idle");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
     [access]
   );
   const canManageUsers = access.permissions.includes("ManageUsers");
+  const canManageEvidence = access.permissions.includes("ManageEvidence");
 
   useEffect(() => {
     function handleHashChange() {
@@ -251,15 +259,20 @@ export function App() {
     Promise.all([getComplianceOverview(), getCurrentUserAccess()])
       .then(async ([nextOverview, nextAccess]) => {
         const canLoadUserManagement = nextAccess.permissions.includes("ManageUsers");
+        const canLoadNoCuiStatus = hasAnyPermission(nextAccess, ["ViewEvidence", "ManageEvidence"]);
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
+        const nextNoCuiAcknowledgement = canLoadNoCuiStatus
+          ? await getNoCuiAcknowledgementStatus()
+          : fallbackNoCuiAcknowledgementStatus;
 
         if (isMounted) {
           setOverview(nextOverview);
           setAccess(nextAccess);
           setMembers(nextMembers);
           setInvitations(nextInvitations);
+          setNoCuiAcknowledgement(nextNoCuiAcknowledgement);
           setLoadState("ready");
         }
       })
@@ -269,6 +282,7 @@ export function App() {
           setAccess(fallbackAccess);
           setMembers([]);
           setInvitations([]);
+          setNoCuiAcknowledgement(fallbackNoCuiAcknowledgementStatus);
           setLoadState("error");
         }
       });
@@ -297,6 +311,32 @@ export function App() {
     }
 
     setInviteStatus("failed");
+  }
+
+  async function handleNoCuiAcknowledgement() {
+    setAcknowledgementStatus("saving");
+    const acknowledgement = await acknowledgeNoCuiNotice(noCuiAcknowledgement.noticeVersion);
+
+    if (acknowledgement) {
+      setNoCuiAcknowledgement(acknowledgement);
+      setAcknowledgementStatus("saved");
+      return;
+    }
+
+    setAcknowledgementStatus("failed");
+  }
+
+  async function handleEvidenceUploadIntentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setUploadStatus("creating");
+    const uploadIntent = await createEvidenceUploadIntent(selectedEvidenceFileName);
+
+    if (uploadIntent) {
+      setUploadStatus("created");
+      return;
+    }
+
+    setUploadStatus("blocked");
   }
 
   function handleRouteClick(route: WorkspaceRoute) {
@@ -357,6 +397,17 @@ export function App() {
         <WorkspaceState state={loadState}>
           {activeRoute === "dashboard" ? (
             <DashboardView overview={overview} />
+          ) : activeRoute === "evidence" ? (
+            <EvidenceView
+              acknowledgement={noCuiAcknowledgement}
+              acknowledgementStatus={acknowledgementStatus}
+              canManageEvidence={canManageEvidence}
+              selectedFileName={selectedEvidenceFileName}
+              uploadStatus={uploadStatus}
+              onAcknowledge={handleNoCuiAcknowledgement}
+              onFileNameChange={setSelectedEvidenceFileName}
+              onUploadIntentSubmit={handleEvidenceUploadIntentSubmit}
+            />
           ) : activeRoute === "settings" ? (
             <SettingsView
               canManageUsers={canManageUsers}
@@ -498,7 +549,7 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
   );
 }
 
-function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings"> }) {
+function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence"> }) {
   const content = placeholderContent[route];
 
   return (
@@ -509,6 +560,110 @@ function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard
         <p>{content.description}</p>
       </div>
       <EmptyState title={content.emptyTitle} body={content.emptyBody} />
+    </section>
+  );
+}
+
+function EvidenceView({
+  acknowledgement,
+  acknowledgementStatus,
+  canManageEvidence,
+  onAcknowledge,
+  onFileNameChange,
+  onUploadIntentSubmit,
+  selectedFileName,
+  uploadStatus
+}: {
+  acknowledgement: NoCuiAcknowledgementStatus;
+  acknowledgementStatus: "idle" | "saving" | "saved" | "failed";
+  canManageEvidence: boolean;
+  onAcknowledge: () => void;
+  onFileNameChange: (fileName: string) => void;
+  onUploadIntentSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  selectedFileName: string;
+  uploadStatus: "idle" | "creating" | "created" | "blocked";
+}) {
+  const uploadDisabled = !canManageEvidence || !acknowledgement.isAcknowledged;
+
+  return (
+    <section className="route-panel" aria-label="Evidence upload workflow">
+      <div className="route-panel__intro">
+        <p className="eyebrow">Evidence vault</p>
+        <h2>No-CUI evidence management</h2>
+        <p>Organize evidence by obligation, contract, control, vendor, employee, expiration, approval status, and audit history.</p>
+      </div>
+
+      <div className={`notice-panel${acknowledgement.isAcknowledged ? " notice-panel--acknowledged" : ""}`}>
+        <span className="notice-panel__icon" aria-hidden="true">
+          {acknowledgement.isAcknowledged ? <CheckCircle2 size={22} /> : <AlertTriangle size={22} />}
+        </span>
+        <div>
+          <p className="eyebrow">Required before upload</p>
+          <h3>No-CUI acknowledgement</h3>
+          <p>{acknowledgement.noticeCopy}</p>
+          <dl className="notice-meta">
+            <div>
+              <dt>Notice version</dt>
+              <dd>{acknowledgement.noticeVersion}</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>{acknowledgement.isAcknowledged ? "Acknowledged" : "Not acknowledged"}</dd>
+            </div>
+            {acknowledgement.acknowledgedAt ? (
+              <div>
+                <dt>Acknowledged</dt>
+                <dd>{new Date(acknowledgement.acknowledgedAt).toLocaleString()}</dd>
+              </div>
+            ) : null}
+          </dl>
+          {!acknowledgement.isAcknowledged ? (
+            <button
+              className="notice-action"
+              type="button"
+              disabled={!canManageEvidence || acknowledgementStatus === "saving"}
+              onClick={onAcknowledge}
+            >
+              <CheckCircle2 size={16} aria-hidden="true" />
+              <span>{acknowledgementStatus === "saving" ? "Saving" : "I acknowledge the No-CUI upload limitation"}</span>
+            </button>
+          ) : null}
+          {!canManageEvidence ? <p className="form-status">ManageEvidence permission is required to acknowledge or upload.</p> : null}
+          {acknowledgementStatus === "saved" ? <p className="form-status form-status--ok">Acknowledgement saved.</p> : null}
+          {acknowledgementStatus === "failed" ? (
+            <p className="form-status form-status--error">Acknowledgement was not saved.</p>
+          ) : null}
+        </div>
+      </div>
+
+      <form className="upload-panel" onSubmit={onUploadIntentSubmit}>
+        <label>
+          <span>Evidence file</span>
+          <input
+            type="file"
+            disabled={uploadDisabled}
+            onChange={(event) => onFileNameChange(event.target.files?.[0]?.name ?? "")}
+          />
+        </label>
+        <button type="submit" disabled={uploadDisabled || !selectedFileName || uploadStatus === "creating"}>
+          <UploadCloud size={16} aria-hidden="true" />
+          <span>{uploadStatus === "creating" ? "Creating upload intent" : "Upload evidence"}</span>
+        </button>
+        {!acknowledgement.isAcknowledged ? (
+          <p className="form-status form-status--error">Upload is disabled until the No-CUI notice is acknowledged.</p>
+        ) : null}
+        {uploadStatus === "created" ? (
+          <p className="form-status form-status--ok">Upload intent created for {selectedFileName}.</p>
+        ) : null}
+        {uploadStatus === "blocked" ? (
+          <p className="form-status form-status--error">The API blocked the upload intent. Confirm acknowledgement and permissions.</p>
+        ) : null}
+      </form>
+
+      <EmptyState
+        title="No evidence has been uploaded yet"
+        body="The upload guardrails story will add file validation, scan status, and storage handling."
+      />
     </section>
   );
 }

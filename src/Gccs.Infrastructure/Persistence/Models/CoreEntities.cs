@@ -77,6 +77,16 @@ public sealed class TenantInvitationEntity : AuditedEntity
     public TenantEntity? Tenant { get; set; }
 }
 
+public sealed class NoCuiAcknowledgementEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid UserId { get; set; }
+    public string NoticeVersion { get; set; } = string.Empty;
+    public string NoticeCopy { get; set; } = string.Empty;
+    public DateTimeOffset AcknowledgedAt { get; set; }
+}
+
 public sealed class RoleEntity : AuditedEntity
 {
     public Guid Id { get; set; }

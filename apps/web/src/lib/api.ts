@@ -71,6 +71,26 @@ export type CreateTenantInvitationRequest = {
   expiresInDays: number;
 };
 
+export type NoCuiAcknowledgementStatus = {
+  isAcknowledged: boolean;
+  noticeVersion: string;
+  noticeCopy: string;
+  tenantId: string | null;
+  acknowledgedByUserId: string | null;
+  acknowledgedAt: string | null;
+};
+
+export type EvidenceUploadIntent = {
+  id: string;
+  evidenceItemId: string;
+  tenantId: string;
+  createdByUserId: string;
+  status: string;
+  message: string;
+  noticeVersion: string;
+  expiresAt: string;
+};
+
 export const fallbackOverview: ComplianceOverview = {
   productPromise:
     "Connect to the GCCS API to load source-backed modules, obligations, review metadata, and tenant-scoped compliance workflow state.",
@@ -86,6 +106,16 @@ export const fallbackAccess: CurrentUserAccess = {
   roles: [],
   permissions: [],
   rolePermissionMatrix: {}
+};
+
+export const fallbackNoCuiAcknowledgementStatus: NoCuiAcknowledgementStatus = {
+  isAcknowledged: false,
+  noticeVersion: "no-cui-mvp-v1",
+  noticeCopy:
+    "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+  tenantId: null,
+  acknowledgedByUserId: null,
+  acknowledgedAt: null
 };
 
 export async function getComplianceOverview(): Promise<ComplianceOverview> {
@@ -104,17 +134,39 @@ export async function getTenantInvitations(): Promise<TenantInvitation[]> {
   return getJson<TenantInvitation[]>("/api/tenant-invitations", []);
 }
 
+export async function getNoCuiAcknowledgementStatus(): Promise<NoCuiAcknowledgementStatus> {
+  return getJson<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement", fallbackNoCuiAcknowledgementStatus);
+}
+
+export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<NoCuiAcknowledgementStatus | null> {
+  const response = await postJson<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement", {
+    acknowledged: true,
+    noticeVersion
+  });
+
+  return response;
+}
+
+export async function createEvidenceUploadIntent(fileName: string): Promise<EvidenceUploadIntent | null> {
+  const placeholderEvidenceItemId = "00000000-0000-0000-0000-000000000041";
+  return postJson<EvidenceUploadIntent>(`/api/evidence-items/${placeholderEvidenceItemId}/upload-intents`, { fileName });
+}
+
 export async function createTenantInvitation(request: CreateTenantInvitationRequest): Promise<TenantInvitation | null> {
+  return postJson<TenantInvitation>("/api/tenant-invitations", request);
+}
+
+async function postJson<T>(path: string, body: unknown): Promise<T | null> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
-    const response = await fetch(`${apiBaseUrl}/api/tenant-invitations`, {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
       method: "POST",
       headers: {
         ...(getDevelopmentHeaders() ?? {}),
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(request)
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {

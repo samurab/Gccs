@@ -103,6 +103,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 ## 4. No-CUI Controls
 
 ###  Please perform automated test on Story 4.1: No-CUI Acknowledgement. Please provide the results of the tests.
+### Done ##
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-4.1.1:** With no acknowledgement on record, open an upload workflow and verify the No-CUI notice is displayed before upload.

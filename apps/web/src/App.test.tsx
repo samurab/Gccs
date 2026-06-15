@@ -3,9 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  acknowledgeNoCuiNoticeMock,
   allWorkflowAccess,
+  createEvidenceUploadIntentMock,
   createTenantInvitationMock,
   fallbackOverview,
+  getNoCuiAcknowledgementStatusMock,
   getComplianceOverviewMock,
   getCurrentUserAccessMock,
   getTenantInvitationsMock,
@@ -15,9 +18,12 @@ const {
   overview,
   restrictedAccess
 } = vi.hoisted(() => ({
+  acknowledgeNoCuiNoticeMock: vi.fn(),
+  createEvidenceUploadIntentMock: vi.fn(),
   createTenantInvitationMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
+  getNoCuiAcknowledgementStatusMock: vi.fn(),
   getTenantInvitationsMock: vi.fn(),
   getTenantMembersMock: vi.fn(),
   allWorkflowAccess: {
@@ -32,6 +38,7 @@ const {
       "ViewObligations",
       "ViewTasks",
       "ViewEvidence",
+      "ManageEvidence",
       "ViewCmmc",
       "ViewSubcontractors",
       "ViewReports"
@@ -122,6 +129,8 @@ const {
 
 vi.mock("@/lib/api", () => ({
   createTenantInvitation: createTenantInvitationMock,
+  acknowledgeNoCuiNotice: acknowledgeNoCuiNoticeMock,
+  createEvidenceUploadIntent: createEvidenceUploadIntentMock,
   fallbackAccess: {
     tenantId: null,
     userId: null,
@@ -130,9 +139,19 @@ vi.mock("@/lib/api", () => ({
     permissions: [],
     rolePermissionMatrix: {}
   },
+  fallbackNoCuiAcknowledgementStatus: {
+    isAcknowledged: false,
+    noticeVersion: "no-cui-mvp-v1",
+    noticeCopy:
+      "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+    tenantId: null,
+    acknowledgedByUserId: null,
+    acknowledgedAt: null
+  },
   fallbackOverview,
   getComplianceOverview: getComplianceOverviewMock,
   getCurrentUserAccess: getCurrentUserAccessMock,
+  getNoCuiAcknowledgementStatus: getNoCuiAcknowledgementStatusMock,
   getTenantInvitations: getTenantInvitationsMock,
   getTenantMembers: getTenantMembersMock
 }));
@@ -142,11 +161,23 @@ import { App } from "@/App";
 describe("App", () => {
   beforeEach(() => {
     window.location.hash = "";
+    acknowledgeNoCuiNoticeMock.mockReset();
+    createEvidenceUploadIntentMock.mockReset();
     createTenantInvitationMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
+    getNoCuiAcknowledgementStatusMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
+    getNoCuiAcknowledgementStatusMock.mockResolvedValue({
+      isAcknowledged: false,
+      noticeVersion: "no-cui-mvp-v1",
+      noticeCopy:
+        "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      acknowledgedByUserId: null,
+      acknowledgedAt: null
+    });
   });
 
   afterEach(() => {
@@ -185,7 +216,7 @@ describe("App", () => {
       ["Contracts", "No contracts have been added yet"],
       ["Obligations", "No tenant-specific obligation matrix yet"],
       ["Calendar", "No calendar items yet"],
-      ["Evidence", "No evidence has been uploaded yet"],
+      ["Evidence", "No-CUI acknowledgement"],
       ["CMMC", "No CMMC assessment has started yet"],
       ["Subcontractors", "No subcontractors have been added yet"],
       ["Reports", "No reports have been generated yet"],
@@ -219,6 +250,7 @@ describe("App", () => {
     expect(within(navigation).queryByRole("link", { name: /settings/i })).not.toBeInTheDocument();
     expect(getTenantMembersMock).not.toHaveBeenCalled();
     expect(getTenantInvitationsMock).not.toHaveBeenCalled();
+    expect(getNoCuiAcknowledgementStatusMock).not.toHaveBeenCalled();
   });
 
   it("TC-3.2.4 shows loading, empty, and error states", async () => {
@@ -278,5 +310,67 @@ describe("App", () => {
     });
     expect(await screen.findByText("Invitation created.")).toBeInTheDocument();
     expect(screen.getByText("new.invite@example.com")).toBeInTheDocument();
+  });
+
+  it("TC-4.1.1 and TC-4.1.2 shows the No-CUI notice before upload and disables upload controls", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /evidence/i }));
+
+    expect(screen.getByText("No-CUI acknowledgement")).toBeInTheDocument();
+    expect(screen.getByText(/compliance management only and is not ready to store CUI/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Evidence file")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /upload evidence/i })).toBeDisabled();
+    expect(screen.getByText(/upload is disabled until the No-CUI notice is acknowledged/i)).toBeInTheDocument();
+  });
+
+  it("TC-4.1.3 and TC-4.1.4 saves acknowledgement before enabling upload intent creation", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    acknowledgeNoCuiNoticeMock.mockResolvedValueOnce({
+      isAcknowledged: true,
+      noticeVersion: "no-cui-mvp-v1",
+      noticeCopy:
+        "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      acknowledgedAt: "2026-06-14T12:00:00Z"
+    });
+    createEvidenceUploadIntentMock.mockResolvedValueOnce({
+      id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee1",
+      evidenceItemId: "00000000-0000-0000-0000-000000000041",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      createdByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      status: "upload-pending",
+      message: "No-CUI acknowledgement is on record.",
+      noticeVersion: "no-cui-mvp-v1",
+      expiresAt: "2026-06-14T12:15:00Z"
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /evidence/i }));
+    await user.click(screen.getByRole("button", { name: /i acknowledge the no-cui upload limitation/i }));
+
+    expect(acknowledgeNoCuiNoticeMock).toHaveBeenCalledWith("no-cui-mvp-v1");
+    expect(await screen.findByText("Acknowledgement saved.")).toBeInTheDocument();
+    expect(screen.getAllByText("Acknowledged").length).toBeGreaterThan(0);
+    const fileInput = screen.getByLabelText("Evidence file");
+    expect(fileInput).toBeEnabled();
+
+    await user.upload(fileInput, new File(["policy"], "policy.pdf", { type: "application/pdf" }));
+    await user.click(screen.getByRole("button", { name: /upload evidence/i }));
+
+    expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith("policy.pdf");
+    expect(await screen.findByText("Upload intent created for policy.pdf.")).toBeInTheDocument();
   });
 });

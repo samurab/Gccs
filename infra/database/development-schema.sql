@@ -1010,3 +1010,29 @@ VALUES ('20260613221118_AddTenantInvitations', '10.0.4');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE gccs.audit_log_entries DROP CONSTRAINT "FK_audit_log_entries_tenants_tenant_id";
+
+CREATE TABLE gccs.no_cui_acknowledgements (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    notice_version character varying(80) NOT NULL,
+    notice_copy character varying(1000) NOT NULL,
+    acknowledged_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_no_cui_acknowledgements" PRIMARY KEY (id)
+);
+
+CREATE INDEX "IX_no_cui_acknowledgements_created_at_updated_at" ON gccs.no_cui_acknowledgements (created_at, updated_at);
+
+CREATE UNIQUE INDEX "IX_no_cui_acknowledgements_tenant_id_user_id_notice_version" ON gccs.no_cui_acknowledgements (tenant_id, user_id, notice_version);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615003848_AddNoCuiAcknowledgements', '10.0.4');
+
+COMMIT;
+

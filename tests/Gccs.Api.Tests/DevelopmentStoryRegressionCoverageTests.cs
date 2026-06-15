@@ -275,7 +275,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             [
                 "Compliance_relevant_audit_events_include_request_correlation_id",
                 "Failed_api_responses_and_logs_include_request_correlation_id"
-            ]
+            ],
+            ["TC-4.1.1"] = ["TC_4_1_1_No_cui_notice_is_returned_before_first_upload"],
+            ["TC-4.1.2"] = ["TC_4_1_2_Upload_intent_is_blocked_until_acknowledgement_and_permission_are_present"],
+            ["TC-4.1.3"] = ["TC_4_1_3_Acknowledgement_persists_user_tenant_timestamp_and_notice_version"],
+            ["TC-4.1.4"] = ["TC_4_1_4_Acknowledgement_is_audit_logged_and_copy_states_no_cui_posture"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

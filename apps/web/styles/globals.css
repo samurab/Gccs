@@ -673,6 +673,129 @@ dt {
   line-height: 1.6;
 }
 
+.notice-panel,
+.upload-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  max-width: 860px;
+}
+
+.notice-panel {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  padding: 18px;
+}
+
+.notice-panel--acknowledged {
+  border-color: rgb(12 118 111 / 0.4);
+}
+
+.notice-panel__icon {
+  align-items: center;
+  background: var(--amber-soft);
+  border-radius: 7px;
+  color: var(--amber);
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.notice-panel--acknowledged .notice-panel__icon {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
+.notice-panel h3,
+.notice-panel p {
+  margin-bottom: 10px;
+}
+
+.notice-panel p {
+  color: var(--muted);
+  line-height: 1.58;
+}
+
+.notice-meta {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 12px 0;
+}
+
+.notice-meta div {
+  border-left: 3px solid var(--teal-soft);
+  padding-left: 10px;
+}
+
+.notice-action {
+  align-items: center;
+  background: var(--teal);
+  border: 0;
+  border-radius: 7px;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.notice-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.upload-panel {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 16px;
+}
+
+.upload-panel label {
+  display: grid;
+  gap: 7px;
+}
+
+.upload-panel label span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.upload-panel input {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  min-height: 40px;
+  padding: 8px;
+}
+
+.upload-panel button {
+  align-items: center;
+  background: var(--ink);
+  border: 0;
+  border-radius: 7px;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.upload-panel button:disabled,
+.upload-panel input:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .route-state {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -771,6 +894,11 @@ dt {
   .tenant-context span,
   .tenant-context strong {
     text-align: left;
+  }
+
+  .notice-meta,
+  .upload-panel {
+    grid-template-columns: 1fr;
   }
 
   .workspace-nav {

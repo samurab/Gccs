@@ -24,6 +24,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
+    public DbSet<NoCuiAcknowledgementEntity> NoCuiAcknowledgements => Set<NoCuiAcknowledgementEntity>();
     public DbSet<RoleEntity> Roles => Set<RoleEntity>();
     public DbSet<CompanyProfileEntity> CompanyProfiles => Set<CompanyProfileEntity>();
     public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
@@ -160,6 +161,16 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.InvitationToken).HasMaxLength(128).IsRequired();
             entity.Property(x => x.NotificationPlaceholder).HasMaxLength(600).IsRequired();
             entity.HasOne(x => x.Tenant).WithMany(x => x.Invitations).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<NoCuiAcknowledgementEntity>(entity =>
+        {
+            entity.ToTable("no_cui_acknowledgements");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.UserId, x.NoticeVersion }).IsUnique();
+            entity.Property(x => x.NoticeVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.NoticeCopy).HasMaxLength(1000).IsRequired();
             ConfigureAuditColumns(entity);
         });
 
@@ -641,6 +652,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         var tenantScopedTypes = modelBuilder.Model.GetEntityTypes()
             .Where(entityType =>
                 entityType.ClrType != typeof(TenantEntity) &&
+                entityType.ClrType != typeof(AuditLogEntryEntity) &&
+                entityType.ClrType != typeof(NoCuiAcknowledgementEntity) &&
                 entityType.FindProperty(nameof(UserEntity.TenantId)) is not null &&
                 !entityType.GetForeignKeys().Any(foreignKey =>
                     foreignKey.PrincipalEntityType.ClrType == typeof(TenantEntity)))

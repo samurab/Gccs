@@ -38,7 +38,7 @@ tags:
   - name: Tasks
     description: Compliance calendar, reminders, and work assignment.
   - name: Evidence
-    description: No-CUI evidence vault metadata, upload intents, versions, and reviews.
+    description: No-CUI acknowledgement, evidence vault metadata, upload intents, versions, and reviews.
   - name: CMMC
     description: CMMC and NIST readiness assessments, controls, and POA&M metadata. SPRS scoring is deferred from the MVP.
   - name: Subcontractors
@@ -671,11 +671,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UploadIntent"
+                $ref: "#/components/schemas/EvidenceUploadIntent"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "428":
+          $ref: "#/components/responses/PreconditionRequired"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -1559,6 +1563,54 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/no-cui-acknowledgement:
+    get:
+      tags:
+        - Evidence
+      summary: Get current user's No-CUI acknowledgement status
+      operationId: getNoCuiAcknowledgementStatus
+      description: >
+        Returns the current No-CUI notice version, required notice copy, and
+        whether the authenticated user has acknowledged it in the active tenant.
+      responses:
+        "200":
+          description: Current user's No-CUI acknowledgement status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoCuiAcknowledgementStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags:
+        - Evidence
+      summary: Acknowledge the current No-CUI notice
+      operationId: acknowledgeNoCuiNotice
+      description: >
+        Stores the authenticated user's acknowledgement for the active tenant,
+        records the notice version and timestamp, and writes an audit event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcknowledgeNoCuiRequest"
+      responses:
+        "200":
+          description: Acknowledgement status after save.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoCuiAcknowledgementStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/reports/{reportId}:
     parameters:
       - $ref: "#/components/parameters/ReportId"
@@ -1784,6 +1836,12 @@ components:
             $ref: "#/components/schemas/ProblemDetails"
     NotFound:
       description: Resource was not found in the current tenant scope.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+    PreconditionRequired:
+      description: A required No-CUI acknowledgement or similar tenant precondition is missing.
       content:
         application/problem+json:
           schema:
@@ -3136,19 +3194,46 @@ components:
       type: object
       required:
         - fileName
-        - contentType
-        - sizeBytes
-        - noCuiAttestation
       properties:
         fileName:
           type: string
-        contentType:
+          maxLength: 240
+
+    EvidenceUploadIntent:
+      type: object
+      required:
+        - id
+        - evidenceItemId
+        - tenantId
+        - createdByUserId
+        - status
+        - message
+        - noticeVersion
+        - expiresAt
+      properties:
+        id:
           type: string
-        sizeBytes:
-          type: integer
-          minimum: 1
-        noCuiAttestation:
-          $ref: "#/components/schemas/NoCuiAttestation"
+          format: uuid
+        evidenceItemId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        createdByUserId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: upload-pending
+        message:
+          type: string
+        noticeVersion:
+          type: string
+          example: no-cui-mvp-v1
+        expiresAt:
+          type: string
+          format: date-time
 
     EvidenceVersion:
       type: object
@@ -3277,6 +3362,49 @@ components:
         statement:
           type: string
           default: The uploaded file does not contain CUI, classified information, export-controlled technical data, or other prohibited MVP content.
+
+    AcknowledgeNoCuiRequest:
+      type: object
+      required:
+        - acknowledged
+        - noticeVersion
+      properties:
+        acknowledged:
+          type: boolean
+          const: true
+        noticeVersion:
+          type: string
+          example: no-cui-mvp-v1
+
+    NoCuiAcknowledgementStatus:
+      type: object
+      required:
+        - isAcknowledged
+        - noticeVersion
+        - noticeCopy
+        - tenantId
+      properties:
+        isAcknowledged:
+          type: boolean
+        noticeVersion:
+          type: string
+          example: no-cui-mvp-v1
+        noticeCopy:
+          type: string
+          example: The GCCS MVP is compliance management only and is not ready to store CUI.
+        tenantId:
+          type: string
+          format: uuid
+        acknowledgedByUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        acknowledgedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
 
     CmmcAssessment:
       allOf:

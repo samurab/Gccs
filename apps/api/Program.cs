@@ -4,6 +4,7 @@ using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
 using Gccs.Application.Compliance;
 using Gccs.Application.Identity;
+using Gccs.Application.NoCui;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
 using Gccs.Application.Tenancy;
@@ -156,6 +157,72 @@ api.MapGet("/reports/approved-evidence-packages", async (
     Results.Ok(await repository.ListApprovedEvidencePackagesAsync(cancellationToken)))
 .RequirePermission(Permission.ViewReports)
 .WithName("ListApprovedEvidencePackages");
+
+api.MapGet("/no-cui-acknowledgement", async (
+    NoCuiAcknowledgementService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.GetCurrentStatusAsync(cancellationToken)))
+.RequirePermission(Permission.ViewEvidence)
+.WithName("GetNoCuiAcknowledgementStatus");
+
+api.MapPost("/no-cui-acknowledgement", async (
+    AcknowledgeNoCuiRequest request,
+    NoCuiAcknowledgementService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.AcknowledgeAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["noCuiAcknowledgement"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithName("AcknowledgeNoCuiNotice");
+
+api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
+    Guid evidenceItemId,
+    EvidenceUploadIntentRequest request,
+    NoCuiAcknowledgementService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var uploadIntent = await service.CreateEvidenceUploadIntentAsync(
+            evidenceItemId,
+            request,
+            tenantContext.UserId,
+            cancellationToken);
+
+        return Results.Created($"/api/evidence-items/{evidenceItemId}/upload-intents/{uploadIntent.Id}", uploadIntent);
+    }
+    catch (NoCuiAcknowledgementRequiredException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "No-CUI acknowledgement required",
+            exception.Message,
+            StatusCodes.Status428PreconditionRequired,
+            "no_cui_acknowledgement_required");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["uploadIntent"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithName("CreateEvidenceUploadIntent");
 
 api.MapGet("/tenant-members", async (
     TenantMembershipService service,

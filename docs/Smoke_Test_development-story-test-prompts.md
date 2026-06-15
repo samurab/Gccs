@@ -100,6 +100,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 4. No-CUI Controls
 
 ### Story 4.1: No-CUI Acknowledgement
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-4.1.1:** With no acknowledgement on record, open an upload workflow and verify the No-CUI notice is displayed before upload.

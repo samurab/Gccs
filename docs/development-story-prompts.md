@@ -685,6 +685,7 @@ Instructions:
 ## 4. No-CUI Controls
 
 ### Story 4.1: No-CUI Acknowledgement
+## Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  
