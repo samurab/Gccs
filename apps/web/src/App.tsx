@@ -36,6 +36,7 @@ import {
   fallbackNoCuiAcknowledgementStatus,
   fallbackOverview,
   getCompanyProfile,
+  getCalendarEvents,
   getContractClauses,
   getContractDeliverables,
   getContractDocuments,
@@ -57,6 +58,8 @@ import {
   type AuditLogEntry,
   type ClauseLibraryItem,
   type ClauseSearchParams,
+  type CalendarEvent,
+  type CalendarEventQueryParams,
   type CompanyCertification,
   type CompanyProfile,
   type ComplianceOverview,
@@ -98,6 +101,14 @@ type AuditLogFilters = {
   entityType: string;
   from: string;
   to: string;
+};
+
+type CalendarFilters = {
+  owner: string;
+  status: string;
+  risk: string;
+  contractId: string;
+  module: string;
 };
 
 type NaicsFormRow = {
@@ -248,6 +259,14 @@ const defaultAuditLogFilters: AuditLogFilters = {
   to: ""
 };
 
+const defaultCalendarFilters: CalendarFilters = {
+  owner: "",
+  status: "",
+  risk: "",
+  contractId: "",
+  module: ""
+};
+
 const defaultProfileForm: ProfileFormState = {
   legalEntityName: "",
   doingBusinessAs: "",
@@ -361,6 +380,27 @@ function hasAnyPermission(access: CurrentUserAccess, permissions?: string[]) {
   return permissions.some((permission) => access.permissions.includes(permission));
 }
 
+function defaultCalendarQuery(): CalendarEventQueryParams {
+  const today = new Date();
+  const from = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const to = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 2, 0));
+
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10)
+  };
+}
+
+function emptyStringsToUndefined(filters: CalendarFilters): Omit<CalendarEventQueryParams, "from" | "to"> {
+  return {
+    owner: filters.owner || undefined,
+    status: filters.status || undefined,
+    risk: filters.risk || undefined,
+    contractId: filters.contractId || undefined,
+    module: filters.module || undefined
+  };
+}
+
 export function App() {
   const [overview, setOverview] = useState(fallbackOverview);
   const [access, setAccess] = useState<CurrentUserAccess>(fallbackAccess);
@@ -374,6 +414,10 @@ export function App() {
   const [contractClauses, setContractClauses] = useState<ContractClause[]>([]);
   const [contractDeliverables, setContractDeliverables] = useState<ContractDeliverable[]>([]);
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [calendarFilters, setCalendarFilters] = useState<CalendarFilters>(defaultCalendarFilters);
+  const [calendarStatus, setCalendarStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
+  const [calendarMessage, setCalendarMessage] = useState("");
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [auditLogs, setAuditLogs] = useState<PagedResult<AuditLogEntry>>(fallbackAuditLogs);
   const [auditLogFilters, setAuditLogFilters] = useState<AuditLogFilters>(defaultAuditLogFilters);
@@ -451,6 +495,7 @@ export function App() {
         const canLoadCompanyProfile = hasAnyPermission(nextAccess, ["ViewCompanyProfile", "ManageCompanyProfile"]);
         const canLoadContracts = hasAnyPermission(nextAccess, ["ViewContracts", "ManageContracts"]);
         const canLoadObligations = hasAnyPermission(nextAccess, ["ViewObligations", "ManageObligations"]);
+        const canLoadCalendar = hasAnyPermission(nextAccess, ["ViewTasks", "ManageTasks"]);
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
@@ -461,6 +506,7 @@ export function App() {
         const nextCompanyProfile = canLoadCompanyProfile ? await getCompanyProfile() : null;
         const nextContracts = canLoadContracts ? await getContracts() : [];
         const nextObligationDashboardItems = canLoadObligations ? await getContractObligations() : [];
+        const nextCalendarEvents = canLoadCalendar ? await getCalendarEvents(defaultCalendarQuery()) : [];
         const nextContractClauses = nextContracts[0] ? await getContractClauses(nextContracts[0].id) : [];
         const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
@@ -478,6 +524,8 @@ export function App() {
           setContractClauses(nextContractClauses);
           setContractDeliverables(nextContractDeliverables);
           setContractDocuments(nextContractDocuments);
+          setCalendarEvents(nextCalendarEvents);
+          setCalendarStatus(canLoadCalendar ? "ready" : "idle");
           setSelectedContractId(nextContracts[0]?.id ?? null);
           setAuditLogs(nextAuditLogs);
           setAuditLogStatus(canLoadAuditLogs ? "ready" : "idle");
@@ -499,6 +547,8 @@ export function App() {
           setContractClauses([]);
           setContractDeliverables([]);
           setContractDocuments([]);
+          setCalendarEvents([]);
+          setCalendarStatus("idle");
           setSelectedContractId(null);
           setAuditLogs(fallbackAuditLogs);
           setAuditLogStatus("idle");
@@ -862,6 +912,26 @@ export function App() {
     await loadAuditLogs(1, auditLogFilters);
   }
 
+  async function handleCalendarFilterSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCalendarStatus("loading");
+    setCalendarMessage("");
+
+    try {
+      const results = await getCalendarEvents({
+        ...defaultCalendarQuery(),
+        ...emptyStringsToUndefined(calendarFilters)
+      });
+      setCalendarEvents(results);
+      setCalendarStatus("ready");
+      setCalendarMessage(results.length > 0 ? `${results.length} calendar items matched.` : "No calendar items matched.");
+    } catch {
+      setCalendarEvents([]);
+      setCalendarStatus("failed");
+      setCalendarMessage("Calendar items could not be loaded.");
+    }
+  }
+
   async function handleAuditLogPageChange(page: number) {
     await loadAuditLogs(page, auditLogFilters);
   }
@@ -1006,6 +1076,16 @@ export function App() {
               onFileSelected={setSelectedEvidenceFile}
               onUploadIntentSubmit={handleEvidenceUploadIntentSubmit}
             />
+          ) : activeRoute === "calendar" ? (
+            <CalendarView
+              contracts={contracts}
+              events={calendarEvents}
+              filters={calendarFilters}
+              message={calendarMessage}
+              status={calendarStatus}
+              onFilterChange={setCalendarFilters}
+              onFilterSubmit={handleCalendarFilterSubmit}
+            />
           ) : activeRoute === "settings" ? (
             <SettingsView
               canManageUsers={canManageUsers}
@@ -1055,6 +1135,226 @@ function WorkspaceState({ children, state }: { children: ReactNode; state: LoadS
   }
 
   return children;
+}
+
+function CalendarView({
+  contracts,
+  events,
+  filters,
+  message,
+  onFilterChange,
+  onFilterSubmit,
+  status
+}: {
+  contracts: ContractRecord[];
+  events: CalendarEvent[];
+  filters: CalendarFilters;
+  message: string;
+  status: "idle" | "loading" | "ready" | "failed";
+  onFilterChange: (filters: CalendarFilters) => void;
+  onFilterSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const metrics = useMemo(
+    () => ({
+      total: events.length,
+      overdue: events.filter((event) => event.isOverdue).length,
+      highRisk: events.filter((event) => event.riskLevel === "High").length,
+      months: new Set(events.map((event) => event.date.slice(0, 7))).size
+    }),
+    [events]
+  );
+
+  return (
+    <section className="route-panel" aria-label="Compliance calendar">
+      <div className="route-panel__intro section-heading--split">
+        <div>
+          <p className="eyebrow">Compliance calendar</p>
+          <h2>Calendar agenda</h2>
+          <p>Tenant-scoped tasks, renewals, reports, contract deadlines, deliverables, and policy reviews.</p>
+        </div>
+        <div className="queue-metrics" aria-label="Calendar summary">
+          <span>
+            <strong>{metrics.total}</strong> items
+          </span>
+          <span>
+            <strong>{metrics.overdue}</strong> overdue
+          </span>
+          <span>
+            <strong>{metrics.highRisk}</strong> high risk
+          </span>
+          <span>
+            <strong>{metrics.months}</strong> months
+          </span>
+        </div>
+      </div>
+
+      <form className="calendar-filter-form" onSubmit={onFilterSubmit}>
+        <label>
+          Owner
+          <input
+            value={filters.owner}
+            onChange={(event) => onFilterChange({ ...filters, owner: event.target.value })}
+          />
+        </label>
+        <label>
+          Status
+          <select value={filters.status} onChange={(event) => onFilterChange({ ...filters, status: event.target.value })}>
+            <option value="">Any</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In progress</option>
+            <option value="waiting_for_review">Waiting for review</option>
+            <option value="completed">Completed</option>
+          </select>
+        </label>
+        <label>
+          Risk
+          <select value={filters.risk} onChange={(event) => onFilterChange({ ...filters, risk: event.target.value })}>
+            <option value="">Any</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+          </select>
+        </label>
+        <label>
+          Contract
+          <select
+            value={filters.contractId}
+            onChange={(event) => onFilterChange({ ...filters, contractId: event.target.value })}
+          >
+            <option value="">Any</option>
+            {contracts.map((contract) => (
+              <option key={contract.id} value={contract.id}>
+                {contract.contractNumber}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Module
+          <select value={filters.module} onChange={(event) => onFilterChange({ ...filters, module: event.target.value })}>
+            <option value="">Any</option>
+            <option value="Contract">Contract</option>
+            <option value="Obligations">Obligations</option>
+            <option value="Policy reviews">Policy reviews</option>
+            <option value="Renewals">Renewals</option>
+            <option value="Reports">Reports</option>
+            <option value="Tasks">Tasks</option>
+          </select>
+        </label>
+        <button type="submit" disabled={status === "loading"}>
+          <SlidersHorizontal size={16} aria-hidden="true" />
+          Apply filters
+        </button>
+      </form>
+
+      {message ? (
+        <p className={`form-message form-message--${status === "failed" ? "error" : "success"}`} role="status">
+          {message}
+        </p>
+      ) : null}
+
+      <div className="calendar-workspace">
+        <div className="calendar-month-strip" aria-label="Month view summary">
+          {events.length === 0 ? (
+            <span>No calendar items yet</span>
+          ) : (
+            Object.entries(groupEventsByMonth(events)).map(([month, monthEvents]) => (
+              <span key={month}>
+                <strong>{formatMonthLabel(month)}</strong>
+                {monthEvents.length} items
+              </span>
+            ))
+          )}
+        </div>
+
+        <div className="calendar-agenda" aria-label="Calendar list view">
+          {events.length === 0 ? (
+            <EmptyState
+              title="No calendar items yet"
+              body="Tasks, renewals, reports, contract deadlines, deliverables, and policy reviews will appear here."
+            />
+          ) : (
+            events.map((event) => (
+              <article
+                key={event.id}
+                className={`calendar-event${event.isOverdue ? " calendar-event--overdue" : ""}`}
+                aria-label={event.isOverdue ? "Overdue calendar item" : "Calendar item"}
+              >
+                <div className="calendar-event__date">
+                  <strong>{formatDayLabel(event.date)}</strong>
+                  <span>{formatMonthLabel(event.date.slice(0, 7))}</span>
+                </div>
+                <div className="calendar-event__body">
+                  <div className="calendar-event__title">
+                    <h3>{event.title}</h3>
+                    {event.isOverdue ? (
+                      <span className="risk-badge risk-badge--overdue">
+                        <AlertTriangle size={14} aria-hidden="true" />
+                        Overdue
+                      </span>
+                    ) : null}
+                  </div>
+                  <p>{formatCategory(event.category)}</p>
+                  <dl>
+                    <div>
+                      <dt>Owner</dt>
+                      <dd>{event.ownerFunction}</dd>
+                    </div>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>{formatStatus(event.status)}</dd>
+                    </div>
+                    <div>
+                      <dt>Risk</dt>
+                      <dd>{event.riskLevel}</dd>
+                    </div>
+                    <div>
+                      <dt>Module</dt>
+                      <dd>{event.module}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function groupEventsByMonth(events: CalendarEvent[]): Record<string, CalendarEvent[]> {
+  return events.reduce<Record<string, CalendarEvent[]>>((groups, event) => {
+    const month = event.date.slice(0, 7);
+    groups[month] = [...(groups[month] ?? []), event];
+    return groups;
+  }, {});
+}
+
+function formatMonthLabel(month: string) {
+  const [year, monthIndex] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, monthIndex - 1, 1))
+  );
+}
+
+function formatDayLabel(date: string) {
+  const [year, monthIndex, day] = date.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { day: "2-digit", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, monthIndex - 1, day))
+  );
+}
+
+function formatCategory(category: string) {
+  return category
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatStatus(status: string) {
+  return formatCategory(status);
 }
 
 function DashboardView({ overview }: { overview: ComplianceOverview }) {

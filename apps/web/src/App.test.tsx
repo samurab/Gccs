@@ -20,6 +20,7 @@ const {
   deleteContractDocumentMock,
   fallbackOverview,
   getCompanyProfileMock,
+  getCalendarEventsMock,
   getContractClausesMock,
   getContractDeliverablesMock,
   getContractDocumentsMock,
@@ -33,6 +34,7 @@ const {
   getTenantInvitationsMock,
   getTenantMembersMock,
   invitations,
+  calendarEvents,
   members,
   obligationDashboardItem,
   obligationDetail,
@@ -56,6 +58,7 @@ const {
   createTenantInvitationMock: vi.fn(),
   deleteContractDocumentMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
+  getCalendarEventsMock: vi.fn(),
   getCompanyProfileMock: vi.fn(),
   getContractClausesMock: vi.fn(),
   getContractDeliverablesMock: vi.fn(),
@@ -295,6 +298,50 @@ const {
     status: "InProgress",
     isOverdue: true
   },
+  calendarEvents: [
+    {
+      id: "task:11111111-1111-1111-1111-111111111111",
+      title: "Obligation follow-up",
+      date: "2026-06-01",
+      category: "task",
+      status: "open",
+      riskLevel: "High",
+      ownerFunction: "contracts",
+      module: "Obligations",
+      relatedEntityType: "obligation",
+      relatedEntityId: "obligation-fci-safeguards",
+      contractId: "88888888-8888-8888-8888-888888888881",
+      isOverdue: true
+    },
+    {
+      id: "deliverable:22222222-2222-2222-2222-222222222222",
+      title: "Monthly status report",
+      date: "2026-07-15",
+      category: "deliverable",
+      status: "InProgress",
+      riskLevel: "Medium",
+      ownerFunction: "contracts",
+      module: "Contract",
+      relatedEntityType: "contract",
+      relatedEntityId: "88888888-8888-8888-8888-888888888881",
+      contractId: "88888888-8888-8888-8888-888888888881",
+      isOverdue: false
+    },
+    {
+      id: "report:33333333-3333-3333-3333-333333333333",
+      title: "Compliance status report",
+      date: "2026-07-20",
+      category: "report",
+      status: "Complete",
+      riskLevel: "Low",
+      ownerFunction: "reports",
+      module: "Reports",
+      relatedEntityType: "report",
+      relatedEntityId: "33333333-3333-3333-3333-333333333333",
+      contractId: null,
+      isOverdue: false
+    }
+  ],
   obligationDashboardItem: {
     id: "55555555555555555555555555555551:obligation-fci-safeguards",
     contractId: "88888888-8888-8888-8888-888888888881",
@@ -385,6 +432,7 @@ vi.mock("@/lib/api", () => ({
   createContract: createContractMock,
   createContractDocument: createContractDocumentMock,
   deleteContractDocument: deleteContractDocumentMock,
+  getCalendarEvents: getCalendarEventsMock,
   getCompanyProfile: getCompanyProfileMock,
   getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
@@ -456,6 +504,7 @@ describe("App", () => {
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
     getAuditLogsMock.mockReset();
+    getCalendarEventsMock.mockReset();
     getNoCuiAcknowledgementStatusMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
@@ -485,6 +534,7 @@ describe("App", () => {
     });
     getCompanyProfileMock.mockResolvedValue(profile);
     getContractsMock.mockResolvedValue([]);
+    getCalendarEventsMock.mockResolvedValue([]);
     getContractClausesMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
     getContractDocumentsMock.mockResolvedValue([]);
@@ -615,7 +665,7 @@ describe("App", () => {
       ["Profile", "Acme Federal Services"],
       ["Contracts", "No contracts have been added yet"],
       ["Obligations", "Clause library search"],
-      ["Calendar", "No calendar items yet"],
+      ["Calendar", "Calendar agenda"],
       ["Evidence", "No-CUI acknowledgement"],
       ["CMMC", "No CMMC assessment has started yet"],
       ["Subcontractors", "No subcontractors have been added yet"],
@@ -1376,5 +1426,43 @@ describe("App", () => {
       expect.objectContaining({ name: "policy.pdf", type: "application/pdf" })
     );
     expect(await screen.findByText("File size exceeds the No-CUI MVP upload limit.")).toBeInTheDocument();
+  });
+
+  it("TC-11.2.1, TC-11.2.2, and TC-11.2.3 renders calendar events, filters them, and marks overdue items", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getCalendarEventsMock.mockResolvedValueOnce(calendarEvents);
+    getCalendarEventsMock.mockResolvedValueOnce([calendarEvents[0]]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /calendar/i }));
+    expect(await screen.findByRole("heading", { name: "Calendar agenda" })).toBeInTheDocument();
+    expect(screen.getByText("Obligation follow-up")).toBeInTheDocument();
+    expect(screen.getByText("Monthly status report")).toBeInTheDocument();
+    expect(screen.getByText("Compliance status report")).toBeInTheDocument();
+    expect(screen.getByLabelText("Overdue calendar item")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Owner"), "contracts");
+    await user.selectOptions(screen.getByLabelText("Status"), "open");
+    await user.selectOptions(screen.getByLabelText("Risk"), "High");
+    await user.selectOptions(screen.getByLabelText("Contract"), contract.id);
+    await user.selectOptions(screen.getByLabelText("Module"), "Obligations");
+    await user.click(screen.getByRole("button", { name: /apply filters/i }));
+
+    expect(getCalendarEventsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        owner: "contracts",
+        status: "open",
+        risk: "High",
+        contractId: contract.id,
+        module: "Obligations"
+      })
+    );
+    expect(await screen.findByText("1 calendar items matched.")).toBeInTheDocument();
   });
 });

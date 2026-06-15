@@ -2144,6 +2144,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 11.2: Calendar View
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

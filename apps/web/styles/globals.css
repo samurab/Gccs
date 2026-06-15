@@ -795,7 +795,8 @@ dt {
   grid-template-columns: minmax(240px, 2fr) minmax(180px, 1fr) auto;
 }
 
-.obligation-filter-form {
+.obligation-filter-form,
+.calendar-filter-form {
   align-items: end;
   display: grid;
   gap: 10px;
@@ -803,7 +804,8 @@ dt {
 }
 
 .clause-search-form label,
-.obligation-filter-form label {
+.obligation-filter-form label,
+.calendar-filter-form label {
   color: var(--muted);
   display: grid;
   font-size: 0.78rem;
@@ -815,7 +817,9 @@ dt {
 .clause-search-form input,
 .clause-search-form select,
 .obligation-filter-form input,
-.obligation-filter-form select {
+.obligation-filter-form select,
+.calendar-filter-form input,
+.calendar-filter-form select {
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
@@ -826,6 +830,7 @@ dt {
 
 .clause-search-form button,
 .obligation-filter-form button,
+.calendar-filter-form button,
 .clause-result-item button {
   align-items: center;
   background: var(--ink);
@@ -849,6 +854,9 @@ dt {
 .obligation-filter-form button:disabled,
 .obligation-filter-form input:disabled,
 .obligation-filter-form select:disabled,
+.calendar-filter-form button:disabled,
+.calendar-filter-form input:disabled,
+.calendar-filter-form select:disabled,
 .clause-result-item button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
@@ -941,6 +949,113 @@ dt {
   background: var(--surface-strong);
   border-radius: 6px;
   padding: 10px 12px;
+}
+
+.calendar-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.calendar-month-strip {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.calendar-month-strip span {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  display: grid;
+  gap: 3px;
+  min-height: 62px;
+  padding: 10px 12px;
+}
+
+.calendar-month-strip strong {
+  color: var(--ink);
+}
+
+.calendar-agenda {
+  display: grid;
+  gap: 10px;
+}
+
+.calendar-event {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--blue);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 76px minmax(0, 1fr);
+  padding: 14px;
+}
+
+.calendar-event--overdue {
+  background: linear-gradient(90deg, var(--red-soft), var(--surface) 42%);
+  border-left-color: var(--red);
+}
+
+.calendar-event__date {
+  align-content: start;
+  border-right: 1px solid var(--line);
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-right: 12px;
+}
+
+.calendar-event__date strong {
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.calendar-event__date span,
+.calendar-event__body p,
+.calendar-event dd {
+  color: var(--muted);
+}
+
+.calendar-event__body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.calendar-event__title {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.calendar-event h3,
+.calendar-event p,
+.calendar-event dl {
+  margin: 0;
+}
+
+.calendar-event dl {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+}
+
+.calendar-event dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.calendar-event dd {
+  font-size: 0.88rem;
+  font-weight: 750;
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
 }
 
 .obligation-detail-button {
@@ -1676,6 +1791,8 @@ dt {
   .invite-form,
   .invitation-item,
   .clause-search-form,
+  .calendar-filter-form,
+  .calendar-event,
   .contract-detail,
   .form-grid,
   .naics-row,
@@ -1707,6 +1824,16 @@ dt {
 
   .deliverable-form {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-event__date {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 0 0 10px;
+  }
+
+  .calendar-event dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .deliverable-form__description {

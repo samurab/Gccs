@@ -249,6 +249,31 @@ export type ContractDeliverable = {
 
 export type UpsertContractDeliverableRequest = Omit<ContractDeliverable, "id" | "contractId" | "isOverdue">;
 
+export type CalendarEvent = {
+  id: string;
+  title: string;
+  date: string;
+  category: string;
+  status: string;
+  riskLevel: string;
+  ownerFunction: string;
+  module: string;
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
+  contractId: string | null;
+  isOverdue: boolean;
+};
+
+export type CalendarEventQueryParams = {
+  from: string;
+  to?: string;
+  owner?: string;
+  status?: string;
+  risk?: string;
+  contractId?: string;
+  module?: string;
+};
+
 export type ContractClause = {
   id: string;
   contractId: string;
@@ -473,6 +498,18 @@ export async function getContractDocuments(contractId: string): Promise<Contract
 
 export async function getContractDeliverables(contractId: string): Promise<ContractDeliverable[]> {
   return getJson<ContractDeliverable[]>(`/api/contracts/${contractId}/deliverables`, []);
+}
+
+export async function getCalendarEvents(params: CalendarEventQueryParams): Promise<CalendarEvent[]> {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      searchParams.set(key, value);
+    }
+  }
+
+  return getJson<CalendarEvent[]>(`/api/calendar/events?${searchParams.toString()}`, []);
 }
 
 export async function getContractClauses(contractId: string): Promise<ContractClause[]> {

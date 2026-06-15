@@ -294,6 +294,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-11.1.4:** Change task status and verify audit events are created.
 #-----------------------------------
 ### Story 11.2: Calendar View
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-11.2.1:** Verify the calendar shows tasks, renewals, reports, contract deadlines, deliverables, and policy reviews.

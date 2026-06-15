@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Calendar;
 using Gccs.Application.Companies;
 using Gccs.Application.Compliance;
 using Gccs.Application.Contracts;
@@ -9,6 +10,7 @@ using Gccs.Application.Reports;
 using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
 using Gccs.Infrastructure.Audit;
+using Gccs.Infrastructure.Calendar;
 using Gccs.Infrastructure.Companies;
 using Gccs.Infrastructure.Compliance;
 using Gccs.Infrastructure.Contracts;
@@ -64,6 +66,7 @@ public static class DependencyInjection
             services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
             services.AddScoped<IComplianceTaskRepository, EfComplianceTaskRepository>();
+            services.AddScoped<ICalendarRepository, EfCalendarRepository>();
         }
         else
         {
@@ -97,6 +100,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Obligation detail persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceTaskRepository>(_ =>
                 throw new InvalidOperationException("Task persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ICalendarRepository>(_ =>
+                throw new InvalidOperationException("Calendar persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

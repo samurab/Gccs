@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
 using Gccs.Application.Audit;
+using Gccs.Application.Calendar;
 using Gccs.Application.Companies;
 using Gccs.Application.Compliance;
 using Gccs.Application.Contracts;
@@ -732,6 +733,22 @@ api.MapPatch("/tasks/{taskId:guid}", async (
 })
 .RequirePermission(Permission.ManageTasks)
 .WithName("UpdateComplianceTask");
+
+api.MapGet("/calendar/events", async (
+    DateOnly from,
+    DateOnly? to,
+    string? owner,
+    string? status,
+    Gccs.Domain.Compliance.RiskLevel? risk,
+    Guid? contractId,
+    string? module,
+    ICalendarRepository repository,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await repository.ListCurrentTenantAsync(
+        new CalendarEventQuery(from, to, owner, status, risk, contractId, module),
+        cancellationToken)))
+.RequirePermission(Permission.ViewTasks)
+.WithName("ListCalendarEvents");
 
 api.MapGet("/audit-logs", async (
     AuditLogService service,

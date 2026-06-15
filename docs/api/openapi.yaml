@@ -1246,10 +1246,36 @@ paths:
             format: date
         - name: to
           in: query
-          required: true
+          required: false
           schema:
             type: string
             format: date
+        - name: owner
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: risk
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RiskLevel"
+        - name: contractId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: module
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: Calendar events.
@@ -3688,6 +3714,11 @@ components:
         - title
         - date
         - category
+        - status
+        - riskLevel
+        - ownerFunction
+        - module
+        - isOverdue
       properties:
         id:
           type: string
@@ -3697,7 +3728,15 @@ components:
           type: string
           format: date
         category:
-          $ref: "#/components/schemas/TaskCategory"
+          type: string
+        status:
+          type: string
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+        ownerFunction:
+          type: string
+        module:
+          type: string
         relatedEntityType:
           type:
             - string
@@ -3706,8 +3745,13 @@ components:
           type:
             - string
             - "null"
-        riskLevel:
-          $ref: "#/components/schemas/RiskLevel"
+        contractId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        isOverdue:
+          type: boolean
 
     EvidenceItem:
       allOf:
