@@ -7,6 +7,7 @@ using Gccs.Application.Calendar;
 using Gccs.Application.Companies;
 using Gccs.Application.Compliance;
 using Gccs.Application.Contracts;
+using Gccs.Application.Evidence;
 using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
 using Gccs.Application.Repositories;
@@ -848,6 +849,92 @@ api.MapPost("/no-cui-acknowledgement", async (
 })
 .RequirePermission(Permission.ManageEvidence)
 .WithName("AcknowledgeNoCuiNotice");
+
+api.MapGet("/evidence-items", async (
+    string? tag,
+    EvidenceMetadataService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantAsync(new EvidenceMetadataQuery(tag), cancellationToken)))
+.RequirePermission(Permission.ViewEvidence)
+.WithName("ListEvidenceItems");
+
+api.MapPost("/evidence-items", async (
+    UpsertEvidenceMetadataRequest request,
+    EvidenceMetadataService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/evidence-items/{created.Id}", created);
+    }
+    catch (EvidenceMetadataValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["evidenceMetadata"] = [exception.Message]
+        },
+        title: "Evidence metadata invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithName("CreateEvidenceItem");
+
+api.MapGet("/evidence-items/{evidenceItemId:guid}", async (
+    Guid evidenceItemId,
+    EvidenceMetadataService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var evidence = await service.FindCurrentTenantAsync(evidenceItemId, cancellationToken);
+    return evidence is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Evidence item '{evidenceItemId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(evidence);
+})
+.RequirePermission(Permission.ViewEvidence)
+.WithName("GetEvidenceItem");
+
+api.MapPut("/evidence-items/{evidenceItemId:guid}", async (
+    Guid evidenceItemId,
+    UpsertEvidenceMetadataRequest request,
+    EvidenceMetadataService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(evidenceItemId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Evidence item '{evidenceItemId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EvidenceMetadataValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["evidenceMetadata"] = [exception.Message]
+        },
+        title: "Evidence metadata invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithName("UpdateEvidenceItem");
 
 api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
     Guid evidenceItemId,

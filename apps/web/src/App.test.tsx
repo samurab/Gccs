@@ -15,6 +15,7 @@ const {
   createContractDeliverableMock,
   createContractMock,
   createContractDocumentMock,
+  createEvidenceMetadataMock,
   createEvidenceUploadIntentMock,
   createTenantInvitationMock,
   deleteContractDocumentMock,
@@ -27,6 +28,7 @@ const {
   getContractObligationDetailMock,
   getContractObligationsMock,
   getContractsMock,
+  getEvidenceItemsMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
   getComplianceOverviewMock,
@@ -35,6 +37,7 @@ const {
   getTenantMembersMock,
   invitations,
   calendarEvents,
+  evidenceMetadata,
   members,
   obligationDashboardItem,
   obligationDetail,
@@ -46,7 +49,8 @@ const {
   searchClauseLibraryMock,
   updateContractDeliverableMock,
   updateContractObligationStatusMock,
-  updateContractMock
+  updateContractMock,
+  updateEvidenceMetadataMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
   assignContractObligationOwnerMock: vi.fn(),
@@ -54,6 +58,7 @@ const {
   createContractDeliverableMock: vi.fn(),
   createContractMock: vi.fn(),
   createContractDocumentMock: vi.fn(),
+  createEvidenceMetadataMock: vi.fn(),
   createEvidenceUploadIntentMock: vi.fn(),
   createTenantInvitationMock: vi.fn(),
   deleteContractDocumentMock: vi.fn(),
@@ -66,6 +71,7 @@ const {
   getContractObligationDetailMock: vi.fn(),
   getContractObligationsMock: vi.fn(),
   getContractsMock: vi.fn(),
+  getEvidenceItemsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
   getNoCuiAcknowledgementStatusMock: vi.fn(),
@@ -77,6 +83,7 @@ const {
   updateContractDeliverableMock: vi.fn(),
   updateContractObligationStatusMock: vi.fn(),
   updateContractMock: vi.fn(),
+  updateEvidenceMetadataMock: vi.fn(),
   allWorkflowAccess: {
     tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
     userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
@@ -342,6 +349,27 @@ const {
       isOverdue: false
     }
   ],
+  evidenceMetadata: {
+    id: "edededed-eded-eded-eded-edededededed",
+    tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+    title: "Access control policy",
+    type: "Policy",
+    ownerFunction: "Security",
+    status: "Requested",
+    effectiveAt: "2026-01-15",
+    expiresAt: "2026-08-15",
+    tags: ["policy", "access-control"],
+    description: "Policy evidence for access control obligations.",
+    obligationIds: ["obligation-fci-safeguards"],
+    controlIds: ["AC.L1-3.1.1"],
+    contractIds: [],
+    vendorIds: [],
+    subcontractorIds: [],
+    employeeIds: [],
+    reportIds: [],
+    createdAt: "2026-06-15T12:00:00Z",
+    updatedAt: null
+  },
   obligationDashboardItem: {
     id: "55555555555555555555555555555551:obligation-fci-safeguards",
     contractId: "88888888-8888-8888-8888-888888888881",
@@ -431,6 +459,7 @@ vi.mock("@/lib/api", () => ({
   createContractDeliverable: createContractDeliverableMock,
   createContract: createContractMock,
   createContractDocument: createContractDocumentMock,
+  createEvidenceMetadata: createEvidenceMetadataMock,
   deleteContractDocument: deleteContractDocumentMock,
   getCalendarEvents: getCalendarEventsMock,
   getCompanyProfile: getCompanyProfileMock,
@@ -440,12 +469,14 @@ vi.mock("@/lib/api", () => ({
   getContractObligationDetail: getContractObligationDetailMock,
   getContractObligations: getContractObligationsMock,
   getContracts: getContractsMock,
+  getEvidenceItems: getEvidenceItemsMock,
   removeContractClause: removeContractClauseMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
   updateContractDeliverable: updateContractDeliverableMock,
   updateContractObligationStatus: updateContractObligationStatusMock,
   updateContract: updateContractMock,
+  updateEvidenceMetadata: updateEvidenceMetadataMock,
   acknowledgeNoCuiNotice: acknowledgeNoCuiNoticeMock,
   createEvidenceUploadIntent: createEvidenceUploadIntentMock,
   fallbackAccess: {
@@ -491,6 +522,7 @@ describe("App", () => {
     assignContractObligationOwnerMock.mockReset();
     attachContractClauseMock.mockReset();
     createEvidenceUploadIntentMock.mockReset();
+    createEvidenceMetadataMock.mockReset();
     createContractDeliverableMock.mockReset();
     createContractMock.mockReset();
     createContractDocumentMock.mockReset();
@@ -499,6 +531,7 @@ describe("App", () => {
     updateContractDeliverableMock.mockReset();
     updateContractObligationStatusMock.mockReset();
     updateContractMock.mockReset();
+    updateEvidenceMetadataMock.mockReset();
     saveCompanyProfileMock.mockReset();
     removeContractClauseMock.mockReset();
     getComplianceOverviewMock.mockReset();
@@ -509,6 +542,7 @@ describe("App", () => {
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
     getContractsMock.mockReset();
+    getEvidenceItemsMock.mockReset();
     getContractClausesMock.mockReset();
     getContractDeliverablesMock.mockReset();
     getContractDocumentsMock.mockReset();
@@ -534,6 +568,7 @@ describe("App", () => {
     });
     getCompanyProfileMock.mockResolvedValue(profile);
     getContractsMock.mockResolvedValue([]);
+    getEvidenceItemsMock.mockResolvedValue([]);
     getCalendarEventsMock.mockResolvedValue([]);
     getContractClausesMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
@@ -566,6 +601,28 @@ describe("App", () => {
           tenantId: contract.tenantId,
           createdAt: contract.createdAt,
           updatedAt: null
+        },
+        error: null
+      })
+    );
+    createEvidenceMetadataMock.mockImplementation((request) =>
+      Promise.resolve({
+        data: {
+          ...evidenceMetadata,
+          ...request,
+          id: "edededed-eded-eded-eded-ededededede2",
+          createdAt: evidenceMetadata.createdAt,
+          updatedAt: null
+        },
+        error: null
+      })
+    );
+    updateEvidenceMetadataMock.mockImplementation((_evidenceItemId, request) =>
+      Promise.resolve({
+        data: {
+          ...evidenceMetadata,
+          ...request,
+          updatedAt: "2026-06-15T13:00:00Z"
         },
         error: null
       })
@@ -1338,6 +1395,40 @@ describe("App", () => {
     expect(screen.getByLabelText("Evidence file")).toBeDisabled();
     expect(screen.getByRole("button", { name: /upload evidence/i })).toBeDisabled();
     expect(screen.getByText(/upload is disabled until the No-CUI notice is acknowledged/i)).toBeInTheDocument();
+  });
+
+  it("TC-12.1 renders and creates reusable evidence metadata", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getEvidenceItemsMock.mockResolvedValueOnce([evidenceMetadata]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /evidence/i }));
+    expect(await screen.findByText("Evidence metadata")).toBeInTheDocument();
+    expect(screen.getByText("Access control policy")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("obligation-fci-safeguards")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /new evidence/i }));
+    await user.clear(screen.getByLabelText("Title"));
+    await user.type(screen.getByLabelText("Title"), "Quarterly access review");
+    await user.selectOptions(screen.getByLabelText("Type"), "AccessReview");
+    await user.type(screen.getByLabelText("Tags"), "access-review, quarterly");
+    await user.type(screen.getByLabelText("Obligations"), "obligation-access-review");
+    await user.click(screen.getByRole("button", { name: /create metadata/i }));
+
+    expect(createEvidenceMetadataMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Quarterly access review",
+        type: "AccessReview",
+        tags: ["access-review", "quarterly"],
+        obligationIds: ["obligation-access-review"]
+      })
+    );
+    expect(await screen.findByText("Evidence metadata created.")).toBeInTheDocument();
   });
 
   it("TC-4.1.3 and TC-4.1.4 saves acknowledgement before enabling upload intent creation", async () => {

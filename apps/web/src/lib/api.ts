@@ -113,6 +113,30 @@ export type EvidenceUploadIntent = {
   expiresAt: string;
 };
 
+export type EvidenceMetadata = {
+  id: string;
+  tenantId: string;
+  title: string;
+  type: string;
+  ownerFunction: string;
+  status: string;
+  effectiveAt: string | null;
+  expiresAt: string | null;
+  tags: string[];
+  description: string;
+  obligationIds: string[];
+  controlIds: string[];
+  contractIds: string[];
+  vendorIds: string[];
+  subcontractorIds: string[];
+  employeeIds: string[];
+  reportIds: string[];
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertEvidenceMetadataRequest = Omit<EvidenceMetadata, "id" | "tenantId" | "createdAt" | "updatedAt">;
+
 export type AuditLogEntry = {
   id: string;
   tenantId: string;
@@ -466,6 +490,11 @@ export async function getNoCuiAcknowledgementStatus(): Promise<NoCuiAcknowledgem
   return getJson<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement", fallbackNoCuiAcknowledgementStatus);
 }
 
+export async function getEvidenceItems(tag?: string): Promise<EvidenceMetadata[]> {
+  const query = tag ? `?tag=${encodeURIComponent(tag)}` : "";
+  return getJson<EvidenceMetadata[]>(`/api/evidence-items${query}`, []);
+}
+
 export async function getCompanyProfile(): Promise<CompanyProfile | null> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
@@ -733,6 +762,19 @@ export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<NoC
   });
 
   return response;
+}
+
+export async function createEvidenceMetadata(
+  request: UpsertEvidenceMetadataRequest
+): Promise<ApiMutationResult<EvidenceMetadata>> {
+  return postJsonResult<EvidenceMetadata>("/api/evidence-items", request);
+}
+
+export async function updateEvidenceMetadata(
+  evidenceItemId: string,
+  request: UpsertEvidenceMetadataRequest
+): Promise<ApiMutationResult<EvidenceMetadata>> {
+  return putJsonResult<EvidenceMetadata>(`/api/evidence-items/${evidenceItemId}`, request);
 }
 
 export async function createEvidenceUploadIntent(file: File): Promise<ApiMutationResult<EvidenceUploadIntent>> {

@@ -30,6 +30,7 @@ import {
   createContractDocument,
   createTenantInvitation,
   createEvidenceUploadIntent,
+  createEvidenceMetadata,
   deleteContractDocument,
   fallbackAuditLogs,
   fallbackAccess,
@@ -46,6 +47,7 @@ import {
   getAuditLogs,
   getComplianceOverview,
   getCurrentUserAccess,
+  getEvidenceItems,
   getNoCuiAcknowledgementStatus,
   getTenantInvitations,
   getTenantMembers,
@@ -55,6 +57,7 @@ import {
   updateContractObligationStatus,
   updateContract,
   updateContractDeliverable,
+  updateEvidenceMetadata,
   type AuditLogEntry,
   type ClauseLibraryItem,
   type ClauseSearchParams,
@@ -71,6 +74,7 @@ import {
   type ContractObligationQueryParams,
   type ContractRecord,
   type CurrentUserAccess,
+  type EvidenceMetadata,
   type NoCuiAcknowledgementStatus,
   type PagedResult,
   type TenantInvitation,
@@ -78,6 +82,7 @@ import {
   type UpsertContractDeliverableRequest,
   type UpsertContractRequest,
   type UpsertCompanyProfileRequest,
+  type UpsertEvidenceMetadataRequest,
   type TenantMember
 } from "@/lib/api";
 
@@ -415,6 +420,8 @@ export function App() {
   const [contractDeliverables, setContractDeliverables] = useState<ContractDeliverable[]>([]);
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [evidenceItems, setEvidenceItems] = useState<EvidenceMetadata[]>([]);
+  const [selectedEvidenceItemId, setSelectedEvidenceItemId] = useState<string | null>(null);
   const [calendarFilters, setCalendarFilters] = useState<CalendarFilters>(defaultCalendarFilters);
   const [calendarStatus, setCalendarStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [calendarMessage, setCalendarMessage] = useState("");
@@ -450,6 +457,8 @@ export function App() {
   const [acknowledgementStatus, setAcknowledgementStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "creating" | "created" | "blocked">("idle");
   const [uploadMessage, setUploadMessage] = useState("");
+  const [evidenceMetadataStatus, setEvidenceMetadataStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [evidenceMetadataMessage, setEvidenceMetadataMessage] = useState("");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
@@ -503,6 +512,7 @@ export function App() {
         const nextNoCuiAcknowledgement = canLoadNoCuiStatus
           ? await getNoCuiAcknowledgementStatus()
           : fallbackNoCuiAcknowledgementStatus;
+        const nextEvidenceItems = canLoadNoCuiStatus ? await getEvidenceItems() : [];
         const nextCompanyProfile = canLoadCompanyProfile ? await getCompanyProfile() : null;
         const nextContracts = canLoadContracts ? await getContracts() : [];
         const nextObligationDashboardItems = canLoadObligations ? await getContractObligations() : [];
@@ -530,6 +540,8 @@ export function App() {
           setAuditLogs(nextAuditLogs);
           setAuditLogStatus(canLoadAuditLogs ? "ready" : "idle");
           setNoCuiAcknowledgement(nextNoCuiAcknowledgement);
+          setEvidenceItems(nextEvidenceItems);
+          setSelectedEvidenceItemId(nextEvidenceItems[0]?.id ?? null);
           setLoadState("ready");
         }
       })
@@ -553,6 +565,8 @@ export function App() {
           setAuditLogs(fallbackAuditLogs);
           setAuditLogStatus("idle");
           setNoCuiAcknowledgement(fallbackNoCuiAcknowledgementStatus);
+          setEvidenceItems([]);
+          setSelectedEvidenceItemId(null);
           setLoadState("error");
         }
       });
@@ -907,6 +921,30 @@ export function App() {
     setUploadMessage(uploadIntent.error ?? "The API blocked the upload intent.");
   }
 
+  async function handleEvidenceMetadataSave(evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) {
+    setEvidenceMetadataStatus("saving");
+    setEvidenceMetadataMessage("");
+
+    const result = evidenceItemId
+      ? await updateEvidenceMetadata(evidenceItemId, request)
+      : await createEvidenceMetadata(request);
+
+    if (result.data) {
+      const saved = result.data;
+      setEvidenceItems((currentItems) => {
+        const exists = currentItems.some((item) => item.id === saved.id);
+        return exists ? currentItems.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...currentItems];
+      });
+      setSelectedEvidenceItemId(saved.id);
+      setEvidenceMetadataStatus("saved");
+      setEvidenceMetadataMessage(evidenceItemId ? "Evidence metadata updated." : "Evidence metadata created.");
+      return;
+    }
+
+    setEvidenceMetadataStatus("failed");
+    setEvidenceMetadataMessage(result.error ?? "Evidence metadata could not be saved.");
+  }
+
   async function handleAuditLogFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await loadAuditLogs(1, auditLogFilters);
@@ -1069,11 +1107,17 @@ export function App() {
               acknowledgement={noCuiAcknowledgement}
               acknowledgementStatus={acknowledgementStatus}
               canManageEvidence={canManageEvidence}
+              evidenceItems={evidenceItems}
+              evidenceMetadataMessage={evidenceMetadataMessage}
+              evidenceMetadataStatus={evidenceMetadataStatus}
+              selectedEvidenceItemId={selectedEvidenceItemId}
               selectedFile={selectedEvidenceFile}
               uploadMessage={uploadMessage}
               uploadStatus={uploadStatus}
               onAcknowledge={handleNoCuiAcknowledgement}
               onFileSelected={setSelectedEvidenceFile}
+              onMetadataSave={handleEvidenceMetadataSave}
+              onSelectEvidence={setSelectedEvidenceItemId}
               onUploadIntentSubmit={handleEvidenceUploadIntentSubmit}
             />
           ) : activeRoute === "calendar" ? (
@@ -3191,9 +3235,15 @@ function EvidenceView({
   acknowledgement,
   acknowledgementStatus,
   canManageEvidence,
+  evidenceItems,
+  evidenceMetadataMessage,
+  evidenceMetadataStatus,
   onAcknowledge,
   onFileSelected,
+  onMetadataSave,
+  onSelectEvidence,
   onUploadIntentSubmit,
+  selectedEvidenceItemId,
   selectedFile,
   uploadMessage,
   uploadStatus
@@ -3201,14 +3251,21 @@ function EvidenceView({
   acknowledgement: NoCuiAcknowledgementStatus;
   acknowledgementStatus: "idle" | "saving" | "saved" | "failed";
   canManageEvidence: boolean;
+  evidenceItems: EvidenceMetadata[];
+  evidenceMetadataMessage: string;
+  evidenceMetadataStatus: "idle" | "saving" | "saved" | "failed";
   onAcknowledge: () => void;
   onFileSelected: (file: File | null) => void;
+  onMetadataSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
+  onSelectEvidence: (evidenceItemId: string | null) => void;
   onUploadIntentSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  selectedEvidenceItemId: string | null;
   selectedFile: File | null;
   uploadMessage: string;
   uploadStatus: "idle" | "creating" | "created" | "blocked";
 }) {
   const uploadDisabled = !canManageEvidence || !acknowledgement.isAcknowledged;
+  const selectedEvidence = evidenceItems.find((item) => item.id === selectedEvidenceItemId) ?? null;
 
   return (
     <section className="route-panel" aria-label="Evidence upload workflow">
@@ -3217,6 +3274,17 @@ function EvidenceView({
         <h2>No-CUI evidence management</h2>
         <p>Organize evidence by obligation, contract, control, vendor, employee, expiration, approval status, and audit history.</p>
       </div>
+
+      <EvidenceMetadataPanel
+        key={selectedEvidence?.id ?? "new-evidence"}
+        canManageEvidence={canManageEvidence}
+        evidenceItems={evidenceItems}
+        message={evidenceMetadataMessage}
+        onSave={onMetadataSave}
+        onSelectEvidence={onSelectEvidence}
+        selectedEvidence={selectedEvidence}
+        status={evidenceMetadataStatus}
+      />
 
       <div className={`notice-panel${acknowledgement.isAcknowledged ? " notice-panel--acknowledged" : ""}`}>
         <span className="notice-panel__icon" aria-hidden="true">
@@ -3295,6 +3363,214 @@ function EvidenceView({
       />
     </section>
   );
+}
+
+type EvidenceMetadataFormState = {
+  title: string;
+  type: string;
+  ownerFunction: string;
+  status: string;
+  effectiveAt: string;
+  expiresAt: string;
+  tags: string;
+  obligationIds: string;
+  controlIds: string;
+  description: string;
+};
+
+const defaultEvidenceMetadataForm: EvidenceMetadataFormState = {
+  title: "",
+  type: "Policy",
+  ownerFunction: "Security",
+  status: "Requested",
+  effectiveAt: "",
+  expiresAt: "",
+  tags: "",
+  obligationIds: "",
+  controlIds: "",
+  description: ""
+};
+
+function EvidenceMetadataPanel({
+  canManageEvidence,
+  evidenceItems,
+  message,
+  onSave,
+  onSelectEvidence,
+  selectedEvidence,
+  status
+}: {
+  canManageEvidence: boolean;
+  evidenceItems: EvidenceMetadata[];
+  message: string;
+  onSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
+  onSelectEvidence: (evidenceItemId: string | null) => void;
+  selectedEvidence: EvidenceMetadata | null;
+  status: "idle" | "saving" | "saved" | "failed";
+}) {
+  const [form, setForm] = useState<EvidenceMetadataFormState>(() => evidenceToMetadataForm(selectedEvidence));
+
+  function updateField<TKey extends keyof EvidenceMetadataFormState>(field: TKey, value: EvidenceMetadataFormState[TKey]) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function save() {
+    void onSave(selectedEvidence?.id ?? null, evidenceMetadataFormToRequest(form, selectedEvidence));
+  }
+
+  return (
+    <section className="evidence-metadata" aria-label="Evidence metadata">
+      <div className="section-heading--split">
+        <div>
+          <h3>Evidence metadata</h3>
+          <p>Create reusable proof records with tags, expiration dates, status, and source links.</p>
+        </div>
+        <button type="button" onClick={() => onSelectEvidence(null)}>
+          New evidence
+        </button>
+      </div>
+      <div className="evidence-metadata__workspace">
+        <div className="evidence-list" aria-label="Evidence list">
+          {evidenceItems.length > 0 ? (
+            evidenceItems.map((item) => (
+              <button
+                className={`evidence-list__item${selectedEvidence?.id === item.id ? " evidence-list__item--active" : ""}`}
+                key={item.id}
+                type="button"
+                onClick={() => onSelectEvidence(item.id)}
+              >
+                <strong>{item.title}</strong>
+                <span>{item.status} · {item.ownerFunction} · {item.expiresAt ?? "No expiration"}</span>
+              </button>
+            ))
+          ) : (
+            <EmptyState title="No evidence metadata yet" body="Create a reusable evidence record before uploading files." />
+          )}
+        </div>
+        <form className="evidence-metadata-form" onSubmit={(event) => event.preventDefault()}>
+          <fieldset disabled={!canManageEvidence || status === "saving"}>
+            <div className="form-grid">
+              <label>
+                <span>Title</span>
+                <input value={form.title} onChange={(event) => updateField("title", event.target.value)} />
+              </label>
+              <label>
+                <span>Type</span>
+                <select value={form.type} onChange={(event) => updateField("type", event.target.value)}>
+                  <option value="Policy">Policy</option>
+                  <option value="TrainingRecord">Training record</option>
+                  <option value="Screenshot">Screenshot</option>
+                  <option value="SystemConfiguration">System configuration</option>
+                  <option value="VendorAttestation">Vendor attestation</option>
+                  <option value="SubcontractorCertification">Subcontractor certification</option>
+                  <option value="AccessReview">Access review</option>
+                  <option value="RiskAssessment">Risk assessment</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              <label>
+                <span>Owner</span>
+                <input value={form.ownerFunction} onChange={(event) => updateField("ownerFunction", event.target.value)} />
+              </label>
+              <label>
+                <span>Status</span>
+                <select value={form.status} onChange={(event) => updateField("status", event.target.value)}>
+                  <option value="Requested">Requested</option>
+                  <option value="Uploaded">Uploaded</option>
+                  <option value="InReview">In review</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Expired">Expired</option>
+                  <option value="Archived">Archived</option>
+                </select>
+              </label>
+              <label>
+                <span>Effective</span>
+                <input type="date" value={form.effectiveAt} onChange={(event) => updateField("effectiveAt", event.target.value)} />
+              </label>
+              <label>
+                <span>Expires</span>
+                <input type="date" value={form.expiresAt} onChange={(event) => updateField("expiresAt", event.target.value)} />
+              </label>
+              <label>
+                <span>Tags</span>
+                <input value={form.tags} onChange={(event) => updateField("tags", event.target.value)} />
+              </label>
+              <label>
+                <span>Obligations</span>
+                <input value={form.obligationIds} onChange={(event) => updateField("obligationIds", event.target.value)} />
+              </label>
+              <label>
+                <span>Controls</span>
+                <input value={form.controlIds} onChange={(event) => updateField("controlIds", event.target.value)} />
+              </label>
+              <label className="span-2">
+                <span>Description</span>
+                <textarea value={form.description} onChange={(event) => updateField("description", event.target.value)} />
+              </label>
+            </div>
+          </fieldset>
+          <div className="form-actions">
+            <button type="button" onClick={save} disabled={!canManageEvidence || status === "saving"}>
+              {selectedEvidence ? "Update metadata" : "Create metadata"}
+            </button>
+          </div>
+          {message ? (
+            <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+          ) : null}
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function evidenceToMetadataForm(evidence: EvidenceMetadata | null): EvidenceMetadataFormState {
+  if (!evidence) {
+    return defaultEvidenceMetadataForm;
+  }
+
+  return {
+    title: evidence.title,
+    type: evidence.type,
+    ownerFunction: evidence.ownerFunction,
+    status: evidence.status,
+    effectiveAt: evidence.effectiveAt ?? "",
+    expiresAt: evidence.expiresAt ?? "",
+    tags: evidence.tags.join(", "),
+    obligationIds: evidence.obligationIds.join(", "),
+    controlIds: evidence.controlIds.join(", "),
+    description: evidence.description
+  };
+}
+
+function evidenceMetadataFormToRequest(
+  form: EvidenceMetadataFormState,
+  evidence: EvidenceMetadata | null
+): UpsertEvidenceMetadataRequest {
+  return {
+    title: form.title.trim(),
+    type: form.type,
+    ownerFunction: form.ownerFunction.trim(),
+    status: form.status,
+    effectiveAt: form.effectiveAt || null,
+    expiresAt: form.expiresAt || null,
+    tags: splitEvidenceList(form.tags),
+    description: form.description.trim(),
+    obligationIds: splitEvidenceList(form.obligationIds),
+    controlIds: splitEvidenceList(form.controlIds),
+    contractIds: evidence?.contractIds ?? [],
+    vendorIds: evidence?.vendorIds ?? [],
+    subcontractorIds: evidence?.subcontractorIds ?? [],
+    employeeIds: evidence?.employeeIds ?? [],
+    reportIds: evidence?.reportIds ?? []
+  };
+}
+
+function splitEvidenceList(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function SettingsView({

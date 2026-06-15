@@ -1376,6 +1376,57 @@ dt {
   text-transform: uppercase;
 }
 
+.evidence-metadata {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.evidence-metadata__workspace {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.4fr);
+}
+
+.evidence-list {
+  display: grid;
+  gap: 8px;
+}
+
+.evidence-list__item {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  min-height: 58px;
+  padding: 10px;
+  text-align: left;
+}
+
+.evidence-list__item--active,
+.evidence-list__item:hover,
+.evidence-list__item:focus-visible {
+  border-color: rgb(12 118 111 / 0.44);
+  box-shadow: 0 0 0 3px rgb(12 118 111 / 0.11);
+  outline: none;
+}
+
+.evidence-list__item span,
+.evidence-metadata p {
+  color: var(--muted);
+}
+
+.evidence-metadata-form {
+  display: grid;
+  gap: 12px;
+}
+
 .contract-clause-item {
   align-items: flex-start;
 }
@@ -1774,6 +1825,7 @@ dt {
 
   .workspace-hero,
   .work-grid,
+  .evidence-metadata__workspace,
   .contract-workspace {
     grid-template-columns: 1fr;
   }

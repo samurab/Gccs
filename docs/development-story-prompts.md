@@ -2293,6 +2293,7 @@ Instructions:
 ## 12. Evidence Vault
 
 ### Story 12.1: Evidence Metadata
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

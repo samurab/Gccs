@@ -376,6 +376,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.TenantId, x.Status });
             entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });
             entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).IsRequired();
             entity.Property(x => x.OriginalFileName).HasMaxLength(240);
             entity.Property(x => x.ContentType).HasMaxLength(160);
             entity.Property(x => x.UploadValidationStatus).HasMaxLength(80);

@@ -15,6 +15,7 @@ public sealed class EvidenceItemEntity : AuditedEntity
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public EvidenceType Type { get; set; }
+    public string OwnerFunction { get; set; } = string.Empty;
     public EvidenceStatus Status { get; set; }
     public string? StorageUri { get; set; }
     public string? FileHash { get; set; }

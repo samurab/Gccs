@@ -331,7 +331,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-11.3.1"] = ["TC_11_3_1_Generates_renewal_tasks_for_profile_evidence_insurance_policy_and_cmmc_dates"],
             ["TC-11.3.2"] = ["TC_11_3_2_Running_generation_twice_skips_duplicate_source_and_due_date_tasks"],
             ["TC-11.3.3"] = ["TC_11_3_3_Default_and_configured_lead_times_produce_expected_reminder_due_dates"],
-            ["TC-11.3.4"] = ["TC_11_3_4_Generated_renewal_tasks_link_back_to_originating_source_records"]
+            ["TC-11.3.4"] = ["TC_11_3_4_Generated_renewal_tasks_link_back_to_originating_source_records"],
+            ["TC-12.1.1"] = ["TC_12_1_1_Creates_evidence_metadata_with_required_fields_tags_dates_and_source_links"],
+            ["TC-12.1.2"] = ["TC_12_1_2_Links_evidence_to_multiple_obligations_and_controls_for_detail_reuse"],
+            ["TC-12.1.3"] = ["TC_12_1_3_Filters_evidence_by_folderless_tags"],
+            ["TC-12.1.4"] = ["TC_12_1_4_Evidence_expiration_generates_task_and_metadata_changes_are_audit_logged"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

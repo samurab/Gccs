@@ -314,6 +314,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 12. Evidence Vault
 
 ### Story 12.1: Evidence Metadata
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-12.1.1:** Create evidence metadata with title, type, owner, approval status, expiration date, tags, description, and source links.

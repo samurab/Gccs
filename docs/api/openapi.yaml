@@ -1344,18 +1344,13 @@ paths:
             $ref: "#/components/schemas/EvidenceStatus"
       responses:
         "200":
-          description: Paged evidence items.
+          description: Tenant-scoped evidence items.
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "#/components/schemas/PagedResult"
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/EvidenceItem"
+                type: array
+                items:
+                  $ref: "#/components/schemas/EvidenceItem"
         "401":
           $ref: "#/components/responses/Unauthorized"
     post:
@@ -1400,7 +1395,7 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-    patch:
+    put:
       tags:
         - Evidence
       summary: Update evidence metadata
@@ -1408,12 +1403,9 @@ paths:
       requestBody:
         required: true
         content:
-          application/merge-patch+json:
-            schema:
-              $ref: "#/components/schemas/EvidenceItemPatchRequest"
           application/json:
             schema:
-              $ref: "#/components/schemas/EvidenceItemPatchRequest"
+              $ref: "#/components/schemas/EvidenceItemCreateRequest"
       responses:
         "200":
           description: Updated evidence item.
@@ -3871,42 +3863,61 @@ components:
         - type: object
           required:
             - id
-            - status
-            - versionCount
+            - tenantId
             - createdAt
-            - updatedAt
           properties:
             id:
               type: string
               format: uuid
-            status:
-              $ref: "#/components/schemas/EvidenceStatus"
-            versionCount:
-              type: integer
-              minimum: 0
-            latestVersion:
-              $ref: "#/components/schemas/EvidenceVersion"
+            tenantId:
+              type: string
+              format: uuid
             createdAt:
               type: string
               format: date-time
             updatedAt:
-              type: string
+              type:
+                - string
+                - "null"
               format: date-time
 
     EvidenceItemCreateRequest:
       type: object
       required:
         - title
-        - evidenceType
+        - type
+        - ownerFunction
+        - status
+        - tags
+        - description
+        - obligationIds
+        - controlIds
+        - contractIds
+        - vendorIds
+        - subcontractorIds
+        - employeeIds
+        - reportIds
       properties:
         title:
           type: string
         description:
+          type: string
+        type:
+          $ref: "#/components/schemas/EvidenceType"
+        ownerFunction:
+          type: string
+        status:
+          $ref: "#/components/schemas/EvidenceStatus"
+        effectiveAt:
           type:
             - string
             - "null"
-        evidenceType:
-          $ref: "#/components/schemas/EvidenceType"
+          format: date
+        expiresAt:
+          type:
+            - string
+            - "null"
+          format: date
         tags:
           type: array
           items:
@@ -3929,60 +3940,21 @@ components:
           items:
             type: string
             format: uuid
+        subcontractorIds:
+          type: array
+          items:
+            type: string
+            format: uuid
         employeeIds:
           type: array
           items:
             type: string
             format: uuid
-        expirationDate:
-          type:
-            - string
-            - "null"
-          format: date
-        ownerUserId:
-          type:
-            - string
-            - "null"
-          format: uuid
-
-    EvidenceItemPatchRequest:
-      type: object
-      properties:
-        title:
-          type: string
-        description:
-          type:
-            - string
-            - "null"
-        status:
-          $ref: "#/components/schemas/EvidenceStatus"
-        tags:
-          type: array
-          items:
-            type: string
-        obligationIds:
-          type: array
-          items:
-            type: string
-        contractIds:
+        reportIds:
           type: array
           items:
             type: string
             format: uuid
-        controlIds:
-          type: array
-          items:
-            type: string
-        expirationDate:
-          type:
-            - string
-            - "null"
-          format: date
-        ownerUserId:
-          type:
-            - string
-            - "null"
-          format: uuid
 
     EvidenceUploadIntentRequest:
       type: object

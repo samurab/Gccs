@@ -3,6 +3,7 @@ using Gccs.Application.Calendar;
 using Gccs.Application.Companies;
 using Gccs.Application.Compliance;
 using Gccs.Application.Contracts;
+using Gccs.Application.Evidence;
 using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
 using Gccs.Application.Repositories;
@@ -14,6 +15,7 @@ using Gccs.Infrastructure.Calendar;
 using Gccs.Infrastructure.Companies;
 using Gccs.Infrastructure.Compliance;
 using Gccs.Infrastructure.Contracts;
+using Gccs.Infrastructure.Evidence;
 using Gccs.Infrastructure.Identity;
 using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Persistence;
@@ -43,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<AuditLogService>();
         services.AddScoped<ComplianceTaskService>();
         services.AddScoped<RenewalGenerationService>();
+        services.AddScoped<EvidenceMetadataService>();
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
@@ -69,6 +72,7 @@ public static class DependencyInjection
             services.AddScoped<IComplianceTaskRepository, EfComplianceTaskRepository>();
             services.AddScoped<IRenewalTaskRepository, EfRenewalTaskRepository>();
             services.AddScoped<ICalendarRepository, EfCalendarRepository>();
+            services.AddScoped<IEvidenceMetadataRepository, EfEvidenceMetadataRepository>();
         }
         else
         {
@@ -106,6 +110,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Renewal task generation requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICalendarRepository>(_ =>
                 throw new InvalidOperationException("Calendar persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IEvidenceMetadataRepository>(_ =>
+                throw new InvalidOperationException("Evidence metadata persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;
