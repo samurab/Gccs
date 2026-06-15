@@ -21,7 +21,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-1.1.4:** Verify developer docs and setup guidance explicitly position the MVP as No-CUI / compliance management only.
 #-----------------------------------
 
-### Done ## 
+### Done ##
 ### please perform smoke test on Story 1.2: Local Development Services. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
@@ -31,7 +31,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-1.2.4:** Scan committed config examples and repository files for production credentials, tokens, or real customer data, then report any findings.
 #-----------------------------------
 ### Story 1.3: Continuous Integration Baseline
-### Done ## 
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-1.3.1:** Open or simulate a pull request and verify CI runs restore, backend build, frontend build, lint, tests, migration validation, and security scans.
@@ -89,6 +89,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-3.1.4:** Verify successful and failed API responses/logs include a request correlation ID.
 #-----------------------------------
 ### Story 3.2: SaaS Navigation Shell
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-3.2.1:** Sign in and verify the first authenticated screen is the workspace/dashboard, not a marketing page.
