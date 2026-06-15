@@ -343,6 +343,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 13. CMMC Readiness Tracker
 
 ### Story 13.1: CMMC Level Selection
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-13.1.1:** Create readiness assessments for CMMC Level 1 and Level 2 and verify target level, status, dates, and owner.

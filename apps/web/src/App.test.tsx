@@ -12,6 +12,7 @@ const {
   contractClause,
   contractDeliverable,
   contractDocument,
+  createCmmcAssessmentMock,
   createContractDeliverableMock,
   createContractMock,
   createContractDocumentMock,
@@ -21,6 +22,7 @@ const {
   deleteContractDocumentMock,
   fallbackOverview,
   getCompanyProfileMock,
+  getCmmcAssessmentsMock,
   getCalendarEventsMock,
   getContractClausesMock,
   getContractDeliverablesMock,
@@ -37,6 +39,7 @@ const {
   getTenantMembersMock,
   invitations,
   calendarEvents,
+  cmmcAssessment,
   evidenceMetadata,
   members,
   obligationDashboardItem,
@@ -56,6 +59,7 @@ const {
   assignContractObligationOwnerMock: vi.fn(),
   attachContractClauseMock: vi.fn(),
   createContractDeliverableMock: vi.fn(),
+  createCmmcAssessmentMock: vi.fn(),
   createContractMock: vi.fn(),
   createContractDocumentMock: vi.fn(),
   createEvidenceMetadataMock: vi.fn(),
@@ -64,6 +68,7 @@ const {
   deleteContractDocumentMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
   getCalendarEventsMock: vi.fn(),
+  getCmmcAssessmentsMock: vi.fn(),
   getCompanyProfileMock: vi.fn(),
   getContractClausesMock: vi.fn(),
   getContractDeliverablesMock: vi.fn(),
@@ -101,6 +106,7 @@ const {
       "ViewEvidence",
       "ManageEvidence",
       "ViewCmmc",
+      "ManageCmmc",
       "ViewSubcontractors",
       "ViewReports",
       "ViewAuditLog"
@@ -349,6 +355,31 @@ const {
       isOverdue: false
     }
   ],
+  cmmcAssessment: {
+    id: "c131c131-c131-c131-c131-c131c131c131",
+    tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+    name: "Level 1 workspace",
+    type: "Readiness",
+    level: "Level1",
+    framework: "FAR-52.204-21",
+    status: "Planned",
+    startedAt: "2026-06-15",
+    completedAt: null,
+    affirmationDueAt: "2027-06-15",
+    ownerFunction: "Security",
+    companyProfileId: null,
+    contractIds: [],
+    controlSummary: {
+      total: 0,
+      implemented: 0,
+      partiallyImplemented: 0,
+      notStarted: 0,
+      notApplicable: 0,
+      completionPercentage: 0
+    },
+    createdAt: "2026-06-15T12:00:00Z",
+    updatedAt: null
+  },
   evidenceMetadata: {
     id: "edededed-eded-eded-eded-edededededed",
     tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
@@ -456,12 +487,14 @@ vi.mock("@/lib/api", () => ({
   assignContractObligationOwner: assignContractObligationOwnerMock,
   attachContractClause: attachContractClauseMock,
   createTenantInvitation: createTenantInvitationMock,
+  createCmmcAssessment: createCmmcAssessmentMock,
   createContractDeliverable: createContractDeliverableMock,
   createContract: createContractMock,
   createContractDocument: createContractDocumentMock,
   createEvidenceMetadata: createEvidenceMetadataMock,
   deleteContractDocument: deleteContractDocumentMock,
   getCalendarEvents: getCalendarEventsMock,
+  getCmmcAssessments: getCmmcAssessmentsMock,
   getCompanyProfile: getCompanyProfileMock,
   getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
@@ -523,6 +556,7 @@ describe("App", () => {
     attachContractClauseMock.mockReset();
     createEvidenceUploadIntentMock.mockReset();
     createEvidenceMetadataMock.mockReset();
+    createCmmcAssessmentMock.mockReset();
     createContractDeliverableMock.mockReset();
     createContractMock.mockReset();
     createContractDocumentMock.mockReset();
@@ -538,6 +572,7 @@ describe("App", () => {
     getCurrentUserAccessMock.mockReset();
     getAuditLogsMock.mockReset();
     getCalendarEventsMock.mockReset();
+    getCmmcAssessmentsMock.mockReset();
     getNoCuiAcknowledgementStatusMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
@@ -569,6 +604,7 @@ describe("App", () => {
     getCompanyProfileMock.mockResolvedValue(profile);
     getContractsMock.mockResolvedValue([]);
     getEvidenceItemsMock.mockResolvedValue([]);
+    getCmmcAssessmentsMock.mockResolvedValue([]);
     getCalendarEventsMock.mockResolvedValue([]);
     getContractClausesMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
@@ -613,6 +649,20 @@ describe("App", () => {
           id: "edededed-eded-eded-eded-ededededede2",
           createdAt: evidenceMetadata.createdAt,
           updatedAt: null
+        },
+        error: null
+      })
+    );
+    createCmmcAssessmentMock.mockImplementation((request) =>
+      Promise.resolve({
+        data: {
+          ...cmmcAssessment,
+          ...request,
+          id: cmmcAssessment.id,
+          tenantId: cmmcAssessment.tenantId,
+          controlSummary: cmmcAssessment.controlSummary,
+          createdAt: cmmcAssessment.createdAt,
+          updatedAt: "2026-06-15T13:30:00Z"
         },
         error: null
       })
@@ -1517,6 +1567,37 @@ describe("App", () => {
       expect.objectContaining({ name: "policy.pdf", type: "application/pdf" })
     );
     expect(await screen.findByText("File size exceeds the No-CUI MVP upload limit.")).toBeInTheDocument();
+  });
+
+  it("TC-13.1 renders and creates a CMMC Level 2 readiness assessment", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getCmmcAssessmentsMock.mockResolvedValueOnce([cmmcAssessment]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /cmmc/i }));
+    expect(await screen.findByText("Level 1 workspace")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Assessment name"));
+    await user.type(screen.getByLabelText("Assessment name"), "Level 2 workspace");
+    await user.selectOptions(screen.getByLabelText("Target level"), "Level2");
+    await user.selectOptions(screen.getByLabelText("Contract link"), contract.id);
+    await user.click(screen.getByRole("button", { name: /create assessment/i }));
+
+    expect(createCmmcAssessmentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Level 2 workspace",
+        level: "Level2",
+        framework: "NIST-SP-800-171-Rev2",
+        ownerFunction: "Security",
+        contractIds: [contract.id]
+      })
+    );
+    expect(await screen.findByText("CMMC readiness assessment created.")).toBeInTheDocument();
   });
 
   it("TC-11.2.1, TC-11.2.2, and TC-11.2.3 renders calendar events, filters them, and marks overdue items", async () => {

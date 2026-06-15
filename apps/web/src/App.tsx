@@ -26,6 +26,7 @@ import {
   assignContractObligationOwner,
   attachContractClause,
   createContract,
+  createCmmcAssessment,
   createContractDeliverable,
   createContractDocument,
   createTenantInvitation,
@@ -37,6 +38,7 @@ import {
   fallbackNoCuiAcknowledgementStatus,
   fallbackOverview,
   getCompanyProfile,
+  getCmmcAssessments,
   getCalendarEvents,
   getContractClauses,
   getContractDeliverables,
@@ -65,6 +67,7 @@ import {
   type CalendarEventQueryParams,
   type CompanyCertification,
   type CompanyProfile,
+  type CmmcAssessment,
   type ComplianceOverview,
   type ContractClause,
   type ContractDeliverable,
@@ -81,6 +84,7 @@ import {
   type AttachContractClauseRequest,
   type UpsertContractDeliverableRequest,
   type UpsertContractRequest,
+  type UpsertCmmcAssessmentRequest,
   type UpsertCompanyProfileRequest,
   type UpsertEvidenceMetadataRequest,
   type TenantMember
@@ -421,6 +425,7 @@ export function App() {
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceMetadata[]>([]);
+  const [cmmcAssessments, setCmmcAssessments] = useState<CmmcAssessment[]>([]);
   const [selectedEvidenceItemId, setSelectedEvidenceItemId] = useState<string | null>(null);
   const [calendarFilters, setCalendarFilters] = useState<CalendarFilters>(defaultCalendarFilters);
   const [calendarStatus, setCalendarStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
@@ -459,6 +464,8 @@ export function App() {
   const [uploadMessage, setUploadMessage] = useState("");
   const [evidenceMetadataStatus, setEvidenceMetadataStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [evidenceMetadataMessage, setEvidenceMetadataMessage] = useState("");
+  const [cmmcStatus, setCmmcStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [cmmcMessage, setCmmcMessage] = useState("");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
@@ -469,6 +476,7 @@ export function App() {
   const canManageCompanyProfile = access.permissions.includes("ManageCompanyProfile");
   const canManageContracts = access.permissions.includes("ManageContracts");
   const canManageObligations = access.permissions.includes("ManageObligations");
+  const canManageCmmc = access.permissions.includes("ManageCmmc");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
 
   useEffect(() => {
@@ -505,6 +513,7 @@ export function App() {
         const canLoadContracts = hasAnyPermission(nextAccess, ["ViewContracts", "ManageContracts"]);
         const canLoadObligations = hasAnyPermission(nextAccess, ["ViewObligations", "ManageObligations"]);
         const canLoadCalendar = hasAnyPermission(nextAccess, ["ViewTasks", "ManageTasks"]);
+        const canLoadCmmc = hasAnyPermission(nextAccess, ["ViewCmmc", "ManageCmmc"]);
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
@@ -517,6 +526,7 @@ export function App() {
         const nextContracts = canLoadContracts ? await getContracts() : [];
         const nextObligationDashboardItems = canLoadObligations ? await getContractObligations() : [];
         const nextCalendarEvents = canLoadCalendar ? await getCalendarEvents(defaultCalendarQuery()) : [];
+        const nextCmmcAssessments = canLoadCmmc ? await getCmmcAssessments() : [];
         const nextContractClauses = nextContracts[0] ? await getContractClauses(nextContracts[0].id) : [];
         const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
@@ -541,6 +551,8 @@ export function App() {
           setAuditLogStatus(canLoadAuditLogs ? "ready" : "idle");
           setNoCuiAcknowledgement(nextNoCuiAcknowledgement);
           setEvidenceItems(nextEvidenceItems);
+          setCmmcAssessments(nextCmmcAssessments);
+          setCmmcStatus(canLoadCmmc ? "idle" : "idle");
           setSelectedEvidenceItemId(nextEvidenceItems[0]?.id ?? null);
           setLoadState("ready");
         }
@@ -566,6 +578,8 @@ export function App() {
           setAuditLogStatus("idle");
           setNoCuiAcknowledgement(fallbackNoCuiAcknowledgementStatus);
           setEvidenceItems([]);
+          setCmmcAssessments([]);
+          setCmmcStatus("idle");
           setSelectedEvidenceItemId(null);
           setLoadState("error");
         }
@@ -945,6 +959,22 @@ export function App() {
     setEvidenceMetadataMessage(result.error ?? "Evidence metadata could not be saved.");
   }
 
+  async function handleCmmcAssessmentCreate(request: UpsertCmmcAssessmentRequest) {
+    setCmmcStatus("saving");
+    setCmmcMessage("");
+    const result = await createCmmcAssessment(request);
+
+    if (result.data) {
+      setCmmcAssessments((currentAssessments) => [result.data!, ...currentAssessments]);
+      setCmmcStatus("saved");
+      setCmmcMessage("CMMC readiness assessment created.");
+      return;
+    }
+
+    setCmmcStatus("failed");
+    setCmmcMessage(result.error ?? "CMMC assessment could not be created.");
+  }
+
   async function handleAuditLogFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await loadAuditLogs(1, auditLogFilters);
@@ -1129,6 +1159,15 @@ export function App() {
               status={calendarStatus}
               onFilterChange={setCalendarFilters}
               onFilterSubmit={handleCalendarFilterSubmit}
+            />
+          ) : activeRoute === "cmmc" ? (
+            <CmmcView
+              assessments={cmmcAssessments}
+              canManageCmmc={canManageCmmc}
+              contracts={contracts}
+              message={cmmcMessage}
+              status={cmmcStatus}
+              onCreate={handleCmmcAssessmentCreate}
             />
           ) : activeRoute === "settings" ? (
             <SettingsView
@@ -3216,7 +3255,180 @@ function ProfileView({
   );
 }
 
-function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence" | "profile" | "contracts"> }) {
+type CmmcAssessmentFormState = {
+  name: string;
+  level: "Level1" | "Level2";
+  framework: string;
+  status: string;
+  startedAt: string;
+  affirmationDueAt: string;
+  ownerFunction: string;
+  contractId: string;
+};
+
+const defaultCmmcAssessmentForm: CmmcAssessmentFormState = {
+  name: "CMMC readiness workspace",
+  level: "Level1",
+  framework: "FCI-Safeguarding",
+  status: "Planned",
+  startedAt: "2026-06-15",
+  affirmationDueAt: "2027-06-15",
+  ownerFunction: "Security",
+  contractId: ""
+};
+
+function CmmcView({
+  assessments,
+  canManageCmmc,
+  contracts,
+  message,
+  onCreate,
+  status
+}: {
+  assessments: CmmcAssessment[];
+  canManageCmmc: boolean;
+  contracts: ContractRecord[];
+  message: string;
+  onCreate: (request: UpsertCmmcAssessmentRequest) => Promise<void>;
+  status: "idle" | "saving" | "saved" | "failed";
+}) {
+  const [form, setForm] = useState<CmmcAssessmentFormState>(defaultCmmcAssessmentForm);
+
+  function updateField<TKey extends keyof CmmcAssessmentFormState>(field: TKey, value: CmmcAssessmentFormState[TKey]) {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+      ...(field === "level"
+        ? { framework: value === "Level1" ? "FCI-Safeguarding" : "NIST-SP-800-171-Rev2" }
+        : {})
+    }));
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void onCreate({
+      name: form.name.trim(),
+      type: "Readiness",
+      level: form.level,
+      framework: form.framework,
+      status: form.status,
+      startedAt: form.startedAt,
+      completedAt: null,
+      affirmationDueAt: form.affirmationDueAt || null,
+      ownerFunction: form.ownerFunction.trim(),
+      companyProfileId: null,
+      contractIds: form.contractId ? [form.contractId] : []
+    });
+  }
+
+  return (
+    <section className="route-panel" aria-label="CMMC readiness workspace">
+      <div className="route-panel__intro">
+        <p className="eyebrow">CMMC readiness</p>
+        <h2>CMMC and NIST workspace</h2>
+        <p>Create Level 1 or Level 2 readiness assessments, assign an owner, track dates, and watch completion progress.</p>
+      </div>
+
+      <form className="cmmc-create" onSubmit={submit}>
+        <fieldset disabled={!canManageCmmc || status === "saving"}>
+          <div className="form-grid">
+            <label>
+              <span>Assessment name</span>
+              <input value={form.name} onChange={(event) => updateField("name", event.target.value)} />
+            </label>
+            <label>
+              <span>Target level</span>
+              <select value={form.level} onChange={(event) => updateField("level", event.target.value as "Level1" | "Level2")}>
+                <option value="Level1">Level 1</option>
+                <option value="Level2">Level 2</option>
+              </select>
+            </label>
+            <label>
+              <span>Framework</span>
+              <select value={form.framework} onChange={(event) => updateField("framework", event.target.value)}>
+                <option value="FCI-Safeguarding">FCI safeguarding baseline</option>
+                <option value="NIST-SP-800-171-Rev2">NIST SP 800-171 Rev. 2</option>
+                <option value="NIST-SP-800-171-Rev3">NIST SP 800-171 Rev. 3</option>
+              </select>
+            </label>
+            <label>
+              <span>Status</span>
+              <select value={form.status} onChange={(event) => updateField("status", event.target.value)}>
+                <option value="Planned">Planned</option>
+                <option value="InProgress">In progress</option>
+                <option value="Complete">Complete</option>
+              </select>
+            </label>
+            <label>
+              <span>Started</span>
+              <input type="date" value={form.startedAt} onChange={(event) => updateField("startedAt", event.target.value)} />
+            </label>
+            <label>
+              <span>Affirmation due</span>
+              <input type="date" value={form.affirmationDueAt} onChange={(event) => updateField("affirmationDueAt", event.target.value)} />
+            </label>
+            <label>
+              <span>Owner</span>
+              <input value={form.ownerFunction} onChange={(event) => updateField("ownerFunction", event.target.value)} />
+            </label>
+            <label>
+              <span>Contract link</span>
+              <select value={form.contractId} onChange={(event) => updateField("contractId", event.target.value)}>
+                <option value="">No contract selected</option>
+                {contracts.map((contract) => (
+                  <option key={contract.id} value={contract.id}>
+                    {contract.contractNumber} · {contract.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </fieldset>
+        <div className="form-actions">
+          <button type="submit" disabled={!canManageCmmc || status === "saving"}>
+            <ShieldCheck size={16} aria-hidden="true" />
+            <span>{status === "saving" ? "Creating" : "Create assessment"}</span>
+          </button>
+        </div>
+        {!canManageCmmc ? <p className="form-status">ManageCmmc permission is required to create assessments.</p> : null}
+        {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
+      </form>
+
+      <section className="cmmc-assessments" aria-label="CMMC readiness assessments">
+        <div className="section-heading--split">
+          <div>
+            <h3>Readiness assessments</h3>
+            <p>Completion progress is calculated from control statuses as the workspace fills in.</p>
+          </div>
+        </div>
+        {assessments.length > 0 ? (
+          <div className="evidence-list">
+            {assessments.map((assessment) => (
+              <article className="evidence-list__item" key={assessment.id}>
+                <strong>{assessment.name}</strong>
+                <span>
+                  {formatCmmcLevel(assessment.level)} · {assessment.status} · {assessment.ownerFunction}
+                </span>
+                <span>
+                  {assessment.controlSummary.completionPercentage}% complete · {assessment.controlSummary.implemented}/
+                  {assessment.controlSummary.total} implemented · affirmation {assessment.affirmationDueAt ?? "not scheduled"}
+                </span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No CMMC assessment has started yet" body="Create a Level 1 or Level 2 workspace to begin tracking readiness." />
+        )}
+      </section>
+    </section>
+  );
+}
+
+function formatCmmcLevel(level: string) {
+  return level === "Level1" ? "Level 1" : level === "Level2" ? "Level 2" : level;
+}
+
+function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence" | "profile" | "contracts" | "cmmc"> }) {
   const content = placeholderContent[route];
 
   return (

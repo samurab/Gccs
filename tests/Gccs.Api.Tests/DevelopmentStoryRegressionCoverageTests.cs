@@ -343,7 +343,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-12.3.1"] = ["TC_12_3_1_Only_configured_roles_can_approve_evidence"],
             ["TC-12.3.2"] = ["TC_12_3_2_Rejection_without_comment_or_reason_fails_validation"],
             ["TC-12.3.3"] = ["TC_12_3_3_Approved_evidence_is_included_in_report_packages"],
-            ["TC-12.3.4"] = ["TC_12_3_4_Approve_reject_archive_and_expire_decisions_are_audit_logged"]
+            ["TC-12.3.4"] = ["TC_12_3_4_Approve_reject_archive_and_expire_decisions_are_audit_logged"],
+            ["TC-13.1.1"] = ["TC_13_1_1_Creates_level_1_and_level_2_readiness_assessments_with_status_dates_and_owner"],
+            ["TC-13.1.2"] = ["TC_13_1_2_Links_assessment_to_company_profile_and_contracts_for_detail_display"],
+            ["TC-13.1.3"] = ["TC_13_1_3_Control_status_updates_recalculate_completion_progress"],
+            ["TC-13.1.4"] = ["TC_13_1_4_Create_update_and_status_changes_are_audit_logged"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

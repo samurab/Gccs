@@ -36,6 +36,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<EvidenceFileVersionEntity> EvidenceFileVersions => Set<EvidenceFileVersionEntity>();
     public DbSet<ControlEntity> Controls => Set<ControlEntity>();
     public DbSet<AssessmentEntity> Assessments => Set<AssessmentEntity>();
+    public DbSet<ControlAssessmentEntity> ControlAssessments => Set<ControlAssessmentEntity>();
     public DbSet<PoamItemEntity> PoamItems => Set<PoamItemEntity>();
     public DbSet<AssetEntity> Assets => Set<AssetEntity>();
     public DbSet<SystemBoundaryEntity> SystemBoundaries => Set<SystemBoundaryEntity>();
@@ -454,6 +455,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("assessments");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Status, x.Level });
+            entity.Property(x => x.Name).HasMaxLength(240).HasDefaultValue("CMMC readiness assessment").IsRequired();
+            entity.Property(x => x.Framework).HasMaxLength(120).HasDefaultValue("CMMC").IsRequired();
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).HasDefaultValue("Compliance").IsRequired();
+            entity.Property(x => x.ContractIdsJson).HasColumnType("jsonb");
             ConfigureAuditColumns(entity);
         });
 

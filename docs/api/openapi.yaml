@@ -1573,6 +1573,8 @@ paths:
                   $ref: "#/components/schemas/CmmcAssessment"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       tags:
         - CMMC
@@ -1595,6 +1597,56 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/cmmc/assessments/{assessmentId}:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentId"
+    get:
+      tags:
+        - CMMC
+      summary: Get a CMMC readiness assessment
+      operationId: getCmmcAssessment
+      responses:
+        "200":
+          description: Assessment detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmmcAssessment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - CMMC
+      summary: Update a CMMC readiness assessment
+      operationId: updateCmmcAssessment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmmcAssessmentCreateRequest"
+      responses:
+        "200":
+          description: Assessment updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmmcAssessment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/cmmc/assessments/{assessmentId}/controls:
     parameters:
@@ -1615,6 +1667,8 @@ paths:
                   $ref: "#/components/schemas/CmmcControlStatus"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -1647,6 +1701,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -4312,58 +4368,100 @@ components:
         - type: object
           required:
             - id
+            - tenantId
             - status
             - controlSummary
             - createdAt
-            - updatedAt
           properties:
             id:
+              type: string
+              format: uuid
+            tenantId:
               type: string
               format: uuid
             status:
               type: string
               enum:
-                - draft
-                - in-progress
-                - ready-for-review
-                - completed
-                - archived
+                - Planned
+                - InProgress
+                - Complete
+                - Expired
+                - Superseded
             controlSummary:
               $ref: "#/components/schemas/ControlSummary"
             createdAt:
               type: string
               format: date-time
             updatedAt:
-              type: string
+              type:
+                - string
+                - "null"
               format: date-time
 
     CmmcAssessmentCreateRequest:
       type: object
       required:
         - name
+        - type
         - level
         - framework
+        - status
+        - startedAt
+        - ownerFunction
       properties:
         name:
           type: string
+          maxLength: 240
+        type:
+          type: string
+          enum:
+            - SelfAssessment
+            - Readiness
+            - ThirdParty
+            - GovernmentLed
         level:
           $ref: "#/components/schemas/CmmcLevel"
         framework:
           type: string
           enum:
+            - FCI-Safeguarding
             - FAR-52.204-21
             - NIST-SP-800-171-Rev2
             - NIST-SP-800-171-Rev3
-        contractId:
+        status:
+          type: string
+          enum:
+            - Planned
+            - InProgress
+            - Complete
+            - Expired
+            - Superseded
+        startedAt:
+          type: string
+          format: date
+        completedAt:
+          type:
+            - string
+            - "null"
+          format: date
+        affirmationDueAt:
+          type:
+            - string
+            - "null"
+          format: date
+        ownerFunction:
+          type: string
+          maxLength: 120
+        companyProfileId:
           type:
             - string
             - "null"
           format: uuid
-        systemBoundaryId:
-          type:
-            - string
-            - "null"
-          format: uuid
+        contractIds:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     ControlSummary:
       type: object
@@ -4371,8 +4469,9 @@ components:
         - total
         - implemented
         - partiallyImplemented
-        - notImplemented
+        - notStarted
         - notApplicable
+        - completionPercentage
       properties:
         total:
           type: integer
@@ -4380,19 +4479,28 @@ components:
           type: integer
         partiallyImplemented:
           type: integer
-        notImplemented:
+        notStarted:
           type: integer
         notApplicable:
           type: integer
+        completionPercentage:
+          type: integer
+          minimum: 0
+          maximum: 100
 
     CmmcControlStatus:
       type: object
       required:
+        - assessmentId
         - controlId
         - title
         - status
+        - result
         - evidenceItemIds
       properties:
+        assessmentId:
+          type: string
+          format: uuid
         controlId:
           type: string
         title:
@@ -4401,6 +4509,13 @@ components:
           type: string
         status:
           $ref: "#/components/schemas/ControlImplementationStatus"
+        result:
+          type: string
+          enum:
+            - NotAssessed
+            - Met
+            - NotMet
+            - NotApplicable
         assessmentObjectiveStatuses:
           type: array
           items:
@@ -4410,11 +4525,16 @@ components:
           items:
             type: string
             format: uuid
-        ownerUserId:
+        assessedByUserId:
           type:
             - string
             - "null"
           format: uuid
+        assessedAt:
+          type:
+            - string
+            - "null"
+          format: date
         notes:
           type:
             - string
@@ -4425,6 +4545,13 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/ControlImplementationStatus"
+        result:
+          type: string
+          enum:
+            - NotAssessed
+            - Met
+            - NotMet
+            - NotApplicable
         assessmentObjectiveStatuses:
           type: array
           items:
@@ -4434,11 +4561,16 @@ components:
           items:
             type: string
             format: uuid
-        ownerUserId:
+        assessedByUserId:
           type:
             - string
             - "null"
           format: uuid
+        assessedAt:
+          type:
+            - string
+            - "null"
+          format: date
         notes:
           type:
             - string
@@ -5105,11 +5237,11 @@ components:
         - expire
 
     CmmcLevel:
-      type: integer
+      type: string
       enum:
-        - 1
-        - 2
-        - 3
+        - Level1
+        - Level2
+        - Level3
 
     ControlImplementationStatus:
       type: string

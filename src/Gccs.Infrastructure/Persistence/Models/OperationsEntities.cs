@@ -125,12 +125,17 @@ public sealed class AssessmentEntity : AuditedEntity
 {
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
+    public string Name { get; set; } = string.Empty;
     public AssessmentType Type { get; set; }
     public CmmcLevel Level { get; set; }
+    public string Framework { get; set; } = string.Empty;
     public AssessmentStatus Status { get; set; }
     public DateOnly StartedAt { get; set; }
     public DateOnly? CompletedAt { get; set; }
     public DateOnly? AffirmationDueAt { get; set; }
+    public string OwnerFunction { get; set; } = string.Empty;
+    public Guid? CompanyProfileId { get; set; }
+    public string ContractIdsJson { get; set; } = "[]";
 
     public ICollection<ControlAssessmentEntity> Controls { get; set; } = [];
 }

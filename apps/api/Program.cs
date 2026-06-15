@@ -5,6 +5,7 @@ using Gccs.Api.LocalDevelopment;
 using Gccs.Application.Audit;
 using Gccs.Application.Calendar;
 using Gccs.Application.Companies;
+using Gccs.Application.Cmmc;
 using Gccs.Application.Compliance;
 using Gccs.Application.Contracts;
 using Gccs.Application.Evidence;
@@ -1015,6 +1016,150 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
 })
 .RequirePermission(Permission.ManageEvidence)
 .WithName("CreateEvidenceUploadIntent");
+
+api.MapGet("/cmmc/assessments", async (
+    CmmcAssessmentService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListCmmcAssessments");
+
+api.MapGet("/cmmc/assessments/{assessmentId:guid}", async (
+    Guid assessmentId,
+    CmmcAssessmentService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var assessment = await service.FindCurrentTenantAsync(assessmentId, cancellationToken);
+    return assessment is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"CMMC assessment '{assessmentId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(assessment);
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("GetCmmcAssessment");
+
+api.MapPost("/cmmc/assessments", async (
+    UpsertCmmcAssessmentRequest request,
+    CmmcAssessmentService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/cmmc/assessments/{created.Id}", created);
+    }
+    catch (CmmcAssessmentValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cmmcAssessment"] = [exception.Message]
+        },
+        title: "CMMC assessment invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("CreateCmmcAssessment");
+
+api.MapPut("/cmmc/assessments/{assessmentId:guid}", async (
+    Guid assessmentId,
+    UpsertCmmcAssessmentRequest request,
+    CmmcAssessmentService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(assessmentId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC assessment '{assessmentId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (CmmcAssessmentValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cmmcAssessment"] = [exception.Message]
+        },
+        title: "CMMC assessment invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("UpdateCmmcAssessment");
+
+api.MapGet("/cmmc/assessments/{assessmentId:guid}/controls", async (
+    Guid assessmentId,
+    CmmcAssessmentService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var controls = await service.ListControlStatusesAsync(assessmentId, cancellationToken);
+    return controls is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"CMMC assessment '{assessmentId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(controls);
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListCmmcControlStatuses");
+
+api.MapPatch("/cmmc/assessments/{assessmentId:guid}/controls/{controlId}", async (
+    Guid assessmentId,
+    string controlId,
+    UpsertCmmcControlStatusRequest request,
+    CmmcAssessmentService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpsertControlStatusAsync(
+            assessmentId,
+            controlId,
+            request,
+            tenantContext.UserId,
+            cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC assessment '{assessmentId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (CmmcAssessmentValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cmmcControlStatus"] = [exception.Message]
+        },
+        title: "CMMC control status invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("UpdateCmmcControlStatus");
 
 api.MapGet("/evidence-items/{evidenceItemId:guid}/download", async (
     Guid evidenceItemId,

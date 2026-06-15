@@ -1,6 +1,7 @@
 using Gccs.Application.Audit;
 using Gccs.Application.Calendar;
 using Gccs.Application.Companies;
+using Gccs.Application.Cmmc;
 using Gccs.Application.Compliance;
 using Gccs.Application.Contracts;
 using Gccs.Application.Evidence;
@@ -13,6 +14,7 @@ using Gccs.Application.Tenancy;
 using Gccs.Infrastructure.Audit;
 using Gccs.Infrastructure.Calendar;
 using Gccs.Infrastructure.Companies;
+using Gccs.Infrastructure.Cmmc;
 using Gccs.Infrastructure.Compliance;
 using Gccs.Infrastructure.Contracts;
 using Gccs.Infrastructure.Evidence;
@@ -47,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<RenewalGenerationService>();
         services.AddScoped<EvidenceMetadataService>();
         services.AddScoped<EvidenceApprovalService>();
+        services.AddScoped<CmmcAssessmentService>();
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
@@ -74,6 +77,7 @@ public static class DependencyInjection
             services.AddScoped<IRenewalTaskRepository, EfRenewalTaskRepository>();
             services.AddScoped<ICalendarRepository, EfCalendarRepository>();
             services.AddScoped<IEvidenceMetadataRepository, EfEvidenceMetadataRepository>();
+            services.AddScoped<ICmmcAssessmentRepository, EfCmmcAssessmentRepository>();
         }
         else
         {
@@ -113,6 +117,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Calendar persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IEvidenceMetadataRepository>(_ =>
                 throw new InvalidOperationException("Evidence metadata persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ICmmcAssessmentRepository>(_ =>
+                throw new InvalidOperationException("CMMC assessment persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

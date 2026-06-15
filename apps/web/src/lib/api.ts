@@ -137,6 +137,36 @@ export type EvidenceMetadata = {
 
 export type UpsertEvidenceMetadataRequest = Omit<EvidenceMetadata, "id" | "tenantId" | "createdAt" | "updatedAt">;
 
+export type ControlSummary = {
+  total: number;
+  implemented: number;
+  partiallyImplemented: number;
+  notStarted: number;
+  notApplicable: number;
+  completionPercentage: number;
+};
+
+export type CmmcAssessment = {
+  id: string;
+  tenantId: string;
+  name: string;
+  type: string;
+  level: string;
+  framework: string;
+  status: string;
+  startedAt: string;
+  completedAt: string | null;
+  affirmationDueAt: string | null;
+  ownerFunction: string;
+  companyProfileId: string | null;
+  contractIds: string[];
+  controlSummary: ControlSummary;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertCmmcAssessmentRequest = Omit<CmmcAssessment, "id" | "tenantId" | "controlSummary" | "createdAt" | "updatedAt">;
+
 export type AuditLogEntry = {
   id: string;
   tenantId: string;
@@ -495,6 +525,10 @@ export async function getEvidenceItems(tag?: string): Promise<EvidenceMetadata[]
   return getJson<EvidenceMetadata[]>(`/api/evidence-items${query}`, []);
 }
 
+export async function getCmmcAssessments(): Promise<CmmcAssessment[]> {
+  return getJson<CmmcAssessment[]>("/api/cmmc/assessments", []);
+}
+
 export async function getCompanyProfile(): Promise<CompanyProfile | null> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
@@ -768,6 +802,12 @@ export async function createEvidenceMetadata(
   request: UpsertEvidenceMetadataRequest
 ): Promise<ApiMutationResult<EvidenceMetadata>> {
   return postJsonResult<EvidenceMetadata>("/api/evidence-items", request);
+}
+
+export async function createCmmcAssessment(
+  request: UpsertCmmcAssessmentRequest
+): Promise<ApiMutationResult<CmmcAssessment>> {
+  return postJsonResult<CmmcAssessment>("/api/cmmc/assessments", request);
 }
 
 export async function updateEvidenceMetadata(
