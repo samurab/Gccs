@@ -275,6 +275,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => x.Source);
             entity.Property(x => x.ApplicabilityJson).HasColumnType("jsonb");
             entity.Property(x => x.EvidenceExamplesJson).HasColumnType("jsonb");
+            entity.Property(x => x.Confidence).HasDefaultValue("unknown");
+            entity.Property(x => x.ReviewState).HasDefaultValue(ReviewState.Draft);
         });
 
         modelBuilder.Entity<MvpModuleEntity>(entity =>

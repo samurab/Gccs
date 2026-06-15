@@ -140,6 +140,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 6. Compliance Content Foundation
 
 ### Story 6.1: Obligation Schema
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-6.1.1:** Attempt to publish an obligation without a source URL and verify validation fails.

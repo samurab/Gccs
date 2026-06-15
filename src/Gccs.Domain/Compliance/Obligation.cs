@@ -1,3 +1,5 @@
+using Gccs.Domain.Common;
+
 namespace Gccs.Domain.Compliance;
 
 public sealed record Obligation(
@@ -9,7 +11,9 @@ public sealed record Obligation(
     string RequiredAction,
     string OwnerFunction,
     RiskLevel RiskLevel,
+    bool RequiresFlowDown,
     string FlowDownRequirement,
     ApplicabilityDimension Applicability,
     IReadOnlyList<EvidenceExample> EvidenceExamples,
-    ComplianceSource SourceReference);
+    ComplianceSource SourceReference,
+    ReviewMetadata Review);

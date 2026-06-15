@@ -291,7 +291,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-5.2.1"] = ["TC_5_2_1_Admin_owner_or_advisor_sees_only_current_tenant_events"],
             ["TC-5.2.2"] = ["TC_5_2_2_Contributor_and_auditor_cannot_access_audit_logs"],
             ["TC-5.2.3"] = ["TC_5_2_3_Audit_log_pagination_uses_page_size_and_stable_ordering"],
-            ["TC-5.2.4"] = ["TC_5_2_4_Audit_log_filters_are_correct_and_tenant_scoped"]
+            ["TC-5.2.4"] = ["TC_5_2_4_Audit_log_filters_are_correct_and_tenant_scoped"],
+            ["TC-6.1.1"] = ["TC_6_1_1_Published_obligation_requires_source_url"],
+            ["TC-6.1.2"] = ["TC_6_1_2_Published_obligation_requires_last_reviewed_date"],
+            ["TC-6.1.3"] = ["TC_6_1_3_Published_obligation_requires_core_metadata_and_review_state"],
+            ["TC-6.1.4"] = ["TC_6_1_4_Evidence_examples_are_linked_and_returned_with_obligation"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

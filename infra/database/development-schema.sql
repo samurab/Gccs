@@ -1060,3 +1060,23 @@ VALUES ('20260615010139_AddAuditRequestMetadata', '10.0.4');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE gccs.obligations ADD confidence text NOT NULL DEFAULT 'unknown';
+
+ALTER TABLE gccs.obligations ADD last_reviewed_at date NOT NULL DEFAULT DATE '-infinity';
+
+ALTER TABLE gccs.obligations ADD next_review_due_at date;
+
+ALTER TABLE gccs.obligations ADD requires_expert_review boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.obligations ADD requires_flow_down boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.obligations ADD review_state character varying(64) NOT NULL DEFAULT 'Draft';
+
+ALTER TABLE gccs.obligations ADD reviewed_by_user_id uuid;
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615011257_AddObligationPublicationMetadata', '10.0.4');
+
+COMMIT;
+

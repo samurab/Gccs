@@ -985,6 +985,7 @@ Instructions:
 ## 6. Compliance Content Foundation
 
 ### Story 6.1: Obligation Schema
+## Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

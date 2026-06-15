@@ -2919,15 +2919,15 @@ components:
         - title
         - plainEnglishSummary
         - triggerCondition
-        - requiredActions
+        - requiredAction
         - ownerFunction
         - riskLevel
+        - requiresFlowDown
         - flowDownRequirement
         - applicability
         - evidenceExamples
         - sourceReference
-        - confidence
-        - requiresExpertReview
+        - review
       properties:
         id:
           type: string
@@ -2939,14 +2939,14 @@ components:
           type: string
         triggerCondition:
           type: string
-        requiredActions:
-          type: array
-          items:
-            type: string
+        requiredAction:
+          type: string
         ownerFunction:
           type: string
         riskLevel:
           $ref: "#/components/schemas/RiskLevel"
+        requiresFlowDown:
+          type: boolean
         flowDownRequirement:
           type: string
         applicability:
@@ -2954,17 +2954,15 @@ components:
         evidenceExamples:
           type: array
           items:
-            type: string
+            $ref: "#/components/schemas/EvidenceExample"
         reportingDeadline:
           type:
             - string
             - "null"
         sourceReference:
           $ref: "#/components/schemas/SourceReference"
-        confidence:
-          $ref: "#/components/schemas/Confidence"
-        requiresExpertReview:
-          type: boolean
+        review:
+          $ref: "#/components/schemas/ReviewMetadata"
 
     Applicability:
       type: object
@@ -2993,6 +2991,48 @@ components:
           type: array
           items:
             type: string
+
+    EvidenceExample:
+      type: object
+      required:
+        - name
+        - description
+        - owner
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        owner:
+          type: string
+
+    ReviewMetadata:
+      type: object
+      required:
+        - lastReviewedAt
+        - confidence
+        - requiresExpertReview
+        - state
+      properties:
+        lastReviewedAt:
+          type: string
+          format: date
+        reviewedByUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        nextReviewDueAt:
+          type:
+            - string
+            - "null"
+          format: date
+        confidence:
+          $ref: "#/components/schemas/Confidence"
+        requiresExpertReview:
+          type: boolean
+        state:
+          type: string
 
     ComplianceTask:
       allOf:
@@ -4048,21 +4088,20 @@ components:
     SourceReference:
       type: object
       required:
-        - source
-        - sourceUrl
-        - sourceType
+        - name
+        - url
         - lastReviewedAt
+        - confidence
+        - requiresExpertReview
       properties:
-        source:
+        name:
           type: string
           examples:
             - FAR 52.204-21
-        sourceUrl:
+        url:
           type: string
           format: uri
-        sourceType:
-          $ref: "#/components/schemas/SourceType"
-        effectiveDate:
+        effectiveAt:
           type:
             - string
             - "null"
@@ -4070,14 +4109,10 @@ components:
         lastReviewedAt:
           type: string
           format: date
-        reviewedBy:
-          type:
-            - string
-            - "null"
-        changeSummary:
-          type:
-            - string
-            - "null"
+        confidence:
+          $ref: "#/components/schemas/Confidence"
+        requiresExpertReview:
+          type: boolean
 
     JobAccepted:
       type: object

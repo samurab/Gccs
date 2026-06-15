@@ -146,6 +146,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 ## 6. Compliance Content Foundation
 
 ###  Please perform automated test on Story 6.1: Obligation Schema. Please provide the results of the tests.
+### Done ##
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-6.1.1:** Attempt to publish an obligation without a source URL and verify validation fails.

@@ -42,6 +42,7 @@ public sealed class ObligationEntity
     public string RequiredAction { get; set; } = string.Empty;
     public string OwnerFunction { get; set; } = string.Empty;
     public RiskLevel RiskLevel { get; set; }
+    public bool RequiresFlowDown { get; set; }
     public string FlowDownRequirement { get; set; } = string.Empty;
     public string ApplicabilityJson { get; set; } = "{}";
     public string EvidenceExamplesJson { get; set; } = "[]";
@@ -51,6 +52,12 @@ public sealed class ObligationEntity
     public DateOnly? SourceEffectiveAt { get; set; }
     public string SourceConfidence { get; set; } = "unknown";
     public bool SourceRequiresExpertReview { get; set; }
+    public DateOnly LastReviewedAt { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateOnly? NextReviewDueAt { get; set; }
+    public string Confidence { get; set; } = "unknown";
+    public bool RequiresExpertReview { get; set; }
+    public ReviewState ReviewState { get; set; } = ReviewState.Draft;
 
     public ICollection<ContractClauseObligationEntity> ContractClauses { get; set; } = [];
     public ICollection<EvidenceObligationEntity> EvidenceItems { get; set; } = [];
