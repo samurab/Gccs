@@ -41,12 +41,17 @@ import {
   type CompanyCertification,
   type CompanyProfile,
   type ComplianceOverview,
+  type ContractRecord,
   type CurrentUserAccess,
   type NoCuiAcknowledgementStatus,
   type PagedResult,
   type TenantInvitation,
+  type UpsertContractRequest,
   type UpsertCompanyProfileRequest,
-  type TenantMember
+  type TenantMember,
+  createContract,
+  getContracts,
+  updateContract
 } from "@/lib/api";
 
 type WorkspaceRoute =
@@ -112,6 +117,21 @@ type ProfileFormState = {
   usesExternalServiceProvider: boolean;
   externalServiceProviderName: string;
   keySystems: string;
+  dataHandlingPosture: string;
+};
+
+type ContractFormState = {
+  contractNumber: string;
+  title: string;
+  agencyOrPrimeName: string;
+  relationship: string;
+  kind: string;
+  status: string;
+  awardedAt: string;
+  periodOfPerformanceStart: string;
+  periodOfPerformanceEnd: string;
+  placeOfPerformance: string;
+  description: string;
   dataHandlingPosture: string;
 };
 
@@ -230,6 +250,21 @@ const defaultProfileForm: ProfileFormState = {
   dataHandlingPosture: "Unknown"
 };
 
+const defaultContractForm: ContractFormState = {
+  contractNumber: "",
+  title: "",
+  agencyOrPrimeName: "",
+  relationship: "Subcontractor",
+  kind: "FixedPrice",
+  status: "Draft",
+  awardedAt: "",
+  periodOfPerformanceStart: "",
+  periodOfPerformanceEnd: "",
+  placeOfPerformance: "",
+  description: "",
+  dataHandlingPosture: "FciOnly"
+};
+
 const placeholderContent: Record<
   Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence">,
   { eyebrow: string; title: string; description: string; emptyTitle: string; emptyBody: string }
@@ -308,6 +343,8 @@ export function App() {
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
+  const [contracts, setContracts] = useState<ContractRecord[]>([]);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [auditLogs, setAuditLogs] = useState<PagedResult<AuditLogEntry>>(fallbackAuditLogs);
   const [auditLogFilters, setAuditLogFilters] = useState<AuditLogFilters>(defaultAuditLogFilters);
   const [auditLogStatus, setAuditLogStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
@@ -321,6 +358,8 @@ export function App() {
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "created" | "failed">("idle");
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [profileMessage, setProfileMessage] = useState("");
+  const [contractStatus, setContractStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [contractMessage, setContractMessage] = useState("");
   const [selectedEvidenceFile, setSelectedEvidenceFile] = useState<File | null>(null);
   const [acknowledgementStatus, setAcknowledgementStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "creating" | "created" | "blocked">("idle");
@@ -333,6 +372,7 @@ export function App() {
   const canManageUsers = access.permissions.includes("ManageUsers");
   const canManageEvidence = access.permissions.includes("ManageEvidence");
   const canManageCompanyProfile = access.permissions.includes("ManageCompanyProfile");
+  const canManageContracts = access.permissions.includes("ManageContracts");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
 
   useEffect(() => {
@@ -366,6 +406,7 @@ export function App() {
         const canLoadAuditLogs = nextAccess.permissions.includes("ViewAuditLog");
         const canLoadNoCuiStatus = hasAnyPermission(nextAccess, ["ViewEvidence", "ManageEvidence"]);
         const canLoadCompanyProfile = hasAnyPermission(nextAccess, ["ViewCompanyProfile", "ManageCompanyProfile"]);
+        const canLoadContracts = hasAnyPermission(nextAccess, ["ViewContracts", "ManageContracts"]);
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
@@ -374,6 +415,7 @@ export function App() {
           ? await getNoCuiAcknowledgementStatus()
           : fallbackNoCuiAcknowledgementStatus;
         const nextCompanyProfile = canLoadCompanyProfile ? await getCompanyProfile() : null;
+        const nextContracts = canLoadContracts ? await getContracts() : [];
 
         if (isMounted) {
           setOverview(nextOverview);
@@ -381,6 +423,8 @@ export function App() {
           setMembers(nextMembers);
           setInvitations(nextInvitations);
           setCompanyProfile(nextCompanyProfile);
+          setContracts(nextContracts);
+          setSelectedContractId(nextContracts[0]?.id ?? null);
           setAuditLogs(nextAuditLogs);
           setAuditLogStatus(canLoadAuditLogs ? "ready" : "idle");
           setNoCuiAcknowledgement(nextNoCuiAcknowledgement);
@@ -394,6 +438,8 @@ export function App() {
           setMembers([]);
           setInvitations([]);
           setCompanyProfile(null);
+          setContracts([]);
+          setSelectedContractId(null);
           setAuditLogs(fallbackAuditLogs);
           setAuditLogStatus("idle");
           setNoCuiAcknowledgement(fallbackNoCuiAcknowledgementStatus);
@@ -441,6 +487,29 @@ export function App() {
 
     setProfileStatus("failed");
     setProfileMessage(result.error ?? "Profile could not be saved.");
+  }
+
+  async function handleContractSave(contractId: string | null, request: UpsertContractRequest) {
+    setContractStatus("saving");
+    setContractMessage("");
+
+    const result = contractId ? await updateContract(contractId, request) : await createContract(request);
+    if (result.data) {
+      const savedContract = result.data;
+      setContracts((currentContracts) => {
+        const exists = currentContracts.some((contract) => contract.id === savedContract.id);
+        return exists
+          ? currentContracts.map((contract) => (contract.id === savedContract.id ? savedContract : contract))
+          : [savedContract, ...currentContracts];
+      });
+      setSelectedContractId(savedContract.id);
+      setContractStatus("saved");
+      setContractMessage(contractId ? "Contract updated." : "Contract created.");
+      return;
+    }
+
+    setContractStatus("failed");
+    setContractMessage(result.error ?? "Contract could not be saved.");
   }
 
   async function handleNoCuiAcknowledgement() {
@@ -568,6 +637,16 @@ export function App() {
               profileMessage={profileMessage}
               profileStatus={profileStatus}
               onSave={handleCompanyProfileSave}
+            />
+          ) : activeRoute === "contracts" ? (
+            <ContractsView
+              canManageContracts={canManageContracts}
+              contracts={contracts}
+              contractMessage={contractMessage}
+              contractStatus={contractStatus}
+              selectedContractId={selectedContractId}
+              onSave={handleContractSave}
+              onSelectContract={setSelectedContractId}
             />
           ) : activeRoute === "evidence" ? (
             <EvidenceView
@@ -847,6 +926,252 @@ function splitList(value: string): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function contractToForm(contract: ContractRecord | null): ContractFormState {
+  if (!contract) {
+    return defaultContractForm;
+  }
+
+  return {
+    contractNumber: contract.contractNumber,
+    title: contract.title,
+    agencyOrPrimeName: contract.agencyOrPrimeName,
+    relationship: contract.relationship,
+    kind: contract.kind,
+    status: contract.status,
+    awardedAt: contract.awardedAt ?? "",
+    periodOfPerformanceStart: contract.periodOfPerformanceStart,
+    periodOfPerformanceEnd: contract.periodOfPerformanceEnd,
+    placeOfPerformance: contract.placeOfPerformance,
+    description: contract.description,
+    dataHandlingPosture: contract.dataHandlingPosture
+  };
+}
+
+function contractFormToRequest(form: ContractFormState): UpsertContractRequest {
+  return {
+    contractNumber: form.contractNumber.trim(),
+    title: form.title.trim(),
+    agencyOrPrimeName: form.agencyOrPrimeName.trim(),
+    relationship: form.relationship,
+    kind: form.kind,
+    status: form.status,
+    awardedAt: form.awardedAt || null,
+    periodOfPerformanceStart: form.periodOfPerformanceStart,
+    periodOfPerformanceEnd: form.periodOfPerformanceEnd,
+    placeOfPerformance: form.placeOfPerformance.trim(),
+    description: form.description.trim(),
+    dataHandlingPosture: form.dataHandlingPosture
+  };
+}
+
+function ContractsView({
+  canManageContracts,
+  contracts,
+  contractMessage,
+  contractStatus,
+  selectedContractId,
+  onSave,
+  onSelectContract
+}: {
+  canManageContracts: boolean;
+  contracts: ContractRecord[];
+  contractMessage: string;
+  contractStatus: "idle" | "saving" | "saved" | "failed";
+  selectedContractId: string | null;
+  onSave: (contractId: string | null, request: UpsertContractRequest) => Promise<void>;
+  onSelectContract: (contractId: string | null) => void;
+}) {
+  const selectedContract = contracts.find((contract) => contract.id === selectedContractId) ?? null;
+
+  return (
+    <section className="route-panel contracts-route">
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">Contract intake</p>
+          <h2>{selectedContract ? selectedContract.contractNumber : "Create contract record"}</h2>
+        </div>
+        <button
+          className="secondary-action"
+          type="button"
+          onClick={() => onSelectContract(null)}
+          disabled={!canManageContracts || contractStatus === "saving"}
+        >
+          New contract
+        </button>
+      </div>
+
+      {contractMessage ? (
+        <p className={`form-status ${contractStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
+          {contractMessage}
+        </p>
+      ) : null}
+
+      <div className="contract-workspace">
+        <aside className="contract-list" aria-label="Contract records">
+          {contracts.length > 0 ? (
+            contracts.map((contract) => (
+              <button
+                className={contract.id === selectedContract?.id ? "contract-list__item contract-list__item--active" : "contract-list__item"}
+                key={contract.id}
+                type="button"
+                onClick={() => onSelectContract(contract.id)}
+              >
+                <strong>{contract.contractNumber}</strong>
+                <span>{contract.title}</span>
+                <small>{contract.status} · {contract.relationship}</small>
+              </button>
+            ))
+          ) : (
+            <EmptyState title="No contracts have been added yet" body="Create a draft or active contract record to start intake." />
+          )}
+        </aside>
+
+        <ContractEditor
+          key={selectedContract?.id ?? "new-contract"}
+          canManageContracts={canManageContracts}
+          contractStatus={contractStatus}
+          selectedContract={selectedContract}
+          onSave={onSave}
+        />
+
+        {selectedContract ? (
+          <section className="contract-detail" aria-label="Contract detail">
+            <div>
+              <span>Period</span>
+              <strong>{selectedContract.periodOfPerformanceStart} to {selectedContract.periodOfPerformanceEnd}</strong>
+            </div>
+            <div>
+              <span>Role</span>
+              <strong>{selectedContract.relationship}</strong>
+            </div>
+            <div>
+              <span>Agency or prime</span>
+              <strong>{selectedContract.agencyOrPrimeName}</strong>
+            </div>
+            <div>
+              <span>Data posture</span>
+              <strong>{selectedContract.dataHandlingPosture}</strong>
+            </div>
+          </section>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ContractEditor({
+  canManageContracts,
+  contractStatus,
+  selectedContract,
+  onSave
+}: {
+  canManageContracts: boolean;
+  contractStatus: "idle" | "saving" | "saved" | "failed";
+  selectedContract: ContractRecord | null;
+  onSave: (contractId: string | null, request: UpsertContractRequest) => Promise<void>;
+}) {
+  const [form, setForm] = useState<ContractFormState>(() => contractToForm(selectedContract));
+
+  function updateField<TKey extends keyof ContractFormState>(field: TKey, value: ContractFormState[TKey]) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function save() {
+    await onSave(selectedContract?.id ?? null, contractFormToRequest(form));
+  }
+
+  return (
+    <form className="contract-form" onSubmit={(event) => event.preventDefault()}>
+      <fieldset disabled={!canManageContracts || contractStatus === "saving"}>
+        <div className="form-grid">
+          <label>
+            <span>Contract number</span>
+            <input value={form.contractNumber} onChange={(event) => updateField("contractNumber", event.target.value)} />
+          </label>
+          <label>
+            <span>Title</span>
+            <input value={form.title} onChange={(event) => updateField("title", event.target.value)} />
+          </label>
+          <label>
+            <span>Agency or prime</span>
+            <input value={form.agencyOrPrimeName} onChange={(event) => updateField("agencyOrPrimeName", event.target.value)} />
+          </label>
+          <label>
+            <span>Role</span>
+            <select value={form.relationship} onChange={(event) => updateField("relationship", event.target.value)}>
+              <option value="Prime">Prime</option>
+              <option value="Subcontractor">Subcontractor</option>
+              <option value="Supplier">Supplier</option>
+              <option value="Consultant">Consultant</option>
+            </select>
+          </label>
+          <label>
+            <span>Contract type</span>
+            <select value={form.kind} onChange={(event) => updateField("kind", event.target.value)}>
+              <option value="FixedPrice">Fixed price</option>
+              <option value="TimeAndMaterials">Time and materials</option>
+              <option value="CostReimbursement">Cost reimbursement</option>
+              <option value="IndefiniteDelivery">Indefinite delivery</option>
+              <option value="PurchaseOrder">Purchase order</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select value={form.status} onChange={(event) => updateField("status", event.target.value)}>
+              <option value="Draft">Draft</option>
+              <option value="Active">Active</option>
+            </select>
+          </label>
+          <label>
+            <span>Awarded</span>
+            <input type="date" value={form.awardedAt} onChange={(event) => updateField("awardedAt", event.target.value)} />
+          </label>
+          <label>
+            <span>Start</span>
+            <input
+              type="date"
+              value={form.periodOfPerformanceStart}
+              onChange={(event) => updateField("periodOfPerformanceStart", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>End</span>
+            <input
+              type="date"
+              value={form.periodOfPerformanceEnd}
+              onChange={(event) => updateField("periodOfPerformanceEnd", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>FCI/CUI posture</span>
+            <select value={form.dataHandlingPosture} onChange={(event) => updateField("dataHandlingPosture", event.target.value)}>
+              <option value="NoFciOrCui">No FCI/CUI</option>
+              <option value="FciOnly">FCI only</option>
+              <option value="Cui">CUI</option>
+              <option value="Classified">Classified</option>
+              <option value="ExportControlled">Export-controlled</option>
+            </select>
+          </label>
+          <label className="span-2">
+            <span>Place of performance</span>
+            <input value={form.placeOfPerformance} onChange={(event) => updateField("placeOfPerformance", event.target.value)} />
+          </label>
+          <label className="span-2">
+            <span>Description</span>
+            <textarea value={form.description} onChange={(event) => updateField("description", event.target.value)} />
+          </label>
+        </div>
+      </fieldset>
+      <div className="form-actions">
+        <button type="button" onClick={() => save()} disabled={!canManageContracts || contractStatus === "saving"}>
+          {selectedContract ? "Update contract" : "Create contract"}
+        </button>
+      </div>
+    </form>
+  );
 }
 
 function ProfileView({
@@ -1242,7 +1567,7 @@ function ProfileView({
   );
 }
 
-function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence" | "profile"> }) {
+function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence" | "profile" | "contracts"> }) {
   const content = placeholderContent[route];
 
   return (

@@ -233,6 +233,8 @@ public sealed class ContractEntity : AuditedEntity
     public DateOnly PeriodOfPerformanceStart { get; set; }
     public DateOnly PeriodOfPerformanceEnd { get; set; }
     public string PlaceOfPerformance { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public DataHandlingPosture DataHandlingPosture { get; set; }
 
     public ICollection<ContractDocumentEntity> Documents { get; set; } = [];
     public ICollection<ContractClauseEntity> Clauses { get; set; } = [];

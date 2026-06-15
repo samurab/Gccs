@@ -5,6 +5,7 @@ using Gccs.Api.LocalDevelopment;
 using Gccs.Application.Audit;
 using Gccs.Application.Companies;
 using Gccs.Application.Compliance;
+using Gccs.Application.Contracts;
 using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
 using Gccs.Application.Repositories;
@@ -165,6 +166,87 @@ api.MapPut("/company-profile", async (
 })
 .RequirePermission(Permission.ManageCompanyProfile)
 .WithName("SaveCompanyProfile");
+
+api.MapGet("/contracts", async (
+    ContractService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContracts");
+
+api.MapGet("/contracts/{contractId:guid}", async (
+    Guid contractId,
+    ContractService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var contract = await service.FindCurrentTenantAsync(contractId, cancellationToken);
+    return contract is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract '{contractId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(contract);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("GetContractById");
+
+api.MapPost("/contracts", async (
+    UpsertContractRequest request,
+    ContractService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var contract = await service.CreateCurrentTenantAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/contracts/{contract.Id}", contract);
+    }
+    catch (ContractValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Contract record invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContract");
+
+api.MapPut("/contracts/{contractId:guid}", async (
+    Guid contractId,
+    UpsertContractRequest request,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var contract = await service.UpdateCurrentTenantAsync(contractId, request, tenantContext.UserId, cancellationToken);
+        return contract is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Contract '{contractId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(contract);
+    }
+    catch (ContractValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Contract record invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContract");
 
 api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))

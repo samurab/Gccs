@@ -5,10 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   acknowledgeNoCuiNoticeMock,
   allWorkflowAccess,
+  contract,
+  createContractMock,
   createEvidenceUploadIntentMock,
   createTenantInvitationMock,
   fallbackOverview,
   getCompanyProfileMock,
+  getContractsMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
   getComplianceOverviewMock,
@@ -20,19 +23,23 @@ const {
   overview,
   profile,
   restrictedAccess,
-  saveCompanyProfileMock
+  saveCompanyProfileMock,
+  updateContractMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
+  createContractMock: vi.fn(),
   createEvidenceUploadIntentMock: vi.fn(),
   createTenantInvitationMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
   getCompanyProfileMock: vi.fn(),
+  getContractsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
   getNoCuiAcknowledgementStatusMock: vi.fn(),
   getTenantInvitationsMock: vi.fn(),
   getTenantMembersMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
+  updateContractMock: vi.fn(),
   allWorkflowAccess: {
     tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
     userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
@@ -41,6 +48,7 @@ const {
     permissions: [
       "ManageUsers",
       "ManageCompanyProfile",
+      "ManageContracts",
       "ViewCompanyProfile",
       "ViewContracts",
       "ViewObligations",
@@ -182,13 +190,34 @@ const {
     validationErrors: {},
     createdAt: "2026-06-15T12:00:00Z",
     updatedAt: null
+  },
+  contract: {
+    id: "88888888-8888-8888-8888-888888888881",
+    tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+    contractNumber: "W15QKN-26-C-0001",
+    title: "Base operations support services",
+    agencyOrPrimeName: "Department of Defense",
+    relationship: "Subcontractor",
+    kind: "FixedPrice",
+    status: "Active",
+    awardedAt: "2026-06-15",
+    periodOfPerformanceStart: "2026-07-01",
+    periodOfPerformanceEnd: "2027-06-30",
+    placeOfPerformance: "Arlington, VA",
+    description: "No-CUI contract intake record.",
+    dataHandlingPosture: "FciOnly",
+    createdAt: "2026-06-15T12:00:00Z",
+    updatedAt: null
   }
 }));
 
 vi.mock("@/lib/api", () => ({
   createTenantInvitation: createTenantInvitationMock,
+  createContract: createContractMock,
   getCompanyProfile: getCompanyProfileMock,
+  getContracts: getContractsMock,
   saveCompanyProfile: saveCompanyProfileMock,
+  updateContract: updateContractMock,
   acknowledgeNoCuiNotice: acknowledgeNoCuiNoticeMock,
   createEvidenceUploadIntent: createEvidenceUploadIntentMock,
   fallbackAccess: {
@@ -232,7 +261,9 @@ describe("App", () => {
     window.location.hash = "";
     acknowledgeNoCuiNoticeMock.mockReset();
     createEvidenceUploadIntentMock.mockReset();
+    createContractMock.mockReset();
     createTenantInvitationMock.mockReset();
+    updateContractMock.mockReset();
     saveCompanyProfileMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
@@ -240,6 +271,7 @@ describe("App", () => {
     getNoCuiAcknowledgementStatusMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
+    getContractsMock.mockReset();
     getAuditLogsMock.mockResolvedValue({
       items: [],
       page: 1,
@@ -258,6 +290,7 @@ describe("App", () => {
       acknowledgedAt: null
     });
     getCompanyProfileMock.mockResolvedValue(profile);
+    getContractsMock.mockResolvedValue([]);
     saveCompanyProfileMock.mockImplementation((request) =>
       Promise.resolve({
         data: {
@@ -269,6 +302,30 @@ describe("App", () => {
           isComplete: request.completeProfile,
           validationErrors: request.completeProfile ? {} : { uei: ["UEI is required before profile completion."] },
           createdAt: profile.createdAt,
+          updatedAt: "2026-06-15T13:00:00Z"
+        },
+        error: null
+      })
+    );
+    createContractMock.mockImplementation((request) =>
+      Promise.resolve({
+        data: {
+          ...contract,
+          ...request,
+          id: "88888888-8888-8888-8888-888888888882",
+          tenantId: contract.tenantId,
+          createdAt: contract.createdAt,
+          updatedAt: null
+        },
+        error: null
+      })
+    );
+    updateContractMock.mockImplementation((contractId, request) =>
+      Promise.resolve({
+        data: {
+          ...contract,
+          ...request,
+          id: contractId,
           updatedAt: "2026-06-15T13:00:00Z"
         },
         error: null
@@ -403,6 +460,47 @@ describe("App", () => {
         ]
       })
     );
+  });
+
+  it("TC-8.1.1 and TC-8.1.3 renders contract detail and submits a new contract", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+    expect(await screen.findByRole("heading", { name: "W15QKN-26-C-0001" })).toBeInTheDocument();
+    expect(screen.getByText("2026-07-01 to 2027-06-30")).toBeInTheDocument();
+    expect(screen.getByText("FciOnly")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /new contract/i }));
+    await user.type(screen.getByLabelText("Contract number"), "FA8750-26-F-0002");
+    await user.type(screen.getByLabelText("Title"), "Cybersecurity support services");
+    await user.type(screen.getByLabelText("Agency or prime"), "Department of the Air Force");
+    await user.selectOptions(screen.getByLabelText("Contract type"), "TimeAndMaterials");
+    await user.selectOptions(screen.getByLabelText("Status"), "Draft");
+    await user.type(screen.getByLabelText("Awarded"), "2026-06-15");
+    await user.type(screen.getByLabelText("Start"), "2026-07-01");
+    await user.type(screen.getByLabelText("End"), "2027-06-30");
+    await user.type(screen.getByLabelText("Place of performance"), "Dayton, OH");
+    await user.type(screen.getByLabelText("Description"), "No-CUI contract intake record.");
+    await user.click(screen.getByRole("button", { name: /create contract/i }));
+
+    expect(createContractMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contractNumber: "FA8750-26-F-0002",
+        title: "Cybersecurity support services",
+        agencyOrPrimeName: "Department of the Air Force",
+        kind: "TimeAndMaterials",
+        status: "Draft",
+        dataHandlingPosture: "FciOnly"
+      })
+    );
+    expect(await screen.findByText("Contract created.")).toBeInTheDocument();
   });
 
   it("TC-2.4.2 renders workspace actions and TC-3.2.3 hides restricted navigation", async () => {

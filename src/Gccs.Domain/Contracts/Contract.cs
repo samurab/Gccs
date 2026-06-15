@@ -1,4 +1,5 @@
 using Gccs.Domain.Common;
+using Gccs.Domain.Companies;
 using Gccs.Domain.Compliance;
 
 namespace Gccs.Domain.Contracts;
@@ -16,6 +17,8 @@ public sealed record Contract(
     DateOnly PeriodOfPerformanceStart,
     DateOnly PeriodOfPerformanceEnd,
     string PlaceOfPerformance,
+    string Description,
+    DataHandlingPosture DataHandlingPosture,
     IReadOnlyList<ContractDocument> Documents,
     IReadOnlyList<ContractClause> Clauses,
     IReadOnlyList<Deliverable> Deliverables,

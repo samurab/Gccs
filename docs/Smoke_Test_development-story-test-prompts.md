@@ -198,6 +198,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 8. Contract Intake
 
 ### Story 8.1: Create Contract Record
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-8.1.1:** Create draft and active contract records with required fields and verify persistence.

@@ -296,6 +296,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.TenantId, x.Status });
             entity.Property(x => x.ContractNumber).HasMaxLength(120).IsRequired();
             entity.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.AgencyOrPrimeName).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.PlaceOfPerformance).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1200);
             ConfigureAuditColumns(entity);
         });
 

@@ -1433,6 +1433,7 @@ Instructions:
 ## 8. Contract Intake
 
 ### Story 8.1: Create Contract Record
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

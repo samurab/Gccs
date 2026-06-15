@@ -173,6 +173,27 @@ export type CompanyProfile = {
   updatedAt: string | null;
 };
 
+export type ContractRecord = {
+  id: string;
+  tenantId: string;
+  contractNumber: string;
+  title: string;
+  agencyOrPrimeName: string;
+  relationship: string;
+  kind: string;
+  status: string;
+  awardedAt: string | null;
+  periodOfPerformanceStart: string;
+  periodOfPerformanceEnd: string;
+  placeOfPerformance: string;
+  description: string;
+  dataHandlingPosture: string;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertContractRequest = Omit<ContractRecord, "id" | "tenantId" | "createdAt" | "updatedAt">;
+
 export type UpsertCompanyProfileRequest = Omit<
   CompanyProfile,
   "id" | "tenantId" | "completionPercentage" | "isComplete" | "validationErrors" | "createdAt" | "updatedAt"
@@ -296,10 +317,43 @@ export async function getCompanyProfile(): Promise<CompanyProfile | null> {
   }
 }
 
+export async function getContracts(): Promise<ContractRecord[]> {
+  return getJson<ContractRecord[]>("/api/contracts", []);
+}
+
+export async function getContract(contractId: string): Promise<ContractRecord | null> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}`, {
+      headers: getDevelopmentHeaders()
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function saveCompanyProfile(
   request: UpsertCompanyProfileRequest
 ): Promise<ApiMutationResult<CompanyProfile>> {
   return putJsonResult<CompanyProfile>("/api/company-profile", request);
+}
+
+export async function createContract(request: UpsertContractRequest): Promise<ApiMutationResult<ContractRecord>> {
+  return postJsonResult<ContractRecord>("/api/contracts", request);
+}
+
+export async function updateContract(
+  contractId: string,
+  request: UpsertContractRequest
+): Promise<ApiMutationResult<ContractRecord>> {
+  return putJsonResult<ContractRecord>(`/api/contracts/${contractId}`, request);
 }
 
 export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<NoCuiAcknowledgementStatus | null> {
