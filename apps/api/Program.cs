@@ -524,6 +524,44 @@ api.MapPost("/contracts/{contractId:guid}/clauses/{contractClauseId:guid}/obliga
 .RequirePermission(Permission.ManageContracts)
 .WithName("GenerateContractClauseObligations");
 
+api.MapGet("/contracts/{contractId:guid}/obligations", async (
+    Guid contractId,
+    IContractObligationMatrixRepository repository,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var rows = await repository.ListCurrentTenantAsync(contractId, cancellationToken);
+    return rows is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract '{contractId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(rows);
+})
+.RequirePermission(Permission.ViewObligations)
+.WithName("ListContractObligationMatrix");
+
+api.MapGet("/contracts/{contractId:guid}/obligations/export", async (
+    Guid contractId,
+    IContractObligationMatrixRepository repository,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var export = await repository.ExportCurrentTenantAsync(contractId, cancellationToken);
+    return export is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract '{contractId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(export);
+})
+.RequirePermission(Permission.ViewObligations)
+.WithName("ExportContractObligationMatrix");
+
 api.MapGet("/clauses", async (
     string? query,
     string? category,

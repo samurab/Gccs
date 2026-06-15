@@ -419,6 +419,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-15.1.4:** Generate a report and verify the action is audit logged.
 #-----------------------------------
 ### Story 15.2: Contract Obligation Matrix
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-15.2.1:** Generate a contract obligation matrix for one contract and verify clause, source, obligation, owner, status, risk, due date, evidence, and flow-down columns.

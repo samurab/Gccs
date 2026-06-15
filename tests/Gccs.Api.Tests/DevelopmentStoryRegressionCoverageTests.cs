@@ -375,7 +375,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-15.1.1"] = ["TC_15_1_1_Generate_current_status_report_includes_summary_sections"],
             ["TC-15.1.2"] = ["TC_15_1_2_Compliance_status_report_excludes_other_tenant_data"],
             ["TC-15.1.3"] = ["TC_15_1_3_Generation_timestamp_and_snapshot_metadata_are_stored"],
-            ["TC-15.1.4"] = ["TC_15_1_4_Compliance_status_report_generation_is_audit_logged"]
+            ["TC-15.1.4"] = ["TC_15_1_4_Compliance_status_report_generation_is_audit_logged"],
+            ["TC-15.2.1"] = ["TC_15_2_1_Generate_contract_obligation_matrix_includes_required_columns"],
+            ["TC-15.2.2"] = ["TC_15_2_2_Matrix_rows_include_source_links_and_last_reviewed_dates"],
+            ["TC-15.2.3"] = ["TC_15_2_3_Matrix_identifies_obligations_requiring_flow_down"],
+            ["TC-15.2.4"] = ["TC_15_2_4_Export_rows_and_fields_match_matrix_data"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

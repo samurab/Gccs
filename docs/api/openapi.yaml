@@ -876,9 +876,33 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/ContractObligation"
+                  $ref: "#/components/schemas/ContractObligationMatrixRow"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/contracts/{contractId}/obligations/export:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    get:
+      tags:
+        - Obligations
+      summary: Export obligation matrix for a contract
+      operationId: exportContractObligations
+      responses:
+        "200":
+          description: Contract obligation matrix export.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractObligationMatrixExport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -3869,6 +3893,115 @@ components:
           type: boolean
         sourceReference:
           $ref: "#/components/schemas/SourceReference"
+
+    ContractObligationMatrixRow:
+      type: object
+      required:
+        - contractId
+        - contractNumber
+        - contractTitle
+        - contractClauseId
+        - clauseNumber
+        - clauseTitle
+        - clauseSource
+        - clauseSourceUrl
+        - clauseLastReviewedAt
+        - obligationId
+        - obligationTitle
+        - requiredAction
+        - ownerFunction
+        - status
+        - riskLevel
+        - evidenceItemIds
+        - evidenceNames
+        - requiresFlowDown
+        - flowDownStatuses
+        - obligationSourceUrl
+        - obligationLastReviewedAt
+      properties:
+        contractId:
+          type: string
+          format: uuid
+        contractNumber:
+          type: string
+        contractTitle:
+          type: string
+        contractClauseId:
+          type: string
+          format: uuid
+        clauseNumber:
+          type: string
+        clauseTitle:
+          type: string
+        clauseSource:
+          type: string
+        clauseSourceUrl:
+          type: string
+          format: uri
+        clauseLastReviewedAt:
+          type: string
+          format: date
+        obligationId:
+          type: string
+        obligationTitle:
+          type: string
+        requiredAction:
+          type: string
+        ownerFunction:
+          type: string
+        status:
+          type: string
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+        dueAt:
+          type:
+            - string
+            - "null"
+          format: date
+        evidenceItemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        evidenceNames:
+          type: array
+          items:
+            type: string
+        requiresFlowDown:
+          type: boolean
+        flowDownStatuses:
+          type: array
+          items:
+            type: string
+        obligationSourceUrl:
+          type: string
+          format: uri
+        obligationLastReviewedAt:
+          type: string
+          format: date
+
+    ContractObligationMatrixExport:
+      type: object
+      required:
+        - contractId
+        - fileName
+        - contentType
+        - rows
+        - csv
+      properties:
+        contractId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        contentType:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContractObligationMatrixRow"
+        csv:
+          type: string
 
     Obligation:
       type: object

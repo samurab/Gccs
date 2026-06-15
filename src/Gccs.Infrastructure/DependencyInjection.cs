@@ -69,6 +69,7 @@ public static class DependencyInjection
             services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
             services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
             services.AddScoped<IReportRepository, EfReportRepository>();
+            services.AddScoped<IContractObligationMatrixRepository, EfContractObligationMatrixRepository>();
             services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
             services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
             services.AddScoped<ICompanyProfileRepository, EfCompanyProfileRepository>();
@@ -102,6 +103,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("No-CUI acknowledgement persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IReportRepository>(_ =>
                 throw new InvalidOperationException("Report persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IContractObligationMatrixRepository>(_ =>
+                throw new InvalidOperationException("Contract obligation matrix persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IAuditLogRepository>(_ =>
                 throw new InvalidOperationException("Audit log persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IAuditEventWriter>(_ =>
