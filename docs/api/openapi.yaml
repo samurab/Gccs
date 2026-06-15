@@ -825,6 +825,39 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/contracts/{contractId}/clauses/{contractClauseId}/obligations/generate:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - name: contractClauseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags:
+        - Clauses
+        - Obligations
+      summary: Generate contract obligations for an attached clause
+      operationId: generateContractClauseObligations
+      description: >
+        Reprocesses an attached clause against published obligation templates.
+        Generation is idempotent and will not create duplicate
+        contract-clause-obligation mappings or duplicate default tasks.
+      responses:
+        "200":
+          description: Generated obligation mapping summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedContractObligations"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/contracts/{contractId}/obligations:
     parameters:
       - $ref: "#/components/parameters/ContractId"
@@ -2974,6 +3007,24 @@ components:
       properties:
         reason:
           type: string
+
+    GeneratedContractObligations:
+      type: object
+      required:
+        - contractClauseId
+        - obligationIds
+        - tasksCreated
+      properties:
+        contractClauseId:
+          type: string
+          format: uuid
+        obligationIds:
+          type: array
+          items:
+            type: string
+        tasksCreated:
+          type: integer
+          minimum: 0
 
     ContractObligation:
       type: object

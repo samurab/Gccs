@@ -303,7 +303,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-9.2.1"] = ["TC_9_2_1_Attach_published_clause_to_contract_with_reason_and_source_reference"],
             ["TC-9.2.2"] = ["TC_9_2_2_Duplicate_clause_attachment_is_prevented"],
             ["TC-9.2.3"] = ["TC_9_2_3_Removing_clause_requires_reason_and_then_succeeds"],
-            ["TC-9.2.4"] = ["TC_9_2_4_Add_remove_are_audit_logged_and_cross_tenant_ids_are_denied"]
+            ["TC-9.2.4"] = ["TC_9_2_4_Add_remove_are_audit_logged_and_cross_tenant_ids_are_denied"],
+            ["TC-9.3.1"] = ["TC_9_3_1_Attaching_clause_with_mapped_templates_generates_contract_obligations"],
+            ["TC-9.3.2"] = ["TC_9_3_2_Generated_obligations_preserve_links_and_source_metadata"],
+            ["TC-9.3.3"] = ["TC_9_3_3_Default_tasks_are_created_and_linked_to_generated_obligations"],
+            ["TC-9.3.4"] = ["TC_9_3_4_Regeneration_is_idempotent_for_obligations_and_tasks"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

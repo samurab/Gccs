@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Gccs.Application.Contracts;
 using Gccs.Application.Security;
 using Gccs.Domain.Common;
@@ -364,6 +365,107 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         return dto;
     }
 
+    public async Task<GeneratedContractObligationsDto?> GenerateObligationsForClauseAsync(
+        Guid contractId,
+        Guid contractClauseId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var contractClause = await dbContext.Set<ContractClauseEntity>()
+            .Include(clause => clause.Contract)
+            .SingleOrDefaultAsync(
+                clause =>
+                    clause.Id == contractClauseId &&
+                    clause.ContractId == contractId &&
+                    clause.RemovedAt == null &&
+                    clause.Contract != null &&
+                    clause.Contract.TenantId == tenantContext.TenantId,
+                cancellationToken);
+
+        if (contractClause is null)
+        {
+            return null;
+        }
+
+        var libraryClause = await dbContext.Clauses
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                clause =>
+                    clause.Id == contractClause.ClauseLibraryId &&
+                    clause.ReviewState == ReviewState.Published &&
+                    (clause.TenantId == null || clause.TenantId == tenantContext.TenantId),
+                cancellationToken);
+
+        if (libraryClause is null)
+        {
+            return new GeneratedContractObligationsDto(contractClauseId, [], 0);
+        }
+
+        var obligationIds = ReadRequiredActionIds(libraryClause.RequiredActionIdsJson);
+        if (obligationIds.Count == 0)
+        {
+            return new GeneratedContractObligationsDto(contractClauseId, [], 0);
+        }
+
+        var obligations = await dbContext.Obligations
+            .Where(obligation => obligationIds.Contains(obligation.Id) && obligation.ReviewState == ReviewState.Published)
+            .ToArrayAsync(cancellationToken);
+        var mappedIds = new List<string>();
+        var tasksCreated = 0;
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var obligation in obligations)
+        {
+            var mappingExists = await dbContext.Set<ContractClauseObligationEntity>().AnyAsync(
+                mapping => mapping.ContractClauseId == contractClauseId && mapping.ObligationId == obligation.Id,
+                cancellationToken);
+
+            if (!mappingExists)
+            {
+                dbContext.Set<ContractClauseObligationEntity>().Add(new ContractClauseObligationEntity
+                {
+                    ContractClauseId = contractClauseId,
+                    ObligationId = obligation.Id
+                });
+            }
+
+            mappedIds.Add(obligation.Id);
+
+            var taskExists = await dbContext.ComplianceTasks.AnyAsync(
+                task =>
+                    task.TenantId == tenantContext.TenantId &&
+                    task.ContractId == contractId &&
+                    task.ObligationId == obligation.Id &&
+                    task.Type == ComplianceTaskType.ObligationAction,
+                cancellationToken);
+
+            if (taskExists)
+            {
+                continue;
+            }
+
+            dbContext.ComplianceTasks.Add(new ComplianceTaskEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                ContractId = contractId,
+                ObligationId = obligation.Id,
+                Title = obligation.Title,
+                Description = obligation.RequiredAction,
+                Type = ComplianceTaskType.ObligationAction,
+                Status = ComplianceTaskStatus.Open,
+                RiskLevel = obligation.RiskLevel,
+                OwnerFunction = obligation.OwnerFunction,
+                CreatedAt = now,
+                CreatedByUserId = actorUserId
+            });
+            tasksCreated++;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new GeneratedContractObligationsDto(contractClauseId, mappedIds.Order().ToArray(), tasksCreated);
+    }
+
     private static void Apply(ContractEntity entity, UpsertContractRequest request)
     {
         entity.ContractNumber = request.ContractNumber;
@@ -509,6 +611,26 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         }
 
         return ClauseSource.AgencySupplement;
+    }
+
+    private static IReadOnlyList<string> ReadRequiredActionIds(string value)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            return document.RootElement.ValueKind == JsonValueKind.Array
+                ? document.RootElement
+                    .EnumerateArray()
+                    .Where(item => item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+                    .Select(item => item.GetString()!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray()
+                : [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 
     private static bool IsComplete(DeliverableStatus status) =>

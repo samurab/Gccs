@@ -95,3 +95,8 @@ public sealed record AttachContractClauseRequest(
     string? SourceDocumentReference);
 
 public sealed record RemoveContractClauseRequest(string Reason);
+
+public sealed record GeneratedContractObligationsDto(
+    Guid ContractClauseId,
+    IReadOnlyList<string> ObligationIds,
+    int TasksCreated);

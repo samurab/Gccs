@@ -189,10 +189,43 @@ public sealed class ContractService(
 
         if (clause is not null)
         {
+            await repository.GenerateObligationsForClauseAsync(contractId, clause.Id, actorUserId, cancellationToken);
             await WriteClauseAuditAsync(clause, actorUserId, AuditAction.Created, normalized.AttachmentReason, cancellationToken);
         }
 
         return clause;
+    }
+
+    public async Task<GeneratedContractObligationsDto?> GenerateObligationsForClauseAsync(
+        Guid contractId,
+        Guid contractClauseId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var generated = await repository.GenerateObligationsForClauseAsync(contractId, contractClauseId, actorUserId, cancellationToken);
+        if (generated is not null)
+        {
+            var contract = await repository.FindCurrentTenantAsync(contractId, cancellationToken);
+            if (contract is not null)
+            {
+                await auditEventWriter.WriteAsync(
+                    contract.TenantId,
+                    actorUserId,
+                    AuditAction.Updated,
+                    "ContractClause",
+                    contractClauseId.ToString(),
+                    $"Generated {generated.ObligationIds.Count} obligation mappings for contract clause.",
+                    new Dictionary<string, string>
+                    {
+                        ["contractId"] = contractId.ToString(),
+                        ["obligationIds"] = string.Join(", ", generated.ObligationIds),
+                        ["tasksCreated"] = generated.TasksCreated.ToString()
+                    },
+                    cancellationToken);
+            }
+        }
+
+        return generated;
     }
 
     public async Task<ContractClauseDto?> RemoveClauseAsync(
@@ -563,6 +596,12 @@ public interface IContractRepository
         Guid contractId,
         Guid contractClauseId,
         RemoveContractClauseRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<GeneratedContractObligationsDto?> GenerateObligationsForClauseAsync(
+        Guid contractId,
+        Guid contractClauseId,
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 }

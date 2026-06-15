@@ -498,6 +498,27 @@ api.MapDelete("/contracts/{contractId:guid}/clauses/{contractClauseId:guid}", as
 .RequirePermission(Permission.ManageContracts)
 .WithName("RemoveContractClause");
 
+api.MapPost("/contracts/{contractId:guid}/clauses/{contractClauseId:guid}/obligations/generate", async (
+    Guid contractId,
+    Guid contractClauseId,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var generated = await service.GenerateObligationsForClauseAsync(contractId, contractClauseId, tenantContext.UserId, cancellationToken);
+    return generated is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract clause '{contractClauseId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(generated);
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("GenerateContractClauseObligations");
+
 api.MapGet("/clauses", async (
     string? query,
     string? category,

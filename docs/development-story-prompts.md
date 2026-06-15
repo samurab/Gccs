@@ -1771,6 +1771,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 9.3: Generate Obligations From Clause
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

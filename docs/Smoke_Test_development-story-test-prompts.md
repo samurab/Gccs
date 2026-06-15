@@ -245,6 +245,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-9.2.4:** Verify clause add/remove events are audit logged and cross-tenant contract/clause IDs are denied.
 #-----------------------------------
 ### Story 9.3: Generate Obligations From Clause
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-9.3.1:** Attach a clause with mapped templates and verify contract-specific obligations are generated.
