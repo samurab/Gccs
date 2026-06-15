@@ -3675,6 +3675,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 17.2: Security And Tenant Isolation Verification
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

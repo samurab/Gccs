@@ -495,6 +495,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-17.1.4:** Verify automated regression coverage exists for the pilot workflow critical path.
 #-----------------------------------
 ### Story 17.2: Security And Tenant Isolation Verification
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-17.2.1:** Attempt cross-tenant access for every tenant-owned module and verify denial with no data leakage.

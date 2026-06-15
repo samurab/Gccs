@@ -465,7 +465,7 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
         request.Headers.Add("X-Gccs-Dev-Auth", "true");
         request.Headers.Add("X-Gccs-Dev-Tenant", ids.TenantId.ToString());
         request.Headers.Add("X-Gccs-Dev-User", userId.ToString());
-        request.Headers.Add("X-Gccs-Dev-Email", $"{roleName.ToLowerInvariant().Replace(" ", ".", StringComparison.Ordinal)}@pilot.example");
+        request.Headers.Add("X-Gccs-Dev-Email", $"{roleName.ToLowerInvariant().Replace(" ", ".", StringComparison.Ordinal)}@example.com");
         request.Headers.Add("X-Gccs-Dev-Role", roleName);
         if (content is not null)
         {
@@ -559,7 +559,7 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
             false,
             "Level 1",
             "Jordan Contracts",
-            "jordan.contracts@subpilot.example",
+            "jordan.contracts@example.com",
             "555-0100",
             "Contracts Manager",
             [contractId]);
@@ -693,7 +693,7 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
             {
                 Id = userId,
                 TenantId = ids.TenantId,
-                Email = $"{roleName.ToLowerInvariant().Replace(" ", ".", StringComparison.Ordinal)}@pilot.example",
+                Email = $"{roleName.ToLowerInvariant().Replace(" ", ".", StringComparison.Ordinal)}@example.com",
                 DisplayName = $"{roleName} User",
                 Status = UserStatus.Active,
                 MfaEnabled = true,
@@ -850,7 +850,7 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
             HasExportControlledAccess = false,
             RequiredCmmcLevel = "Level 1",
             ContactName = "Jordan Contracts",
-            ContactEmail = "jordan.contracts@subpilot.example",
+            ContactEmail = "jordan.contracts@example.com",
             ContactPhone = "555-0100",
             ContactTitle = "Contracts Manager",
             CreatedAt = DateTimeOffset.UtcNow

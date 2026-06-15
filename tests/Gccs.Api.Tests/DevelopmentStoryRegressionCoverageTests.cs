@@ -407,7 +407,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-17.1.1"] = ["TC_17_1_1_Non_cui_pilot_tenant_completes_core_mvp_workflow"],
             ["TC-17.1.2"] = ["TC_17_1_2_Pilot_roles_can_only_perform_permitted_actions"],
             ["TC-17.1.3"] = ["TC_17_1_3_Pilot_reports_reflect_workflow_data"],
-            ["TC-17.1.4"] = ["TC_17_1_4_Automated_regression_coverage_exists_for_pilot_workflow_critical_path"]
+            ["TC-17.1.4"] = ["TC_17_1_4_Automated_regression_coverage_exists_for_pilot_workflow_critical_path"],
+            ["TC-17.2.1"] = ["TC_17_2_1_Cross_tenant_access_is_denied_across_tenant_owned_modules"],
+            ["TC-17.2.2"] = ["TC_17_2_2_Restricted_role_actions_are_denied_for_direct_api_calls"],
+            ["TC-17.2.3"] = ["TC_17_2_3_Tenant_owned_repository_and_service_filter_tests_are_present"],
+            ["TC-17.2.4"] = ["TC_17_2_4_Security_verification_results_are_documented"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)
