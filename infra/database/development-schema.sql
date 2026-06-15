@@ -1036,3 +1036,19 @@ VALUES ('20260615003848_AddNoCuiAcknowledgements', '10.0.4');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE gccs.evidence_items ADD content_type character varying(160);
+
+ALTER TABLE gccs.evidence_items ADD malware_scan_status character varying(80);
+
+ALTER TABLE gccs.evidence_items ADD original_file_name character varying(240);
+
+ALTER TABLE gccs.evidence_items ADD size_bytes bigint;
+
+ALTER TABLE gccs.evidence_items ADD upload_validation_status character varying(80);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260615005659_AddEvidenceUploadGuardrails', '10.0.4');
+
+COMMIT;
+

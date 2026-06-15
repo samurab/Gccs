@@ -345,14 +345,22 @@ describe("App", () => {
       acknowledgedAt: "2026-06-14T12:00:00Z"
     });
     createEvidenceUploadIntentMock.mockResolvedValueOnce({
-      id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee1",
-      evidenceItemId: "00000000-0000-0000-0000-000000000041",
-      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
-      createdByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
-      status: "upload-pending",
-      message: "No-CUI acknowledgement is on record.",
-      noticeVersion: "no-cui-mvp-v1",
-      expiresAt: "2026-06-14T12:15:00Z"
+      data: {
+        id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee1",
+        evidenceItemId: "00000000-0000-0000-0000-000000000041",
+        tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+        createdByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+        fileName: "policy.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 6,
+        status: "upload-pending",
+        validationStatus: "accepted",
+        malwareScanStatus: "scan-pending",
+        message: "No-CUI acknowledgement is on record.",
+        noticeVersion: "no-cui-mvp-v1",
+        expiresAt: "2026-06-14T12:15:00Z"
+      },
+      error: null
     });
     const user = userEvent.setup();
 
@@ -370,7 +378,43 @@ describe("App", () => {
     await user.upload(fileInput, new File(["policy"], "policy.pdf", { type: "application/pdf" }));
     await user.click(screen.getByRole("button", { name: /upload evidence/i }));
 
-    expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith("policy.pdf");
-    expect(await screen.findByText("Upload intent created for policy.pdf.")).toBeInTheDocument();
+    expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(expect.objectContaining({ name: "policy.pdf", type: "application/pdf" }));
+    expect(await screen.findByText(/Upload intent created for policy.pdf/i)).toBeInTheDocument();
+    expect(screen.getByText(/malware scan scan-pending/i)).toBeInTheDocument();
+  });
+
+  it("TC-4.2.1 and TC-4.2.2 shows server-side upload guardrail rejection messages", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getNoCuiAcknowledgementStatusMock.mockResolvedValueOnce({
+      isAcknowledged: true,
+      noticeVersion: "no-cui-mvp-v1",
+      noticeCopy:
+        "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      acknowledgedAt: "2026-06-14T12:00:00Z"
+    });
+    createEvidenceUploadIntentMock.mockResolvedValueOnce({
+      data: null,
+      error: "File size exceeds the No-CUI MVP upload limit."
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /evidence/i }));
+    expect(screen.getByText(/Allowed file types: PDF, PNG, JPG, TXT, CSV, DOCX, and XLSX/i)).toBeInTheDocument();
+
+    const fileInput = screen.getByLabelText("Evidence file");
+    await user.upload(fileInput, new File(["policy"], "policy.pdf", { type: "application/pdf" }));
+    await user.click(screen.getByRole("button", { name: /upload evidence/i }));
+
+    expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "policy.pdf", type: "application/pdf" })
+    );
+    expect(await screen.findByText("File size exceeds the No-CUI MVP upload limit.")).toBeInTheDocument();
   });
 });

@@ -18,6 +18,11 @@ public sealed class EvidenceItemEntity : AuditedEntity
     public EvidenceStatus Status { get; set; }
     public string? StorageUri { get; set; }
     public string? FileHash { get; set; }
+    public string? OriginalFileName { get; set; }
+    public string? ContentType { get; set; }
+    public long? SizeBytes { get; set; }
+    public string? UploadValidationStatus { get; set; }
+    public string? MalwareScanStatus { get; set; }
     public DateOnly? EffectiveAt { get; set; }
     public DateOnly? ExpiresAt { get; set; }
     public string TagsJson { get; set; } = "[]";

@@ -213,6 +213,14 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
             StatusCodes.Status428PreconditionRequired,
             "no_cui_acknowledgement_required");
     }
+    catch (UploadGuardrailValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Evidence upload rejected",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
     catch (ArgumentException exception)
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>

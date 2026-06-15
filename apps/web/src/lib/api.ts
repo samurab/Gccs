@@ -85,10 +85,20 @@ export type EvidenceUploadIntent = {
   evidenceItemId: string;
   tenantId: string;
   createdByUserId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
   status: string;
+  validationStatus: string;
+  malwareScanStatus: string;
   message: string;
   noticeVersion: string;
   expiresAt: string;
+};
+
+export type ApiMutationResult<T> = {
+  data: T | null;
+  error: string | null;
 };
 
 export const fallbackOverview: ComplianceOverview = {
@@ -147,9 +157,13 @@ export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<NoC
   return response;
 }
 
-export async function createEvidenceUploadIntent(fileName: string): Promise<EvidenceUploadIntent | null> {
+export async function createEvidenceUploadIntent(file: File): Promise<ApiMutationResult<EvidenceUploadIntent>> {
   const placeholderEvidenceItemId = "00000000-0000-0000-0000-000000000041";
-  return postJson<EvidenceUploadIntent>(`/api/evidence-items/${placeholderEvidenceItemId}/upload-intents`, { fileName });
+  return postJsonResult<EvidenceUploadIntent>(`/api/evidence-items/${placeholderEvidenceItemId}/upload-intents`, {
+    fileName: file.name,
+    contentType: file.type || "application/octet-stream",
+    sizeBytes: file.size
+  });
 }
 
 export async function createTenantInvitation(request: CreateTenantInvitationRequest): Promise<TenantInvitation | null> {
@@ -179,6 +193,29 @@ async function postJson<T>(path: string, body: unknown): Promise<T | null> {
   }
 }
 
+async function postJsonResult<T>(path: string, body: unknown): Promise<ApiMutationResult<T>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "POST",
+      headers: {
+        ...(getDevelopmentHeaders() ?? {}),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API could not be reached." };
+  }
+}
+
 async function getJson<T>(path: string, fallback: T): Promise<T> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
@@ -204,4 +241,14 @@ function getDevelopmentHeaders(): HeadersInit | undefined {
         ...(role ? { "X-Gccs-Dev-Role": role } : {})
       }
     : undefined;
+}
+
+async function readErrorMessage(response: Response): Promise<string> {
+  try {
+    const problem = await response.json();
+    const errors = problem.errors ? Object.values(problem.errors).flat().filter(Boolean).join(" ") : "";
+    return [problem.detail, errors].filter(Boolean).join(" ") || problem.title || "The upload was rejected.";
+  } catch {
+    return "The upload was rejected.";
+  }
 }

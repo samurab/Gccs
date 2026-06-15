@@ -1,5 +1,6 @@
 using Gccs.Application.NoCui;
 using Gccs.Application.Security;
+using Gccs.Domain.Evidence;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +52,51 @@ public sealed class EfNoCuiAcknowledgementRepository(
         return ToDto(acknowledgement);
     }
 
+    public async Task RecordAcceptedEvidenceUploadIntentAsync(
+        EvidenceUploadIntentDto uploadIntent,
+        CancellationToken cancellationToken = default)
+    {
+        var evidenceItem = await dbContext.EvidenceItems.SingleOrDefaultAsync(
+            candidate =>
+                candidate.Id == uploadIntent.EvidenceItemId &&
+                candidate.TenantId == tenantContext.TenantId,
+            cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+
+        if (evidenceItem is null)
+        {
+            evidenceItem = new EvidenceItemEntity
+            {
+                Id = uploadIntent.EvidenceItemId,
+                TenantId = tenantContext.TenantId,
+                Name = uploadIntent.FileName,
+                Description = "Upload intent metadata captured by No-CUI guardrails. File storage is not enabled for CUI in the MVP.",
+                Type = EvidenceType.Other,
+                Status = EvidenceStatus.InReview,
+                TagsJson = "[\"no-cui\",\"upload-intent\"]",
+                CreatedAt = now,
+                CreatedByUserId = uploadIntent.CreatedByUserId
+            };
+
+            dbContext.EvidenceItems.Add(evidenceItem);
+        }
+        else
+        {
+            evidenceItem.UpdatedAt = now;
+            evidenceItem.UpdatedByUserId = uploadIntent.CreatedByUserId;
+        }
+
+        evidenceItem.OriginalFileName = uploadIntent.FileName;
+        evidenceItem.ContentType = uploadIntent.ContentType;
+        evidenceItem.SizeBytes = uploadIntent.SizeBytes;
+        evidenceItem.UploadValidationStatus = uploadIntent.ValidationStatus;
+        evidenceItem.MalwareScanStatus = uploadIntent.MalwareScanStatus;
+        evidenceItem.StorageUri = null;
+        evidenceItem.FileHash = null;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private static NoCuiAcknowledgementStatusDto ToDto(NoCuiAcknowledgementEntity acknowledgement) =>
         new(
             true,
@@ -60,4 +106,3 @@ public sealed class EfNoCuiAcknowledgementRepository(
             acknowledgement.UserId,
             acknowledgement.AcknowledgedAt);
 }
-

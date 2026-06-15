@@ -12,5 +12,8 @@ public interface INoCuiAcknowledgementRepository
         Guid actorUserId,
         DateTimeOffset acknowledgedAt,
         CancellationToken cancellationToken = default);
-}
 
+    Task RecordAcceptedEvidenceUploadIntentAsync(
+        EvidenceUploadIntentDto uploadIntent,
+        CancellationToken cancellationToken = default);
+}

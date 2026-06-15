@@ -73,14 +73,14 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         using var blockedByPolicyRequest = CreateRequest(
             HttpMethod.Post,
             $"/api/evidence-items/{Guid.NewGuid()}/upload-intents",
-            new EvidenceUploadIntentRequest("policy.pdf"),
+            new EvidenceUploadIntentRequest("policy.pdf", "application/pdf", 1024),
             tenantId,
             userId,
             Permission.ManageEvidence);
         using var blockedByPermissionRequest = CreateRequest(
             HttpMethod.Post,
             $"/api/evidence-items/{Guid.NewGuid()}/upload-intents",
-            new EvidenceUploadIntentRequest("policy.pdf"),
+            new EvidenceUploadIntentRequest("policy.pdf", "application/pdf", 1024),
             tenantId,
             userId,
             Permission.ViewEvidence);
@@ -193,6 +193,166 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         Assert.Contains("not ready to store CUI", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task TC_4_2_1_Disallowed_file_type_is_rejected_without_usable_evidence()
+    {
+        var tenantId = Guid.Parse("42424242-4242-4242-4242-4242424242a1");
+        var userId = Guid.Parse("42424242-4242-4242-4242-4242424242b1");
+        var evidenceItemId = Guid.Parse("42424242-4242-4242-4242-4242424242c1");
+        await using var factory = CreateFactory("tc-4-2-1", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.2.1 Tenant"));
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/evidence-items/{evidenceItemId}/upload-intents",
+            new EvidenceUploadIntentRequest("installer.exe", "application/x-msdownload", 1024),
+            tenantId,
+            userId,
+            Permission.ManageEvidence);
+
+        var response = await client.SendAsync(uploadRequest);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Evidence upload rejected", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("File type '.exe' is not allowed", body, StringComparison.OrdinalIgnoreCase);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        Assert.Single(await dbContext.AuditLogEntries.Where(candidate =>
+            candidate.TenantId == tenantId &&
+            candidate.ActorUserId == userId &&
+            candidate.Action == AuditAction.Rejected &&
+            candidate.EntityType == "EvidenceUploadIntent" &&
+            candidate.EntityId == evidenceItemId.ToString()).ToListAsync());
+    }
+
+    [Fact]
+    public async Task TC_4_2_2_Oversized_file_is_rejected_server_side()
+    {
+        var tenantId = Guid.Parse("42424242-4242-4242-4242-4242424242a2");
+        var userId = Guid.Parse("42424242-4242-4242-4242-4242424242b2");
+        await using var factory = CreateFactory("tc-4-2-2", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.2.2 Tenant"));
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/evidence-items/{Guid.NewGuid()}/upload-intents",
+            new EvidenceUploadIntentRequest("large-policy.pdf", "application/pdf", EvidenceUploadGuardrails.MaxSizeBytes + 1),
+            tenantId,
+            userId,
+            Permission.ManageEvidence);
+
+        var response = await client.SendAsync(uploadRequest);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("File size exceeds", body, StringComparison.OrdinalIgnoreCase);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+    }
+
+    [Fact]
+    public async Task TC_4_2_3_Valid_upload_metadata_records_validation_and_scan_status()
+    {
+        var tenantId = Guid.Parse("42424242-4242-4242-4242-4242424242a3");
+        var userId = Guid.Parse("42424242-4242-4242-4242-4242424242b3");
+        var evidenceItemId = Guid.Parse("42424242-4242-4242-4242-4242424242c3");
+        await using var factory = CreateFactory("tc-4-2-3", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.2.3 Tenant"));
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/evidence-items/{evidenceItemId}/upload-intents",
+            new EvidenceUploadIntentRequest("policy.pdf", "application/pdf", 2048),
+            tenantId,
+            userId,
+            Permission.ManageEvidence);
+
+        var response = await client.SendAsync(uploadRequest);
+        var uploadIntent = await response.Content.ReadFromJsonAsync<EvidenceUploadIntentDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(uploadIntent);
+        Assert.Equal(evidenceItemId, uploadIntent.EvidenceItemId);
+        Assert.Equal("policy.pdf", uploadIntent.FileName);
+        Assert.Equal("application/pdf", uploadIntent.ContentType);
+        Assert.Equal(2048, uploadIntent.SizeBytes);
+        Assert.Equal(EvidenceUploadGuardrails.AcceptedValidationStatus, uploadIntent.ValidationStatus);
+        Assert.Equal(EvidenceUploadGuardrails.PendingMalwareScanStatus, uploadIntent.MalwareScanStatus);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var evidenceItem = await dbContext.EvidenceItems.SingleAsync(candidate =>
+            candidate.TenantId == tenantId &&
+            candidate.Id == evidenceItemId);
+
+        Assert.Equal("policy.pdf", evidenceItem.OriginalFileName);
+        Assert.Equal("application/pdf", evidenceItem.ContentType);
+        Assert.Equal(2048, evidenceItem.SizeBytes);
+        Assert.Equal(EvidenceUploadGuardrails.AcceptedValidationStatus, evidenceItem.UploadValidationStatus);
+        Assert.Equal(EvidenceUploadGuardrails.PendingMalwareScanStatus, evidenceItem.MalwareScanStatus);
+        Assert.Equal(Gccs.Domain.Evidence.EvidenceStatus.InReview, evidenceItem.Status);
+        Assert.Null(evidenceItem.StorageUri);
+        Assert.Null(evidenceItem.FileHash);
+    }
+
+    [Fact]
+    public async Task TC_4_2_4_Failed_upload_validation_is_audit_logged_and_not_usable()
+    {
+        var tenantId = Guid.Parse("42424242-4242-4242-4242-4242424242a4");
+        var userId = Guid.Parse("42424242-4242-4242-4242-4242424242b4");
+        var evidenceItemId = Guid.Parse("42424242-4242-4242-4242-4242424242c4");
+        await using var factory = CreateFactory("tc-4-2-4", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.2.4 Tenant"));
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/evidence-items/{evidenceItemId}/upload-intents",
+            new EvidenceUploadIntentRequest("policy.pdf", "image/png", 1024),
+            tenantId,
+            userId,
+            Permission.ManageEvidence);
+
+        var response = await client.SendAsync(uploadRequest);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+
+        var auditEvent = await dbContext.AuditLogEntries.SingleAsync(candidate =>
+            candidate.TenantId == tenantId &&
+            candidate.ActorUserId == userId &&
+            candidate.Action == AuditAction.Rejected &&
+            candidate.EntityType == "EvidenceUploadIntent" &&
+            candidate.EntityId == evidenceItemId.ToString());
+
+        Assert.Contains("rejected", auditEvent.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("policy.pdf", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("image/png", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Content type", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
+    }
+
     private WebApplicationFactory<Program> CreateFactory(
         string databaseName,
         Action<GccsDbContext>? seed = null) =>
@@ -259,5 +419,17 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
             DataPosture = TenantDataPosture.NoCui,
             CreatedAt = DateTimeOffset.Parse("2026-06-13T12:00:00Z")
         };
-}
 
+    private static NoCuiAcknowledgementEntity CreateAcknowledgement(Guid tenantId, Guid userId) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UserId = userId,
+            NoticeVersion = NoCuiNotice.CurrentVersion,
+            NoticeCopy = NoCuiNotice.Copy,
+            AcknowledgedAt = DateTimeOffset.Parse("2026-06-14T12:00:00Z"),
+            CreatedAt = DateTimeOffset.Parse("2026-06-14T12:00:00Z"),
+            CreatedByUserId = userId
+        };
+}

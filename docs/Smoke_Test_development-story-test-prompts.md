@@ -109,6 +109,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-4.1.4:** Verify acknowledgement creates an audit event and notice copy says the MVP is compliance management only and not ready to store CUI.
 #-----------------------------------
 ### Story 4.2: Upload Guardrails
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-4.2.1:** Upload an unsupported extension/content type and verify server-side rejection with no usable evidence record.

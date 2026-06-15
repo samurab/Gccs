@@ -220,9 +220,10 @@ export function App() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Contributor");
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "created" | "failed">("idle");
-  const [selectedEvidenceFileName, setSelectedEvidenceFileName] = useState("");
+  const [selectedEvidenceFile, setSelectedEvidenceFile] = useState<File | null>(null);
   const [acknowledgementStatus, setAcknowledgementStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "creating" | "created" | "blocked">("idle");
+  const [uploadMessage, setUploadMessage] = useState("");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
@@ -328,15 +329,27 @@ export function App() {
 
   async function handleEvidenceUploadIntentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setUploadStatus("creating");
-    const uploadIntent = await createEvidenceUploadIntent(selectedEvidenceFileName);
 
-    if (uploadIntent) {
+    if (!selectedEvidenceFile) {
+      setUploadStatus("blocked");
+      setUploadMessage("Select an allowed evidence file before upload.");
+      return;
+    }
+
+    setUploadStatus("creating");
+    setUploadMessage("");
+    const uploadIntent = await createEvidenceUploadIntent(selectedEvidenceFile);
+
+    if (uploadIntent.data) {
       setUploadStatus("created");
+      setUploadMessage(
+        `Upload intent created for ${uploadIntent.data.fileName}. Validation ${uploadIntent.data.validationStatus}; malware scan ${uploadIntent.data.malwareScanStatus}.`
+      );
       return;
     }
 
     setUploadStatus("blocked");
+    setUploadMessage(uploadIntent.error ?? "The API blocked the upload intent.");
   }
 
   function handleRouteClick(route: WorkspaceRoute) {
@@ -402,10 +415,11 @@ export function App() {
               acknowledgement={noCuiAcknowledgement}
               acknowledgementStatus={acknowledgementStatus}
               canManageEvidence={canManageEvidence}
-              selectedFileName={selectedEvidenceFileName}
+              selectedFile={selectedEvidenceFile}
+              uploadMessage={uploadMessage}
               uploadStatus={uploadStatus}
               onAcknowledge={handleNoCuiAcknowledgement}
-              onFileNameChange={setSelectedEvidenceFileName}
+              onFileSelected={setSelectedEvidenceFile}
               onUploadIntentSubmit={handleEvidenceUploadIntentSubmit}
             />
           ) : activeRoute === "settings" ? (
@@ -569,18 +583,20 @@ function EvidenceView({
   acknowledgementStatus,
   canManageEvidence,
   onAcknowledge,
-  onFileNameChange,
+  onFileSelected,
   onUploadIntentSubmit,
-  selectedFileName,
+  selectedFile,
+  uploadMessage,
   uploadStatus
 }: {
   acknowledgement: NoCuiAcknowledgementStatus;
   acknowledgementStatus: "idle" | "saving" | "saved" | "failed";
   canManageEvidence: boolean;
   onAcknowledge: () => void;
-  onFileNameChange: (fileName: string) => void;
+  onFileSelected: (file: File | null) => void;
   onUploadIntentSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  selectedFileName: string;
+  selectedFile: File | null;
+  uploadMessage: string;
   uploadStatus: "idle" | "creating" | "created" | "blocked";
 }) {
   const uploadDisabled = !canManageEvidence || !acknowledgement.isAcknowledged;
@@ -642,10 +658,14 @@ function EvidenceView({
           <input
             type="file"
             disabled={uploadDisabled}
-            onChange={(event) => onFileNameChange(event.target.files?.[0]?.name ?? "")}
+            accept=".csv,.docx,.jpg,.jpeg,.pdf,.png,.txt,.xlsx"
+            onChange={(event) => onFileSelected(event.target.files?.[0] ?? null)}
           />
         </label>
-        <button type="submit" disabled={uploadDisabled || !selectedFileName || uploadStatus === "creating"}>
+        <p className="form-status">
+          Allowed file types: PDF, PNG, JPG, TXT, CSV, DOCX, and XLSX. Maximum size: 25 MB.
+        </p>
+        <button type="submit" disabled={uploadDisabled || !selectedFile || uploadStatus === "creating"}>
           <UploadCloud size={16} aria-hidden="true" />
           <span>{uploadStatus === "creating" ? "Creating upload intent" : "Upload evidence"}</span>
         </button>
@@ -653,16 +673,16 @@ function EvidenceView({
           <p className="form-status form-status--error">Upload is disabled until the No-CUI notice is acknowledged.</p>
         ) : null}
         {uploadStatus === "created" ? (
-          <p className="form-status form-status--ok">Upload intent created for {selectedFileName}.</p>
+          <p className="form-status form-status--ok">{uploadMessage}</p>
         ) : null}
         {uploadStatus === "blocked" ? (
-          <p className="form-status form-status--error">The API blocked the upload intent. Confirm acknowledgement and permissions.</p>
+          <p className="form-status form-status--error">{uploadMessage || "The API blocked the upload intent. Confirm acknowledgement and permissions."}</p>
         ) : null}
       </form>
 
       <EmptyState
         title="No evidence has been uploaded yet"
-        body="The upload guardrails story will add file validation, scan status, and storage handling."
+        body="Accepted uploads remain pending until the malware scan placeholder and future storage workflow are complete."
       />
     </section>
   );

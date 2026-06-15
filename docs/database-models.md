@@ -10,6 +10,8 @@ These artifacts turn the MVP domain model into a migration-ready PostgreSQL sche
 - Clause review/versioning migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260610051044_AddClauseReviewVersioning.cs`
 - Tenant membership migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260613213418_AddTenantMemberships.cs`
 - Tenant invitation migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260613221118_AddTenantInvitations.cs`
+- No-CUI acknowledgement migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615003848_AddNoCuiAcknowledgements.cs`
+- Evidence upload guardrails migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615005659_AddEvidenceUploadGuardrails.cs`
 - Generated SQL script: `infra/database/development-schema.sql`
 - Local EF tool manifest: `dotnet-tools.json`
 
@@ -69,7 +71,7 @@ Host=localhost;Port=15432;Database=gccs;Username=gccs;Password=gccs_dev_password
 - Frequently queried relationships are relational joins; descriptive lists such as tags, source clause numbers, applicability dimensions, and evidence examples are JSONB during development.
 - Source-backed compliance content keeps source name, source URL, last-reviewed date, effective date, confidence, and expert-review requirements as first-class data.
 - Clause records keep text version, effective date, source hash, review state, review owner, and superseded/replaced metadata so source updates remain auditable.
-- Evidence files are represented by metadata and storage URI only. Object storage, malware scan status, and CUI upload enforcement remain separate infrastructure and application concerns.
+- Evidence files are represented by metadata and storage URI only. Upload intents now record original file name, content type, file size, validation status, and malware scan placeholder status before later object storage workflows make files usable.
 - Tenant-scoped operational tables include `tenant_id` indexes to support later tenant isolation enforcement in repositories and query filters.
 
 ## Next Database Work
@@ -77,6 +79,6 @@ Host=localhost;Port=15432;Database=gccs;Username=gccs;Password=gccs_dev_password
 - Add repository implementations that map between Domain records and persistence entities.
 - Add tenant query filters once tenant context exists in the API.
 - Add migration seed data for the source-backed MVP obligation library.
-- Add upload scan status fields before enabling evidence file workflows.
+- Add object storage-backed evidence file versions after upload guardrails and scan placeholder metadata are in place.
 - Add explicit retention/export/deletion tables before production onboarding.
 - Add import/export tracking tables for CSV imports and customer evidence/audit exports before paid production onboarding.

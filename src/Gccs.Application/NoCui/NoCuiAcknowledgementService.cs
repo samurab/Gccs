@@ -73,11 +73,6 @@ public sealed class NoCuiAcknowledgementService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.FileName) || request.FileName.Trim().Length > 240)
-        {
-            throw new ArgumentException("A file name is required and must be 240 characters or fewer.", nameof(request));
-        }
-
         var acknowledgement = await repository.FindCurrentUserAcknowledgementAsync(
             NoCuiNotice.CurrentVersion,
             cancellationToken);
@@ -88,15 +83,31 @@ public sealed class NoCuiAcknowledgementService(
                 "No-CUI acknowledgement is required before evidence upload is enabled.");
         }
 
-        return new EvidenceUploadIntentDto(
+        var validationErrors = ValidateUploadRequest(request);
+        if (validationErrors.Count > 0)
+        {
+            await AuditRejectedUploadIntentAsync(evidenceItemId, request, actorUserId, validationErrors, cancellationToken);
+            throw new UploadGuardrailValidationException(validationErrors);
+        }
+
+        var uploadIntent = new EvidenceUploadIntentDto(
             Guid.NewGuid(),
             evidenceItemId,
             tenantContext.TenantId,
             actorUserId,
+            request.FileName.Trim(),
+            request.ContentType.Trim().ToLowerInvariant(),
+            request.SizeBytes,
             "upload-pending",
-            "No-CUI acknowledgement is on record. Evidence upload storage will be enabled by the upload guardrails story.",
+            EvidenceUploadGuardrails.AcceptedValidationStatus,
+            EvidenceUploadGuardrails.PendingMalwareScanStatus,
+            "Upload metadata passed No-CUI guardrails. The file is not usable until future storage and malware scanning workflows complete.",
             acknowledgement.NoticeVersion,
             DateTimeOffset.UtcNow.AddMinutes(15));
+
+        await repository.RecordAcceptedEvidenceUploadIntentAsync(uploadIntent, cancellationToken);
+
+        return uploadIntent;
     }
 
     private static void ValidateAcknowledgement(AcknowledgeNoCuiRequest request)
@@ -111,7 +122,82 @@ public sealed class NoCuiAcknowledgementService(
             throw new ArgumentException("The No-CUI notice version is not current.", nameof(request));
         }
     }
+
+    private static Dictionary<string, string[]> ValidateUploadRequest(EvidenceUploadIntentRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        var fileName = request.FileName?.Trim() ?? string.Empty;
+        var contentType = request.ContentType?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(fileName) || fileName.Length > 240)
+        {
+            errors["fileName"] = ["A file name is required and must be 240 characters or fewer."];
+        }
+
+        var extension = Path.GetExtension(fileName);
+        if (string.IsNullOrWhiteSpace(extension) ||
+            !EvidenceUploadGuardrails.AllowedContentTypesByExtension.TryGetValue(extension, out var allowedContentTypes))
+        {
+            errors["fileType"] =
+            [
+                $"File type '{extension}' is not allowed. Allowed extensions: {string.Join(", ", EvidenceUploadGuardrails.AllowedExtensions)}."
+            ];
+        }
+        else if (string.IsNullOrWhiteSpace(contentType) ||
+                 !allowedContentTypes.Contains(contentType, StringComparer.OrdinalIgnoreCase))
+        {
+            errors["contentType"] =
+            [
+                $"Content type '{contentType}' is not allowed for {extension} evidence uploads."
+            ];
+        }
+
+        if (request.SizeBytes <= 0)
+        {
+            errors["sizeBytes"] = ["File size must be greater than zero bytes."];
+        }
+        else if (request.SizeBytes > EvidenceUploadGuardrails.MaxSizeBytes)
+        {
+            errors["sizeBytes"] =
+            [
+                $"File size exceeds the {EvidenceUploadGuardrails.MaxSizeBytes} byte No-CUI MVP upload limit."
+            ];
+        }
+
+        return errors;
+    }
+
+    private async Task AuditRejectedUploadIntentAsync(
+        Guid evidenceItemId,
+        EvidenceUploadIntentRequest request,
+        Guid actorUserId,
+        IReadOnlyDictionary<string, string[]> validationErrors,
+        CancellationToken cancellationToken)
+    {
+        await auditEventWriter.WriteAsync(
+            tenantContext.TenantId,
+            actorUserId,
+            AuditAction.Rejected,
+            "EvidenceUploadIntent",
+            evidenceItemId.ToString(),
+            "Evidence upload metadata was rejected by No-CUI upload guardrails.",
+            new Dictionary<string, string>
+            {
+                ["fileName"] = request.FileName ?? string.Empty,
+                ["contentType"] = request.ContentType ?? string.Empty,
+                ["sizeBytes"] = request.SizeBytes.ToString(),
+                ["maxSizeBytes"] = EvidenceUploadGuardrails.MaxSizeBytes.ToString(),
+                ["allowedExtensions"] = string.Join(", ", EvidenceUploadGuardrails.AllowedExtensions),
+                ["validationErrors"] = string.Join("; ", validationErrors.SelectMany(error => error.Value))
+            },
+            cancellationToken);
+    }
 }
 
 public sealed class NoCuiAcknowledgementRequiredException(string message) : InvalidOperationException(message);
 
+public sealed class UploadGuardrailValidationException(IReadOnlyDictionary<string, string[]> errors)
+    : InvalidOperationException("Evidence upload metadata did not pass No-CUI upload guardrails.")
+{
+    public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
+}

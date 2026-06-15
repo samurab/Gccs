@@ -759,6 +759,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 4.2: Upload Guardrails
+## Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

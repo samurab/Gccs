@@ -20,15 +20,44 @@ public sealed record AcknowledgeNoCuiRequest(
     string NoticeVersion);
 
 public sealed record EvidenceUploadIntentRequest(
-    string FileName);
+    string FileName,
+    string ContentType,
+    long SizeBytes);
 
 public sealed record EvidenceUploadIntentDto(
     Guid Id,
     Guid EvidenceItemId,
     Guid TenantId,
     Guid CreatedByUserId,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
     string Status,
+    string ValidationStatus,
+    string MalwareScanStatus,
     string Message,
     string NoticeVersion,
     DateTimeOffset ExpiresAt);
 
+public static class EvidenceUploadGuardrails
+{
+    public const long MaxSizeBytes = 25L * 1024L * 1024L;
+    public const string AcceptedValidationStatus = "accepted";
+    public const string PendingMalwareScanStatus = "scan-pending";
+
+    public static readonly IReadOnlyDictionary<string, string[]> AllowedContentTypesByExtension =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            [".csv"] = ["text/csv", "application/csv", "application/vnd.ms-excel"],
+            [".docx"] = ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+            [".jpg"] = ["image/jpeg"],
+            [".jpeg"] = ["image/jpeg"],
+            [".pdf"] = ["application/pdf"],
+            [".png"] = ["image/png"],
+            [".txt"] = ["text/plain"],
+            [".xlsx"] = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
+        };
+
+    public static string[] AllowedExtensions =>
+        AllowedContentTypesByExtension.Keys.Order(StringComparer.OrdinalIgnoreCase).ToArray();
+}
