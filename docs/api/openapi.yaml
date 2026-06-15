@@ -2291,6 +2291,24 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/reports/compliance-status:
+    post:
+      tags:
+        - Reports
+      summary: Generate a compliance status report
+      operationId: generateComplianceStatusReport
+      responses:
+        "201":
+          description: Compliance status report generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceStatusReport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/reports/{reportId}:
     parameters:
       - $ref: "#/components/parameters/ReportId"
@@ -5447,6 +5465,87 @@ components:
             - "null"
           format: date-time
 
+    ComplianceStatusReport:
+      type: object
+      required:
+        - id
+        - tenantId
+        - type
+        - status
+        - title
+        - generatedAt
+        - generatedByUserId
+        - snapshot
+        - exportHtml
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ReportType"
+        status:
+          $ref: "#/components/schemas/ReportStatus"
+        title:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        generatedByUserId:
+          type: string
+          format: uuid
+        snapshot:
+          $ref: "#/components/schemas/ComplianceStatusReportSnapshot"
+        exportHtml:
+          type: string
+
+    ComplianceStatusReportSnapshot:
+      type: object
+      required:
+        - generatedAt
+        - totalObligations
+        - highRiskObligations
+        - overdueTasks
+        - obligationStatusCounts
+        - evidenceStatusCounts
+        - cmmcAssessments
+        - cmmcControlsImplemented
+        - cmmcControlsTotal
+        - subcontractorGaps
+        - highRiskItems
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        totalObligations:
+          type: integer
+        highRiskObligations:
+          type: integer
+        overdueTasks:
+          type: integer
+        obligationStatusCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        evidenceStatusCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        cmmcAssessments:
+          type: integer
+        cmmcControlsImplemented:
+          type: integer
+        cmmcControlsTotal:
+          type: integer
+        subcontractorGaps:
+          type: integer
+        highRiskItems:
+          type: array
+          items:
+            type: string
+
     ApprovedEvidencePackage:
       type: object
       required:
@@ -5858,6 +5957,15 @@ components:
         - subcontractor-compliance
         - audit-trail
         - executive-risk-dashboard
+
+    ReportStatus:
+      type: string
+      enum:
+        - Queued
+        - Generating
+        - Complete
+        - Failed
+        - Archived
 
     SourceType:
       type: string

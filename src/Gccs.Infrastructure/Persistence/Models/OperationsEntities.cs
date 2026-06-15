@@ -451,6 +451,8 @@ public sealed class ReportEntity : AuditedEntity
     public DateTimeOffset GeneratedAt { get; set; }
     public Guid GeneratedByUserId { get; set; }
     public string? StorageUri { get; set; }
+    public string SnapshotJson { get; set; } = "{}";
+    public string ExportHtml { get; set; } = string.Empty;
 
     public ICollection<ReportContractEntity> Contracts { get; set; } = [];
     public ICollection<ReportObligationEntity> Obligations { get; set; } = [];

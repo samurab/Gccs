@@ -3005,6 +3005,7 @@ Instructions:
 ## 15. Reports
 
 ### Story 15.1: Compliance Status Report
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

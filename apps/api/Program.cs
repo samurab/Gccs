@@ -671,6 +671,17 @@ api.MapGet("/reports/approved-evidence-packages", async (
 .RequirePermission(Permission.ViewReports)
 .WithName("ListApprovedEvidencePackages");
 
+api.MapPost("/reports/compliance-status", async (
+    ComplianceStatusReportService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    var report = await service.GenerateAsync(tenantContext.UserId, cancellationToken);
+    return Results.Created($"/api/reports/{report.Id}", report);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GenerateComplianceStatusReport");
+
 api.MapGet("/subcontractors", async (
     SubcontractorService service,
     CancellationToken cancellationToken) =>

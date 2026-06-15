@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<CmmcPoamService>();
         services.AddScoped<CmmcAffirmationService>();
         services.AddScoped<SubcontractorService>();
+        services.AddScoped<ComplianceStatusReportService>();
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))

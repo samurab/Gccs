@@ -410,6 +410,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 15. Reports
 
 ### Story 15.1: Compliance Status Report
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-15.1.1:** Generate a compliance status report and verify obligation status, overdue tasks, evidence status, CMMC progress, subcontractor gaps, and high-risk items.

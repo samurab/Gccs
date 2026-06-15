@@ -341,6 +341,8 @@ CREATE TABLE gccs.reports (
     generated_at timestamp with time zone NOT NULL,
     generated_by_user_id uuid NOT NULL,
     storage_uri text,
+    snapshot_json jsonb NOT NULL DEFAULT '{}',
+    export_html text NOT NULL DEFAULT '',
     created_at timestamp with time zone NOT NULL,
     created_by_user_id uuid,
     updated_at timestamp with time zone,

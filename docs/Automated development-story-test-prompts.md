@@ -443,6 +443,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 ## 15. Reports
 
 ###  Please perform automated test on Story 15.1: Compliance Status Report. Please provide the results of the tests.
+### Done ##
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-15.1.1:** Generate a compliance status report and verify obligation status, overdue tasks, evidence status, CMMC progress, subcontractor gaps, and high-risk items.

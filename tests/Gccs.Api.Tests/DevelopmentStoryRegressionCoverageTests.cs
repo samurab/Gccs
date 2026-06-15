@@ -371,7 +371,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-14.3.1"] = ["TC_14_3_1_Create_evidence_request_with_requested_item_due_status_recipient_and_linked_obligation"],
             ["TC-14.3.2"] = ["TC_14_3_2_Subcontractor_evidence_request_due_date_appears_on_calendar"],
             ["TC-14.3.3"] = ["TC_14_3_3_Link_received_evidence_satisfies_request_and_updates_completion"],
-            ["TC-14.3.4"] = ["TC_14_3_4_Overdue_evidence_request_is_flagged_in_list_calendar_and_warning_state"]
+            ["TC-14.3.4"] = ["TC_14_3_4_Overdue_evidence_request_is_flagged_in_list_calendar_and_warning_state"],
+            ["TC-15.1.1"] = ["TC_15_1_1_Generate_current_status_report_includes_summary_sections"],
+            ["TC-15.1.2"] = ["TC_15_1_2_Compliance_status_report_excludes_other_tenant_data"],
+            ["TC-15.1.3"] = ["TC_15_1_3_Generation_timestamp_and_snapshot_metadata_are_stored"],
+            ["TC-15.1.4"] = ["TC_15_1_4_Compliance_status_report_generation_is_audit_logged"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)
