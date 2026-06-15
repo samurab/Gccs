@@ -486,6 +486,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 17. MVP Hardening And Release Readiness
 
 ### Story 17.1: End-To-End Pilot Workflow
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-17.1.1:** With non-CUI data, execute the full pilot workflow: onboard tenant/users, create profile, contract, clauses, obligations, tasks, evidence, CMMC records, subcontractors, reports, and notifications.

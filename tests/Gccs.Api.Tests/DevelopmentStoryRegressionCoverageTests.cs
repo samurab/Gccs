@@ -403,7 +403,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-16.3.1"] = ["TC_16_3_1_Assigned_task_user_receives_notification"],
             ["TC-16.3.2"] = ["TC_16_3_2_Assignment_notification_links_to_source_record"],
             ["TC-16.3.3"] = ["TC_16_3_3_Mark_assignment_notification_as_read_persists_state"],
-            ["TC-16.3.4"] = ["TC_16_3_4_Unauthorized_user_cannot_open_assignment_notification_link"]
+            ["TC-16.3.4"] = ["TC_16_3_4_Unauthorized_user_cannot_open_assignment_notification_link"],
+            ["TC-17.1.1"] = ["TC_17_1_1_Non_cui_pilot_tenant_completes_core_mvp_workflow"],
+            ["TC-17.1.2"] = ["TC_17_1_2_Pilot_roles_can_only_perform_permitted_actions"],
+            ["TC-17.1.3"] = ["TC_17_1_3_Pilot_reports_reflect_workflow_data"],
+            ["TC-17.1.4"] = ["TC_17_1_4_Automated_regression_coverage_exists_for_pilot_workflow_critical_path"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)
