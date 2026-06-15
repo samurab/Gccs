@@ -778,7 +778,8 @@ dt {
   width: auto;
 }
 
-.naics-editor {
+.naics-editor,
+.certification-editor {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   display: grid;
@@ -786,13 +787,15 @@ dt {
   padding: 12px;
 }
 
-.naics-editor__header {
+.naics-editor__header,
+.certification-editor__header {
   align-items: center;
   display: flex;
   justify-content: space-between;
 }
 
-.naics-editor__header span {
+.naics-editor__header span,
+.certification-editor__header span {
   color: var(--muted);
   font-size: 0.76rem;
   font-weight: 800;
@@ -800,7 +803,9 @@ dt {
 }
 
 .naics-editor__header button,
-.naics-row button {
+.naics-row button,
+.certification-editor__header button,
+.certification-row button {
   background: var(--ink);
   border: 0;
   border-radius: 6px;
@@ -820,12 +825,20 @@ dt {
   grid-template-columns: 72px minmax(82px, 0.4fr) minmax(160px, 1fr) minmax(130px, 0.7fr) minmax(130px, 0.7fr) auto;
 }
 
+.certification-row {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(110px, 0.75fr) minmax(130px, 0.8fr) minmax(140px, 1fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr) minmax(120px, 0.75fr) auto;
+}
+
 .naics-row input[type="radio"] {
   min-height: 20px;
   width: 20px;
 }
 
-.naics-row button:disabled {
+.naics-row button:disabled,
+.certification-row button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
 }
@@ -1060,7 +1073,8 @@ dt {
   .invite-form,
   .invitation-item,
   .form-grid,
-  .naics-row {
+  .naics-row,
+  .certification-row {
     grid-template-columns: 1fr;
   }
 

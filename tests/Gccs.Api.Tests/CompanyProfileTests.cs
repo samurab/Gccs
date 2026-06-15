@@ -6,6 +6,7 @@ using Gccs.Application.Audit;
 using Gccs.Application.Companies;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
+using Gccs.Domain.Compliance;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Audit;
@@ -323,6 +324,153 @@ public sealed class CompanyProfileTests : IClassFixture<WebApplicationFactory<Pr
         Assert.NotNull(saved);
         Assert.Contains("naicsCodes[0].sizeStatus", saved.ValidationErrors.Keys);
         Assert.Contains("541330", saved.ValidationErrors["naicsCodes[0].sizeStatus"][0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TC_7_3_1_Add_supported_and_custom_certifications_to_profile()
+    {
+        var tenantId = Guid.Parse("73737373-7373-7373-7373-7373737373a1");
+        await using var factory = CreateFactory("tc-7-3-1", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var certifications = new[]
+        {
+            new CompanyCertificationDto(null, CertificationType.EightA, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "8A-1"),
+            new CompanyCertificationDto(null, CertificationType.Wosb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "WOSB-1"),
+            new CompanyCertificationDto(null, CertificationType.Edwosb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "EDWOSB-1"),
+            new CompanyCertificationDto(null, CertificationType.HubZone, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "HUB-1"),
+            new CompanyCertificationDto(null, CertificationType.Sdvosb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "SDVOSB-1"),
+            new CompanyCertificationDto(null, CertificationType.Sdb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "SDB-1"),
+            new CompanyCertificationDto(null, CertificationType.Other, CertificationStatus.Active, "State DOT", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "DBE-1")
+        };
+
+        using var saveRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with { Certifications = certifications },
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.Equal(
+            [CertificationType.EightA, CertificationType.Wosb, CertificationType.Edwosb, CertificationType.HubZone, CertificationType.Sdvosb, CertificationType.Sdb, CertificationType.Other],
+            saved.Certifications.Select(certification => certification.Type).OrderBy(type => type).ToArray());
+        Assert.Contains(saved.Certifications, certification => certification.Type == CertificationType.Other && certification.Issuer == "State DOT");
+    }
+
+    [Fact]
+    public async Task TC_7_3_2_Upcoming_certification_expiration_creates_renewal_task()
+    {
+        var tenantId = Guid.Parse("73737373-7373-7373-7373-7373737373a2");
+        var actorUserId = Guid.Parse("73737373-7373-7373-7373-7373737373b2");
+        var expiresAt = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(45);
+        await using var factory = CreateFactory("tc-7-3-2", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+
+        using var saveRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with
+            {
+                Certifications =
+                [
+                    new CompanyCertificationDto(null, CertificationType.Wosb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), expiresAt, "WOSB-EXP")
+                ]
+            },
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var task = await dbContext.ComplianceTasks.SingleAsync(task => task.TenantId == tenantId && task.Type == ComplianceTaskType.Renewal);
+        Assert.Equal("Renew WOSB certification", task.Title);
+        Assert.Equal(expiresAt, task.DueAt);
+        Assert.Equal(actorUserId, task.CreatedByUserId);
+    }
+
+    [Fact]
+    public async Task TC_7_3_3_Expired_certification_is_flagged_on_profile()
+    {
+        var tenantId = Guid.Parse("73737373-7373-7373-7373-7373737373a3");
+        var expiredAt = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+        await using var factory = CreateFactory("tc-7-3-3", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+
+        using var saveRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with
+            {
+                Certifications =
+                [
+                    new CompanyCertificationDto(null, CertificationType.HubZone, CertificationStatus.Active, "SBA", new DateOnly(2025, 1, 1), expiredAt, "HUB-OLD")
+                ]
+            },
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageCompanyProfile);
+        var saveResponse = await client.SendAsync(saveRequest);
+        var saved = await saveResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.NotNull(saved);
+        Assert.Equal(CertificationStatus.Expired, Assert.Single(saved.Certifications).Status);
+    }
+
+    [Fact]
+    public async Task TC_7_3_4_Certification_changes_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("73737373-7373-7373-7373-7373737373a4");
+        var actorUserId = Guid.Parse("73737373-7373-7373-7373-7373737373b4");
+        await using var factory = CreateFactory("tc-7-3-4", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var initial = CreateRequestBody(completeProfile: false) with
+        {
+            Certifications =
+            [
+                new CompanyCertificationDto(null, CertificationType.Sdb, CertificationStatus.Active, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "SDB-1")
+            ]
+        };
+        var revoked = initial with
+        {
+            Certifications =
+            [
+                new CompanyCertificationDto(null, CertificationType.Sdb, CertificationStatus.Revoked, "SBA", new DateOnly(2026, 1, 1), new DateOnly(2027, 1, 1), "SDB-1")
+            ]
+        };
+
+        using var createRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", initial, tenantId, actorUserId, Permission.ManageCompanyProfile);
+        var createResponse = await client.SendAsync(createRequest);
+        using var updateRequest = CreateRequest(HttpMethod.Put, "/api/company-profile", revoked, tenantId, actorUserId, Permission.ManageCompanyProfile);
+        var updateResponse = await client.SendAsync(updateRequest);
+        using var removeRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            initial with { Certifications = [] },
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var removeResponse = await client.SendAsync(removeRequest);
+
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, removeResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var certificationAuditEvents = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "CompanyCertification")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+
+        Assert.Equal(3, certificationAuditEvents.Length);
+        Assert.All(certificationAuditEvents, audit => Assert.Equal(actorUserId, audit.ActorUserId));
+        Assert.Contains("certificationCount", certificationAuditEvents.Last().MetadataJson, StringComparison.Ordinal);
     }
 
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>

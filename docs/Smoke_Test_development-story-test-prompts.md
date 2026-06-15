@@ -187,6 +187,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-7.2.4:** Add a NAICS code without size status and verify profile gaps warn the user.
 #-----------------------------------
 ### Story 7.3: Certification Tracking
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-7.3.1:** Add 8(a), WOSB, EDWOSB, HUBZone, SDVOSB, SDB, and custom certifications and verify they persist/display correctly.

@@ -38,6 +38,7 @@ import {
   getTenantMembers,
   saveCompanyProfile,
   type AuditLogEntry,
+  type CompanyCertification,
   type CompanyProfile,
   type ComplianceOverview,
   type CurrentUserAccess,
@@ -78,6 +79,16 @@ type NaicsFormRow = {
   qualifiesAsSmall: string;
 };
 
+type CertificationFormRow = {
+  id: string | null;
+  type: string;
+  status: string;
+  issuer: string;
+  effectiveAt: string;
+  expiresAt: string;
+  referenceNumber: string;
+};
+
 type ProfileFormState = {
   legalEntityName: string;
   doingBusinessAs: string;
@@ -85,6 +96,7 @@ type ProfileFormState = {
   cageCode: string;
   samRegistrationExpiresAt: string;
   naicsRows: NaicsFormRow[];
+  certificationRows: CertificationFormRow[];
   agencyCustomers: string;
   contractorRole: string;
   productsAndServices: string;
@@ -199,6 +211,7 @@ const defaultProfileForm: ProfileFormState = {
   cageCode: "",
   samRegistrationExpiresAt: "",
   naicsRows: [{ code: "", title: "", isPrimary: true, sizeStandard: "", qualifiesAsSmall: "" }],
+  certificationRows: [{ id: null, type: "Wosb", status: "Active", issuer: "", effectiveAt: "", expiresAt: "", referenceNumber: "" }],
   agencyCustomers: "",
   contractorRole: "Unknown",
   productsAndServices: "",
@@ -549,7 +562,7 @@ export function App() {
             <DashboardView overview={overview} />
           ) : activeRoute === "profile" ? (
             <ProfileView
-              key={companyProfile?.id ?? "new-profile"}
+              key={`${companyProfile?.id ?? "new-profile"}-${companyProfile?.updatedAt ?? companyProfile?.createdAt ?? "draft"}`}
               canManageCompanyProfile={canManageCompanyProfile}
               profile={companyProfile}
               profileMessage={profileMessage}
@@ -736,6 +749,18 @@ function profileToForm(profile: CompanyProfile | null): ProfileFormState {
             qualifiesAsSmall: naics.qualifiesAsSmall === null ? "" : String(naics.qualifiesAsSmall)
           }))
         : defaultProfileForm.naicsRows,
+    certificationRows:
+      profile && profile.certifications.length > 0
+        ? profile.certifications.map((certification) => ({
+            id: certification.id,
+            type: certification.type,
+            status: certification.status,
+            issuer: certification.issuer,
+            effectiveAt: certification.effectiveAt ?? "",
+            expiresAt: certification.expiresAt ?? "",
+            referenceNumber: certification.referenceNumber ?? ""
+          }))
+        : defaultProfileForm.certificationRows,
     agencyCustomers: profile?.agencyCustomers.join(", ") ?? "",
     contractorRole: profile?.contractorRole ?? "Unknown",
     productsAndServices: profile?.productsAndServices ?? "",
@@ -766,6 +791,17 @@ function formToRequest(form: ProfileFormState, completeProfile: boolean): Upsert
       qualifiesAsSmall: naics.qualifiesAsSmall === "" ? null : naics.qualifiesAsSmall === "true",
       lastCheckedAt: null
     }));
+  const certifications: CompanyCertification[] = form.certificationRows
+    .filter((certification) => certification.issuer.trim())
+    .map((certification) => ({
+      id: certification.id,
+      type: certification.type,
+      status: certification.status,
+      issuer: certification.issuer.trim(),
+      effectiveAt: certification.effectiveAt || null,
+      expiresAt: certification.expiresAt || null,
+      referenceNumber: certification.referenceNumber.trim() || null
+    }));
   const locations = form.locationName.trim()
     ? [
         {
@@ -788,7 +824,7 @@ function formToRequest(form: ProfileFormState, completeProfile: boolean): Upsert
     cageCode: form.cageCode.trim() || null,
     samRegistrationExpiresAt: form.samRegistrationExpiresAt || null,
     naicsCodes,
-    certifications: [],
+    certifications,
     agencyCustomers: splitList(form.agencyCustomers),
     contractorRole: form.contractorRole,
     productsAndServices: form.productsAndServices.trim(),
@@ -841,6 +877,19 @@ function ProfileView({
     }));
   }
 
+  function updateCertificationRow<TKey extends keyof CertificationFormRow>(
+    index: number,
+    field: TKey,
+    value: CertificationFormRow[TKey]
+  ) {
+    setForm((current) => ({
+      ...current,
+      certificationRows: current.certificationRows.map((certification, candidateIndex) =>
+        candidateIndex === index ? { ...certification, [field]: value } : certification
+      )
+    }));
+  }
+
   function setPrimaryNaics(index: number) {
     setForm((current) => ({
       ...current,
@@ -870,6 +919,26 @@ function ProfileView({
         }))
       };
     });
+  }
+
+  function addCertificationRow() {
+    setForm((current) => ({
+      ...current,
+      certificationRows: [
+        ...current.certificationRows,
+        { id: null, type: "Other", status: "Active", issuer: "", effectiveAt: "", expiresAt: "", referenceNumber: "" }
+      ]
+    }));
+  }
+
+  function removeCertificationRow(index: number) {
+    setForm((current) => ({
+      ...current,
+      certificationRows:
+        current.certificationRows.length === 1
+          ? [{ id: null, type: "Wosb", status: "Active", issuer: "", effectiveAt: "", expiresAt: "", referenceNumber: "" }]
+          : current.certificationRows.filter((_, candidateIndex) => candidateIndex !== index)
+    }));
   }
 
   async function save(completeProfile: boolean) {
@@ -995,6 +1064,84 @@ function ProfileView({
               <span>Agency customers</span>
               <input value={form.agencyCustomers} onChange={(event) => updateField("agencyCustomers", event.target.value)} />
             </label>
+            <div className="certification-editor span-2">
+              <div className="certification-editor__header">
+                <span>Certifications</span>
+                <button
+                  type="button"
+                  onClick={() => addCertificationRow()}
+                  disabled={!canManageCompanyProfile || profileStatus === "saving"}
+                >
+                  Add certification
+                </button>
+              </div>
+              {form.certificationRows.map((certification, index) => (
+                <div className="certification-row" key={certification.id ?? index}>
+                  <label>
+                    <span>Type</span>
+                    <select
+                      value={certification.type}
+                      onChange={(event) => updateCertificationRow(index, "type", event.target.value)}
+                    >
+                      <option value="EightA">8(a)</option>
+                      <option value="Wosb">WOSB</option>
+                      <option value="Edwosb">EDWOSB</option>
+                      <option value="HubZone">HUBZone</option>
+                      <option value="Sdvosb">SDVOSB</option>
+                      <option value="Sdb">SDB</option>
+                      <option value="Other">Custom</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Certification status</span>
+                    <select
+                      value={certification.status}
+                      onChange={(event) => updateCertificationRow(index, "status", event.target.value)}
+                    >
+                      <option value="Draft">Draft</option>
+                      <option value="Active">Active</option>
+                      <option value="ExpiringSoon">Expiring soon</option>
+                      <option value="Expired">Expired</option>
+                      <option value="Revoked">Revoked</option>
+                      <option value="Unknown">Unknown</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Issuer</span>
+                    <input
+                      value={certification.issuer}
+                      onChange={(event) => updateCertificationRow(index, "issuer", event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>Effective</span>
+                    <input
+                      type="date"
+                      value={certification.effectiveAt}
+                      onChange={(event) => updateCertificationRow(index, "effectiveAt", event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>Expires</span>
+                    <input
+                      type="date"
+                      value={certification.expiresAt}
+                      onChange={(event) => updateCertificationRow(index, "expiresAt", event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>Reference</span>
+                    <input
+                      value={certification.referenceNumber}
+                      onChange={(event) => updateCertificationRow(index, "referenceNumber", event.target.value)}
+                    />
+                  </label>
+                  <button type="button" onClick={() => removeCertificationRow(index)}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
             <label className="span-2">
               <span>Products and services</span>
               <textarea value={form.productsAndServices} onChange={(event) => updateField("productsAndServices", event.target.value)} />

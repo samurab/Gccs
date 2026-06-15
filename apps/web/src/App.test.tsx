@@ -370,6 +370,41 @@ describe("App", () => {
     expect(screen.getByText("62%")).toBeInTheDocument();
   });
 
+  it("TC-7.3.1 submits company certification rows from the profile form", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /profile/i }));
+    await user.selectOptions(screen.getByLabelText("Type"), "Wosb");
+    await user.selectOptions(screen.getByLabelText("Certification status"), "Active");
+    await user.type(screen.getByLabelText("Issuer"), "SBA");
+    await user.type(screen.getByLabelText("Effective"), "2026-01-01");
+    await user.type(screen.getByLabelText("Expires"), "2026-08-15");
+    await user.type(screen.getByLabelText("Reference"), "WOSB-2026");
+    await user.click(screen.getByRole("button", { name: /save draft/i }));
+
+    expect(saveCompanyProfileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        completeProfile: false,
+        certifications: [
+          expect.objectContaining({
+            type: "Wosb",
+            status: "Active",
+            issuer: "SBA",
+            effectiveAt: "2026-01-01",
+            expiresAt: "2026-08-15",
+            referenceNumber: "WOSB-2026"
+          })
+        ]
+      })
+    );
+  });
+
   it("TC-2.4.2 renders workspace actions and TC-3.2.3 hides restricted navigation", async () => {
     getComplianceOverviewMock.mockResolvedValueOnce(overview);
     getCurrentUserAccessMock.mockResolvedValueOnce(restrictedAccess);

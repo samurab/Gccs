@@ -49,6 +49,20 @@ public sealed class CompanyProfileService(
             },
             cancellationToken);
 
+        await auditEventWriter.WriteAsync(
+            completed.TenantId,
+            actorUserId,
+            AuditAction.Updated,
+            "CompanyCertification",
+            completed.Id.ToString(),
+            $"Company profile certifications for '{completed.LegalEntityName}' were updated.",
+            new Dictionary<string, string>
+            {
+                ["certificationCount"] = completed.Certifications.Count.ToString(),
+                ["certificationTypes"] = string.Join(",", completed.Certifications.Select(certification => certification.Type))
+            },
+            cancellationToken);
+
         return completed;
     }
 
@@ -73,11 +87,7 @@ public sealed class CompanyProfileService(
             CageCode = NormalizeOptional(request.CageCode)?.ToUpperInvariant(),
             ProductsAndServices = request.ProductsAndServices.Trim(),
             NaicsCodes = NormalizeNaicsCodes(request.NaicsCodes),
-            Certifications = request.Certifications.Select(certification => certification with
-            {
-                Issuer = certification.Issuer.Trim(),
-                ReferenceNumber = NormalizeOptional(certification.ReferenceNumber)
-            }).Where(certification => !string.IsNullOrWhiteSpace(certification.Issuer)).ToArray(),
+            Certifications = NormalizeCertifications(request.Certifications),
             AgencyCustomers = request.AgencyCustomers
                 .Select(customer => customer.Trim())
                 .Where(customer => !string.IsNullOrWhiteSpace(customer))
@@ -193,6 +203,40 @@ public sealed class CompanyProfileService(
         var primaryCode = normalized.FirstOrDefault(naics => naics.IsPrimary)?.Code ?? normalized[0].Code;
         return normalized
             .Select(naics => naics with { IsPrimary = string.Equals(naics.Code, primaryCode, StringComparison.OrdinalIgnoreCase) })
+            .ToArray();
+    }
+
+    private static IReadOnlyList<CompanyCertificationDto> NormalizeCertifications(IReadOnlyList<CompanyCertificationDto> certifications)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var expiringSoon = today.AddDays(90);
+
+        return certifications
+            .Select(certification =>
+            {
+                var status = certification.Status;
+                if (certification.ExpiresAt is { } expiresAt)
+                {
+                    if (expiresAt < today)
+                    {
+                        status = CertificationStatus.Expired;
+                    }
+                    else if (expiresAt <= expiringSoon && status is CertificationStatus.Active)
+                    {
+                        status = CertificationStatus.ExpiringSoon;
+                    }
+                }
+
+                return certification with
+                {
+                    Status = status,
+                    Issuer = certification.Issuer.Trim(),
+                    ReferenceNumber = NormalizeOptional(certification.ReferenceNumber)
+                };
+            })
+            .Where(certification => !string.IsNullOrWhiteSpace(certification.Issuer))
+            .GroupBy(certification => $"{certification.Type}:{certification.Issuer}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
             .ToArray();
     }
 

@@ -1357,6 +1357,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 7.3: Certification Tracking
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

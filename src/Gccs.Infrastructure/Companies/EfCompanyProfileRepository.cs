@@ -1,6 +1,9 @@
 using System.Text.Json;
 using Gccs.Application.Companies;
 using Gccs.Application.Security;
+using Gccs.Domain.Common;
+using Gccs.Domain.Companies;
+using Gccs.Domain.Compliance;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -74,6 +77,8 @@ public sealed class EfCompanyProfileRepository(GccsDbContext dbContext, ICurrent
             SyncCertifications(entity, request.Certifications);
             SyncLocations(entity, request.Locations);
         }
+
+        await SyncCertificationRenewalTasksAsync(request.Certifications, actorUserId, now, cancellationToken);
 
         try
         {
@@ -228,6 +233,68 @@ public sealed class EfCompanyProfileRepository(GccsDbContext dbContext, ICurrent
 
     private static string CertificationKey(CompanyCertificationEntity certification) =>
         $"{certification.Type}:{certification.Issuer}";
+
+    private async Task SyncCertificationRenewalTasksAsync(
+        IReadOnlyList<CompanyCertificationDto> certifications,
+        Guid actorUserId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        foreach (var certification in certifications.Where(ShouldCreateRenewalTask))
+        {
+            var title = $"Renew {FormatCertificationType(certification.Type)} certification";
+            var exists = await dbContext.ComplianceTasks.AnyAsync(
+                task =>
+                    task.TenantId == tenantContext.TenantId &&
+                    task.Type == ComplianceTaskType.Renewal &&
+                    task.Title == title &&
+                    task.DueAt == certification.ExpiresAt,
+                cancellationToken);
+
+            if (exists)
+            {
+                continue;
+            }
+
+            dbContext.ComplianceTasks.Add(new ComplianceTaskEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                Title = title,
+                Description = $"{FormatCertificationType(certification.Type)} certification issued by {certification.Issuer} expires on {certification.ExpiresAt:yyyy-MM-dd}.",
+                Type = ComplianceTaskType.Renewal,
+                Status = ComplianceTaskStatus.Open,
+                RiskLevel = RiskLevel.Medium,
+                OwnerFunction = "Compliance",
+                DueAt = certification.ExpiresAt,
+                CreatedAt = now,
+                CreatedByUserId = actorUserId
+            });
+        }
+    }
+
+    private static bool ShouldCreateRenewalTask(CompanyCertificationDto certification)
+    {
+        if (certification.ExpiresAt is not { } expiresAt || certification.Status is CertificationStatus.Expired or CertificationStatus.Revoked)
+        {
+            return false;
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        return expiresAt >= today && expiresAt <= today.AddDays(90);
+    }
+
+    private static string FormatCertificationType(CertificationType certificationType) =>
+        certificationType switch
+        {
+            CertificationType.EightA => "8(a)",
+            CertificationType.Wosb => "WOSB",
+            CertificationType.Edwosb => "EDWOSB",
+            CertificationType.HubZone => "HUBZone",
+            CertificationType.Sdvosb => "SDVOSB",
+            CertificationType.Sdb => "SDB",
+            _ => "custom"
+        };
 
     private static CompanyProfileDto ToDto(CompanyProfileEntity entity) =>
         new(
