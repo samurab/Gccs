@@ -1,4 +1,58 @@
 Below is a practical build guide for a **Government Contractor Compliance SaaS for small businesses** in the U.S. This is product and engineering guidance, not legal advice. For production compliance content, partner with a government contracts attorney, CMMC assessor/RP, labor compliance expert, or CPA depending on module scope.
+# Project Instructions for Codex
+
+## Tech Stack
+- Backend: ASP.NET Core Web API
+- Frontend: React + Vite
+- Database: PostgreSQL
+- Architecture: Clean Architecture
+- Auth: JWT-based authentication
+
+## Folder Rules
+- API controllers go in apps/api
+- Application use cases go in src/Gccs.Application
+- Domain entities go in src/Gccs.Domain
+- Infrastructure adapters go in src/Gccs.Infrastructure
+- Frontend code goes in apps/web
+
+## Coding Rules
+- Keep controllers thin.
+- Put business logic in use cases/services.
+- Use DTOs for API requests and responses.
+- Do not put database code directly in controllers.
+- Add validation for all user input.
+- Follow existing naming conventions.
+
+## Before Making Changes
+- Inspect existing files first.
+- Explain the files you plan to change.
+- Make the smallest safe change.
+- Do not rewrite unrelated files.
+
+## After Making Changes
+- Run build/test commands when possible.
+- Summarize changed files.
+- Mention any risks or follow-up tasks.
+
+** Project Docs**
+- docs/architecture.md
+- docs/Automated development-story-test-prompts.md
+- docs/compliance-content-governance.md
+- docs/database-models.md
+- docs/design-flow-diagrams.md
+- docs/development-phase-use-cases.md
+- docs/development-story-prompts.md
+- docs/development-story-test-cases.md
+- docs/development-story-test-prompts.md
+- docs/glossary-and-acronyms.md
+- docs/mvp-execution-plan.md
+- docs/mvp-roadmap.md
+- docs/product-strategy.md
+- docs/regression-test-execution-prompts.md
+- docs/Smoke_Test_development-story-test-prompts.md
+- docs/software-delivery-plan.md
+- docs/story_level_regression-test-execution-prompts.md
+- docs/workflow-diagram.md
 
 **1. Product Definition**
 Build the SaaS around one core promise:
