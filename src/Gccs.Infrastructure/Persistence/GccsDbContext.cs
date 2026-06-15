@@ -194,9 +194,11 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("notification_deliveries");
             entity.HasKey(x => x.Id);
-            entity.HasIndex(x => new { x.TenantId, x.SourceTaskId, x.Category }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.SourceTaskId, x.Category, x.UserId }).IsUnique();
             entity.HasIndex(x => new { x.TenantId, x.AttemptedAt });
             entity.Property(x => x.Category).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.SourceType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.LinkUrl).HasMaxLength(400).IsRequired();
             entity.Property(x => x.Status).HasMaxLength(80).IsRequired();
             entity.Property(x => x.Placeholder).HasMaxLength(800).IsRequired();
             entity.Property(x => x.FailureMessage).HasMaxLength(800);

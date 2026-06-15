@@ -38,6 +38,7 @@ const {
   getEvidenceItemsMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
+  getNotificationsMock,
   getComplianceOverviewMock,
   getCurrentUserAccessMock,
   getTenantInvitationsMock,
@@ -50,11 +51,13 @@ const {
   subcontractor,
   evidenceMetadata,
   members,
+  notification,
   obligationDashboardItem,
   obligationDetail,
   overview,
   profile,
   restrictedAccess,
+  markNotificationReadMock,
   removeContractClauseMock,
   saveCompanyProfileMock,
   searchClauseLibraryMock,
@@ -93,8 +96,10 @@ const {
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
   getNoCuiAcknowledgementStatusMock: vi.fn(),
+  getNotificationsMock: vi.fn(),
   getTenantInvitationsMock: vi.fn(),
   getTenantMembersMock: vi.fn(),
+  markNotificationReadMock: vi.fn(),
   removeContractClauseMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
@@ -178,6 +183,19 @@ const {
       updatedAt: null
     }
   ],
+  notification: {
+    id: "16131613-1613-1613-1613-161316131631",
+    tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+    userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+    sourceTaskId: "16131613-1613-1613-1613-161316131632",
+    sourceType: "ComplianceTask",
+    linkUrl: "/tasks/16131613-1613-1613-1613-161316131632",
+    category: "assignment",
+    status: "Delivered",
+    placeholder: "Task 'Assigned notification task' was assigned to you.",
+    attemptedAt: "2026-06-15T14:00:00Z",
+    readAt: null
+  },
   overview: {
     productPromise: "Keep every govcon obligation tied to evidence and review status.",
     mvpDataPosture: "No-CUI / compliance management only",
@@ -591,6 +609,8 @@ vi.mock("@/lib/api", () => ({
   getContractObligations: getContractObligationsMock,
   getContracts: getContractsMock,
   getEvidenceItems: getEvidenceItemsMock,
+  getNotifications: getNotificationsMock,
+  markNotificationRead: markNotificationReadMock,
   removeContractClause: removeContractClauseMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
@@ -657,6 +677,7 @@ describe("App", () => {
     updateContractMock.mockReset();
     updateEvidenceMetadataMock.mockReset();
     saveCompanyProfileMock.mockReset();
+    markNotificationReadMock.mockReset();
     removeContractClauseMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
@@ -667,6 +688,7 @@ describe("App", () => {
     getCmmcPoamItemsMock.mockReset();
     getSubcontractorsMock.mockReset();
     getNoCuiAcknowledgementStatusMock.mockReset();
+    getNotificationsMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
     getContractsMock.mockReset();
@@ -685,6 +707,17 @@ describe("App", () => {
       hasNextPage: false,
       hasPreviousPage: false
     });
+    getNotificationsMock.mockResolvedValue([]);
+    markNotificationReadMock.mockImplementation((notificationId) =>
+      Promise.resolve({
+        data: {
+          ...notification,
+          id: notificationId,
+          readAt: "2026-06-15T14:05:00Z"
+        },
+        error: null
+      })
+    );
     getNoCuiAcknowledgementStatusMock.mockResolvedValue({
       isAcknowledged: false,
       noticeVersion: "no-cui-mvp-v1",
@@ -878,6 +911,28 @@ describe("App", () => {
     expect(screen.getByText(overview.productPromise)).toBeInTheDocument();
     expect(screen.queryByText(/marketing/i)).not.toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: /primary workspace navigation/i })).toBeInTheDocument();
+  });
+
+  it("TC-16.3 renders assignment notifications and marks them read", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getNotificationsMock.mockResolvedValueOnce([notification]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Dashboard" });
+    await user.click(screen.getByLabelText(/notifications, 1 unread/i));
+
+    expect(await screen.findByText("Task 'Assigned notification task' was assigned to you.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/api/tasks/16131613-1613-1613-1613-161316131632");
+
+    await user.click(screen.getByRole("button", { name: /mark notification as read/i }));
+
+    expect(markNotificationReadMock).toHaveBeenCalledWith(notification.id);
+    expect(await screen.findByText("0 unread")).toBeInTheDocument();
   });
 
   it("TC-3.2.2 supports keyboard navigation across each visible primary route", async () => {

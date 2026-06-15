@@ -77,6 +77,8 @@ public static class DependencyInjection
             services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
             services.AddScoped<INotificationPreferenceRepository, EfNotificationPreferenceRepository>();
             services.AddScoped<IDueDateReminderRepository, EfDueDateReminderRepository>();
+            services.AddScoped<IAssignmentNotificationRepository, EfAssignmentNotificationRepository>();
+            services.AddScoped<AssignmentNotificationService>();
             services.AddScoped<IReportRepository, EfReportRepository>();
             services.AddScoped<IContractObligationMatrixRepository, EfContractObligationMatrixRepository>();
             services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();

@@ -107,11 +107,14 @@ public sealed class NotificationDeliveryEntity : AuditedEntity
     public Guid TenantId { get; set; }
     public Guid UserId { get; set; }
     public Guid SourceTaskId { get; set; }
+    public string SourceType { get; set; } = string.Empty;
+    public string LinkUrl { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string Placeholder { get; set; } = string.Empty;
     public string? FailureMessage { get; set; }
     public DateTimeOffset AttemptedAt { get; set; }
+    public DateTimeOffset? ReadAt { get; set; }
 }
 
 public sealed class RoleEntity : AuditedEntity

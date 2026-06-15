@@ -475,6 +475,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-16.2.4:** Simulate notification/email placeholder failure and verify failure is logged without crashing unrelated deliveries.
 #-----------------------------------
 ### Story 16.3: Assignment Notifications
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-16.3.1:** Assign a task, obligation, POA&M item, or evidence request and verify the assigned user receives a notification.

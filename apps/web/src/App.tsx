@@ -1,6 +1,7 @@
 import {
   Archive,
   AlertTriangle,
+  Bell,
   Building2,
   CalendarClock,
   CheckCircle2,
@@ -56,8 +57,10 @@ import {
   getCurrentUserAccess,
   getEvidenceItems,
   getNoCuiAcknowledgementStatus,
+  getNotifications,
   getTenantInvitations,
   getTenantMembers,
+  markNotificationRead,
   saveCompanyProfile,
   searchClauseLibrary,
   removeContractClause,
@@ -86,6 +89,7 @@ import {
   type CurrentUserAccess,
   type EvidenceMetadata,
   type NoCuiAcknowledgementStatus,
+  type NotificationCenterItem,
   type PagedResult,
   type Subcontractor,
   type TenantInvitation,
@@ -425,6 +429,7 @@ export function App() {
   const [access, setAccess] = useState<CurrentUserAccess>(fallbackAccess);
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
+  const [notifications, setNotifications] = useState<NotificationCenterItem[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [clauseResults, setClauseResults] = useState<ClauseLibraryItem[]>([]);
@@ -530,11 +535,13 @@ export function App() {
         const canLoadContracts = hasAnyPermission(nextAccess, ["ViewContracts", "ManageContracts"]);
         const canLoadObligations = hasAnyPermission(nextAccess, ["ViewObligations", "ManageObligations"]);
         const canLoadCalendar = hasAnyPermission(nextAccess, ["ViewTasks", "ManageTasks"]);
+        const canLoadNotifications = hasAnyPermission(nextAccess, ["ViewTasks", "ManageTasks"]);
         const canLoadCmmc = hasAnyPermission(nextAccess, ["ViewCmmc", "ManageCmmc"]);
         const canLoadSubcontractors = hasAnyPermission(nextAccess, ["ViewSubcontractors", "ManageSubcontractors"]);
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
+        const nextNotifications = canLoadNotifications ? await getNotifications() : [];
         const nextAuditLogs = canLoadAuditLogs ? await getAuditLogs({ page: 1, pageSize: 5 }) : fallbackAuditLogs;
         const nextNoCuiAcknowledgement = canLoadNoCuiStatus
           ? await getNoCuiAcknowledgementStatus()
@@ -557,6 +564,7 @@ export function App() {
           setAccess(nextAccess);
           setMembers(nextMembers);
           setInvitations(nextInvitations);
+          setNotifications(nextNotifications);
           setCompanyProfile(nextCompanyProfile);
           setContracts(nextContracts);
           setObligationDashboardItems(nextObligationDashboardItems);
@@ -587,6 +595,7 @@ export function App() {
           setAccess(fallbackAccess);
           setMembers([]);
           setInvitations([]);
+          setNotifications([]);
           setCompanyProfile(null);
           setContracts([]);
           setObligationDashboardItems([]);
@@ -636,6 +645,15 @@ export function App() {
     }
 
     setInviteStatus("failed");
+  }
+
+  async function handleNotificationRead(notificationId: string) {
+    const result = await markNotificationRead(notificationId);
+    if (result.data) {
+      setNotifications((currentNotifications) =>
+        currentNotifications.map((notification) => (notification.id === notificationId ? result.data! : notification))
+      );
+    }
   }
 
   async function handleCompanyProfileSave(request: UpsertCompanyProfileRequest) {
@@ -1143,6 +1161,7 @@ export function App() {
             <h1>{activeRoute === "dashboard" ? "Dashboard" : navigationItems.find((item) => item.route === activeRoute)?.label}</h1>
           </div>
           <div className="tenant-context" aria-label="Current tenant context">
+            <NotificationCenter notifications={notifications} onMarkRead={handleNotificationRead} />
             <span>{access.userEmail ?? "Development user"}</span>
             <strong>{overview.mvpDataPosture}</strong>
           </div>
@@ -1285,6 +1304,58 @@ export function App() {
         </WorkspaceState>
       </main>
     </div>
+  );
+}
+
+function NotificationCenter({
+  notifications,
+  onMarkRead
+}: {
+  notifications: NotificationCenterItem[];
+  onMarkRead: (notificationId: string) => Promise<void>;
+}) {
+  const unreadCount = notifications.filter((notification) => !notification.readAt).length;
+  const visibleNotifications = notifications.slice(0, 6);
+
+  return (
+    <details className="notification-center">
+      <summary aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}>
+        <Bell size={17} aria-hidden="true" />
+        {unreadCount > 0 ? <span>{unreadCount}</span> : null}
+      </summary>
+      <div className="notification-center__panel" role="list" aria-label="Notifications">
+        <div className="notification-center__header">
+          <strong>Notifications</strong>
+          <small>{unreadCount} unread</small>
+        </div>
+        {visibleNotifications.length > 0 ? (
+          visibleNotifications.map((notification) => (
+            <article
+              className={`notification-center__item${notification.readAt ? "" : " notification-center__item--unread"}`}
+              key={notification.id}
+              role="listitem"
+            >
+              <div>
+                <strong>{notification.placeholder}</strong>
+                <small>
+                  {notification.sourceType} · {new Date(notification.attemptedAt).toLocaleString()}
+                </small>
+              </div>
+              <div className="notification-center__actions">
+                <a href={`/api${notification.linkUrl}`}>Open</a>
+                {!notification.readAt ? (
+                  <button type="button" onClick={() => void onMarkRead(notification.id)} aria-label="Mark notification as read">
+                    <CheckCircle2 size={15} aria-hidden="true" />
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))
+        ) : (
+          <p>No notifications.</p>
+        )}
+      </div>
+    </details>
   );
 }
 

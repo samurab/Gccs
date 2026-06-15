@@ -57,6 +57,8 @@ public sealed class EfDueDateReminderRepository(GccsDbContext dbContext) : IDueD
                 TenantId = tenantId,
                 UserId = task.AssignedToUserId ?? actorUserId,
                 SourceTaskId = task.Id,
+                SourceType = "ComplianceTask",
+                LinkUrl = $"/tasks/{task.Id}",
                 Category = category,
                 Status = failed ? "Failed" : "Delivered",
                 Placeholder = placeholder,

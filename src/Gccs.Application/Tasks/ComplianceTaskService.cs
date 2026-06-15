@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Notifications;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Compliance;
 
@@ -6,8 +7,11 @@ namespace Gccs.Application.Tasks;
 
 public sealed class ComplianceTaskService(
     IComplianceTaskRepository repository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    IEnumerable<IAssignmentNotificationRepository> assignmentNotificationRepositories)
 {
+    private IAssignmentNotificationRepository? AssignmentNotifications => assignmentNotificationRepositories.FirstOrDefault();
+
     public Task<IReadOnlyList<ComplianceTaskDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
         repository.ListCurrentTenantAsync(cancellationToken);
 
@@ -22,6 +26,7 @@ public sealed class ComplianceTaskService(
         var created = await repository.CreateAsync(normalized, status, actorUserId, cancellationToken) ??
             throw new ComplianceTaskValidationException("Task could not be created for the current tenant.");
         await WriteAuditAsync(created, actorUserId, AuditAction.Created, "Task was created.", null, created.Status, cancellationToken);
+        await EmitAssignmentNotificationAsync(created, actorUserId, cancellationToken);
         return created;
     }
 
@@ -46,7 +51,31 @@ public sealed class ComplianceTaskService(
             ? $"Task status changed to {updated.Status}."
             : "Task was updated.";
         await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, summary, before?.Status, updated.Status, cancellationToken);
+        if (updated.AssignedToUserId.HasValue && before?.AssignedToUserId != updated.AssignedToUserId)
+        {
+            await EmitAssignmentNotificationAsync(updated, actorUserId, cancellationToken);
+        }
+
         return updated;
+    }
+
+    private async Task EmitAssignmentNotificationAsync(
+        ComplianceTaskDto task,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (task.AssignedToUserId is not { } assignedUserId || AssignmentNotifications is null)
+        {
+            return;
+        }
+
+        await AssignmentNotifications.EmitTaskAssignmentAsync(
+            task.TenantId,
+            task.Id,
+            assignedUserId,
+            task.Title,
+            actorUserId,
+            cancellationToken);
     }
 
     private async Task WriteAuditAsync(

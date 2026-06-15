@@ -198,6 +198,131 @@ main {
   text-align: right;
 }
 
+.notification-center {
+  position: relative;
+}
+
+.notification-center summary {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  justify-content: center;
+  list-style: none;
+  min-height: 36px;
+  min-width: 42px;
+  padding: 7px 10px;
+}
+
+.notification-center summary::-webkit-details-marker {
+  display: none;
+}
+
+.notification-center summary:hover,
+.notification-center summary:focus-visible {
+  border-color: rgb(12 118 111 / 0.44);
+  box-shadow: 0 0 0 3px rgb(12 118 111 / 0.11);
+  outline: none;
+}
+
+.notification-center summary span {
+  background: var(--red);
+  border-radius: 999px;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  min-width: 18px;
+  padding: 3px 5px;
+  text-align: center;
+}
+
+.notification-center__panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+  padding: 12px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(380px, calc(100vw - 48px));
+  z-index: 12;
+}
+
+.notification-center__header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.notification-center__header small,
+.notification-center__item small,
+.notification-center__panel p {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.notification-center__item {
+  align-items: start;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 10px;
+  text-align: left;
+}
+
+.notification-center__item--unread {
+  border-left-color: var(--teal);
+}
+
+.notification-center__item strong,
+.notification-center__item small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.notification-center__actions {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.notification-center__actions a,
+.notification-center__actions button {
+  align-items: center;
+  background: var(--ink);
+  border: 0;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 6px 9px;
+  text-decoration: none;
+}
+
+.notification-center__actions button {
+  background: var(--teal);
+  padding: 6px;
+}
+
 .workspace-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;

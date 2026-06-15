@@ -177,6 +177,32 @@ api.MapPost("/notifications/due-date-reminders", async (
 .RequirePermission(Permission.ManageTasks)
 .WithName("RunDueDateReminders");
 
+api.MapGet("/notifications", async (
+    [FromServices] AssignmentNotificationService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentUserAsync(tenantContext.TenantId, tenantContext.UserId, cancellationToken)))
+.WithName("ListNotifications");
+
+api.MapPost("/notifications/{notificationId:guid}/read", async (
+    Guid notificationId,
+    [FromServices] AssignmentNotificationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var item = await service.MarkReadAsync(tenantContext.TenantId, tenantContext.UserId, notificationId, cancellationToken);
+    return item is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Notification '{notificationId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(item);
+})
+.WithName("MarkNotificationRead");
+
 api.MapGet("/compliance/overview", async (ComplianceOverviewService service, CancellationToken cancellationToken) =>
     Results.Ok(await service.GetOverviewAsync(cancellationToken)))
 .RequirePermission(Permission.ViewObligations)
@@ -1118,6 +1144,25 @@ api.MapGet("/tasks", async (
     Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
 .RequirePermission(Permission.ViewTasks)
 .WithName("ListComplianceTasks");
+
+api.MapGet("/tasks/{taskId:guid}", async (
+    Guid taskId,
+    ComplianceTaskService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var task = (await service.ListCurrentTenantAsync(cancellationToken)).FirstOrDefault(candidate => candidate.Id == taskId);
+    return task is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Task '{taskId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(task);
+})
+.RequirePermission(Permission.ViewTasks)
+.WithName("GetComplianceTask");
 
 api.MapPost("/tasks", async (
     CreateComplianceTaskRequest request,

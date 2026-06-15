@@ -3525,6 +3525,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 16.3: Assignment Notifications
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

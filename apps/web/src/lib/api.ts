@@ -82,6 +82,20 @@ export type TenantInvitation = {
   updatedAt: string | null;
 };
 
+export type NotificationCenterItem = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  sourceTaskId: string;
+  sourceType: string;
+  linkUrl: string;
+  category: string;
+  status: string;
+  placeholder: string;
+  attemptedAt: string;
+  readAt: string | null;
+};
+
 export type CreateTenantInvitationRequest = {
   email: string;
   roleName: string;
@@ -579,6 +593,14 @@ export async function getTenantMembers(): Promise<TenantMember[]> {
 
 export async function getTenantInvitations(): Promise<TenantInvitation[]> {
   return getJson<TenantInvitation[]>("/api/tenant-invitations", []);
+}
+
+export async function getNotifications(): Promise<NotificationCenterItem[]> {
+  return getJson<NotificationCenterItem[]>("/api/notifications", []);
+}
+
+export async function markNotificationRead(notificationId: string): Promise<ApiMutationResult<NotificationCenterItem>> {
+  return postJsonResult<NotificationCenterItem>(`/api/notifications/${notificationId}/read`, {});
 }
 
 export async function getAuditLogs(params: AuditLogQueryParams = {}): Promise<PagedResult<AuditLogEntry>> {
