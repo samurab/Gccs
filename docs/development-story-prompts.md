@@ -2591,6 +2591,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 13.2: Control Readiness
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

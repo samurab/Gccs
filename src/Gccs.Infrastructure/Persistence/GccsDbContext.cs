@@ -467,6 +467,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("control_assessments");
             entity.HasKey(x => new { x.AssessmentId, x.ControlId });
             entity.Property(x => x.EvidenceItemIdsJson).HasColumnType("jsonb");
+            entity.Property(x => x.TaskIdsJson).HasColumnType("jsonb");
+            entity.Property(x => x.AssetIdsJson).HasColumnType("jsonb");
+            entity.Property(x => x.PoamItemIdsJson).HasColumnType("jsonb");
             entity.HasOne(x => x.Assessment).WithMany(x => x.Controls).HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Control).WithMany().HasForeignKey(x => x.ControlId).OnDelete(DeleteBehavior.Restrict);
         });

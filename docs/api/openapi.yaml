@@ -4471,6 +4471,7 @@ components:
         - partiallyImplemented
         - notStarted
         - notApplicable
+        - needsReview
         - completionPercentage
       properties:
         total:
@@ -4483,6 +4484,8 @@ components:
           type: integer
         notApplicable:
           type: integer
+        needsReview:
+          type: integer
         completionPercentage:
           type: integer
           minimum: 0
@@ -4494,9 +4497,20 @@ components:
         - assessmentId
         - controlId
         - title
+        - family
+        - requirement
+        - assessmentObjective
+        - sourceName
+        - sourceUrl
+        - sourceLastReviewedAt
+        - sourceConfidence
         - status
         - result
         - evidenceItemIds
+        - taskIds
+        - assetIds
+        - poamItemIds
+        - notes
       properties:
         assessmentId:
           type: string
@@ -4506,6 +4520,20 @@ components:
         title:
           type: string
         family:
+          type: string
+        requirement:
+          type: string
+        assessmentObjective:
+          type: string
+        sourceName:
+          type: string
+        sourceUrl:
+          type: string
+          format: uri
+        sourceLastReviewedAt:
+          type: string
+          format: date
+        sourceConfidence:
           type: string
         status:
           $ref: "#/components/schemas/ControlImplementationStatus"
@@ -4521,6 +4549,21 @@ components:
           items:
             $ref: "#/components/schemas/AssessmentObjectiveStatus"
         evidenceItemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        taskIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        assetIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        poamItemIds:
           type: array
           items:
             type: string
@@ -4557,6 +4600,21 @@ components:
           items:
             $ref: "#/components/schemas/AssessmentObjectiveStatus"
         evidenceItemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        taskIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        assetIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        poamItemIds:
           type: array
           items:
             type: string
@@ -5246,11 +5304,11 @@ components:
     ControlImplementationStatus:
       type: string
       enum:
-        - implemented
-        - partially-implemented
-        - not-implemented
-        - not-applicable
-        - inherited
+        - NotStarted
+        - Implemented
+        - PartiallyImplemented
+        - NotApplicable
+        - NeedsReview
 
     SubcontractorStatus:
       type: string

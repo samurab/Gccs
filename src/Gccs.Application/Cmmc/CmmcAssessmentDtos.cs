@@ -39,6 +39,7 @@ public sealed record ControlSummaryDto(
     int PartiallyImplemented,
     int NotStarted,
     int NotApplicable,
+    int NeedsReview,
     int CompletionPercentage);
 
 public sealed record CmmcControlStatusDto(
@@ -46,9 +47,18 @@ public sealed record CmmcControlStatusDto(
     string ControlId,
     string Title,
     string Family,
+    string Requirement,
+    string AssessmentObjective,
+    string SourceName,
+    string SourceUrl,
+    DateOnly SourceLastReviewedAt,
+    string SourceConfidence,
     ControlImplementationStatus Status,
     AssessmentResult Result,
     IReadOnlyList<Guid> EvidenceItemIds,
+    IReadOnlyList<Guid> TaskIds,
+    IReadOnlyList<Guid> AssetIds,
+    IReadOnlyList<Guid> PoamItemIds,
     Guid? AssessedByUserId,
     DateOnly? AssessedAt,
     string Notes);
@@ -57,6 +67,9 @@ public sealed record UpsertCmmcControlStatusRequest(
     ControlImplementationStatus Status,
     AssessmentResult Result,
     IReadOnlyList<Guid> EvidenceItemIds,
+    IReadOnlyList<Guid> TaskIds,
+    IReadOnlyList<Guid> AssetIds,
+    IReadOnlyList<Guid> PoamItemIds,
     Guid? AssessedByUserId,
     DateOnly? AssessedAt,
     string? Notes);

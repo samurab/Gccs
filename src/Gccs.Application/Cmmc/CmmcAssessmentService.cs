@@ -131,6 +131,9 @@ public sealed class CmmcAssessmentService(
         request with
         {
             EvidenceItemIds = request.EvidenceItemIds.Distinct().OrderBy(id => id).ToArray(),
+            TaskIds = request.TaskIds.Distinct().OrderBy(id => id).ToArray(),
+            AssetIds = request.AssetIds.Distinct().OrderBy(id => id).ToArray(),
+            PoamItemIds = request.PoamItemIds.Distinct().OrderBy(id => id).ToArray(),
             Notes = request.Notes?.Trim() ?? string.Empty
         };
 

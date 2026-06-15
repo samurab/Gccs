@@ -154,7 +154,7 @@ public sealed class CmmcAssessmentTests : IClassFixture<WebApplicationFactory<Pr
         using var request = CreateRequest(
             HttpMethod.Patch,
             $"/api/cmmc/assessments/{assessmentId}/controls/{controlId}",
-            new UpsertCmmcControlStatusRequest(status, result, [], null, new DateOnly(2026, 6, 15), "Updated status."),
+            new UpsertCmmcControlStatusRequest(status, result, [], [], [], [], null, new DateOnly(2026, 6, 15), "Updated status."),
             tenantId,
             Permission.ManageCmmc);
         var response = await client.SendAsync(request);

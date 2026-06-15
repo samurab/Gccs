@@ -143,6 +143,7 @@ export type ControlSummary = {
   partiallyImplemented: number;
   notStarted: number;
   notApplicable: number;
+  needsReview: number;
   completionPercentage: number;
 };
 
@@ -166,6 +167,28 @@ export type CmmcAssessment = {
 };
 
 export type UpsertCmmcAssessmentRequest = Omit<CmmcAssessment, "id" | "tenantId" | "controlSummary" | "createdAt" | "updatedAt">;
+
+export type CmmcControlStatus = {
+  assessmentId: string;
+  controlId: string;
+  title: string;
+  family: string;
+  requirement: string;
+  assessmentObjective: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceLastReviewedAt: string;
+  sourceConfidence: string;
+  status: string;
+  result: string;
+  evidenceItemIds: string[];
+  taskIds: string[];
+  assetIds: string[];
+  poamItemIds: string[];
+  assessedByUserId: string | null;
+  assessedAt: string | null;
+  notes: string;
+};
 
 export type AuditLogEntry = {
   id: string;
@@ -527,6 +550,10 @@ export async function getEvidenceItems(tag?: string): Promise<EvidenceMetadata[]
 
 export async function getCmmcAssessments(): Promise<CmmcAssessment[]> {
   return getJson<CmmcAssessment[]>("/api/cmmc/assessments", []);
+}
+
+export async function getCmmcControlStatuses(assessmentId: string): Promise<CmmcControlStatus[]> {
+  return getJson<CmmcControlStatus[]>(`/api/cmmc/assessments/${assessmentId}/controls`, []);
 }
 
 export async function getCompanyProfile(): Promise<CompanyProfile | null> {

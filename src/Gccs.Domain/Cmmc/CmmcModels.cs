@@ -121,7 +121,8 @@ public enum ControlImplementationStatus
     NotStarted,
     PartiallyImplemented,
     Implemented,
-    NotApplicable
+    NotApplicable,
+    NeedsReview
 }
 
 public enum AssessmentResult

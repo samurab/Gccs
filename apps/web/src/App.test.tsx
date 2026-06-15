@@ -23,6 +23,7 @@ const {
   fallbackOverview,
   getCompanyProfileMock,
   getCmmcAssessmentsMock,
+  getCmmcControlStatusesMock,
   getCalendarEventsMock,
   getContractClausesMock,
   getContractDeliverablesMock,
@@ -40,6 +41,7 @@ const {
   invitations,
   calendarEvents,
   cmmcAssessment,
+  cmmcControl,
   evidenceMetadata,
   members,
   obligationDashboardItem,
@@ -69,6 +71,7 @@ const {
   getAuditLogsMock: vi.fn(),
   getCalendarEventsMock: vi.fn(),
   getCmmcAssessmentsMock: vi.fn(),
+  getCmmcControlStatusesMock: vi.fn(),
   getCompanyProfileMock: vi.fn(),
   getContractClausesMock: vi.fn(),
   getContractDeliverablesMock: vi.fn(),
@@ -375,10 +378,32 @@ const {
       partiallyImplemented: 0,
       notStarted: 0,
       notApplicable: 0,
+      needsReview: 0,
       completionPercentage: 0
     },
     createdAt: "2026-06-15T12:00:00Z",
     updatedAt: null
+  },
+  cmmcControl: {
+    assessmentId: "c131c131-c131-c131-c131-c131c131c131",
+    controlId: "AC.L1-3.1.1",
+    title: "Authorized access control",
+    family: "Access Control",
+    requirement: "Limit information system access to authorized users, processes, and devices.",
+    assessmentObjective: "Determine whether authorized access is identified and enforced.",
+    sourceName: "CMMC Level 1 baseline",
+    sourceUrl: "https://dodcio.defense.gov/CMMC/Resources-Documentation/",
+    sourceLastReviewedAt: "2026-06-15",
+    sourceConfidence: "high",
+    status: "Implemented",
+    result: "Met",
+    evidenceItemIds: ["edededed-eded-eded-eded-edededededed"],
+    taskIds: ["11111111-1111-1111-1111-111111111111"],
+    assetIds: ["22222222-2222-2222-2222-222222222222"],
+    poamItemIds: ["33333333-3333-3333-3333-333333333333"],
+    assessedByUserId: null,
+    assessedAt: "2026-06-15",
+    notes: "Evidence reviewed."
   },
   evidenceMetadata: {
     id: "edededed-eded-eded-eded-edededededed",
@@ -495,6 +520,7 @@ vi.mock("@/lib/api", () => ({
   deleteContractDocument: deleteContractDocumentMock,
   getCalendarEvents: getCalendarEventsMock,
   getCmmcAssessments: getCmmcAssessmentsMock,
+  getCmmcControlStatuses: getCmmcControlStatusesMock,
   getCompanyProfile: getCompanyProfileMock,
   getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
@@ -573,6 +599,7 @@ describe("App", () => {
     getAuditLogsMock.mockReset();
     getCalendarEventsMock.mockReset();
     getCmmcAssessmentsMock.mockReset();
+    getCmmcControlStatusesMock.mockReset();
     getNoCuiAcknowledgementStatusMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
@@ -605,6 +632,7 @@ describe("App", () => {
     getContractsMock.mockResolvedValue([]);
     getEvidenceItemsMock.mockResolvedValue([]);
     getCmmcAssessmentsMock.mockResolvedValue([]);
+    getCmmcControlStatusesMock.mockResolvedValue([]);
     getCalendarEventsMock.mockResolvedValue([]);
     getContractClausesMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
@@ -1576,12 +1604,16 @@ describe("App", () => {
     getTenantMembersMock.mockResolvedValueOnce(members);
     getContractsMock.mockResolvedValueOnce([contract]);
     getCmmcAssessmentsMock.mockResolvedValueOnce([cmmcAssessment]);
+    getCmmcControlStatusesMock.mockResolvedValueOnce([cmmcControl]);
     const user = userEvent.setup();
 
     render(<App />);
 
     await user.click(await screen.findByRole("link", { name: /cmmc/i }));
     expect(await screen.findByText("Level 1 workspace")).toBeInTheDocument();
+    expect(screen.getByText("AC.L1-3.1.1 · Authorized access control")).toBeInTheDocument();
+    expect(screen.getByText("Implemented · Met · CMMC Level 1 baseline reviewed 2026-06-15")).toBeInTheDocument();
+    expect(screen.getByText("Evidence 1 · Tasks 1 · Assets 1 · POA&M 1")).toBeInTheDocument();
     await user.clear(screen.getByLabelText("Assessment name"));
     await user.type(screen.getByLabelText("Assessment name"), "Level 2 workspace");
     await user.selectOptions(screen.getByLabelText("Target level"), "Level2");

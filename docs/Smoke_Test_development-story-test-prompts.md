@@ -352,6 +352,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-13.1.4:** Create, update, and change assessment status and verify audit events.
 #-----------------------------------
 ### Story 13.2: Control Readiness
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-13.2.1:** Verify Level 1 controls and Level 2 mappings load for the selected assessment scope.

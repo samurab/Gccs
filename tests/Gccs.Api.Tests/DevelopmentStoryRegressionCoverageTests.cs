@@ -347,7 +347,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-13.1.1"] = ["TC_13_1_1_Creates_level_1_and_level_2_readiness_assessments_with_status_dates_and_owner"],
             ["TC-13.1.2"] = ["TC_13_1_2_Links_assessment_to_company_profile_and_contracts_for_detail_display"],
             ["TC-13.1.3"] = ["TC_13_1_3_Control_status_updates_recalculate_completion_progress"],
-            ["TC-13.1.4"] = ["TC_13_1_4_Create_update_and_status_changes_are_audit_logged"]
+            ["TC-13.1.4"] = ["TC_13_1_4_Create_update_and_status_changes_are_audit_logged"],
+            ["TC-13.2.1"] = ["TC_13_2_1_Level_1_controls_and_level_2_mappings_load_for_selected_scope"],
+            ["TC-13.2.2"] = ["TC_13_2_2_Control_status_can_be_set_to_each_readiness_state"],
+            ["TC-13.2.3"] = ["TC_13_2_3_Control_links_evidence_tasks_assets_and_poam_items"],
+            ["TC-13.2.4"] = ["TC_13_2_4_Source_baseline_is_visible_and_status_contributes_to_progress"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

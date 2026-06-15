@@ -39,6 +39,7 @@ import {
   fallbackOverview,
   getCompanyProfile,
   getCmmcAssessments,
+  getCmmcControlStatuses,
   getCalendarEvents,
   getContractClauses,
   getContractDeliverables,
@@ -68,6 +69,7 @@ import {
   type CompanyCertification,
   type CompanyProfile,
   type CmmcAssessment,
+  type CmmcControlStatus,
   type ComplianceOverview,
   type ContractClause,
   type ContractDeliverable,
@@ -426,6 +428,7 @@ export function App() {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceMetadata[]>([]);
   const [cmmcAssessments, setCmmcAssessments] = useState<CmmcAssessment[]>([]);
+  const [cmmcControls, setCmmcControls] = useState<CmmcControlStatus[]>([]);
   const [selectedEvidenceItemId, setSelectedEvidenceItemId] = useState<string | null>(null);
   const [calendarFilters, setCalendarFilters] = useState<CalendarFilters>(defaultCalendarFilters);
   const [calendarStatus, setCalendarStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
@@ -527,6 +530,7 @@ export function App() {
         const nextObligationDashboardItems = canLoadObligations ? await getContractObligations() : [];
         const nextCalendarEvents = canLoadCalendar ? await getCalendarEvents(defaultCalendarQuery()) : [];
         const nextCmmcAssessments = canLoadCmmc ? await getCmmcAssessments() : [];
+        const nextCmmcControls = nextCmmcAssessments[0] ? await getCmmcControlStatuses(nextCmmcAssessments[0].id) : [];
         const nextContractClauses = nextContracts[0] ? await getContractClauses(nextContracts[0].id) : [];
         const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
@@ -552,6 +556,7 @@ export function App() {
           setNoCuiAcknowledgement(nextNoCuiAcknowledgement);
           setEvidenceItems(nextEvidenceItems);
           setCmmcAssessments(nextCmmcAssessments);
+          setCmmcControls(nextCmmcControls);
           setCmmcStatus(canLoadCmmc ? "idle" : "idle");
           setSelectedEvidenceItemId(nextEvidenceItems[0]?.id ?? null);
           setLoadState("ready");
@@ -579,6 +584,7 @@ export function App() {
           setNoCuiAcknowledgement(fallbackNoCuiAcknowledgementStatus);
           setEvidenceItems([]);
           setCmmcAssessments([]);
+          setCmmcControls([]);
           setCmmcStatus("idle");
           setSelectedEvidenceItemId(null);
           setLoadState("error");
@@ -1164,6 +1170,7 @@ export function App() {
             <CmmcView
               assessments={cmmcAssessments}
               canManageCmmc={canManageCmmc}
+              controls={cmmcControls}
               contracts={contracts}
               message={cmmcMessage}
               status={cmmcStatus}
@@ -3280,6 +3287,7 @@ const defaultCmmcAssessmentForm: CmmcAssessmentFormState = {
 function CmmcView({
   assessments,
   canManageCmmc,
+  controls,
   contracts,
   message,
   onCreate,
@@ -3287,6 +3295,7 @@ function CmmcView({
 }: {
   assessments: CmmcAssessment[];
   canManageCmmc: boolean;
+  controls: CmmcControlStatus[];
   contracts: ContractRecord[];
   message: string;
   onCreate: (request: UpsertCmmcAssessmentRequest) => Promise<void>;
@@ -3418,6 +3427,31 @@ function CmmcView({
           </div>
         ) : (
           <EmptyState title="No CMMC assessment has started yet" body="Create a Level 1 or Level 2 workspace to begin tracking readiness." />
+        )}
+      </section>
+
+      <section className="cmmc-controls" aria-label="CMMC control readiness">
+        <div className="section-heading--split">
+          <div>
+            <h3>Control readiness</h3>
+            <p>Source baseline, readiness status, and linked work items for the selected assessment.</p>
+          </div>
+        </div>
+        {controls.length > 0 ? (
+          <div className="evidence-list">
+            {controls.map((control) => (
+              <article className="evidence-list__item" key={control.controlId}>
+                <strong>{control.controlId} · {control.title}</strong>
+                <span>{control.status} · {control.result} · {control.sourceName} reviewed {control.sourceLastReviewedAt}</span>
+                <span>{control.requirement}</span>
+                <span>
+                  Evidence {control.evidenceItemIds.length} · Tasks {control.taskIds.length} · Assets {control.assetIds.length} · POA&M {control.poamItemIds.length}
+                </span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No controls loaded yet" body="Controls appear after a selected assessment has a Level 1 or Level 2 baseline." />
         )}
       </section>
     </section>

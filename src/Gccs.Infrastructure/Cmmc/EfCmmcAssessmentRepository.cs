@@ -21,14 +21,20 @@ public sealed class EfCmmcAssessmentRepository(
             .ThenBy(assessment => assessment.Name)
             .ToArrayAsync(cancellationToken);
 
-        return assessments.Select(ToDto).ToArray();
+        var results = new List<CmmcAssessmentDto>();
+        foreach (var assessment in assessments)
+        {
+            results.Add(await ToDtoAsync(assessment, cancellationToken));
+        }
+
+        return results;
     }
 
     public async Task<CmmcAssessmentDto?> FindCurrentTenantAsync(Guid assessmentId, CancellationToken cancellationToken = default)
     {
         var assessment = await QueryCurrentTenant()
             .SingleOrDefaultAsync(candidate => candidate.Id == assessmentId, cancellationToken);
-        return assessment is null ? null : ToDto(assessment);
+        return assessment is null ? null : await ToDtoAsync(assessment, cancellationToken);
     }
 
     public async Task<CmmcAssessmentDto> CreateCurrentTenantAsync(
@@ -58,7 +64,7 @@ public sealed class EfCmmcAssessmentRepository(
 
         dbContext.Assessments.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToDto(entity);
+        return await ToDtoAsync(entity, cancellationToken);
     }
 
     public async Task<CmmcAssessmentDto?> UpdateCurrentTenantAsync(
@@ -89,25 +95,25 @@ public sealed class EfCmmcAssessmentRepository(
         entity.UpdatedByUserId = actorUserId;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToDto(entity);
+        return await ToDtoAsync(entity, cancellationToken);
     }
 
     public async Task<IReadOnlyList<CmmcControlStatusDto>?> ListControlStatusesAsync(
         Guid assessmentId,
         CancellationToken cancellationToken = default)
     {
-        var exists = await dbContext.Assessments.AnyAsync(
-            assessment => assessment.Id == assessmentId && assessment.TenantId == tenantContext.TenantId,
-            cancellationToken);
-        if (!exists)
+        var assessment = await QueryCurrentTenant()
+            .SingleOrDefaultAsync(candidate => candidate.Id == assessmentId, cancellationToken);
+        if (assessment is null)
         {
             return null;
         }
 
-        var controls = await QueryCurrentTenantControlAssessments(assessmentId)
-            .OrderBy(control => control.ControlId)
+        var controls = await QueryControlsForLevel(assessment.Level)
+            .OrderBy(control => control.Id)
             .ToArrayAsync(cancellationToken);
-        return controls.Select(ToDto).ToArray();
+        var statuses = assessment.Controls.ToDictionary(control => control.ControlId, StringComparer.OrdinalIgnoreCase);
+        return controls.Select(control => ToDto(control, statuses.GetValueOrDefault(control.Id), assessmentId)).ToArray();
     }
 
     public async Task<CmmcControlStatusDto?> UpsertControlStatusAsync(
@@ -120,6 +126,13 @@ public sealed class EfCmmcAssessmentRepository(
         var assessment = await QueryCurrentTenant()
             .SingleOrDefaultAsync(candidate => candidate.Id == assessmentId, cancellationToken);
         if (assessment is null)
+        {
+            return null;
+        }
+
+        var baselineControl = await QueryControlsForLevel(assessment.Level)
+            .SingleOrDefaultAsync(candidate => candidate.Id == controlId, cancellationToken);
+        if (baselineControl is null)
         {
             return null;
         }
@@ -143,16 +156,16 @@ public sealed class EfCmmcAssessmentRepository(
         control.Result = request.Result;
         control.Notes = request.Notes ?? string.Empty;
         control.EvidenceItemIdsJson = JsonSerializer.Serialize(request.EvidenceItemIds, JsonOptions);
+        control.TaskIdsJson = JsonSerializer.Serialize(request.TaskIds, JsonOptions);
+        control.AssetIdsJson = JsonSerializer.Serialize(request.AssetIds, JsonOptions);
+        control.PoamItemIdsJson = JsonSerializer.Serialize(request.PoamItemIds, JsonOptions);
         control.AssessedByUserId = request.AssessedByUserId ?? actorUserId;
         control.AssessedAt = request.AssessedAt ?? DateOnly.FromDateTime(DateTime.UtcNow);
         assessment.UpdatedAt = DateTimeOffset.UtcNow;
         assessment.UpdatedByUserId = actorUserId;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        var updated = await QueryCurrentTenantControlAssessments(assessmentId)
-            .Where(candidate => candidate.ControlId == controlId)
-            .SingleAsync(cancellationToken);
-        return ToDto(updated);
+        return ToDto(baselineControl, control, assessmentId);
     }
 
     private IQueryable<AssessmentEntity> QueryCurrentTenant() =>
@@ -160,17 +173,23 @@ public sealed class EfCmmcAssessmentRepository(
             .Include(assessment => assessment.Controls)
             .Where(assessment => assessment.TenantId == tenantContext.TenantId);
 
-    private IQueryable<ControlAssessmentEntity> QueryCurrentTenantControlAssessments(Guid assessmentId) =>
-        dbContext.ControlAssessments
-            .Include(control => control.Control)
-            .Include(control => control.Assessment)
-            .Where(control =>
-                control.AssessmentId == assessmentId &&
-                control.Assessment != null &&
-                control.Assessment.TenantId == tenantContext.TenantId);
+    private IQueryable<ControlEntity> QueryControlsForLevel(CmmcLevel level)
+    {
+        var controls = dbContext.Controls.AsNoTracking();
+        return level switch
+        {
+            CmmcLevel.Level1 => controls.Where(control => control.CmmcLevel == CmmcLevel.Level1),
+            CmmcLevel.Level2 => controls.Where(control => control.CmmcLevel == CmmcLevel.Level1 || control.CmmcLevel == CmmcLevel.Level2),
+            _ => controls
+        };
+    }
 
-    private static CmmcAssessmentDto ToDto(AssessmentEntity entity) =>
-        new(
+    private async Task<CmmcAssessmentDto> ToDtoAsync(AssessmentEntity entity, CancellationToken cancellationToken)
+    {
+        var scopedControlIds = await QueryControlsForLevel(entity.Level)
+            .Select(control => control.Id)
+            .ToArrayAsync(cancellationToken);
+        return new CmmcAssessmentDto(
             entity.Id,
             entity.TenantId,
             entity.Name,
@@ -184,26 +203,44 @@ public sealed class EfCmmcAssessmentRepository(
             entity.OwnerFunction,
             entity.CompanyProfileId,
             ReadGuidArray(entity.ContractIdsJson),
-            CalculateSummary(entity.Controls),
+            CalculateSummary(scopedControlIds, entity.Controls),
             entity.CreatedAt,
             entity.UpdatedAt);
+    }
 
-    private static CmmcControlStatusDto ToDto(ControlAssessmentEntity entity) =>
+    private static CmmcControlStatusDto ToDto(
+        ControlEntity baselineControl,
+        ControlAssessmentEntity? status,
+        Guid assessmentId) =>
         new(
-            entity.AssessmentId,
-            entity.ControlId,
-            entity.Control?.Title ?? entity.ControlId,
-            entity.Control?.Family ?? string.Empty,
-            entity.ImplementationStatus,
-            entity.Result,
-            ReadGuidArray(entity.EvidenceItemIdsJson),
-            entity.AssessedByUserId,
-            entity.AssessedAt,
-            entity.Notes);
+            assessmentId,
+            baselineControl.Id,
+            baselineControl.Title,
+            baselineControl.Family,
+            baselineControl.Requirement,
+            baselineControl.AssessmentObjective,
+            baselineControl.SourceName,
+            baselineControl.SourceUrl,
+            baselineControl.SourceLastReviewedAt,
+            baselineControl.SourceConfidence,
+            status?.ImplementationStatus ?? ControlImplementationStatus.NotStarted,
+            status?.Result ?? AssessmentResult.NotAssessed,
+            ReadGuidArray(status?.EvidenceItemIdsJson ?? "[]"),
+            ReadGuidArray(status?.TaskIdsJson ?? "[]"),
+            ReadGuidArray(status?.AssetIdsJson ?? "[]"),
+            ReadGuidArray(status?.PoamItemIdsJson ?? "[]"),
+            status?.AssessedByUserId,
+            status?.AssessedAt,
+            status?.Notes ?? string.Empty);
 
-    private static ControlSummaryDto CalculateSummary(IEnumerable<ControlAssessmentEntity> controls)
+    private static ControlSummaryDto CalculateSummary(
+        IReadOnlyCollection<string> scopedControlIds,
+        IEnumerable<ControlAssessmentEntity> controls)
     {
-        var statuses = controls.Select(control => control.ImplementationStatus).ToArray();
+        var statusByControlId = controls.ToDictionary(control => control.ControlId, StringComparer.OrdinalIgnoreCase);
+        var statuses = scopedControlIds
+            .Select(controlId => statusByControlId.GetValueOrDefault(controlId)?.ImplementationStatus ?? ControlImplementationStatus.NotStarted)
+            .ToArray();
         var total = statuses.Length;
         var implemented = statuses.Count(status => status == ControlImplementationStatus.Implemented);
         var notApplicable = statuses.Count(status => status == ControlImplementationStatus.NotApplicable);
@@ -213,6 +250,7 @@ public sealed class EfCmmcAssessmentRepository(
             statuses.Count(status => status == ControlImplementationStatus.PartiallyImplemented),
             statuses.Count(status => status == ControlImplementationStatus.NotStarted),
             notApplicable,
+            statuses.Count(status => status == ControlImplementationStatus.NeedsReview),
             total == 0 ? 0 : (int)Math.Round((implemented + notApplicable) * 100m / total));
     }
 

@@ -150,6 +150,9 @@ public sealed class ControlAssessmentEntity
     public Guid? AssessedByUserId { get; set; }
     public DateOnly? AssessedAt { get; set; }
     public string EvidenceItemIdsJson { get; set; } = "[]";
+    public string TaskIdsJson { get; set; } = "[]";
+    public string AssetIdsJson { get; set; } = "[]";
+    public string PoamItemIdsJson { get; set; } = "[]";
 
     public AssessmentEntity? Assessment { get; set; }
     public ControlEntity? Control { get; set; }
