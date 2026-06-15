@@ -504,6 +504,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-17.2.4:** Confirm tenant isolation, RBAC, and audit logging verification results are documented.
 #-----------------------------------
 ### Story 17.3: Staging Environment
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-17.3.1:** Trigger staging deployment and verify API, web, database, storage, cache, queue, secrets, and jobs provision/deploy.

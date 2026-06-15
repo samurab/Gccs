@@ -17,7 +17,8 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         "postgresql",
         "redis",
         "object-storage",
-        "malware-scanner"
+        "malware-scanner",
+        "background-jobs"
     ];
 
     private static readonly string[] ComposeServiceNames =

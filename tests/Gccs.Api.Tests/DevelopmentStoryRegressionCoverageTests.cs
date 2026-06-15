@@ -411,7 +411,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-17.2.1"] = ["TC_17_2_1_Cross_tenant_access_is_denied_across_tenant_owned_modules"],
             ["TC-17.2.2"] = ["TC_17_2_2_Restricted_role_actions_are_denied_for_direct_api_calls"],
             ["TC-17.2.3"] = ["TC_17_2_3_Tenant_owned_repository_and_service_filter_tests_are_present"],
-            ["TC-17.2.4"] = ["TC_17_2_4_Security_verification_results_are_documented"]
+            ["TC-17.2.4"] = ["TC_17_2_4_Security_verification_results_are_documented"],
+            ["TC-17.3.1"] = ["TC_17_3_1_Staging_deployment_workflow_covers_core_services_and_migrations"],
+            ["TC-17.3.2"] = ["TC_17_3_2_Staging_contract_blocks_production_customer_data_and_secrets"],
+            ["TC-17.3.3"] = ["TC_17_3_3_Staging_health_checks_cover_api_database_cache_storage_and_jobs"],
+            ["TC-17.3.4"] = ["TC_17_3_4_Staging_smoke_tests_are_visible_in_ci_cd"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

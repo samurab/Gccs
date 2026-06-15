@@ -3749,6 +3749,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 17.3: Staging Environment
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

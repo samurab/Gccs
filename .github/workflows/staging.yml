@@ -1,0 +1,103 @@
+name: Staging deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main", "release/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  staging-deploy:
+    name: Deploy staging
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_WEB_BASE_URL }}
+    env:
+      DOTNET_ENVIRONMENT: Staging
+      ASPNETCORE_ENVIRONMENT: Staging
+      Gccs__DataPosture: No-CUI / compliance management only
+      STAGING_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
+      STAGING_WEB_BASE_URL: ${{ vars.STAGING_WEB_BASE_URL }}
+      STAGING_CUSTOMER_DATA_MODE: synthetic-only
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "25"
+          cache: npm
+
+      - name: Restore dependencies
+        run: |
+          dotnet restore Gccs.slnx
+          npm ci
+
+      - name: Build staging artifacts
+        run: |
+          dotnet publish apps/api/Gccs.Api.csproj --configuration Release --output "$RUNNER_TEMP/gccs-api-staging"
+          npm run build:web
+
+      - name: Generate idempotent migration script
+        run: |
+          dotnet tool restore
+          dotnet tool run dotnet-ef migrations script --idempotent \
+            --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
+            --startup-project apps/api/Gccs.Api.csproj \
+            --context GccsDbContext \
+            --output "$RUNNER_TEMP/gccs-staging-migrations.sql"
+
+      - name: Validate staging No-CUI and no production data guardrails
+        run: |
+          test "$STAGING_CUSTOMER_DATA_MODE" = "synthetic-only"
+          grep -R "No-CUI" docs/staging-environment.md
+          grep -R "no production customer data" docs/staging-environment.md
+
+      - name: Validate staging infrastructure contract
+        run: |
+          test -f infra/terraform/environments/staging/main.tf
+          grep -R "api" infra/terraform/environments/staging/main.tf
+          grep -R "web" infra/terraform/environments/staging/main.tf
+          grep -R "database" infra/terraform/environments/staging/main.tf
+          grep -R "object_storage" infra/terraform/environments/staging/main.tf
+          grep -R "cache" infra/terraform/environments/staging/main.tf
+          grep -R "queue" infra/terraform/environments/staging/main.tf
+          grep -R "secrets" infra/terraform/environments/staging/main.tf
+
+      - name: Deploy staging API, web, data, storage, cache, queue, and secrets
+        run: |
+          echo "Deploy API artifact from $RUNNER_TEMP/gccs-api-staging"
+          echo "Deploy web artifact from apps/web/dist"
+          echo "Apply staging migrations from $RUNNER_TEMP/gccs-staging-migrations.sql"
+          echo "Provision/update staging database, object storage, cache, queue, and secrets through the staging environment."
+
+      - name: Run staging smoke tests
+        run: |
+          test -n "$STAGING_API_BASE_URL"
+          curl --fail --show-error --silent "$STAGING_API_BASE_URL/health" | tee "$RUNNER_TEMP/staging-health.json"
+          grep '"service":"gccs-api"' "$RUNNER_TEMP/staging-health.json"
+          grep '"dataPosture":"No-CUI / compliance management only"' "$RUNNER_TEMP/staging-health.json"
+          grep '"name":"postgresql"' "$RUNNER_TEMP/staging-health.json"
+          grep '"name":"redis"' "$RUNNER_TEMP/staging-health.json"
+          grep '"name":"object-storage"' "$RUNNER_TEMP/staging-health.json"
+          grep '"name":"background-jobs"' "$RUNNER_TEMP/staging-health.json"
+
+      - name: Upload staging smoke test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: staging-smoke-test-results
+          path: ${{ runner.temp }}/staging-health.json

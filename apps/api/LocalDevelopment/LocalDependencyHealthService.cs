@@ -34,7 +34,8 @@ public sealed class LocalDependencyHealthService
             CheckDatabaseAsync(cancellationToken),
             CheckRedisAsync(cancellationToken),
             CheckObjectStorageAsync(cancellationToken),
-            CheckMalwareScannerAsync(cancellationToken));
+            CheckMalwareScannerAsync(cancellationToken),
+            CheckBackgroundJobsAsync(cancellationToken));
 
         return new LocalDependencyHealthReport(
             checks.All(check => check.Status == "ok"),
@@ -136,6 +137,33 @@ public sealed class LocalDependencyHealthService
             return LocalDependencyHealthCheck.Unhealthy(
                 "malware-scanner",
                 $"Could not connect to local ClamAV placeholder ({exception.GetType().Name}).");
+        }
+    }
+
+    private async Task<LocalDependencyHealthCheck> CheckBackgroundJobsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var (host, port) = ParseHostPort(_options.Redis.ConnectionString, 6379);
+            using var client = await OpenTcpClientAsync(host, port, cancellationToken);
+            await using var stream = client.GetStream();
+
+            var ping = Encoding.ASCII.GetBytes("*1\r\n$4\r\nPING\r\n");
+            await stream.WriteAsync(ping, cancellationToken);
+
+            var buffer = new byte[64];
+            var bytesRead = await stream.ReadAsync(buffer, cancellationToken).AsTask().WaitAsync(CheckTimeout, cancellationToken);
+            var response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+
+            return response.StartsWith("+PONG", StringComparison.OrdinalIgnoreCase)
+                ? LocalDependencyHealthCheck.Healthy("background-jobs", "Background job queue coordination is reachable through Redis.")
+                : LocalDependencyHealthCheck.Unhealthy("background-jobs", "Background job queue coordination did not return PONG.");
+        }
+        catch (Exception exception)
+        {
+            return LocalDependencyHealthCheck.Unhealthy(
+                "background-jobs",
+                $"Could not connect to background job queue coordination ({exception.GetType().Name}).");
         }
     }
 
