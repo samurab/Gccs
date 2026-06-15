@@ -241,6 +241,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 ## 9. Manual Clause Tagging
 
 ###  Please perform automated test on Story 9.1: Clause Library Search. Please provide the results of the tests.
+### Done ##
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
 - **TC-9.1.1:** Search the clause library by clause number, title text, and category filters and verify expected results.

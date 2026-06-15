@@ -44,9 +44,12 @@ import {
   getTenantInvitations,
   getTenantMembers,
   saveCompanyProfile,
+  searchClauseLibrary,
   updateContract,
   updateContractDeliverable,
   type AuditLogEntry,
+  type ClauseLibraryItem,
+  type ClauseSearchParams,
   type CompanyCertification,
   type CompanyProfile,
   type ComplianceOverview,
@@ -353,6 +356,7 @@ export function App() {
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
+  const [clauseResults, setClauseResults] = useState<ClauseLibraryItem[]>([]);
   const [contractDeliverables, setContractDeliverables] = useState<ContractDeliverable[]>([]);
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
@@ -371,6 +375,8 @@ export function App() {
   const [profileMessage, setProfileMessage] = useState("");
   const [contractStatus, setContractStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [contractMessage, setContractMessage] = useState("");
+  const [clauseSearchStatus, setClauseSearchStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
+  const [clauseSearchMessage, setClauseSearchMessage] = useState("");
   const [deliverableStatus, setDeliverableStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [deliverableMessage, setDeliverableMessage] = useState("");
   const [contractDocumentStatus, setContractDocumentStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -531,6 +537,22 @@ export function App() {
 
     setContractStatus("failed");
     setContractMessage(result.error ?? "Contract could not be saved.");
+  }
+
+  async function handleClauseSearch(params: ClauseSearchParams) {
+    setClauseSearchStatus("loading");
+    setClauseSearchMessage("");
+
+    try {
+      const results = await searchClauseLibrary(params);
+      setClauseResults(results);
+      setClauseSearchStatus("ready");
+      setClauseSearchMessage(results.length > 0 ? `${results.length} published clause results.` : "No published clauses matched.");
+    } catch {
+      setClauseResults([]);
+      setClauseSearchStatus("failed");
+      setClauseSearchMessage("Clause search could not be completed.");
+    }
   }
 
   async function handleContractSelect(contractId: string | null) {
@@ -765,6 +787,13 @@ export function App() {
               onUploadDocument={handleContractDocumentUpload}
               onSave={handleContractSave}
               onSelectContract={handleContractSelect}
+            />
+          ) : activeRoute === "obligations" ? (
+            <ClauseLibraryView
+              results={clauseResults}
+              searchMessage={clauseSearchMessage}
+              searchStatus={clauseSearchStatus}
+              onSearch={handleClauseSearch}
             />
           ) : activeRoute === "evidence" ? (
             <EvidenceView
@@ -1082,6 +1111,125 @@ function contractFormToRequest(form: ContractFormState): UpsertContractRequest {
     description: form.description.trim(),
     dataHandlingPosture: form.dataHandlingPosture
   };
+}
+
+function ClauseLibraryView({
+  results,
+  searchMessage,
+  searchStatus,
+  onSearch
+}: {
+  results: ClauseLibraryItem[];
+  searchMessage: string;
+  searchStatus: "idle" | "loading" | "ready" | "failed";
+  onSearch: (params: ClauseSearchParams) => Promise<void>;
+}) {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("");
+  const [selectedClauseId, setSelectedClauseId] = useState<string | null>(null);
+  const selectedClause = results.find((clause) => clause.id === selectedClauseId) ?? null;
+
+  return (
+    <section className="route-panel clause-library-route">
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">Manual clause tagging</p>
+          <h2>Clause library search</h2>
+        </div>
+        {selectedClause ? (
+          <div className="selection-pill" aria-live="polite">
+            Selected {selectedClause.number}
+          </div>
+        ) : null}
+      </div>
+
+      <form
+        className="clause-search-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onSearch({
+            query: query.trim() || undefined,
+            category: category || undefined
+          });
+        }}
+      >
+        <label>
+          Clause search
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Clause number or title"
+            disabled={searchStatus === "loading"}
+          />
+        </label>
+        <label>
+          Category
+          <select value={category} onChange={(event) => setCategory(event.target.value)} disabled={searchStatus === "loading"}>
+            <option value="">All published categories</option>
+            <option value="FAR">FAR</option>
+            <option value="DFARS">DFARS</option>
+            <option value="CMMC">CMMC</option>
+            <option value="Labor">Labor</option>
+            <option value="Telecom">Telecom</option>
+            <option value="ByteDance">ByteDance</option>
+            <option value="Custom">Custom</option>
+          </select>
+        </label>
+        <button type="submit" disabled={searchStatus === "loading"}>
+          Search clauses
+        </button>
+      </form>
+
+      {searchMessage ? (
+        <p className={`form-status ${searchStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
+          {searchMessage}
+        </p>
+      ) : null}
+
+      <div className="clause-result-list" aria-label="Published clause search results">
+        {results.length > 0 ? (
+          results.map((clause) => (
+            <article className="clause-result-item" key={clause.id}>
+              <div>
+                <div className="clause-result-item__header">
+                  <strong>{clause.number}</strong>
+                  <span>{clause.category}</span>
+                </div>
+                <h3>{clause.title}</h3>
+                <p>{clause.plainEnglishSummary}</p>
+                <dl>
+                  <div>
+                    <dt>Source</dt>
+                    <dd>
+                      <a href={clause.sourceUrl} target="_blank" rel="noreferrer">
+                        {clause.source}
+                      </a>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Reviewed</dt>
+                    <dd>{clause.lastReviewedAt}</dd>
+                  </div>
+                  <div>
+                    <dt>Mapping</dt>
+                    <dd>{clause.isMappable ? "Published and mappable" : "Unavailable"}</dd>
+                  </div>
+                </dl>
+              </div>
+              <button type="button" onClick={() => setSelectedClauseId(clause.id)} disabled={!clause.isMappable}>
+                Select clause
+              </button>
+            </article>
+          ))
+        ) : (
+          <EmptyState
+            title="No clause results yet"
+            body="Search by clause number, title, or category to find published clauses available for mapping."
+          />
+        )}
+      </div>
+    </section>
+  );
 }
 
 function ContractsView({

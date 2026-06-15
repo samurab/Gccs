@@ -1657,6 +1657,7 @@ Instructions:
 ## 9. Manual Clause Tagging
 
 ### Story 9.1: Clause Library Search
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

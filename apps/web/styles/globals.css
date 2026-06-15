@@ -783,6 +783,118 @@ dt {
   outline: none;
 }
 
+.clause-search-form {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(240px, 2fr) minmax(180px, 1fr) auto;
+}
+
+.clause-search-form label {
+  color: var(--muted);
+  display: grid;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 6px;
+  text-transform: uppercase;
+}
+
+.clause-search-form input,
+.clause-search-form select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+.clause-search-form button,
+.clause-result-item button {
+  background: var(--ink);
+  border: 0;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  min-height: 40px;
+  padding: 8px 12px;
+}
+
+.clause-search-form button:disabled,
+.clause-search-form input:disabled,
+.clause-search-form select:disabled,
+.clause-result-item button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.clause-result-list {
+  display: grid;
+  gap: 10px;
+}
+
+.clause-result-item {
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px;
+}
+
+.clause-result-item h3,
+.clause-result-item p {
+  margin: 6px 0 0;
+}
+
+.clause-result-item h3 {
+  font-size: 1rem;
+}
+
+.clause-result-item p,
+.clause-result-item dd {
+  color: var(--muted);
+}
+
+.clause-result-item dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 12px 0 0;
+}
+
+.clause-result-item dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.clause-result-item dd {
+  margin: 3px 0 0;
+}
+
+.clause-result-item__header {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.clause-result-item__header span,
+.selection-pill {
+  background: rgb(12 118 111 / 0.09);
+  border: 1px solid rgb(12 118 111 / 0.2);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 4px 8px;
+}
+
 .contract-list__item span,
 .contract-list__item small {
   color: var(--muted);
@@ -1295,6 +1407,7 @@ dt {
 
   .invite-form,
   .invitation-item,
+  .clause-search-form,
   .contract-detail,
   .form-grid,
   .naics-row,
@@ -1314,6 +1427,7 @@ dt {
   .contract-documents__header,
   .contract-document-upload,
   .contract-document-item,
+  .clause-result-item,
   .deliverable-item {
     align-items: stretch;
     flex-direction: column;

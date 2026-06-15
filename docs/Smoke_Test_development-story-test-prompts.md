@@ -227,6 +227,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 9. Manual Clause Tagging
 
 ### Story 9.1: Clause Library Search
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-9.1.1:** Search the clause library by clause number, title text, and category filters and verify expected results.

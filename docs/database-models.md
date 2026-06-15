@@ -14,6 +14,7 @@ These artifacts turn the MVP domain model into a migration-ready PostgreSQL sche
 - Evidence upload guardrails migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615005659_AddEvidenceUploadGuardrails.cs`
 - Audit request metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615010139_AddAuditRequestMetadata.cs`
 - Obligation publication metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615011257_AddObligationPublicationMetadata.cs`
+- Clause tenant scope migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615040552_AddClauseTenantScope.cs`
 - Generated SQL script: `infra/database/development-schema.sql`
 - Local EF tool manifest: `dotnet-tools.json`
 
@@ -72,7 +73,7 @@ Host=localhost;Port=15432;Database=gccs;Username=gccs;Password=gccs_dev_password
 - Enums are stored as strings for readable migrations and safer future enum additions.
 - Frequently queried relationships are relational joins; descriptive lists such as tags, source clause numbers, applicability dimensions, and evidence examples are JSONB during development.
 - Source-backed compliance content keeps source name, source URL, last-reviewed date, effective date, confidence, and expert-review requirements as first-class data.
-- Clause records keep text version, effective date, source hash, review state, review owner, and superseded/replaced metadata so source updates remain auditable.
+- Clause records keep text version, effective date, source hash, review state, review owner, optional tenant scope, and superseded/replaced metadata so source updates remain auditable while tenant-owned custom clauses stay isolated.
 - Obligation records carry publication review metadata, flow-down flags, trigger logic, required action text, owner, risk, confidence, and linked evidence examples before customer-facing publication.
 - Evidence files are represented by metadata and storage URI only. Upload intents now record original file name, content type, file size, validation status, and malware scan placeholder status before later object storage workflows make files usable.
 - Tenant-scoped operational tables include `tenant_id` indexes to support later tenant isolation enforcement in repositories and query filters.

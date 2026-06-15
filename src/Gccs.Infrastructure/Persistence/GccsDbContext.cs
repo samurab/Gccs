@@ -260,7 +260,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("clauses");
             entity.HasKey(x => x.Id);
-            entity.HasIndex(x => new { x.Source, x.Number }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Source, x.Number }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.ReviewState });
             entity.Property(x => x.RequiredActionIdsJson).HasColumnType("jsonb");
             entity.Property(x => x.ClauseTextVersion).HasMaxLength(120).HasDefaultValue("current").IsRequired();
             entity.Property(x => x.SourceHash).HasMaxLength(128);

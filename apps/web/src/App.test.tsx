@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   acknowledgeNoCuiNoticeMock,
   allWorkflowAccess,
+  clauseLibraryItem,
   contract,
   contractDeliverable,
   contractDocument,
@@ -31,6 +32,7 @@ const {
   profile,
   restrictedAccess,
   saveCompanyProfileMock,
+  searchClauseLibraryMock,
   updateContractDeliverableMock,
   updateContractMock
 } = vi.hoisted(() => ({
@@ -52,6 +54,7 @@ const {
   getTenantInvitationsMock: vi.fn(),
   getTenantMembersMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
+  searchClauseLibraryMock: vi.fn(),
   updateContractDeliverableMock: vi.fn(),
   updateContractMock: vi.fn(),
   allWorkflowAccess: {
@@ -223,6 +226,17 @@ const {
     createdAt: "2026-06-15T12:00:00Z",
     updatedAt: null
   },
+  clauseLibraryItem: {
+    id: "far-52-204-27",
+    source: "FAR 52.204-27",
+    number: "52.204-27",
+    title: "Prohibition on a ByteDance Covered Application",
+    category: "ByteDance",
+    plainEnglishSummary: "Prevent covered ByteDance applications on certain government or contractor information technology.",
+    sourceUrl: "https://www.acquisition.gov/far/52.204-27",
+    lastReviewedAt: "2026-06-03",
+    isMappable: true
+  },
   contractDocument: {
     id: "77777777-7777-7777-7777-777777777771",
     contractId: "88888888-8888-8888-8888-888888888881",
@@ -262,6 +276,7 @@ vi.mock("@/lib/api", () => ({
   getContractDocuments: getContractDocumentsMock,
   getContracts: getContractsMock,
   saveCompanyProfile: saveCompanyProfileMock,
+  searchClauseLibrary: searchClauseLibraryMock,
   updateContractDeliverable: updateContractDeliverableMock,
   updateContract: updateContractMock,
   acknowledgeNoCuiNotice: acknowledgeNoCuiNoticeMock,
@@ -324,6 +339,7 @@ describe("App", () => {
     getContractsMock.mockReset();
     getContractDeliverablesMock.mockReset();
     getContractDocumentsMock.mockReset();
+    searchClauseLibraryMock.mockReset();
     getAuditLogsMock.mockResolvedValue({
       items: [],
       page: 1,
@@ -345,6 +361,7 @@ describe("App", () => {
     getContractsMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
     getContractDocumentsMock.mockResolvedValue([]);
+    searchClauseLibraryMock.mockResolvedValue([]);
     saveCompanyProfileMock.mockImplementation((request) =>
       Promise.resolve({
         data: {
@@ -445,7 +462,7 @@ describe("App", () => {
     const routeChecks = [
       ["Profile", "Acme Federal Services"],
       ["Contracts", "No contracts have been added yet"],
-      ["Obligations", "No tenant-specific obligation matrix yet"],
+      ["Obligations", "Clause library search"],
       ["Calendar", "No calendar items yet"],
       ["Evidence", "No-CUI acknowledgement"],
       ["CMMC", "No CMMC assessment has started yet"],
@@ -677,6 +694,37 @@ describe("App", () => {
         status: "Submitted"
       })
     );
+  });
+
+  it("TC-9.1.1 and TC-9.1.3 searches published clauses and shows source metadata", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    searchClauseLibraryMock.mockResolvedValueOnce([clauseLibraryItem]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    await user.type(screen.getByLabelText("Clause search"), "52.204-27");
+    await user.selectOptions(screen.getByLabelText("Category"), "ByteDance");
+    await user.click(screen.getByRole("button", { name: /search clauses/i }));
+
+    expect(searchClauseLibraryMock).toHaveBeenCalledWith({
+      query: "52.204-27",
+      category: "ByteDance"
+    });
+    expect(await screen.findByText("Prohibition on a ByteDance Covered Application")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "FAR 52.204-27" })).toHaveAttribute(
+      "href",
+      "https://www.acquisition.gov/far/52.204-27"
+    );
+    expect(screen.getByText("2026-06-03")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /select clause/i }));
+
+    expect(screen.getByText("Selected 52.204-27")).toBeInTheDocument();
   });
 
   it("TC-2.4.2 renders workspace actions and TC-3.2.3 hides restricted navigation", async () => {

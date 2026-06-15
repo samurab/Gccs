@@ -704,6 +704,45 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/clauses:
+    get:
+      tags:
+        - Clauses
+      summary: Search the published clause library
+      operationId: searchClauseLibrary
+      description: >
+        Searches published global clauses and published custom clauses owned by
+        the current tenant. Draft, retired, rejected, and other-tenant custom
+        clauses are excluded from customer mapping results.
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Clause number, source, title, or summary text.
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [FAR, DFARS, CMMC, Labor, Telecom, ByteDance, Custom]
+      responses:
+        "200":
+          description: Published clause search results.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClauseLibraryItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/contracts/{contractId}/clauses:
     parameters:
       - $ref: "#/components/parameters/ContractId"
@@ -2824,6 +2863,41 @@ components:
             createdAt:
               type: string
               format: date-time
+
+    ClauseLibraryItem:
+      type: object
+      required:
+        - id
+        - source
+        - number
+        - title
+        - category
+        - plainEnglishSummary
+        - sourceUrl
+        - lastReviewedAt
+        - isMappable
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        number:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+          enum: [FAR, DFARS, CMMC, Labor, Telecom, ByteDance, Custom]
+        plainEnglishSummary:
+          type: string
+        sourceUrl:
+          type: string
+          format: uri
+        lastReviewedAt:
+          type: string
+          format: date
+        isMappable:
+          type: boolean
 
     ContractClauseCreateRequest:
       type: object

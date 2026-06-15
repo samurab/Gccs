@@ -15,6 +15,23 @@ export type ObligationSummary = {
   lastReviewedAt: string;
 };
 
+export type ClauseLibraryItem = {
+  id: string;
+  source: string;
+  number: string;
+  title: string;
+  category: string;
+  plainEnglishSummary: string;
+  sourceUrl: string;
+  lastReviewedAt: string;
+  isMappable: boolean;
+};
+
+export type ClauseSearchParams = {
+  query?: string;
+  category?: string;
+};
+
 export type ComplianceOverview = {
   productPromise: string;
   mvpDataPosture: string;
@@ -365,6 +382,21 @@ export async function getContractDocuments(contractId: string): Promise<Contract
 
 export async function getContractDeliverables(contractId: string): Promise<ContractDeliverable[]> {
   return getJson<ContractDeliverable[]>(`/api/contracts/${contractId}/deliverables`, []);
+}
+
+export async function searchClauseLibrary(params: ClauseSearchParams = {}): Promise<ClauseLibraryItem[]> {
+  const searchParams = new URLSearchParams();
+
+  if (params.query) {
+    searchParams.set("query", params.query);
+  }
+
+  if (params.category) {
+    searchParams.set("category", params.category);
+  }
+
+  const queryString = searchParams.toString();
+  return getJson<ClauseLibraryItem[]>(`/api/clauses${queryString ? `?${queryString}` : ""}`, []);
 }
 
 export async function getContract(contractId: string): Promise<ContractRecord | null> {

@@ -28,6 +28,7 @@ public static class DependencyInjection
     {
         services.AddScoped<ComplianceOverviewService>();
         services.AddScoped<ComplianceContentReviewService>();
+        services.AddScoped<ClauseLibraryService>();
         services.AddScoped<CompanyProfileService>();
         services.AddScoped<ContractService>();
         services.AddScoped<TenantService>();
@@ -54,10 +55,12 @@ public static class DependencyInjection
             services.AddScoped<IContractRepository, EfContractRepository>();
             services.AddScoped<IComplianceContentImporter, ComplianceContentImporter>();
             services.AddScoped<IComplianceContentReviewRepository, EfComplianceContentReviewRepository>();
+            services.AddScoped<IClauseLibraryRepository, EfClauseLibraryRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
         }
         else
         {
+            services.AddSingleton<IClauseLibraryRepository, InMemoryClauseLibraryRepository>();
             services.AddSingleton<IObligationRepository, InMemoryObligationRepository>();
             services.AddScoped<ITenantRepository>(_ =>
                 throw new InvalidOperationException("Tenant persistence requires ConnectionStrings:GccsDatabase to be configured."));

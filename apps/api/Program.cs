@@ -413,6 +413,33 @@ api.MapPut("/contracts/{contractId:guid}/deliverables/{deliverableId:guid}", asy
 .RequirePermission(Permission.ManageContracts)
 .WithName("UpdateContractDeliverable");
 
+api.MapGet("/clauses", async (
+    string? query,
+    string? category,
+    ClauseLibraryService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.SearchAsync(
+            new ClauseLibrarySearchRequest(query, category, tenantContext.TenantId),
+            cancellationToken));
+    }
+    catch (ClauseLibrarySearchValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["category"] = [exception.Message]
+        },
+        title: "Clause search invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("SearchClauseLibrary");
+
 api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))
 .RequirePermission(Permission.ViewObligations)

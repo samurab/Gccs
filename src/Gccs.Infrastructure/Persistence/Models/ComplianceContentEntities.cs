@@ -6,6 +6,7 @@ namespace Gccs.Infrastructure.Persistence.Models;
 public sealed class ClauseEntity
 {
     public string Id { get; set; } = string.Empty;
+    public Guid? TenantId { get; set; }
     public string Source { get; set; } = string.Empty;
     public string Number { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
