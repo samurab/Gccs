@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<ComplianceOverviewService>();
         services.AddScoped<ComplianceContentReviewService>();
         services.AddScoped<ClauseLibraryService>();
+        services.AddScoped<ObligationDetailService>();
         services.AddScoped<CompanyProfileService>();
         services.AddScoped<ContractService>();
         services.AddScoped<TenantService>();
@@ -57,6 +58,7 @@ public static class DependencyInjection
             services.AddScoped<IComplianceContentReviewRepository, EfComplianceContentReviewRepository>();
             services.AddScoped<IClauseLibraryRepository, EfClauseLibraryRepository>();
             services.AddScoped<IObligationDashboardRepository, EfObligationDashboardRepository>();
+            services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
         }
         else
@@ -87,6 +89,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Compliance content review persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IObligationDashboardRepository>(_ =>
                 throw new InvalidOperationException("Obligation dashboard persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IObligationDetailRepository>(_ =>
+                throw new InvalidOperationException("Obligation detail persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

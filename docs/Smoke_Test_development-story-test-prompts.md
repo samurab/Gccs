@@ -265,6 +265,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-10.1.4:** With no obligations, verify the empty state points users to company profile or contract intake.
 #-----------------------------------
 ### Story 10.2: Obligation Detail
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-10.2.1:** Open obligation detail and verify summary, trigger, action, owner, evidence examples, flow-down, source link, confidence, last reviewed, and expert review flag.

@@ -38,6 +38,7 @@ import {
   getContractClauses,
   getContractDeliverables,
   getContractDocuments,
+  getContractObligationDetail,
   getContractObligations,
   getContracts,
   getAuditLogs,
@@ -49,6 +50,7 @@ import {
   saveCompanyProfile,
   searchClauseLibrary,
   removeContractClause,
+  updateContractObligationStatus,
   updateContract,
   updateContractDeliverable,
   type AuditLogEntry,
@@ -60,6 +62,7 @@ import {
   type ContractClause,
   type ContractDeliverable,
   type ContractDocument,
+  type ContractObligationDetail,
   type ContractObligationDashboardItem,
   type ContractObligationQueryParams,
   type ContractRecord,
@@ -366,6 +369,7 @@ export function App() {
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [clauseResults, setClauseResults] = useState<ClauseLibraryItem[]>([]);
   const [obligationDashboardItems, setObligationDashboardItems] = useState<ContractObligationDashboardItem[]>([]);
+  const [selectedObligationDetail, setSelectedObligationDetail] = useState<ContractObligationDetail | null>(null);
   const [contractClauses, setContractClauses] = useState<ContractClause[]>([]);
   const [contractDeliverables, setContractDeliverables] = useState<ContractDeliverable[]>([]);
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
@@ -391,6 +395,8 @@ export function App() {
   const [clauseSearchMessage, setClauseSearchMessage] = useState("");
   const [obligationDashboardStatus, setObligationDashboardStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [obligationDashboardMessage, setObligationDashboardMessage] = useState("");
+  const [obligationDetailStatus, setObligationDetailStatus] = useState<"idle" | "loading" | "ready" | "saving" | "failed">("idle");
+  const [obligationDetailMessage, setObligationDetailMessage] = useState("");
   const [deliverableStatus, setDeliverableStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [deliverableMessage, setDeliverableMessage] = useState("");
   const [contractDocumentStatus, setContractDocumentStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -408,6 +414,7 @@ export function App() {
   const canManageEvidence = access.permissions.includes("ManageEvidence");
   const canManageCompanyProfile = access.permissions.includes("ManageCompanyProfile");
   const canManageContracts = access.permissions.includes("ManageContracts");
+  const canManageObligations = access.permissions.includes("ManageObligations");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
 
   useEffect(() => {
@@ -465,6 +472,7 @@ export function App() {
           setCompanyProfile(nextCompanyProfile);
           setContracts(nextContracts);
           setObligationDashboardItems(nextObligationDashboardItems);
+          setSelectedObligationDetail(null);
           setObligationDashboardStatus(canLoadObligations ? "ready" : "idle");
           setContractClauses(nextContractClauses);
           setContractDeliverables(nextContractDeliverables);
@@ -485,6 +493,7 @@ export function App() {
           setCompanyProfile(null);
           setContracts([]);
           setObligationDashboardItems([]);
+          setSelectedObligationDetail(null);
           setObligationDashboardStatus("idle");
           setContractClauses([]);
           setContractDeliverables([]);
@@ -594,6 +603,57 @@ export function App() {
       setObligationDashboardStatus("failed");
       setObligationDashboardMessage("Obligations could not be loaded.");
     }
+  }
+
+  async function handleObligationDetailSelect(item: ContractObligationDashboardItem) {
+    setObligationDetailStatus("loading");
+    setObligationDetailMessage("");
+    const detail = await getContractObligationDetail(item.contractClauseId, item.obligationId);
+
+    if (detail) {
+      setSelectedObligationDetail(detail);
+      setObligationDetailStatus("ready");
+      return;
+    }
+
+    setSelectedObligationDetail(null);
+    setObligationDetailStatus("failed");
+    setObligationDetailMessage("Obligation detail could not be loaded.");
+  }
+
+  async function handleObligationStatusUpdate(status: string) {
+    if (!selectedObligationDetail) {
+      return;
+    }
+
+    setObligationDetailStatus("saving");
+    setObligationDetailMessage("");
+    const result = await updateContractObligationStatus(
+      selectedObligationDetail.contractClauseId,
+      selectedObligationDetail.obligationId,
+      status
+    );
+
+    if (result.data) {
+      setSelectedObligationDetail(result.data);
+      setObligationDashboardItems((currentItems) =>
+        currentItems.map((item) =>
+          item.contractClauseId === result.data?.contractClauseId && item.obligationId === result.data.obligationId
+            ? {
+                ...item,
+                status: result.data.status,
+                dueAt: result.data.dueAt
+              }
+            : item
+        )
+      );
+      setObligationDetailStatus("ready");
+      setObligationDetailMessage("Obligation status updated.");
+      return;
+    }
+
+    setObligationDetailStatus("failed");
+    setObligationDetailMessage(result.error ?? "Obligation status could not be updated.");
   }
 
   async function handleContractSelect(contractId: string | null) {
@@ -871,10 +931,16 @@ export function App() {
           ) : activeRoute === "obligations" ? (
             <ObligationsView
               contracts={contracts}
+              canManageObligations={canManageObligations}
+              detail={selectedObligationDetail}
+              detailMessage={obligationDetailMessage}
+              detailStatus={obligationDetailStatus}
               items={obligationDashboardItems}
               message={obligationDashboardMessage}
               status={obligationDashboardStatus}
+              onDetailSelect={handleObligationDetailSelect}
               onFilter={handleObligationFilter}
+              onStatusUpdate={handleObligationStatusUpdate}
               clauseLibrary={
                 <ClauseLibraryView
                   results={clauseResults}
@@ -1203,18 +1269,30 @@ function contractFormToRequest(form: ContractFormState): UpsertContractRequest {
 }
 
 function ObligationsView({
+  canManageObligations,
   clauseLibrary,
   contracts,
+  detail,
+  detailMessage,
+  detailStatus,
   items,
   message,
+  onDetailSelect,
   onFilter,
+  onStatusUpdate,
   status
 }: {
+  canManageObligations: boolean;
   clauseLibrary: ReactNode;
   contracts: ContractRecord[];
+  detail: ContractObligationDetail | null;
+  detailMessage: string;
+  detailStatus: "idle" | "loading" | "ready" | "saving" | "failed";
   items: ContractObligationDashboardItem[];
   message: string;
+  onDetailSelect: (item: ContractObligationDashboardItem) => Promise<void>;
   onFilter: (params: ContractObligationQueryParams) => Promise<void>;
+  onStatusUpdate: (status: string) => Promise<void>;
   status: "idle" | "loading" | "ready" | "failed";
 }) {
   const [contractId, setContractId] = useState("");
@@ -1380,6 +1458,9 @@ function ObligationsView({
                 </div>
               </dl>
               <p className="obligation-required-action">{item.requiredAction}</p>
+              <button className="secondary-action obligation-detail-button" type="button" onClick={() => void onDetailSelect(item)}>
+                View details
+              </button>
             </article>
           ))}
         </div>
@@ -1390,7 +1471,178 @@ function ObligationsView({
         />
       )}
 
+      <ObligationDetailPanel
+        canManageObligations={canManageObligations}
+        detail={detail}
+        message={detailMessage}
+        status={detailStatus}
+        onStatusUpdate={onStatusUpdate}
+      />
+
       {clauseLibrary}
+    </section>
+  );
+}
+
+function ObligationDetailPanel({
+  canManageObligations,
+  detail,
+  message,
+  onStatusUpdate,
+  status
+}: {
+  canManageObligations: boolean;
+  detail: ContractObligationDetail | null;
+  message: string;
+  onStatusUpdate: (status: string) => Promise<void>;
+  status: "idle" | "loading" | "ready" | "saving" | "failed";
+}) {
+  if (status === "loading") {
+    return (
+      <section className="obligation-detail-panel" aria-live="polite">
+        <h2>Loading obligation detail</h2>
+        <p>Retrieving source-backed detail, linked tasks, and evidence.</p>
+      </section>
+    );
+  }
+
+  if (!detail) {
+    return message ? (
+      <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+    ) : null;
+  }
+
+  return (
+    <section className="obligation-detail-panel" aria-label="Obligation detail">
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">Obligation detail</p>
+          <h2>{detail.title}</h2>
+        </div>
+        <span className="status status--active">{detail.status}</span>
+      </div>
+
+      {message ? (
+        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+      ) : null}
+
+      <div className="obligation-detail-grid">
+        <div>
+          <h3>Why it applies</h3>
+          <p>{detail.triggerCondition}</p>
+        </div>
+        <div>
+          <h3>Required action</h3>
+          <p>{detail.requiredAction}</p>
+        </div>
+        <div>
+          <h3>Owner</h3>
+          <p>{detail.ownerFunction}</p>
+        </div>
+        <div>
+          <h3>Source</h3>
+          <p>
+            <a href={detail.sourceUrl} target="_blank" rel="noreferrer">
+              {detail.source}
+            </a>
+          </p>
+        </div>
+        <div>
+          <h3>Confidence</h3>
+          <p>{detail.confidence}</p>
+        </div>
+        <div>
+          <h3>Last reviewed</h3>
+          <p>{detail.lastReviewedAt}</p>
+        </div>
+      </div>
+
+      <div className="obligation-detail-section">
+        <h3>Plain-English summary</h3>
+        <p>{detail.plainEnglishSummary}</p>
+      </div>
+
+      <div className="obligation-detail-grid">
+        <div>
+          <h3>Evidence examples</h3>
+          <ul>
+            {detail.evidenceExamples.map((example) => (
+              <li key={example}>{example}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3>Flow-down</h3>
+          <p>{detail.flowDownRequired ? detail.flowDownRequirement : "Not required for this obligation."}</p>
+        </div>
+        <div>
+          <h3>Expert review</h3>
+          <p>{detail.requiresExpertReview ? "Expert review required" : "No expert review flag"}</p>
+        </div>
+      </div>
+
+      <div className="obligation-detail-grid">
+        <div>
+          <h3>Linked tasks</h3>
+          {detail.linkedTasks.length > 0 ? (
+            <ul>
+              {detail.linkedTasks.map((task) => (
+                <li key={task.id}>
+                  {task.title} - {task.status} {task.dueAt ? `due ${task.dueAt}` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No linked tasks yet.</p>
+          )}
+        </div>
+        <div>
+          <h3>Linked evidence</h3>
+          {detail.linkedEvidence.length > 0 ? (
+            <ul>
+              {detail.linkedEvidence.map((evidence) => (
+                <li key={evidence.id}>
+                  {evidence.name} - {evidence.status}
+                  {evidence.originalFileName ? ` (${evidence.originalFileName})` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No linked evidence yet.</p>
+          )}
+        </div>
+      </div>
+
+      <form
+        key={detail.id}
+        className="status-update-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const formData = new FormData(event.currentTarget);
+          const nextStatus = String(formData.get("status") ?? detail.status);
+          void onStatusUpdate(nextStatus);
+        }}
+      >
+        <label>
+          Update status
+          <select
+            name="status"
+            defaultValue={detail.status}
+            disabled={!canManageObligations || status === "saving"}
+          >
+            <option value="Open">Open</option>
+            <option value="InProgress">In progress</option>
+            <option value="Blocked">Blocked</option>
+            <option value="WaitingForReview">Waiting for review</option>
+            <option value="Done">Done</option>
+            <option value="Canceled">Canceled</option>
+          </select>
+        </label>
+        <button type="submit" disabled={!canManageObligations || status === "saving"}>
+          <CheckCircle2 size={16} aria-hidden="true" />
+          Save status
+        </button>
+      </form>
     </section>
   );
 }

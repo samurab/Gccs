@@ -22,6 +22,7 @@ const {
   getContractClausesMock,
   getContractDeliverablesMock,
   getContractDocumentsMock,
+  getContractObligationDetailMock,
   getContractObligationsMock,
   getContractsMock,
   getAuditLogsMock,
@@ -33,6 +34,7 @@ const {
   invitations,
   members,
   obligationDashboardItem,
+  obligationDetail,
   overview,
   profile,
   restrictedAccess,
@@ -40,6 +42,7 @@ const {
   saveCompanyProfileMock,
   searchClauseLibraryMock,
   updateContractDeliverableMock,
+  updateContractObligationStatusMock,
   updateContractMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
@@ -55,6 +58,7 @@ const {
   getContractClausesMock: vi.fn(),
   getContractDeliverablesMock: vi.fn(),
   getContractDocumentsMock: vi.fn(),
+  getContractObligationDetailMock: vi.fn(),
   getContractObligationsMock: vi.fn(),
   getContractsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
@@ -66,6 +70,7 @@ const {
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
   updateContractDeliverableMock: vi.fn(),
+  updateContractObligationStatusMock: vi.fn(),
   updateContractMock: vi.fn(),
   allWorkflowAccess: {
     tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
@@ -76,6 +81,7 @@ const {
       "ManageUsers",
       "ManageCompanyProfile",
       "ManageContracts",
+      "ManageObligations",
       "ViewCompanyProfile",
       "ViewContracts",
       "ViewObligations",
@@ -311,6 +317,55 @@ const {
     confidence: "high",
     lastReviewedAt: "2026-06-03",
     requiresExpertReview: false
+  },
+  obligationDetail: {
+    id: "55555555555555555555555555555551:obligation-fci-safeguards",
+    contractId: "88888888-8888-8888-8888-888888888881",
+    contractNumber: "W15QKN-26-C-0001",
+    contractTitle: "Base operations support services",
+    contractClauseId: "55555555-5555-5555-5555-555555555551",
+    clauseNumber: "52.204-21",
+    clauseTitle: "Basic Safeguarding",
+    obligationId: "obligation-fci-safeguards",
+    source: "FAR 52.204-21",
+    sourceUrl: "https://www.acquisition.gov/far/52.204-21",
+    title: "Apply FCI safeguards",
+    plainEnglishSummary: "Apply basic safeguarding controls to systems that handle FCI.",
+    triggerCondition: "Contract involves FCI.",
+    requiredAction: "Apply basic safeguarding controls.",
+    ownerFunction: "IT/security",
+    riskLevel: "High",
+    status: "Open",
+    dueAt: "2026-06-01",
+    module: "Cybersecurity",
+    isOverdue: true,
+    isHighRisk: true,
+    flowDownRequired: true,
+    flowDownRequirement: "Flow down to subcontractors handling FCI.",
+    evidenceExamples: ["Access control policy"],
+    confidence: "high",
+    lastReviewedAt: "2026-06-03",
+    requiresExpertReview: true,
+    linkedTasks: [
+      {
+        id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa9",
+        title: "Collect MFA configuration",
+        status: "Open",
+        dueAt: "2026-07-15",
+        ownerFunction: "IT/security",
+        riskLevel: "High"
+      }
+    ],
+    linkedEvidence: [
+      {
+        id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee9",
+        name: "Access control policy",
+        status: "Approved",
+        type: "Policy",
+        expiresAt: "2027-06-30",
+        originalFileName: "access-control-policy.pdf"
+      }
+    ]
   }
 }));
 
@@ -325,12 +380,14 @@ vi.mock("@/lib/api", () => ({
   getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
   getContractDocuments: getContractDocumentsMock,
+  getContractObligationDetail: getContractObligationDetailMock,
   getContractObligations: getContractObligationsMock,
   getContracts: getContractsMock,
   removeContractClause: removeContractClauseMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
   updateContractDeliverable: updateContractDeliverableMock,
+  updateContractObligationStatus: updateContractObligationStatusMock,
   updateContract: updateContractMock,
   acknowledgeNoCuiNotice: acknowledgeNoCuiNoticeMock,
   createEvidenceUploadIntent: createEvidenceUploadIntentMock,
@@ -382,6 +439,7 @@ describe("App", () => {
     createTenantInvitationMock.mockReset();
     deleteContractDocumentMock.mockReset();
     updateContractDeliverableMock.mockReset();
+    updateContractObligationStatusMock.mockReset();
     updateContractMock.mockReset();
     saveCompanyProfileMock.mockReset();
     removeContractClauseMock.mockReset();
@@ -395,6 +453,7 @@ describe("App", () => {
     getContractClausesMock.mockReset();
     getContractDeliverablesMock.mockReset();
     getContractDocumentsMock.mockReset();
+    getContractObligationDetailMock.mockReset();
     getContractObligationsMock.mockReset();
     searchClauseLibraryMock.mockReset();
     getAuditLogsMock.mockResolvedValue({
@@ -419,6 +478,7 @@ describe("App", () => {
     getContractClausesMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
     getContractDocumentsMock.mockResolvedValue([]);
+    getContractObligationDetailMock.mockResolvedValue(null);
     getContractObligationsMock.mockResolvedValue([]);
     searchClauseLibraryMock.mockResolvedValue([]);
     saveCompanyProfileMock.mockImplementation((request) =>
@@ -482,6 +542,15 @@ describe("App", () => {
           ...contractDeliverable,
           ...request,
           isOverdue: false
+        },
+        error: null
+      })
+    );
+    updateContractObligationStatusMock.mockImplementation((_contractClauseId, _obligationId, status) =>
+      Promise.resolve({
+        data: {
+          ...obligationDetail,
+          status
         },
         error: null
       })
@@ -893,6 +962,70 @@ describe("App", () => {
     expect(await screen.findByText("Start with company profile or contract intake")).toBeInTheDocument();
     expect(screen.getByText(/add a contract, and attach mapped clauses/i)).toBeInTheDocument();
     expect(screen.getByText("Clause library search")).toBeInTheDocument();
+  });
+
+  it("TC-10.2.1 and TC-10.2.2 opens obligation detail with source content, tasks, and evidence", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
+    getContractObligationDetailMock.mockResolvedValueOnce(obligationDetail);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    await user.click(await screen.findByRole("button", { name: /view details/i }));
+
+    expect(getContractObligationDetailMock).toHaveBeenCalledWith(
+      obligationDashboardItem.contractClauseId,
+      obligationDashboardItem.obligationId
+    );
+    expect(await screen.findByRole("region", { name: /obligation detail/i })).toBeInTheDocument();
+    expect(screen.getByText("Contract involves FCI.")).toBeInTheDocument();
+    expect(screen.getAllByText("Apply basic safeguarding controls.").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "FAR 52.204-21" })[0]).toHaveAttribute(
+      "href",
+      "https://www.acquisition.gov/far/52.204-21"
+    );
+    expect(screen.getByText("Expert review required")).toBeInTheDocument();
+    expect(screen.getByText(/Collect MFA configuration - Open due 2026-07-15/i)).toBeInTheDocument();
+    expect(screen.getByText(/Access control policy - Approved/i)).toBeInTheDocument();
+  });
+
+  it("TC-10.2.3 updates obligation status and refreshes the dashboard row", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
+    getContractObligationDetailMock.mockResolvedValueOnce(obligationDetail);
+    updateContractObligationStatusMock.mockResolvedValueOnce({
+      data: {
+        ...obligationDetail,
+        status: "Blocked"
+      },
+      error: null
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    await user.click(await screen.findByRole("button", { name: /view details/i }));
+    await user.selectOptions(await screen.findByLabelText("Update status"), "Blocked");
+    await user.click(screen.getByRole("button", { name: /save status/i }));
+
+    expect(updateContractObligationStatusMock).toHaveBeenCalledWith(
+      obligationDetail.contractClauseId,
+      obligationDetail.obligationId,
+      "Blocked"
+    );
+    expect(await screen.findByText("Obligation status updated.")).toBeInTheDocument();
+    expect(screen.getAllByText("Blocked").length).toBeGreaterThan(0);
   });
 
   it("TC-2.4.2 renders workspace actions and TC-3.2.3 hides restricted navigation", async () => {

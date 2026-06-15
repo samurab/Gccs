@@ -960,6 +960,79 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/contract-obligations/{contractClauseId}/{obligationId}:
+    parameters:
+      - name: contractClauseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: obligationId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Obligations
+      summary: Get tenant-scoped contract obligation detail
+      operationId: getContractObligationDetail
+      responses:
+        "200":
+          description: Source-backed contract obligation detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractObligationDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/contract-obligations/{contractClauseId}/{obligationId}/status:
+    parameters:
+      - name: contractClauseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: obligationId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      tags:
+        - Obligations
+      summary: Update a contract obligation status
+      operationId: updateContractObligationStatus
+      description: Updates the linked obligation task status and writes an audit event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContractObligationStatusRequest"
+      responses:
+        "200":
+          description: Updated contract obligation detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractObligationDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/obligations:
     get:
       tags:
@@ -3163,6 +3236,96 @@ components:
           format: date
         requiresExpertReview:
           type: boolean
+
+    ContractObligationDetail:
+      allOf:
+        - $ref: "#/components/schemas/ContractObligationDashboardItem"
+        - type: object
+          required:
+            - clauseTitle
+            - triggerCondition
+            - flowDownRequired
+            - flowDownRequirement
+            - linkedTasks
+            - linkedEvidence
+          properties:
+            clauseTitle:
+              type: string
+            triggerCondition:
+              type: string
+            flowDownRequired:
+              type: boolean
+            flowDownRequirement:
+              type: string
+            linkedTasks:
+              type: array
+              items:
+                $ref: "#/components/schemas/LinkedObligationTask"
+            linkedEvidence:
+              type: array
+              items:
+                $ref: "#/components/schemas/LinkedObligationEvidence"
+
+    LinkedObligationTask:
+      type: object
+      required:
+        - id
+        - title
+        - status
+        - ownerFunction
+        - riskLevel
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+        dueAt:
+          type:
+            - string
+            - "null"
+          format: date
+        ownerFunction:
+          type: string
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+
+    LinkedObligationEvidence:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - type
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/EvidenceStatus"
+        type:
+          $ref: "#/components/schemas/EvidenceType"
+        expiresAt:
+          type:
+            - string
+            - "null"
+          format: date
+        originalFileName:
+          type:
+            - string
+            - "null"
+
+    UpdateContractObligationStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: "#/components/schemas/ComplianceTaskStatus"
 
     ContractObligation:
       type: object

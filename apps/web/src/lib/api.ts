@@ -290,6 +290,33 @@ export type ContractObligationDashboardItem = {
   requiresExpertReview: boolean;
 };
 
+export type LinkedObligationTask = {
+  id: string;
+  title: string;
+  status: string;
+  dueAt: string | null;
+  ownerFunction: string;
+  riskLevel: string;
+};
+
+export type LinkedObligationEvidence = {
+  id: string;
+  name: string;
+  status: string;
+  type: string;
+  expiresAt: string | null;
+  originalFileName: string | null;
+};
+
+export type ContractObligationDetail = ContractObligationDashboardItem & {
+  clauseTitle: string;
+  triggerCondition: string;
+  flowDownRequired: boolean;
+  flowDownRequirement: string;
+  linkedTasks: LinkedObligationTask[];
+  linkedEvidence: LinkedObligationEvidence[];
+};
+
 export type ContractObligationQueryParams = {
   contractId?: string;
   riskLevel?: string;
@@ -462,6 +489,46 @@ export async function getContractObligations(
 
   const queryString = searchParams.toString();
   return getJson<ContractObligationDashboardItem[]>(`/api/contract-obligations${queryString ? `?${queryString}` : ""}`, []);
+}
+
+export async function getContractObligationDetail(
+  contractClauseId: string,
+  obligationId: string
+): Promise<ContractObligationDetail | null> {
+  return getJson<ContractObligationDetail | null>(
+    `/api/contract-obligations/${contractClauseId}/${encodeURIComponent(obligationId)}`,
+    null
+  );
+}
+
+export async function updateContractObligationStatus(
+  contractClauseId: string,
+  obligationId: string,
+  status: string
+): Promise<ApiMutationResult<ContractObligationDetail>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(
+      `${apiBaseUrl}/api/contract-obligations/${contractClauseId}/${encodeURIComponent(obligationId)}/status`,
+      {
+        method: "PATCH",
+        headers: {
+          ...(getDevelopmentHeaders() ?? {}),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status })
+      }
+    );
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
 }
 
 export async function searchClauseLibrary(params: ClauseSearchParams = {}): Promise<ClauseLibraryItem[]> {

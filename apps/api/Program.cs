@@ -562,6 +562,48 @@ api.MapGet("/contract-obligations", async (
 .RequirePermission(Permission.ViewObligations)
 .WithName("ListContractObligationDashboard");
 
+api.MapGet("/contract-obligations/{contractClauseId:guid}/{obligationId}", async (
+    Guid contractClauseId,
+    string obligationId,
+    ObligationDetailService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var detail = await service.FindCurrentTenantAsync(contractClauseId, obligationId, cancellationToken);
+    return detail is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract obligation '{obligationId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(detail);
+})
+.RequirePermission(Permission.ViewObligations)
+.WithName("GetContractObligationDetail");
+
+api.MapPatch("/contract-obligations/{contractClauseId:guid}/{obligationId}/status", async (
+    Guid contractClauseId,
+    string obligationId,
+    UpdateContractObligationStatusRequest request,
+    ObligationDetailService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var detail = await service.UpdateStatusAsync(contractClauseId, obligationId, request.Status, tenantContext.UserId, cancellationToken);
+    return detail is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract obligation '{obligationId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(detail);
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("UpdateContractObligationStatus");
+
 api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))
 .RequirePermission(Permission.ViewObligations)

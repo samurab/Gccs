@@ -1921,6 +1921,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 10.2: Obligation Detail
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  
