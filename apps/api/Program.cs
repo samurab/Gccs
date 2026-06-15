@@ -604,6 +604,41 @@ api.MapPatch("/contract-obligations/{contractClauseId:guid}/{obligationId}/statu
 .RequirePermission(Permission.ManageObligations)
 .WithName("UpdateContractObligationStatus");
 
+api.MapPatch("/contract-obligations/{contractClauseId:guid}/{obligationId}/owner", async (
+    Guid contractClauseId,
+    string obligationId,
+    AssignContractObligationOwnerRequest request,
+    ObligationDetailService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var detail = await service.AssignOwnerAsync(contractClauseId, obligationId, request, tenantContext.UserId, cancellationToken);
+        return detail is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Contract obligation '{obligationId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(detail);
+    }
+    catch (ObligationAssignmentValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["owner"] = [exception.Message]
+        },
+        title: "Obligation assignment invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("AssignContractObligationOwner");
+
 api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))
 .RequirePermission(Permission.ViewObligations)

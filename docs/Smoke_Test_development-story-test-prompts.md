@@ -274,6 +274,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-10.2.4:** Verify obligation status changes are audit logged and cross-tenant detail access is denied.
 #-----------------------------------
 ### Story 10.3: Ownership Assignment
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-10.3.1:** Assign an obligation to a tenant member and verify dashboard/detail reflects the user owner.

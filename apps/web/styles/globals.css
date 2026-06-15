@@ -986,15 +986,17 @@ dt {
   margin-bottom: 8px;
 }
 
-.status-update-form {
+.status-update-form,
+.owner-assignment-form {
   align-items: end;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(180px, 260px) auto;
+  grid-template-columns: minmax(160px, 220px) minmax(180px, 260px) auto auto;
   justify-content: start;
 }
 
-.status-update-form label {
+.status-update-form label,
+.owner-assignment-form label {
   color: var(--muted);
   display: grid;
   font-size: 0.78rem;
@@ -1003,7 +1005,8 @@ dt {
   text-transform: uppercase;
 }
 
-.status-update-form select {
+.status-update-form select,
+.owner-assignment-form select {
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
@@ -1012,7 +1015,8 @@ dt {
   padding: 8px 10px;
 }
 
-.status-update-form button {
+.status-update-form button,
+.owner-assignment-form button {
   align-items: center;
   background: var(--teal);
   border: 0;
@@ -1029,9 +1033,20 @@ dt {
 }
 
 .status-update-form button:disabled,
-.status-update-form select:disabled {
+.status-update-form select:disabled,
+.owner-assignment-form button:disabled,
+.owner-assignment-form input:disabled,
+.owner-assignment-form select:disabled {
   cursor: not-allowed;
   opacity: 0.58;
+}
+
+.inline-checkbox {
+  align-items: center;
+  display: flex !important;
+  gap: 8px !important;
+  min-height: 40px;
+  text-transform: none !important;
 }
 
 .clause-result-list {

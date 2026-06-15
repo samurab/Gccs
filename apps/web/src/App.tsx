@@ -23,6 +23,7 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "re
 import { ModuleCard } from "@/components/ModuleCard";
 import {
   acknowledgeNoCuiNotice,
+  assignContractObligationOwner,
   attachContractClause,
   createContract,
   createContractDeliverable,
@@ -656,6 +657,47 @@ export function App() {
     setObligationDetailMessage(result.error ?? "Obligation status could not be updated.");
   }
 
+  async function handleObligationOwnerAssign(kind: "user" | "role", value: string, notify: boolean) {
+    if (!selectedObligationDetail) {
+      return;
+    }
+
+    setObligationDetailStatus("saving");
+    setObligationDetailMessage("");
+    const result = await assignContractObligationOwner(
+      selectedObligationDetail.contractClauseId,
+      selectedObligationDetail.obligationId,
+      {
+        userId: kind === "user" ? value : null,
+        roleName: kind === "role" ? value : null,
+        notify
+      }
+    );
+
+    if (result.data) {
+      setSelectedObligationDetail(result.data);
+      setObligationDashboardItems((currentItems) =>
+        currentItems.map((item) =>
+          item.contractClauseId === result.data?.contractClauseId && item.obligationId === result.data.obligationId
+            ? {
+                ...item,
+                ownerFunction: result.data.ownerFunction,
+                assignedUserId: result.data.assignedUserId,
+                assignedUserDisplayName: result.data.assignedUserDisplayName,
+                assignedRoleName: result.data.assignedRoleName
+              }
+            : item
+        )
+      );
+      setObligationDetailStatus("ready");
+      setObligationDetailMessage("Obligation owner assigned.");
+      return;
+    }
+
+    setObligationDetailStatus("failed");
+    setObligationDetailMessage(result.error ?? "Obligation owner could not be assigned.");
+  }
+
   async function handleContractSelect(contractId: string | null) {
     setSelectedContractId(contractId);
     setContractClauseMessage("");
@@ -936,10 +978,12 @@ export function App() {
               detailMessage={obligationDetailMessage}
               detailStatus={obligationDetailStatus}
               items={obligationDashboardItems}
+              members={members}
               message={obligationDashboardMessage}
               status={obligationDashboardStatus}
               onDetailSelect={handleObligationDetailSelect}
               onFilter={handleObligationFilter}
+              onOwnerAssign={handleObligationOwnerAssign}
               onStatusUpdate={handleObligationStatusUpdate}
               clauseLibrary={
                 <ClauseLibraryView
@@ -1276,9 +1320,11 @@ function ObligationsView({
   detailMessage,
   detailStatus,
   items,
+  members,
   message,
   onDetailSelect,
   onFilter,
+  onOwnerAssign,
   onStatusUpdate,
   status
 }: {
@@ -1289,9 +1335,11 @@ function ObligationsView({
   detailMessage: string;
   detailStatus: "idle" | "loading" | "ready" | "saving" | "failed";
   items: ContractObligationDashboardItem[];
+  members: TenantMember[];
   message: string;
   onDetailSelect: (item: ContractObligationDashboardItem) => Promise<void>;
   onFilter: (params: ContractObligationQueryParams) => Promise<void>;
+  onOwnerAssign: (kind: "user" | "role", value: string, notify: boolean) => Promise<void>;
   onStatusUpdate: (status: string) => Promise<void>;
   status: "idle" | "loading" | "ready" | "failed";
 }) {
@@ -1474,8 +1522,10 @@ function ObligationsView({
       <ObligationDetailPanel
         canManageObligations={canManageObligations}
         detail={detail}
+        members={members}
         message={detailMessage}
         status={detailStatus}
+        onOwnerAssign={onOwnerAssign}
         onStatusUpdate={onStatusUpdate}
       />
 
@@ -1487,16 +1537,22 @@ function ObligationsView({
 function ObligationDetailPanel({
   canManageObligations,
   detail,
+  members,
   message,
+  onOwnerAssign,
   onStatusUpdate,
   status
 }: {
   canManageObligations: boolean;
   detail: ContractObligationDetail | null;
+  members: TenantMember[];
   message: string;
+  onOwnerAssign: (kind: "user" | "role", value: string, notify: boolean) => Promise<void>;
   onStatusUpdate: (status: string) => Promise<void>;
   status: "idle" | "loading" | "ready" | "saving" | "failed";
 }) {
+  const [ownerKind, setOwnerKind] = useState<"user" | "role">("user");
+
   if (status === "loading") {
     return (
       <section className="obligation-detail-panel" aria-live="polite">
@@ -1538,6 +1594,10 @@ function ObligationDetailPanel({
         <div>
           <h3>Owner</h3>
           <p>{detail.ownerFunction}</p>
+        </div>
+        <div>
+          <h3>Assignment</h3>
+          <p>{detail.assignedUserDisplayName ?? detail.assignedRoleName ?? "Default functional owner"}</p>
         </div>
         <div>
           <h3>Source</h3>
@@ -1641,6 +1701,63 @@ function ObligationDetailPanel({
         <button type="submit" disabled={!canManageObligations || status === "saving"}>
           <CheckCircle2 size={16} aria-hidden="true" />
           Save status
+        </button>
+      </form>
+
+      <form
+        className="owner-assignment-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const formData = new FormData(event.currentTarget);
+          const value = String(formData.get(ownerKind === "user" ? "userId" : "roleName") ?? "");
+          const notify = formData.get("notify") === "on";
+          if (value) {
+            void onOwnerAssign(ownerKind, value, notify);
+          }
+        }}
+      >
+        <label>
+          Assign by
+          <select
+            value={ownerKind}
+            onChange={(event) => setOwnerKind(event.target.value as "user" | "role")}
+            disabled={!canManageObligations || status === "saving"}
+          >
+            <option value="user">Tenant member</option>
+            <option value="role">Role</option>
+          </select>
+        </label>
+        {ownerKind === "user" ? (
+          <label>
+            Tenant member
+            <select name="userId" disabled={!canManageObligations || status === "saving"}>
+              <option value="">Select member</option>
+              {members.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.displayName || member.email}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label>
+            Role
+            <select name="roleName" disabled={!canManageObligations || status === "saving"}>
+              <option value="">Select role</option>
+              <option value="ComplianceManager">Compliance manager</option>
+              <option value="Advisor">Advisor</option>
+              <option value="Contributor">Contributor</option>
+              <option value="Auditor">Auditor</option>
+            </select>
+          </label>
+        )}
+        <label className="inline-checkbox">
+          <input name="notify" type="checkbox" disabled={!canManageObligations || status === "saving"} />
+          Notify owner
+        </label>
+        <button type="submit" disabled={!canManageObligations || status === "saving"}>
+          <UserPlus size={16} aria-hidden="true" />
+          Assign owner
         </button>
       </form>
     </section>

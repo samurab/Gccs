@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   acknowledgeNoCuiNoticeMock,
   allWorkflowAccess,
+  assignContractObligationOwnerMock,
   attachContractClauseMock,
   clauseLibraryItem,
   contract,
@@ -46,6 +47,7 @@ const {
   updateContractMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
+  assignContractObligationOwnerMock: vi.fn(),
   attachContractClauseMock: vi.fn(),
   createContractDeliverableMock: vi.fn(),
   createContractMock: vi.fn(),
@@ -307,6 +309,9 @@ const {
     plainEnglishSummary: "Apply basic safeguarding controls to systems that handle FCI.",
     requiredAction: "Apply basic safeguarding controls.",
     ownerFunction: "IT/security",
+    assignedUserId: null,
+    assignedUserDisplayName: null,
+    assignedRoleName: null,
     riskLevel: "High",
     status: "Open",
     dueAt: "2026-06-01",
@@ -334,6 +339,9 @@ const {
     triggerCondition: "Contract involves FCI.",
     requiredAction: "Apply basic safeguarding controls.",
     ownerFunction: "IT/security",
+    assignedUserId: null,
+    assignedUserDisplayName: null,
+    assignedRoleName: null,
     riskLevel: "High",
     status: "Open",
     dueAt: "2026-06-01",
@@ -370,6 +378,7 @@ const {
 }));
 
 vi.mock("@/lib/api", () => ({
+  assignContractObligationOwner: assignContractObligationOwnerMock,
   attachContractClause: attachContractClauseMock,
   createTenantInvitation: createTenantInvitationMock,
   createContractDeliverable: createContractDeliverableMock,
@@ -431,6 +440,7 @@ describe("App", () => {
   beforeEach(() => {
     window.location.hash = "";
     acknowledgeNoCuiNoticeMock.mockReset();
+    assignContractObligationOwnerMock.mockReset();
     attachContractClauseMock.mockReset();
     createEvidenceUploadIntentMock.mockReset();
     createContractDeliverableMock.mockReset();
@@ -551,6 +561,18 @@ describe("App", () => {
         data: {
           ...obligationDetail,
           status
+        },
+        error: null
+      })
+    );
+    assignContractObligationOwnerMock.mockImplementation((_contractClauseId, _obligationId, request) =>
+      Promise.resolve({
+        data: {
+          ...obligationDetail,
+          ownerFunction: request.userId ? "Avery Admin" : request.roleName,
+          assignedUserId: request.userId ?? null,
+          assignedUserDisplayName: request.userId ? "Avery Admin" : null,
+          assignedRoleName: request.roleName ?? null
         },
         error: null
       })
@@ -1026,6 +1048,76 @@ describe("App", () => {
     );
     expect(await screen.findByText("Obligation status updated.")).toBeInTheDocument();
     expect(screen.getAllByText("Blocked").length).toBeGreaterThan(0);
+  });
+
+  it("TC-10.3.1 assigns an obligation to a tenant member", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
+    getContractObligationDetailMock.mockResolvedValueOnce(obligationDetail);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    await user.click(await screen.findByRole("button", { name: /view details/i }));
+    await user.selectOptions(await screen.findByLabelText("Tenant member"), members[0].userId);
+    await user.click(screen.getByLabelText("Notify owner"));
+    await user.click(screen.getByRole("button", { name: /assign owner/i }));
+
+    expect(assignContractObligationOwnerMock).toHaveBeenCalledWith(
+      obligationDetail.contractClauseId,
+      obligationDetail.obligationId,
+      {
+        userId: members[0].userId,
+        roleName: null,
+        notify: true
+      }
+    );
+    expect(await screen.findByText("Obligation owner assigned.")).toBeInTheDocument();
+    expect(screen.getAllByText("Avery Admin").length).toBeGreaterThan(0);
+  });
+
+  it("TC-10.3.2 assigns an obligation to a role", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
+    getContractObligationDetailMock.mockResolvedValueOnce(obligationDetail);
+    assignContractObligationOwnerMock.mockResolvedValueOnce({
+      data: {
+        ...obligationDetail,
+        ownerFunction: "ComplianceManager",
+        assignedRoleName: "ComplianceManager"
+      },
+      error: null
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    await user.click(await screen.findByRole("button", { name: /view details/i }));
+    await user.selectOptions(await screen.findByLabelText("Assign by"), "role");
+    await user.selectOptions(screen.getByLabelText("Role"), "ComplianceManager");
+    await user.click(screen.getByRole("button", { name: /assign owner/i }));
+
+    expect(assignContractObligationOwnerMock).toHaveBeenCalledWith(
+      obligationDetail.contractClauseId,
+      obligationDetail.obligationId,
+      {
+        userId: null,
+        roleName: "ComplianceManager",
+        notify: false
+      }
+    );
+    expect(await screen.findByText("Obligation owner assigned.")).toBeInTheDocument();
+    expect(screen.getAllByText("ComplianceManager").length).toBeGreaterThan(0);
   });
 
   it("TC-2.4.2 renders workspace actions and TC-3.2.3 hides restricted navigation", async () => {

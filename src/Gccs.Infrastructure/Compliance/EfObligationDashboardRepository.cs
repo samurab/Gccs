@@ -54,6 +54,15 @@ public sealed class EfObligationDashboardRepository(
         var taskLookup = tasks
             .GroupBy(task => (ContractId: task.ContractId!.Value, ObligationId: task.ObligationId!))
             .ToDictionary(group => group.Key, group => group.First());
+        var assignedUserIds = tasks
+            .Where(task => task.AssignedToUserId.HasValue)
+            .Select(task => task.AssignedToUserId!.Value)
+            .Distinct()
+            .ToArray();
+        var assignedUsers = await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.TenantId == tenantContext.TenantId && assignedUserIds.Contains(user.Id))
+            .ToDictionaryAsync(user => user.Id, user => string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email : user.DisplayName, cancellationToken);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var items = mappings.Select(mapping =>
@@ -65,6 +74,16 @@ public sealed class EfObligationDashboardRepository(
             var dueAt = task?.DueAt;
             var module = InferModule(obligation.Source, obligation.Title);
             var status = task?.Status.ToString() ?? "NotStarted";
+            var assignedUserId = task?.AssignedToUserId;
+            var assignedUserDisplayName = assignedUserId.HasValue && assignedUsers.TryGetValue(assignedUserId.Value, out var displayName)
+                ? displayName
+                : null;
+            var assignedRoleName = task is not null &&
+                !assignedUserId.HasValue &&
+                !string.Equals(task.OwnerFunction, obligation.OwnerFunction, StringComparison.OrdinalIgnoreCase)
+                    ? task.OwnerFunction
+                    : null;
+            var ownerDisplayName = assignedUserDisplayName ?? assignedRoleName ?? task?.OwnerFunction ?? obligation.OwnerFunction;
 
             return new ObligationDashboardItemDto(
                 $"{clause.Id:N}:{obligation.Id}",
@@ -79,7 +98,10 @@ public sealed class EfObligationDashboardRepository(
                 obligation.Title,
                 obligation.PlainEnglishSummary,
                 obligation.RequiredAction,
-                obligation.OwnerFunction,
+                ownerDisplayName,
+                assignedUserId,
+                assignedUserDisplayName,
+                assignedRoleName,
                 obligation.RiskLevel,
                 status,
                 dueAt,

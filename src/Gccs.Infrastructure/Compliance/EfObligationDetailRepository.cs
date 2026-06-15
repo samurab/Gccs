@@ -72,6 +72,75 @@ public sealed class EfObligationDetailRepository(
         return await BuildDetailAsync(contractClauseId, obligationId, cancellationToken);
     }
 
+    public async Task<ContractObligationDetailResult?> AssignOwnerAsync(
+        Guid contractClauseId,
+        string obligationId,
+        AssignContractObligationOwnerRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var mapping = await FindMappingAsync(contractClauseId, obligationId, cancellationToken);
+        if (mapping is null)
+        {
+            return null;
+        }
+
+        var contract = mapping.ContractClause!.Contract!;
+        var obligation = mapping.Obligation!;
+        if (request.UserId.HasValue)
+        {
+            var memberExists = await dbContext.TenantMemberships.AnyAsync(
+                membership =>
+                    membership.TenantId == tenantContext.TenantId &&
+                    membership.UserId == request.UserId.Value &&
+                    membership.Status == Gccs.Domain.Identity.MembershipStatus.Active,
+                cancellationToken);
+
+            if (!memberExists)
+            {
+                return null;
+            }
+        }
+
+        var task = await dbContext.ComplianceTasks
+            .Where(task =>
+                task.TenantId == tenantContext.TenantId &&
+                task.ContractId == contract.Id &&
+                task.ObligationId == obligationId &&
+                task.Type == ComplianceTaskType.ObligationAction)
+            .OrderBy(task => task.DueAt ?? DateOnly.MaxValue)
+            .ThenBy(task => task.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+
+        if (task is null)
+        {
+            task = new ComplianceTaskEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                Title = obligation.Title,
+                Description = obligation.RequiredAction,
+                Type = ComplianceTaskType.ObligationAction,
+                Status = ComplianceTaskStatus.Open,
+                RiskLevel = obligation.RiskLevel,
+                ContractId = contract.Id,
+                ObligationId = obligationId,
+                CreatedAt = now,
+                CreatedByUserId = actorUserId
+            };
+            dbContext.ComplianceTasks.Add(task);
+        }
+
+        task.AssignedToUserId = request.UserId;
+        task.OwnerFunction = request.UserId.HasValue ? obligation.OwnerFunction : request.RoleName!;
+        task.UpdatedAt = now;
+        task.UpdatedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return await BuildDetailAsync(contractClauseId, obligationId, cancellationToken);
+    }
+
     private async Task<ContractObligationDetailResult?> BuildDetailAsync(
         Guid contractClauseId,
         string obligationId,
@@ -109,6 +178,23 @@ public sealed class EfObligationDetailRepository(
             .ToArrayAsync(cancellationToken);
         var primaryTask = tasks.FirstOrDefault();
         var status = primaryTask?.Status.ToString() ?? "NotStarted";
+        var assignedUserId = primaryTask?.AssignedToUserId;
+        string? assignedUserDisplayName = null;
+        if (assignedUserId.HasValue)
+        {
+            assignedUserDisplayName = await dbContext.Users
+                .AsNoTracking()
+                .Where(user => user.TenantId == tenantContext.TenantId && user.Id == assignedUserId.Value)
+                .Select(user => string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email : user.DisplayName)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        var assignedRoleName = primaryTask is not null &&
+            !assignedUserId.HasValue &&
+            !string.Equals(primaryTask.OwnerFunction, obligation.OwnerFunction, StringComparison.OrdinalIgnoreCase)
+                ? primaryTask.OwnerFunction
+                : null;
+        var ownerDisplayName = assignedUserDisplayName ?? assignedRoleName ?? primaryTask?.OwnerFunction ?? obligation.OwnerFunction;
 
         var detail = new ContractObligationDetailDto(
             $"{clause.Id:N}:{obligation.Id}",
@@ -125,7 +211,10 @@ public sealed class EfObligationDetailRepository(
             obligation.PlainEnglishSummary,
             obligation.TriggerCondition,
             obligation.RequiredAction,
-            obligation.OwnerFunction,
+            ownerDisplayName,
+            assignedUserId,
+            assignedUserDisplayName,
+            assignedRoleName,
             obligation.RiskLevel,
             status,
             primaryTask?.DueAt,

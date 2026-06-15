@@ -19,6 +19,9 @@ public sealed record ContractObligationDetailDto(
     string TriggerCondition,
     string RequiredAction,
     string OwnerFunction,
+    Guid? AssignedUserId,
+    string? AssignedUserDisplayName,
+    string? AssignedRoleName,
     RiskLevel RiskLevel,
     string Status,
     DateOnly? DueAt,
@@ -50,6 +53,8 @@ public sealed record LinkedObligationEvidenceDto(
 
 public sealed record UpdateContractObligationStatusRequest(ComplianceTaskStatus Status);
 
+public sealed record AssignContractObligationOwnerRequest(Guid? UserId, string? RoleName, bool Notify = false);
+
 public sealed record ContractObligationDetailResult(Guid TenantId, ContractObligationDetailDto Detail);
 
 public interface IObligationDetailRepository
@@ -63,6 +68,13 @@ public interface IObligationDetailRepository
         Guid contractClauseId,
         string obligationId,
         ComplianceTaskStatus status,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<ContractObligationDetailResult?> AssignOwnerAsync(
+        Guid contractClauseId,
+        string obligationId,
+        AssignContractObligationOwnerRequest request,
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 }

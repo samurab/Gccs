@@ -315,7 +315,11 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-10.2.1"] = ["TC_10_2_1_Detail_shows_source_backed_obligation_content"],
             ["TC-10.2.2"] = ["TC_10_2_2_Detail_shows_linked_tasks_and_evidence"],
             ["TC-10.2.3"] = ["TC_10_2_3_Status_change_persists_and_returns_updated_detail"],
-            ["TC-10.2.4"] = ["TC_10_2_4_Status_change_is_audit_logged_and_cross_tenant_detail_is_denied"]
+            ["TC-10.2.4"] = ["TC_10_2_4_Status_change_is_audit_logged_and_cross_tenant_detail_is_denied"],
+            ["TC-10.3.1"] = ["TC_10_3_1_Assign_obligation_to_tenant_member_updates_detail_and_dashboard"],
+            ["TC-10.3.2"] = ["TC_10_3_2_Assign_obligation_to_role_updates_detail_and_dashboard"],
+            ["TC-10.3.3"] = ["TC_10_3_3_Unauthorized_role_cannot_assign_obligation_owner"],
+            ["TC-10.3.4"] = ["TC_10_3_4_Assignment_changes_are_audit_logged_with_notification_metadata"]
         };
 
         foreach (var (implementedCaseId, requiredSignals) in focusedCoverageSignals)

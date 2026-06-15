@@ -131,6 +131,82 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
         Assert.Contains("previousStatus", auditEvent.MetadataJson);
     }
 
+    [Fact]
+    public async Task TC_10_3_1_Assign_obligation_to_tenant_member_updates_detail_and_dashboard()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a1");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("tc-10-3-1", dbContext => SeedScenario(dbContext, scenario));
+        using var client = factory.CreateClient();
+
+        var detail = await PatchOwnerAsync(client, scenario, new AssignContractObligationOwnerRequest(scenario.AssigneeUserId, null));
+        var dashboardItems = await ListDashboardAsync(client, scenario);
+
+        Assert.Equal(scenario.AssigneeUserId, detail.AssignedUserId);
+        Assert.Equal("Assigned Owner", detail.AssignedUserDisplayName);
+        Assert.Equal("Assigned Owner", detail.OwnerFunction);
+        Assert.Equal("Assigned Owner", Assert.Single(dashboardItems).OwnerFunction);
+    }
+
+    [Fact]
+    public async Task TC_10_3_2_Assign_obligation_to_role_updates_detail_and_dashboard()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a2");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("tc-10-3-2", dbContext => SeedScenario(dbContext, scenario));
+        using var client = factory.CreateClient();
+
+        var detail = await PatchOwnerAsync(client, scenario, new AssignContractObligationOwnerRequest(null, "ComplianceManager"));
+        var dashboardItems = await ListDashboardAsync(client, scenario);
+
+        Assert.Null(detail.AssignedUserId);
+        Assert.Equal("ComplianceManager", detail.AssignedRoleName);
+        Assert.Equal("ComplianceManager", detail.OwnerFunction);
+        Assert.Equal("ComplianceManager", Assert.Single(dashboardItems).OwnerFunction);
+    }
+
+    [Fact]
+    public async Task TC_10_3_3_Unauthorized_role_cannot_assign_obligation_owner()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a3");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("tc-10-3-3", dbContext => SeedScenario(dbContext, scenario));
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/contract-obligations/{scenario.ContractClauseId}/{scenario.ObligationId}/owner",
+            new AssignContractObligationOwnerRequest(scenario.AssigneeUserId, null),
+            scenario.TenantId,
+            Guid.NewGuid(),
+            Permission.ViewObligations);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TC_10_3_4_Assignment_changes_are_audit_logged_with_notification_metadata()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a4");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("tc-10-3-4", dbContext => SeedScenario(dbContext, scenario));
+        using var client = factory.CreateClient();
+
+        await PatchOwnerAsync(client, scenario, new AssignContractObligationOwnerRequest(scenario.AssigneeUserId, null, Notify: true));
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var auditEvent = await dbContext.AuditLogEntries.SingleAsync(audit =>
+            audit.TenantId == tenantId &&
+            audit.EntityType == "ContractObligation" &&
+            audit.Summary.Contains("owner changed", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(AuditAction.Updated, auditEvent.Action);
+        Assert.Contains("assignmentType", auditEvent.MetadataJson);
+        Assert.Contains("notificationEmitted", auditEvent.MetadataJson);
+        Assert.Contains("True", auditEvent.MetadataJson);
+    }
+
     private async Task<ContractObligationDetailDto> GetDetailAsync(HttpClient client, DetailScenario scenario)
     {
         using var request = CreateRequest(
@@ -165,6 +241,34 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
             throw new InvalidOperationException("Expected obligation detail response.");
     }
 
+    private async Task<ContractObligationDetailDto> PatchOwnerAsync(
+        HttpClient client,
+        DetailScenario scenario,
+        AssignContractObligationOwnerRequest assignment)
+    {
+        using var request = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/contract-obligations/{scenario.ContractClauseId}/{scenario.ObligationId}/owner",
+            assignment,
+            scenario.TenantId,
+            Guid.NewGuid(),
+            Permission.ManageObligations);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<ContractObligationDetailDto>(JsonOptions) ??
+            throw new InvalidOperationException("Expected obligation detail response.");
+    }
+
+    private async Task<ObligationDashboardItemDto[]> ListDashboardAsync(HttpClient client, DetailScenario scenario)
+    {
+        using var request = CreateRequest(HttpMethod.Get, "/api/contract-obligations", scenario.TenantId, Guid.NewGuid(), Permission.ViewObligations);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<ObligationDashboardItemDto[]>(JsonOptions) ?? [];
+    }
+
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
         _factory.WithWebHostBuilder(builder =>
         {
@@ -175,6 +279,7 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<ObligationDetailService>();
                 services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
+                services.AddScoped<IObligationDashboardRepository, EfObligationDashboardRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
                 using var provider = services.BuildServiceProvider();
@@ -190,6 +295,24 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
     private static void SeedScenario(GccsDbContext dbContext, DetailScenario scenario)
     {
         SeedTenant(dbContext, scenario.TenantId, "Detail Tenant");
+        dbContext.Users.Add(new UserEntity
+        {
+            Id = scenario.AssigneeUserId,
+            TenantId = scenario.TenantId,
+            Email = "assigned.owner@example.com",
+            DisplayName = "Assigned Owner",
+            Status = UserStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        dbContext.TenantMemberships.Add(new TenantMembershipEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = scenario.TenantId,
+            UserId = scenario.AssigneeUserId,
+            RoleName = "Contributor",
+            Status = MembershipStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
         dbContext.Contracts.Add(new ContractEntity
         {
             Id = scenario.ContractId,
@@ -334,7 +457,8 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
         Guid ContractClauseId,
         string ObligationId,
         Guid TaskId,
-        Guid EvidenceItemId)
+        Guid EvidenceItemId,
+        Guid AssigneeUserId)
     {
         public static DetailScenario Create(Guid tenantId) =>
             new(
@@ -342,6 +466,7 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 "obligation-fci-safeguards",
+                Guid.NewGuid(),
                 Guid.NewGuid(),
                 Guid.NewGuid());
     }

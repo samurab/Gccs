@@ -278,6 +278,9 @@ export type ContractObligationDashboardItem = {
   plainEnglishSummary: string;
   requiredAction: string;
   ownerFunction: string;
+  assignedUserId: string | null;
+  assignedUserDisplayName: string | null;
+  assignedRoleName: string | null;
   riskLevel: string;
   status: string;
   dueAt: string | null;
@@ -518,6 +521,36 @@ export async function updateContractObligationStatus(
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ status })
+      }
+    );
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+export async function assignContractObligationOwner(
+  contractClauseId: string,
+  obligationId: string,
+  request: { userId?: string | null; roleName?: string | null; notify?: boolean }
+): Promise<ApiMutationResult<ContractObligationDetail>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(
+      `${apiBaseUrl}/api/contract-obligations/${contractClauseId}/${encodeURIComponent(obligationId)}/owner`,
+      {
+        method: "PATCH",
+        headers: {
+          ...(getDevelopmentHeaders() ?? {}),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(request)
       }
     );
 

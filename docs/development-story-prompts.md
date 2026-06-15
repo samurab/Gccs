@@ -1995,6 +1995,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 10.3: Ownership Assignment
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

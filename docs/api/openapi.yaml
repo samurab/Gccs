@@ -1033,6 +1033,47 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/contract-obligations/{contractClauseId}/{obligationId}/owner:
+    parameters:
+      - name: contractClauseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: obligationId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      tags:
+        - Obligations
+      summary: Assign a contract obligation owner
+      operationId: assignContractObligationOwner
+      description: Assigns the linked obligation task to a tenant user or role and writes an audit event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignContractObligationOwnerRequest"
+      responses:
+        "200":
+          description: Updated contract obligation detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractObligationDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/obligations:
     get:
       tags:
@@ -3171,6 +3212,9 @@ components:
         - plainEnglishSummary
         - requiredAction
         - ownerFunction
+        - assignedUserId
+        - assignedUserDisplayName
+        - assignedRoleName
         - riskLevel
         - status
         - module
@@ -3210,6 +3254,19 @@ components:
           type: string
         ownerFunction:
           type: string
+        assignedUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        assignedUserDisplayName:
+          type:
+            - string
+            - "null"
+        assignedRoleName:
+          type:
+            - string
+            - "null"
         riskLevel:
           $ref: "#/components/schemas/RiskLevel"
         status:
@@ -3326,6 +3383,22 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/ComplianceTaskStatus"
+
+    AssignContractObligationOwnerRequest:
+      type: object
+      properties:
+        userId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        roleName:
+          type:
+            - string
+            - "null"
+        notify:
+          type: boolean
+          default: false
 
     ContractObligation:
       type: object
