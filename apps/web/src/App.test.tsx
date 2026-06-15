@@ -8,6 +8,7 @@ const {
   createEvidenceUploadIntentMock,
   createTenantInvitationMock,
   fallbackOverview,
+  getCompanyProfileMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
   getComplianceOverviewMock,
@@ -17,17 +18,21 @@ const {
   invitations,
   members,
   overview,
-  restrictedAccess
+  profile,
+  restrictedAccess,
+  saveCompanyProfileMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
   createEvidenceUploadIntentMock: vi.fn(),
   createTenantInvitationMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
+  getCompanyProfileMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
   getNoCuiAcknowledgementStatusMock: vi.fn(),
   getTenantInvitationsMock: vi.fn(),
   getTenantMembersMock: vi.fn(),
+  saveCompanyProfileMock: vi.fn(),
   allWorkflowAccess: {
     tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
     userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
@@ -35,6 +40,7 @@ const {
     roles: ["Admin"],
     permissions: [
       "ManageUsers",
+      "ManageCompanyProfile",
       "ViewCompanyProfile",
       "ViewContracts",
       "ViewObligations",
@@ -127,11 +133,62 @@ const {
         lastReviewedAt: "2026-06-03"
       }
     ]
+  },
+  profile: {
+    id: "99999999-9999-9999-9999-999999999991",
+    tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+    legalEntityName: "Acme Federal Services",
+    doingBusinessAs: "Acme Gov",
+    uei: "ABCDEF123456",
+    cageCode: "1A2B3",
+    samRegistrationExpiresAt: "2027-06-15",
+    naicsCodes: [
+      {
+        code: "541330",
+        title: "Engineering Services",
+        isPrimary: true,
+        sizeStandard: "$25.5M",
+        qualifiesAsSmall: true,
+        lastCheckedAt: "2026-06-15"
+      }
+    ],
+    certifications: [],
+    agencyCustomers: ["Department of Defense"],
+    contractorRole: "Subcontractor",
+    productsAndServices: "Engineering and cybersecurity support services",
+    employeeRange: "Small",
+    revenueRange: "Small",
+    locations: [
+      {
+        name: "HQ",
+        street1: "100 Main St",
+        street2: null,
+        city: "Arlington",
+        stateOrProvince: "VA",
+        postalCode: "22201",
+        country: "USA",
+        isPlaceOfPerformance: true
+      }
+    ],
+    itEnvironment: {
+      description: "Microsoft 365 GCC High with managed endpoints.",
+      usesExternalServiceProvider: true,
+      externalServiceProviderName: "Trusted MSP",
+      keySystems: ["Microsoft 365", "Intune"]
+    },
+    dataHandlingPosture: "FciOnly",
+    completionPercentage: 100,
+    isComplete: true,
+    validationErrors: {},
+    createdAt: "2026-06-15T12:00:00Z",
+    updatedAt: null
   }
 }));
 
 vi.mock("@/lib/api", () => ({
   createTenantInvitation: createTenantInvitationMock,
+  getCompanyProfile: getCompanyProfileMock,
+  saveCompanyProfile: saveCompanyProfileMock,
   acknowledgeNoCuiNotice: acknowledgeNoCuiNoticeMock,
   createEvidenceUploadIntent: createEvidenceUploadIntentMock,
   fallbackAccess: {
@@ -176,6 +233,7 @@ describe("App", () => {
     acknowledgeNoCuiNoticeMock.mockReset();
     createEvidenceUploadIntentMock.mockReset();
     createTenantInvitationMock.mockReset();
+    saveCompanyProfileMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
     getAuditLogsMock.mockReset();
@@ -199,6 +257,23 @@ describe("App", () => {
       acknowledgedByUserId: null,
       acknowledgedAt: null
     });
+    getCompanyProfileMock.mockResolvedValue(profile);
+    saveCompanyProfileMock.mockImplementation((request) =>
+      Promise.resolve({
+        data: {
+          ...profile,
+          ...request,
+          id: profile.id,
+          tenantId: profile.tenantId,
+          completionPercentage: request.completeProfile ? 100 : 62,
+          isComplete: request.completeProfile,
+          validationErrors: request.completeProfile ? {} : { uei: ["UEI is required before profile completion."] },
+          createdAt: profile.createdAt,
+          updatedAt: "2026-06-15T13:00:00Z"
+        },
+        error: null
+      })
+    );
   });
 
   afterEach(() => {
@@ -233,7 +308,7 @@ describe("App", () => {
     expect(screen.getByRole("link", { name: /skip to workspace content/i })).toHaveFocus();
 
     const routeChecks = [
-      ["Profile", "No company profile has been created yet"],
+      ["Profile", "Acme Federal Services"],
       ["Contracts", "No contracts have been added yet"],
       ["Obligations", "No tenant-specific obligation matrix yet"],
       ["Calendar", "No calendar items yet"],
@@ -252,6 +327,34 @@ describe("App", () => {
       expect(await screen.findByText(expectedText)).toBeInTheDocument();
       expect(link).toHaveAttribute("aria-current", "page");
     }
+  });
+
+  it("TC-7.1.2 and TC-7.1.3 renders and saves the company profile form", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /profile/i }));
+    expect(await screen.findByDisplayValue("Acme Federal Services")).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
+
+    const legalEntity = screen.getByLabelText("Legal entity");
+    await user.clear(legalEntity);
+    await user.type(legalEntity, "Acme Federal Services Updated");
+    await user.click(screen.getByRole("button", { name: /save draft/i }));
+
+    expect(saveCompanyProfileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        legalEntityName: "Acme Federal Services Updated",
+        completeProfile: false
+      })
+    );
+    expect(await screen.findByText("Draft saved.")).toBeInTheDocument();
+    expect(screen.getByText("62%")).toBeInTheDocument();
   });
 
   it("TC-2.4.2 renders workspace actions and TC-3.2.3 hides restricted navigation", async () => {

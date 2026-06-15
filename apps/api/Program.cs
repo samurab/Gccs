@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
 using Gccs.Application.Audit;
+using Gccs.Application.Companies;
 using Gccs.Application.Compliance;
 using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
@@ -131,6 +132,39 @@ api.MapGet("/compliance/overview", async (ComplianceOverviewService service, Can
     Results.Ok(await service.GetOverviewAsync(cancellationToken)))
 .RequirePermission(Permission.ViewObligations)
 .WithName("GetComplianceOverview");
+
+api.MapGet("/company-profile", async (
+    CompanyProfileService service,
+    CancellationToken cancellationToken) =>
+{
+    var profile = await service.GetCurrentTenantProfileAsync(cancellationToken);
+    return profile is null ? Results.NoContent() : Results.Ok(profile);
+})
+.RequirePermission(Permission.ViewCompanyProfile)
+.WithName("GetCompanyProfile");
+
+api.MapPut("/company-profile", async (
+    UpsertCompanyProfileRequest request,
+    CompanyProfileService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var profile = await service.SaveCurrentTenantProfileAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Ok(profile);
+    }
+    catch (CompanyProfileValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Company profile incomplete",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCompanyProfile)
+.WithName("SaveCompanyProfile");
 
 api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))

@@ -169,6 +169,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 7. Company Compliance Profile
 
 ### Story 7.1: Create Company Profile
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-7.1.1:** Attempt to complete a company profile without required fields and verify validation messages.

@@ -1209,6 +1209,7 @@ Instructions:
 ## 7. Company Compliance Profile
 
 ### Story 7.1: Create Company Profile
+## Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

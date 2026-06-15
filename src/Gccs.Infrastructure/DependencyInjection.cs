@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Companies;
 using Gccs.Application.Compliance;
 using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
@@ -6,6 +7,7 @@ using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
 using Gccs.Application.Tenancy;
 using Gccs.Infrastructure.Audit;
+using Gccs.Infrastructure.Companies;
 using Gccs.Infrastructure.Compliance;
 using Gccs.Infrastructure.Identity;
 using Gccs.Infrastructure.NoCui;
@@ -24,6 +26,7 @@ public static class DependencyInjection
     {
         services.AddScoped<ComplianceOverviewService>();
         services.AddScoped<ComplianceContentReviewService>();
+        services.AddScoped<CompanyProfileService>();
         services.AddScoped<TenantService>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
@@ -44,6 +47,7 @@ public static class DependencyInjection
             services.AddScoped<IReportRepository, EfReportRepository>();
             services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
             services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+            services.AddScoped<ICompanyProfileRepository, EfCompanyProfileRepository>();
             services.AddScoped<IComplianceContentImporter, ComplianceContentImporter>();
             services.AddScoped<IComplianceContentReviewRepository, EfComplianceContentReviewRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
@@ -65,6 +69,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Audit log persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IAuditEventWriter>(_ =>
                 throw new InvalidOperationException("Audit persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ICompanyProfileRepository>(_ =>
+                throw new InvalidOperationException("Company profile persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceContentImporter>(_ =>
                 throw new InvalidOperationException("Compliance content import requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceContentReviewRepository>(_ =>

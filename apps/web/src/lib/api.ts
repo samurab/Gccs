@@ -111,6 +111,75 @@ export type AuditLogEntry = {
   metadata: Record<string, string>;
 };
 
+export type CompanyNaicsCode = {
+  code: string;
+  title: string;
+  isPrimary: boolean;
+  sizeStandard: string | null;
+  qualifiesAsSmall: boolean | null;
+  lastCheckedAt: string | null;
+};
+
+export type CompanyCertification = {
+  id: string | null;
+  type: string;
+  status: string;
+  issuer: string;
+  effectiveAt: string | null;
+  expiresAt: string | null;
+  referenceNumber: string | null;
+};
+
+export type CompanyLocation = {
+  name: string;
+  street1: string;
+  street2: string | null;
+  city: string;
+  stateOrProvince: string;
+  postalCode: string;
+  country: string;
+  isPlaceOfPerformance: boolean;
+};
+
+export type ItEnvironmentSummary = {
+  description: string;
+  usesExternalServiceProvider: boolean;
+  externalServiceProviderName: string | null;
+  keySystems: string[];
+};
+
+export type CompanyProfile = {
+  id: string;
+  tenantId: string;
+  legalEntityName: string;
+  doingBusinessAs: string | null;
+  uei: string | null;
+  cageCode: string | null;
+  samRegistrationExpiresAt: string | null;
+  naicsCodes: CompanyNaicsCode[];
+  certifications: CompanyCertification[];
+  agencyCustomers: string[];
+  contractorRole: string;
+  productsAndServices: string;
+  employeeRange: string;
+  revenueRange: string;
+  locations: CompanyLocation[];
+  itEnvironment: ItEnvironmentSummary;
+  dataHandlingPosture: string;
+  completionPercentage: number;
+  isComplete: boolean;
+  validationErrors: Record<string, string[]>;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertCompanyProfileRequest = Omit<
+  CompanyProfile,
+  "id" | "tenantId" | "completionPercentage" | "isComplete" | "validationErrors" | "createdAt" | "updatedAt"
+> & {
+  completeProfile: boolean;
+};
+
 export type PagedResult<T> = {
   items: T[];
   page: number;
@@ -205,6 +274,34 @@ export async function getNoCuiAcknowledgementStatus(): Promise<NoCuiAcknowledgem
   return getJson<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement", fallbackNoCuiAcknowledgementStatus);
 }
 
+export async function getCompanyProfile(): Promise<CompanyProfile | null> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/company-profile`, {
+      headers: getDevelopmentHeaders()
+    });
+
+    if (response.status === 204) {
+      return null;
+    }
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function saveCompanyProfile(
+  request: UpsertCompanyProfileRequest
+): Promise<ApiMutationResult<CompanyProfile>> {
+  return putJsonResult<CompanyProfile>("/api/company-profile", request);
+}
+
 export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<NoCuiAcknowledgementStatus | null> {
   const response = await postJson<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement", {
     acknowledged: true,
@@ -270,6 +367,29 @@ async function postJsonResult<T>(path: string, body: unknown): Promise<ApiMutati
     return { data: await response.json(), error: null };
   } catch {
     return { data: null, error: "The API could not be reached." };
+  }
+}
+
+async function putJsonResult<T>(path: string, body: unknown): Promise<ApiMutationResult<T>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "PUT",
+      headers: {
+        ...(getDevelopmentHeaders() ?? {}),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
   }
 }
 

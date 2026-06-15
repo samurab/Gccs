@@ -29,18 +29,22 @@ import {
   fallbackAccess,
   fallbackNoCuiAcknowledgementStatus,
   fallbackOverview,
+  getCompanyProfile,
   getAuditLogs,
   getComplianceOverview,
   getCurrentUserAccess,
   getNoCuiAcknowledgementStatus,
   getTenantInvitations,
   getTenantMembers,
+  saveCompanyProfile,
   type AuditLogEntry,
+  type CompanyProfile,
   type ComplianceOverview,
   type CurrentUserAccess,
   type NoCuiAcknowledgementStatus,
   type PagedResult,
   type TenantInvitation,
+  type UpsertCompanyProfileRequest,
   type TenantMember
 } from "@/lib/api";
 
@@ -64,6 +68,32 @@ type AuditLogFilters = {
   entityType: string;
   from: string;
   to: string;
+};
+
+type ProfileFormState = {
+  legalEntityName: string;
+  doingBusinessAs: string;
+  uei: string;
+  cageCode: string;
+  samRegistrationExpiresAt: string;
+  naicsCode: string;
+  naicsTitle: string;
+  agencyCustomers: string;
+  contractorRole: string;
+  productsAndServices: string;
+  employeeRange: string;
+  revenueRange: string;
+  locationName: string;
+  street1: string;
+  city: string;
+  stateOrProvince: string;
+  postalCode: string;
+  country: string;
+  itDescription: string;
+  usesExternalServiceProvider: boolean;
+  externalServiceProviderName: string;
+  keySystems: string;
+  dataHandlingPosture: string;
 };
 
 type NavigationItem = {
@@ -155,6 +185,32 @@ const defaultAuditLogFilters: AuditLogFilters = {
   to: ""
 };
 
+const defaultProfileForm: ProfileFormState = {
+  legalEntityName: "",
+  doingBusinessAs: "",
+  uei: "",
+  cageCode: "",
+  samRegistrationExpiresAt: "",
+  naicsCode: "",
+  naicsTitle: "",
+  agencyCustomers: "",
+  contractorRole: "Unknown",
+  productsAndServices: "",
+  employeeRange: "Unknown",
+  revenueRange: "Unknown",
+  locationName: "",
+  street1: "",
+  city: "",
+  stateOrProvince: "",
+  postalCode: "",
+  country: "USA",
+  itDescription: "",
+  usesExternalServiceProvider: false,
+  externalServiceProviderName: "",
+  keySystems: "",
+  dataHandlingPosture: "Unknown"
+};
+
 const placeholderContent: Record<
   Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence">,
   { eyebrow: string; title: string; description: string; emptyTitle: string; emptyBody: string }
@@ -232,6 +288,7 @@ export function App() {
   const [access, setAccess] = useState<CurrentUserAccess>(fallbackAccess);
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [auditLogs, setAuditLogs] = useState<PagedResult<AuditLogEntry>>(fallbackAuditLogs);
   const [auditLogFilters, setAuditLogFilters] = useState<AuditLogFilters>(defaultAuditLogFilters);
   const [auditLogStatus, setAuditLogStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
@@ -243,6 +300,8 @@ export function App() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Contributor");
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "created" | "failed">("idle");
+  const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [profileMessage, setProfileMessage] = useState("");
   const [selectedEvidenceFile, setSelectedEvidenceFile] = useState<File | null>(null);
   const [acknowledgementStatus, setAcknowledgementStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "creating" | "created" | "blocked">("idle");
@@ -254,6 +313,7 @@ export function App() {
   );
   const canManageUsers = access.permissions.includes("ManageUsers");
   const canManageEvidence = access.permissions.includes("ManageEvidence");
+  const canManageCompanyProfile = access.permissions.includes("ManageCompanyProfile");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
 
   useEffect(() => {
@@ -286,6 +346,7 @@ export function App() {
         const canLoadUserManagement = nextAccess.permissions.includes("ManageUsers");
         const canLoadAuditLogs = nextAccess.permissions.includes("ViewAuditLog");
         const canLoadNoCuiStatus = hasAnyPermission(nextAccess, ["ViewEvidence", "ManageEvidence"]);
+        const canLoadCompanyProfile = hasAnyPermission(nextAccess, ["ViewCompanyProfile", "ManageCompanyProfile"]);
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
@@ -293,12 +354,14 @@ export function App() {
         const nextNoCuiAcknowledgement = canLoadNoCuiStatus
           ? await getNoCuiAcknowledgementStatus()
           : fallbackNoCuiAcknowledgementStatus;
+        const nextCompanyProfile = canLoadCompanyProfile ? await getCompanyProfile() : null;
 
         if (isMounted) {
           setOverview(nextOverview);
           setAccess(nextAccess);
           setMembers(nextMembers);
           setInvitations(nextInvitations);
+          setCompanyProfile(nextCompanyProfile);
           setAuditLogs(nextAuditLogs);
           setAuditLogStatus(canLoadAuditLogs ? "ready" : "idle");
           setNoCuiAcknowledgement(nextNoCuiAcknowledgement);
@@ -311,6 +374,7 @@ export function App() {
           setAccess(fallbackAccess);
           setMembers([]);
           setInvitations([]);
+          setCompanyProfile(null);
           setAuditLogs(fallbackAuditLogs);
           setAuditLogStatus("idle");
           setNoCuiAcknowledgement(fallbackNoCuiAcknowledgementStatus);
@@ -342,6 +406,22 @@ export function App() {
     }
 
     setInviteStatus("failed");
+  }
+
+  async function handleCompanyProfileSave(request: UpsertCompanyProfileRequest) {
+    setProfileStatus("saving");
+    setProfileMessage("");
+
+    const result = await saveCompanyProfile(request);
+    if (result.data) {
+      setCompanyProfile(result.data);
+      setProfileStatus("saved");
+      setProfileMessage(result.data.isComplete ? "Profile complete." : "Draft saved.");
+      return;
+    }
+
+    setProfileStatus("failed");
+    setProfileMessage(result.error ?? "Profile could not be saved.");
   }
 
   async function handleNoCuiAcknowledgement() {
@@ -461,6 +541,15 @@ export function App() {
         <WorkspaceState state={loadState}>
           {activeRoute === "dashboard" ? (
             <DashboardView overview={overview} />
+          ) : activeRoute === "profile" ? (
+            <ProfileView
+              key={companyProfile?.id ?? "new-profile"}
+              canManageCompanyProfile={canManageCompanyProfile}
+              profile={companyProfile}
+              profileMessage={profileMessage}
+              profileStatus={profileStatus}
+              onSave={handleCompanyProfileSave}
+            />
           ) : activeRoute === "evidence" ? (
             <EvidenceView
               acknowledgement={noCuiAcknowledgement}
@@ -621,7 +710,300 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
   );
 }
 
-function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence"> }) {
+function profileToForm(profile: CompanyProfile | null): ProfileFormState {
+  const primaryNaics = profile?.naicsCodes[0];
+  const primaryLocation = profile?.locations[0];
+
+  return {
+    ...defaultProfileForm,
+    legalEntityName: profile?.legalEntityName ?? "",
+    doingBusinessAs: profile?.doingBusinessAs ?? "",
+    uei: profile?.uei ?? "",
+    cageCode: profile?.cageCode ?? "",
+    samRegistrationExpiresAt: profile?.samRegistrationExpiresAt ?? "",
+    naicsCode: primaryNaics?.code ?? "",
+    naicsTitle: primaryNaics?.title ?? "",
+    agencyCustomers: profile?.agencyCustomers.join(", ") ?? "",
+    contractorRole: profile?.contractorRole ?? "Unknown",
+    productsAndServices: profile?.productsAndServices ?? "",
+    employeeRange: profile?.employeeRange ?? "Unknown",
+    revenueRange: profile?.revenueRange ?? "Unknown",
+    locationName: primaryLocation?.name ?? "",
+    street1: primaryLocation?.street1 ?? "",
+    city: primaryLocation?.city ?? "",
+    stateOrProvince: primaryLocation?.stateOrProvince ?? "",
+    postalCode: primaryLocation?.postalCode ?? "",
+    country: primaryLocation?.country ?? "USA",
+    itDescription: profile?.itEnvironment.description ?? "",
+    usesExternalServiceProvider: profile?.itEnvironment.usesExternalServiceProvider ?? false,
+    externalServiceProviderName: profile?.itEnvironment.externalServiceProviderName ?? "",
+    keySystems: profile?.itEnvironment.keySystems.join(", ") ?? "",
+    dataHandlingPosture: profile?.dataHandlingPosture ?? "Unknown"
+  };
+}
+
+function formToRequest(form: ProfileFormState, completeProfile: boolean): UpsertCompanyProfileRequest {
+  const naicsCodes =
+    form.naicsCode.trim() && form.naicsTitle.trim()
+      ? [
+          {
+            code: form.naicsCode.trim(),
+            title: form.naicsTitle.trim(),
+            isPrimary: true,
+            sizeStandard: null,
+            qualifiesAsSmall: null,
+            lastCheckedAt: null
+          }
+        ]
+      : [];
+  const locations = form.locationName.trim()
+    ? [
+        {
+          name: form.locationName.trim(),
+          street1: form.street1.trim(),
+          street2: null,
+          city: form.city.trim(),
+          stateOrProvince: form.stateOrProvince.trim(),
+          postalCode: form.postalCode.trim(),
+          country: form.country.trim() || "USA",
+          isPlaceOfPerformance: true
+        }
+      ]
+    : [];
+
+  return {
+    legalEntityName: form.legalEntityName.trim(),
+    doingBusinessAs: form.doingBusinessAs.trim() || null,
+    uei: form.uei.trim() || null,
+    cageCode: form.cageCode.trim() || null,
+    samRegistrationExpiresAt: form.samRegistrationExpiresAt || null,
+    naicsCodes,
+    certifications: [],
+    agencyCustomers: splitList(form.agencyCustomers),
+    contractorRole: form.contractorRole,
+    productsAndServices: form.productsAndServices.trim(),
+    employeeRange: form.employeeRange,
+    revenueRange: form.revenueRange,
+    locations,
+    itEnvironment: {
+      description: form.itDescription.trim(),
+      usesExternalServiceProvider: form.usesExternalServiceProvider,
+      externalServiceProviderName: form.externalServiceProviderName.trim() || null,
+      keySystems: splitList(form.keySystems)
+    },
+    dataHandlingPosture: form.dataHandlingPosture,
+    completeProfile
+  };
+}
+
+function splitList(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function ProfileView({
+  canManageCompanyProfile,
+  onSave,
+  profile,
+  profileMessage,
+  profileStatus
+}: {
+  canManageCompanyProfile: boolean;
+  onSave: (request: UpsertCompanyProfileRequest) => Promise<void>;
+  profile: CompanyProfile | null;
+  profileMessage: string;
+  profileStatus: "idle" | "saving" | "saved" | "failed";
+}) {
+  const [form, setForm] = useState<ProfileFormState>(() => profileToForm(profile));
+
+  function updateField<TKey extends keyof ProfileFormState>(field: TKey, value: ProfileFormState[TKey]) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function save(completeProfile: boolean) {
+    await onSave(formToRequest(form, completeProfile));
+  }
+
+  return (
+    <section className="route-panel profile-route">
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">Company profile</p>
+          <h2>{profile?.legalEntityName || "Create company profile"}</h2>
+        </div>
+        <div className="completion-meter" aria-label="Profile completion">
+          <span>{profile?.isComplete ? "Complete" : "Draft"}</span>
+          <strong>{profile?.completionPercentage ?? 0}%</strong>
+        </div>
+      </div>
+
+      {profileMessage ? (
+        <p className={`form-status ${profileStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
+          {profileMessage}
+        </p>
+      ) : null}
+
+      {profile && Object.keys(profile.validationErrors).length > 0 ? (
+        <div className="validation-summary" role="status">
+          {Object.entries(profile.validationErrors).map(([field, messages]) => (
+            <p key={field}>
+              <strong>{field}</strong> {messages.join(" ")}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <form className="profile-form" onSubmit={(event) => event.preventDefault()}>
+        <fieldset disabled={!canManageCompanyProfile || profileStatus === "saving"}>
+          <div className="form-grid">
+            <label>
+              <span>Legal entity</span>
+              <input value={form.legalEntityName} onChange={(event) => updateField("legalEntityName", event.target.value)} />
+            </label>
+            <label>
+              <span>DBA</span>
+              <input value={form.doingBusinessAs} onChange={(event) => updateField("doingBusinessAs", event.target.value)} />
+            </label>
+            <label>
+              <span>UEI</span>
+              <input value={form.uei} onChange={(event) => updateField("uei", event.target.value)} />
+            </label>
+            <label>
+              <span>CAGE</span>
+              <input value={form.cageCode} onChange={(event) => updateField("cageCode", event.target.value)} />
+            </label>
+            <label>
+              <span>SAM expires</span>
+              <input
+                type="date"
+                value={form.samRegistrationExpiresAt}
+                onChange={(event) => updateField("samRegistrationExpiresAt", event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Role</span>
+              <select value={form.contractorRole} onChange={(event) => updateField("contractorRole", event.target.value)}>
+                <option value="Unknown">Unknown</option>
+                <option value="Prime">Prime</option>
+                <option value="Subcontractor">Subcontractor</option>
+                <option value="Both">Both</option>
+              </select>
+            </label>
+            <label>
+              <span>NAICS</span>
+              <input value={form.naicsCode} onChange={(event) => updateField("naicsCode", event.target.value)} />
+            </label>
+            <label>
+              <span>NAICS title</span>
+              <input value={form.naicsTitle} onChange={(event) => updateField("naicsTitle", event.target.value)} />
+            </label>
+            <label className="span-2">
+              <span>Agency customers</span>
+              <input value={form.agencyCustomers} onChange={(event) => updateField("agencyCustomers", event.target.value)} />
+            </label>
+            <label className="span-2">
+              <span>Products and services</span>
+              <textarea value={form.productsAndServices} onChange={(event) => updateField("productsAndServices", event.target.value)} />
+            </label>
+            <label>
+              <span>Employees</span>
+              <select value={form.employeeRange} onChange={(event) => updateField("employeeRange", event.target.value)}>
+                <option value="Unknown">Unknown</option>
+                <option value="Micro">Micro</option>
+                <option value="Small">Small</option>
+                <option value="MidSize">Mid-size</option>
+                <option value="Large">Large</option>
+              </select>
+            </label>
+            <label>
+              <span>Revenue</span>
+              <select value={form.revenueRange} onChange={(event) => updateField("revenueRange", event.target.value)}>
+                <option value="Unknown">Unknown</option>
+                <option value="Micro">Micro</option>
+                <option value="Small">Small</option>
+                <option value="MidSize">Mid-size</option>
+                <option value="Large">Large</option>
+              </select>
+            </label>
+            <label>
+              <span>Location</span>
+              <input value={form.locationName} onChange={(event) => updateField("locationName", event.target.value)} />
+            </label>
+            <label>
+              <span>Street</span>
+              <input value={form.street1} onChange={(event) => updateField("street1", event.target.value)} />
+            </label>
+            <label>
+              <span>City</span>
+              <input value={form.city} onChange={(event) => updateField("city", event.target.value)} />
+            </label>
+            <label>
+              <span>State</span>
+              <input value={form.stateOrProvince} onChange={(event) => updateField("stateOrProvince", event.target.value)} />
+            </label>
+            <label>
+              <span>Postal code</span>
+              <input value={form.postalCode} onChange={(event) => updateField("postalCode", event.target.value)} />
+            </label>
+            <label>
+              <span>Country</span>
+              <input value={form.country} onChange={(event) => updateField("country", event.target.value)} />
+            </label>
+            <label className="span-2">
+              <span>IT summary</span>
+              <textarea value={form.itDescription} onChange={(event) => updateField("itDescription", event.target.value)} />
+            </label>
+            <label>
+              <span>FCI/CUI posture</span>
+              <select
+                value={form.dataHandlingPosture}
+                onChange={(event) => updateField("dataHandlingPosture", event.target.value)}
+              >
+                <option value="Unknown">Unknown</option>
+                <option value="NoFciOrCui">No FCI/CUI</option>
+                <option value="FciOnly">FCI only</option>
+                <option value="Cui">CUI</option>
+                <option value="Classified">Classified</option>
+                <option value="ExportControlled">Export-controlled</option>
+              </select>
+            </label>
+            <label>
+              <span>Key systems</span>
+              <input value={form.keySystems} onChange={(event) => updateField("keySystems", event.target.value)} />
+            </label>
+            <label className="checkbox-label span-2">
+              <input
+                checked={form.usesExternalServiceProvider}
+                type="checkbox"
+                onChange={(event) => updateField("usesExternalServiceProvider", event.target.checked)}
+              />
+              <span>Uses external service provider</span>
+            </label>
+            <label className="span-2">
+              <span>External service provider</span>
+              <input
+                value={form.externalServiceProviderName}
+                onChange={(event) => updateField("externalServiceProviderName", event.target.value)}
+              />
+            </label>
+          </div>
+        </fieldset>
+        <div className="form-actions">
+          <button type="button" onClick={() => save(false)} disabled={!canManageCompanyProfile || profileStatus === "saving"}>
+            Save draft
+          </button>
+          <button type="button" onClick={() => save(true)} disabled={!canManageCompanyProfile || profileStatus === "saving"}>
+            Complete profile
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence" | "profile"> }) {
   const content = placeholderContent[route];
 
   return (
