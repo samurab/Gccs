@@ -44,6 +44,7 @@ public static class DependencyInjection
             services.AddScoped<IReportRepository, EfReportRepository>();
             services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
             services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+            services.AddScoped<IComplianceContentImporter, ComplianceContentImporter>();
         }
         else
         {
@@ -61,6 +62,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Audit log persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IAuditEventWriter>(_ =>
                 throw new InvalidOperationException("Audit persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IComplianceContentImporter>(_ =>
+                throw new InvalidOperationException("Compliance content import requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

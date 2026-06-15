@@ -149,6 +149,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-6.1.4:** Link evidence examples to an obligation and verify they are returned with the obligation.
 #-----------------------------------
 ### Story 6.2: Content Import
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-6.2.1:** Import a valid compliance content package and verify clauses/obligations are created with source and review metadata.
