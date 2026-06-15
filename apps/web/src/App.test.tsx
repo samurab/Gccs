@@ -6,11 +6,15 @@ const {
   acknowledgeNoCuiNoticeMock,
   allWorkflowAccess,
   contract,
+  contractDocument,
   createContractMock,
+  createContractDocumentMock,
   createEvidenceUploadIntentMock,
   createTenantInvitationMock,
+  deleteContractDocumentMock,
   fallbackOverview,
   getCompanyProfileMock,
+  getContractDocumentsMock,
   getContractsMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
@@ -28,10 +32,13 @@ const {
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
   createContractMock: vi.fn(),
+  createContractDocumentMock: vi.fn(),
   createEvidenceUploadIntentMock: vi.fn(),
   createTenantInvitationMock: vi.fn(),
+  deleteContractDocumentMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
   getCompanyProfileMock: vi.fn(),
+  getContractDocumentsMock: vi.fn(),
   getContractsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
@@ -208,13 +215,32 @@ const {
     dataHandlingPosture: "FciOnly",
     createdAt: "2026-06-15T12:00:00Z",
     updatedAt: null
+  },
+  contractDocument: {
+    id: "77777777-7777-7777-7777-777777777771",
+    contractId: "88888888-8888-8888-8888-888888888881",
+    type: "StatementOfWork",
+    fileName: "sow.pdf",
+    contentType: "application/pdf",
+    sizeBytes: 2048,
+    storageUri: "pending://contracts/88888888-8888-8888-8888-888888888881/documents/77777777-7777-7777-7777-777777777771/sow.pdf",
+    extractedTextHash: null,
+    validationStatus: "accepted",
+    malwareScanStatus: "scan-pending",
+    noticeVersion: "no-cui-mvp-v1",
+    uploadedAt: "2026-06-15T12:00:00Z",
+    uploadedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+    containsPotentialCui: false
   }
 }));
 
 vi.mock("@/lib/api", () => ({
   createTenantInvitation: createTenantInvitationMock,
   createContract: createContractMock,
+  createContractDocument: createContractDocumentMock,
+  deleteContractDocument: deleteContractDocumentMock,
   getCompanyProfile: getCompanyProfileMock,
+  getContractDocuments: getContractDocumentsMock,
   getContracts: getContractsMock,
   saveCompanyProfile: saveCompanyProfileMock,
   updateContract: updateContractMock,
@@ -262,7 +288,9 @@ describe("App", () => {
     acknowledgeNoCuiNoticeMock.mockReset();
     createEvidenceUploadIntentMock.mockReset();
     createContractMock.mockReset();
+    createContractDocumentMock.mockReset();
     createTenantInvitationMock.mockReset();
+    deleteContractDocumentMock.mockReset();
     updateContractMock.mockReset();
     saveCompanyProfileMock.mockReset();
     getComplianceOverviewMock.mockReset();
@@ -272,6 +300,7 @@ describe("App", () => {
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
     getContractsMock.mockReset();
+    getContractDocumentsMock.mockReset();
     getAuditLogsMock.mockResolvedValue({
       items: [],
       page: 1,
@@ -291,6 +320,7 @@ describe("App", () => {
     });
     getCompanyProfileMock.mockResolvedValue(profile);
     getContractsMock.mockResolvedValue([]);
+    getContractDocumentsMock.mockResolvedValue([]);
     saveCompanyProfileMock.mockImplementation((request) =>
       Promise.resolve({
         data: {
@@ -331,6 +361,8 @@ describe("App", () => {
         error: null
       })
     );
+    createContractDocumentMock.mockResolvedValue({ data: contractDocument, error: null });
+    deleteContractDocumentMock.mockResolvedValue({ data: null, error: null });
   });
 
   afterEach(() => {
@@ -501,6 +533,58 @@ describe("App", () => {
       })
     );
     expect(await screen.findByText("Contract created.")).toBeInTheDocument();
+  });
+
+  it("TC-8.2.1 disables contract document upload before No-CUI acknowledgement", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+
+    expect(await screen.findByLabelText("Contract document")).toBeDisabled();
+    expect(screen.getByText(/No-CUI acknowledgement is required before contract document upload/i)).toBeInTheDocument();
+  });
+
+  it("TC-8.2.1 and TC-8.2.2 gates contract document upload on No-CUI acknowledgement", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getNoCuiAcknowledgementStatusMock.mockResolvedValueOnce({
+      isAcknowledged: true,
+      noticeVersion: "no-cui-mvp-v1",
+      noticeCopy: "No-CUI only.",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      acknowledgedAt: "2026-06-15T12:00:00Z"
+    });
+    getContractsMock.mockResolvedValueOnce([contract]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+    const fileInput = await screen.findByLabelText("Contract document");
+    expect(fileInput).toBeEnabled();
+    await user.upload(fileInput, new File(["source"], "sow.pdf", { type: "application/pdf" }));
+    await user.click(screen.getByRole("button", { name: /upload metadata/i }));
+
+    expect(createContractDocumentMock).toHaveBeenCalledWith(
+      contract.id,
+      expect.objectContaining({
+        type: "Contract",
+        fileName: "sow.pdf",
+        contentType: "application/pdf",
+        containsPotentialCui: false
+      })
+    );
+    expect(await screen.findByText(/Document metadata captured/i)).toBeInTheDocument();
   });
 
   it("TC-2.4.2 renders workspace actions and TC-3.2.3 hides restricted navigation", async () => {

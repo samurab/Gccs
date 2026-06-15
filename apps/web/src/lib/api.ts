@@ -194,6 +194,31 @@ export type ContractRecord = {
 
 export type UpsertContractRequest = Omit<ContractRecord, "id" | "tenantId" | "createdAt" | "updatedAt">;
 
+export type ContractDocument = {
+  id: string;
+  contractId: string;
+  type: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  storageUri: string | null;
+  extractedTextHash: string | null;
+  validationStatus: string;
+  malwareScanStatus: string;
+  noticeVersion: string;
+  uploadedAt: string;
+  uploadedByUserId: string;
+  containsPotentialCui: boolean;
+};
+
+export type ContractDocumentUploadRequest = {
+  type: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  containsPotentialCui: boolean;
+};
+
 export type UpsertCompanyProfileRequest = Omit<
   CompanyProfile,
   "id" | "tenantId" | "completionPercentage" | "isComplete" | "validationErrors" | "createdAt" | "updatedAt"
@@ -321,6 +346,10 @@ export async function getContracts(): Promise<ContractRecord[]> {
   return getJson<ContractRecord[]>("/api/contracts", []);
 }
 
+export async function getContractDocuments(contractId: string): Promise<ContractDocument[]> {
+  return getJson<ContractDocument[]>(`/api/contracts/${contractId}/documents`, []);
+}
+
 export async function getContract(contractId: string): Promise<ContractRecord | null> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
@@ -354,6 +383,32 @@ export async function updateContract(
   request: UpsertContractRequest
 ): Promise<ApiMutationResult<ContractRecord>> {
   return putJsonResult<ContractRecord>(`/api/contracts/${contractId}`, request);
+}
+
+export async function createContractDocument(
+  contractId: string,
+  request: ContractDocumentUploadRequest
+): Promise<ApiMutationResult<ContractDocument>> {
+  return postJsonResult<ContractDocument>(`/api/contracts/${contractId}/documents`, request);
+}
+
+export async function deleteContractDocument(contractId: string, documentId: string): Promise<ApiMutationResult<null>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}/documents/${documentId}`, {
+      method: "DELETE",
+      headers: getDevelopmentHeaders()
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: null, error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
 }
 
 export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<NoCuiAcknowledgementStatus | null> {

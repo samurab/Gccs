@@ -207,6 +207,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-8.1.4:** Create and update a contract and verify both actions write audit events.
 #-----------------------------------
 ### Story 8.2: Contract Document Metadata And Upload
+### Done ##
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-8.2.1:** Attempt contract document upload without No-CUI acknowledgement and verify disabled UI plus API rejection.

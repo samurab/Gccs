@@ -1507,6 +1507,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 8.2: Contract Document Metadata And Upload
+### Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.  

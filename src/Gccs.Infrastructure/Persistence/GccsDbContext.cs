@@ -316,6 +316,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.ContractId, x.Type });
             entity.Property(x => x.FileName).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.ValidationStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.MalwareScanStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.NoticeVersion).HasMaxLength(80).IsRequired();
             entity.HasOne(x => x.Contract).WithMany(x => x.Documents).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
         });
 

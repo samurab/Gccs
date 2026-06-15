@@ -248,6 +248,87 @@ api.MapPut("/contracts/{contractId:guid}", async (
 .RequirePermission(Permission.ManageContracts)
 .WithName("UpdateContract");
 
+api.MapGet("/contracts/{contractId:guid}/documents", async (
+    Guid contractId,
+    ContractService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var documents = await service.ListDocumentsAsync(contractId, cancellationToken);
+    return documents is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract '{contractId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(documents);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractDocuments");
+
+api.MapPost("/contracts/{contractId:guid}/documents", async (
+    Guid contractId,
+    ContractDocumentUploadRequest request,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var document = await service.CreateDocumentMetadataAsync(contractId, request, tenantContext.UserId, cancellationToken);
+        return document is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Contract '{contractId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/documents/{document.Id}", document);
+    }
+    catch (NoCuiAcknowledgementRequiredException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "No-CUI acknowledgement required",
+            exception.Message,
+            StatusCodes.Status428PreconditionRequired,
+            "no_cui_acknowledgement_required");
+    }
+    catch (UploadGuardrailValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Contract document upload rejected",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractDocumentMetadata");
+
+api.MapDelete("/contracts/{contractId:guid}/documents/{documentId:guid}", async (
+    Guid contractId,
+    Guid documentId,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var deleted = await service.DeleteDocumentAsync(contractId, documentId, tenantContext.UserId, cancellationToken);
+    return deleted
+        ? Results.NoContent()
+        : ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract document '{documentId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found");
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("DeleteContractDocument");
+
 api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))
 .RequirePermission(Permission.ViewObligations)

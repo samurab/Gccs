@@ -23,13 +23,18 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "re
 import { ModuleCard } from "@/components/ModuleCard";
 import {
   acknowledgeNoCuiNotice,
+  createContract,
+  createContractDocument,
   createTenantInvitation,
   createEvidenceUploadIntent,
+  deleteContractDocument,
   fallbackAuditLogs,
   fallbackAccess,
   fallbackNoCuiAcknowledgementStatus,
   fallbackOverview,
   getCompanyProfile,
+  getContractDocuments,
+  getContracts,
   getAuditLogs,
   getComplianceOverview,
   getCurrentUserAccess,
@@ -37,10 +42,12 @@ import {
   getTenantInvitations,
   getTenantMembers,
   saveCompanyProfile,
+  updateContract,
   type AuditLogEntry,
   type CompanyCertification,
   type CompanyProfile,
   type ComplianceOverview,
+  type ContractDocument,
   type ContractRecord,
   type CurrentUserAccess,
   type NoCuiAcknowledgementStatus,
@@ -48,10 +55,7 @@ import {
   type TenantInvitation,
   type UpsertContractRequest,
   type UpsertCompanyProfileRequest,
-  type TenantMember,
-  createContract,
-  getContracts,
-  updateContract
+  type TenantMember
 } from "@/lib/api";
 
 type WorkspaceRoute =
@@ -344,6 +348,7 @@ export function App() {
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
+  const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [auditLogs, setAuditLogs] = useState<PagedResult<AuditLogEntry>>(fallbackAuditLogs);
   const [auditLogFilters, setAuditLogFilters] = useState<AuditLogFilters>(defaultAuditLogFilters);
@@ -360,6 +365,8 @@ export function App() {
   const [profileMessage, setProfileMessage] = useState("");
   const [contractStatus, setContractStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [contractMessage, setContractMessage] = useState("");
+  const [contractDocumentStatus, setContractDocumentStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [contractDocumentMessage, setContractDocumentMessage] = useState("");
   const [selectedEvidenceFile, setSelectedEvidenceFile] = useState<File | null>(null);
   const [acknowledgementStatus, setAcknowledgementStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "creating" | "created" | "blocked">("idle");
@@ -416,6 +423,7 @@ export function App() {
           : fallbackNoCuiAcknowledgementStatus;
         const nextCompanyProfile = canLoadCompanyProfile ? await getCompanyProfile() : null;
         const nextContracts = canLoadContracts ? await getContracts() : [];
+        const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
 
         if (isMounted) {
           setOverview(nextOverview);
@@ -424,6 +432,7 @@ export function App() {
           setInvitations(nextInvitations);
           setCompanyProfile(nextCompanyProfile);
           setContracts(nextContracts);
+          setContractDocuments(nextContractDocuments);
           setSelectedContractId(nextContracts[0]?.id ?? null);
           setAuditLogs(nextAuditLogs);
           setAuditLogStatus(canLoadAuditLogs ? "ready" : "idle");
@@ -439,6 +448,7 @@ export function App() {
           setInvitations([]);
           setCompanyProfile(null);
           setContracts([]);
+          setContractDocuments([]);
           setSelectedContractId(null);
           setAuditLogs(fallbackAuditLogs);
           setAuditLogStatus("idle");
@@ -510,6 +520,59 @@ export function App() {
 
     setContractStatus("failed");
     setContractMessage(result.error ?? "Contract could not be saved.");
+  }
+
+  async function handleContractSelect(contractId: string | null) {
+    setSelectedContractId(contractId);
+    setContractDocumentMessage("");
+    setContractDocuments(contractId ? await getContractDocuments(contractId) : []);
+  }
+
+  async function handleContractDocumentUpload(contractId: string, documentType: string, file: File | null) {
+    if (!file) {
+      setContractDocumentStatus("failed");
+      setContractDocumentMessage("Select a contract document before upload.");
+      return;
+    }
+
+    setContractDocumentStatus("saving");
+    setContractDocumentMessage("");
+    const result = await createContractDocument(contractId, {
+      type: documentType,
+      fileName: file.name,
+      contentType: file.type || "application/octet-stream",
+      sizeBytes: file.size,
+      containsPotentialCui: false
+    });
+
+    if (result.data) {
+      const savedDocument = result.data;
+      setContractDocuments((currentDocuments) => [savedDocument, ...currentDocuments]);
+      setContractDocumentStatus("saved");
+      setContractDocumentMessage(
+        `Document metadata captured. Validation ${savedDocument.validationStatus}; malware scan ${savedDocument.malwareScanStatus}.`
+      );
+      return;
+    }
+
+    setContractDocumentStatus("failed");
+    setContractDocumentMessage(result.error ?? "Contract document upload was rejected.");
+  }
+
+  async function handleContractDocumentDelete(contractId: string, documentId: string) {
+    setContractDocumentStatus("saving");
+    setContractDocumentMessage("");
+    const result = await deleteContractDocument(contractId, documentId);
+
+    if (!result.error) {
+      setContractDocuments((currentDocuments) => currentDocuments.filter((document) => document.id !== documentId));
+      setContractDocumentStatus("saved");
+      setContractDocumentMessage("Document metadata deleted.");
+      return;
+    }
+
+    setContractDocumentStatus("failed");
+    setContractDocumentMessage(result.error);
   }
 
   async function handleNoCuiAcknowledgement() {
@@ -642,11 +705,17 @@ export function App() {
             <ContractsView
               canManageContracts={canManageContracts}
               contracts={contracts}
+              contractDocuments={contractDocuments}
+              contractDocumentMessage={contractDocumentMessage}
+              contractDocumentStatus={contractDocumentStatus}
               contractMessage={contractMessage}
               contractStatus={contractStatus}
+              noCuiAcknowledgement={noCuiAcknowledgement}
               selectedContractId={selectedContractId}
+              onDeleteDocument={handleContractDocumentDelete}
+              onUploadDocument={handleContractDocumentUpload}
               onSave={handleContractSave}
-              onSelectContract={setSelectedContractId}
+              onSelectContract={handleContractSelect}
             />
           ) : activeRoute === "evidence" ? (
             <EvidenceView
@@ -969,21 +1038,37 @@ function contractFormToRequest(form: ContractFormState): UpsertContractRequest {
 function ContractsView({
   canManageContracts,
   contracts,
+  contractDocuments,
+  contractDocumentMessage,
+  contractDocumentStatus,
   contractMessage,
   contractStatus,
+  noCuiAcknowledgement,
   selectedContractId,
+  onDeleteDocument,
+  onUploadDocument,
   onSave,
   onSelectContract
 }: {
   canManageContracts: boolean;
   contracts: ContractRecord[];
+  contractDocuments: ContractDocument[];
+  contractDocumentMessage: string;
+  contractDocumentStatus: "idle" | "saving" | "saved" | "failed";
   contractMessage: string;
   contractStatus: "idle" | "saving" | "saved" | "failed";
+  noCuiAcknowledgement: NoCuiAcknowledgementStatus;
   selectedContractId: string | null;
+  onDeleteDocument: (contractId: string, documentId: string) => Promise<void>;
+  onUploadDocument: (contractId: string, documentType: string, file: File | null) => Promise<void>;
   onSave: (contractId: string | null, request: UpsertContractRequest) => Promise<void>;
   onSelectContract: (contractId: string | null) => void;
 }) {
   const selectedContract = contracts.find((contract) => contract.id === selectedContractId) ?? null;
+  const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
+  const [documentType, setDocumentType] = useState("Contract");
+  const uploadDisabled =
+    !canManageContracts || !selectedContract || !noCuiAcknowledgement.isAcknowledged || contractDocumentStatus === "saving";
 
   return (
     <section className="route-panel contracts-route">
@@ -1056,6 +1141,75 @@ function ContractsView({
             </div>
           </section>
         ) : null}
+
+        <section className="contract-documents" aria-label="Contract documents">
+          <div className="contract-documents__header">
+            <div>
+              <span>Documents</span>
+              <strong>{contractDocuments.length}</strong>
+            </div>
+            <select value={documentType} onChange={(event) => setDocumentType(event.target.value)} disabled={uploadDisabled}>
+              <option value="Solicitation">Solicitation</option>
+              <option value="Contract">Contract</option>
+              <option value="Subcontract">Subcontract</option>
+              <option value="PurchaseOrder">Purchase order</option>
+              <option value="StatementOfWork">SOW</option>
+              <option value="FlowDownAttachment">Flow-down</option>
+              <option value="WageDetermination">Wage determination</option>
+              <option value="Dd254">DD 254</option>
+              <option value="CuiMarkingGuide">CUI marking guide</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <form
+            className="contract-document-upload"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (selectedContract) {
+                void onUploadDocument(selectedContract.id, documentType, selectedDocumentFile);
+              }
+            }}
+          >
+            <input
+              aria-label="Contract document"
+              type="file"
+              onChange={(event) => setSelectedDocumentFile(event.target.files?.[0] ?? null)}
+              disabled={uploadDisabled}
+            />
+            <button type="submit" disabled={uploadDisabled}>
+              Upload metadata
+            </button>
+          </form>
+          {!noCuiAcknowledgement.isAcknowledged ? (
+            <p className="form-status form-status--error">No-CUI acknowledgement is required before contract document upload.</p>
+          ) : null}
+          {contractDocumentMessage ? (
+            <p className={`form-status ${contractDocumentStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
+              {contractDocumentMessage}
+            </p>
+          ) : null}
+          <div className="contract-document-list">
+            {contractDocuments.length > 0 ? (
+              contractDocuments.map((document) => (
+                <article className="contract-document-item" key={document.id}>
+                  <div>
+                    <strong>{document.fileName}</strong>
+                    <span>{document.type} · {document.validationStatus} · {document.malwareScanStatus}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => selectedContract && void onDeleteDocument(selectedContract.id, document.id)}
+                    disabled={!canManageContracts || contractDocumentStatus === "saving"}
+                  >
+                    Delete
+                  </button>
+                </article>
+              ))
+            ) : (
+              <EmptyState title="No contract documents yet" body="Upload non-CUI document metadata after acknowledgement." />
+            )}
+          </div>
+        </section>
       </div>
     </section>
   );

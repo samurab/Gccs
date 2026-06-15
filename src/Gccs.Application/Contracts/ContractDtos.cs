@@ -34,3 +34,26 @@ public sealed record UpsertContractRequest(
     string PlaceOfPerformance,
     string Description,
     DataHandlingPosture DataHandlingPosture);
+
+public sealed record ContractDocumentDto(
+    Guid Id,
+    Guid ContractId,
+    ContractDocumentType Type,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    string? StorageUri,
+    string? ExtractedTextHash,
+    string ValidationStatus,
+    string MalwareScanStatus,
+    string NoticeVersion,
+    DateTimeOffset UploadedAt,
+    Guid UploadedByUserId,
+    bool ContainsPotentialCui);
+
+public sealed record ContractDocumentUploadRequest(
+    ContractDocumentType Type,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    bool ContainsPotentialCui);

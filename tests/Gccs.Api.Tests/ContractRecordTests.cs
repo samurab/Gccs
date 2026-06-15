@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.Contracts;
+using Gccs.Application.NoCui;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
 using Gccs.Domain.Contracts;
@@ -11,6 +12,7 @@ using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Audit;
 using Gccs.Infrastructure.Contracts;
+using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -170,6 +172,141 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
         Assert.All(auditEvents, audit => Assert.Equal(actorUserId, audit.ActorUserId));
     }
 
+    [Fact]
+    public async Task TC_8_2_1_Contract_document_upload_requires_no_cui_acknowledgement()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a1");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282b1");
+        await using var factory = CreateFactory("tc-8-2-1", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DOC-ACK", "Document acknowledgement contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents",
+            CreateDocumentRequest("contract.pdf", "application/pdf"),
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageContracts);
+        var uploadResponse = await client.SendAsync(uploadRequest);
+
+        Assert.Equal((HttpStatusCode)428, uploadResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractDocumentEntity>().Where(document => document.ContractId == contractId).ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task TC_8_2_2_Valid_contract_document_metadata_is_linked_to_contract()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a2");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282b2");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282c2");
+        await using var factory = CreateFactory("tc-8-2-2", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DOC-LINK", "Document link contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents",
+            CreateDocumentRequest("sow.pdf", "application/pdf") with { Type = ContractDocumentType.StatementOfWork },
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var uploadResponse = await client.SendAsync(uploadRequest);
+        var document = await uploadResponse.Content.ReadFromJsonAsync<ContractDocumentDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
+        Assert.NotNull(document);
+        Assert.Equal(contractId, document.ContractId);
+        Assert.Equal(ContractDocumentType.StatementOfWork, document.Type);
+        Assert.Equal("sow.pdf", document.FileName);
+        Assert.StartsWith($"pending://contracts/{contractId}/documents/{document.Id}/", document.StorageUri, StringComparison.Ordinal);
+        Assert.Equal("accepted", document.ValidationStatus);
+        Assert.Equal("scan-pending", document.MalwareScanStatus);
+    }
+
+    [Fact]
+    public async Task TC_8_2_3_Disallowed_contract_document_file_is_rejected()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a3");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282b3");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282c3");
+        await using var factory = CreateFactory("tc-8-2-3", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DOC-BLOCK", "Document block contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents",
+            CreateDocumentRequest("installer.exe", "application/x-msdownload"),
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var uploadResponse = await client.SendAsync(uploadRequest);
+
+        Assert.Equal(HttpStatusCode.BadRequest, uploadResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractDocumentEntity>().Where(document => document.ContractId == contractId).ToArrayAsync());
+        Assert.Contains(await dbContext.AuditLogEntries.ToArrayAsync(), audit => audit.EntityType == "ContractDocument" && audit.Action == AuditAction.Rejected);
+    }
+
+    [Fact]
+    public async Task TC_8_2_4_Contract_document_upload_and_delete_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a4");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282b4");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282c4");
+        await using var factory = CreateFactory("tc-8-2-4", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DOC-AUDIT", "Document audit contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents",
+            CreateDocumentRequest("subcontract.pdf", "application/pdf") with { Type = ContractDocumentType.Subcontract },
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var uploadResponse = await client.SendAsync(uploadRequest);
+        var document = await uploadResponse.Content.ReadFromJsonAsync<ContractDocumentDto>(JsonOptions);
+        Assert.NotNull(document);
+        using var deleteRequest = CreateRequest(
+            HttpMethod.Delete,
+            $"/api/contracts/{contractId}/documents/{document.Id}",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var deleteResponse = await client.SendAsync(deleteRequest);
+
+        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var auditEvents = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "ContractDocument")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+
+        Assert.Equal([AuditAction.Uploaded, AuditAction.Deleted], auditEvents.Select(audit => audit.Action).ToArray());
+    }
+
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
         _factory.WithWebHostBuilder(builder =>
         {
@@ -180,6 +317,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<ContractService>();
                 services.AddScoped<IContractRepository, EfContractRepository>();
+                services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
                 using var provider = services.BuildServiceProvider();
@@ -207,10 +345,10 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             "No-CUI contract intake record for compliance tracking.",
             DataHandlingPosture.FciOnly);
 
-    private static ContractEntity CreateContractEntity(Guid tenantId, string contractNumber, string title) =>
+    private static ContractEntity CreateContractEntity(Guid tenantId, string contractNumber, string title, Guid? id = null) =>
         new()
         {
-            Id = Guid.NewGuid(),
+            Id = id ?? Guid.NewGuid(),
             TenantId = tenantId,
             ContractNumber = contractNumber,
             Title = title,
@@ -225,6 +363,27 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             Description = "Seeded tenant-scoped contract.",
             DataHandlingPosture = DataHandlingPosture.NoFciOrCui,
             CreatedAt = DateTimeOffset.UtcNow
+        };
+
+    private static ContractDocumentUploadRequest CreateDocumentRequest(string fileName, string contentType) =>
+        new(
+            ContractDocumentType.Contract,
+            fileName,
+            contentType,
+            2048,
+            false);
+
+    private static NoCuiAcknowledgementEntity CreateAcknowledgement(Guid tenantId, Guid userId) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UserId = userId,
+            NoticeVersion = NoCuiNotice.CurrentVersion,
+            NoticeCopy = NoCuiNotice.Copy,
+            AcknowledgedAt = DateTimeOffset.UtcNow,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedByUserId = userId
         };
 
     private static HttpRequestMessage CreateRequest<TContent>(

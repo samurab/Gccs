@@ -28,6 +28,27 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         return entity is null ? null : ToDto(entity);
     }
 
+    public async Task<IReadOnlyList<ContractDocumentDto>?> ListDocumentsAsync(
+        Guid contractId,
+        CancellationToken cancellationToken = default)
+    {
+        var exists = await dbContext.Contracts.AnyAsync(
+            contract => contract.TenantId == tenantContext.TenantId && contract.Id == contractId,
+            cancellationToken);
+
+        if (!exists)
+        {
+            return null;
+        }
+
+        return await dbContext.Set<ContractDocumentEntity>()
+            .AsNoTracking()
+            .Where(document => document.ContractId == contractId)
+            .OrderByDescending(document => document.UploadedAt)
+            .Select(document => ToDocumentDto(document))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<ContractDto> CreateCurrentTenantAsync(
         UpsertContractRequest request,
         Guid actorUserId,
@@ -71,6 +92,74 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         return ToDto(entity);
     }
 
+    public async Task<ContractDocumentDto?> CreateDocumentMetadataAsync(
+        Guid contractId,
+        ContractDocumentUploadRequest request,
+        Guid actorUserId,
+        string noticeVersion,
+        CancellationToken cancellationToken = default)
+    {
+        var contractExists = await dbContext.Contracts.AnyAsync(
+            contract => contract.TenantId == tenantContext.TenantId && contract.Id == contractId,
+            cancellationToken);
+
+        if (!contractExists)
+        {
+            return null;
+        }
+
+        var documentId = Guid.NewGuid();
+        var fileName = request.FileName.Trim();
+        var document = new ContractDocumentEntity
+        {
+            Id = documentId,
+            ContractId = contractId,
+            Type = request.Type,
+            FileName = fileName,
+            ContentType = request.ContentType.Trim().ToLowerInvariant(),
+            SizeBytes = request.SizeBytes,
+            StorageUri = $"pending://contracts/{contractId}/documents/{documentId}/{Uri.EscapeDataString(fileName)}",
+            ExtractedTextHash = null,
+            ValidationStatus = "accepted",
+            MalwareScanStatus = "scan-pending",
+            NoticeVersion = noticeVersion,
+            UploadedAt = DateTimeOffset.UtcNow,
+            UploadedByUserId = actorUserId,
+            ContainsPotentialCui = request.ContainsPotentialCui
+        };
+
+        dbContext.Set<ContractDocumentEntity>().Add(document);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDocumentDto(document);
+    }
+
+    public async Task<ContractDocumentDto?> DeleteDocumentAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var document = await dbContext.Set<ContractDocumentEntity>()
+            .Include(item => item.Contract)
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == documentId &&
+                    item.ContractId == contractId &&
+                    item.Contract != null &&
+                    item.Contract.TenantId == tenantContext.TenantId,
+                cancellationToken);
+
+        if (document is null)
+        {
+            return null;
+        }
+
+        var dto = ToDocumentDto(document);
+        dbContext.Set<ContractDocumentEntity>().Remove(document);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return dto;
+    }
+
     private static void Apply(ContractEntity entity, UpsertContractRequest request)
     {
         entity.ContractNumber = request.ContractNumber;
@@ -105,4 +194,21 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             entity.DataHandlingPosture,
             entity.CreatedAt,
             entity.UpdatedAt);
+
+    private static ContractDocumentDto ToDocumentDto(ContractDocumentEntity entity) =>
+        new(
+            entity.Id,
+            entity.ContractId,
+            entity.Type,
+            entity.FileName,
+            entity.ContentType,
+            entity.SizeBytes,
+            entity.StorageUri,
+            entity.ExtractedTextHash,
+            entity.ValidationStatus,
+            entity.MalwareScanStatus,
+            entity.NoticeVersion,
+            entity.UploadedAt,
+            entity.UploadedByUserId,
+            entity.ContainsPotentialCui);
 }
