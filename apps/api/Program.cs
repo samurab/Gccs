@@ -2096,6 +2096,44 @@ api.MapPatch("/tenants/{tenantId:guid}/status", async (
 .RequirePermission(Permission.ManageTenant)
 .WithName("UpdateTenantStatus");
 
+if (app.Environment.IsDevelopment())
+{
+    api.MapPost("/dev/compliance-content/import", async (
+        IComplianceContentImporter importer,
+        IWebHostEnvironment environment,
+        CancellationToken cancellationToken) =>
+    {
+        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+        var report = await importer.ImportDirectoryAsync(packageRoot, cancellationToken);
+
+        return report.Succeeded
+            ? Results.Ok(report)
+            : Results.BadRequest(report);
+    })
+    .RequirePermission(Permission.ManageObligations)
+    .WithName("ImportDevelopmentComplianceContent");
+}
+
 app.Run();
 
 public partial class Program;
+
+internal static class ComplianceContentPackageLocator
+{
+    public static string FindPackageRoot(string contentRootPath)
+    {
+        var current = new DirectoryInfo(contentRootPath);
+        while (current is not null && !File.Exists(Path.Combine(current.FullName, "Gccs.slnx")))
+        {
+            current = current.Parent;
+        }
+
+        if (current is null)
+        {
+            throw new DirectoryNotFoundException(
+                $"Could not locate repository root from content root '{contentRootPath}'.");
+        }
+
+        return Path.Combine(current.FullName, "packages", "compliance-content");
+    }
+}

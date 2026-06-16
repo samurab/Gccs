@@ -1,0 +1,9 @@
+model = "gpt-5.5"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+model_reasoning_effort = "medium"
+model_verbosity = "low"
+model_reasoning_summary = "none"
+web_search = "cached"
+tool_output_token_limit = 8000

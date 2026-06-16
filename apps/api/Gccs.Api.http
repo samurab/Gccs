@@ -7,10 +7,19 @@ Accept: application/json
 
 GET {{Gccs.Api_HostAddress}}/api/compliance/overview
 Accept: application/json
+X-Gccs-Dev-Auth: true
 
 ###
 
 GET {{Gccs.Api_HostAddress}}/api/obligations/far-52-204-21
 Accept: application/json
+X-Gccs-Dev-Auth: true
+
+###
+
+POST {{Gccs.Api_HostAddress}}/api/dev/compliance-content/import
+Accept: application/json
+X-Gccs-Dev-Auth: true
+X-Gccs-Dev-Permissions: ManageObligations
 
 ###
