@@ -1523,6 +1523,10 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("link", { name: /settings/i }));
+    expect(screen.getByText(/Roles connect each person to the GCCS business goal/i)).toBeInTheDocument();
+    expect(screen.getByText("MSP, CMMC consultant, govcon attorney, CPA, or compliance advisor")).toBeInTheDocument();
+    expect(screen.getByText(/Reviews source-backed status, evidence, CMMC readiness/i)).toBeInTheDocument();
+
     await user.type(screen.getByLabelText("Email"), "new.invite@example.com");
     await user.selectOptions(screen.getByLabelText("Role"), "Auditor");
     await user.click(screen.getByRole("button", { name: /invite/i }));

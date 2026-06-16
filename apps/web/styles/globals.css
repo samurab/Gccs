@@ -447,6 +447,13 @@ dt {
   margin-bottom: 0;
 }
 
+.section-summary {
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 8px 0 0;
+  max-width: 780px;
+}
+
 .module-grid,
 .obligation-list {
   display: grid;
@@ -721,6 +728,39 @@ dt {
 .invite-form button:disabled {
   cursor: wait;
   opacity: 0.72;
+}
+
+.role-guidance {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.role-guidance__item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.role-guidance__item h3 {
+  font-size: 0.98rem;
+  margin: 0 0 3px;
+}
+
+.role-guidance__item p,
+.role-guidance__item span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.role-guidance__item span {
+  color: var(--ink-soft);
 }
 
 .form-status {
@@ -1966,6 +2006,7 @@ dt {
   }
 
   .invite-form,
+  .role-guidance,
   .invitation-item,
   .clause-search-form,
   .calendar-filter-form,

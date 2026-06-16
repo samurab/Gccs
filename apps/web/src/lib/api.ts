@@ -96,6 +96,47 @@ export type NotificationCenterItem = {
   readAt: string | null;
 };
 
+export type NotificationPreference = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  roleName: string;
+  assignmentNotificationsEnabled: boolean;
+  dueSoonNotificationsEnabled: boolean;
+  overdueNotificationsEnabled: boolean;
+  evidenceRequestNotificationsEnabled: boolean;
+  certificationRenewalNotificationsEnabled: boolean;
+  cmmcAffirmationNotificationsEnabled: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type NotificationPreferenceUpdateRequest = Omit<
+  NotificationPreference,
+  "id" | "tenantId" | "userId" | "roleName" | "createdAt" | "updatedAt"
+>;
+
+export type DueDateReminderRunResult = {
+  upcomingSelected: number;
+  overdueSelected: number;
+  created: number;
+  skipped: number;
+  failed: number;
+  items: Array<{
+    taskId: string;
+    title: string;
+    category: string;
+    status: string;
+    placeholder: string;
+    failureMessage: string | null;
+  }>;
+};
+
+export type RunDueDateReminderRequest = {
+  leadTimeDays?: number | null;
+  simulatedFailureTaskId?: string | null;
+};
+
 export type CreateTenantInvitationRequest = {
   email: string;
   roleName: string;
@@ -259,6 +300,131 @@ export type Subcontractor = {
 };
 
 export type UpsertSubcontractorRequest = Omit<Subcontractor, "id" | "tenantId" | "createdAt" | "updatedAt">;
+
+export type SubcontractorFlowDown = {
+  id: string;
+  subcontractorId: string;
+  contractId: string | null;
+  contractClauseId: string | null;
+  obligationId: string | null;
+  clauseNumber: string;
+  title: string;
+  status: string;
+  sentAt: string | null;
+  acknowledgedAt: string | null;
+  signedAt: string | null;
+  waivedAt: string | null;
+  signedEvidenceItemId: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertSubcontractorFlowDownRequest = Omit<
+  SubcontractorFlowDown,
+  "id" | "subcontractorId" | "createdAt" | "updatedAt"
+>;
+
+export type SubcontractorEvidenceRequest = {
+  id: string;
+  tenantId: string;
+  subcontractorId: string;
+  requestedItem: string;
+  requestedEvidenceTypes: string[];
+  dueDate: string;
+  status: string;
+  recipientName: string | null;
+  recipientEmail: string | null;
+  obligationId: string | null;
+  relatedFlowDownClauseId: string | null;
+  receivedEvidenceItemId: string | null;
+  completedAt: string | null;
+  isOverdue: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertSubcontractorEvidenceRequestRequest = Omit<
+  SubcontractorEvidenceRequest,
+  "id" | "tenantId" | "subcontractorId" | "isOverdue" | "completedAt" | "createdAt" | "updatedAt"
+>;
+
+export type ApprovedEvidencePackage = {
+  reportId: string;
+  tenantId: string;
+  type: string;
+  title: string;
+  status: string;
+  generatedAt: string;
+  generatedByUserId: string;
+  evidenceItems: Array<{
+    evidenceItemId: string;
+    name: string;
+    type: string;
+    status: string;
+    approvedAt: string | null;
+    approvedByUserId: string | null;
+  }>;
+};
+
+export type ComplianceStatusReport = {
+  id: string;
+  tenantId: string;
+  type: string;
+  status: string;
+  title: string;
+  generatedAt: string;
+  generatedByUserId: string;
+  snapshot: Record<string, unknown>;
+  exportHtml?: string;
+  exportCsv?: string;
+};
+
+export type CmmcReadinessReport = ComplianceStatusReport;
+export type SubcontractorComplianceReport = ComplianceStatusReport;
+
+export type EvidencePackageGenerateRequest = {
+  title: string;
+  obligationIds: string[];
+  contractIds: string[];
+  controlIds: string[];
+  subcontractorIds: string[];
+  includeDraftOrRejectedEvidence: boolean;
+};
+
+export type EvidencePackageReport = {
+  id: string;
+  tenantId: string;
+  type: string;
+  status: string;
+  title: string;
+  generatedAt: string;
+  generatedByUserId: string;
+  manifest: {
+    title: string;
+    generatedAt: string;
+    scope: {
+      obligationIds: string[];
+      contractIds: string[];
+      controlIds: string[];
+      subcontractorIds: string[];
+      includesDraftOrRejectedEvidence: boolean;
+    };
+    items: Array<{
+      evidenceItemId: string;
+      title: string;
+      type: string;
+      status: string;
+      approvedAt: string | null;
+      approvedByUserId: string | null;
+      obligationIds: string[];
+      contractIds: string[];
+      controlIds: string[];
+      subcontractorIds: string[];
+      manifestedAt: string;
+    }>;
+  };
+  exportHtml: string;
+};
 
 export type AuditLogEntry = {
   id: string;
@@ -603,6 +769,22 @@ export async function markNotificationRead(notificationId: string): Promise<ApiM
   return postJsonResult<NotificationCenterItem>(`/api/notifications/${notificationId}/read`, {});
 }
 
+export async function getNotificationPreferences(): Promise<NotificationPreference | null> {
+  return getJson<NotificationPreference | null>("/api/notification-preferences", null);
+}
+
+export async function updateNotificationPreferences(
+  request: NotificationPreferenceUpdateRequest
+): Promise<ApiMutationResult<NotificationPreference>> {
+  return putJsonResult<NotificationPreference>("/api/notification-preferences", request);
+}
+
+export async function runDueDateReminders(
+  request: RunDueDateReminderRequest
+): Promise<ApiMutationResult<DueDateReminderRunResult>> {
+  return postJsonResult<DueDateReminderRunResult>("/api/notifications/due-date-reminders", request);
+}
+
 export async function getAuditLogs(params: AuditLogQueryParams = {}): Promise<PagedResult<AuditLogEntry>> {
   const searchParams = new URLSearchParams();
   searchParams.set("page", String(params.page ?? 1));
@@ -640,6 +822,40 @@ export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamIt
 
 export async function getSubcontractors(): Promise<Subcontractor[]> {
   return getJson<Subcontractor[]>("/api/subcontractors", []);
+}
+
+export async function getSubcontractorFlowDowns(
+  subcontractorId: string,
+  contractId?: string
+): Promise<SubcontractorFlowDown[]> {
+  const query = contractId ? `?contractId=${encodeURIComponent(contractId)}` : "";
+  return getJson<SubcontractorFlowDown[]>(`/api/subcontractors/${subcontractorId}/flow-downs${query}`, []);
+}
+
+export async function createSubcontractorFlowDown(
+  subcontractorId: string,
+  request: UpsertSubcontractorFlowDownRequest
+): Promise<ApiMutationResult<SubcontractorFlowDown>> {
+  return postJsonResult<SubcontractorFlowDown>(`/api/subcontractors/${subcontractorId}/flow-downs`, request);
+}
+
+export async function updateSubcontractorFlowDown(
+  subcontractorId: string,
+  flowDownId: string,
+  request: UpsertSubcontractorFlowDownRequest
+): Promise<ApiMutationResult<SubcontractorFlowDown>> {
+  return putJsonResult<SubcontractorFlowDown>(`/api/subcontractors/${subcontractorId}/flow-downs/${flowDownId}`, request);
+}
+
+export async function getSubcontractorEvidenceRequests(subcontractorId: string): Promise<SubcontractorEvidenceRequest[]> {
+  return getJson<SubcontractorEvidenceRequest[]>(`/api/subcontractors/${subcontractorId}/evidence-requests`, []);
+}
+
+export async function createSubcontractorEvidenceRequest(
+  subcontractorId: string,
+  request: UpsertSubcontractorEvidenceRequestRequest
+): Promise<ApiMutationResult<SubcontractorEvidenceRequest>> {
+  return postJsonResult<SubcontractorEvidenceRequest>(`/api/subcontractors/${subcontractorId}/evidence-requests`, request);
 }
 
 export async function getCompanyProfile(): Promise<CompanyProfile | null> {
@@ -932,6 +1148,31 @@ export async function createCmmcPoamItem(
 
 export async function createSubcontractor(request: UpsertSubcontractorRequest): Promise<ApiMutationResult<Subcontractor>> {
   return postJsonResult<Subcontractor>("/api/subcontractors", request);
+}
+
+export async function getApprovedEvidencePackages(): Promise<ApprovedEvidencePackage[]> {
+  return getJson<ApprovedEvidencePackage[]>("/api/reports/approved-evidence-packages", []);
+}
+
+export async function generateComplianceStatusReport(): Promise<ApiMutationResult<ComplianceStatusReport>> {
+  return postJsonResult<ComplianceStatusReport>("/api/reports/compliance-status", {});
+}
+
+export async function generateCmmcReadinessReport(assessmentId: string): Promise<ApiMutationResult<CmmcReadinessReport>> {
+  return postJsonResult<CmmcReadinessReport>(`/api/reports/cmmc-readiness?assessmentId=${encodeURIComponent(assessmentId)}`, {});
+}
+
+export async function generateSubcontractorComplianceReport(
+  contractId?: string
+): Promise<ApiMutationResult<SubcontractorComplianceReport>> {
+  const query = contractId ? `?contractId=${encodeURIComponent(contractId)}` : "";
+  return postJsonResult<SubcontractorComplianceReport>(`/api/reports/subcontractor-compliance${query}`, {});
+}
+
+export async function generateEvidencePackage(
+  request: EvidencePackageGenerateRequest
+): Promise<ApiMutationResult<EvidencePackageReport>> {
+  return postJsonResult<EvidencePackageReport>("/api/reports/evidence-packages", request);
 }
 
 export async function updateEvidenceMetadata(

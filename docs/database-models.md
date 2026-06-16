@@ -55,6 +55,8 @@ Host=localhost;Port=15432;Database=gccs;Username=gccs;Password=gccs_dev_password
 
 ## Model Groups
 
+Required fields, source systems, provenance rules, and deferred external integrations are identified in `docs/data-requirements-and-source-systems.md`. Schema changes should preserve that contract by storing source/provenance metadata for imported, extracted, governed, or reportable data.
+
 | Group | Primary tables | Purpose |
 | --- | --- | --- |
 | Tenancy and RBAC | `tenants`, `users`, `tenant_memberships`, `tenant_invitations`, `no_cui_acknowledgements`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, explicit tenant membership assignments, invitation onboarding workflow, user-scoped No-CUI acknowledgement records, MFA-ready user profile, and role permissions. |

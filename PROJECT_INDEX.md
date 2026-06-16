@@ -34,6 +34,12 @@ docs/
   mvp-execution-plan.md        Launch gates, data policy, acceptance criteria, support model.
   api/                         OpenAPI contract and API implementation guidance.
   architecture.md              System boundaries, No-CUI posture, planned services.
+  data-requirements-and-source-systems.md
+                               Required MVP data fields, source systems, provenance rules, and deferred integrations.
+  dependency-register.md       Known runtime, local, test, source, and deferred dependencies.
+  definition-of-ready.md       Story readiness checklist and current backlog readiness assessment.
+  security-control-implications.md
+                               Tenant isolation, RBAC, audit logging, and No-CUI implementation implications.
   database-models.md           EF Core schema, migration commands, model groups.
   mvp-roadmap.md               Phase 0-2 roadmap snapshot.
   software-delivery-plan.md    Delivery plan, requirements, roles, cadence.
@@ -65,6 +71,8 @@ packages/
 
 Compliance workflow logic should never exist only in `apps/web`. Tenant scoping, RBAC, No-CUI policy enforcement, audit logging decisions, source traceability, review metadata, and obligation applicability belong in the backend/application/domain boundary and must be covered by tests as the corresponding workflows are implemented.
 
+The practical implications of tenant isolation, RBAC, audit logging, and No-CUI posture are defined in `docs/security-control-implications.md`. Treat that document as a release-blocking control contract for feature work, tests, support workflows, imports, exports, background jobs, reports, and future AI/search features.
+
 ## Product Modules
 
 | Module | MVP intent | Current implementation signal |
@@ -77,6 +85,12 @@ Compliance workflow logic should never exist only in `apps/web`. Tenant scoping,
 | CMMC readiness tracker | Level 1/2 readiness, controls, evidence, SSP, POA&M, assets, affirmations | Domain and persistence models exist; assessment workflow pending. |
 | Subcontractor flow-down tracker | Track subcontractors, flow-down clauses, status, insurance, NDAs, CUI access, workshare | Domain and persistence models exist; workflow pending. |
 | Basic reports | Obligation matrices, readiness reports, evidence packages, risk dashboards | Domain and persistence models exist; generation pending. |
+
+Required MVP fields, source systems, and provenance rules are tracked in `docs/data-requirements-and-source-systems.md`. Use that document as the contract when adding validations, imports, extracted data, report fields, or new external integrations.
+
+Known framework, package, local infrastructure, test, source-content, and deferred integration dependencies are tracked in `docs/dependency-register.md`. Add new production or customer-data-impacting dependencies there before release approval.
+
+The story readiness checklist and current backlog readiness assessment are tracked in `docs/definition-of-ready.md`.
 
 ## Backend Entry Points
 

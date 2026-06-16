@@ -6,6 +6,7 @@ import {
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
+  FileDown,
   FileSearch,
   FolderKanban,
   GitBranch,
@@ -29,6 +30,8 @@ import {
   createContract,
   createCmmcAssessment,
   createCmmcPoamItem,
+  createSubcontractorEvidenceRequest,
+  createSubcontractorFlowDown,
   createSubcontractor,
   createContractDeliverable,
   createContractDocument,
@@ -40,11 +43,18 @@ import {
   fallbackAccess,
   fallbackNoCuiAcknowledgementStatus,
   fallbackOverview,
+  generateCmmcReadinessReport,
+  generateComplianceStatusReport,
+  generateEvidencePackage,
+  generateSubcontractorComplianceReport,
+  getApprovedEvidencePackages,
   getCompanyProfile,
   getCmmcAssessments,
   getCmmcControlStatuses,
   getCmmcPoamItems,
   getSubcontractors,
+  getSubcontractorEvidenceRequests,
+  getSubcontractorFlowDowns,
   getCalendarEvents,
   getContractClauses,
   getContractDeliverables,
@@ -57,28 +67,35 @@ import {
   getCurrentUserAccess,
   getEvidenceItems,
   getNoCuiAcknowledgementStatus,
+  getNotificationPreferences,
   getNotifications,
   getTenantInvitations,
   getTenantMembers,
   markNotificationRead,
+  runDueDateReminders,
   saveCompanyProfile,
   searchClauseLibrary,
   removeContractClause,
+  updateNotificationPreferences,
   updateContractObligationStatus,
   updateContract,
   updateContractDeliverable,
   updateEvidenceMetadata,
+  updateSubcontractorFlowDown,
+  type ApprovedEvidencePackage,
   type AuditLogEntry,
   type ClauseLibraryItem,
   type ClauseSearchParams,
   type CalendarEvent,
   type CalendarEventQueryParams,
+  type CmmcReadinessReport,
   type CompanyCertification,
   type CompanyProfile,
   type CmmcAssessment,
   type CmmcControlStatus,
   type CmmcPoamItem,
   type ComplianceOverview,
+  type ComplianceStatusReport,
   type ContractClause,
   type ContractDeliverable,
   type ContractDocument,
@@ -87,11 +104,19 @@ import {
   type ContractObligationQueryParams,
   type ContractRecord,
   type CurrentUserAccess,
+  type DueDateReminderRunResult,
   type EvidenceMetadata,
+  type EvidencePackageGenerateRequest,
+  type EvidencePackageReport,
   type NoCuiAcknowledgementStatus,
   type NotificationCenterItem,
+  type NotificationPreference,
+  type NotificationPreferenceUpdateRequest,
   type PagedResult,
   type Subcontractor,
+  type SubcontractorComplianceReport,
+  type SubcontractorEvidenceRequest,
+  type SubcontractorFlowDown,
   type TenantInvitation,
   type AttachContractClauseRequest,
   type UpsertContractDeliverableRequest,
@@ -100,6 +125,8 @@ import {
   type UpsertCmmcPoamItemRequest,
   type UpsertCompanyProfileRequest,
   type UpsertEvidenceMetadataRequest,
+  type UpsertSubcontractorEvidenceRequestRequest,
+  type UpsertSubcontractorFlowDownRequest,
   type UpsertSubcontractorRequest,
   type TenantMember
 } from "@/lib/api";
@@ -200,6 +227,39 @@ type NavigationItem = {
   icon: typeof LayoutDashboard;
   permissions?: string[];
 };
+
+const roleGuidance = [
+  {
+    role: "Owner",
+    persona: "Founder, executive sponsor, or tenant owner",
+    purpose: "Owns the workspace, account controls, users, audit visibility, and final business accountability."
+  },
+  {
+    role: "Admin",
+    persona: "Operations lead or delegated system administrator",
+    purpose: "Manages users and day-to-day workspace configuration while supporting every compliance workflow."
+  },
+  {
+    role: "Compliance Manager",
+    persona: "Contracts admin, proposal manager, CMMC lead, or back-office compliance owner",
+    purpose: "Runs the core GCCS workflow: profile, contracts, obligations, calendar, evidence, CMMC, subcontractors, and reports."
+  },
+  {
+    role: "Contributor",
+    persona: "IT, HR, finance, project, or vendor-support teammate",
+    purpose: "Completes assigned tasks and uploads allowed non-CUI evidence without changing governed settings or approvals."
+  },
+  {
+    role: "Auditor",
+    persona: "Read-only reviewer, prime reviewer, assessor support, or internal executive reviewer",
+    purpose: "Reviews source-backed status, evidence, CMMC readiness, subcontractors, reports, and tasks without editing records."
+  },
+  {
+    role: "Advisor",
+    persona: "MSP, CMMC consultant, govcon attorney, CPA, or compliance advisor",
+    purpose: "Helps manage client compliance work inside explicit tenant boundaries with audit visibility."
+  }
+];
 
 const navigationItems: NavigationItem[] = [
   {
@@ -331,61 +391,6 @@ const defaultContractForm: ContractFormState = {
   dataHandlingPosture: "FciOnly"
 };
 
-const placeholderContent: Record<
-  Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence">,
-  { eyebrow: string; title: string; description: string; emptyTitle: string; emptyBody: string }
-> = {
-  profile: {
-    eyebrow: "Company profile",
-    title: "Company compliance profile",
-    description: "Capture SAM, UEI, NAICS, certification, role, location, and data-posture details for the active tenant.",
-    emptyTitle: "No company profile has been created yet",
-    emptyBody: "The first profile workflow will collect entity details without allowing CUI uploads."
-  },
-  contracts: {
-    eyebrow: "Contract intake",
-    title: "Contracts and clauses",
-    description: "Track solicitations, contracts, subcontracts, flow-down attachments, deadlines, and manual clause tagging.",
-    emptyTitle: "No contracts have been added yet",
-    emptyBody: "Add contract intake in the next workflow slice to start building obligation matrices."
-  },
-  obligations: {
-    eyebrow: "Obligation matrix",
-    title: "Source-backed obligations",
-    description: "Map clauses and applicability rules to actions, owners, evidence, deadlines, source URLs, and review metadata.",
-    emptyTitle: "No tenant-specific obligation matrix yet",
-    emptyBody: "Seeded library obligations appear on the dashboard; contract-specific obligations will show here after intake."
-  },
-  calendar: {
-    eyebrow: "Compliance calendar",
-    title: "Tasks, renewals, and reminders",
-    description: "Track SAM renewals, certifications, CMMC affirmations, evidence reviews, reports, and contract deliverables.",
-    emptyTitle: "No calendar items yet",
-    emptyBody: "Tasks and reminders will be created from obligations, controls, evidence expiration, and contract deadlines."
-  },
-  cmmc: {
-    eyebrow: "CMMC readiness",
-    title: "CMMC and NIST workspace",
-    description: "Prepare Level 1 and Level 2 readiness tracking with draft-only guidance, control evidence, SSP, and POA&M planning.",
-    emptyTitle: "No CMMC assessment has started yet",
-    emptyBody: "Readiness views will preserve source traceability and SME review metadata before customer-facing use."
-  },
-  subcontractors: {
-    eyebrow: "Flow-down tracking",
-    title: "Subcontractor management",
-    description: "Track subcontractor status, required flow-down clauses, CMMC posture, insurance, NDAs, and evidence requests.",
-    emptyTitle: "No subcontractors have been added yet",
-    emptyBody: "Subcontractor workflows will stay tenant-scoped and role-controlled as records are added."
-  },
-  reports: {
-    eyebrow: "Reporting",
-    title: "Reports and audit packages",
-    description: "Generate obligation matrices, compliance status reports, CMMC readiness summaries, evidence packages, and audit trails.",
-    emptyTitle: "No reports have been generated yet",
-    emptyBody: "Reports will cite source-backed content and tenant evidence once workflow data exists."
-  }
-};
-
 function getInitialRoute(): WorkspaceRoute {
   const route = window.location.hash.replace(/^#\/?/, "");
   return isWorkspaceRoute(route) ? route : "dashboard";
@@ -430,6 +435,8 @@ export function App() {
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [notifications, setNotifications] = useState<NotificationCenterItem[]>([]);
+  const [notificationPreference, setNotificationPreference] = useState<NotificationPreference | null>(null);
+  const [reminderRunResult, setReminderRunResult] = useState<DueDateReminderRunResult | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [clauseResults, setClauseResults] = useState<ClauseLibraryItem[]>([]);
@@ -444,6 +451,13 @@ export function App() {
   const [cmmcControls, setCmmcControls] = useState<CmmcControlStatus[]>([]);
   const [cmmcPoamItems, setCmmcPoamItems] = useState<CmmcPoamItem[]>([]);
   const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
+  const [selectedSubcontractorId, setSelectedSubcontractorId] = useState<string | null>(null);
+  const [subcontractorFlowDowns, setSubcontractorFlowDowns] = useState<SubcontractorFlowDown[]>([]);
+  const [subcontractorEvidenceRequests, setSubcontractorEvidenceRequests] = useState<SubcontractorEvidenceRequest[]>([]);
+  const [approvedEvidencePackages, setApprovedEvidencePackages] = useState<ApprovedEvidencePackage[]>([]);
+  const [generatedReports, setGeneratedReports] = useState<
+    Array<ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | EvidencePackageReport>
+  >([]);
   const [selectedEvidenceItemId, setSelectedEvidenceItemId] = useState<string | null>(null);
   const [calendarFilters, setCalendarFilters] = useState<CalendarFilters>(defaultCalendarFilters);
   const [calendarStatus, setCalendarStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
@@ -488,6 +502,12 @@ export function App() {
   const [cmmcPoamMessage, setCmmcPoamMessage] = useState("");
   const [subcontractorStatus, setSubcontractorStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [subcontractorMessage, setSubcontractorMessage] = useState("");
+  const [subcontractorDetailStatus, setSubcontractorDetailStatus] = useState<"idle" | "loading" | "saving" | "ready" | "failed">("idle");
+  const [subcontractorDetailMessage, setSubcontractorDetailMessage] = useState("");
+  const [reportStatus, setReportStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
+  const [reportMessage, setReportMessage] = useState("");
+  const [notificationPreferenceStatus, setNotificationPreferenceStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [notificationPreferenceMessage, setNotificationPreferenceMessage] = useState("");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
@@ -499,6 +519,7 @@ export function App() {
   const canManageContracts = access.permissions.includes("ManageContracts");
   const canManageObligations = access.permissions.includes("ManageObligations");
   const canManageCmmc = access.permissions.includes("ManageCmmc");
+  const canManageReports = access.permissions.includes("ManageReports");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
 
   useEffect(() => {
@@ -538,10 +559,12 @@ export function App() {
         const canLoadNotifications = hasAnyPermission(nextAccess, ["ViewTasks", "ManageTasks"]);
         const canLoadCmmc = hasAnyPermission(nextAccess, ["ViewCmmc", "ManageCmmc"]);
         const canLoadSubcontractors = hasAnyPermission(nextAccess, ["ViewSubcontractors", "ManageSubcontractors"]);
+        const canLoadReports = hasAnyPermission(nextAccess, ["ViewReports", "ManageReports"]);
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
         const nextNotifications = canLoadNotifications ? await getNotifications() : [];
+        const nextNotificationPreference = canLoadNotifications ? await getNotificationPreferences() : null;
         const nextAuditLogs = canLoadAuditLogs ? await getAuditLogs({ page: 1, pageSize: 5 }) : fallbackAuditLogs;
         const nextNoCuiAcknowledgement = canLoadNoCuiStatus
           ? await getNoCuiAcknowledgementStatus()
@@ -555,6 +578,13 @@ export function App() {
         const nextCmmcControls = nextCmmcAssessments[0] ? await getCmmcControlStatuses(nextCmmcAssessments[0].id) : [];
         const nextCmmcPoamItems = nextCmmcAssessments[0] ? await getCmmcPoamItems(nextCmmcAssessments[0].id) : [];
         const nextSubcontractors = canLoadSubcontractors ? await getSubcontractors() : [];
+        const nextSubcontractorFlowDowns = nextSubcontractors[0]
+          ? await getSubcontractorFlowDowns(nextSubcontractors[0].id)
+          : [];
+        const nextSubcontractorEvidenceRequests = nextSubcontractors[0]
+          ? await getSubcontractorEvidenceRequests(nextSubcontractors[0].id)
+          : [];
+        const nextApprovedEvidencePackages = canLoadReports ? await getApprovedEvidencePackages() : [];
         const nextContractClauses = nextContracts[0] ? await getContractClauses(nextContracts[0].id) : [];
         const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
@@ -565,6 +595,7 @@ export function App() {
           setMembers(nextMembers);
           setInvitations(nextInvitations);
           setNotifications(nextNotifications);
+          setNotificationPreference(nextNotificationPreference);
           setCompanyProfile(nextCompanyProfile);
           setContracts(nextContracts);
           setObligationDashboardItems(nextObligationDashboardItems);
@@ -584,6 +615,12 @@ export function App() {
           setCmmcControls(nextCmmcControls);
           setCmmcPoamItems(nextCmmcPoamItems);
           setSubcontractors(nextSubcontractors);
+          setSelectedSubcontractorId(nextSubcontractors[0]?.id ?? null);
+          setSubcontractorFlowDowns(nextSubcontractorFlowDowns);
+          setSubcontractorEvidenceRequests(nextSubcontractorEvidenceRequests);
+          setSubcontractorDetailStatus(canLoadSubcontractors ? "ready" : "idle");
+          setApprovedEvidencePackages(nextApprovedEvidencePackages);
+          setReportStatus(canLoadReports ? "ready" : "idle");
           setCmmcStatus(canLoadCmmc ? "idle" : "idle");
           setSelectedEvidenceItemId(nextEvidenceItems[0]?.id ?? null);
           setLoadState("ready");
@@ -596,6 +633,8 @@ export function App() {
           setMembers([]);
           setInvitations([]);
           setNotifications([]);
+          setNotificationPreference(null);
+          setReminderRunResult(null);
           setCompanyProfile(null);
           setContracts([]);
           setObligationDashboardItems([]);
@@ -615,6 +654,13 @@ export function App() {
           setCmmcControls([]);
           setCmmcPoamItems([]);
           setSubcontractors([]);
+          setSelectedSubcontractorId(null);
+          setSubcontractorFlowDowns([]);
+          setSubcontractorEvidenceRequests([]);
+          setSubcontractorDetailStatus("idle");
+          setApprovedEvidencePackages([]);
+          setGeneratedReports([]);
+          setReportStatus("idle");
           setCmmcStatus("idle");
           setSelectedEvidenceItemId(null);
           setLoadState("error");
@@ -1061,6 +1107,9 @@ export function App() {
 
     if (result.data) {
       setSubcontractors((currentItems) => [result.data!, ...currentItems.filter((item) => item.id !== result.data!.id)]);
+      setSelectedSubcontractorId(result.data.id);
+      setSubcontractorFlowDowns([]);
+      setSubcontractorEvidenceRequests([]);
       setSubcontractorStatus("saved");
       setSubcontractorMessage("Subcontractor profile created.");
       return;
@@ -1068,6 +1117,152 @@ export function App() {
 
     setSubcontractorStatus("failed");
     setSubcontractorMessage(result.error ?? "Subcontractor profile could not be created.");
+  }
+
+  async function handleSubcontractorSelect(subcontractorId: string) {
+    setSelectedSubcontractorId(subcontractorId);
+    setSubcontractorDetailStatus("loading");
+    setSubcontractorDetailMessage("");
+    const [nextFlowDowns, nextEvidenceRequests] = await Promise.all([
+      getSubcontractorFlowDowns(subcontractorId),
+      getSubcontractorEvidenceRequests(subcontractorId)
+    ]);
+    setSubcontractorFlowDowns(nextFlowDowns);
+    setSubcontractorEvidenceRequests(nextEvidenceRequests);
+    setSubcontractorDetailStatus("ready");
+  }
+
+  async function handleSubcontractorFlowDownSave(
+    subcontractorId: string,
+    flowDownId: string | null,
+    request: UpsertSubcontractorFlowDownRequest
+  ) {
+    setSubcontractorDetailStatus("saving");
+    setSubcontractorDetailMessage("");
+    const result = flowDownId
+      ? await updateSubcontractorFlowDown(subcontractorId, flowDownId, request)
+      : await createSubcontractorFlowDown(subcontractorId, request);
+
+    if (result.data) {
+      const saved = result.data;
+      setSubcontractorFlowDowns((currentItems) => {
+        const exists = currentItems.some((item) => item.id === saved.id);
+        return exists ? currentItems.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...currentItems];
+      });
+      setSubcontractorDetailStatus("ready");
+      setSubcontractorDetailMessage(flowDownId ? "Flow-down status updated." : "Flow-down assigned.");
+      return;
+    }
+
+    setSubcontractorDetailStatus("failed");
+    setSubcontractorDetailMessage(result.error ?? "Flow-down could not be saved.");
+  }
+
+  async function handleSubcontractorEvidenceRequestCreate(
+    subcontractorId: string,
+    request: UpsertSubcontractorEvidenceRequestRequest
+  ) {
+    setSubcontractorDetailStatus("saving");
+    setSubcontractorDetailMessage("");
+    const result = await createSubcontractorEvidenceRequest(subcontractorId, request);
+
+    if (result.data) {
+      setSubcontractorEvidenceRequests((currentItems) => [result.data!, ...currentItems]);
+      setSubcontractorDetailStatus("ready");
+      setSubcontractorDetailMessage("Subcontractor evidence request created.");
+      return;
+    }
+
+    setSubcontractorDetailStatus("failed");
+    setSubcontractorDetailMessage(result.error ?? "Evidence request could not be created.");
+  }
+
+  async function handleNotificationPreferenceSave(request: NotificationPreferenceUpdateRequest) {
+    setNotificationPreferenceStatus("saving");
+    setNotificationPreferenceMessage("");
+    const result = await updateNotificationPreferences(request);
+
+    if (result.data) {
+      setNotificationPreference(result.data);
+      setNotificationPreferenceStatus("saved");
+      setNotificationPreferenceMessage("Notification preferences saved.");
+      return;
+    }
+
+    setNotificationPreferenceStatus("failed");
+    setNotificationPreferenceMessage(result.error ?? "Notification preferences could not be saved.");
+  }
+
+  async function handleDueDateReminderRun(leadTimeDays: number) {
+    setNotificationPreferenceStatus("saving");
+    setNotificationPreferenceMessage("");
+    const result = await runDueDateReminders({ leadTimeDays, simulatedFailureTaskId: null });
+
+    if (result.data) {
+      setReminderRunResult(result.data);
+      setNotificationPreferenceStatus("saved");
+      setNotificationPreferenceMessage("Due-date reminder run completed.");
+      const nextNotifications = await getNotifications();
+      setNotifications(nextNotifications);
+      return;
+    }
+
+    setNotificationPreferenceStatus("failed");
+    setNotificationPreferenceMessage(result.error ?? "Due-date reminder run could not be completed.");
+  }
+
+  async function handleComplianceReportGenerate() {
+    setReportStatus("loading");
+    setReportMessage("");
+    const result = await generateComplianceStatusReport();
+    handleGeneratedReportResult(result.data, result.error, "Compliance status report generated.");
+  }
+
+  async function handleCmmcReportGenerate(assessmentId: string) {
+    setReportStatus("loading");
+    setReportMessage("");
+    const result = await generateCmmcReadinessReport(assessmentId);
+    handleGeneratedReportResult(result.data, result.error, "CMMC readiness report generated.");
+  }
+
+  async function handleSubcontractorReportGenerate(contractId?: string) {
+    setReportStatus("loading");
+    setReportMessage("");
+    const result = await generateSubcontractorComplianceReport(contractId);
+    handleGeneratedReportResult(result.data, result.error, "Subcontractor compliance report generated.");
+  }
+
+  async function handleEvidencePackageGenerate(request: EvidencePackageGenerateRequest) {
+    setReportStatus("loading");
+    setReportMessage("");
+    const result = await generateEvidencePackage(request);
+
+    if (result.data) {
+      setGeneratedReports((currentReports) => [result.data!, ...currentReports]);
+      setApprovedEvidencePackages(await getApprovedEvidencePackages());
+      setReportStatus("ready");
+      setReportMessage("Evidence package generated.");
+      return;
+    }
+
+    setReportStatus("failed");
+    setReportMessage(result.error ?? "Evidence package could not be generated.");
+  }
+
+  function handleGeneratedReportResult(
+    report: ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | null,
+    error: string | null,
+    successMessage: string
+  ) {
+    if (report) {
+      setGeneratedReports((currentReports) => [report, ...currentReports]);
+      setReportStatus("ready");
+      setReportMessage(successMessage);
+      return;
+    }
+
+    setReportStatus("failed");
+    setReportMessage(error ?? "Report could not be generated.");
   }
 
   async function handleAuditLogFilterSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1274,10 +1469,37 @@ export function App() {
             <SubcontractorsView
               canManageSubcontractors={access.permissions.includes("ManageSubcontractors")}
               contracts={contracts}
+              detailMessage={subcontractorDetailMessage}
+              detailStatus={subcontractorDetailStatus}
+              evidenceItems={evidenceItems}
+              evidenceRequests={subcontractorEvidenceRequests}
+              flowDowns={subcontractorFlowDowns}
               message={subcontractorMessage}
+              obligationItems={obligationDashboardItems}
+              onCreateEvidenceRequest={handleSubcontractorEvidenceRequestCreate}
+              onSaveFlowDown={handleSubcontractorFlowDownSave}
               status={subcontractorStatus}
+              selectedSubcontractorId={selectedSubcontractorId}
               subcontractors={subcontractors}
               onCreate={handleSubcontractorCreate}
+              onSelect={handleSubcontractorSelect}
+            />
+          ) : activeRoute === "reports" ? (
+            <ReportsView
+              approvedEvidencePackages={approvedEvidencePackages}
+              assessments={cmmcAssessments}
+              canManageReports={canManageReports}
+              contracts={contracts}
+              evidenceItems={evidenceItems}
+              generatedReports={generatedReports}
+              message={reportMessage}
+              obligationItems={obligationDashboardItems}
+              status={reportStatus}
+              subcontractors={subcontractors}
+              onCmmcReportGenerate={handleCmmcReportGenerate}
+              onComplianceReportGenerate={handleComplianceReportGenerate}
+              onEvidencePackageGenerate={handleEvidencePackageGenerate}
+              onSubcontractorReportGenerate={handleSubcontractorReportGenerate}
             />
           ) : activeRoute === "settings" ? (
             <SettingsView
@@ -1291,15 +1513,21 @@ export function App() {
               inviteStatus={inviteStatus}
               invitations={invitations}
               members={members}
+              notificationPreference={notificationPreference}
+              notificationPreferenceMessage={notificationPreferenceMessage}
+              notificationPreferenceStatus={notificationPreferenceStatus}
+              reminderRunResult={reminderRunResult}
               onAuditLogFilterChange={setAuditLogFilters}
               onAuditLogFilterSubmit={handleAuditLogFilterSubmit}
               onAuditLogPageChange={handleAuditLogPageChange}
+              onDueDateReminderRun={handleDueDateReminderRun}
               onInviteEmailChange={setInviteEmail}
               onInviteRoleChange={setInviteRole}
               onInvitationSubmit={handleInvitationSubmit}
+              onNotificationPreferenceSave={handleNotificationPreferenceSave}
             />
           ) : (
-            <PlaceholderRoute route={activeRoute} />
+            <DashboardView overview={overview} />
           )}
         </WorkspaceState>
       </main>
@@ -3800,19 +4028,44 @@ const defaultSubcontractorForm: SubcontractorFormState = {
 function SubcontractorsView({
   canManageSubcontractors,
   contracts,
+  detailMessage,
+  detailStatus,
+  evidenceItems,
+  evidenceRequests,
+  flowDowns,
   message,
+  obligationItems,
+  onCreateEvidenceRequest,
+  onSaveFlowDown,
   onCreate,
+  onSelect,
+  selectedSubcontractorId,
   status,
   subcontractors
 }: {
   canManageSubcontractors: boolean;
   contracts: ContractRecord[];
+  detailMessage: string;
+  detailStatus: "idle" | "loading" | "saving" | "ready" | "failed";
+  evidenceItems: EvidenceMetadata[];
+  evidenceRequests: SubcontractorEvidenceRequest[];
+  flowDowns: SubcontractorFlowDown[];
   message: string;
+  obligationItems: ContractObligationDashboardItem[];
+  onCreateEvidenceRequest: (subcontractorId: string, request: UpsertSubcontractorEvidenceRequestRequest) => Promise<void>;
+  onSaveFlowDown: (
+    subcontractorId: string,
+    flowDownId: string | null,
+    request: UpsertSubcontractorFlowDownRequest
+  ) => Promise<void>;
   onCreate: (request: UpsertSubcontractorRequest) => Promise<void>;
+  onSelect: (subcontractorId: string) => Promise<void>;
+  selectedSubcontractorId: string | null;
   status: "idle" | "saving" | "saved" | "failed";
   subcontractors: Subcontractor[];
 }) {
   const [form, setForm] = useState<SubcontractorFormState>(defaultSubcontractorForm);
+  const selectedSubcontractor = subcontractors.find((subcontractor) => subcontractor.id === selectedSubcontractorId) ?? null;
 
   function updateField<TKey extends keyof SubcontractorFormState>(field: TKey, value: SubcontractorFormState[TKey]) {
     setForm((current) => ({
@@ -3931,23 +4184,43 @@ function SubcontractorsView({
         {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
       </form>
       {subcontractors.length > 0 ? (
-        <div className="evidence-list">
-          {subcontractors.map((subcontractor) => (
-            <article className="evidence-list__item" key={subcontractor.id}>
-              <strong>{subcontractor.name}</strong>
-              <span>
-                {subcontractor.status} · {subcontractor.smallBusinessStatus} · {subcontractor.cmmcStatus}
-              </span>
-              <span>
-                CUI access {subcontractor.hasCuiAccess ? "yes" : "no"} · export-control{" "}
-                {subcontractor.hasExportControlledAccess ? "yes" : "no"} · insurance {subcontractor.insuranceExpiresAt ?? "not tracked"}
-              </span>
-              <span>
-                NDA {subcontractor.ndaStatus} · contracts {subcontractor.contractIds.length} · workshare{" "}
-                {subcontractor.worksharePercentage ?? "not set"}%
-              </span>
-            </article>
-          ))}
+        <div className="subcontractor-workspace">
+          <div className="evidence-list" aria-label="Subcontractor list">
+            {subcontractors.map((subcontractor) => (
+              <button
+                className={`evidence-list__item${subcontractor.id === selectedSubcontractorId ? " evidence-list__item--active" : ""}`}
+                key={subcontractor.id}
+                type="button"
+                onClick={() => void onSelect(subcontractor.id)}
+              >
+                <strong>{subcontractor.name}</strong>
+                <span>
+                  {subcontractor.status} · {subcontractor.smallBusinessStatus} · {subcontractor.cmmcStatus}
+                </span>
+                <span>
+                  CUI access {subcontractor.hasCuiAccess ? "yes" : "no"} · export-control{" "}
+                  {subcontractor.hasExportControlledAccess ? "yes" : "no"} · insurance {subcontractor.insuranceExpiresAt ?? "not tracked"}
+                </span>
+                <span>
+                  NDA {subcontractor.ndaStatus} · contracts {subcontractor.contractIds.length} · workshare{" "}
+                  {subcontractor.worksharePercentage ?? "not set"}%
+                </span>
+              </button>
+            ))}
+          </div>
+          <SubcontractorDetailPanel
+            canManageSubcontractors={canManageSubcontractors}
+            contracts={contracts}
+            detailMessage={detailMessage}
+            detailStatus={detailStatus}
+            evidenceItems={evidenceItems}
+            evidenceRequests={evidenceRequests}
+            flowDowns={flowDowns}
+            obligationItems={obligationItems}
+            onCreateEvidenceRequest={onCreateEvidenceRequest}
+            onSaveFlowDown={onSaveFlowDown}
+            subcontractor={selectedSubcontractor}
+          />
         </div>
       ) : (
         <EmptyState title="No subcontractors have been added yet" body="Create a profile to track flow-downs, access flags, and supplier readiness." />
@@ -3956,17 +4229,674 @@ function SubcontractorsView({
   );
 }
 
-function PlaceholderRoute({ route }: { route: Exclude<WorkspaceRoute, "dashboard" | "settings" | "evidence" | "profile" | "contracts" | "cmmc" | "subcontractors"> }) {
-  const content = placeholderContent[route];
+function SubcontractorDetailPanel({
+  canManageSubcontractors,
+  contracts,
+  detailMessage,
+  detailStatus,
+  evidenceItems,
+  evidenceRequests,
+  flowDowns,
+  obligationItems,
+  onCreateEvidenceRequest,
+  onSaveFlowDown,
+  subcontractor
+}: {
+  canManageSubcontractors: boolean;
+  contracts: ContractRecord[];
+  detailMessage: string;
+  detailStatus: "idle" | "loading" | "saving" | "ready" | "failed";
+  evidenceItems: EvidenceMetadata[];
+  evidenceRequests: SubcontractorEvidenceRequest[];
+  flowDowns: SubcontractorFlowDown[];
+  obligationItems: ContractObligationDashboardItem[];
+  onCreateEvidenceRequest: (subcontractorId: string, request: UpsertSubcontractorEvidenceRequestRequest) => Promise<void>;
+  onSaveFlowDown: (
+    subcontractorId: string,
+    flowDownId: string | null,
+    request: UpsertSubcontractorFlowDownRequest
+  ) => Promise<void>;
+  subcontractor: Subcontractor | null;
+}) {
+  const [flowDownForm, setFlowDownForm] = useState({
+    contractId: "",
+    contractClauseId: "",
+    obligationId: "",
+    clauseNumber: "",
+    title: "",
+    status: "Required",
+    signedEvidenceItemId: ""
+  });
+  const [evidenceRequestForm, setEvidenceRequestForm] = useState({
+    requestedItem: "",
+    evidenceType: "SignedFlowDown",
+    dueDate: "",
+    status: "Sent",
+    recipientName: "",
+    recipientEmail: "",
+    obligationId: "",
+    relatedFlowDownClauseId: "",
+    receivedEvidenceItemId: ""
+  });
+
+  if (!subcontractor) {
+    return <EmptyState title="Select a subcontractor" body="Choose a supplier to manage flow-downs and evidence requests." />;
+  }
+
+  function saveFlowDown(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!subcontractor) {
+      return;
+    }
+
+    void onSaveFlowDown(subcontractor.id, null, {
+      contractId: flowDownForm.contractId || null,
+      contractClauseId: flowDownForm.contractClauseId || null,
+      obligationId: flowDownForm.obligationId || null,
+      clauseNumber: flowDownForm.clauseNumber.trim(),
+      title: flowDownForm.title.trim(),
+      status: flowDownForm.status,
+      sentAt: flowDownForm.status === "Sent" ? new Date().toISOString().slice(0, 10) : null,
+      acknowledgedAt: flowDownForm.status === "Acknowledged" ? new Date().toISOString().slice(0, 10) : null,
+      signedAt: flowDownForm.status === "Signed" ? new Date().toISOString().slice(0, 10) : null,
+      waivedAt: flowDownForm.status === "Waived" ? new Date().toISOString().slice(0, 10) : null,
+      signedEvidenceItemId: flowDownForm.signedEvidenceItemId || null
+    });
+  }
+
+  function createEvidenceRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!subcontractor) {
+      return;
+    }
+
+    void onCreateEvidenceRequest(subcontractor.id, {
+      requestedItem: evidenceRequestForm.requestedItem.trim(),
+      requestedEvidenceTypes: [evidenceRequestForm.evidenceType],
+      dueDate: evidenceRequestForm.dueDate,
+      status: evidenceRequestForm.status,
+      recipientName: evidenceRequestForm.recipientName.trim() || null,
+      recipientEmail: evidenceRequestForm.recipientEmail.trim() || null,
+      obligationId: evidenceRequestForm.obligationId || null,
+      relatedFlowDownClauseId: evidenceRequestForm.relatedFlowDownClauseId || null,
+      receivedEvidenceItemId: evidenceRequestForm.receivedEvidenceItemId || null
+    });
+  }
 
   return (
-    <section className="route-panel">
-      <div className="route-panel__intro">
-        <p className="eyebrow">{content.eyebrow}</p>
-        <h2>{content.title}</h2>
-        <p>{content.description}</p>
+    <section className="subcontractor-detail" aria-label="Subcontractor flow-down detail">
+      <div className="section-heading">
+        <p className="eyebrow">Supplier detail</p>
+        <h3>{subcontractor.name}</h3>
+        <p className="section-summary">
+          {subcontractor.roleDescription} Contact {subcontractor.contactName ?? "not set"} · {subcontractor.contactEmail ?? "no email"}
+        </p>
       </div>
-      <EmptyState title={content.emptyTitle} body={content.emptyBody} />
+      {detailMessage ? (
+        <p className={`form-status ${detailStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>{detailMessage}</p>
+      ) : null}
+      <div className="subcontractor-detail-grid">
+        <form className="evidence-metadata" onSubmit={saveFlowDown}>
+          <h3>Assign flow-down</h3>
+          <fieldset disabled={!canManageSubcontractors || detailStatus === "saving"}>
+            <div className="form-grid">
+              <label>
+                <span>Contract</span>
+                <select
+                  value={flowDownForm.contractId}
+                  onChange={(event) => setFlowDownForm((current) => ({ ...current, contractId: event.target.value }))}
+                >
+                  <option value="">No contract</option>
+                  {contracts.map((contract) => (
+                    <option key={contract.id} value={contract.id}>
+                      {contract.contractNumber}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Obligation</span>
+                <select
+                  value={flowDownForm.obligationId}
+                  onChange={(event) => {
+                    const obligation = obligationItems.find((item) => item.obligationId === event.target.value);
+                    setFlowDownForm((current) => ({
+                      ...current,
+                      obligationId: event.target.value,
+                      contractClauseId: obligation?.contractClauseId ?? current.contractClauseId,
+                      clauseNumber: obligation?.clauseNumber ?? current.clauseNumber,
+                      title: obligation?.title ?? current.title
+                    }));
+                  }}
+                >
+                  <option value="">Manual entry</option>
+                  {obligationItems.map((item) => (
+                    <option key={`${item.contractClauseId}-${item.obligationId}`} value={item.obligationId}>
+                      {item.clauseNumber} · {item.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Clause number</span>
+                <input
+                  value={flowDownForm.clauseNumber}
+                  onChange={(event) => setFlowDownForm((current) => ({ ...current, clauseNumber: event.target.value }))}
+                />
+              </label>
+              <label>
+                <span>Status</span>
+                <select
+                  value={flowDownForm.status}
+                  onChange={(event) => setFlowDownForm((current) => ({ ...current, status: event.target.value }))}
+                >
+                  {["Required", "Sent", "Acknowledged", "Signed", "Waived", "NotApplicable"].map((statusOption) => (
+                    <option key={statusOption} value={statusOption}>
+                      {statusOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="span-2">
+                <span>Title</span>
+                <input value={flowDownForm.title} onChange={(event) => setFlowDownForm((current) => ({ ...current, title: event.target.value }))} />
+              </label>
+              <label className="span-2">
+                <span>Signed evidence</span>
+                <select
+                  value={flowDownForm.signedEvidenceItemId}
+                  onChange={(event) => setFlowDownForm((current) => ({ ...current, signedEvidenceItemId: event.target.value }))}
+                >
+                  <option value="">No evidence linked</option>
+                  {evidenceItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.title} · {item.status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </fieldset>
+          <div className="form-actions">
+            <button type="submit" disabled={!canManageSubcontractors || detailStatus === "saving"}>
+              <GitBranch size={16} aria-hidden="true" />
+              <span>Save flow-down</span>
+            </button>
+          </div>
+        </form>
+        <form className="evidence-metadata" onSubmit={createEvidenceRequest}>
+          <h3>Request evidence</h3>
+          <fieldset disabled={!canManageSubcontractors || detailStatus === "saving"}>
+            <div className="form-grid">
+              <label className="span-2">
+                <span>Requested item</span>
+                <input
+                  value={evidenceRequestForm.requestedItem}
+                  onChange={(event) => setEvidenceRequestForm((current) => ({ ...current, requestedItem: event.target.value }))}
+                />
+              </label>
+              <label>
+                <span>Evidence type</span>
+                <select
+                  value={evidenceRequestForm.evidenceType}
+                  onChange={(event) => setEvidenceRequestForm((current) => ({ ...current, evidenceType: event.target.value }))}
+                >
+                  {["SignedFlowDown", "VendorAttestation", "SubcontractorCertification", "Policy", "Other"].map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Due date</span>
+                <input
+                  type="date"
+                  value={evidenceRequestForm.dueDate}
+                  onChange={(event) => setEvidenceRequestForm((current) => ({ ...current, dueDate: event.target.value }))}
+                />
+              </label>
+              <label>
+                <span>Recipient</span>
+                <input
+                  value={evidenceRequestForm.recipientName}
+                  onChange={(event) => setEvidenceRequestForm((current) => ({ ...current, recipientName: event.target.value }))}
+                />
+              </label>
+              <label>
+                <span>Email</span>
+                <input
+                  value={evidenceRequestForm.recipientEmail}
+                  onChange={(event) => setEvidenceRequestForm((current) => ({ ...current, recipientEmail: event.target.value }))}
+                />
+              </label>
+              <label>
+                <span>Related flow-down</span>
+                <select
+                  value={evidenceRequestForm.relatedFlowDownClauseId}
+                  onChange={(event) => setEvidenceRequestForm((current) => ({ ...current, relatedFlowDownClauseId: event.target.value }))}
+                >
+                  <option value="">None</option>
+                  {flowDowns.map((flowDown) => (
+                    <option key={flowDown.id} value={flowDown.id}>
+                      {flowDown.clauseNumber} · {flowDown.status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select
+                  value={evidenceRequestForm.status}
+                  onChange={(event) => setEvidenceRequestForm((current) => ({ ...current, status: event.target.value }))}
+                >
+                  {["Draft", "Sent", "Submitted", "Satisfied", "Overdue", "Cancelled"].map((statusOption) => (
+                    <option key={statusOption} value={statusOption}>
+                      {statusOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </fieldset>
+          <div className="form-actions">
+            <button type="submit" disabled={!canManageSubcontractors || detailStatus === "saving"}>
+              <Send size={16} aria-hidden="true" />
+              <span>Create request</span>
+            </button>
+          </div>
+        </form>
+      </div>
+      <div className="subcontractor-detail-grid">
+        <section className="evidence-metadata">
+          <h3>Flow-down register</h3>
+          {flowDowns.length > 0 ? (
+            <div className="evidence-list">
+              {flowDowns.map((flowDown) => (
+                <article className="evidence-list__item" key={flowDown.id}>
+                  <strong>{flowDown.clauseNumber} · {flowDown.title}</strong>
+                  <span>
+                    {flowDown.status} · sent {flowDown.sentAt ?? "not sent"} · signed {flowDown.signedAt ?? "not signed"}
+                  </span>
+                  <span>Evidence {flowDown.signedEvidenceItemId ?? "not linked"}</span>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No flow-downs assigned" body="Assign required clauses from contract obligations or manual supplier terms." />
+          )}
+        </section>
+        <section className="evidence-metadata">
+          <h3>Evidence requests</h3>
+          {evidenceRequests.length > 0 ? (
+            <div className="evidence-list">
+              {evidenceRequests.map((request) => (
+                <article className={`evidence-list__item${request.isOverdue ? " evidence-list__item--overdue" : ""}`} key={request.id}>
+                  <strong>{request.requestedItem}</strong>
+                  <span>
+                    {request.status} · due {request.dueDate} · {request.requestedEvidenceTypes.join(", ")}
+                  </span>
+                  <span>
+                    Recipient {request.recipientName ?? "not set"} · evidence {request.receivedEvidenceItemId ?? "not received"}
+                  </span>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No evidence requests" body="Create supplier evidence requests for signed clauses, attestations, and certifications." />
+          )}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function ReportsView({
+  approvedEvidencePackages,
+  assessments,
+  canManageReports,
+  contracts,
+  evidenceItems,
+  generatedReports,
+  message,
+  obligationItems,
+  onCmmcReportGenerate,
+  onComplianceReportGenerate,
+  onEvidencePackageGenerate,
+  onSubcontractorReportGenerate,
+  status,
+  subcontractors
+}: {
+  approvedEvidencePackages: ApprovedEvidencePackage[];
+  assessments: CmmcAssessment[];
+  canManageReports: boolean;
+  contracts: ContractRecord[];
+  evidenceItems: EvidenceMetadata[];
+  generatedReports: Array<ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | EvidencePackageReport>;
+  message: string;
+  obligationItems: ContractObligationDashboardItem[];
+  onCmmcReportGenerate: (assessmentId: string) => Promise<void>;
+  onComplianceReportGenerate: () => Promise<void>;
+  onEvidencePackageGenerate: (request: EvidencePackageGenerateRequest) => Promise<void>;
+  onSubcontractorReportGenerate: (contractId?: string) => Promise<void>;
+  status: "idle" | "loading" | "ready" | "failed";
+  subcontractors: Subcontractor[];
+}) {
+  const [assessmentId, setAssessmentId] = useState(assessments[0]?.id ?? "");
+  const [contractId, setContractId] = useState("");
+  const [packageTitle, setPackageTitle] = useState("Prime review evidence package");
+  const [packageScope, setPackageScope] = useState({
+    obligationId: obligationItems[0]?.obligationId ?? "",
+    contractId: contracts[0]?.id ?? "",
+    controlId: "",
+    subcontractorId: subcontractors[0]?.id ?? "",
+    includeDraft: false
+  });
+
+  function generatePackage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void onEvidencePackageGenerate({
+      title: packageTitle.trim(),
+      obligationIds: packageScope.obligationId ? [packageScope.obligationId] : [],
+      contractIds: packageScope.contractId ? [packageScope.contractId] : [],
+      controlIds: packageScope.controlId ? [packageScope.controlId] : [],
+      subcontractorIds: packageScope.subcontractorId ? [packageScope.subcontractorId] : [],
+      includeDraftOrRejectedEvidence: packageScope.includeDraft
+    });
+  }
+
+  return (
+    <section className="route-panel" aria-label="Reports and audit packages">
+      <div className="route-panel__intro">
+        <p className="eyebrow">Reporting</p>
+        <h2>Reports and audit packages</h2>
+        <p>Generate tenant-scoped reports from source-backed obligations, CMMC readiness, subcontractor state, and approved evidence.</p>
+      </div>
+      {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
+      <div className="report-action-grid">
+        <section className="evidence-metadata">
+          <h3>Compliance status</h3>
+          <p>Snapshot obligation status, overdue tasks, evidence state, high-risk items, and readiness gaps.</p>
+          <div className="form-actions">
+            <button type="button" disabled={status === "loading"} onClick={() => void onComplianceReportGenerate()}>
+              <ScrollText size={16} aria-hidden="true" />
+              <span>Generate status</span>
+            </button>
+          </div>
+        </section>
+        <section className="evidence-metadata">
+          <h3>CMMC readiness</h3>
+          <label>
+            <span>Assessment</span>
+            <select value={assessmentId} onChange={(event) => setAssessmentId(event.target.value)}>
+              <option value="">Select assessment</option>
+              {assessments.map((assessment) => (
+                <option key={assessment.id} value={assessment.id}>
+                  {assessment.name} · {assessment.level}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="form-actions">
+            <button type="button" disabled={!assessmentId || status === "loading"} onClick={() => void onCmmcReportGenerate(assessmentId)}>
+              <ShieldCheck size={16} aria-hidden="true" />
+              <span>Generate readiness</span>
+            </button>
+          </div>
+        </section>
+        <section className="evidence-metadata">
+          <h3>Subcontractor compliance</h3>
+          <label>
+            <span>Contract filter</span>
+            <select value={contractId} onChange={(event) => setContractId(event.target.value)}>
+              <option value="">All contracts</option>
+              {contracts.map((contract) => (
+                <option key={contract.id} value={contract.id}>
+                  {contract.contractNumber}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="form-actions">
+            <button type="button" disabled={status === "loading"} onClick={() => void onSubcontractorReportGenerate(contractId || undefined)}>
+              <UsersRound size={16} aria-hidden="true" />
+              <span>Generate supplier report</span>
+            </button>
+          </div>
+        </section>
+      </div>
+      <form className="evidence-metadata" onSubmit={generatePackage}>
+        <h3>Evidence package builder</h3>
+        <div className="form-grid">
+          <label className="span-2">
+            <span>Package title</span>
+            <input value={packageTitle} onChange={(event) => setPackageTitle(event.target.value)} />
+          </label>
+          <label>
+            <span>Obligation</span>
+            <select
+              value={packageScope.obligationId}
+              onChange={(event) => setPackageScope((current) => ({ ...current, obligationId: event.target.value }))}
+            >
+              <option value="">No obligation scope</option>
+              {obligationItems.map((item) => (
+                <option key={`${item.contractClauseId}-${item.obligationId}`} value={item.obligationId}>
+                  {item.clauseNumber} · {item.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Contract</span>
+            <select
+              value={packageScope.contractId}
+              onChange={(event) => setPackageScope((current) => ({ ...current, contractId: event.target.value }))}
+            >
+              <option value="">No contract scope</option>
+              {contracts.map((contract) => (
+                <option key={contract.id} value={contract.id}>
+                  {contract.contractNumber}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Control ID</span>
+            <input
+              value={packageScope.controlId}
+              onChange={(event) => setPackageScope((current) => ({ ...current, controlId: event.target.value }))}
+            />
+          </label>
+          <label>
+            <span>Subcontractor</span>
+            <select
+              value={packageScope.subcontractorId}
+              onChange={(event) => setPackageScope((current) => ({ ...current, subcontractorId: event.target.value }))}
+            >
+              <option value="">No subcontractor scope</option>
+              {subcontractors.map((subcontractor) => (
+                <option key={subcontractor.id} value={subcontractor.id}>
+                  {subcontractor.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="checkbox-label">
+            <input
+              checked={packageScope.includeDraft}
+              type="checkbox"
+              onChange={(event) => setPackageScope((current) => ({ ...current, includeDraft: event.target.checked }))}
+            />
+            <span>Include draft/rejected evidence when authorized</span>
+          </label>
+        </div>
+        <div className="form-actions">
+          <button type="submit" disabled={!canManageReports || status === "loading"}>
+            <FileDown size={16} aria-hidden="true" />
+            <span>Generate package</span>
+          </button>
+        </div>
+      </form>
+      <div className="report-action-grid">
+        <section className="evidence-metadata">
+          <h3>Generated this session</h3>
+          {generatedReports.length > 0 ? (
+            <div className="evidence-list">
+              {generatedReports.map((report) => (
+                <article className="evidence-list__item" key={report.id}>
+                  <strong>{report.title}</strong>
+                  <span>
+                    {report.type} · {report.status} · {new Date(report.generatedAt).toLocaleString()}
+                  </span>
+                  <span>{renderReportSummary(report)}</span>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No reports generated in this session" body="Use the report actions above to create tenant-scoped snapshots." />
+          )}
+        </section>
+        <section className="evidence-metadata">
+          <h3>Approved evidence packages</h3>
+          {approvedEvidencePackages.length > 0 ? (
+            <div className="evidence-list">
+              {approvedEvidencePackages.map((report) => (
+                <article className="evidence-list__item" key={report.reportId}>
+                  <strong>{report.title}</strong>
+                  <span>
+                    {report.status} · {report.evidenceItems.length} approved items · {new Date(report.generatedAt).toLocaleDateString()}
+                  </span>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No approved packages" body={`${evidenceItems.length} evidence records are available for future packages.`} />
+          )}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function renderReportSummary(report: ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | EvidencePackageReport) {
+  if ("manifest" in report) {
+    return `${report.manifest.items.length} evidence items · scope ${Object.values(report.manifest.scope)
+      .filter((value) => Array.isArray(value) && value.length > 0)
+      .length} dimensions`;
+  }
+
+  const snapshot = report.snapshot;
+  const totalSubcontractors = typeof snapshot.totalSubcontractors === "number" ? `${snapshot.totalSubcontractors} subcontractors` : null;
+  const openGaps = Array.isArray(snapshot.openGaps) ? `${snapshot.openGaps.length} CMMC gaps` : null;
+  const highRisk = Array.isArray(snapshot.highRiskItems) ? `${snapshot.highRiskItems.length} high-risk items` : null;
+  return [totalSubcontractors, openGaps, highRisk].filter(Boolean).join(" · ") || "Snapshot complete";
+}
+
+function NotificationPreferencesPanel({
+  message,
+  onReminderRun,
+  onSave,
+  preference,
+  reminderRunResult,
+  status
+}: {
+  message: string;
+  onReminderRun: (leadTimeDays: number) => Promise<void>;
+  onSave: (request: NotificationPreferenceUpdateRequest) => Promise<void>;
+  preference: NotificationPreference | null;
+  reminderRunResult: DueDateReminderRunResult | null;
+  status: "idle" | "saving" | "saved" | "failed";
+}) {
+  const [leadTimeDays, setLeadTimeDays] = useState(7);
+  const [form, setForm] = useState<NotificationPreferenceUpdateRequest>({
+    assignmentNotificationsEnabled: preference?.assignmentNotificationsEnabled ?? true,
+    dueSoonNotificationsEnabled: preference?.dueSoonNotificationsEnabled ?? true,
+    overdueNotificationsEnabled: preference?.overdueNotificationsEnabled ?? true,
+    evidenceRequestNotificationsEnabled: preference?.evidenceRequestNotificationsEnabled ?? true,
+    certificationRenewalNotificationsEnabled: preference?.certificationRenewalNotificationsEnabled ?? true,
+    cmmcAffirmationNotificationsEnabled: preference?.cmmcAffirmationNotificationsEnabled ?? true
+  });
+
+  function updateFlag(field: keyof NotificationPreferenceUpdateRequest, value: boolean) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void onSave(form);
+  }
+
+  return (
+    <section className="invitation-section" aria-label="Notification preferences">
+      <div className="section-heading">
+        <p className="eyebrow">Notifications</p>
+        <h2>Preferences and reminder runs</h2>
+        <p className="section-summary">
+          Control assignment, due-date, evidence request, certification renewal, and CMMC affirmation notifications for the active tenant role.
+        </p>
+      </div>
+      <div className="settings-workspace">
+        <form className="evidence-metadata" onSubmit={submit}>
+          <h3>Preference toggles</h3>
+          <div className="preference-toggle-grid">
+            {(
+              [
+                ["assignmentNotificationsEnabled", "Assignments"],
+                ["dueSoonNotificationsEnabled", "Due soon"],
+                ["overdueNotificationsEnabled", "Overdue"],
+                ["evidenceRequestNotificationsEnabled", "Evidence requests"],
+                ["certificationRenewalNotificationsEnabled", "Certification renewals"],
+                ["cmmcAffirmationNotificationsEnabled", "CMMC affirmations"]
+              ] as Array<[keyof NotificationPreferenceUpdateRequest, string]>
+            ).map(([field, label]) => (
+              <label className="checkbox-label" key={field}>
+                <input checked={form[field]} type="checkbox" onChange={(event) => updateFlag(field, event.target.checked)} />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+          <div className="form-actions">
+            <button type="submit" disabled={status === "saving"}>
+              <Bell size={16} aria-hidden="true" />
+              <span>Save preferences</span>
+            </button>
+          </div>
+          {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
+        </form>
+        <section className="evidence-metadata">
+          <h3>Due-date reminder run</h3>
+          <div className="form-grid">
+            <label>
+              <span>Lead time days</span>
+              <input type="number" min="0" value={leadTimeDays} onChange={(event) => setLeadTimeDays(Number(event.target.value))} />
+            </label>
+          </div>
+          <div className="form-actions">
+            <button type="button" disabled={status === "saving"} onClick={() => void onReminderRun(leadTimeDays)}>
+              <CalendarClock size={16} aria-hidden="true" />
+              <span>Run reminders</span>
+            </button>
+          </div>
+          {reminderRunResult ? (
+            <div className="queue-metrics">
+              <span>
+                <strong>{reminderRunResult.upcomingSelected}</strong> upcoming
+              </span>
+              <span>
+                <strong>{reminderRunResult.overdueSelected}</strong> overdue
+              </span>
+              <span>
+                <strong>{reminderRunResult.created}</strong> created
+              </span>
+              <span>
+                <strong>{reminderRunResult.failed}</strong> failed
+              </span>
+            </div>
+          ) : (
+            <p className="section-summary">Run the idempotent reminder job to create in-app notifications and email placeholders.</p>
+          )}
+        </section>
+      </div>
     </section>
   );
 }
@@ -4324,12 +5254,18 @@ function SettingsView({
   inviteStatus,
   invitations,
   members,
+  notificationPreference,
+  notificationPreferenceMessage,
+  notificationPreferenceStatus,
+  reminderRunResult,
   onAuditLogFilterChange,
   onAuditLogFilterSubmit,
   onAuditLogPageChange,
+  onDueDateReminderRun,
   onInviteEmailChange,
   onInviteRoleChange,
-  onInvitationSubmit
+  onInvitationSubmit,
+  onNotificationPreferenceSave
 }: {
   auditLogFilters: AuditLogFilters;
   auditLogStatus: "idle" | "loading" | "ready" | "failed";
@@ -4341,14 +5277,20 @@ function SettingsView({
   inviteStatus: "idle" | "sending" | "created" | "failed";
   invitations: TenantInvitation[];
   members: TenantMember[];
+  notificationPreference: NotificationPreference | null;
+  notificationPreferenceMessage: string;
+  notificationPreferenceStatus: "idle" | "saving" | "saved" | "failed";
+  reminderRunResult: DueDateReminderRunResult | null;
   onAuditLogFilterChange: (filters: AuditLogFilters) => void;
   onAuditLogFilterSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onAuditLogPageChange: (page: number) => void;
+  onDueDateReminderRun: (leadTimeDays: number) => Promise<void>;
   onInviteEmailChange: (email: string) => void;
   onInviteRoleChange: (roleName: string) => void;
   onInvitationSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onNotificationPreferenceSave: (request: NotificationPreferenceUpdateRequest) => Promise<void>;
 }) {
-  if (!canManageUsers && !canViewAuditLog) {
+  if (!canManageUsers && !canViewAuditLog && !notificationPreference) {
     return (
       <section className="route-panel">
         <EmptyState
@@ -4361,12 +5303,24 @@ function SettingsView({
 
   return (
     <>
+      <NotificationPreferencesPanel
+        message={notificationPreferenceMessage}
+        onReminderRun={onDueDateReminderRun}
+        onSave={onNotificationPreferenceSave}
+        preference={notificationPreference}
+        reminderRunResult={reminderRunResult}
+        status={notificationPreferenceStatus}
+      />
       {canManageUsers ? (
         <>
           <section className="members-section" aria-label="Tenant team members">
             <div className="section-heading">
               <p className="eyebrow">Tenant access</p>
               <h2>Team members</h2>
+              <p className="section-summary">
+                Roles connect each person to the GCCS business goal: know what applies, assign the work, collect evidence,
+                and keep the tenant ready for reviews without giving more access than needed.
+              </p>
             </div>
             {members.length > 0 ? (
               <div className="member-table" role="table" aria-label="Current tenant members">
@@ -4434,6 +5388,17 @@ function SettingsView({
                   <span>{inviteStatus === "sending" ? "Sending" : "Invite"}</span>
                 </button>
               </form>
+            </div>
+            <div className="role-guidance" aria-label="Role guidance">
+              {roleGuidance.map((item) => (
+                <article className="role-guidance__item" key={item.role}>
+                  <div>
+                    <h3>{item.role}</h3>
+                    <p>{item.persona}</p>
+                  </div>
+                  <span>{item.purpose}</span>
+                </article>
+              ))}
             </div>
             {inviteStatus === "created" ? <p className="form-status form-status--ok">Invitation created.</p> : null}
             {inviteStatus === "failed" ? <p className="form-status form-status--error">Invitation was not created.</p> : null}

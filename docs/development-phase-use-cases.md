@@ -24,6 +24,17 @@ This backlog expands the Phase 1 MVP development phase into a sequential deliver
 | 16 | Notifications | Users receive reminders for deadlines, renewals, and assigned work. |
 | 17 | MVP hardening and release readiness | The pilot release is tested, secure, observable, and deployable. |
 
+## Acceptance Criteria Testability Standard
+
+Every story acceptance criterion must be testable before the story can be treated as done. A criterion is testable only when it identifies:
+
+- The actor or system under test.
+- The action, state, or input being exercised.
+- The observable result, persisted record, API response, UI state, audit event, report/export output, or blocked behavior.
+- The relevant invariant when applicable: tenant isolation, server-side RBAC, audit logging, No-CUI guardrails, source traceability, or standard error handling.
+
+Acceptance criteria should avoid subjective phrases such as "easy," "appropriate," "robust," or "clear" unless paired with an observable check. The executable `TC-*` cases in `docs/development-story-test-cases.md` are the regression contract for these acceptance criteria, and story implementation is incomplete until focused automated coverage exists for each applicable `TC-*` case.
+
 ## 1. Delivery Foundation
 
 ### Use Case
@@ -327,7 +338,7 @@ Acceptance criteria:
 
 - Obligation records cannot be published without source URL.
 - Obligation records cannot be published without last reviewed date.
-- Obligation records identify risk, owner, confidence, and review state.
+- Obligation records identify risk, owner, confidence, whether expert review is required, and review state.
 - Evidence examples can be linked to obligations.
 
 #### Story 6.2: Content Import
@@ -339,6 +350,7 @@ Tasks:
 - Create seed/import process for `packages/compliance-content`.
 - Validate JSON schema before import.
 - Add import idempotency.
+- Preserve source metadata, review metadata, and the expert-review-required flag.
 - Add import logs and failure reporting.
 
 Acceptance criteria:
@@ -346,7 +358,7 @@ Acceptance criteria:
 - Valid content imports successfully.
 - Invalid content fails with actionable errors.
 - Re-running import does not create duplicate records.
-- Imported obligations retain source and review metadata.
+- Imported obligations retain source metadata, review metadata, and whether expert review is required.
 
 #### Story 6.3: Content Review State
 

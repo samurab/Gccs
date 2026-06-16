@@ -135,13 +135,13 @@ Using the existing GCCS architecture and test patterns, create or update automat
 
 - **TC-6.1.1:** Attempt to publish an obligation without a source URL and verify validation fails.
 - **TC-6.1.2:** Attempt to publish an obligation without a last reviewed date and verify validation fails.
-- **TC-6.1.3:** Verify published obligations require risk, owner, confidence, trigger logic, required actions, flow-down flag, and review state.
+- **TC-6.1.3:** Verify published obligations require risk, owner, confidence, trigger logic, required actions, flow-down flag, expert-review-required flag, and review state.
 - **TC-6.1.4:** Link evidence examples to an obligation and verify they are returned with the obligation.
 
 ### Story 6.2: Content Import
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, No-CUI controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
-- **TC-6.2.1:** Import a valid compliance content package and verify clauses/obligations are created with source and review metadata.
+- **TC-6.2.1:** Import a valid compliance content package and verify clauses/obligations are created with source metadata, review metadata, and expert-review-required flags.
 - **TC-6.2.2:** Import schema-invalid JSON and verify actionable errors identify file, path, and field.
 - **TC-6.2.3:** Run the same content import twice and verify duplicate clauses/obligations are not created.
 - **TC-6.2.4:** Verify successful and failed imports produce logs or failure reports useful for maintainers.

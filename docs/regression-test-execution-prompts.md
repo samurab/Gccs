@@ -6,6 +6,8 @@ Use a test-case-level prompt only when one case is risky, failed, newly discover
 
 ## Required Regression Rule
 
+Acceptance criteria must satisfy the testability standard in [development-phase-use-cases.md](development-phase-use-cases.md): each criterion needs an actor/system, action or input, observable result, and applicable invariant. If a story criterion cannot be mapped to a focused `TC-*` case, tighten the criterion or add the missing test case before implementation is considered complete.
+
 After implementing any user story:
 
 1. Find the matching story in [development-story-test-cases.md](development-story-test-cases.md).

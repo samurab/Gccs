@@ -4,6 +4,8 @@ This artifact turns the product strategy into a launch plan for the No-CUI MVP.
 
 ## Launch Gates
 
+Tenant isolation, RBAC, audit logging, and No-CUI implications are release-blocking controls. Use `docs/security-control-implications.md` when reviewing feature acceptance, security tests, support paths, imports, exports, reports, and launch readiness.
+
 ### Alpha
 
 Alpha can begin when internal users can complete the core workflow end to end:
@@ -154,4 +156,3 @@ The test set should measure clause extraction precision, clause extraction recal
 - Support runbooks created.
 - Pilot onboarding materials complete.
 - Known risks accepted by accountable owners.
-

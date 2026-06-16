@@ -223,7 +223,7 @@ Deliverables:
 - Clickable prototypes for core workflows.
 - Delivery backlog with estimates.
 - Architecture decision records for No-CUI posture, tenancy, file storage, and content governance.
-- Definition of Ready and Definition of Done.
+- Definition of Ready (`docs/definition-of-ready.md`) and Definition of Done.
 - Initial CI pipeline with build, lint, and tests.
 
 Exit criteria:

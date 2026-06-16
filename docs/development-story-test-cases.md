@@ -117,12 +117,12 @@ Common expectations for all functional stories:
 
 - **TC-6.1.1 - Source URL required for publish:** Attempt to publish an obligation without source URL and verify validation fails.
 - **TC-6.1.2 - Last reviewed date required:** Attempt to publish without last reviewed date and verify validation fails.
-- **TC-6.1.3 - Required metadata enforced:** Verify published obligations require risk, owner, confidence, trigger logic, required actions, flow-down flag, and review state.
+- **TC-6.1.3 - Required metadata enforced:** Verify published obligations require risk, owner, confidence, trigger logic, required actions, flow-down flag, expert-review-required flag, and review state.
 - **TC-6.1.4 - Evidence examples link:** Link evidence examples to an obligation and verify they are returned with the obligation.
 
 ### Story 6.2: Content Import
 
-- **TC-6.2.1 - Valid content imports:** Import a valid compliance content package and verify clauses/obligations are created with source and review metadata.
+- **TC-6.2.1 - Valid content imports:** Import a valid compliance content package and verify clauses/obligations are created with source metadata, review metadata, and expert-review-required flags.
 - **TC-6.2.2 - Invalid content fails clearly:** Import schema-invalid JSON and verify actionable errors identify file/path/field.
 - **TC-6.2.3 - Import is idempotent:** Run the same import twice and verify duplicate clauses/obligations are not created.
 - **TC-6.2.4 - Import logs captured:** Verify successful and failed imports produce logs/failure reports useful for maintainers.

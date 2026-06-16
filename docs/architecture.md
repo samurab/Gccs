@@ -4,6 +4,10 @@
 
 The first release is a No-CUI compliance management SaaS. Users should be prevented from uploading CUI until the platform has the right enclave design, customer terms, shared responsibility matrix, logging, access controls, and assessment posture.
 
+Tenant isolation, RBAC, audit logging, and No-CUI implications are defined in `docs/security-control-implications.md`. Architecture changes must preserve those controls across API requests, repositories, background jobs, imports, exports, reports, search, and future AI/RAG workflows.
+
+Known runtime, local infrastructure, test, source-content, and deferred integration dependencies are registered in `docs/dependency-register.md`. New dependencies that store, process, search, export, or transmit customer data require review before release.
+
 ## Application Boundaries
 
 - `apps/web`: React + Vite UI for the authenticated SaaS workspace: profile, contracts, obligations, evidence, calendar, CMMC readiness, subcontractors, and reporting.

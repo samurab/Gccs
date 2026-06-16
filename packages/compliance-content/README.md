@@ -21,6 +21,7 @@ Regulation / Clause
 -> Source hash
 -> Last reviewed date
 -> Review owner
+-> Requires expert review
 -> Review state
 -> Superseded/replaced status
 ```
