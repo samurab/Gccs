@@ -101,6 +101,22 @@ public sealed record ExtractionJobProcessResultDto(
     ExtractionJobDto Job,
     IReadOnlyList<ClauseCandidateDto> Candidates);
 
+public sealed record ContractDocumentExtractionResultsDto(
+    Guid ContractId,
+    Guid SourceDocumentId,
+    ExtractionJobStatus? LatestJobStatus,
+    string? FailureReason,
+    int CandidateCount,
+    IReadOnlyList<ClauseCandidateDto> Candidates);
+
+public sealed record ClauseCandidateEditRequest(
+    string NormalizedCitation,
+    string? ClauseLibraryId);
+
+public sealed record ClauseCandidateReviewRequest(
+    string? ClauseLibraryId,
+    string Reason);
+
 public sealed record ContractDeliverableDto(
     Guid Id,
     Guid ContractId,

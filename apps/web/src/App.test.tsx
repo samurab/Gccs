@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   acknowledgeNoCuiNoticeMock,
+  acceptClauseCandidateMock,
   allWorkflowAccess,
   assignContractObligationOwnerMock,
   attachContractClauseMock,
@@ -36,6 +37,7 @@ const {
   getCalendarEventsMock,
   getContractClausesMock,
   getContractDeliverablesMock,
+  getContractDocumentExtractionResultsMock,
   getContractDocumentsMock,
   getContractObligationDetailMock,
   getContractObligationsMock,
@@ -70,6 +72,7 @@ const {
   generateEvidencePackageMock,
   generateSubcontractorComplianceReportMock,
   removeContractClauseMock,
+  rejectClauseCandidateMock,
   saveCompanyProfileMock,
   searchClauseLibraryMock,
   startContractDocumentExtractionMock,
@@ -81,6 +84,7 @@ const {
   updateSubcontractorFlowDownMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
+  acceptClauseCandidateMock: vi.fn(),
   assignContractObligationOwnerMock: vi.fn(),
   attachContractClauseMock: vi.fn(),
   createContractDeliverableMock: vi.fn(),
@@ -107,6 +111,7 @@ const {
   getCompanyProfileMock: vi.fn(),
   getContractClausesMock: vi.fn(),
   getContractDeliverablesMock: vi.fn(),
+  getContractDocumentExtractionResultsMock: vi.fn(),
   getContractDocumentsMock: vi.fn(),
   getContractObligationDetailMock: vi.fn(),
   getContractObligationsMock: vi.fn(),
@@ -126,6 +131,7 @@ const {
   markNotificationReadMock: vi.fn(),
   runDueDateRemindersMock: vi.fn(),
   removeContractClauseMock: vi.fn(),
+  rejectClauseCandidateMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
   startContractDocumentExtractionMock: vi.fn(),
@@ -613,6 +619,7 @@ const {
 }));
 
 vi.mock("@/lib/api", () => ({
+  acceptClauseCandidate: acceptClauseCandidateMock,
   assignContractObligationOwner: assignContractObligationOwnerMock,
   attachContractClause: attachContractClauseMock,
   createTenantInvitation: createTenantInvitationMock,
@@ -637,6 +644,7 @@ vi.mock("@/lib/api", () => ({
   getCompanyProfile: getCompanyProfileMock,
   getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
+  getContractDocumentExtractionResults: getContractDocumentExtractionResultsMock,
   getContractDocuments: getContractDocumentsMock,
   getContractObligationDetail: getContractObligationDetailMock,
   getContractObligations: getContractObligationsMock,
@@ -651,6 +659,7 @@ vi.mock("@/lib/api", () => ({
   markNotificationRead: markNotificationReadMock,
   runDueDateReminders: runDueDateRemindersMock,
   removeContractClause: removeContractClauseMock,
+  rejectClauseCandidate: rejectClauseCandidateMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
   startContractDocumentExtraction: startContractDocumentExtractionMock,
@@ -702,6 +711,7 @@ describe("App", () => {
   beforeEach(() => {
     window.location.hash = "";
     acknowledgeNoCuiNoticeMock.mockReset();
+    acceptClauseCandidateMock.mockReset();
     assignContractObligationOwnerMock.mockReset();
     attachContractClauseMock.mockReset();
     createEvidenceUploadIntentMock.mockReset();
@@ -730,6 +740,7 @@ describe("App", () => {
     generateEvidencePackageMock.mockReset();
     generateSubcontractorComplianceReportMock.mockReset();
     removeContractClauseMock.mockReset();
+    rejectClauseCandidateMock.mockReset();
     startContractDocumentExtractionMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
@@ -751,6 +762,7 @@ describe("App", () => {
     getEvidenceItemsMock.mockReset();
     getContractClausesMock.mockReset();
     getContractDeliverablesMock.mockReset();
+    getContractDocumentExtractionResultsMock.mockReset();
     getContractDocumentsMock.mockReset();
     getContractObligationDetailMock.mockReset();
     getContractObligationsMock.mockReset();
@@ -835,6 +847,7 @@ describe("App", () => {
     getCalendarEventsMock.mockResolvedValue([]);
     getContractClausesMock.mockResolvedValue([]);
     getContractDeliverablesMock.mockResolvedValue([]);
+    getContractDocumentExtractionResultsMock.mockResolvedValue(null);
     getContractDocumentsMock.mockResolvedValue([]);
     getContractObligationDetailMock.mockResolvedValue(null);
     getContractObligationsMock.mockResolvedValue([]);
@@ -956,6 +969,42 @@ describe("App", () => {
         startedAt: null,
         completedAt: null,
         failureReason: null
+      },
+      error: null
+    });
+    acceptClauseCandidateMock.mockResolvedValue({
+      data: {
+        id: "18381838-1838-1838-1838-1838183818a1",
+        tenantId: contract.tenantId,
+        extractionJobId: "18181818-1818-1818-1818-1818181818a1",
+        sourceDocumentId: contractDocument.id,
+        normalizedCitation: "FAR 52.204-21",
+        rawExtractedText: "FAR 52.204-21 - Basic Safeguarding.",
+        detectedTitle: "Basic Safeguarding",
+        confidence: 1,
+        locationMetadata: "line 1",
+        matchMethod: "exact_library_match",
+        clauseLibraryId: "far-52-204-21",
+        reviewStatus: "accepted",
+        createdAt: "2026-06-17T21:18:00Z"
+      },
+      error: null
+    });
+    rejectClauseCandidateMock.mockResolvedValue({
+      data: {
+        id: "18381838-1838-1838-1838-1838183818a1",
+        tenantId: contract.tenantId,
+        extractionJobId: "18181818-1818-1818-1818-1818181818a1",
+        sourceDocumentId: contractDocument.id,
+        normalizedCitation: "FAR 52.204-21",
+        rawExtractedText: "FAR 52.204-21 - Basic Safeguarding.",
+        detectedTitle: "Basic Safeguarding",
+        confidence: 1,
+        locationMetadata: "line 1",
+        matchMethod: "exact_library_match",
+        clauseLibraryId: "far-52-204-21",
+        reviewStatus: "rejected",
+        createdAt: "2026-06-17T21:18:00Z"
       },
       error: null
     });
@@ -1276,6 +1325,63 @@ describe("App", () => {
     expect(startContractDocumentExtractionMock).toHaveBeenCalledWith(contract.id, contractDocument.id);
     expect(await screen.findByText(/Extraction job queued with status Queued/i)).toBeInTheDocument();
     expect(screen.getByText(/Extraction Queued/i)).toBeInTheDocument();
+  });
+
+  it("TC-18.3 shows extraction results and accepts matched candidates", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getNoCuiAcknowledgementStatusMock.mockResolvedValueOnce({
+      isAcknowledged: true,
+      noticeVersion: "no-cui-mvp-v1",
+      noticeCopy: "No-CUI only.",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      acknowledgedAt: "2026-06-15T12:00:00Z"
+    });
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractDocumentsMock.mockResolvedValueOnce([contractDocument]);
+    getContractDocumentExtractionResultsMock.mockResolvedValueOnce({
+      contractId: contract.id,
+      sourceDocumentId: contractDocument.id,
+      latestJobStatus: "Completed",
+      failureReason: null,
+      candidateCount: 1,
+      candidates: [
+        {
+          id: "18381838-1838-1838-1838-1838183818a1",
+          tenantId: contract.tenantId,
+          extractionJobId: "18181818-1818-1818-1818-1818181818a1",
+          sourceDocumentId: contractDocument.id,
+          normalizedCitation: "FAR 52.204-21",
+          rawExtractedText: "FAR 52.204-21 - Basic Safeguarding.",
+          detectedTitle: "Basic Safeguarding",
+          confidence: 1,
+          locationMetadata: "line 1",
+          matchMethod: "exact_library_match",
+          clauseLibraryId: "far-52-204-21",
+          reviewStatus: "pending_review",
+          createdAt: "2026-06-17T21:18:00Z"
+        }
+      ]
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+    expect(await screen.findByText("FAR 52.204-21")).toBeInTheDocument();
+    expect(screen.getByText(/100% · exact_library_match · pending_review · line 1/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Accept" }));
+
+    expect(acceptClauseCandidateMock).toHaveBeenCalledWith(
+      contract.id,
+      contractDocument.id,
+      "18381838-1838-1838-1838-1838183818a1",
+      expect.objectContaining({ clauseLibraryId: "far-52-204-21" })
+    );
+    expect(await screen.findByText(/Candidate accepted/i)).toBeInTheDocument();
   });
 
   it("TC-8.3.1, TC-8.3.3, and TC-8.3.4 manages contract deliverables", async () => {

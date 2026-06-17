@@ -25,6 +25,7 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "re
 import { ModuleCard } from "@/components/ModuleCard";
 import {
   acknowledgeNoCuiNotice,
+  acceptClauseCandidate,
   assignContractObligationOwner,
   attachContractClause,
   createContract,
@@ -59,6 +60,7 @@ import {
   getContractClauses,
   getContractDeliverables,
   getContractDocuments,
+  getContractDocumentExtractionResults,
   getContractObligationDetail,
   getContractObligations,
   getContracts,
@@ -76,6 +78,7 @@ import {
   saveCompanyProfile,
   searchClauseLibrary,
   removeContractClause,
+  rejectClauseCandidate,
   startContractDocumentExtraction,
   updateNotificationPreferences,
   updateContractObligationStatus,
@@ -100,6 +103,7 @@ import {
   type ContractClause,
   type ContractDeliverable,
   type ContractDocument,
+  type ContractDocumentExtractionResults,
   type ExtractionJob,
   type ContractObligationDetail,
   type ContractObligationDashboardItem,
@@ -448,6 +452,7 @@ export function App() {
   const [contractDeliverables, setContractDeliverables] = useState<ContractDeliverable[]>([]);
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
   const [extractionJobsByDocumentId, setExtractionJobsByDocumentId] = useState<Record<string, ExtractionJob>>({});
+  const [extractionResultsByDocumentId, setExtractionResultsByDocumentId] = useState<Record<string, ContractDocumentExtractionResults>>({});
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceMetadata[]>([]);
   const [cmmcAssessments, setCmmcAssessments] = useState<CmmcAssessment[]>([]);
@@ -591,6 +596,14 @@ export function App() {
         const nextContractClauses = nextContracts[0] ? await getContractClauses(nextContracts[0].id) : [];
         const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
+        const nextExtractionResultEntries = nextContracts[0]
+          ? await Promise.all(
+              nextContractDocuments.map(async (document) => [
+                document.id,
+                await getContractDocumentExtractionResults(nextContracts[0].id, document.id)
+              ] as const)
+            )
+          : [];
 
         if (isMounted) {
           setOverview(nextOverview);
@@ -607,6 +620,13 @@ export function App() {
           setContractClauses(nextContractClauses);
           setContractDeliverables(nextContractDeliverables);
           setContractDocuments(nextContractDocuments);
+          setExtractionResultsByDocumentId(
+            Object.fromEntries(
+              nextExtractionResultEntries.filter(
+                (entry): entry is readonly [string, ContractDocumentExtractionResults] => entry[1] !== null
+              )
+            )
+          );
           setCalendarEvents(nextCalendarEvents);
           setCalendarStatus(canLoadCalendar ? "ready" : "idle");
           setSelectedContractId(nextContracts[0]?.id ?? null);
@@ -876,12 +896,21 @@ export function App() {
     setDeliverableMessage("");
     setContractDocumentMessage("");
     setExtractionJobsByDocumentId({});
+    setExtractionResultsByDocumentId({});
     const [nextClauses, nextDeliverables, nextDocuments] = contractId
       ? await Promise.all([getContractClauses(contractId), getContractDeliverables(contractId), getContractDocuments(contractId)])
       : [[], [], []];
     setContractClauses(nextClauses);
     setContractDeliverables(nextDeliverables);
     setContractDocuments(nextDocuments);
+    if (contractId && nextDocuments.length > 0) {
+      const resultEntries = await Promise.all(
+        nextDocuments.map(async (document) => [document.id, await getContractDocumentExtractionResults(contractId, document.id)] as const)
+      );
+      setExtractionResultsByDocumentId(
+        Object.fromEntries(resultEntries.filter((entry): entry is readonly [string, ContractDocumentExtractionResults] => entry[1] !== null))
+      );
+    }
   }
 
   async function handleContractClauseAttach(contractId: string, request: AttachContractClauseRequest) {
@@ -1010,11 +1039,73 @@ export function App() {
       }));
       setContractDocumentStatus("saved");
       setContractDocumentMessage(`Extraction job queued with status ${queuedJob.status}.`);
+      setExtractionResultsByDocumentId((currentResults) => ({
+        ...currentResults,
+        [documentId]: {
+          contractId,
+          sourceDocumentId: documentId,
+          latestJobStatus: queuedJob.status,
+          failureReason: null,
+          candidateCount: currentResults[documentId]?.candidateCount ?? 0,
+          candidates: currentResults[documentId]?.candidates ?? []
+        }
+      }));
       return;
     }
 
     setContractDocumentStatus("failed");
     setContractDocumentMessage(result.error ?? "Extraction job could not be started.");
+  }
+
+  async function handleClauseCandidateReview(
+    contractId: string,
+    documentId: string,
+    candidateId: string,
+    action: "accept" | "reject",
+    clauseLibraryId: string | null
+  ) {
+    setContractDocumentStatus("saving");
+    setContractDocumentMessage("");
+    const result =
+      action === "accept"
+        ? await acceptClauseCandidate(contractId, documentId, candidateId, {
+            clauseLibraryId,
+            reason: "Reviewed from contract document extraction results."
+          })
+        : await rejectClauseCandidate(contractId, documentId, candidateId, {
+            clauseLibraryId: null,
+            reason: "Rejected from contract document extraction results."
+          });
+
+    if (result.data) {
+      setExtractionResultsByDocumentId((currentResults) => {
+        const documentResults = currentResults[documentId];
+        if (!documentResults) {
+          return currentResults;
+        }
+
+        return {
+          ...currentResults,
+          [documentId]: {
+            ...documentResults,
+            candidates: documentResults.candidates.map((candidate) =>
+              candidate.id === result.data?.id ? result.data : candidate
+            )
+          }
+        };
+      });
+      if (action === "accept") {
+        const nextClauses = await getContractClauses(contractId);
+        setContractClauses(nextClauses);
+      }
+
+      setContractDocumentStatus("saved");
+      setContractDocumentMessage(`Candidate ${result.data.reviewStatus}.`);
+      return;
+    }
+
+    setContractDocumentStatus("failed");
+    setContractDocumentMessage(result.error ?? "Candidate review could not be saved.");
   }
 
   async function handleNoCuiAcknowledgement() {
@@ -1413,6 +1504,7 @@ export function App() {
               contractDeliverables={contractDeliverables}
               contractDocuments={contractDocuments}
               extractionJobsByDocumentId={extractionJobsByDocumentId}
+              extractionResultsByDocumentId={extractionResultsByDocumentId}
               deliverableMessage={deliverableMessage}
               deliverableStatus={deliverableStatus}
               contractDocumentMessage={contractDocumentMessage}
@@ -1423,6 +1515,7 @@ export function App() {
               selectedContractId={selectedContractId}
               onDeleteDocument={handleContractDocumentDelete}
               onStartExtraction={handleStartContractDocumentExtraction}
+              onReviewCandidate={handleClauseCandidateReview}
               onAttachClause={handleContractClauseAttach}
               onRemoveClause={handleContractClauseRemove}
               onSaveDeliverable={handleDeliverableSave}
@@ -2696,6 +2789,7 @@ function ContractsView({
   contractDeliverables,
   contractDocuments,
   extractionJobsByDocumentId,
+  extractionResultsByDocumentId,
   deliverableMessage,
   deliverableStatus,
   contractDocumentMessage,
@@ -2706,6 +2800,7 @@ function ContractsView({
   selectedContractId,
   onDeleteDocument,
   onStartExtraction,
+  onReviewCandidate,
   onAttachClause,
   onRemoveClause,
   onSaveDeliverable,
@@ -2721,6 +2816,7 @@ function ContractsView({
   contractDeliverables: ContractDeliverable[];
   contractDocuments: ContractDocument[];
   extractionJobsByDocumentId: Record<string, ExtractionJob>;
+  extractionResultsByDocumentId: Record<string, ContractDocumentExtractionResults>;
   deliverableMessage: string;
   deliverableStatus: "idle" | "saving" | "saved" | "failed";
   contractDocumentMessage: string;
@@ -2731,6 +2827,13 @@ function ContractsView({
   selectedContractId: string | null;
   onDeleteDocument: (contractId: string, documentId: string) => Promise<void>;
   onStartExtraction: (contractId: string, documentId: string) => Promise<void>;
+  onReviewCandidate: (
+    contractId: string,
+    documentId: string,
+    candidateId: string,
+    action: "accept" | "reject",
+    clauseLibraryId: string | null
+  ) => Promise<void>;
   onAttachClause: (contractId: string, request: AttachContractClauseRequest) => Promise<void>;
   onRemoveClause: (contractId: string, contractClauseId: string, reason: string) => Promise<void>;
   onSaveDeliverable: (
@@ -3157,6 +3260,15 @@ function ContractsView({
                     {extractionJobsByDocumentId[document.id] ? (
                       <small>Extraction {extractionJobsByDocumentId[document.id].status}</small>
                     ) : null}
+                    {extractionResultsByDocumentId[document.id] ? (
+                      <small>
+                        Results {extractionResultsByDocumentId[document.id].latestJobStatus ?? "none"} ·{" "}
+                        {extractionResultsByDocumentId[document.id].candidateCount} candidates
+                        {extractionResultsByDocumentId[document.id].failureReason
+                          ? ` · ${extractionResultsByDocumentId[document.id].failureReason}`
+                          : ""}
+                      </small>
+                    ) : null}
                   </div>
                   <button
                     type="button"
@@ -3172,6 +3284,48 @@ function ContractsView({
                   >
                     Delete
                   </button>
+                  {extractionResultsByDocumentId[document.id]?.candidates.length ? (
+                    <div className="contract-extraction-results">
+                      {extractionResultsByDocumentId[document.id].candidates.map((candidate) => (
+                        <div className="contract-extraction-result" key={candidate.id}>
+                          <div>
+                            <strong>{candidate.normalizedCitation}</strong>
+                            <span>
+                              {(candidate.confidence * 100).toFixed(0)}% · {candidate.matchMethod} · {candidate.reviewStatus} ·{" "}
+                              {candidate.locationMetadata}
+                            </span>
+                            <small>{candidate.rawExtractedText}</small>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              selectedContract &&
+                              void onReviewCandidate(
+                                selectedContract.id,
+                                document.id,
+                                candidate.id,
+                                "accept",
+                                candidate.clauseLibraryId
+                              )
+                            }
+                            disabled={!canManageContracts || !candidate.clauseLibraryId || contractDocumentStatus === "saving"}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              selectedContract &&
+                              void onReviewCandidate(selectedContract.id, document.id, candidate.id, "reject", null)
+                            }
+                            disabled={!canManageContracts || contractDocumentStatus === "saving"}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </article>
               ))
             ) : (

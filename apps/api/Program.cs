@@ -444,6 +444,129 @@ api.MapPost("/extraction-jobs/{extractionJobId:guid}/process", async (
 .RequirePermission(Permission.ManageContracts)
 .WithName("ProcessExtractionJob");
 
+api.MapGet("/contracts/{contractId:guid}/documents/{documentId:guid}/extraction-results", async (
+    Guid contractId,
+    Guid documentId,
+    string? reviewStatus,
+    ContractService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var results = await service.ListExtractionResultsAsync(contractId, documentId, reviewStatus, cancellationToken);
+    return results is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract document '{documentId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(results);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractDocumentExtractionResults");
+
+api.MapPatch("/contracts/{contractId:guid}/documents/{documentId:guid}/clause-candidates/{candidateId:guid}", async (
+    Guid contractId,
+    Guid documentId,
+    Guid candidateId,
+    ClauseCandidateEditRequest request,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var candidate = await service.EditClauseCandidateAsync(contractId, documentId, candidateId, request, tenantContext.UserId, cancellationToken);
+        return candidate is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Clause candidate '{candidateId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(candidate);
+    }
+    catch (ContractValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Clause candidate invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("EditClauseCandidate");
+
+api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/clause-candidates/{candidateId:guid}/accept", async (
+    Guid contractId,
+    Guid documentId,
+    Guid candidateId,
+    ClauseCandidateReviewRequest request,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var candidate = await service.AcceptClauseCandidateAsync(contractId, documentId, candidateId, request, tenantContext.UserId, cancellationToken);
+        return candidate is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Clause candidate '{candidateId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(candidate);
+    }
+    catch (ContractValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Clause candidate review invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("AcceptClauseCandidate");
+
+api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/clause-candidates/{candidateId:guid}/reject", async (
+    Guid contractId,
+    Guid documentId,
+    Guid candidateId,
+    ClauseCandidateReviewRequest request,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var candidate = await service.RejectClauseCandidateAsync(contractId, documentId, candidateId, request, tenantContext.UserId, cancellationToken);
+        return candidate is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Clause candidate '{candidateId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(candidate);
+    }
+    catch (ContractValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Clause candidate review invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("RejectClauseCandidate");
+
 api.MapGet("/contracts/{contractId:guid}/deliverables", async (
     Guid contractId,
     ContractService service,

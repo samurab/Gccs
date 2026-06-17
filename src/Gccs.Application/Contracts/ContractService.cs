@@ -245,6 +245,70 @@ public sealed partial class ContractService(
             : new ExtractionJobProcessResultDto(completed, candidates);
     }
 
+    public Task<ContractDocumentExtractionResultsDto?> ListExtractionResultsAsync(
+        Guid contractId,
+        Guid documentId,
+        string? reviewStatus,
+        CancellationToken cancellationToken = default) =>
+        repository.ListExtractionResultsAsync(contractId, documentId, reviewStatus, cancellationToken);
+
+    public async Task<ClauseCandidateDto?> EditClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateEditRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeCandidateEdit(request);
+        ValidateCandidateEdit(normalized);
+        var candidate = await repository.EditClauseCandidateAsync(contractId, documentId, candidateId, normalized, cancellationToken);
+        if (candidate is not null)
+        {
+            await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Updated, "Extraction clause candidate was edited.", cancellationToken);
+        }
+
+        return candidate;
+    }
+
+    public async Task<ClauseCandidateDto?> AcceptClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateReviewRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeCandidateReview(request);
+        ValidateCandidateReview(normalized, requireClauseLibrary: true);
+        var candidate = await repository.AcceptClauseCandidateAsync(contractId, documentId, candidateId, normalized, actorUserId, cancellationToken);
+        if (candidate is not null)
+        {
+            await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Approved, "Extraction clause candidate was accepted.", cancellationToken);
+        }
+
+        return candidate;
+    }
+
+    public async Task<ClauseCandidateDto?> RejectClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateReviewRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeCandidateReview(request);
+        ValidateCandidateReview(normalized, requireClauseLibrary: false);
+        var candidate = await repository.RejectClauseCandidateAsync(contractId, documentId, candidateId, normalized, cancellationToken);
+        if (candidate is not null)
+        {
+            await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Rejected, "Extraction clause candidate was rejected.", cancellationToken);
+        }
+
+        return candidate;
+    }
+
     public async Task<ContractDeliverableDto?> CreateDeliverableAsync(
         Guid contractId,
         UpsertContractDeliverableRequest request,
@@ -419,6 +483,20 @@ public sealed partial class ContractService(
             Reason = request.Reason.Trim()
         };
 
+    private static ClauseCandidateEditRequest NormalizeCandidateEdit(ClauseCandidateEditRequest request) =>
+        request with
+        {
+            NormalizedCitation = request.NormalizedCitation.Trim(),
+            ClauseLibraryId = string.IsNullOrWhiteSpace(request.ClauseLibraryId) ? null : request.ClauseLibraryId.Trim()
+        };
+
+    private static ClauseCandidateReviewRequest NormalizeCandidateReview(ClauseCandidateReviewRequest request) =>
+        request with
+        {
+            ClauseLibraryId = string.IsNullOrWhiteSpace(request.ClauseLibraryId) ? null : request.ClauseLibraryId.Trim(),
+            Reason = request.Reason.Trim()
+        };
+
     private async Task WriteDocumentAuditAsync(
         Guid contractId,
         Guid? documentId,
@@ -506,6 +584,32 @@ public sealed partial class ContractService(
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
 
         AddIf(errors, string.IsNullOrWhiteSpace(request.Reason), "reason", "Removal reason is required.");
+
+        if (errors.Count > 0)
+        {
+            throw new ContractValidationException(errors);
+        }
+    }
+
+    private static void ValidateCandidateEdit(ClauseCandidateEditRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+        AddIf(errors, string.IsNullOrWhiteSpace(request.NormalizedCitation), "normalizedCitation", "Normalized citation is required.");
+        AddIf(errors, request.NormalizedCitation.Length > 120, "normalizedCitation", "Normalized citation must be 120 characters or fewer.");
+
+        if (errors.Count > 0)
+        {
+            throw new ContractValidationException(errors);
+        }
+    }
+
+    private static void ValidateCandidateReview(ClauseCandidateReviewRequest request, bool requireClauseLibrary)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+        AddIf(errors, requireClauseLibrary && string.IsNullOrWhiteSpace(request.ClauseLibraryId), "clauseLibraryId", "A clause library id is required before accepting a candidate.");
+        AddIf(errors, string.IsNullOrWhiteSpace(request.Reason), "reason", "A review reason is required.");
 
         if (errors.Count > 0)
         {
@@ -606,6 +710,31 @@ public sealed partial class ContractService(
             job.Id.ToString(),
             summary,
             metadata,
+            cancellationToken);
+    }
+
+    private async Task WriteClauseCandidateAuditAsync(
+        ClauseCandidateDto candidate,
+        Guid actorUserId,
+        AuditAction action,
+        string summary,
+        CancellationToken cancellationToken)
+    {
+        await auditEventWriter.WriteAsync(
+            candidate.TenantId,
+            actorUserId,
+            action,
+            "ClauseCandidate",
+            candidate.Id.ToString(),
+            summary,
+            new Dictionary<string, string>
+            {
+                ["sourceDocumentId"] = candidate.SourceDocumentId.ToString(),
+                ["extractionJobId"] = candidate.ExtractionJobId.ToString(),
+                ["normalizedCitation"] = candidate.NormalizedCitation,
+                ["reviewStatus"] = candidate.ReviewStatus,
+                ["clauseLibraryId"] = candidate.ClauseLibraryId ?? string.Empty
+            },
             cancellationToken);
     }
 
@@ -803,6 +932,34 @@ public interface IContractRepository
         Guid extractionJobId,
         Guid sourceDocumentId,
         IReadOnlyList<ClauseCandidateCreateDto> candidates,
+        CancellationToken cancellationToken = default);
+
+    Task<ContractDocumentExtractionResultsDto?> ListExtractionResultsAsync(
+        Guid contractId,
+        Guid documentId,
+        string? reviewStatus,
+        CancellationToken cancellationToken = default);
+
+    Task<ClauseCandidateDto?> EditClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateEditRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ClauseCandidateDto?> AcceptClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateReviewRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<ClauseCandidateDto?> RejectClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateReviewRequest request,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ContractDeliverableDto>?> ListDeliverablesAsync(

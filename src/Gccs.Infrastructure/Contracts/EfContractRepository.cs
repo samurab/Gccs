@@ -395,6 +395,160 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         return entities.Select(ToClauseCandidateDto).ToArray();
     }
 
+    public async Task<ContractDocumentExtractionResultsDto?> ListExtractionResultsAsync(
+        Guid contractId,
+        Guid documentId,
+        string? reviewStatus,
+        CancellationToken cancellationToken = default)
+    {
+        var documentExists = await dbContext.Set<ContractDocumentEntity>()
+            .AnyAsync(
+                document =>
+                    document.Id == documentId &&
+                    document.ContractId == contractId &&
+                    document.Contract != null &&
+                    document.Contract.TenantId == tenantContext.TenantId,
+                cancellationToken);
+
+        if (!documentExists)
+        {
+            return null;
+        }
+
+        var latestJob = await dbContext.Set<ExtractionJobEntity>()
+            .AsNoTracking()
+            .Where(job => job.TenantId == tenantContext.TenantId && job.SourceDocumentId == documentId)
+            .OrderByDescending(job => job.RequestedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var query = dbContext.Set<ClauseCandidateEntity>()
+            .AsNoTracking()
+            .Where(candidate => candidate.TenantId == tenantContext.TenantId && candidate.SourceDocumentId == documentId);
+
+        if (!string.IsNullOrWhiteSpace(reviewStatus))
+        {
+            var normalizedStatus = reviewStatus.Trim();
+            query = query.Where(candidate => candidate.ReviewStatus == normalizedStatus);
+        }
+
+        var candidates = await query
+            .OrderByDescending(candidate => candidate.Confidence)
+            .ThenBy(candidate => candidate.NormalizedCitation)
+            .Select(candidate => ToClauseCandidateDto(candidate))
+            .ToArrayAsync(cancellationToken);
+
+        return new ContractDocumentExtractionResultsDto(
+            contractId,
+            documentId,
+            latestJob?.Status,
+            latestJob?.FailureReason,
+            candidates.Length,
+            candidates);
+    }
+
+    public async Task<ClauseCandidateDto?> EditClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateEditRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var candidate = await FindCandidateForCurrentTenantAsync(contractId, documentId, candidateId, cancellationToken);
+        if (candidate is null)
+        {
+            return null;
+        }
+
+        candidate.NormalizedCitation = request.NormalizedCitation;
+        candidate.ClauseLibraryId = request.ClauseLibraryId;
+        candidate.ReviewStatus = "edited";
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToClauseCandidateDto(candidate);
+    }
+
+    public async Task<ClauseCandidateDto?> AcceptClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateReviewRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var candidate = await FindCandidateForCurrentTenantAsync(contractId, documentId, candidateId, cancellationToken);
+        var libraryClause = await dbContext.Clauses
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                clause =>
+                    clause.Id == request.ClauseLibraryId &&
+                    clause.ReviewState == ReviewState.Published &&
+                    (clause.TenantId == null || clause.TenantId == tenantContext.TenantId),
+                cancellationToken);
+
+        if (candidate is null || libraryClause is null)
+        {
+            return null;
+        }
+
+        var duplicateExists = await dbContext.Set<ContractClauseEntity>().AnyAsync(
+            clause =>
+                clause.ContractId == contractId &&
+                clause.ClauseLibraryId == libraryClause.Id &&
+                clause.RemovedAt == null,
+            cancellationToken);
+
+        if (!duplicateExists)
+        {
+            var now = DateTimeOffset.UtcNow;
+            dbContext.Set<ContractClauseEntity>().Add(new ContractClauseEntity
+            {
+                Id = Guid.NewGuid(),
+                ContractId = contractId,
+                ClauseLibraryId = libraryClause.Id,
+                ClauseNumber = libraryClause.Number,
+                Title = libraryClause.Title,
+                FullText = libraryClause.PlainEnglishSummary,
+                Source = ToClauseSource(libraryClause),
+                SourceUrl = libraryClause.SourceUrl,
+                SourceHash = libraryClause.SourceHash,
+                AttachmentReason = $"Accepted extraction candidate: {request.Reason}",
+                SourceDocumentReference = candidate.LocationMetadata,
+                RequiresFlowDown = libraryClause.UsuallyRequiresFlowDown,
+                LastReviewedAt = libraryClause.LastReviewedAt,
+                ReviewedByUserId = actorUserId,
+                NextReviewDueAt = libraryClause.NextReviewDueAt,
+                Confidence = libraryClause.Confidence,
+                RequiresExpertReview = libraryClause.RequiresExpertReview,
+                ReviewState = ReviewState.Published,
+                CreatedAt = now,
+                CreatedByUserId = actorUserId
+            });
+        }
+
+        candidate.ClauseLibraryId = libraryClause.Id;
+        candidate.NormalizedCitation = $"{libraryClause.Source.ToUpperInvariant()} {libraryClause.Number}".Trim();
+        candidate.ReviewStatus = "accepted";
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToClauseCandidateDto(candidate);
+    }
+
+    public async Task<ClauseCandidateDto?> RejectClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateReviewRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var candidate = await FindCandidateForCurrentTenantAsync(contractId, documentId, candidateId, cancellationToken);
+        if (candidate is null)
+        {
+            return null;
+        }
+
+        candidate.ReviewStatus = "rejected";
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToClauseCandidateDto(candidate);
+    }
+
     public async Task<ContractDeliverableDto?> CreateDeliverableAsync(
         Guid contractId,
         UpsertContractDeliverableRequest request,
@@ -751,6 +905,25 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             entity.UploadedAt,
             entity.UploadedByUserId,
             entity.ContainsPotentialCui);
+
+    private async Task<ClauseCandidateEntity?> FindCandidateForCurrentTenantAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        CancellationToken cancellationToken) =>
+        await dbContext.Set<ClauseCandidateEntity>()
+            .Include(candidate => candidate.SourceDocument)
+            .ThenInclude(document => document!.Contract)
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.Id == candidateId &&
+                    candidate.TenantId == tenantContext.TenantId &&
+                    candidate.SourceDocumentId == documentId &&
+                    candidate.SourceDocument != null &&
+                    candidate.SourceDocument.ContractId == contractId &&
+                    candidate.SourceDocument.Contract != null &&
+                    candidate.SourceDocument.Contract.TenantId == tenantContext.TenantId,
+                cancellationToken);
 
     private static ExtractionJobDto ToExtractionJobDto(ExtractionJobEntity entity) =>
         new(

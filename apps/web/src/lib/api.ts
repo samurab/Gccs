@@ -561,6 +561,41 @@ export type ExtractionJob = {
   failureReason: string | null;
 };
 
+export type ClauseCandidate = {
+  id: string;
+  tenantId: string;
+  extractionJobId: string;
+  sourceDocumentId: string;
+  normalizedCitation: string;
+  rawExtractedText: string;
+  detectedTitle: string | null;
+  confidence: number;
+  locationMetadata: string;
+  matchMethod: string;
+  clauseLibraryId: string | null;
+  reviewStatus: string;
+  createdAt: string;
+};
+
+export type ContractDocumentExtractionResults = {
+  contractId: string;
+  sourceDocumentId: string;
+  latestJobStatus: string | null;
+  failureReason: string | null;
+  candidateCount: number;
+  candidates: ClauseCandidate[];
+};
+
+export type ClauseCandidateEditRequest = {
+  normalizedCitation: string;
+  clauseLibraryId?: string | null;
+};
+
+export type ClauseCandidateReviewRequest = {
+  clauseLibraryId?: string | null;
+  reason: string;
+};
+
 export type ContractDeliverable = {
   id: string;
   contractId: string;
@@ -1069,6 +1104,52 @@ export async function startContractDocumentExtraction(
   return postJsonResult<ExtractionJob>(`/api/contracts/${contractId}/documents/${documentId}/extraction-jobs`, {});
 }
 
+export async function getContractDocumentExtractionResults(
+  contractId: string,
+  documentId: string
+): Promise<ContractDocumentExtractionResults | null> {
+  return getJson<ContractDocumentExtractionResults | null>(
+    `/api/contracts/${contractId}/documents/${documentId}/extraction-results`,
+    null
+  );
+}
+
+export async function editClauseCandidate(
+  contractId: string,
+  documentId: string,
+  candidateId: string,
+  request: ClauseCandidateEditRequest
+): Promise<ApiMutationResult<ClauseCandidate>> {
+  return patchJsonResult<ClauseCandidate>(
+    `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}`,
+    request
+  );
+}
+
+export async function acceptClauseCandidate(
+  contractId: string,
+  documentId: string,
+  candidateId: string,
+  request: ClauseCandidateReviewRequest
+): Promise<ApiMutationResult<ClauseCandidate>> {
+  return postJsonResult<ClauseCandidate>(
+    `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/accept`,
+    request
+  );
+}
+
+export async function rejectClauseCandidate(
+  contractId: string,
+  documentId: string,
+  candidateId: string,
+  request: ClauseCandidateReviewRequest
+): Promise<ApiMutationResult<ClauseCandidate>> {
+  return postJsonResult<ClauseCandidate>(
+    `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/reject`,
+    request
+  );
+}
+
 export async function deleteContractDocument(contractId: string, documentId: string): Promise<ApiMutationResult<null>> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
@@ -1266,6 +1347,29 @@ async function putJsonResult<T>(path: string, body: unknown): Promise<ApiMutatio
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
       method: "PUT",
+      headers: {
+        ...(getDevelopmentHeaders() ?? {}),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+async function patchJsonResult<T>(path: string, body: unknown): Promise<ApiMutationResult<T>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "PATCH",
       headers: {
         ...(getDevelopmentHeaders() ?? {}),
         "Content-Type": "application/json"
