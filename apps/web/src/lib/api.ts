@@ -290,6 +290,12 @@ export type Subcontractor = {
   name: string;
   uei: string | null;
   cageCode: string | null;
+  samRegistrationStatus: string | null;
+  samRegistrationExpiresAt: string | null;
+  samSource: string | null;
+  samRetrievedAt: string | null;
+  samNaicsCodes: SubcontractorSamNaicsCode[];
+  samExclusionStatus: string | null;
   status: string;
   roleDescription: string;
   smallBusinessStatus: string;
@@ -309,6 +315,33 @@ export type Subcontractor = {
   contractIds: string[];
   createdAt: string;
   updatedAt: string | null;
+};
+
+export type SubcontractorSamNaicsCode = {
+  code: string;
+  title: string;
+};
+
+export type SubcontractorEntityLookupResult = {
+  legalBusinessName: string;
+  uei: string;
+  cageCode: string | null;
+  registrationStatus: string | null;
+  samRegistrationExpiresAt: string | null;
+  naicsCodes: SubcontractorSamNaicsCode[];
+  exclusionStatus: string | null;
+  source: string;
+  retrievedAt: string;
+};
+
+export type SubcontractorEntityLookupRequest = {
+  uei: string | null;
+  legalBusinessName: string | null;
+};
+
+export type ApplySubcontractorEntityLookupRequest = {
+  result: SubcontractorEntityLookupResult;
+  selectedFields: string[];
 };
 
 export type UpsertSubcontractorRequest = Omit<Subcontractor, "id" | "tenantId" | "createdAt" | "updatedAt">;
@@ -923,6 +956,20 @@ export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamIt
 
 export async function getSubcontractors(): Promise<Subcontractor[]> {
   return getJson<Subcontractor[]>("/api/subcontractors", []);
+}
+
+export async function searchSubcontractorEntity(
+  subcontractorId: string,
+  request: SubcontractorEntityLookupRequest
+): Promise<ApiMutationResult<SubcontractorEntityLookupResult[]>> {
+  return postJsonResult<SubcontractorEntityLookupResult[]>(`/api/subcontractors/${subcontractorId}/sam-lookup/search`, request);
+}
+
+export async function applySubcontractorEntityLookup(
+  subcontractorId: string,
+  request: ApplySubcontractorEntityLookupRequest
+): Promise<ApiMutationResult<Subcontractor>> {
+  return postJsonResult<Subcontractor>(`/api/subcontractors/${subcontractorId}/sam-lookup/apply`, request);
 }
 
 export async function getSubcontractorFlowDowns(

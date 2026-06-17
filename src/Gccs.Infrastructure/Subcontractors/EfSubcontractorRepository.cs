@@ -75,6 +75,47 @@ public sealed class EfSubcontractorRepository(
         return ToDto(entity);
     }
 
+    public async Task<SubcontractorDto?> ApplySamDataAsync(
+        Guid subcontractorId,
+        ApplySubcontractorEntityLookupRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await QueryCurrentTenant()
+            .SingleOrDefaultAsync(candidate => candidate.Id == subcontractorId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        var selected = request.SelectedFields.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (selected.Contains("name"))
+        {
+            entity.Name = request.Result.LegalBusinessName;
+        }
+
+        if (selected.Contains("uei"))
+        {
+            entity.Uei = request.Result.Uei;
+        }
+
+        if (selected.Contains("cageCode"))
+        {
+            entity.CageCode = request.Result.CageCode;
+        }
+
+        entity.SamRegistrationStatus = request.Result.RegistrationStatus;
+        entity.SamRegistrationExpiresAt = request.Result.SamRegistrationExpiresAt;
+        entity.SamSource = request.Result.Source;
+        entity.SamRetrievedAt = request.Result.RetrievedAt;
+        entity.SamNaicsJson = JsonSerializer.Serialize(request.Result.NaicsCodes, JsonOptions);
+        entity.SamExclusionStatus = request.Result.ExclusionStatus;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
     public async Task<IReadOnlyList<SubcontractorFlowDownDto>?> ListFlowDownsAsync(
         Guid subcontractorId,
         Guid? contractId,
@@ -452,6 +493,12 @@ public sealed class EfSubcontractorRepository(
             entity.Name,
             entity.Uei,
             entity.CageCode,
+            entity.SamRegistrationStatus,
+            entity.SamRegistrationExpiresAt,
+            entity.SamSource,
+            entity.SamRetrievedAt,
+            ReadSamNaics(entity.SamNaicsJson),
+            entity.SamExclusionStatus,
             entity.Status,
             entity.RoleDescription,
             entity.SmallBusinessStatus,
@@ -521,6 +568,18 @@ public sealed class EfSubcontractorRepository(
         try
         {
             return JsonSerializer.Deserialize<EvidenceType[]>(json, JsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<SubcontractorSamNaicsCodeDto> ReadSamNaics(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<SubcontractorSamNaicsCodeDto[]>(json, JsonOptions) ?? [];
         }
         catch (JsonException)
         {

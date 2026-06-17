@@ -68,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<CmmcPoamService>();
         services.AddScoped<CmmcAffirmationService>();
         services.AddScoped<SubcontractorService>();
+        services.AddScoped<SubcontractorEntityLookupService>();
         services.AddScoped<ComplianceStatusReportService>();
         services.AddScoped<CmmcReadinessReportService>();
         services.AddScoped<EvidencePackageReportService>();

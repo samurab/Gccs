@@ -9,6 +9,12 @@ public sealed record SubcontractorDto(
     string Name,
     string? Uei,
     string? CageCode,
+    string? SamRegistrationStatus,
+    DateOnly? SamRegistrationExpiresAt,
+    string? SamSource,
+    DateTimeOffset? SamRetrievedAt,
+    IReadOnlyList<SubcontractorSamNaicsCodeDto> SamNaicsCodes,
+    string? SamExclusionStatus,
     SubcontractorStatus Status,
     string RoleDescription,
     string SmallBusinessStatus,
@@ -127,6 +133,12 @@ public interface ISubcontractorRepository
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 
+    Task<SubcontractorDto?> ApplySamDataAsync(
+        Guid subcontractorId,
+        ApplySubcontractorEntityLookupRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<SubcontractorFlowDownDto>?> ListFlowDownsAsync(
         Guid subcontractorId,
         Guid? contractId,
@@ -162,3 +174,22 @@ public interface ISubcontractorRepository
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record SubcontractorSamNaicsCodeDto(string Code, string Title);
+
+public sealed record SubcontractorEntityLookupRequest(string? Uei, string? LegalBusinessName);
+
+public sealed record ApplySubcontractorEntityLookupRequest(
+    SubcontractorEntityLookupResultDto Result,
+    IReadOnlyList<string> SelectedFields);
+
+public sealed record SubcontractorEntityLookupResultDto(
+    string LegalBusinessName,
+    string Uei,
+    string? CageCode,
+    string? RegistrationStatus,
+    DateOnly? SamRegistrationExpiresAt,
+    IReadOnlyList<SubcontractorSamNaicsCodeDto> NaicsCodes,
+    string? ExclusionStatus,
+    string Source,
+    DateTimeOffset RetrievedAt);

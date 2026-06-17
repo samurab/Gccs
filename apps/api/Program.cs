@@ -1522,6 +1522,68 @@ api.MapPut("/subcontractors/{subcontractorId:guid}", async (
 .RequirePermission(Permission.ManageSubcontractors)
 .WithName("UpdateSubcontractor");
 
+api.MapPost("/subcontractors/{subcontractorId:guid}/sam-lookup/search", async (
+    Guid subcontractorId,
+    SubcontractorEntityLookupRequest request,
+    SubcontractorService subcontractorService,
+    SubcontractorEntityLookupService lookupService,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var subcontractor = await subcontractorService.FindCurrentTenantAsync(subcontractorId, cancellationToken);
+    if (subcontractor is null)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Subcontractor '{subcontractorId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found");
+    }
+
+    try
+    {
+        return Results.Ok(await lookupService.SearchAsync(request, cancellationToken));
+    }
+    catch (SubcontractorEntityLookupValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["query"] = [exception.Message]
+        });
+    }
+    catch (SubcontractorEntityLookupUnavailableException exception)
+    {
+        return Results.Problem(
+            title: "SAM.gov lookup unavailable",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+})
+.RequirePermission(Permission.ViewSubcontractors)
+.WithName("SearchSubcontractorSamLookup");
+
+api.MapPost("/subcontractors/{subcontractorId:guid}/sam-lookup/apply", async (
+    Guid subcontractorId,
+    ApplySubcontractorEntityLookupRequest request,
+    SubcontractorEntityLookupService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.ApplyAsync(subcontractorId, request, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Subcontractor '{subcontractorId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageSubcontractors)
+.WithName("ApplySubcontractorSamLookup");
+
 api.MapGet("/subcontractors/{subcontractorId:guid}/flow-downs", async (
     Guid subcontractorId,
     Guid? contractId,

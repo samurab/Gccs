@@ -275,6 +275,12 @@ public sealed class SubcontractorEntity : AuditedEntity
     public string Name { get; set; } = string.Empty;
     public string? Uei { get; set; }
     public string? CageCode { get; set; }
+    public string? SamRegistrationStatus { get; set; }
+    public DateOnly? SamRegistrationExpiresAt { get; set; }
+    public string? SamSource { get; set; }
+    public DateTimeOffset? SamRetrievedAt { get; set; }
+    public string SamNaicsJson { get; set; } = "[]";
+    public string? SamExclusionStatus { get; set; }
     public SubcontractorStatus Status { get; set; }
     public string RoleDescription { get; set; } = string.Empty;
     public string SmallBusinessStatus { get; set; } = string.Empty;

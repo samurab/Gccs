@@ -27,6 +27,7 @@ import {
   acknowledgeNoCuiNotice,
   acceptClauseCandidate,
   applyCompanyEntityLookup,
+  applySubcontractorEntityLookup,
   assignContractObligationOwner,
   attachContractClause,
   createContract,
@@ -79,6 +80,7 @@ import {
   runDueDateReminders,
   saveCompanyProfile,
   searchCompanyEntity,
+  searchSubcontractorEntity,
   searchClauseLibrary,
   removeContractClause,
   rejectClauseCandidate,
@@ -125,6 +127,7 @@ import {
   type NotificationPreferenceUpdateRequest,
   type PagedResult,
   type Subcontractor,
+  type SubcontractorEntityLookupResult,
   type SubcontractorComplianceReport,
   type SubcontractorEvidenceRequest,
   type SubcontractorFlowDown,
@@ -1636,6 +1639,9 @@ export function App() {
               obligationItems={obligationDashboardItems}
               onCreateEvidenceRequest={handleSubcontractorEvidenceRequestCreate}
               onSaveFlowDown={handleSubcontractorFlowDownSave}
+              onSubcontractorApplied={(updated) =>
+                setSubcontractors((current) => current.map((subcontractor) => (subcontractor.id === updated.id ? updated : subcontractor)))
+              }
               status={subcontractorStatus}
               selectedSubcontractorId={selectedSubcontractorId}
               subcontractors={subcontractors}
@@ -4413,6 +4419,7 @@ function SubcontractorsView({
   obligationItems,
   onCreateEvidenceRequest,
   onSaveFlowDown,
+  onSubcontractorApplied,
   onCreate,
   onSelect,
   selectedSubcontractorId,
@@ -4434,6 +4441,7 @@ function SubcontractorsView({
     flowDownId: string | null,
     request: UpsertSubcontractorFlowDownRequest
   ) => Promise<void>;
+  onSubcontractorApplied: (subcontractor: Subcontractor) => void;
   onCreate: (request: UpsertSubcontractorRequest) => Promise<void>;
   onSelect: (subcontractorId: string) => Promise<void>;
   selectedSubcontractorId: string | null;
@@ -4441,6 +4449,10 @@ function SubcontractorsView({
   subcontractors: Subcontractor[];
 }) {
   const [form, setForm] = useState<SubcontractorFormState>(defaultSubcontractorForm);
+  const [lookupQuery, setLookupQuery] = useState({ uei: "", legalBusinessName: "" });
+  const [lookupResults, setLookupResults] = useState<SubcontractorEntityLookupResult[]>([]);
+  const [lookupStatus, setLookupStatus] = useState<"idle" | "searching" | "applying" | "failed" | "applied">("idle");
+  const [lookupMessage, setLookupMessage] = useState("");
   const selectedSubcontractor = subcontractors.find((subcontractor) => subcontractor.id === selectedSubcontractorId) ?? null;
 
   function updateField<TKey extends keyof SubcontractorFormState>(field: TKey, value: SubcontractorFormState[TKey]) {
@@ -4474,6 +4486,50 @@ function SubcontractorsView({
       contactTitle: "Contracts Manager",
       contractIds: form.contractId ? [form.contractId] : []
     });
+  }
+
+  async function searchSelectedSubcontractor() {
+    if (!selectedSubcontractor) {
+      return;
+    }
+
+    setLookupStatus("searching");
+    setLookupMessage("");
+    const result = await searchSubcontractorEntity(selectedSubcontractor.id, {
+      uei: lookupQuery.uei.trim() || null,
+      legalBusinessName: lookupQuery.legalBusinessName.trim() || null
+    });
+    if (result.data) {
+      setLookupResults(result.data);
+      setLookupStatus("idle");
+      setLookupMessage(result.data.length === 0 ? "No SAM.gov matches found." : `${result.data.length} SAM.gov match found.`);
+      return;
+    }
+
+    setLookupStatus("failed");
+    setLookupMessage(result.error ?? "SAM.gov subcontractor lookup failed.");
+  }
+
+  async function applySelectedSubcontractorResult(result: SubcontractorEntityLookupResult) {
+    if (!selectedSubcontractor) {
+      return;
+    }
+
+    setLookupStatus("applying");
+    setLookupMessage("");
+    const applied = await applySubcontractorEntityLookup(selectedSubcontractor.id, {
+      result,
+      selectedFields: ["name", "uei", "cageCode"]
+    });
+    if (applied.data) {
+      onSubcontractorApplied(applied.data);
+      setLookupStatus("applied");
+      setLookupMessage("SAM.gov subcontractor data applied.");
+      return;
+    }
+
+    setLookupStatus("failed");
+    setLookupMessage(applied.error ?? "SAM.gov subcontractor data could not be applied.");
   }
 
   return (
@@ -4559,6 +4615,52 @@ function SubcontractorsView({
         </div>
         {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
       </form>
+      {selectedSubcontractor ? (
+        <section className="profile-form" aria-label="Subcontractor SAM.gov lookup">
+          <div className="form-grid">
+            <label>
+              <span>SAM UEI</span>
+              <input value={lookupQuery.uei} onChange={(event) => setLookupQuery((current) => ({ ...current, uei: event.target.value }))} />
+            </label>
+            <label>
+              <span>Legal business name</span>
+              <input
+                value={lookupQuery.legalBusinessName}
+                onChange={(event) => setLookupQuery((current) => ({ ...current, legalBusinessName: event.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="form-actions">
+            <button type="button" onClick={searchSelectedSubcontractor} disabled={!canManageSubcontractors || lookupStatus === "searching"}>
+              Search SAM.gov for selected subcontractor
+            </button>
+          </div>
+          {lookupMessage ? (
+            <p className={`form-status ${lookupStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>{lookupMessage}</p>
+          ) : null}
+          {lookupResults.length > 0 ? (
+            <div className="validation-summary">
+              {lookupResults.map((result) => (
+                <div key={`${result.uei}-${result.retrievedAt}`}>
+                  <p>
+                    <strong>{result.legalBusinessName}</strong> {result.uei} {result.cageCode ? `CAGE ${result.cageCode}` : ""}
+                  </p>
+                  <p>
+                    {result.source} retrieved {new Date(result.retrievedAt).toLocaleString()} · {result.registrationStatus ?? "Status unknown"} · SAM expires{" "}
+                    {result.samRegistrationExpiresAt ?? "unknown"} · {result.exclusionStatus ?? "Exclusions unknown"}
+                  </p>
+                  <p>NAICS {result.naicsCodes.map((naics) => naics.code).join(", ") || "unknown"}</p>
+                  <div className="form-actions">
+                    <button type="button" onClick={() => applySelectedSubcontractorResult(result)} disabled={lookupStatus === "applying"}>
+                      Apply selected fields
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
       {subcontractors.length > 0 ? (
         <div className="subcontractor-workspace">
           <div className="evidence-list" aria-label="Subcontractor list">
