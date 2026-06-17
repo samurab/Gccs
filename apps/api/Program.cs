@@ -1478,9 +1478,14 @@ api.MapPost("/reports/subcontractor-compliance", async (
 .WithName("GenerateSubcontractorComplianceReport");
 
 api.MapGet("/subcontractors", async (
+    string? status,
+    bool? expiringInsuranceOnly,
+    string? owner,
     SubcontractorService service,
     CancellationToken cancellationToken) =>
-    Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
+    Results.Ok(await service.ListCurrentTenantAsync(
+        new SubcontractorListQuery(status, expiringInsuranceOnly ?? false, owner),
+        cancellationToken)))
 .RequirePermission(Permission.ViewSubcontractors)
 .WithName("ListSubcontractors");
 

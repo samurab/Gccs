@@ -284,6 +284,8 @@ public sealed class SubcontractorEntity : AuditedEntity
     public SubcontractorStatus Status { get; set; }
     public string RoleDescription { get; set; } = string.Empty;
     public string SmallBusinessStatus { get; set; } = string.Empty;
+    public string NaicsCodesJson { get; set; } = "[]";
+    public string CertificationsJson { get; set; } = "[]";
     public string CmmcStatus { get; set; } = string.Empty;
     public DateOnly? InsuranceExpiresAt { get; set; }
     public string NdaStatus { get; set; } = string.Empty;
@@ -297,6 +299,7 @@ public sealed class SubcontractorEntity : AuditedEntity
     public string? ContactEmail { get; set; }
     public string? ContactPhone { get; set; }
     public string? ContactTitle { get; set; }
+    public string? OwnerFunction { get; set; }
 
     public ICollection<FlowDownClauseEntity> FlowDownClauses { get; set; } = [];
     public ICollection<ContractSubcontractorEntity> Contracts { get; set; } = [];

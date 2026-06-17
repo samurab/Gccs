@@ -19,11 +19,30 @@ public sealed class EfSubcontractorRepository(
         Converters = { new JsonStringEnumConverter() }
     };
 
-    public async Task<IReadOnlyList<SubcontractorDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<SubcontractorDto>> ListCurrentTenantAsync(
+        SubcontractorListQuery? query = null,
+        CancellationToken cancellationToken = default)
     {
-        var subcontractors = await QueryCurrentTenant()
-            .OrderBy(subcontractor => subcontractor.Name)
-            .ToArrayAsync(cancellationToken);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var items = QueryCurrentTenant();
+        if (!string.IsNullOrWhiteSpace(query?.Status) &&
+            Enum.TryParse<SubcontractorStatus>(query.Status, true, out var status))
+        {
+            items = items.Where(subcontractor => subcontractor.Status == status);
+        }
+
+        if (query?.ExpiringInsuranceOnly == true)
+        {
+            var soon = today.AddDays(60);
+            items = items.Where(subcontractor => subcontractor.InsuranceExpiresAt != null && subcontractor.InsuranceExpiresAt <= soon);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query?.Owner))
+        {
+            items = items.Where(subcontractor => subcontractor.OwnerFunction != null && subcontractor.OwnerFunction.Contains(query.Owner));
+        }
+
+        var subcontractors = await items.OrderBy(subcontractor => subcontractor.Name).ToArrayAsync(cancellationToken);
         return subcontractors.Select(ToDto).ToArray();
     }
 
@@ -291,6 +310,8 @@ public sealed class EfSubcontractorRepository(
         entity.Status = request.Status;
         entity.RoleDescription = request.RoleDescription;
         entity.SmallBusinessStatus = request.SmallBusinessStatus;
+        entity.NaicsCodesJson = JsonSerializer.Serialize(request.NaicsCodes ?? [], JsonOptions);
+        entity.CertificationsJson = JsonSerializer.Serialize(request.Certifications ?? [], JsonOptions);
         entity.CmmcStatus = request.CmmcStatus;
         entity.InsuranceExpiresAt = request.InsuranceExpiresAt;
         entity.NdaStatus = request.NdaStatus;
@@ -304,6 +325,7 @@ public sealed class EfSubcontractorRepository(
         entity.ContactEmail = request.ContactEmail;
         entity.ContactPhone = request.ContactPhone;
         entity.ContactTitle = request.ContactTitle;
+        entity.OwnerFunction = request.OwnerFunction;
     }
 
     private async Task<Guid?> ResolveAndValidateContractReferencesAsync(
@@ -502,6 +524,8 @@ public sealed class EfSubcontractorRepository(
             entity.Status,
             entity.RoleDescription,
             entity.SmallBusinessStatus,
+            ReadStringArray(entity.NaicsCodesJson),
+            ReadStringArray(entity.CertificationsJson),
             entity.CmmcStatus,
             entity.InsuranceExpiresAt,
             entity.NdaStatus,
@@ -515,6 +539,9 @@ public sealed class EfSubcontractorRepository(
             entity.ContactEmail,
             entity.ContactPhone,
             entity.ContactTitle,
+            entity.OwnerFunction,
+            CalculateCompletion(entity),
+            CalculateCompletion(entity) == 100,
             entity.Contracts.Select(link => link.ContractId).OrderBy(id => id).ToArray(),
             entity.CreatedAt,
             entity.UpdatedAt);
@@ -585,5 +612,34 @@ public sealed class EfSubcontractorRepository(
         {
             return [];
         }
+    }
+
+    private static IReadOnlyList<string> ReadStringArray(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<string[]>(json, JsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static int CalculateCompletion(SubcontractorEntity entity)
+    {
+        var completed = 0;
+        const int total = 10;
+        completed += string.IsNullOrWhiteSpace(entity.Name) ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.Uei) ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.CageCode) ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.RoleDescription) ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.SmallBusinessStatus) ? 0 : 1;
+        completed += ReadStringArray(entity.NaicsCodesJson).Count == 0 ? 0 : 1;
+        completed += ReadStringArray(entity.CertificationsJson).Count == 0 ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.CmmcStatus) ? 0 : 1;
+        completed += entity.InsuranceExpiresAt is null ? 0 : 1;
+        completed += string.IsNullOrWhiteSpace(entity.OwnerFunction) ? 0 : 1;
+        return (int)Math.Round(completed / (double)total * 100, MidpointRounding.AwayFromZero);
     }
 }

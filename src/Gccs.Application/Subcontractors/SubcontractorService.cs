@@ -8,8 +8,10 @@ public sealed class SubcontractorService(
     ISubcontractorRepository repository,
     IAuditEventWriter auditEventWriter)
 {
-    public Task<IReadOnlyList<SubcontractorDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
-        repository.ListCurrentTenantAsync(cancellationToken);
+    public Task<IReadOnlyList<SubcontractorDto>> ListCurrentTenantAsync(
+        SubcontractorListQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        repository.ListCurrentTenantAsync(query, cancellationToken);
 
     public Task<SubcontractorDto?> FindCurrentTenantAsync(Guid subcontractorId, CancellationToken cancellationToken = default) =>
         repository.FindCurrentTenantAsync(subcontractorId, cancellationToken);
@@ -301,6 +303,19 @@ public sealed class SubcontractorService(
             ContactEmail = TrimOptional(request.ContactEmail),
             ContactPhone = TrimOptional(request.ContactPhone),
             ContactTitle = TrimOptional(request.ContactTitle),
+            OwnerFunction = TrimOptional(request.OwnerFunction),
+            NaicsCodes = request.NaicsCodes?
+                .Select(value => value.Trim())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(value => value)
+                .ToArray(),
+            Certifications = request.Certifications?
+                .Select(value => value.Trim())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(value => value)
+                .ToArray(),
             ContractIds = request.ContractIds.Distinct().OrderBy(id => id).ToArray()
         };
 

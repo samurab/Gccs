@@ -18,6 +18,8 @@ public sealed record SubcontractorDto(
     SubcontractorStatus Status,
     string RoleDescription,
     string SmallBusinessStatus,
+    IReadOnlyList<string> NaicsCodes,
+    IReadOnlyList<string> Certifications,
     string CmmcStatus,
     DateOnly? InsuranceExpiresAt,
     string NdaStatus,
@@ -31,6 +33,9 @@ public sealed record SubcontractorDto(
     string? ContactEmail,
     string? ContactPhone,
     string? ContactTitle,
+    string? OwnerFunction,
+    int CompletionPercentage,
+    bool IsComplete,
     IReadOnlyList<Guid> ContractIds,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
@@ -55,7 +60,15 @@ public sealed record UpsertSubcontractorRequest(
     string? ContactEmail,
     string? ContactPhone,
     string? ContactTitle,
-    IReadOnlyList<Guid> ContractIds);
+    IReadOnlyList<Guid> ContractIds,
+    IReadOnlyList<string>? NaicsCodes = null,
+    IReadOnlyList<string>? Certifications = null,
+    string? OwnerFunction = null);
+
+public sealed record SubcontractorListQuery(
+    string? Status = null,
+    bool ExpiringInsuranceOnly = false,
+    string? Owner = null);
 
 public sealed record SubcontractorFlowDownDto(
     Guid Id,
@@ -118,7 +131,9 @@ public sealed record UpsertSubcontractorEvidenceRequestRequest(
 
 public interface ISubcontractorRepository
 {
-    Task<IReadOnlyList<SubcontractorDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SubcontractorDto>> ListCurrentTenantAsync(
+        SubcontractorListQuery? query = null,
+        CancellationToken cancellationToken = default);
 
     Task<SubcontractorDto?> FindCurrentTenantAsync(Guid subcontractorId, CancellationToken cancellationToken = default);
 

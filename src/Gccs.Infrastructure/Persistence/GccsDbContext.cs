@@ -733,8 +733,11 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.TenantId, x.Uei });
             entity.Property(x => x.RoleDescription).HasMaxLength(160).HasDefaultValue("").IsRequired();
             entity.Property(x => x.SmallBusinessStatus).HasMaxLength(120).HasDefaultValue("Unknown").IsRequired();
+            entity.Property(x => x.NaicsCodesJson).HasColumnType("jsonb").HasDefaultValue("[]");
+            entity.Property(x => x.CertificationsJson).HasColumnType("jsonb").HasDefaultValue("[]");
             entity.Property(x => x.CmmcStatus).HasMaxLength(120).HasDefaultValue("Unknown").IsRequired();
             entity.Property(x => x.NdaStatus).HasMaxLength(120).HasDefaultValue("NotOnFile").IsRequired();
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120);
             entity.Property(x => x.SamRegistrationStatus).HasMaxLength(120);
             entity.Property(x => x.SamSource).HasMaxLength(120);
             entity.Property(x => x.SamNaicsJson).HasColumnType("jsonb").HasDefaultValue("[]");
