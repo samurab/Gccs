@@ -27,6 +27,12 @@ public sealed class SubcontractorService(
         CancellationToken cancellationToken = default) =>
         repository.ListEvidenceRequestsAsync(subcontractorId, cancellationToken);
 
+    public Task<IReadOnlyList<SupplierObligationDto>?> ListSupplierObligationsAsync(
+        Guid? subcontractorId,
+        Guid? contractId,
+        CancellationToken cancellationToken = default) =>
+        repository.ListSupplierObligationsAsync(subcontractorId, contractId, cancellationToken);
+
     public async Task<SubcontractorDto> CreateAsync(
         UpsertSubcontractorRequest request,
         Guid actorUserId,
@@ -101,6 +107,69 @@ public sealed class SubcontractorService(
                 "Subcontractor evidence request was updated.",
                 previous?.Status.ToString(),
                 cancellationToken);
+        }
+
+        return updated;
+    }
+
+    public async Task<SupplierObligationDto?> CreateSupplierObligationAsync(
+        Guid subcontractorId,
+        UpsertSupplierObligationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = Normalize(request);
+        Validate(normalized);
+        var created = await repository.CreateSupplierObligationAsync(subcontractorId, normalized, actorUserId, cancellationToken);
+        if (created is not null)
+        {
+            await WriteSupplierObligationAuditAsync(created, actorUserId, AuditAction.Created, "Supplier obligation was created.", null, cancellationToken);
+        }
+
+        return created;
+    }
+
+    public async Task<IReadOnlyList<SupplierObligationDto>?> BulkCreateSupplierObligationsAsync(
+        Guid subcontractorId,
+        BulkCreateSupplierObligationsRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = Normalize(request);
+        Validate(normalized);
+        var created = await repository.BulkCreateSupplierObligationsAsync(subcontractorId, normalized, actorUserId, cancellationToken);
+        if (created is not null)
+        {
+            foreach (var obligation in created)
+            {
+                await WriteSupplierObligationAuditAsync(
+                    obligation,
+                    actorUserId,
+                    AuditAction.Created,
+                    "Supplier obligation was bulk-created from an accepted flow-down.",
+                    null,
+                    cancellationToken);
+            }
+        }
+
+        return created;
+    }
+
+    public async Task<SupplierObligationDto?> UpdateSupplierObligationAsync(
+        Guid subcontractorId,
+        Guid supplierObligationId,
+        UpsertSupplierObligationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var before = await repository.ListSupplierObligationsAsync(subcontractorId, null, cancellationToken);
+        var previous = before?.SingleOrDefault(candidate => candidate.Id == supplierObligationId);
+        var normalized = Normalize(request);
+        Validate(normalized);
+        var updated = await repository.UpdateSupplierObligationAsync(subcontractorId, supplierObligationId, normalized, actorUserId, cancellationToken);
+        if (updated is not null)
+        {
+            await WriteSupplierObligationAuditAsync(updated, actorUserId, AuditAction.Updated, "Supplier obligation was updated.", previous?.Status.ToString(), cancellationToken);
         }
 
         return updated;
@@ -287,6 +356,54 @@ public sealed class SubcontractorService(
             cancellationToken);
     }
 
+    private async Task WriteSupplierObligationAuditAsync(
+        SupplierObligationDto supplierObligation,
+        Guid actorUserId,
+        AuditAction action,
+        string summary,
+        string? previousStatus,
+        CancellationToken cancellationToken)
+    {
+        var metadata = new Dictionary<string, string>
+        {
+            ["subcontractorId"] = supplierObligation.SubcontractorId.ToString(),
+            ["status"] = supplierObligation.Status.ToString(),
+            ["ownerFunction"] = supplierObligation.OwnerFunction,
+            ["dueDate"] = supplierObligation.DueDate.ToString("O"),
+            ["requiredEvidenceTypes"] = string.Join(",", supplierObligation.RequiredEvidenceTypes)
+        };
+
+        if (supplierObligation.ContractId is not null)
+        {
+            metadata["contractId"] = supplierObligation.ContractId.Value.ToString();
+        }
+
+        if (supplierObligation.FlowDownClauseId is not null)
+        {
+            metadata["flowDownClauseId"] = supplierObligation.FlowDownClauseId.Value.ToString();
+        }
+
+        if (supplierObligation.ObligationId is not null)
+        {
+            metadata["obligationId"] = supplierObligation.ObligationId;
+        }
+
+        if (previousStatus is not null)
+        {
+            metadata["previousStatus"] = previousStatus;
+        }
+
+        await auditEventWriter.WriteAsync(
+            supplierObligation.TenantId,
+            actorUserId,
+            action,
+            "SupplierObligation",
+            supplierObligation.Id.ToString(),
+            summary,
+            metadata,
+            cancellationToken);
+    }
+
     private static UpsertSubcontractorRequest Normalize(UpsertSubcontractorRequest request) =>
         request with
         {
@@ -334,7 +451,24 @@ public sealed class SubcontractorService(
             RequestedEvidenceTypes = request.RequestedEvidenceTypes.Distinct().OrderBy(type => type.ToString()).ToArray(),
             RecipientName = TrimOptional(request.RecipientName),
             RecipientEmail = TrimOptional(request.RecipientEmail),
+            ObligationId = TrimOptional(request.ObligationId),
+            OwnerFunction = TrimOptional(request.OwnerFunction)
+        };
+
+    private static UpsertSupplierObligationRequest Normalize(UpsertSupplierObligationRequest request) =>
+        request with
+        {
+            RequestedItem = request.RequestedItem.Trim(),
+            RequiredEvidenceTypes = request.RequiredEvidenceTypes.Distinct().OrderBy(type => type.ToString()).ToArray(),
+            OwnerFunction = request.OwnerFunction.Trim(),
             ObligationId = TrimOptional(request.ObligationId)
+        };
+
+    private static BulkCreateSupplierObligationsRequest Normalize(BulkCreateSupplierObligationsRequest request) =>
+        request with
+        {
+            OwnerFunction = request.OwnerFunction.Trim(),
+            RequiredEvidenceTypes = request.RequiredEvidenceTypes.Distinct().OrderBy(type => type.ToString()).ToArray()
         };
 
     private static void Validate(UpsertSubcontractorRequest request)
@@ -388,6 +522,52 @@ public sealed class SubcontractorService(
         if (request.Status is SubcontractorEvidenceRequestStatus.Satisfied && request.ReceivedEvidenceItemId is null)
         {
             throw new SubcontractorValidationException("Received evidence is required to satisfy an evidence request.");
+        }
+    }
+
+    private static void Validate(UpsertSupplierObligationRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RequestedItem))
+        {
+            throw new SubcontractorValidationException("Supplier obligation title is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.OwnerFunction))
+        {
+            throw new SubcontractorValidationException("Supplier obligation owner is required.");
+        }
+
+        if (request.RequiredEvidenceTypes.Count == 0)
+        {
+            throw new SubcontractorValidationException("At least one required evidence type is required.");
+        }
+
+        if (request.Status is SubcontractorEvidenceRequestStatus.Overdue)
+        {
+            throw new SubcontractorValidationException("Overdue is derived from due date and open status.");
+        }
+
+        if (request.Status is SubcontractorEvidenceRequestStatus.Satisfied && request.ReceivedEvidenceItemId is null)
+        {
+            throw new SubcontractorValidationException("Received evidence is required to satisfy a supplier obligation.");
+        }
+    }
+
+    private static void Validate(BulkCreateSupplierObligationsRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.OwnerFunction))
+        {
+            throw new SubcontractorValidationException("Supplier obligation owner is required.");
+        }
+
+        if (request.RequiredEvidenceTypes.Count == 0)
+        {
+            throw new SubcontractorValidationException("At least one required evidence type is required.");
+        }
+
+        if (request.Status is SubcontractorEvidenceRequestStatus.Overdue)
+        {
+            throw new SubcontractorValidationException("Overdue is derived from due date and open status.");
         }
     }
 

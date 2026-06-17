@@ -110,6 +110,7 @@ public sealed record SubcontractorEvidenceRequestDto(
     IReadOnlyList<EvidenceType> RequestedEvidenceTypes,
     DateOnly DueDate,
     SubcontractorEvidenceRequestStatus Status,
+    string? OwnerFunction,
     string? RecipientName,
     string? RecipientEmail,
     string? ObligationId,
@@ -129,7 +130,45 @@ public sealed record UpsertSubcontractorEvidenceRequestRequest(
     string? RecipientEmail,
     string? ObligationId,
     Guid? RelatedFlowDownClauseId,
-    Guid? ReceivedEvidenceItemId);
+    Guid? ReceivedEvidenceItemId,
+    string? OwnerFunction = null);
+
+public sealed record SupplierObligationDto(
+    Guid Id,
+    Guid TenantId,
+    Guid SubcontractorId,
+    string SubcontractorName,
+    Guid? ContractId,
+    string? ContractNumber,
+    Guid? FlowDownClauseId,
+    Guid? ContractClauseId,
+    string? ObligationId,
+    string ClauseNumber,
+    string Title,
+    string OwnerFunction,
+    DateOnly DueDate,
+    SubcontractorEvidenceRequestStatus Status,
+    IReadOnlyList<EvidenceType> RequiredEvidenceTypes,
+    Guid? ReceivedEvidenceItemId,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? UpdatedAt);
+
+public sealed record UpsertSupplierObligationRequest(
+    Guid RelatedFlowDownClauseId,
+    string RequestedItem,
+    IReadOnlyList<EvidenceType> RequiredEvidenceTypes,
+    DateOnly DueDate,
+    SubcontractorEvidenceRequestStatus Status,
+    string OwnerFunction,
+    string? ObligationId = null,
+    Guid? ReceivedEvidenceItemId = null);
+
+public sealed record BulkCreateSupplierObligationsRequest(
+    Guid ContractId,
+    DateOnly DueDate,
+    string OwnerFunction,
+    IReadOnlyList<EvidenceType> RequiredEvidenceTypes,
+    SubcontractorEvidenceRequestStatus Status = SubcontractorEvidenceRequestStatus.Draft);
 
 public interface ISubcontractorRepository
 {
@@ -178,6 +217,11 @@ public interface ISubcontractorRepository
         Guid subcontractorId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<SupplierObligationDto>?> ListSupplierObligationsAsync(
+        Guid? subcontractorId,
+        Guid? contractId,
+        CancellationToken cancellationToken = default);
+
     Task<SubcontractorEvidenceRequestDto?> CreateEvidenceRequestAsync(
         Guid subcontractorId,
         UpsertSubcontractorEvidenceRequestRequest request,
@@ -188,6 +232,25 @@ public interface ISubcontractorRepository
         Guid subcontractorId,
         Guid evidenceRequestId,
         UpsertSubcontractorEvidenceRequestRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<SupplierObligationDto?> CreateSupplierObligationAsync(
+        Guid subcontractorId,
+        UpsertSupplierObligationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SupplierObligationDto>?> BulkCreateSupplierObligationsAsync(
+        Guid subcontractorId,
+        BulkCreateSupplierObligationsRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<SupplierObligationDto?> UpdateSupplierObligationAsync(
+        Guid subcontractorId,
+        Guid supplierObligationId,
+        UpsertSupplierObligationRequest request,
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 }

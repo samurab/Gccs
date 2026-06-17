@@ -377,6 +377,7 @@ export type SubcontractorEvidenceRequest = {
   requestedEvidenceTypes: string[];
   dueDate: string;
   status: string;
+  ownerFunction: string | null;
   recipientName: string | null;
   recipientEmail: string | null;
   obligationId: string | null;
@@ -392,6 +393,46 @@ export type UpsertSubcontractorEvidenceRequestRequest = Omit<
   SubcontractorEvidenceRequest,
   "id" | "tenantId" | "subcontractorId" | "isOverdue" | "completedAt" | "createdAt" | "updatedAt"
 >;
+
+export type SupplierObligation = {
+  id: string;
+  tenantId: string;
+  subcontractorId: string;
+  subcontractorName: string;
+  contractId: string | null;
+  contractNumber: string | null;
+  flowDownClauseId: string | null;
+  contractClauseId: string | null;
+  obligationId: string | null;
+  clauseNumber: string;
+  title: string;
+  ownerFunction: string;
+  dueDate: string;
+  status: string;
+  requiredEvidenceTypes: string[];
+  receivedEvidenceItemId: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpsertSupplierObligationRequest = {
+  relatedFlowDownClauseId: string;
+  requestedItem: string;
+  requiredEvidenceTypes: string[];
+  dueDate: string;
+  status: string;
+  ownerFunction: string;
+  obligationId?: string | null;
+  receivedEvidenceItemId?: string | null;
+};
+
+export type BulkCreateSupplierObligationsRequest = {
+  contractId: string;
+  dueDate: string;
+  ownerFunction: string;
+  requiredEvidenceTypes: string[];
+  status: string;
+};
 
 export type ApprovedEvidencePackage = {
   reportId: string;
@@ -993,6 +1034,46 @@ export async function updateSubcontractorFlowDown(
   request: UpsertSubcontractorFlowDownRequest
 ): Promise<ApiMutationResult<SubcontractorFlowDown>> {
   return putJsonResult<SubcontractorFlowDown>(`/api/subcontractors/${subcontractorId}/flow-downs/${flowDownId}`, request);
+}
+
+export async function getSubcontractorSupplierObligations(
+  subcontractorId: string,
+  contractId?: string
+): Promise<SupplierObligation[]> {
+  const query = contractId ? `?contractId=${encodeURIComponent(contractId)}` : "";
+  return getJson<SupplierObligation[]>(`/api/subcontractors/${subcontractorId}/supplier-obligations${query}`, []);
+}
+
+export async function getContractSupplierObligations(contractId: string): Promise<SupplierObligation[]> {
+  return getJson<SupplierObligation[]>(`/api/contracts/${contractId}/supplier-obligations`, []);
+}
+
+export async function createSupplierObligation(
+  subcontractorId: string,
+  request: UpsertSupplierObligationRequest
+): Promise<ApiMutationResult<SupplierObligation>> {
+  return postJsonResult<SupplierObligation>(`/api/subcontractors/${subcontractorId}/supplier-obligations`, request);
+}
+
+export async function bulkCreateSupplierObligations(
+  subcontractorId: string,
+  request: BulkCreateSupplierObligationsRequest
+): Promise<ApiMutationResult<SupplierObligation[]>> {
+  return postJsonResult<SupplierObligation[]>(
+    `/api/subcontractors/${subcontractorId}/supplier-obligations/bulk-from-flow-downs`,
+    request
+  );
+}
+
+export async function updateSupplierObligation(
+  subcontractorId: string,
+  supplierObligationId: string,
+  request: UpsertSupplierObligationRequest
+): Promise<ApiMutationResult<SupplierObligation>> {
+  return putJsonResult<SupplierObligation>(
+    `/api/subcontractors/${subcontractorId}/supplier-obligations/${supplierObligationId}`,
+    request
+  );
 }
 
 export async function getSubcontractorEvidenceRequests(subcontractorId: string): Promise<SubcontractorEvidenceRequest[]> {

@@ -243,6 +243,49 @@ public sealed class EfSubcontractorRepository(
         return requests.Select(request => ToDto(request, today)).ToArray();
     }
 
+    public async Task<IReadOnlyList<SupplierObligationDto>?> ListSupplierObligationsAsync(
+        Guid? subcontractorId,
+        Guid? contractId,
+        CancellationToken cancellationToken = default)
+    {
+        if (subcontractorId is not null)
+        {
+            var subcontractorExists = await dbContext.Subcontractors
+                .AnyAsync(candidate => candidate.Id == subcontractorId && candidate.TenantId == tenantContext.TenantId, cancellationToken);
+            if (!subcontractorExists)
+            {
+                return null;
+            }
+        }
+
+        var query = dbContext.SubcontractorEvidenceRequests
+            .AsNoTracking()
+            .Include(request => request.Subcontractor)
+            .Include(request => request.RelatedFlowDownClause)
+                .ThenInclude(flowDown => flowDown!.Contract)
+            .Where(request =>
+                request.TenantId == tenantContext.TenantId &&
+                request.Subcontractor != null &&
+                request.Subcontractor.TenantId == tenantContext.TenantId &&
+                request.RelatedFlowDownClauseId != null);
+
+        if (subcontractorId is not null)
+        {
+            query = query.Where(request => request.SubcontractorId == subcontractorId);
+        }
+
+        if (contractId is not null)
+        {
+            query = query.Where(request => request.RelatedFlowDownClause != null && request.RelatedFlowDownClause.ContractId == contractId);
+        }
+
+        var requests = await query
+            .OrderBy(request => request.DueDate)
+            .ThenBy(request => request.RelatedFlowDownClause == null ? string.Empty : request.RelatedFlowDownClause.ClauseNumber)
+            .ToArrayAsync(cancellationToken);
+        return requests.Select(ToSupplierObligationDto).ToArray();
+    }
+
     public async Task<SubcontractorEvidenceRequestDto?> CreateEvidenceRequestAsync(
         Guid subcontractorId,
         UpsertSubcontractorEvidenceRequestRequest request,
@@ -270,6 +313,120 @@ public sealed class EfSubcontractorRepository(
         dbContext.SubcontractorEvidenceRequests.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity);
+    }
+
+    public async Task<SupplierObligationDto?> CreateSupplierObligationAsync(
+        Guid subcontractorId,
+        UpsertSupplierObligationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var evidenceRequest = ToEvidenceRequest(request);
+        var created = await CreateEvidenceRequestAsync(subcontractorId, evidenceRequest, actorUserId, cancellationToken);
+        return created is null
+            ? null
+            : await FindSupplierObligationAsync(subcontractorId, created.Id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<SupplierObligationDto>?> BulkCreateSupplierObligationsAsync(
+        Guid subcontractorId,
+        BulkCreateSupplierObligationsRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var subcontractorExists = await dbContext.Subcontractors
+            .AnyAsync(candidate => candidate.Id == subcontractorId && candidate.TenantId == tenantContext.TenantId, cancellationToken);
+        if (!subcontractorExists)
+        {
+            return null;
+        }
+
+        var contractExists = await dbContext.Contracts
+            .AnyAsync(contract => contract.Id == request.ContractId && contract.TenantId == tenantContext.TenantId, cancellationToken);
+        if (!contractExists)
+        {
+            throw new SubcontractorValidationException("Contract was not found for the current tenant.");
+        }
+
+        var acceptedFlowDowns = await dbContext.FlowDownClauses
+            .Include(flowDown => flowDown.Subcontractor)
+            .Where(flowDown =>
+                flowDown.SubcontractorId == subcontractorId &&
+                flowDown.ContractId == request.ContractId &&
+                flowDown.Subcontractor != null &&
+                flowDown.Subcontractor.TenantId == tenantContext.TenantId &&
+                flowDown.ObligationId != null &&
+                (flowDown.Status == FlowDownStatus.Acknowledged || flowDown.Status == FlowDownStatus.Signed))
+            .OrderBy(flowDown => flowDown.ClauseNumber)
+            .ThenBy(flowDown => flowDown.Title)
+            .ToArrayAsync(cancellationToken);
+
+        var flowDownIds = acceptedFlowDowns.Select(flowDown => flowDown.Id).ToArray();
+        var existingFlowDownIds = await dbContext.SubcontractorEvidenceRequests
+            .Where(candidate =>
+                candidate.TenantId == tenantContext.TenantId &&
+                candidate.SubcontractorId == subcontractorId &&
+                candidate.RelatedFlowDownClauseId != null &&
+                flowDownIds.Contains(candidate.RelatedFlowDownClauseId.Value))
+            .Select(candidate => candidate.RelatedFlowDownClauseId!.Value)
+            .ToArrayAsync(cancellationToken);
+        var existing = existingFlowDownIds.ToHashSet();
+        var createdIds = new List<Guid>();
+
+        foreach (var flowDown in acceptedFlowDowns.Where(flowDown => !existing.Contains(flowDown.Id)))
+        {
+            var entity = new SubcontractorEvidenceRequestEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                SubcontractorId = subcontractorId,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedByUserId = actorUserId
+            };
+            Apply(entity, new UpsertSubcontractorEvidenceRequestRequest(
+                $"{flowDown.ClauseNumber}: {flowDown.Title}",
+                request.RequiredEvidenceTypes,
+                request.DueDate,
+                request.Status,
+                null,
+                null,
+                flowDown.ObligationId,
+                flowDown.Id,
+                null,
+                request.OwnerFunction), actorUserId);
+            dbContext.SubcontractorEvidenceRequests.Add(entity);
+            createdIds.Add(entity.Id);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        var created = await ListSupplierObligationsAsync(subcontractorId, request.ContractId, cancellationToken);
+        return created?.Where(obligation => createdIds.Contains(obligation.Id)).ToArray() ?? [];
+    }
+
+    public async Task<SupplierObligationDto?> UpdateSupplierObligationAsync(
+        Guid subcontractorId,
+        Guid supplierObligationId,
+        UpsertSupplierObligationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.SubcontractorEvidenceRequests
+            .SingleOrDefaultAsync(candidate =>
+                candidate.Id == supplierObligationId &&
+                candidate.SubcontractorId == subcontractorId &&
+                candidate.TenantId == tenantContext.TenantId,
+                cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        await ValidateEvidenceRequestReferencesAsync(subcontractorId, ToEvidenceRequest(request), cancellationToken);
+        Apply(entity, ToEvidenceRequest(request), actorUserId);
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return await FindSupplierObligationAsync(subcontractorId, supplierObligationId, cancellationToken);
     }
 
     public async Task<SubcontractorEvidenceRequestDto?> UpdateEvidenceRequestAsync(
@@ -473,6 +630,7 @@ public sealed class EfSubcontractorRepository(
         entity.RequestedEvidenceTypesJson = JsonSerializer.Serialize(request.RequestedEvidenceTypes, JsonOptions);
         entity.DueDate = request.DueDate;
         entity.Status = request.Status;
+        entity.OwnerFunction = request.OwnerFunction;
         entity.RecipientName = request.RecipientName;
         entity.RecipientEmail = request.RecipientEmail;
         entity.ObligationId = request.ObligationId;
@@ -496,6 +654,38 @@ public sealed class EfSubcontractorRepository(
             }
         }
     }
+
+    private async Task<SupplierObligationDto?> FindSupplierObligationAsync(
+        Guid subcontractorId,
+        Guid supplierObligationId,
+        CancellationToken cancellationToken)
+    {
+        var entity = await dbContext.SubcontractorEvidenceRequests
+            .AsNoTracking()
+            .Include(request => request.Subcontractor)
+            .Include(request => request.RelatedFlowDownClause)
+                .ThenInclude(flowDown => flowDown!.Contract)
+            .SingleOrDefaultAsync(request =>
+                request.Id == supplierObligationId &&
+                request.SubcontractorId == subcontractorId &&
+                request.TenantId == tenantContext.TenantId &&
+                request.RelatedFlowDownClauseId != null,
+                cancellationToken);
+        return entity is null ? null : ToSupplierObligationDto(entity);
+    }
+
+    private static UpsertSubcontractorEvidenceRequestRequest ToEvidenceRequest(UpsertSupplierObligationRequest request) =>
+        new(
+            request.RequestedItem,
+            request.RequiredEvidenceTypes,
+            request.DueDate,
+            request.Status,
+            null,
+            null,
+            request.ObligationId,
+            request.RelatedFlowDownClauseId,
+            request.ReceivedEvidenceItemId,
+            request.OwnerFunction);
 
     private static void SyncContractLinks(SubcontractorEntity entity, IReadOnlyList<Guid> contractIds)
     {
@@ -580,6 +770,7 @@ public sealed class EfSubcontractorRepository(
             DeserializeEvidenceTypes(entity.RequestedEvidenceTypesJson),
             entity.DueDate,
             entity.Status,
+            entity.OwnerFunction,
             entity.RecipientName,
             entity.RecipientEmail,
             entity.ObligationId,
@@ -589,6 +780,36 @@ public sealed class EfSubcontractorRepository(
             IsEvidenceRequestOverdue(entity, today),
             entity.CreatedAt,
             entity.UpdatedAt);
+
+    private static SupplierObligationDto ToSupplierObligationDto(SubcontractorEvidenceRequestEntity entity)
+    {
+        var flowDown = entity.RelatedFlowDownClause;
+        var contract = flowDown?.Contract;
+        var ownerFunction = FirstPopulated(entity.OwnerFunction, entity.Subcontractor?.OwnerFunction, "Contracts");
+
+        return new SupplierObligationDto(
+            entity.Id,
+            entity.TenantId,
+            entity.SubcontractorId,
+            entity.Subcontractor?.Name ?? string.Empty,
+            flowDown?.ContractId,
+            contract?.ContractNumber,
+            entity.RelatedFlowDownClauseId,
+            flowDown?.ContractClauseId,
+            entity.ObligationId ?? flowDown?.ObligationId,
+            flowDown?.ClauseNumber ?? string.Empty,
+            entity.RequestedItem,
+            ownerFunction,
+            entity.DueDate,
+            entity.Status,
+            DeserializeEvidenceTypes(entity.RequestedEvidenceTypesJson),
+            entity.ReceivedEvidenceItemId,
+            entity.CreatedAt,
+            entity.UpdatedAt);
+    }
+
+    private static string FirstPopulated(params string?[] values) =>
+        values.First(value => !string.IsNullOrWhiteSpace(value))!;
 
     private static bool IsEvidenceRequestOverdue(SubcontractorEvidenceRequestEntity entity, DateOnly today) =>
         entity.DueDate < today &&

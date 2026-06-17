@@ -1718,6 +1718,137 @@ api.MapPut("/subcontractors/{subcontractorId:guid}/flow-downs/{flowDownId:guid}"
 .RequirePermission(Permission.ManageSubcontractors)
 .WithName("UpdateSubcontractorFlowDown");
 
+api.MapGet("/subcontractors/{subcontractorId:guid}/supplier-obligations", async (
+    Guid subcontractorId,
+    Guid? contractId,
+    SubcontractorService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var obligations = await service.ListSupplierObligationsAsync(subcontractorId, contractId, cancellationToken);
+    return obligations is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Subcontractor '{subcontractorId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(obligations);
+})
+.RequirePermission(Permission.ViewSubcontractors)
+.WithName("ListSubcontractorSupplierObligations");
+
+api.MapGet("/contracts/{contractId:guid}/supplier-obligations", async (
+    Guid contractId,
+    SubcontractorService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListSupplierObligationsAsync(null, contractId, cancellationToken) ?? []))
+.RequirePermission(Permission.ViewSubcontractors)
+.WithName("ListContractSupplierObligations");
+
+api.MapPost("/subcontractors/{subcontractorId:guid}/supplier-obligations", async (
+    Guid subcontractorId,
+    UpsertSupplierObligationRequest request,
+    SubcontractorService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateSupplierObligationAsync(subcontractorId, request, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Subcontractor '{subcontractorId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/subcontractors/{subcontractorId}/supplier-obligations/{created.Id}", created);
+    }
+    catch (SubcontractorValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["supplierObligation"] = [exception.Message]
+        },
+        title: "Supplier obligation invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageSubcontractors)
+.WithName("CreateSupplierObligation");
+
+api.MapPost("/subcontractors/{subcontractorId:guid}/supplier-obligations/bulk-from-flow-downs", async (
+    Guid subcontractorId,
+    BulkCreateSupplierObligationsRequest request,
+    SubcontractorService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.BulkCreateSupplierObligationsAsync(subcontractorId, request, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Subcontractor '{subcontractorId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(created);
+    }
+    catch (SubcontractorValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["supplierObligation"] = [exception.Message]
+        },
+        title: "Supplier obligation invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageSubcontractors)
+.WithName("BulkCreateSupplierObligationsFromFlowDowns");
+
+api.MapPut("/subcontractors/{subcontractorId:guid}/supplier-obligations/{supplierObligationId:guid}", async (
+    Guid subcontractorId,
+    Guid supplierObligationId,
+    UpsertSupplierObligationRequest request,
+    SubcontractorService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateSupplierObligationAsync(subcontractorId, supplierObligationId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Supplier obligation '{supplierObligationId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (SubcontractorValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["supplierObligation"] = [exception.Message]
+        },
+        title: "Supplier obligation invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageSubcontractors)
+.WithName("UpdateSupplierObligation");
+
 api.MapGet("/subcontractors/{subcontractorId:guid}/evidence-requests", async (
     Guid subcontractorId,
     SubcontractorService service,

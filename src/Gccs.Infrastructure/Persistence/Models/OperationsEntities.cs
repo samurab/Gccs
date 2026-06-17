@@ -357,6 +357,7 @@ public sealed class SubcontractorEvidenceRequestEntity : AuditedEntity
     public string RequestedEvidenceTypesJson { get; set; } = "[]";
     public DateOnly DueDate { get; set; }
     public SubcontractorEvidenceRequestStatus Status { get; set; }
+    public string? OwnerFunction { get; set; }
     public string? RecipientName { get; set; }
     public string? RecipientEmail { get; set; }
     public string? ObligationId { get; set; }

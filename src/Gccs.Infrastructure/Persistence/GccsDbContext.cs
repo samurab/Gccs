@@ -786,6 +786,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.SubcontractorId, x.DueDate });
             entity.Property(x => x.RequestedItem).HasMaxLength(300).IsRequired();
             entity.Property(x => x.RequestedEvidenceTypesJson).HasColumnType("jsonb");
+            entity.Property(x => x.OwnerFunction).HasMaxLength(160);
             entity.Property(x => x.RecipientName).HasMaxLength(160);
             entity.Property(x => x.RecipientEmail).HasMaxLength(320);
             entity.Property(x => x.ObligationId).HasMaxLength(160);
