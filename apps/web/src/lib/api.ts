@@ -515,6 +515,38 @@ export type CompanyProfile = {
   updatedAt: string | null;
 };
 
+export type CompanyEntityAddress = {
+  street1: string;
+  street2: string | null;
+  city: string;
+  stateOrProvince: string;
+  postalCode: string;
+  country: string;
+};
+
+export type CompanyEntityLookupResult = {
+  legalBusinessName: string;
+  uei: string;
+  cageCode: string | null;
+  registrationStatus: string | null;
+  samRegistrationExpiresAt: string | null;
+  address: CompanyEntityAddress | null;
+  naicsCodes: CompanyNaicsCode[];
+  source: string;
+  retrievedAt: string;
+};
+
+export type CompanyEntityLookupRequest = {
+  uei: string | null;
+  legalBusinessName: string | null;
+};
+
+export type ApplyCompanyEntityLookupRequest = {
+  result: CompanyEntityLookupResult;
+  selectedFields: string[];
+  confirmOverwrite: boolean;
+};
+
 export type ContractRecord = {
   id: string;
   tenantId: string;
@@ -1115,6 +1147,18 @@ export async function saveCompanyProfile(
   request: UpsertCompanyProfileRequest
 ): Promise<ApiMutationResult<CompanyProfile>> {
   return putJsonResult<CompanyProfile>("/api/company-profile", request);
+}
+
+export async function searchCompanyEntity(
+  request: CompanyEntityLookupRequest
+): Promise<ApiMutationResult<CompanyEntityLookupResult[]>> {
+  return postJsonResult<CompanyEntityLookupResult[]>("/api/company-profile/sam-lookup/search", request);
+}
+
+export async function applyCompanyEntityLookup(
+  request: ApplyCompanyEntityLookupRequest
+): Promise<ApiMutationResult<CompanyProfile>> {
+  return postJsonResult<CompanyProfile>("/api/company-profile/sam-lookup/apply", request);
 }
 
 export async function createContract(request: UpsertContractRequest): Promise<ApiMutationResult<ContractRecord>> {

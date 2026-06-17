@@ -16,6 +16,11 @@ public sealed class SamGovEntityLookupClient(
 
     public async Task<SamGovEntityLookupResult> LookupByUeiAsync(
         string uei,
+        CancellationToken cancellationToken = default) =>
+        await SearchAsync(new SamGovEntitySearchRequest(uei, null), cancellationToken);
+
+    public async Task<SamGovEntityLookupResult> SearchAsync(
+        SamGovEntitySearchRequest request,
         CancellationToken cancellationToken = default)
     {
         var configured = options.Value;
@@ -31,15 +36,16 @@ public sealed class SamGovEntityLookupClient(
             return SamGovEntityLookupResult.Failure(ConfigurationErrorCode, UserSafeFailureMessage);
         }
 
-        var normalizedUei = uei.Trim();
+        var normalizedUei = request.Uei?.Trim();
+        var normalizedName = request.LegalBusinessName?.Trim();
         for (var attempt = 0; attempt <= configured.RetryCount; attempt++)
         {
             try
             {
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 timeout.CancelAfter(configured.Timeout);
-                using var request = new HttpRequestMessage(HttpMethod.Get, BuildLookupUri(baseUri, normalizedUei, configured.ApiKey));
-                using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Get, BuildLookupUri(baseUri, normalizedUei, normalizedName, configured.ApiKey));
+                using var response = await httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -78,11 +84,14 @@ public sealed class SamGovEntityLookupClient(
         return SamGovEntityLookupResult.Failure(UnavailableErrorCode, UserSafeFailureMessage);
     }
 
-    public static Uri BuildLookupUri(Uri baseUri, string uei, string apiKey)
+    public static Uri BuildLookupUri(Uri baseUri, string? uei, string? legalBusinessName, string apiKey)
     {
+        var query = !string.IsNullOrWhiteSpace(uei)
+            ? $"ueiSAM={Uri.EscapeDataString(uei)}"
+            : $"legalBusinessName={Uri.EscapeDataString(legalBusinessName ?? string.Empty)}";
         var builder = new UriBuilder(new Uri(baseUri, "/entity-information/v3/entities"))
         {
-            Query = $"ueiSAM={Uri.EscapeDataString(uei)}&api_key={Uri.EscapeDataString(apiKey)}"
+            Query = $"{query}&api_key={Uri.EscapeDataString(apiKey)}"
         };
         return builder.Uri;
     }

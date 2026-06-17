@@ -26,6 +26,7 @@ import { ModuleCard } from "@/components/ModuleCard";
 import {
   acknowledgeNoCuiNotice,
   acceptClauseCandidate,
+  applyCompanyEntityLookup,
   assignContractObligationOwner,
   attachContractClause,
   createContract,
@@ -77,6 +78,7 @@ import {
   markNotificationRead,
   runDueDateReminders,
   saveCompanyProfile,
+  searchCompanyEntity,
   searchClauseLibrary,
   removeContractClause,
   rejectClauseCandidate,
@@ -97,6 +99,7 @@ import {
   type CmmcReadinessReport,
   type CompanyCertification,
   type CompanyProfile,
+  type CompanyEntityLookupResult,
   type CmmcAssessment,
   type CmmcControlStatus,
   type CmmcPoamItem,
@@ -1519,6 +1522,7 @@ export function App() {
               profile={companyProfile}
               profileMessage={profileMessage}
               profileStatus={profileStatus}
+              onProfileApplied={setCompanyProfile}
               onSave={handleCompanyProfileSave}
             />
           ) : activeRoute === "contracts" ? (
@@ -3527,18 +3531,24 @@ function ContractEditor({
 
 function ProfileView({
   canManageCompanyProfile,
+  onProfileApplied,
   onSave,
   profile,
   profileMessage,
   profileStatus
 }: {
   canManageCompanyProfile: boolean;
+  onProfileApplied: (profile: CompanyProfile) => void;
   onSave: (request: UpsertCompanyProfileRequest) => Promise<void>;
   profile: CompanyProfile | null;
   profileMessage: string;
   profileStatus: "idle" | "saving" | "saved" | "failed";
 }) {
   const [form, setForm] = useState<ProfileFormState>(() => profileToForm(profile));
+  const [lookupQuery, setLookupQuery] = useState({ uei: "", legalBusinessName: "" });
+  const [lookupResults, setLookupResults] = useState<CompanyEntityLookupResult[]>([]);
+  const [lookupStatus, setLookupStatus] = useState<"idle" | "searching" | "applying" | "failed" | "applied">("idle");
+  const [lookupMessage, setLookupMessage] = useState("");
 
   function updateField<TKey extends keyof ProfileFormState>(field: TKey, value: ProfileFormState[TKey]) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -3621,6 +3631,46 @@ function ProfileView({
     await onSave(formToRequest(form, completeProfile));
   }
 
+  async function searchSamGov() {
+    setLookupStatus("searching");
+    setLookupMessage("");
+    const result = await searchCompanyEntity({
+      uei: lookupQuery.uei.trim() || null,
+      legalBusinessName: lookupQuery.legalBusinessName.trim() || null
+    });
+
+    if (result.data) {
+      setLookupResults(result.data);
+      setLookupStatus("idle");
+      setLookupMessage(result.data.length === 0 ? "No SAM.gov matches found." : `${result.data.length} SAM.gov match found.`);
+      return;
+    }
+
+    setLookupStatus("failed");
+    setLookupMessage(result.error ?? "SAM.gov lookup failed.");
+  }
+
+  async function applySamGovResult(result: CompanyEntityLookupResult, confirmOverwrite: boolean) {
+    setLookupStatus("applying");
+    setLookupMessage("");
+    const applied = await applyCompanyEntityLookup({
+      result,
+      selectedFields: ["legalEntityName", "uei", "cageCode", "samRegistrationExpiresAt", "address", "naics"],
+      confirmOverwrite
+    });
+
+    if (applied.data) {
+      onProfileApplied(applied.data);
+      setForm(profileToForm(applied.data));
+      setLookupStatus("applied");
+      setLookupMessage("SAM.gov data applied.");
+      return;
+    }
+
+    setLookupStatus("failed");
+    setLookupMessage(applied.error ?? "SAM.gov data could not be applied.");
+  }
+
   return (
     <section className="route-panel profile-route">
       <div className="section-heading section-heading--split">
@@ -3649,6 +3699,59 @@ function ProfileView({
           ))}
         </div>
       ) : null}
+
+      <section className="profile-form" aria-label="SAM.gov entity lookup">
+        <div className="form-grid">
+          <label>
+            <span>SAM UEI</span>
+            <input value={lookupQuery.uei} onChange={(event) => setLookupQuery((current) => ({ ...current, uei: event.target.value }))} />
+          </label>
+          <label>
+            <span>Legal business name</span>
+            <input
+              value={lookupQuery.legalBusinessName}
+              onChange={(event) => setLookupQuery((current) => ({ ...current, legalBusinessName: event.target.value }))}
+            />
+          </label>
+        </div>
+        <div className="form-actions">
+          <button type="button" onClick={searchSamGov} disabled={lookupStatus === "searching" || !canManageCompanyProfile}>
+            Search SAM.gov
+          </button>
+        </div>
+        {lookupMessage ? (
+          <p className={`form-status ${lookupStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>{lookupMessage}</p>
+        ) : null}
+        {lookupResults.length > 0 ? (
+          <div className="validation-summary">
+            {lookupResults.map((result) => (
+              <div key={`${result.uei}-${result.retrievedAt}`}>
+                <p>
+                  <strong>{result.legalBusinessName}</strong> {result.uei} {result.cageCode ? `CAGE ${result.cageCode}` : ""}
+                </p>
+                <p>
+                  {result.source} retrieved {new Date(result.retrievedAt).toLocaleString()} · {result.registrationStatus ?? "Status unknown"} · SAM expires{" "}
+                  {result.samRegistrationExpiresAt ?? "unknown"}
+                </p>
+                <p>
+                  {result.address
+                    ? `${result.address.street1}, ${result.address.city}, ${result.address.stateOrProvince} ${result.address.postalCode}`
+                    : "No address returned"}{" "}
+                  · NAICS {result.naicsCodes.map((naics) => naics.code).join(", ") || "unknown"}
+                </p>
+                <div className="form-actions">
+                  <button type="button" onClick={() => applySamGovResult(result, false)} disabled={!canManageCompanyProfile || lookupStatus === "applying"}>
+                    Apply selected fields
+                  </button>
+                  <button type="button" onClick={() => applySamGovResult(result, true)} disabled={!canManageCompanyProfile || lookupStatus === "applying"}>
+                    Apply and overwrite conflicts
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
 
       <form className="profile-form" onSubmit={(event) => event.preventDefault()}>
         <fieldset disabled={!canManageCompanyProfile || profileStatus === "saving"}>

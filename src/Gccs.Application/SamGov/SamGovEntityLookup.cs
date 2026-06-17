@@ -5,7 +5,13 @@ public interface ISamGovEntityLookupClient
     Task<SamGovEntityLookupResult> LookupByUeiAsync(
         string uei,
         CancellationToken cancellationToken = default);
+
+    Task<SamGovEntityLookupResult> SearchAsync(
+        SamGovEntitySearchRequest request,
+        CancellationToken cancellationToken = default);
 }
+
+public sealed record SamGovEntitySearchRequest(string? Uei, string? LegalBusinessName);
 
 public sealed record SamGovEntityLookupResult(
     bool IsSuccess,

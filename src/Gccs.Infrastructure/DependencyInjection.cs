@@ -51,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<ClauseLibraryService>();
         services.AddScoped<ObligationDetailService>();
         services.AddScoped<CompanyProfileService>();
+        services.AddScoped<CompanyEntityLookupService>();
         services.AddScoped<ContractService>();
         services.AddScoped<TenantService>();
         services.AddScoped<TenantMembershipService>();

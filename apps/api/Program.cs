@@ -241,6 +241,55 @@ api.MapPut("/company-profile", async (
 .RequirePermission(Permission.ManageCompanyProfile)
 .WithName("SaveCompanyProfile");
 
+api.MapPost("/company-profile/sam-lookup/search", async (
+    CompanyEntityLookupRequest request,
+    CompanyEntityLookupService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.SearchAsync(request, cancellationToken));
+    }
+    catch (CompanyEntityLookupValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["query"] = [exception.Message]
+        });
+    }
+    catch (CompanyEntityLookupUnavailableException exception)
+    {
+        return Results.Problem(
+            title: "SAM.gov lookup unavailable",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+})
+.RequirePermission(Permission.ViewCompanyProfile)
+.WithName("SearchCompanyProfileSamLookup");
+
+api.MapPost("/company-profile/sam-lookup/apply", async (
+    ApplyCompanyEntityLookupRequest request,
+    CompanyEntityLookupService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ApplyAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (CompanyEntityLookupConflictException exception)
+    {
+        return Results.Conflict(new
+        {
+            title = "SAM.gov data conflicts with existing profile values.",
+            conflicts = exception.Conflicts
+        });
+    }
+})
+.RequirePermission(Permission.ManageCompanyProfile)
+.WithName("ApplyCompanyProfileSamLookup");
+
 api.MapGet("/contracts", async (
     ContractService service,
     CancellationToken cancellationToken) =>
