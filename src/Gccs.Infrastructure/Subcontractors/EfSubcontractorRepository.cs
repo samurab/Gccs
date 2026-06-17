@@ -300,6 +300,8 @@ public sealed class EfSubcontractorRepository(
     private IQueryable<SubcontractorEntity> QueryCurrentTenant() =>
         dbContext.Subcontractors
             .Include(subcontractor => subcontractor.Contracts)
+            .Include(subcontractor => subcontractor.FlowDownClauses)
+            .Include(subcontractor => subcontractor.EvidenceRequests)
             .Where(subcontractor => subcontractor.TenantId == tenantContext.TenantId);
 
     private static void Apply(SubcontractorEntity entity, UpsertSubcontractorRequest request)
@@ -542,6 +544,8 @@ public sealed class EfSubcontractorRepository(
             entity.OwnerFunction,
             CalculateCompletion(entity),
             CalculateCompletion(entity) == 100,
+            CalculateRisk(entity).Status,
+            CalculateRisk(entity).Drivers,
             entity.Contracts.Select(link => link.ContractId).OrderBy(id => id).ToArray(),
             entity.CreatedAt,
             entity.UpdatedAt);
@@ -641,5 +645,106 @@ public sealed class EfSubcontractorRepository(
         completed += entity.InsuranceExpiresAt is null ? 0 : 1;
         completed += string.IsNullOrWhiteSpace(entity.OwnerFunction) ? 0 : 1;
         return (int)Math.Round(completed / (double)total * 100, MidpointRounding.AwayFromZero);
+    }
+
+    private static (string Status, IReadOnlyList<string> Drivers) CalculateRisk(SubcontractorEntity entity)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var drivers = new List<string>();
+        var high = false;
+        var medium = false;
+        var needsReview = false;
+
+        if (entity.InsuranceExpiresAt is null)
+        {
+            needsReview = true;
+            drivers.Add("Insurance expiration is missing.");
+        }
+        else if (entity.InsuranceExpiresAt < today)
+        {
+            high = true;
+            drivers.Add("Insurance is expired.");
+        }
+        else if (entity.InsuranceExpiresAt <= today.AddDays(60))
+        {
+            medium = true;
+            drivers.Add("Insurance expires within 60 days.");
+        }
+
+        if (string.IsNullOrWhiteSpace(entity.NdaStatus) || entity.NdaStatus.Contains("unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            needsReview = true;
+            drivers.Add("NDA status is unknown.");
+        }
+        else if (!IsClearedNdaStatus(entity.NdaStatus))
+        {
+            medium = true;
+            drivers.Add("NDA is not on file.");
+        }
+
+        if (entity.HasCuiAccess && (string.IsNullOrWhiteSpace(entity.CmmcStatus) || entity.CmmcStatus.Contains("unknown", StringComparison.OrdinalIgnoreCase)))
+        {
+            needsReview = true;
+            drivers.Add("CUI access is enabled but CMMC status is unknown.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(entity.SamRegistrationStatus) && !IsActiveSamStatus(entity.SamRegistrationStatus))
+        {
+            high = true;
+            drivers.Add("SAM registration is not active.");
+        }
+
+        if (entity.FlowDownClauses.Any(flowDown =>
+            flowDown.Status is not FlowDownStatus.Signed and
+                not FlowDownStatus.Waived and
+                not FlowDownStatus.NotApplicable and
+                not FlowDownStatus.NotRequired))
+        {
+            medium = true;
+            drivers.Add("One or more flow-downs are not signed or waived.");
+        }
+
+        if (entity.EvidenceRequests.Any(request =>
+            request.DueDate < today &&
+            request.Status is not SubcontractorEvidenceRequestStatus.Satisfied and not SubcontractorEvidenceRequestStatus.Cancelled))
+        {
+            high = true;
+            drivers.Add("One or more evidence requests are overdue.");
+        }
+
+        var status = high ? "High" : needsReview ? "NeedsReview" : medium ? "Medium" : "Low";
+        if (drivers.Count == 0)
+        {
+            drivers.Add("No elevated subcontractor risk signals detected.");
+        }
+
+        return (status, drivers);
+    }
+
+    private static bool IsClearedNdaStatus(string value)
+    {
+        var normalized = NormalizeStatus(value);
+        return normalized is "onfile" or "onfilesigned" or "signed" or "executed" or "complete" or "completed";
+    }
+
+    private static bool IsActiveSamStatus(string value)
+    {
+        var normalized = NormalizeStatus(value);
+        return normalized is "active" or "registrationactive";
+    }
+
+    private static string NormalizeStatus(string value)
+    {
+        Span<char> buffer = stackalloc char[value.Length];
+        var length = 0;
+        foreach (var character in value)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                buffer[length++] = char.ToLowerInvariant(character);
+            }
+        }
+
+        return new string(buffer[..length]);
     }
 }

@@ -36,6 +36,8 @@ public sealed record SubcontractorDto(
     string? OwnerFunction,
     int CompletionPercentage,
     bool IsComplete,
+    string RiskStatus,
+    IReadOnlyList<string> RiskDrivers,
     IReadOnlyList<Guid> ContractIds,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
