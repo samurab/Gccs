@@ -383,6 +383,27 @@ public sealed class ContractClauseObligationEntity
 
     public ContractClauseEntity? ContractClause { get; set; }
     public ObligationEntity? Obligation { get; set; }
+    public ICollection<ObligationApplicabilityEvaluationEntity> ApplicabilityEvaluations { get; set; } = [];
+}
+
+public sealed class ObligationApplicabilityEvaluationEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContractClauseId { get; set; }
+    public string ObligationId { get; set; } = string.Empty;
+    public Guid? PreviousEvaluationId { get; set; }
+    public string SourceRuleId { get; set; } = string.Empty;
+    public string State { get; set; } = string.Empty;
+    public string Explanation { get; set; } = string.Empty;
+    public string FactsUsedJson { get; set; } = "[]";
+    public string MissingFactsJson { get; set; } = "[]";
+    public string MetadataJson { get; set; } = "{}";
+    public DateTimeOffset EvaluatedAt { get; set; }
+    public Guid EvaluatedByUserId { get; set; }
+
+    public ContractClauseObligationEntity? ContractClauseObligation { get; set; }
+    public ObligationApplicabilityEvaluationEntity? PreviousEvaluation { get; set; }
 }
 
 public sealed class ContractDeliverableEntity

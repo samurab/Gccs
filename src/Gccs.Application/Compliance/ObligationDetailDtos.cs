@@ -32,6 +32,7 @@ public sealed record ContractObligationDetailDto(
     string Confidence,
     DateOnly LastReviewedAt,
     bool RequiresExpertReview,
+    ObligationApplicabilitySummaryDto? Applicability,
     IReadOnlyList<LinkedObligationTaskDto> LinkedTasks,
     IReadOnlyList<LinkedObligationEvidenceDto> LinkedEvidence);
 

@@ -38,7 +38,8 @@ public sealed record ObligationDashboardItemDto(
     IReadOnlyList<string> EvidenceExamples,
     string Confidence,
     DateOnly LastReviewedAt,
-    bool RequiresExpertReview);
+    bool RequiresExpertReview,
+    ObligationApplicabilitySummaryDto? Applicability);
 
 public interface IObligationDashboardRepository
 {

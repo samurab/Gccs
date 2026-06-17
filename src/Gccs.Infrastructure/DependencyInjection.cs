@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<SuggestedObligationService>();
         services.AddScoped<ExpertReviewQueueService>();
         services.AddScoped<ApplicabilityFactService>();
+        services.AddScoped<ObligationApplicabilityService>();
         services.AddScoped<ClauseLibraryService>();
         services.AddScoped<ObligationDetailService>();
         services.AddScoped<CompanyProfileService>();
@@ -96,6 +97,7 @@ public static class DependencyInjection
             services.AddScoped<IExpertReviewQueueRepository, EfExpertReviewQueueRepository>();
             services.AddScoped<IClauseLibraryRepository, EfClauseLibraryRepository>();
             services.AddScoped<IApplicabilityFactRepository, EfApplicabilityFactRepository>();
+            services.AddScoped<IObligationApplicabilityRepository, EfObligationApplicabilityRepository>();
             services.AddScoped<IObligationDashboardRepository, EfObligationDashboardRepository>();
             services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
@@ -150,6 +152,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Obligation dashboard persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IApplicabilityFactRepository>(_ =>
                 throw new InvalidOperationException("Applicability facts require ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IObligationApplicabilityRepository>(_ =>
+                throw new InvalidOperationException("Obligation applicability persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IObligationDetailRepository>(_ =>
                 throw new InvalidOperationException("Obligation detail persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceTaskRepository>(_ =>

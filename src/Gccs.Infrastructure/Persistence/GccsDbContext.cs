@@ -34,6 +34,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SuggestedObligationEntity> SuggestedObligations => Set<SuggestedObligationEntity>();
     public DbSet<ExpertReviewItemEntity> ExpertReviewItems => Set<ExpertReviewItemEntity>();
     public DbSet<ClauseObligationMappingEntity> ClauseObligationMappings => Set<ClauseObligationMappingEntity>();
+    public DbSet<ObligationApplicabilityEvaluationEntity> ObligationApplicabilityEvaluations => Set<ObligationApplicabilityEvaluationEntity>();
     public DbSet<ContractEntity> Contracts => Set<ContractEntity>();
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
@@ -413,6 +414,28 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => new { x.ContractClauseId, x.ObligationId });
             entity.HasOne(x => x.ContractClause).WithMany(x => x.Obligations).HasForeignKey(x => x.ContractClauseId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Obligation).WithMany(x => x.ContractClauses).HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ObligationApplicabilityEvaluationEntity>(entity =>
+        {
+            entity.ToTable("obligation_applicability_evaluations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ContractClauseId, x.ObligationId, x.EvaluatedAt });
+            entity.Property(x => x.ObligationId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.SourceRuleId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.State).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Explanation).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.FactsUsedJson).HasColumnType("jsonb");
+            entity.Property(x => x.MissingFactsJson).HasColumnType("jsonb");
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.ContractClauseObligation)
+                .WithMany(x => x.ApplicabilityEvaluations)
+                .HasForeignKey(x => new { x.ContractClauseId, x.ObligationId })
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.PreviousEvaluation)
+                .WithMany()
+                .HasForeignKey(x => x.PreviousEvaluationId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<SuggestedObligationEntity>(entity =>

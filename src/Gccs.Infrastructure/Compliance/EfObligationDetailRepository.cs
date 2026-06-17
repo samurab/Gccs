@@ -195,6 +195,17 @@ public sealed class EfObligationDetailRepository(
                 ? primaryTask.OwnerFunction
                 : null;
         var ownerDisplayName = assignedUserDisplayName ?? assignedRoleName ?? primaryTask?.OwnerFunction ?? obligation.OwnerFunction;
+        var evaluations = await dbContext.ObligationApplicabilityEvaluations
+            .AsNoTracking()
+            .Where(evaluation =>
+                evaluation.TenantId == tenantContext.TenantId &&
+                evaluation.ContractClauseId == contractClauseId &&
+                evaluation.ObligationId == obligationId)
+            .ToArrayAsync(cancellationToken);
+        var latestEvaluation = evaluations
+            .OrderByDescending(evaluation => evaluation.EvaluatedAt)
+            .ThenByDescending(evaluation => evaluation.Id)
+            .FirstOrDefault();
 
         var detail = new ContractObligationDetailDto(
             $"{clause.Id:N}:{obligation.Id}",
@@ -225,6 +236,7 @@ public sealed class EfObligationDetailRepository(
             obligation.Confidence,
             obligation.LastReviewedAt,
             obligation.RequiresExpertReview,
+            latestEvaluation is null ? null : ToApplicabilitySummary(latestEvaluation, evaluations.Length),
             tasks.Select(task => new LinkedObligationTaskDto(
                 task.Id,
                 task.Title,
@@ -301,6 +313,44 @@ public sealed class EfObligationDetailRepository(
                 .Select(ReadEvidenceExample)
                 .Where(example => !string.IsNullOrWhiteSpace(example))
                 .ToArray();
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static ObligationApplicabilitySummaryDto ToApplicabilitySummary(
+        ObligationApplicabilityEvaluationEntity evaluation,
+        int historyCount) =>
+        new(
+            evaluation.State,
+            evaluation.Explanation,
+            evaluation.SourceRuleId,
+            ReadFactLabels(evaluation.FactsUsedJson),
+            ReadStringArray(evaluation.MissingFactsJson),
+            evaluation.EvaluatedAt,
+            historyCount);
+
+    private static IReadOnlyList<string> ReadFactLabels(string value)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ApplicabilityFactDto[]>(value, new JsonSerializerOptions(JsonSerializerDefaults.Web))?
+                .Select(fact => $"{fact.Key}={fact.Value}")
+                .ToArray() ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<string> ReadStringArray(string value)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<string[]>(value, new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? [];
         }
         catch (JsonException)
         {

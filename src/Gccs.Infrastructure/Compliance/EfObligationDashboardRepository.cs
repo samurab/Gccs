@@ -35,10 +35,31 @@ public sealed class EfObligationDashboardRepository(
             .Select(mapping => mapping.ContractClause!.ContractId)
             .Distinct()
             .ToArray();
+        var contractClauseIds = mappings
+            .Select(mapping => mapping.ContractClauseId)
+            .Distinct()
+            .ToArray();
         var obligationIds = mappings
             .Select(mapping => mapping.ObligationId)
             .Distinct()
             .ToArray();
+        var evaluations = await dbContext.ObligationApplicabilityEvaluations
+            .AsNoTracking()
+            .Where(evaluation =>
+                evaluation.TenantId == tenantContext.TenantId &&
+                contractClauseIds.Contains(evaluation.ContractClauseId) &&
+                obligationIds.Contains(evaluation.ObligationId))
+            .ToArrayAsync(cancellationToken);
+        var evaluationLookup = evaluations
+            .GroupBy(evaluation => (evaluation.ContractClauseId, evaluation.ObligationId))
+            .ToDictionary(
+                group => group.Key,
+                group => (
+                    Latest: group
+                        .OrderByDescending(evaluation => evaluation.EvaluatedAt)
+                        .ThenByDescending(evaluation => evaluation.Id)
+                        .First(),
+                    HistoryCount: group.Count()));
         var tasks = await dbContext.ComplianceTasks
             .AsNoTracking()
             .Where(task =>
@@ -111,7 +132,10 @@ public sealed class EfObligationDashboardRepository(
                 ReadEvidenceExamples(obligation.EvidenceExamplesJson),
                 obligation.Confidence,
                 obligation.LastReviewedAt,
-                obligation.RequiresExpertReview);
+                obligation.RequiresExpertReview,
+                evaluationLookup.TryGetValue((clause.Id, obligation.Id), out var evaluation)
+                    ? ToApplicabilitySummary(evaluation.Latest, evaluation.HistoryCount)
+                    : null);
         });
 
         items = ApplyFilters(items, query, today);
@@ -232,6 +256,44 @@ public sealed class EfObligationDashboardRepository(
                 .Select(ReadEvidenceExample)
                 .Where(example => !string.IsNullOrWhiteSpace(example))
                 .ToArray();
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static ObligationApplicabilitySummaryDto ToApplicabilitySummary(
+        ObligationApplicabilityEvaluationEntity evaluation,
+        int historyCount) =>
+        new(
+            evaluation.State,
+            evaluation.Explanation,
+            evaluation.SourceRuleId,
+            ReadFactLabels(evaluation.FactsUsedJson),
+            ReadStringArray(evaluation.MissingFactsJson),
+            evaluation.EvaluatedAt,
+            historyCount);
+
+    private static IReadOnlyList<string> ReadFactLabels(string value)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ApplicabilityFactDto[]>(value, new JsonSerializerOptions(JsonSerializerDefaults.Web))?
+                .Select(fact => $"{fact.Key}={fact.Value}")
+                .ToArray() ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<string> ReadStringArray(string value)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<string[]>(value, new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? [];
         }
         catch (JsonException)
         {
