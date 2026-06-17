@@ -10,6 +10,7 @@ using Gccs.Application.NoCui;
 using Gccs.Application.Notifications;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
+using Gccs.Application.SamGov;
 using Gccs.Application.Subcontractors;
 using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
@@ -25,12 +26,15 @@ using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Notifications;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Reports;
+using Gccs.Infrastructure.SamGov;
 using Gccs.Infrastructure.Subcontractors;
 using Gccs.Infrastructure.Tenancy;
 using Gccs.Infrastructure.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Gccs.Infrastructure;
 
@@ -67,6 +71,27 @@ public static class DependencyInjection
         services.AddScoped<CmmcReadinessReportService>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
+        if (configuration is not null)
+        {
+            services.Configure<SamGovOptions>(options =>
+            {
+                options.BaseUrl = configuration[$"{SamGovOptions.SectionName}:BaseUrl"] ?? options.BaseUrl;
+                options.ApiKey = configuration[$"{SamGovOptions.SectionName}:ApiKey"] ?? options.ApiKey;
+                options.TimeoutSeconds = ReadInt(configuration, $"{SamGovOptions.SectionName}:TimeoutSeconds", options.TimeoutSeconds);
+                options.MaxRetries = ReadInt(configuration, $"{SamGovOptions.SectionName}:MaxRetries", options.MaxRetries);
+                options.RateLimitPerMinute = ReadInt(configuration, $"{SamGovOptions.SectionName}:RateLimitPerMinute", options.RateLimitPerMinute);
+            });
+        }
+        else
+        {
+            services.Configure<SamGovOptions>(_ => { });
+        }
+
+        services.AddScoped<ISamGovEntityLookupClient>(provider =>
+            new SamGovEntityLookupClient(
+                new HttpClient(),
+                provider.GetRequiredService<IOptions<SamGovOptions>>(),
+                provider.GetRequiredService<ILogger<SamGovEntityLookupClient>>()));
 
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
@@ -176,4 +201,7 @@ public static class DependencyInjection
 
         return services;
     }
+
+    private static int ReadInt(IConfiguration configuration, string key, int fallback) =>
+        int.TryParse(configuration[key], out var value) ? value : fallback;
 }
