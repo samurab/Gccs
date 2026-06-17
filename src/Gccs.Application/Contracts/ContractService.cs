@@ -494,7 +494,8 @@ public sealed partial class ContractService(
         request with
         {
             ClauseLibraryId = string.IsNullOrWhiteSpace(request.ClauseLibraryId) ? null : request.ClauseLibraryId.Trim(),
-            Reason = request.Reason.Trim()
+            Reason = request.Reason.Trim(),
+            DecisionNote = string.IsNullOrWhiteSpace(request.DecisionNote) ? null : request.DecisionNote.Trim()
         };
 
     private async Task WriteDocumentAuditAsync(
@@ -610,6 +611,7 @@ public sealed partial class ContractService(
 
         AddIf(errors, requireClauseLibrary && string.IsNullOrWhiteSpace(request.ClauseLibraryId), "clauseLibraryId", "A clause library id is required before accepting a candidate.");
         AddIf(errors, string.IsNullOrWhiteSpace(request.Reason), "reason", "A review reason is required.");
+        AddIf(errors, request.DecisionNote?.Length > 1000, "decisionNote", "Decision note must be 1000 characters or fewer.");
 
         if (errors.Count > 0)
         {
@@ -733,7 +735,10 @@ public sealed partial class ContractService(
                 ["extractionJobId"] = candidate.ExtractionJobId.ToString(),
                 ["normalizedCitation"] = candidate.NormalizedCitation,
                 ["reviewStatus"] = candidate.ReviewStatus,
-                ["clauseLibraryId"] = candidate.ClauseLibraryId ?? string.Empty
+                ["clauseLibraryId"] = candidate.ClauseLibraryId ?? string.Empty,
+                ["reviewedByUserId"] = candidate.ReviewedByUserId?.ToString() ?? string.Empty,
+                ["reviewedAt"] = candidate.ReviewedAt?.ToString("O") ?? string.Empty,
+                ["decisionReason"] = candidate.DecisionReason ?? string.Empty
             },
             cancellationToken);
     }

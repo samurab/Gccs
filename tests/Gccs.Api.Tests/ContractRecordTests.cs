@@ -611,13 +611,16 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             new ClauseCandidateReviewRequest(clauseId, "Confirmed by reviewer."),
             tenantId,
             userId,
-            Permission.ManageContracts);
+            Permission.ReviewClauses);
         var response = await client.SendAsync(request);
         var reviewed = await response.Content.ReadFromJsonAsync<ClauseCandidateDto>(JsonOptions);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(reviewed);
         Assert.Equal("accepted", reviewed.ReviewStatus);
+        Assert.Equal(userId, reviewed.ReviewedByUserId);
+        Assert.NotNull(reviewed.ReviewedAt);
+        Assert.Equal("Confirmed by reviewer.", reviewed.DecisionReason);
         using (var scope = factory.Services.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
@@ -653,7 +656,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             new ClauseCandidateEditRequest("DFARS 252.204-7012", null),
             tenantId,
             userId,
-            Permission.ManageContracts);
+            Permission.ReviewClauses);
         var editResponse = await client.SendAsync(editRequest);
         using var rejectRequest = CreateRequest(
             HttpMethod.Post,
@@ -661,7 +664,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             new ClauseCandidateReviewRequest(null, "Not applicable to this contract."),
             tenantId,
             userId,
-            Permission.ManageContracts);
+            Permission.ReviewClauses);
         var rejectResponse = await client.SendAsync(rejectRequest);
 
         Assert.Equal(HttpStatusCode.OK, editResponse.StatusCode);
@@ -685,6 +688,41 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             .OrderBy(audit => audit.OccurredAt)
             .ToArrayAsync();
         Assert.Equal([AuditAction.Updated, AuditAction.Rejected], candidateAudits.Select(audit => audit.Action).ToArray());
+    }
+
+    [Fact]
+    public async Task TC_19_1_2_Only_clause_review_permission_can_accept_or_reject_candidates()
+    {
+        var tenantId = Guid.Parse("19191919-1919-1919-1919-1919191912a1");
+        var userId = Guid.Parse("19191919-1919-1919-1919-1919191912b1");
+        var contractId = Guid.Parse("19191919-1919-1919-1919-1919191912c1");
+        var documentId = Guid.Parse("19191919-1919-1919-1919-1919191912d1");
+        const string clauseId = "far-52-204-21-review-permission";
+        await using var factory = CreateFactory("tc-19-1-2", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.Add(CreateClause(clauseId, "FAR", "52.204-21", "Basic Safeguarding"));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-REVIEW-PERM", "Extraction review permission contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "FAR 52.204-21 - Basic Safeguarding."));
+        });
+        using var client = factory.CreateClient();
+        var processResult = await ProcessExtractionJobAsync(client, contractId, documentId, tenantId, userId);
+        var candidate = Assert.Single(processResult.Candidates);
+
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/accept",
+            new ClauseCandidateReviewRequest(clauseId, "Attempt without review permission."),
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]

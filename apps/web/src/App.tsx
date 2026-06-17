@@ -525,6 +525,7 @@ export function App() {
   const canManageEvidence = access.permissions.includes("ManageEvidence");
   const canManageCompanyProfile = access.permissions.includes("ManageCompanyProfile");
   const canManageContracts = access.permissions.includes("ManageContracts");
+  const canReviewClauses = access.permissions.includes("ReviewClauses");
   const canManageObligations = access.permissions.includes("ManageObligations");
   const canManageCmmc = access.permissions.includes("ManageCmmc");
   const canManageReports = access.permissions.includes("ManageReports");
@@ -1497,6 +1498,7 @@ export function App() {
           ) : activeRoute === "contracts" ? (
             <ContractsView
               canManageContracts={canManageContracts}
+              canReviewClauses={canReviewClauses}
               contracts={contracts}
               contractClauses={contractClauses}
               contractClauseMessage={contractClauseMessage}
@@ -2782,6 +2784,7 @@ function ClauseLibraryView({
 
 function ContractsView({
   canManageContracts,
+  canReviewClauses,
   contracts,
   contractClauses,
   contractClauseMessage,
@@ -2809,6 +2812,7 @@ function ContractsView({
   onSelectContract
 }: {
   canManageContracts: boolean;
+  canReviewClauses: boolean;
   contracts: ContractRecord[];
   contractClauses: ContractClause[];
   contractClauseMessage: string;
@@ -3308,7 +3312,7 @@ function ContractsView({
                                 candidate.clauseLibraryId
                               )
                             }
-                            disabled={!canManageContracts || !candidate.clauseLibraryId || contractDocumentStatus === "saving"}
+                            disabled={!canReviewClauses || !candidate.clauseLibraryId || contractDocumentStatus === "saving"}
                           >
                             Accept
                           </button>
@@ -3318,7 +3322,7 @@ function ContractsView({
                               selectedContract &&
                               void onReviewCandidate(selectedContract.id, document.id, candidate.id, "reject", null)
                             }
-                            disabled={!canManageContracts || contractDocumentStatus === "saving"}
+                            disabled={!canReviewClauses || contractDocumentStatus === "saving"}
                           >
                             Reject
                           </button>

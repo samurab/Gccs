@@ -154,6 +154,7 @@ const {
       "ViewCompanyProfile",
       "ViewContracts",
       "ViewObligations",
+      "ReviewClauses",
       "ViewTasks",
       "ViewEvidence",
       "ManageEvidence",
@@ -986,6 +987,10 @@ describe("App", () => {
         matchMethod: "exact_library_match",
         clauseLibraryId: "far-52-204-21",
         reviewStatus: "accepted",
+        reviewedByUserId: allWorkflowAccess.userId,
+        reviewedAt: "2026-06-17T21:19:00Z",
+        decisionNote: null,
+        decisionReason: "Reviewed from contract document extraction results.",
         createdAt: "2026-06-17T21:18:00Z"
       },
       error: null
@@ -1004,6 +1009,10 @@ describe("App", () => {
         matchMethod: "exact_library_match",
         clauseLibraryId: "far-52-204-21",
         reviewStatus: "rejected",
+        reviewedByUserId: allWorkflowAccess.userId,
+        reviewedAt: "2026-06-17T21:19:00Z",
+        decisionNote: null,
+        decisionReason: "Rejected from contract document extraction results.",
         createdAt: "2026-06-17T21:18:00Z"
       },
       error: null
@@ -1362,6 +1371,10 @@ describe("App", () => {
           matchMethod: "exact_library_match",
           clauseLibraryId: "far-52-204-21",
           reviewStatus: "pending_review",
+          reviewedByUserId: null,
+          reviewedAt: null,
+          decisionNote: null,
+          decisionReason: null,
           createdAt: "2026-06-17T21:18:00Z"
         }
       ]

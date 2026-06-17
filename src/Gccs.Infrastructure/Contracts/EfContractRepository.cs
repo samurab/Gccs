@@ -489,6 +489,8 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             return null;
         }
 
+        EnsureCandidateCanTransition(candidate, "accepted");
+
         var duplicateExists = await dbContext.Set<ContractClauseEntity>().AnyAsync(
             clause =>
                 clause.ContractId == contractId &&
@@ -527,6 +529,10 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         candidate.ClauseLibraryId = libraryClause.Id;
         candidate.NormalizedCitation = $"{libraryClause.Source.ToUpperInvariant()} {libraryClause.Number}".Trim();
         candidate.ReviewStatus = "accepted";
+        candidate.ReviewedByUserId = actorUserId;
+        candidate.ReviewedAt = DateTimeOffset.UtcNow;
+        candidate.DecisionReason = request.Reason;
+        candidate.DecisionNote = request.DecisionNote;
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToClauseCandidateDto(candidate);
     }
@@ -544,7 +550,12 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             return null;
         }
 
+        EnsureCandidateCanTransition(candidate, "rejected");
         candidate.ReviewStatus = "rejected";
+        candidate.ReviewedByUserId = tenantContext.UserId;
+        candidate.ReviewedAt = DateTimeOffset.UtcNow;
+        candidate.DecisionReason = request.Reason;
+        candidate.DecisionNote = request.DecisionNote;
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToClauseCandidateDto(candidate);
     }
@@ -951,7 +962,23 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             entity.MatchMethod,
             entity.ClauseLibraryId,
             entity.ReviewStatus,
+            entity.ReviewedByUserId,
+            entity.ReviewedAt,
+            entity.DecisionNote,
+            entity.DecisionReason,
             entity.CreatedAt);
+
+    private static void EnsureCandidateCanTransition(ClauseCandidateEntity candidate, string targetStatus)
+    {
+        var allowed = candidate.ReviewStatus is "pending_review" or "edited" or "needs_clarification";
+        if (!allowed)
+        {
+            throw new ContractValidationException(new Dictionary<string, string[]>
+            {
+                ["reviewStatus"] = [$"Clause candidate cannot transition from '{candidate.ReviewStatus}' to '{targetStatus}'."]
+            });
+        }
+    }
 
     private static ContractDeliverableDto ToDeliverableDto(ContractDeliverableEntity entity) =>
         new(

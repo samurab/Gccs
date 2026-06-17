@@ -381,6 +381,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.MatchMethod).HasMaxLength(80).IsRequired();
             entity.Property(x => x.ClauseLibraryId).HasMaxLength(160);
             entity.Property(x => x.ReviewStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.DecisionNote).HasMaxLength(1000);
+            entity.Property(x => x.DecisionReason).HasMaxLength(600);
             entity.HasOne(x => x.ExtractionJob).WithMany(x => x.Candidates).HasForeignKey(x => x.ExtractionJobId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.SourceDocument).WithMany().HasForeignKey(x => x.SourceDocumentId).OnDelete(DeleteBehavior.Cascade);
         });

@@ -496,7 +496,7 @@ api.MapPatch("/contracts/{contractId:guid}/documents/{documentId:guid}/clause-ca
             statusCode: StatusCodes.Status400BadRequest);
     }
 })
-.RequirePermission(Permission.ManageContracts)
+.RequirePermission(Permission.ReviewClauses)
 .WithName("EditClauseCandidate");
 
 api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/clause-candidates/{candidateId:guid}/accept", async (
@@ -530,7 +530,7 @@ api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/clause-can
             statusCode: StatusCodes.Status400BadRequest);
     }
 })
-.RequirePermission(Permission.ManageContracts)
+.RequirePermission(Permission.ReviewClauses)
 .WithName("AcceptClauseCandidate");
 
 api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/clause-candidates/{candidateId:guid}/reject", async (
@@ -564,7 +564,7 @@ api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/clause-can
             statusCode: StatusCodes.Status400BadRequest);
     }
 })
-.RequirePermission(Permission.ManageContracts)
+.RequirePermission(Permission.ReviewClauses)
 .WithName("RejectClauseCandidate");
 
 api.MapGet("/contracts/{contractId:guid}/deliverables", async (

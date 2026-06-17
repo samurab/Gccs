@@ -337,6 +337,10 @@ public sealed class ClauseCandidateEntity
     public string MatchMethod { get; set; } = string.Empty;
     public string? ClauseLibraryId { get; set; }
     public string ReviewStatus { get; set; } = string.Empty;
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? DecisionNote { get; set; }
+    public string? DecisionReason { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 
     public ExtractionJobEntity? ExtractionJob { get; set; }

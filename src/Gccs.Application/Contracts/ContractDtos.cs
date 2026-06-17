@@ -86,6 +86,10 @@ public sealed record ClauseCandidateDto(
     string MatchMethod,
     string? ClauseLibraryId,
     string ReviewStatus,
+    Guid? ReviewedByUserId,
+    DateTimeOffset? ReviewedAt,
+    string? DecisionNote,
+    string? DecisionReason,
     DateTimeOffset CreatedAt);
 
 public sealed record ClauseCandidateCreateDto(
@@ -115,7 +119,8 @@ public sealed record ClauseCandidateEditRequest(
 
 public sealed record ClauseCandidateReviewRequest(
     string? ClauseLibraryId,
-    string Reason);
+    string Reason,
+    string? DecisionNote = null);
 
 public sealed record ContractDeliverableDto(
     Guid Id,

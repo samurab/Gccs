@@ -574,6 +574,10 @@ export type ClauseCandidate = {
   matchMethod: string;
   clauseLibraryId: string | null;
   reviewStatus: string;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  decisionNote: string | null;
+  decisionReason: string | null;
   createdAt: string;
 };
 
