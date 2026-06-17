@@ -44,6 +44,7 @@ public static class DependencyInjection
     {
         services.AddScoped<ComplianceOverviewService>();
         services.AddScoped<ComplianceContentReviewService>();
+        services.AddScoped<PolicyTemplateService>();
         services.AddScoped<SbaSizeStandardService>();
         services.AddScoped<SuggestedObligationService>();
         services.AddScoped<ExpertReviewQueueService>();
@@ -125,6 +126,7 @@ public static class DependencyInjection
             services.AddScoped<IContractDocumentTextExtractor, DefaultContractDocumentTextExtractor>();
             services.AddScoped<IComplianceContentImporter, ComplianceContentImporter>();
             services.AddScoped<IComplianceContentReviewRepository, EfComplianceContentReviewRepository>();
+            services.AddScoped<IPolicyTemplateRepository, EfPolicyTemplateRepository>();
             services.AddScoped<ISbaSizeStandardRepository, EfSbaSizeStandardRepository>();
             services.AddScoped<ISuggestedObligationRepository, EfSuggestedObligationRepository>();
             services.AddScoped<IExpertReviewQueueRepository, EfExpertReviewQueueRepository>();
@@ -181,6 +183,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Compliance content import requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceContentReviewRepository>(_ =>
                 throw new InvalidOperationException("Compliance content review persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IPolicyTemplateRepository>(_ =>
+                throw new InvalidOperationException("Policy template persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ISbaSizeStandardRepository>(_ =>
                 throw new InvalidOperationException("SBA size standard persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ISuggestedObligationRepository>(_ =>

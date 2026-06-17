@@ -1937,6 +1937,81 @@ api.MapPut("/subcontractors/{subcontractorId:guid}/evidence-requests/{evidenceRe
 .RequirePermission(Permission.ManageSubcontractors)
 .WithName("UpdateSubcontractorEvidenceRequest");
 
+api.MapGet("/policy-templates", async (
+    bool? includeReviewStates,
+    PolicyTemplateService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var canReviewTemplates = httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ManageObligations.ToString());
+    return Results.Ok(await service.ListAsync(includeReviewStates == true && canReviewTemplates, cancellationToken));
+})
+.RequirePermission(Permission.ViewObligations)
+.WithName("ListPolicyTemplates");
+
+api.MapGet("/policy-templates/{templateId:guid}/versions", async (
+    Guid templateId,
+    PolicyTemplateService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListVersionsAsync(templateId, cancellationToken)))
+.RequirePermission(Permission.ManageObligations)
+.WithName("ListPolicyTemplateVersions");
+
+api.MapPost("/policy-templates", async (
+    UpsertPolicyTemplateRequest request,
+    PolicyTemplateService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/policy-templates/{created.Id}", created);
+    }
+    catch (PolicyTemplateValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors,
+            title: "Policy template invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("CreatePolicyTemplate");
+
+api.MapPut("/policy-templates/{templateId:guid}/lifecycle", async (
+    Guid templateId,
+    ChangePolicyTemplateLifecycleRequest request,
+    PolicyTemplateService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ChangeLifecycleAsync(templateId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Policy template '{templateId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (PolicyTemplateValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors,
+            title: "Policy template invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("ChangePolicyTemplateLifecycle");
+
 api.MapGet("/tasks", async (
     ComplianceTaskService service,
     CancellationToken cancellationToken) =>

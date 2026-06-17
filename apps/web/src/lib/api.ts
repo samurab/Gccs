@@ -434,6 +434,48 @@ export type BulkCreateSupplierObligationsRequest = {
   status: string;
 };
 
+export type PolicyTemplateSourceReference = {
+  sourceName: string;
+  sourceUrl: string;
+  lastReviewedAt: string;
+};
+
+export type PolicyTemplate = {
+  id: string;
+  tenantId: string;
+  title: string;
+  category: string;
+  body: string;
+  placeholders: string[];
+  sourceReferences: PolicyTemplateSourceReference[];
+  version: string;
+  status: string;
+  ownerFunction: string;
+  lastReviewedAt: string | null;
+  reviewerUserId: string | null;
+  requiresExpertReview: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type PolicyTemplateVersion = {
+  id: string;
+  templateId: string;
+  version: string;
+  bodyPreview: string;
+  status: string;
+  createdAt: string;
+  createdByUserId: string;
+};
+
+export type UpsertPolicyTemplateRequest = Omit<PolicyTemplate, "id" | "tenantId" | "createdAt" | "updatedAt">;
+
+export type ChangePolicyTemplateLifecycleRequest = {
+  status: string;
+  reviewerUserId: string | null;
+  reviewedAt: string | null;
+};
+
 export type ApprovedEvidencePackage = {
   reportId: string;
   tenantId: string;
@@ -1074,6 +1116,25 @@ export async function updateSupplierObligation(
     `/api/subcontractors/${subcontractorId}/supplier-obligations/${supplierObligationId}`,
     request
   );
+}
+
+export async function getPolicyTemplates(includeReviewStates = false): Promise<PolicyTemplate[]> {
+  return getJson<PolicyTemplate[]>(`/api/policy-templates?includeReviewStates=${includeReviewStates}`, []);
+}
+
+export async function getPolicyTemplateVersions(templateId: string): Promise<PolicyTemplateVersion[]> {
+  return getJson<PolicyTemplateVersion[]>(`/api/policy-templates/${templateId}/versions`, []);
+}
+
+export async function createPolicyTemplate(request: UpsertPolicyTemplateRequest): Promise<ApiMutationResult<PolicyTemplate>> {
+  return postJsonResult<PolicyTemplate>("/api/policy-templates", request);
+}
+
+export async function changePolicyTemplateLifecycle(
+  templateId: string,
+  request: ChangePolicyTemplateLifecycleRequest
+): Promise<ApiMutationResult<PolicyTemplate>> {
+  return putJsonResult<PolicyTemplate>(`/api/policy-templates/${templateId}/lifecycle`, request);
 }
 
 export async function getSubcontractorEvidenceRequests(subcontractorId: string): Promise<SubcontractorEvidenceRequest[]> {

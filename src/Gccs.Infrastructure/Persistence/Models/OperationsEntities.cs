@@ -371,6 +371,38 @@ public sealed class SubcontractorEvidenceRequestEntity : AuditedEntity
     public EvidenceItemEntity? ReceivedEvidenceItem { get; set; }
 }
 
+public sealed class PolicyTemplateEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public string PlaceholdersJson { get; set; } = "[]";
+    public string SourceReferencesJson { get; set; } = "[]";
+    public string Version { get; set; } = string.Empty;
+    public string Status { get; set; } = "Draft";
+    public string OwnerFunction { get; set; } = string.Empty;
+    public DateOnly? LastReviewedAt { get; set; }
+    public Guid? ReviewerUserId { get; set; }
+    public bool RequiresExpertReview { get; set; }
+
+    public ICollection<PolicyTemplateVersionEntity> Versions { get; set; } = [];
+}
+
+public sealed class PolicyTemplateVersionEntity
+{
+    public Guid Id { get; set; }
+    public Guid TemplateId { get; set; }
+    public string Version { get; set; } = string.Empty;
+    public string BodyPreview { get; set; } = string.Empty;
+    public string Status { get; set; } = "Draft";
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid CreatedByUserId { get; set; }
+
+    public PolicyTemplateEntity? Template { get; set; }
+}
+
 public sealed class EmployeeEntity : AuditedEntity
 {
     public Guid Id { get; set; }
