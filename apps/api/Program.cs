@@ -1050,6 +1050,19 @@ api.MapPatch("/contract-obligations/{contractClauseId:guid}/{obligationId}/owner
 .RequirePermission(Permission.ManageObligations)
 .WithName("AssignContractObligationOwner");
 
+api.MapGet("/applicability-facts", async (
+    Guid? contractId,
+    Guid? clauseId,
+    Guid? subcontractorId,
+    ApplicabilityFactService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(
+        new ApplicabilityFactQuery(tenantContext.TenantId, contractId, clauseId, subcontractorId),
+        cancellationToken)))
+.RequirePermission(Permission.ViewObligations)
+.WithName("ListApplicabilityFacts");
+
 api.MapGet("/obligations", async (IObligationRepository repository, CancellationToken cancellationToken) =>
     Results.Ok(await repository.ListAsync(cancellationToken)))
 .RequirePermission(Permission.ViewObligations)

@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<ComplianceContentReviewService>();
         services.AddScoped<SuggestedObligationService>();
         services.AddScoped<ExpertReviewQueueService>();
+        services.AddScoped<ApplicabilityFactService>();
         services.AddScoped<ClauseLibraryService>();
         services.AddScoped<ObligationDetailService>();
         services.AddScoped<CompanyProfileService>();
@@ -94,6 +95,7 @@ public static class DependencyInjection
             services.AddScoped<ISuggestedObligationRepository, EfSuggestedObligationRepository>();
             services.AddScoped<IExpertReviewQueueRepository, EfExpertReviewQueueRepository>();
             services.AddScoped<IClauseLibraryRepository, EfClauseLibraryRepository>();
+            services.AddScoped<IApplicabilityFactRepository, EfApplicabilityFactRepository>();
             services.AddScoped<IObligationDashboardRepository, EfObligationDashboardRepository>();
             services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
@@ -146,6 +148,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Expert review queue persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IObligationDashboardRepository>(_ =>
                 throw new InvalidOperationException("Obligation dashboard persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IApplicabilityFactRepository>(_ =>
+                throw new InvalidOperationException("Applicability facts require ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IObligationDetailRepository>(_ =>
                 throw new InvalidOperationException("Obligation detail persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceTaskRepository>(_ =>
