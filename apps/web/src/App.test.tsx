@@ -14,6 +14,8 @@ const {
   contractDocument,
   createCmmcAssessmentMock,
   createCmmcPoamItemMock,
+  createSubcontractorEvidenceRequestMock,
+  createSubcontractorFlowDownMock,
   createSubcontractorMock,
   createContractDeliverableMock,
   createContractMock,
@@ -28,6 +30,9 @@ const {
   getCmmcControlStatusesMock,
   getCmmcPoamItemsMock,
   getSubcontractorsMock,
+  getSubcontractorEvidenceRequestsMock,
+  getSubcontractorFlowDownsMock,
+  getApprovedEvidencePackagesMock,
   getCalendarEventsMock,
   getContractClausesMock,
   getContractDeliverablesMock,
@@ -38,6 +43,7 @@ const {
   getEvidenceItemsMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
+  getNotificationPreferencesMock,
   getNotificationsMock,
   getComplianceOverviewMock,
   getCurrentUserAccessMock,
@@ -58,13 +64,20 @@ const {
   profile,
   restrictedAccess,
   markNotificationReadMock,
+  runDueDateRemindersMock,
+  generateCmmcReadinessReportMock,
+  generateComplianceStatusReportMock,
+  generateEvidencePackageMock,
+  generateSubcontractorComplianceReportMock,
   removeContractClauseMock,
   saveCompanyProfileMock,
   searchClauseLibraryMock,
   updateContractDeliverableMock,
   updateContractObligationStatusMock,
   updateContractMock,
-  updateEvidenceMetadataMock
+  updateEvidenceMetadataMock,
+  updateNotificationPreferencesMock,
+  updateSubcontractorFlowDownMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
   assignContractObligationOwnerMock: vi.fn(),
@@ -72,6 +85,8 @@ const {
   createContractDeliverableMock: vi.fn(),
   createCmmcAssessmentMock: vi.fn(),
   createCmmcPoamItemMock: vi.fn(),
+  createSubcontractorEvidenceRequestMock: vi.fn(),
+  createSubcontractorFlowDownMock: vi.fn(),
   createSubcontractorMock: vi.fn(),
   createContractMock: vi.fn(),
   createContractDocumentMock: vi.fn(),
@@ -85,6 +100,9 @@ const {
   getCmmcControlStatusesMock: vi.fn(),
   getCmmcPoamItemsMock: vi.fn(),
   getSubcontractorsMock: vi.fn(),
+  getSubcontractorEvidenceRequestsMock: vi.fn(),
+  getSubcontractorFlowDownsMock: vi.fn(),
+  getApprovedEvidencePackagesMock: vi.fn(),
   getCompanyProfileMock: vi.fn(),
   getContractClausesMock: vi.fn(),
   getContractDeliverablesMock: vi.fn(),
@@ -96,10 +114,16 @@ const {
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
   getNoCuiAcknowledgementStatusMock: vi.fn(),
+  getNotificationPreferencesMock: vi.fn(),
   getNotificationsMock: vi.fn(),
+  generateCmmcReadinessReportMock: vi.fn(),
+  generateComplianceStatusReportMock: vi.fn(),
+  generateEvidencePackageMock: vi.fn(),
+  generateSubcontractorComplianceReportMock: vi.fn(),
   getTenantInvitationsMock: vi.fn(),
   getTenantMembersMock: vi.fn(),
   markNotificationReadMock: vi.fn(),
+  runDueDateRemindersMock: vi.fn(),
   removeContractClauseMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
@@ -107,6 +131,8 @@ const {
   updateContractObligationStatusMock: vi.fn(),
   updateContractMock: vi.fn(),
   updateEvidenceMetadataMock: vi.fn(),
+  updateNotificationPreferencesMock: vi.fn(),
+  updateSubcontractorFlowDownMock: vi.fn(),
   allWorkflowAccess: {
     tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
     userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
@@ -590,6 +616,8 @@ vi.mock("@/lib/api", () => ({
   createTenantInvitation: createTenantInvitationMock,
   createCmmcAssessment: createCmmcAssessmentMock,
   createCmmcPoamItem: createCmmcPoamItemMock,
+  createSubcontractorEvidenceRequest: createSubcontractorEvidenceRequestMock,
+  createSubcontractorFlowDown: createSubcontractorFlowDownMock,
   createSubcontractor: createSubcontractorMock,
   createContractDeliverable: createContractDeliverableMock,
   createContract: createContractMock,
@@ -601,6 +629,9 @@ vi.mock("@/lib/api", () => ({
   getCmmcControlStatuses: getCmmcControlStatusesMock,
   getCmmcPoamItems: getCmmcPoamItemsMock,
   getSubcontractors: getSubcontractorsMock,
+  getSubcontractorEvidenceRequests: getSubcontractorEvidenceRequestsMock,
+  getSubcontractorFlowDowns: getSubcontractorFlowDownsMock,
+  getApprovedEvidencePackages: getApprovedEvidencePackagesMock,
   getCompanyProfile: getCompanyProfileMock,
   getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
@@ -609,8 +640,14 @@ vi.mock("@/lib/api", () => ({
   getContractObligations: getContractObligationsMock,
   getContracts: getContractsMock,
   getEvidenceItems: getEvidenceItemsMock,
+  getNotificationPreferences: getNotificationPreferencesMock,
   getNotifications: getNotificationsMock,
+  generateCmmcReadinessReport: generateCmmcReadinessReportMock,
+  generateComplianceStatusReport: generateComplianceStatusReportMock,
+  generateEvidencePackage: generateEvidencePackageMock,
+  generateSubcontractorComplianceReport: generateSubcontractorComplianceReportMock,
   markNotificationRead: markNotificationReadMock,
+  runDueDateReminders: runDueDateRemindersMock,
   removeContractClause: removeContractClauseMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
@@ -618,6 +655,8 @@ vi.mock("@/lib/api", () => ({
   updateContractObligationStatus: updateContractObligationStatusMock,
   updateContract: updateContractMock,
   updateEvidenceMetadata: updateEvidenceMetadataMock,
+  updateNotificationPreferences: updateNotificationPreferencesMock,
+  updateSubcontractorFlowDown: updateSubcontractorFlowDownMock,
   acknowledgeNoCuiNotice: acknowledgeNoCuiNoticeMock,
   createEvidenceUploadIntent: createEvidenceUploadIntentMock,
   fallbackAccess: {
@@ -666,6 +705,8 @@ describe("App", () => {
     createEvidenceMetadataMock.mockReset();
     createCmmcAssessmentMock.mockReset();
     createCmmcPoamItemMock.mockReset();
+    createSubcontractorEvidenceRequestMock.mockReset();
+    createSubcontractorFlowDownMock.mockReset();
     createSubcontractorMock.mockReset();
     createContractDeliverableMock.mockReset();
     createContractMock.mockReset();
@@ -676,8 +717,15 @@ describe("App", () => {
     updateContractObligationStatusMock.mockReset();
     updateContractMock.mockReset();
     updateEvidenceMetadataMock.mockReset();
+    updateNotificationPreferencesMock.mockReset();
+    updateSubcontractorFlowDownMock.mockReset();
     saveCompanyProfileMock.mockReset();
     markNotificationReadMock.mockReset();
+    runDueDateRemindersMock.mockReset();
+    generateCmmcReadinessReportMock.mockReset();
+    generateComplianceStatusReportMock.mockReset();
+    generateEvidencePackageMock.mockReset();
+    generateSubcontractorComplianceReportMock.mockReset();
     removeContractClauseMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
@@ -687,7 +735,11 @@ describe("App", () => {
     getCmmcControlStatusesMock.mockReset();
     getCmmcPoamItemsMock.mockReset();
     getSubcontractorsMock.mockReset();
+    getSubcontractorEvidenceRequestsMock.mockReset();
+    getSubcontractorFlowDownsMock.mockReset();
+    getApprovedEvidencePackagesMock.mockReset();
     getNoCuiAcknowledgementStatusMock.mockReset();
+    getNotificationPreferencesMock.mockReset();
     getNotificationsMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
@@ -706,6 +758,48 @@ describe("App", () => {
       totalCount: 0,
       hasNextPage: false,
       hasPreviousPage: false
+    });
+    getApprovedEvidencePackagesMock.mockResolvedValue([]);
+    getSubcontractorFlowDownsMock.mockResolvedValue([]);
+    getSubcontractorEvidenceRequestsMock.mockResolvedValue([]);
+    getNotificationPreferencesMock.mockResolvedValue({
+      id: "16161616-1616-1616-1616-161616161616",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      roleName: "Admin",
+      assignmentNotificationsEnabled: true,
+      dueSoonNotificationsEnabled: true,
+      overdueNotificationsEnabled: true,
+      evidenceRequestNotificationsEnabled: true,
+      certificationRenewalNotificationsEnabled: true,
+      cmmcAffirmationNotificationsEnabled: true,
+      createdAt: "2026-06-15T14:00:00Z",
+      updatedAt: null
+    });
+    updateNotificationPreferencesMock.mockImplementation((request) =>
+      Promise.resolve({
+        data: {
+          id: "16161616-1616-1616-1616-161616161616",
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+          roleName: "Admin",
+          ...request,
+          createdAt: "2026-06-15T14:00:00Z",
+          updatedAt: "2026-06-15T14:05:00Z"
+        },
+        error: null
+      })
+    );
+    runDueDateRemindersMock.mockResolvedValue({
+      data: {
+        upcomingSelected: 1,
+        overdueSelected: 1,
+        created: 2,
+        skipped: 0,
+        failed: 0,
+        items: []
+      },
+      error: null
     });
     getNotificationsMock.mockResolvedValue([]);
     markNotificationReadMock.mockImplementation((notificationId) =>

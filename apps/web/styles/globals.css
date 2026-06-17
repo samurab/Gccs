@@ -1582,9 +1582,66 @@ dt {
   outline: none;
 }
 
+.evidence-list__item--overdue {
+  border-color: rgb(163 58 50 / 0.36);
+  box-shadow: inset 4px 0 0 var(--red);
+}
+
 .evidence-list__item span,
 .evidence-metadata p {
   color: var(--muted);
+}
+
+.subcontractor-workspace,
+.settings-workspace {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 340px minmax(0, 1fr);
+}
+
+.subcontractor-detail {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.subcontractor-detail-grid,
+.report-action-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.report-action-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.preference-toggle-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.evidence-metadata label {
+  color: var(--muted);
+  display: grid;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 6px;
+  text-transform: uppercase;
+}
+
+.evidence-metadata input,
+.evidence-metadata select {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  min-height: 40px;
+  padding: 8px 10px;
+  width: 100%;
 }
 
 .evidence-metadata-form {
@@ -1991,7 +2048,11 @@ dt {
   .workspace-hero,
   .work-grid,
   .evidence-metadata__workspace,
-  .contract-workspace {
+  .contract-workspace,
+  .subcontractor-workspace,
+  .settings-workspace,
+  .subcontractor-detail-grid,
+  .report-action-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2012,6 +2073,7 @@ dt {
   .calendar-filter-form,
   .calendar-event,
   .contract-detail,
+  .preference-toggle-grid,
   .form-grid,
   .naics-row,
   .certification-row {

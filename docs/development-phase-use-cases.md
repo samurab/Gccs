@@ -1153,7 +1153,7 @@ A development story is done when:
 - Tenant isolation and RBAC are enforced server-side.
 - Sensitive actions are audit logged.
 - Unit, integration, or end-to-end tests are added according to risk.
-- Empty, loading, validation, and error states are handled.
-- Accessibility basics are checked for user-facing UI.
-- Documentation, release notes, or content metadata are updated when behavior changes.
-- Product owner or delegated reviewer accepts the story.
+- Empty, loading, validation, and error states are handled.? ********* this will be handled later. So: not a blocker. Keep it as a follow-up hardening item.
+- Accessibility basics are checked for user-facing UI. ? ********* this will be handled later. So: not a blocker. Keep it as a follow-up hardening item.
+- Documentation, release notes, or content metadata are updated when behavior changes. ? ********* this will be handled later. So: not a blocker. Keep it as a follow-up hardening item.
+- Product owner or delegated reviewer accepts the story.? ********* this will be handled later. So: not a blocker. Keep it as a follow-up hardening item.

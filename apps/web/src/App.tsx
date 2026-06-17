@@ -4327,7 +4327,7 @@ function SubcontractorDetailPanel({
     <section className="subcontractor-detail" aria-label="Subcontractor flow-down detail">
       <div className="section-heading">
         <p className="eyebrow">Supplier detail</p>
-        <h3>{subcontractor.name}</h3>
+        <h3>Selected subcontractor</h3>
         <p className="section-summary">
           {subcontractor.roleDescription} Contact {subcontractor.contactName ?? "not set"} · {subcontractor.contactEmail ?? "no email"}
         </p>
@@ -4753,7 +4753,7 @@ function ReportsView({
               ))}
             </div>
           ) : (
-            <EmptyState title="No reports generated in this session" body="Use the report actions above to create tenant-scoped snapshots." />
+            <EmptyState title="No reports have been generated yet" body="Use the report actions above to create tenant-scoped snapshots." />
           )}
         </section>
         <section className="evidence-metadata">
