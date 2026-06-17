@@ -19,6 +19,8 @@ public sealed class ClauseLibraryService(IClauseLibraryRepository repository)
     {
         var normalizedQuery = request.Query?.Trim();
         var normalizedCategory = request.Category?.Trim();
+        var normalizedSourceFamily = request.SourceFamily?.Trim();
+        var normalizedObligationArea = request.ObligationArea?.Trim();
 
         if (normalizedQuery?.Length > 160)
         {
@@ -35,7 +37,11 @@ public sealed class ClauseLibraryService(IClauseLibraryRepository repository)
             new ClauseLibrarySearchRequest(
                 string.IsNullOrWhiteSpace(normalizedQuery) ? null : normalizedQuery,
                 string.IsNullOrWhiteSpace(normalizedCategory) ? null : normalizedCategory,
-                request.TenantId),
+                request.TenantId,
+                string.IsNullOrWhiteSpace(normalizedSourceFamily) ? null : normalizedSourceFamily,
+                string.IsNullOrWhiteSpace(normalizedObligationArea) ? null : normalizedObligationArea,
+                request.RequiresFlowDown,
+                request.IncludeDrafts),
             cancellationToken);
     }
 
@@ -61,7 +67,11 @@ public interface IClauseLibraryRepository
 public sealed record ClauseLibrarySearchRequest(
     string? Query,
     string? Category,
-    Guid TenantId);
+    Guid TenantId,
+    string? SourceFamily = null,
+    string? ObligationArea = null,
+    bool? RequiresFlowDown = null,
+    bool IncludeDrafts = false);
 
 public sealed record ClauseLibraryItemDto(
     string Id,
@@ -78,6 +88,8 @@ public sealed record ClauseLibraryItemDto(
     DateOnly? ClauseEffectiveAt,
     string? SupersededByClauseId,
     DateOnly? SupersededAt,
+    string Confidence,
+    bool RequiresFlowDown,
     bool IsMappable);
 
 public sealed record ClauseLibraryDetailDto(

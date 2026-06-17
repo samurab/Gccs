@@ -23,12 +23,17 @@ public sealed class InMemoryClauseLibraryRepository : IClauseLibraryRepository
         CancellationToken cancellationToken = default)
     {
         var results = _clauses
-            .Where(clause => clause.ReviewState == ReviewState.Published &&
+            .Where(clause => (request.IncludeDrafts || clause.ReviewState == ReviewState.Published) &&
                 (clause.TenantId == null || clause.TenantId == request.TenantId))
             .Where(clause => MatchesQuery(clause, request.Query))
+            .Where(clause => string.IsNullOrWhiteSpace(request.SourceFamily) ||
+                clause.Source.Contains(request.SourceFamily, StringComparison.OrdinalIgnoreCase))
+            .Where(clause => request.RequiresFlowDown is null || clause.UsuallyRequiresFlowDown == request.RequiresFlowDown)
             .Select(ToDto)
             .Where(clause => string.IsNullOrWhiteSpace(request.Category) ||
                 string.Equals(clause.Category, request.Category, StringComparison.OrdinalIgnoreCase))
+            .Where(clause => string.IsNullOrWhiteSpace(request.ObligationArea) ||
+                string.Equals(clause.Category, request.ObligationArea, StringComparison.OrdinalIgnoreCase))
             .OrderBy(clause => clause.Source)
             .ThenBy(clause => clause.Number)
             .ToArray();
@@ -91,7 +96,9 @@ public sealed class InMemoryClauseLibraryRepository : IClauseLibraryRepository
             clause.ClauseEffectiveAt,
             clause.SupersededByClauseId,
             clause.SupersededAt,
-            true);
+            clause.Confidence,
+            clause.UsuallyRequiresFlowDown,
+            clause.ReviewState == ReviewState.Published);
 
     private static bool Contains(string value, string query) =>
         value.Contains(query, StringComparison.OrdinalIgnoreCase);

@@ -340,6 +340,14 @@ const {
     plainEnglishSummary: "Prevent covered ByteDance applications on certain government or contractor information technology.",
     sourceUrl: "https://www.acquisition.gov/far/52.204-27",
     lastReviewedAt: "2026-06-03",
+    reviewedByUserId: null,
+    reviewState: "Published",
+    clauseTextVersion: "current",
+    clauseEffectiveAt: null,
+    supersededByClauseId: null,
+    supersededAt: null,
+    confidence: "high",
+    requiresFlowDown: false,
     isMappable: true
   },
   contractClause: {

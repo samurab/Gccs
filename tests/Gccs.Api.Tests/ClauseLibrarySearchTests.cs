@@ -121,6 +121,62 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
     }
 
     [Fact]
+    public async Task TC_20_2_1_through_TC_20_2_4_Search_supports_exact_keyword_source_area_and_flow_down_filters()
+    {
+        var tenantId = Guid.Parse("20220220-2202-2022-0220-2202202202a1");
+        await using var factory = CreateFactory("tc-20-2-filters", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.AddRange(
+                CreateClause("far-flow", "FAR 52.204-21", "52.204-21", "Basic Safeguarding", requiresFlowDown: true),
+                CreateClause("dfars-cmmc", "DFARS 252.204-7012", "252.204-7012", "Safeguarding Covered Defense Information", requiresFlowDown: true),
+                CreateClause("far-tiktok", "FAR 52.204-27", "52.204-27", "Prohibition on a ByteDance Covered Application", requiresFlowDown: false));
+        });
+        using var client = factory.CreateClient();
+
+        var exact = await SearchAsync(client, "/api/clauses?query=52.204-21", tenantId);
+        var keyword = await SearchAsync(client, "/api/clauses?query=Safeguarding", tenantId);
+        var sourceFiltered = await SearchAsync(client, "/api/clauses?sourceFamily=DFARS", tenantId);
+        var areaFiltered = await SearchAsync(client, "/api/clauses?obligationArea=ByteDance", tenantId);
+        var flowDownFiltered = await SearchAsync(client, "/api/clauses?requiresFlowDown=true", tenantId);
+
+        Assert.Equal(["far-flow"], exact.Select(clause => clause.Id).ToArray());
+        Assert.Equal(["dfars-cmmc", "far-flow"], keyword.Select(clause => clause.Id).Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal(["DFARS"], sourceFiltered.Select(clause => clause.Category).Distinct().ToArray());
+        Assert.Equal("far-tiktok", Assert.Single(areaFiltered).Id);
+        Assert.Equal(["dfars-cmmc", "far-flow"], flowDownFiltered.Select(clause => clause.Id).Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal("Published", Assert.Single(exact).ReviewState);
+        Assert.Equal("high", Assert.Single(exact).Confidence);
+        Assert.True(Assert.Single(exact).RequiresFlowDown);
+    }
+
+    [Fact]
+    public async Task TC_20_2_5_Draft_clauses_require_content_review_permission_to_search()
+    {
+        var tenantId = Guid.Parse("20220220-2202-2022-0220-2202202202a5");
+        await using var factory = CreateFactory("tc-20-2-drafts", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.AddRange(
+                CreateClause("published-review", "FAR 52.204-21", "52.204-21", "Basic Safeguarding", ReviewState.Published),
+                CreateClause("draft-review", "FAR 52.204-99", "52.204-99", "Draft Review Clause", ReviewState.Draft));
+        });
+        using var client = factory.CreateClient();
+
+        var standardUserResults = await SearchAsync(client, "/api/clauses?includeDrafts=true", tenantId);
+        var reviewerResults = await SearchAsync(
+            client,
+            "/api/clauses?includeDrafts=true",
+            tenantId,
+            Permission.ViewContracts,
+            Permission.ManageObligations);
+
+        Assert.Equal(["published-review"], standardUserResults.Select(clause => clause.Id).ToArray());
+        Assert.Equal(["draft-review", "published-review"], reviewerResults.Select(clause => clause.Id).Order(StringComparer.Ordinal).ToArray());
+        Assert.False(reviewerResults.Single(clause => clause.Id == "draft-review").IsMappable);
+    }
+
+    [Fact]
     public async Task TC_20_1_1_through_TC_20_1_4_Version_history_keeps_superseded_clauses_out_of_default_mapping()
     {
         var tenantId = Guid.Parse("20120120-1201-2012-0120-1201201201a1");
@@ -205,9 +261,14 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
         Assert.Contains("Published", audit.MetadataJson, StringComparison.Ordinal);
     }
 
-    private async Task<ClauseLibraryItemDto[]> SearchAsync(HttpClient client, string requestUri, Guid tenantId)
+    private async Task<ClauseLibraryItemDto[]> SearchAsync(
+        HttpClient client,
+        string requestUri,
+        Guid tenantId,
+        params Permission[] permissions)
     {
-        using var request = CreateRequest(HttpMethod.Get, requestUri, tenantId, Guid.NewGuid(), Permission.ViewContracts);
+        var effectivePermissions = permissions.Length == 0 ? [Permission.ViewContracts] : permissions;
+        using var request = CreateRequest(HttpMethod.Get, requestUri, tenantId, Guid.NewGuid(), effectivePermissions);
         var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -248,7 +309,8 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
         string clauseTextVersion = "current",
         Guid? reviewedByUserId = null,
         string? supersededByClauseId = null,
-        DateOnly? supersededAt = null) =>
+        DateOnly? supersededAt = null,
+        bool requiresFlowDown = false) =>
         new()
         {
             Id = id,
@@ -262,6 +324,7 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
             SupersededByClauseId = supersededByClauseId,
             SupersededAt = supersededAt,
             RequiredActionIdsJson = "[]",
+            UsuallyRequiresFlowDown = requiresFlowDown,
             SourceName = source,
             SourceUrl = source.StartsWith("FAR", StringComparison.OrdinalIgnoreCase)
                 ? $"https://www.acquisition.gov/far/{number}"
@@ -279,13 +342,13 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
         string requestUri,
         Guid tenantId,
         Guid userId,
-        Permission permission)
+        params Permission[] permissions)
     {
         var request = new HttpRequestMessage(method, requestUri);
         request.Headers.Add("X-Gccs-Dev-Auth", "true");
         request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
         request.Headers.Add("X-Gccs-Dev-User", userId.ToString());
-        request.Headers.Add("X-Gccs-Dev-Permissions", permission.ToString());
+        request.Headers.Add("X-Gccs-Dev-Permissions", string.Join(",", permissions.Select(permission => permission.ToString())));
         return request;
     }
 

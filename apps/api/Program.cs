@@ -865,14 +865,28 @@ api.MapGet("/contracts/{contractId:guid}/obligations/export", async (
 api.MapGet("/clauses", async (
     string? query,
     string? category,
+    string? sourceFamily,
+    string? obligationArea,
+    bool? requiresFlowDown,
+    bool? includeDrafts,
     ClauseLibraryService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
+        var canReviewContent = httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ManageObligations.ToString()) ||
+            httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ReviewClauses.ToString());
         return Results.Ok(await service.SearchAsync(
-            new ClauseLibrarySearchRequest(query, category, tenantContext.TenantId),
+            new ClauseLibrarySearchRequest(
+                query,
+                category,
+                tenantContext.TenantId,
+                sourceFamily,
+                obligationArea,
+                requiresFlowDown,
+                includeDrafts == true && canReviewContent),
             cancellationToken));
     }
     catch (ClauseLibrarySearchValidationException exception)

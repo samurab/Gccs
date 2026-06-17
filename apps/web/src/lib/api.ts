@@ -24,12 +24,24 @@ export type ClauseLibraryItem = {
   plainEnglishSummary: string;
   sourceUrl: string;
   lastReviewedAt: string;
+  reviewedByUserId: string | null;
+  reviewState: string;
+  clauseTextVersion: string;
+  clauseEffectiveAt: string | null;
+  supersededByClauseId: string | null;
+  supersededAt: string | null;
+  confidence: string;
+  requiresFlowDown: boolean;
   isMappable: boolean;
 };
 
 export type ClauseSearchParams = {
   query?: string;
   category?: string;
+  sourceFamily?: string;
+  obligationArea?: string;
+  requiresFlowDown?: boolean;
+  includeDrafts?: boolean;
 };
 
 export type ComplianceOverview = {
@@ -1059,6 +1071,22 @@ export async function searchClauseLibrary(params: ClauseSearchParams = {}): Prom
 
   if (params.category) {
     searchParams.set("category", params.category);
+  }
+
+  if (params.sourceFamily) {
+    searchParams.set("sourceFamily", params.sourceFamily);
+  }
+
+  if (params.obligationArea) {
+    searchParams.set("obligationArea", params.obligationArea);
+  }
+
+  if (params.requiresFlowDown !== undefined) {
+    searchParams.set("requiresFlowDown", String(params.requiresFlowDown));
+  }
+
+  if (params.includeDrafts !== undefined) {
+    searchParams.set("includeDrafts", String(params.includeDrafts));
   }
 
   const queryString = searchParams.toString();

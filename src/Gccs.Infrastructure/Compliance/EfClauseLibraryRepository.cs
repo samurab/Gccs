@@ -15,7 +15,7 @@ public sealed class EfClauseLibraryRepository(GccsDbContext dbContext) : IClause
         var query = dbContext.Clauses
             .AsNoTracking()
             .Where(clause =>
-                clause.ReviewState == ReviewState.Published &&
+                (request.IncludeDrafts || clause.ReviewState == ReviewState.Published) &&
                 (clause.TenantId == null || clause.TenantId == request.TenantId));
 
         if (!string.IsNullOrWhiteSpace(request.Query))
@@ -28,6 +28,17 @@ public sealed class EfClauseLibraryRepository(GccsDbContext dbContext) : IClause
                 clause.PlainEnglishSummary.ToLower().Contains(searchTerm));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.SourceFamily))
+        {
+            var sourceFamily = request.SourceFamily.Trim().ToLowerInvariant();
+            query = query.Where(clause => clause.Source.ToLower().Contains(sourceFamily));
+        }
+
+        if (request.RequiresFlowDown is { } requiresFlowDown)
+        {
+            query = query.Where(clause => clause.UsuallyRequiresFlowDown == requiresFlowDown);
+        }
+
         var clauses = await query
             .OrderBy(clause => clause.Source)
             .ThenBy(clause => clause.Number)
@@ -38,6 +49,8 @@ public sealed class EfClauseLibraryRepository(GccsDbContext dbContext) : IClause
             .Select(ToDto)
             .Where(clause => string.IsNullOrWhiteSpace(request.Category) ||
                 string.Equals(clause.Category, request.Category, StringComparison.OrdinalIgnoreCase))
+            .Where(clause => string.IsNullOrWhiteSpace(request.ObligationArea) ||
+                string.Equals(clause.Category, request.ObligationArea, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
         return results;
@@ -90,7 +103,9 @@ public sealed class EfClauseLibraryRepository(GccsDbContext dbContext) : IClause
             clause.ClauseEffectiveAt,
             clause.SupersededByClauseId,
             clause.SupersededAt,
-            true);
+            clause.Confidence,
+            clause.UsuallyRequiresFlowDown,
+            clause.ReviewState == ReviewState.Published);
 
     internal static string ClassifyCategory(ClauseEntity clause)
     {
