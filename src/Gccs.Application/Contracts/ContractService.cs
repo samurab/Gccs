@@ -309,6 +309,44 @@ public sealed partial class ContractService(
         return candidate;
     }
 
+    public async Task<ClauseCandidateDto?> MarkClauseCandidateNeedsClarificationAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateStateChangeRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeCandidateStateChange(request);
+        ValidateCandidateStateChange(normalized);
+        var candidate = await repository.MarkClauseCandidateNeedsClarificationAsync(contractId, documentId, candidateId, normalized, actorUserId, cancellationToken);
+        if (candidate is not null)
+        {
+            await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Updated, "Extraction clause candidate needs clarification.", cancellationToken);
+        }
+
+        return candidate;
+    }
+
+    public async Task<ClauseCandidateDto?> SupersedeClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateStateChangeRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeCandidateStateChange(request);
+        ValidateCandidateStateChange(normalized);
+        var candidate = await repository.SupersedeClauseCandidateAsync(contractId, documentId, candidateId, normalized, actorUserId, cancellationToken);
+        if (candidate is not null)
+        {
+            await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Updated, "Extraction clause candidate was superseded.", cancellationToken);
+        }
+
+        return candidate;
+    }
+
     public async Task<ContractDeliverableDto?> CreateDeliverableAsync(
         Guid contractId,
         UpsertContractDeliverableRequest request,
@@ -498,6 +536,13 @@ public sealed partial class ContractService(
             DecisionNote = string.IsNullOrWhiteSpace(request.DecisionNote) ? null : request.DecisionNote.Trim()
         };
 
+    private static ClauseCandidateStateChangeRequest NormalizeCandidateStateChange(ClauseCandidateStateChangeRequest request) =>
+        request with
+        {
+            Reason = request.Reason.Trim(),
+            DecisionNote = string.IsNullOrWhiteSpace(request.DecisionNote) ? null : request.DecisionNote.Trim()
+        };
+
     private async Task WriteDocumentAuditAsync(
         Guid contractId,
         Guid? documentId,
@@ -610,6 +655,19 @@ public sealed partial class ContractService(
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
 
         AddIf(errors, requireClauseLibrary && string.IsNullOrWhiteSpace(request.ClauseLibraryId), "clauseLibraryId", "A clause library id is required before accepting a candidate.");
+        AddIf(errors, string.IsNullOrWhiteSpace(request.Reason), "reason", "A review reason is required.");
+        AddIf(errors, request.DecisionNote?.Length > 1000, "decisionNote", "Decision note must be 1000 characters or fewer.");
+
+        if (errors.Count > 0)
+        {
+            throw new ContractValidationException(errors);
+        }
+    }
+
+    private static void ValidateCandidateStateChange(ClauseCandidateStateChangeRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
         AddIf(errors, string.IsNullOrWhiteSpace(request.Reason), "reason", "A review reason is required.");
         AddIf(errors, request.DecisionNote?.Length > 1000, "decisionNote", "Decision note must be 1000 characters or fewer.");
 
@@ -965,6 +1023,22 @@ public interface IContractRepository
         Guid documentId,
         Guid candidateId,
         ClauseCandidateReviewRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ClauseCandidateDto?> MarkClauseCandidateNeedsClarificationAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateStateChangeRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<ClauseCandidateDto?> SupersedeClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateStateChangeRequest request,
+        Guid actorUserId,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ContractDeliverableDto>?> ListDeliverablesAsync(

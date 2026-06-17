@@ -560,6 +560,54 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         return ToClauseCandidateDto(candidate);
     }
 
+    public async Task<ClauseCandidateDto?> MarkClauseCandidateNeedsClarificationAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateStateChangeRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var candidate = await FindCandidateForCurrentTenantAsync(contractId, documentId, candidateId, cancellationToken);
+        if (candidate is null)
+        {
+            return null;
+        }
+
+        EnsureCandidateCanTransition(candidate, "needs_clarification");
+        candidate.ReviewStatus = "needs_clarification";
+        candidate.ReviewedByUserId = actorUserId;
+        candidate.ReviewedAt = DateTimeOffset.UtcNow;
+        candidate.DecisionReason = request.Reason;
+        candidate.DecisionNote = request.DecisionNote;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToClauseCandidateDto(candidate);
+    }
+
+    public async Task<ClauseCandidateDto?> SupersedeClauseCandidateAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid candidateId,
+        ClauseCandidateStateChangeRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var candidate = await FindCandidateForCurrentTenantAsync(contractId, documentId, candidateId, cancellationToken);
+        if (candidate is null)
+        {
+            return null;
+        }
+
+        EnsureCandidateCanTransition(candidate, "superseded");
+        candidate.ReviewStatus = "superseded";
+        candidate.ReviewedByUserId = actorUserId;
+        candidate.ReviewedAt = DateTimeOffset.UtcNow;
+        candidate.DecisionReason = request.Reason;
+        candidate.DecisionNote = request.DecisionNote;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToClauseCandidateDto(candidate);
+    }
+
     public async Task<ContractDeliverableDto?> CreateDeliverableAsync(
         Guid contractId,
         UpsertContractDeliverableRequest request,

@@ -65,6 +65,7 @@ const {
   overview,
   profile,
   restrictedAccess,
+  markClauseCandidateNeedsClarificationMock,
   markNotificationReadMock,
   runDueDateRemindersMock,
   generateCmmcReadinessReportMock,
@@ -76,6 +77,7 @@ const {
   saveCompanyProfileMock,
   searchClauseLibraryMock,
   startContractDocumentExtractionMock,
+  supersedeClauseCandidateMock,
   updateContractDeliverableMock,
   updateContractObligationStatusMock,
   updateContractMock,
@@ -128,6 +130,7 @@ const {
   generateSubcontractorComplianceReportMock: vi.fn(),
   getTenantInvitationsMock: vi.fn(),
   getTenantMembersMock: vi.fn(),
+  markClauseCandidateNeedsClarificationMock: vi.fn(),
   markNotificationReadMock: vi.fn(),
   runDueDateRemindersMock: vi.fn(),
   removeContractClauseMock: vi.fn(),
@@ -135,6 +138,7 @@ const {
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
   startContractDocumentExtractionMock: vi.fn(),
+  supersedeClauseCandidateMock: vi.fn(),
   updateContractDeliverableMock: vi.fn(),
   updateContractObligationStatusMock: vi.fn(),
   updateContractMock: vi.fn(),
@@ -657,6 +661,7 @@ vi.mock("@/lib/api", () => ({
   generateComplianceStatusReport: generateComplianceStatusReportMock,
   generateEvidencePackage: generateEvidencePackageMock,
   generateSubcontractorComplianceReport: generateSubcontractorComplianceReportMock,
+  markClauseCandidateNeedsClarification: markClauseCandidateNeedsClarificationMock,
   markNotificationRead: markNotificationReadMock,
   runDueDateReminders: runDueDateRemindersMock,
   removeContractClause: removeContractClauseMock,
@@ -664,6 +669,7 @@ vi.mock("@/lib/api", () => ({
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
   startContractDocumentExtraction: startContractDocumentExtractionMock,
+  supersedeClauseCandidate: supersedeClauseCandidateMock,
   updateContractDeliverable: updateContractDeliverableMock,
   updateContractObligationStatus: updateContractObligationStatusMock,
   updateContract: updateContractMock,
@@ -735,6 +741,7 @@ describe("App", () => {
     updateSubcontractorFlowDownMock.mockReset();
     saveCompanyProfileMock.mockReset();
     markNotificationReadMock.mockReset();
+    markClauseCandidateNeedsClarificationMock.mockReset();
     runDueDateRemindersMock.mockReset();
     generateCmmcReadinessReportMock.mockReset();
     generateComplianceStatusReportMock.mockReset();
@@ -743,6 +750,7 @@ describe("App", () => {
     removeContractClauseMock.mockReset();
     rejectClauseCandidateMock.mockReset();
     startContractDocumentExtractionMock.mockReset();
+    supersedeClauseCandidateMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
     getAuditLogsMock.mockReset();
@@ -1384,8 +1392,11 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("link", { name: /contracts/i }));
+    expect(screen.getByRole("combobox", { name: /clause candidate review status/i })).toHaveValue("all");
     expect(await screen.findByText("FAR 52.204-21")).toBeInTheDocument();
     expect(screen.getByText(/100% · exact_library_match · pending_review · line 1/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clarify" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Supersede" })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "Accept" }));
 
     expect(acceptClauseCandidateMock).toHaveBeenCalledWith(

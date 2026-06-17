@@ -73,6 +73,7 @@ import {
   getNotifications,
   getTenantInvitations,
   getTenantMembers,
+  markClauseCandidateNeedsClarification,
   markNotificationRead,
   runDueDateReminders,
   saveCompanyProfile,
@@ -80,6 +81,7 @@ import {
   removeContractClause,
   rejectClauseCandidate,
   startContractDocumentExtraction,
+  supersedeClauseCandidate,
   updateNotificationPreferences,
   updateContractObligationStatus,
   updateContract,
@@ -453,6 +455,7 @@ export function App() {
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
   const [extractionJobsByDocumentId, setExtractionJobsByDocumentId] = useState<Record<string, ExtractionJob>>({});
   const [extractionResultsByDocumentId, setExtractionResultsByDocumentId] = useState<Record<string, ContractDocumentExtractionResults>>({});
+  const [clauseCandidateReviewStatusFilter, setClauseCandidateReviewStatusFilter] = useState("all");
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceMetadata[]>([]);
   const [cmmcAssessments, setCmmcAssessments] = useState<CmmcAssessment[]>([]);
@@ -601,7 +604,7 @@ export function App() {
           ? await Promise.all(
               nextContractDocuments.map(async (document) => [
                 document.id,
-                await getContractDocumentExtractionResults(nextContracts[0].id, document.id)
+                await getContractDocumentExtractionResults(nextContracts[0].id, document.id, clauseCandidateReviewStatusFilter)
               ] as const)
             )
           : [];
@@ -694,7 +697,7 @@ export function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [clauseCandidateReviewStatusFilter]);
 
   async function handleInvitationSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1062,21 +1065,12 @@ export function App() {
     contractId: string,
     documentId: string,
     candidateId: string,
-    action: "accept" | "reject",
+    action: "accept" | "reject" | "needs_clarification" | "supersede",
     clauseLibraryId: string | null
   ) {
     setContractDocumentStatus("saving");
     setContractDocumentMessage("");
-    const result =
-      action === "accept"
-        ? await acceptClauseCandidate(contractId, documentId, candidateId, {
-            clauseLibraryId,
-            reason: "Reviewed from contract document extraction results."
-          })
-        : await rejectClauseCandidate(contractId, documentId, candidateId, {
-            clauseLibraryId: null,
-            reason: "Rejected from contract document extraction results."
-          });
+    const result = await saveClauseCandidateReview(contractId, documentId, candidateId, action, clauseLibraryId);
 
     if (result.data) {
       setExtractionResultsByDocumentId((currentResults) => {
@@ -1107,6 +1101,38 @@ export function App() {
 
     setContractDocumentStatus("failed");
     setContractDocumentMessage(result.error ?? "Candidate review could not be saved.");
+  }
+
+  function saveClauseCandidateReview(
+    contractId: string,
+    documentId: string,
+    candidateId: string,
+    action: "accept" | "reject" | "needs_clarification" | "supersede",
+    clauseLibraryId: string | null
+  ) {
+    if (action === "accept") {
+      return acceptClauseCandidate(contractId, documentId, candidateId, {
+        clauseLibraryId,
+        reason: "Reviewed from contract document extraction results."
+      });
+    }
+
+    if (action === "needs_clarification") {
+      return markClauseCandidateNeedsClarification(contractId, documentId, candidateId, {
+        reason: "Clarification requested from contract document extraction results."
+      });
+    }
+
+    if (action === "supersede") {
+      return supersedeClauseCandidate(contractId, documentId, candidateId, {
+        reason: "Superseded from contract document extraction results."
+      });
+    }
+
+    return rejectClauseCandidate(contractId, documentId, candidateId, {
+      clauseLibraryId: null,
+      reason: "Rejected from contract document extraction results."
+    });
   }
 
   async function handleNoCuiAcknowledgement() {
@@ -1507,6 +1533,7 @@ export function App() {
               contractDocuments={contractDocuments}
               extractionJobsByDocumentId={extractionJobsByDocumentId}
               extractionResultsByDocumentId={extractionResultsByDocumentId}
+              clauseCandidateReviewStatusFilter={clauseCandidateReviewStatusFilter}
               deliverableMessage={deliverableMessage}
               deliverableStatus={deliverableStatus}
               contractDocumentMessage={contractDocumentMessage}
@@ -1516,6 +1543,7 @@ export function App() {
               noCuiAcknowledgement={noCuiAcknowledgement}
               selectedContractId={selectedContractId}
               onDeleteDocument={handleContractDocumentDelete}
+              onChangeClauseCandidateReviewStatusFilter={setClauseCandidateReviewStatusFilter}
               onStartExtraction={handleStartContractDocumentExtraction}
               onReviewCandidate={handleClauseCandidateReview}
               onAttachClause={handleContractClauseAttach}
@@ -2793,6 +2821,7 @@ function ContractsView({
   contractDocuments,
   extractionJobsByDocumentId,
   extractionResultsByDocumentId,
+  clauseCandidateReviewStatusFilter,
   deliverableMessage,
   deliverableStatus,
   contractDocumentMessage,
@@ -2802,6 +2831,7 @@ function ContractsView({
   noCuiAcknowledgement,
   selectedContractId,
   onDeleteDocument,
+  onChangeClauseCandidateReviewStatusFilter,
   onStartExtraction,
   onReviewCandidate,
   onAttachClause,
@@ -2821,6 +2851,7 @@ function ContractsView({
   contractDocuments: ContractDocument[];
   extractionJobsByDocumentId: Record<string, ExtractionJob>;
   extractionResultsByDocumentId: Record<string, ContractDocumentExtractionResults>;
+  clauseCandidateReviewStatusFilter: string;
   deliverableMessage: string;
   deliverableStatus: "idle" | "saving" | "saved" | "failed";
   contractDocumentMessage: string;
@@ -2830,12 +2861,13 @@ function ContractsView({
   noCuiAcknowledgement: NoCuiAcknowledgementStatus;
   selectedContractId: string | null;
   onDeleteDocument: (contractId: string, documentId: string) => Promise<void>;
+  onChangeClauseCandidateReviewStatusFilter: (reviewStatus: string) => void;
   onStartExtraction: (contractId: string, documentId: string) => Promise<void>;
   onReviewCandidate: (
     contractId: string,
     documentId: string,
     candidateId: string,
-    action: "accept" | "reject",
+    action: "accept" | "reject" | "needs_clarification" | "supersede",
     clauseLibraryId: string | null
   ) => Promise<void>;
   onAttachClause: (contractId: string, request: AttachContractClauseRequest) => Promise<void>;
@@ -3226,6 +3258,18 @@ function ContractsView({
               <option value="CuiMarkingGuide">CUI marking guide</option>
               <option value="Other">Other</option>
             </select>
+            <select
+              aria-label="Clause candidate review status"
+              value={clauseCandidateReviewStatusFilter}
+              onChange={(event) => onChangeClauseCandidateReviewStatusFilter(event.target.value)}
+            >
+              <option value="all">All review states</option>
+              <option value="pending_review">Pending review</option>
+              <option value="needs_clarification">Needs clarification</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+              <option value="superseded">Superseded</option>
+            </select>
           </div>
           <form
             className="contract-document-upload"
@@ -3325,6 +3369,32 @@ function ContractsView({
                             disabled={!canReviewClauses || contractDocumentStatus === "saving"}
                           >
                             Reject
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              selectedContract &&
+                              void onReviewCandidate(
+                                selectedContract.id,
+                                document.id,
+                                candidate.id,
+                                "needs_clarification",
+                                null
+                              )
+                            }
+                            disabled={!canReviewClauses || contractDocumentStatus === "saving"}
+                          >
+                            Clarify
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              selectedContract &&
+                              void onReviewCandidate(selectedContract.id, document.id, candidate.id, "supersede", null)
+                            }
+                            disabled={!canReviewClauses || contractDocumentStatus === "saving"}
+                          >
+                            Supersede
                           </button>
                         </div>
                       ))}

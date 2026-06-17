@@ -608,7 +608,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
         using var request = CreateRequest(
             HttpMethod.Post,
             $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/accept",
-            new ClauseCandidateReviewRequest(clauseId, "Confirmed by reviewer."),
+            new ClauseCandidateReviewRequest(clauseId, "Confirmed by reviewer.", "Maps to the published safeguarding clause."),
             tenantId,
             userId,
             Permission.ReviewClauses);
@@ -620,6 +620,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
         Assert.Equal("accepted", reviewed.ReviewStatus);
         Assert.Equal(userId, reviewed.ReviewedByUserId);
         Assert.NotNull(reviewed.ReviewedAt);
+        Assert.Equal("Maps to the published safeguarding clause.", reviewed.DecisionNote);
         Assert.Equal("Confirmed by reviewer.", reviewed.DecisionReason);
         using (var scope = factory.Services.CreateScope())
         {
@@ -723,6 +724,91 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
         var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TC_19_1_4_and_TC_19_1_5_Superseded_candidates_do_not_generate_obligations_and_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("19191919-1919-1919-1919-1919191914a1");
+        var userId = Guid.Parse("19191919-1919-1919-1919-1919191914b1");
+        var contractId = Guid.Parse("19191919-1919-1919-1919-1919191914c1");
+        var documentId = Guid.Parse("19191919-1919-1919-1919-1919191914d1");
+        const string clauseId = "far-52-204-21-superseded";
+        await using var factory = CreateFactory("tc-19-1-4", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.Add(CreateClause(clauseId, "FAR", "52.204-21", "Basic Safeguarding"));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-SUPERSEDE", "Extraction supersede contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "FAR 52.204-21 - Basic Safeguarding."));
+        });
+        using var client = factory.CreateClient();
+        var processResult = await ProcessExtractionJobAsync(client, contractId, documentId, tenantId, userId);
+        var candidate = Assert.Single(processResult.Candidates);
+
+        using var clarifyRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/needs-clarification",
+            new ClauseCandidateStateChangeRequest("Need SME review.", "Potential duplicate citation."),
+            tenantId,
+            userId,
+            Permission.ReviewClauses);
+        var clarifyResponse = await client.SendAsync(clarifyRequest);
+        var clarification = await clarifyResponse.Content.ReadFromJsonAsync<ClauseCandidateDto>(JsonOptions);
+        using var supersedeRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/supersede",
+            new ClauseCandidateStateChangeRequest("Later extraction run superseded this candidate.", "Use the newer candidate."),
+            tenantId,
+            userId,
+            Permission.ReviewClauses);
+        var supersedeResponse = await client.SendAsync(supersedeRequest);
+        var superseded = await supersedeResponse.Content.ReadFromJsonAsync<ClauseCandidateDto>(JsonOptions);
+        using var acceptRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/clause-candidates/{candidate.Id}/accept",
+            new ClauseCandidateReviewRequest(clauseId, "Attempt to accept superseded candidate."),
+            tenantId,
+            userId,
+            Permission.ReviewClauses);
+        var acceptResponse = await client.SendAsync(acceptRequest);
+
+        Assert.Equal(HttpStatusCode.OK, clarifyResponse.StatusCode);
+        Assert.NotNull(clarification);
+        Assert.Equal("needs_clarification", clarification.ReviewStatus);
+        Assert.Equal("Potential duplicate citation.", clarification.DecisionNote);
+        Assert.Equal(HttpStatusCode.OK, supersedeResponse.StatusCode);
+        Assert.NotNull(superseded);
+        Assert.Equal("superseded", superseded.ReviewStatus);
+        Assert.Equal(userId, superseded.ReviewedByUserId);
+        Assert.NotNull(superseded.ReviewedAt);
+        Assert.Equal("Use the newer candidate.", superseded.DecisionNote);
+        Assert.Equal(HttpStatusCode.BadRequest, acceptResponse.StatusCode);
+
+        using var resultsRequest = CreateRequest(
+            HttpMethod.Get,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-results?reviewStatus=superseded",
+            tenantId,
+            userId,
+            Permission.ViewContracts);
+        var resultsResponse = await client.SendAsync(resultsRequest);
+        var results = await resultsResponse.Content.ReadFromJsonAsync<ContractDocumentExtractionResultsDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, resultsResponse.StatusCode);
+        Assert.Equal("superseded", Assert.Single(results?.Candidates ?? []).ReviewStatus);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractClauseEntity>().Where(clause => clause.ContractId == contractId).ToArrayAsync());
+        var candidateAudits = await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "ClauseCandidate")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+        Assert.Equal([AuditAction.Updated, AuditAction.Updated], candidateAudits.Select(audit => audit.Action).ToArray());
+        Assert.Contains(candidateAudits, audit => audit.MetadataJson.Contains("needs_clarification", StringComparison.Ordinal));
+        Assert.Contains(candidateAudits, audit => audit.MetadataJson.Contains("superseded", StringComparison.Ordinal));
     }
 
     [Fact]

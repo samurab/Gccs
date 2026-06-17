@@ -122,6 +122,10 @@ public sealed record ClauseCandidateReviewRequest(
     string Reason,
     string? DecisionNote = null);
 
+public sealed record ClauseCandidateStateChangeRequest(
+    string Reason,
+    string? DecisionNote = null);
+
 public sealed record ContractDeliverableDto(
     Guid Id,
     Guid ContractId,

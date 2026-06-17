@@ -598,6 +598,12 @@ export type ClauseCandidateEditRequest = {
 export type ClauseCandidateReviewRequest = {
   clauseLibraryId?: string | null;
   reason: string;
+  decisionNote?: string | null;
+};
+
+export type ClauseCandidateStateChangeRequest = {
+  reason: string;
+  decisionNote?: string | null;
 };
 
 export type ContractDeliverable = {
@@ -1110,10 +1116,12 @@ export async function startContractDocumentExtraction(
 
 export async function getContractDocumentExtractionResults(
   contractId: string,
-  documentId: string
+  documentId: string,
+  reviewStatus?: string
 ): Promise<ContractDocumentExtractionResults | null> {
+  const query = reviewStatus && reviewStatus !== "all" ? `?reviewStatus=${encodeURIComponent(reviewStatus)}` : "";
   return getJson<ContractDocumentExtractionResults | null>(
-    `/api/contracts/${contractId}/documents/${documentId}/extraction-results`,
+    `/api/contracts/${contractId}/documents/${documentId}/extraction-results${query}`,
     null
   );
 }
@@ -1150,6 +1158,30 @@ export async function rejectClauseCandidate(
 ): Promise<ApiMutationResult<ClauseCandidate>> {
   return postJsonResult<ClauseCandidate>(
     `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/reject`,
+    request
+  );
+}
+
+export async function markClauseCandidateNeedsClarification(
+  contractId: string,
+  documentId: string,
+  candidateId: string,
+  request: ClauseCandidateStateChangeRequest
+): Promise<ApiMutationResult<ClauseCandidate>> {
+  return postJsonResult<ClauseCandidate>(
+    `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/needs-clarification`,
+    request
+  );
+}
+
+export async function supersedeClauseCandidate(
+  contractId: string,
+  documentId: string,
+  candidateId: string,
+  request: ClauseCandidateStateChangeRequest
+): Promise<ApiMutationResult<ClauseCandidate>> {
+  return postJsonResult<ClauseCandidate>(
+    `/api/contracts/${contractId}/documents/${documentId}/clause-candidates/${candidateId}/supersede`,
     request
   );
 }
