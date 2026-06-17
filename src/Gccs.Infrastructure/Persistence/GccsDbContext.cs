@@ -33,6 +33,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<ObligationEntity> Obligations => Set<ObligationEntity>();
     public DbSet<SuggestedObligationEntity> SuggestedObligations => Set<SuggestedObligationEntity>();
     public DbSet<ExpertReviewItemEntity> ExpertReviewItems => Set<ExpertReviewItemEntity>();
+    public DbSet<ClauseObligationMappingEntity> ClauseObligationMappings => Set<ClauseObligationMappingEntity>();
     public DbSet<ContractEntity> Contracts => Set<ContractEntity>();
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
@@ -448,6 +449,23 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.Status).HasMaxLength(80).IsRequired();
             entity.Property(x => x.ResolutionDecision).HasMaxLength(120);
             entity.Property(x => x.ResolutionNotes).HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<ClauseObligationMappingEntity>(entity =>
+        {
+            entity.ToTable("clause_obligation_mappings");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ClauseId, x.ReviewState });
+            entity.HasIndex(x => new { x.TenantId, x.ClauseId, x.ObligationId });
+            entity.Property(x => x.ClauseId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.ObligationId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.TriggerCondition).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.RequiredAction).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.SourceUrl).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Confidence).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ReviewState).HasDefaultValue(ReviewState.Draft);
+            entity.HasOne(x => x.Clause).WithMany().HasForeignKey(x => x.ClauseId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Obligation).WithMany().HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ContractDeliverableEntity>(entity =>

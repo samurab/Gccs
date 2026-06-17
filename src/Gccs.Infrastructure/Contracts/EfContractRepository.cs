@@ -801,7 +801,18 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             return new GeneratedContractObligationsDto(contractClauseId, [], 0);
         }
 
-        var obligationIds = ReadRequiredActionIds(libraryClause.RequiredActionIdsJson);
+        var mappedObligationIds = await dbContext.ClauseObligationMappings
+            .AsNoTracking()
+            .Where(mapping =>
+                mapping.ClauseId == libraryClause.Id &&
+                mapping.ReviewState == ReviewState.Published &&
+                (mapping.TenantId == null || mapping.TenantId == tenantContext.TenantId))
+            .Select(mapping => mapping.ObligationId)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+        IReadOnlyCollection<string> obligationIds = mappedObligationIds.Length > 0
+            ? mappedObligationIds
+            : ReadRequiredActionIds(libraryClause.RequiredActionIdsJson);
         if (obligationIds.Count == 0)
         {
             return new GeneratedContractObligationsDto(contractClauseId, [], 0);

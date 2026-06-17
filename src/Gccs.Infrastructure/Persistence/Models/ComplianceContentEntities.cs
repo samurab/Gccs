@@ -109,6 +109,28 @@ public sealed class ExpertReviewItemEntity
     public string? ResolutionNotes { get; set; }
 }
 
+public sealed class ClauseObligationMappingEntity
+{
+    public Guid Id { get; set; }
+    public Guid? TenantId { get; set; }
+    public string ClauseId { get; set; } = string.Empty;
+    public string ObligationId { get; set; } = string.Empty;
+    public string TriggerCondition { get; set; } = string.Empty;
+    public string RequiredAction { get; set; } = string.Empty;
+    public string SourceUrl { get; set; } = string.Empty;
+    public string Confidence { get; set; } = "unknown";
+    public bool RequiresExpertReview { get; set; }
+    public ReviewState ReviewState { get; set; } = ReviewState.Draft;
+    public DateOnly LastReviewedAt { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public Guid? PreviousMappingId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid CreatedByUserId { get; set; }
+
+    public ClauseEntity? Clause { get; set; }
+    public ObligationEntity? Obligation { get; set; }
+}
+
 public sealed class MvpModuleEntity
 {
     public string Key { get; set; } = string.Empty;

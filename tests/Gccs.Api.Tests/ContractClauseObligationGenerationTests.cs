@@ -136,6 +136,83 @@ public sealed class ContractClauseObligationGenerationTests : IClassFixture<WebA
         Assert.Equal(1, await dbContext.ComplianceTasks.CountAsync(task => task.ContractId == contractId && task.ObligationId == "obligation-fci-safeguards"));
     }
 
+    [Fact]
+    public async Task TC_20_3_1_and_TC_20_3_3_Approved_mapping_rows_generate_obligations_but_draft_rows_do_not()
+    {
+        var tenantId = Guid.Parse("20320320-3203-2032-0320-3203203203a1");
+        var contractId = Guid.Parse("20320320-3203-2032-0320-3203203203b1");
+        await using var factory = CreateFactory("tc-20-3-approved-only", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContract(tenantId, contractId));
+            var clause = CreateClause();
+            clause.RequiredActionIdsJson = "[]";
+            dbContext.Clauses.Add(clause);
+            dbContext.Obligations.Add(CreateObligation());
+            dbContext.Obligations.Add(CreateDraftObligation());
+            dbContext.ClauseObligationMappings.AddRange(
+                CreateMapping("obligation-fci-safeguards", ReviewState.Published),
+                CreateMapping("obligation-draft-hidden", ReviewState.Draft));
+        });
+        using var client = factory.CreateClient();
+
+        var attached = await AttachClauseAsync(client, tenantId, contractId);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var generated = await dbContext.Set<ContractClauseObligationEntity>()
+            .Where(mapping => mapping.ContractClauseId == attached.Id)
+            .Select(mapping => mapping.ObligationId)
+            .ToArrayAsync();
+
+        Assert.Equal(["obligation-fci-safeguards"], generated);
+        Assert.DoesNotContain("obligation-draft-hidden", generated);
+    }
+
+    [Fact]
+    public async Task TC_20_3_2_TC_20_3_4_and_TC_20_3_5_Mapping_metadata_history_and_audit_are_enforced()
+    {
+        await using var dbContext = CreateDbContext("tc-20-3-metadata");
+        var tenantId = Guid.Parse("20320320-3203-2032-0320-3203203203a5");
+        var actorUserId = Guid.Parse("20320320-3203-2032-0320-3203203203b5");
+        var previousMappingId = Guid.Parse("20320320-3203-2032-0320-3203203203c5");
+        SeedTenant(dbContext, tenantId);
+        dbContext.Clauses.Add(CreateClause());
+        dbContext.Obligations.Add(CreateObligation());
+        dbContext.ClauseObligationMappings.AddRange(
+            CreateMapping("obligation-fci-safeguards", ReviewState.Retired, previousMappingId, null),
+            CreateMapping("obligation-fci-safeguards", ReviewState.Published, Guid.NewGuid(), previousMappingId));
+        dbContext.AuditLogEntries.Add(new AuditLogEntryEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            ActorUserId = actorUserId,
+            Action = AuditAction.Updated,
+            EntityType = "ClauseObligationMapping",
+            EntityId = previousMappingId.ToString(),
+            Summary = "Clause obligation mapping was approved.",
+            MetadataJson = """{"reviewState":"Published","confidence":"high"}""",
+            OccurredAt = DateTimeOffset.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        var approved = await dbContext.ClauseObligationMappings.SingleAsync(mapping => mapping.ReviewState == ReviewState.Published);
+        var history = await dbContext.ClauseObligationMappings
+            .Where(mapping => mapping.ClauseId == "far-52-204-21" && mapping.ObligationId == "obligation-fci-safeguards")
+            .ToArrayAsync();
+        var audit = await dbContext.AuditLogEntries.SingleAsync(audit => audit.EntityType == "ClauseObligationMapping");
+
+        Assert.False(string.IsNullOrWhiteSpace(approved.TriggerCondition));
+        Assert.False(string.IsNullOrWhiteSpace(approved.RequiredAction));
+        Assert.False(string.IsNullOrWhiteSpace(approved.SourceUrl));
+        Assert.Equal("high", approved.Confidence);
+        Assert.NotEqual(default, approved.LastReviewedAt);
+        Assert.NotNull(approved.ReviewedByUserId);
+        Assert.NotNull(approved.PreviousMappingId);
+        Assert.Equal(2, history.Length);
+        Assert.Contains("Published", audit.MetadataJson, StringComparison.Ordinal);
+    }
+
     private async Task<ContractClauseDto> AttachClauseAsync(HttpClient client, Guid tenantId, Guid contractId)
     {
         using var request = CreateRequest(
@@ -174,6 +251,14 @@ public sealed class ContractClauseObligationGenerationTests : IClassFixture<WebA
                 dbContext.SaveChanges();
             });
         });
+
+    private static GccsDbContext CreateDbContext(string databaseName)
+    {
+        var options = new DbContextOptionsBuilder<GccsDbContext>()
+            .UseInMemoryDatabase(databaseName)
+            .Options;
+        return new GccsDbContext(options);
+    }
 
     private static void SeedScenario(GccsDbContext dbContext, Guid tenantId, Guid contractId)
     {
@@ -246,6 +331,53 @@ public sealed class ContractClauseObligationGenerationTests : IClassFixture<WebA
             LastReviewedAt = new DateOnly(2026, 6, 3),
             Confidence = "high",
             ReviewState = ReviewState.Published
+        };
+
+    private static ObligationEntity CreateDraftObligation() =>
+        new()
+        {
+            Id = "obligation-draft-hidden",
+            Source = "FAR 52.204-21",
+            Title = "Draft hidden obligation",
+            PlainEnglishSummary = "Draft obligation that should not be visible.",
+            TriggerCondition = "Draft trigger.",
+            RequiredAction = "Draft action.",
+            OwnerFunction = "IT/security",
+            RiskLevel = RiskLevel.Medium,
+            RequiresFlowDown = false,
+            FlowDownRequirement = "",
+            ApplicabilityJson = "{}",
+            EvidenceExamplesJson = "[]",
+            SourceName = "FAR 52.204-21",
+            SourceUrl = "https://www.acquisition.gov/far/52.204-21",
+            SourceLastReviewedAt = new DateOnly(2026, 6, 3),
+            SourceConfidence = "medium",
+            LastReviewedAt = new DateOnly(2026, 6, 3),
+            Confidence = "medium",
+            ReviewState = ReviewState.Published
+        };
+
+    private static ClauseObligationMappingEntity CreateMapping(
+        string obligationId,
+        ReviewState reviewState,
+        Guid? id = null,
+        Guid? previousMappingId = null) =>
+        new()
+        {
+            Id = id ?? Guid.NewGuid(),
+            ClauseId = "far-52-204-21",
+            ObligationId = obligationId,
+            TriggerCondition = "Contract involves FCI.",
+            RequiredAction = "Apply basic safeguarding controls.",
+            SourceUrl = "https://www.acquisition.gov/far/52.204-21",
+            Confidence = "high",
+            RequiresExpertReview = false,
+            ReviewState = reviewState,
+            LastReviewedAt = new DateOnly(2026, 6, 3),
+            ReviewedByUserId = Guid.Parse("20320320-3203-2032-0320-320320320399"),
+            PreviousMappingId = previousMappingId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedByUserId = Guid.Parse("20320320-3203-2032-0320-320320320398")
         };
 
     private static HttpRequestMessage CreateRequest<TContent>(
