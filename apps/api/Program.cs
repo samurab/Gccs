@@ -1135,6 +1135,72 @@ api.MapPost("/suggested-obligations/{suggestionId:guid}/escalate", async (
 .RequirePermission(Permission.ManageObligations)
 .WithName("EscalateSuggestedObligation");
 
+api.MapGet("/expert-review-items", async (
+    string? status,
+    string? sourceType,
+    Guid? assignedExpertUserId,
+    string? priority,
+    ExpertReviewQueueService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(new ExpertReviewQueueQuery(status, sourceType, assignedExpertUserId, priority), cancellationToken)))
+.RequirePermission(Permission.ViewObligations)
+.WithName("ListExpertReviewItems");
+
+api.MapPost("/expert-review-items", async (
+    EscalateExpertReviewRequest request,
+    ExpertReviewQueueService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var item = await service.EscalateAsync(request, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/expert-review-items/{item.Id}", item);
+    }
+    catch (ExpertReviewValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Expert review escalation invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("EscalateExpertReviewItem");
+
+api.MapPost("/expert-review-items/{itemId:guid}/resolve", async (
+    Guid itemId,
+    ResolveExpertReviewRequest request,
+    ExpertReviewQueueService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var item = await service.ResolveAsync(itemId, request, tenantContext.UserId, cancellationToken);
+        return item is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Expert review item '{itemId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(item);
+    }
+    catch (ExpertReviewValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Expert review resolution invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("ResolveExpertReviewItem");
+
 api.MapGet("/reports/approved-evidence-packages", async (
     IReportRepository repository,
     CancellationToken cancellationToken) =>

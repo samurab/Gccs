@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<ComplianceOverviewService>();
         services.AddScoped<ComplianceContentReviewService>();
         services.AddScoped<SuggestedObligationService>();
+        services.AddScoped<ExpertReviewQueueService>();
         services.AddScoped<ClauseLibraryService>();
         services.AddScoped<ObligationDetailService>();
         services.AddScoped<CompanyProfileService>();
@@ -91,6 +92,7 @@ public static class DependencyInjection
             services.AddScoped<IComplianceContentImporter, ComplianceContentImporter>();
             services.AddScoped<IComplianceContentReviewRepository, EfComplianceContentReviewRepository>();
             services.AddScoped<ISuggestedObligationRepository, EfSuggestedObligationRepository>();
+            services.AddScoped<IExpertReviewQueueRepository, EfExpertReviewQueueRepository>();
             services.AddScoped<IClauseLibraryRepository, EfClauseLibraryRepository>();
             services.AddScoped<IObligationDashboardRepository, EfObligationDashboardRepository>();
             services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
@@ -140,6 +142,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Compliance content review persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ISuggestedObligationRepository>(_ =>
                 throw new InvalidOperationException("Suggested obligation persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IExpertReviewQueueRepository>(_ =>
+                throw new InvalidOperationException("Expert review queue persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IObligationDashboardRepository>(_ =>
                 throw new InvalidOperationException("Obligation dashboard persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IObligationDetailRepository>(_ =>

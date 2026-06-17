@@ -89,6 +89,26 @@ public sealed class SuggestedObligationEntity
     public string? ReviewReason { get; set; }
 }
 
+public sealed class ExpertReviewItemEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string SourceType { get; set; } = string.Empty;
+    public Guid SourceId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string Priority { get; set; } = string.Empty;
+    public string Topic { get; set; } = string.Empty;
+    public Guid? AssignedExpertUserId { get; set; }
+    public DateOnly? DueAt { get; set; }
+    public string Status { get; set; } = "open";
+    public Guid CreatedByUserId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid? ResolvedByUserId { get; set; }
+    public DateTimeOffset? ResolvedAt { get; set; }
+    public string? ResolutionDecision { get; set; }
+    public string? ResolutionNotes { get; set; }
+}
+
 public sealed class MvpModuleEntity
 {
     public string Key { get; set; } = string.Empty;

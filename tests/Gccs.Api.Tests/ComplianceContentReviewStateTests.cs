@@ -1,10 +1,12 @@
 using Gccs.Application.Audit;
 using Gccs.Application.Compliance;
+using Gccs.Application.Notifications;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Common;
 using Gccs.Domain.Compliance;
 using Gccs.Infrastructure.Compliance;
+using Gccs.Infrastructure.Notifications;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -211,6 +213,100 @@ public sealed class ComplianceContentReviewStateTests
         Assert.Contains(auditWriter.Events, auditEvent => auditEvent.Summary.Contains("escalated", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public async Task TC_19_3_1_through_TC_19_3_5_Expert_review_queue_tracks_assignment_resolution_and_publication_block()
+    {
+        await using var dbContext = CreateDbContext();
+        var tenantId = Guid.Parse("19319319-3193-1931-9319-3193193193a1");
+        var actorUserId = Guid.Parse("19319319-3193-1931-9319-3193193193b1");
+        var expertUserId = Guid.Parse("19319319-3193-1931-9319-3193193193c1");
+        var auditWriter = new CapturingAuditEventWriter();
+        var notificationRepository = new EfAssignmentNotificationRepository(dbContext);
+        var expertQueue = CreateExpertQueueService(dbContext, tenantId, actorUserId, auditWriter, notificationRepository);
+        var suggestedObligationService = CreateSuggestedService(dbContext, tenantId, actorUserId, auditWriter);
+        var suggestion = await suggestedObligationService.CreateAsync(CreateSuggestionRequest(), tenantId, actorUserId);
+        var clauseCandidateId = Guid.Parse("19319319-3193-1931-9319-3193193193d1");
+        dbContext.Set<ClauseCandidateEntity>().Add(new ClauseCandidateEntity
+        {
+            Id = clauseCandidateId,
+            TenantId = tenantId,
+            ExtractionJobId = Guid.Parse("19319319-3193-1931-9319-3193193193e1"),
+            SourceDocumentId = Guid.Parse("19319319-3193-1931-9319-3193193193f1"),
+            NormalizedCitation = "FAR 52.204-21",
+            RawExtractedText = "FAR 52.204-21 - Basic Safeguarding.",
+            Confidence = 0.7m,
+            LocationMetadata = "line 1",
+            MatchMethod = "ai_suggested",
+            ReviewStatus = "pending_review",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        var missingReason = await Assert.ThrowsAsync<ExpertReviewValidationException>(() =>
+            expertQueue.EscalateAsync(
+                new EscalateExpertReviewRequest("suggested_obligation", suggestion.Id, "", "high", "FAR interpretation", expertUserId, new DateOnly(2026, 7, 1)),
+                tenantId,
+                actorUserId));
+        var suggestedEscalation = await expertQueue.EscalateAsync(
+            new EscalateExpertReviewRequest(
+                "suggested_obligation",
+                suggestion.Id,
+                "Low confidence and legal interpretation needed.",
+                "high",
+                "FAR 52.204-21 suggested obligation",
+                expertUserId,
+                new DateOnly(2026, 7, 1)),
+            tenantId,
+            actorUserId);
+        var clauseEscalation = await expertQueue.EscalateAsync(
+            new EscalateExpertReviewRequest(
+                "clause_candidate",
+                clauseCandidateId,
+                "Candidate may conflict with flow-down attachment.",
+                "medium",
+                "Clause candidate conflict",
+                null,
+                null),
+            tenantId,
+            actorUserId);
+        var queue = await expertQueue.ListAsync(new ExpertReviewQueueQuery("open", null, expertUserId, "high"));
+        var notifications = await notificationRepository.ListCurrentUserAsync(tenantId, expertUserId);
+        var blockedApproval = await suggestedObligationService.ApproveAsync(
+            suggestion.Id,
+            new SuggestedObligationReviewRequest("Approve before expert resolution.", ["https://www.acquisition.gov/far/52.204-21"]),
+            actorUserId);
+        var resolved = await expertQueue.ResolveAsync(
+            suggestedEscalation.Id,
+            new ResolveExpertReviewRequest("approve_after_revision", "Expert confirmed interpretation with minor wording edits."),
+            expertUserId);
+        var approved = await suggestedObligationService.ApproveAsync(
+            suggestion.Id,
+            new SuggestedObligationReviewRequest("Approved after expert resolution.", ["https://www.acquisition.gov/far/52.204-21"]),
+            actorUserId);
+
+        Assert.Contains("reason", missingReason.Errors.Keys);
+        Assert.Equal(suggestedEscalation.Id, Assert.Single(queue).Id);
+        var notification = Assert.Single(notifications);
+        Assert.Equal("expert_review", notification.Category);
+        Assert.Equal("ExpertReviewItem", notification.SourceType);
+        Assert.Contains("FAR 52.204-21", notification.Placeholder, StringComparison.Ordinal);
+        Assert.NotNull(clauseEscalation);
+        var clauseCandidate = await dbContext.Set<ClauseCandidateEntity>().SingleAsync(candidate => candidate.Id == clauseCandidateId);
+        Assert.Equal("needs_clarification", clauseCandidate.ReviewStatus);
+        Assert.NotNull(blockedApproval);
+        Assert.Equal("escalated", blockedApproval.ReviewStatus);
+        Assert.NotNull(resolved);
+        Assert.Equal("resolved", resolved.Status);
+        Assert.Equal(expertUserId, resolved.ResolvedByUserId);
+        Assert.NotNull(resolved.ResolvedAt);
+        Assert.Equal("approve_after_revision", resolved.ResolutionDecision);
+        Assert.Equal("Expert confirmed interpretation with minor wording edits.", resolved.ResolutionNotes);
+        Assert.NotNull(approved);
+        Assert.Equal("approved", approved.ReviewStatus);
+        Assert.Contains(auditWriter.Events, auditEvent => auditEvent.EntityType == "ExpertReviewItem" && auditEvent.Action == AuditAction.Created);
+        Assert.Contains(auditWriter.Events, auditEvent => auditEvent.EntityType == "ExpertReviewItem" && auditEvent.Action == AuditAction.Updated);
+    }
+
     private static ComplianceContentReviewService CreateService(GccsDbContext dbContext, IAuditEventWriter auditWriter) =>
         new(new EfComplianceContentReviewRepository(dbContext), auditWriter);
 
@@ -220,6 +316,17 @@ public sealed class ComplianceContentReviewStateTests
         Guid userId,
         IAuditEventWriter auditWriter) =>
         new(new EfSuggestedObligationRepository(dbContext, new TestTenantContext(tenantId, userId)), auditWriter);
+
+    private static ExpertReviewQueueService CreateExpertQueueService(
+        GccsDbContext dbContext,
+        Guid tenantId,
+        Guid userId,
+        IAuditEventWriter auditWriter,
+        IAssignmentNotificationRepository notificationRepository) =>
+        new(
+            new EfExpertReviewQueueRepository(dbContext, new TestTenantContext(tenantId, userId)),
+            auditWriter,
+            [notificationRepository]);
 
     private static GccsDbContext CreateDbContext()
     {

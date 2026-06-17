@@ -137,6 +137,13 @@ public sealed class EfSuggestedObligationRepository(
             return null;
         }
 
+        if (status == "approved" && await HasOpenExpertReviewAsync(entity.Id, cancellationToken))
+        {
+            entity.ReviewStatus = "escalated";
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return ToDto(entity);
+        }
+
         entity.ReviewStatus = status;
         entity.SourceCitationsJson = Serialize(request.SourceCitations);
         entity.ReviewedByUserId = actorUserId;
@@ -151,6 +158,15 @@ public sealed class EfSuggestedObligationRepository(
         CancellationToken cancellationToken) =>
         dbContext.SuggestedObligations.FirstOrDefaultAsync(
             suggestion => suggestion.Id == suggestionId && suggestion.TenantId == tenantContext.TenantId,
+            cancellationToken);
+
+    private Task<bool> HasOpenExpertReviewAsync(Guid suggestionId, CancellationToken cancellationToken) =>
+        dbContext.ExpertReviewItems.AnyAsync(
+            item =>
+                item.TenantId == tenantContext.TenantId &&
+                item.SourceType == "suggested_obligation" &&
+                item.SourceId == suggestionId &&
+                item.Status != "resolved",
             cancellationToken);
 
     private static SuggestedObligationDto ToDto(SuggestedObligationEntity entity) =>

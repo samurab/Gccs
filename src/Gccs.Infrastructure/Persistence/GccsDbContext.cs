@@ -32,6 +32,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
     public DbSet<ObligationEntity> Obligations => Set<ObligationEntity>();
     public DbSet<SuggestedObligationEntity> SuggestedObligations => Set<SuggestedObligationEntity>();
+    public DbSet<ExpertReviewItemEntity> ExpertReviewItems => Set<ExpertReviewItemEntity>();
     public DbSet<ContractEntity> Contracts => Set<ContractEntity>();
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
@@ -432,6 +433,21 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.RetrievedSourceReferencesJson).HasColumnType("jsonb");
             entity.Property(x => x.ReviewStatus).HasMaxLength(80).IsRequired();
             entity.Property(x => x.ReviewReason).HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<ExpertReviewItemEntity>(entity =>
+        {
+            entity.ToTable("expert_review_items");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.SourceType });
+            entity.HasIndex(x => new { x.TenantId, x.AssignedExpertUserId, x.DueAt });
+            entity.Property(x => x.SourceType).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Priority).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Topic).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ResolutionDecision).HasMaxLength(120);
+            entity.Property(x => x.ResolutionNotes).HasMaxLength(1000);
         });
 
         modelBuilder.Entity<ContractDeliverableEntity>(entity =>

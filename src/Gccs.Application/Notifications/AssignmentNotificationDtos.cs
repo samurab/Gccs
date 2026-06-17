@@ -23,6 +23,14 @@ public interface IAssignmentNotificationRepository
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 
+    Task EmitExpertReviewAssignmentAsync(
+        Guid tenantId,
+        Guid expertReviewItemId,
+        Guid assignedUserId,
+        string topic,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<NotificationCenterItemDto>> ListCurrentUserAsync(
         Guid tenantId,
         Guid userId,

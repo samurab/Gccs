@@ -46,6 +46,45 @@ public sealed class EfAssignmentNotificationRepository(GccsDbContext dbContext) 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task EmitExpertReviewAssignmentAsync(
+        Guid tenantId,
+        Guid expertReviewItemId,
+        Guid assignedUserId,
+        string topic,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var exists = await dbContext.NotificationDeliveries.AnyAsync(
+            delivery =>
+                delivery.TenantId == tenantId &&
+                delivery.SourceTaskId == expertReviewItemId &&
+                delivery.Category == "expert_review" &&
+                delivery.UserId == assignedUserId,
+            cancellationToken);
+        if (exists)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        dbContext.NotificationDeliveries.Add(new NotificationDeliveryEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UserId = assignedUserId,
+            SourceTaskId = expertReviewItemId,
+            SourceType = "ExpertReviewItem",
+            LinkUrl = $"/expert-review/{expertReviewItemId}",
+            Category = "expert_review",
+            Status = "Delivered",
+            Placeholder = $"Expert review '{topic}' was assigned to you.",
+            AttemptedAt = now,
+            CreatedAt = now,
+            CreatedByUserId = actorUserId
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<NotificationCenterItemDto>> ListCurrentUserAsync(
         Guid tenantId,
         Guid userId,
