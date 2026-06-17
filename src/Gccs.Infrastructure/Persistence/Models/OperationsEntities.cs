@@ -403,6 +403,22 @@ public sealed class PolicyTemplateVersionEntity
     public PolicyTemplateEntity? Template { get; set; }
 }
 
+public sealed class GeneratedPolicyEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid SourceTemplateId { get; set; }
+    public string SourceTemplateVersion { get; set; } = string.Empty;
+    public DateTimeOffset GeneratedAt { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public string Status { get; set; } = "Draft";
+    public string PlaceholderValuesJson { get; set; } = "{}";
+    public string MissingPlaceholdersJson { get; set; } = "[]";
+
+    public PolicyTemplateEntity? SourceTemplate { get; set; }
+}
+
 public sealed class EmployeeEntity : AuditedEntity
 {
     public Guid Id { get; set; }

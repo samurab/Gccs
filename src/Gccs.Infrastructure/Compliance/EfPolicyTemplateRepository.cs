@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Gccs.Application.Compliance;
 using Gccs.Application.Security;
 using Gccs.Infrastructure.Persistence;
@@ -12,6 +13,8 @@ public sealed class EfPolicyTemplateRepository(
     GccsDbContext dbContext,
     ICurrentTenantContext tenantContext) : IPolicyTemplateRepository
 {
+    private static readonly Regex PlaceholderPattern = new(@"\{\{\s*(?<name>[a-zA-Z0-9_]+)\s*\}\}", RegexOptions.Compiled);
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() }
@@ -109,6 +112,93 @@ public sealed class EfPolicyTemplateRepository(
         return ToDto(entity);
     }
 
+    public async Task<GeneratedPolicyDto?> GenerateDraftPolicyAsync(
+        Guid templateId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var template = await dbContext.PolicyTemplates
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate =>
+                candidate.Id == templateId &&
+                candidate.TenantId == tenantContext.TenantId &&
+                candidate.Status == PolicyTemplateStatus.Approved.ToString(),
+                cancellationToken);
+        if (template is null)
+        {
+            return null;
+        }
+
+        var company = await dbContext.CompanyProfiles
+            .AsNoTracking()
+            .SingleOrDefaultAsync(profile => profile.TenantId == tenantContext.TenantId, cancellationToken);
+        var values = BuildPlaceholderValues(company);
+        var missing = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        var body = PlaceholderPattern.Replace(template.Body, match =>
+        {
+            var name = match.Groups["name"].Value;
+            if (values.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+
+            missing.Add(name);
+            return match.Value;
+        });
+
+        var entity = new GeneratedPolicyEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantContext.TenantId,
+            SourceTemplateId = template.Id,
+            SourceTemplateVersion = template.Version,
+            GeneratedAt = DateTimeOffset.UtcNow,
+            Title = template.Title,
+            Body = body,
+            Status = GeneratedPolicyStatus.Draft.ToString(),
+            PlaceholderValuesJson = JsonSerializer.Serialize(
+                values
+                    .Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
+                    .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
+                JsonOptions),
+            MissingPlaceholdersJson = JsonSerializer.Serialize(missing.ToArray(), JsonOptions),
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedByUserId = actorUserId
+        };
+        dbContext.GeneratedPolicies.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<GeneratedPolicyDto?> FindGeneratedPolicyAsync(Guid policyId, CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.GeneratedPolicies
+            .AsNoTracking()
+            .SingleOrDefaultAsync(policy => policy.Id == policyId && policy.TenantId == tenantContext.TenantId, cancellationToken);
+        return entity is null ? null : ToDto(entity);
+    }
+
+    public async Task<GeneratedPolicyDto?> UpdateGeneratedPolicyAsync(
+        Guid policyId,
+        UpdateGeneratedPolicyRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.GeneratedPolicies
+            .SingleOrDefaultAsync(policy => policy.Id == policyId && policy.TenantId == tenantContext.TenantId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        entity.Title = request.Title;
+        entity.Body = request.Body;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
     private static void Apply(PolicyTemplateEntity entity, UpsertPolicyTemplateRequest request)
     {
         entity.Title = request.Title;
@@ -166,6 +256,38 @@ public sealed class EfPolicyTemplateRepository(
             entity.CreatedAt,
             entity.CreatedByUserId);
 
+    private static GeneratedPolicyDto ToDto(GeneratedPolicyEntity entity) =>
+        new(
+            entity.Id,
+            entity.TenantId,
+            entity.SourceTemplateId,
+            entity.SourceTemplateVersion,
+            entity.GeneratedAt,
+            entity.Title,
+            entity.Body,
+            Enum.Parse<GeneratedPolicyStatus>(entity.Status),
+            ReadDictionary(entity.PlaceholderValuesJson),
+            ReadArray<string>(entity.MissingPlaceholdersJson),
+            entity.CreatedAt,
+            entity.UpdatedAt);
+
+    private static Dictionary<string, string> BuildPlaceholderValues(CompanyProfileEntity? company)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (company is null)
+        {
+            return values;
+        }
+
+        values["company_name"] = company.LegalEntityName;
+        values["doing_business_as"] = company.DoingBusinessAs ?? string.Empty;
+        values["uei"] = company.Uei ?? string.Empty;
+        values["cage_code"] = company.CageCode ?? string.Empty;
+        values["products_and_services"] = company.ProductsAndServices;
+        values["it_environment"] = company.ItEnvironmentDescription;
+        return values;
+    }
+
     private static IReadOnlyList<T> ReadArray<T>(string json)
     {
         try
@@ -175,6 +297,18 @@ public sealed class EfPolicyTemplateRepository(
         catch (JsonException)
         {
             return [];
+        }
+    }
+
+    private static IReadOnlyDictionary<string, string> ReadDictionary(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonOptions) ?? new Dictionary<string, string>();
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>();
         }
     }
 }

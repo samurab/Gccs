@@ -2012,6 +2012,66 @@ api.MapPut("/policy-templates/{templateId:guid}/lifecycle", async (
 .RequirePermission(Permission.ManageObligations)
 .WithName("ChangePolicyTemplateLifecycle");
 
+api.MapPost("/policy-templates/{templateId:guid}/generate", async (
+    Guid templateId,
+    PolicyTemplateService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var generated = await service.GenerateDraftPolicyAsync(templateId, tenantContext.UserId, cancellationToken);
+    return generated is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Approved policy template '{templateId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Created($"/api/generated-policies/{generated.Id}", generated);
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithName("GenerateDraftPolicyFromTemplate");
+
+api.MapGet("/generated-policies/{policyId:guid}", async (
+    Guid policyId,
+    PolicyTemplateService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var policy = await service.FindGeneratedPolicyAsync(policyId, cancellationToken);
+    return policy is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Generated policy '{policyId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(policy);
+})
+.RequirePermission(Permission.ViewEvidence)
+.WithName("GetGeneratedPolicy");
+
+api.MapPut("/generated-policies/{policyId:guid}", async (
+    Guid policyId,
+    UpdateGeneratedPolicyRequest request,
+    PolicyTemplateService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.UpdateGeneratedPolicyAsync(policyId, request, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Generated policy '{policyId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithName("UpdateGeneratedPolicy");
+
 api.MapGet("/tasks", async (
     ComplianceTaskService service,
     CancellationToken cancellationToken) =>

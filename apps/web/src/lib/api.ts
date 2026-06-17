@@ -476,6 +476,26 @@ export type ChangePolicyTemplateLifecycleRequest = {
   reviewedAt: string | null;
 };
 
+export type GeneratedPolicy = {
+  id: string;
+  tenantId: string;
+  sourceTemplateId: string;
+  sourceTemplateVersion: string;
+  generatedAt: string;
+  title: string;
+  body: string;
+  status: string;
+  placeholderValues: Record<string, string>;
+  missingPlaceholders: string[];
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type UpdateGeneratedPolicyRequest = {
+  title: string;
+  body: string;
+};
+
 export type ApprovedEvidencePackage = {
   reportId: string;
   tenantId: string;
@@ -1135,6 +1155,21 @@ export async function changePolicyTemplateLifecycle(
   request: ChangePolicyTemplateLifecycleRequest
 ): Promise<ApiMutationResult<PolicyTemplate>> {
   return putJsonResult<PolicyTemplate>(`/api/policy-templates/${templateId}/lifecycle`, request);
+}
+
+export async function generateDraftPolicyFromTemplate(templateId: string): Promise<ApiMutationResult<GeneratedPolicy>> {
+  return postJsonResult<GeneratedPolicy>(`/api/policy-templates/${templateId}/generate`, {});
+}
+
+export async function getGeneratedPolicy(policyId: string): Promise<GeneratedPolicy | null> {
+  return getJson<GeneratedPolicy | null>(`/api/generated-policies/${policyId}`, null);
+}
+
+export async function updateGeneratedPolicy(
+  policyId: string,
+  request: UpdateGeneratedPolicyRequest
+): Promise<ApiMutationResult<GeneratedPolicy>> {
+  return putJsonResult<GeneratedPolicy>(`/api/generated-policies/${policyId}`, request);
 }
 
 export async function getSubcontractorEvidenceRequests(subcontractorId: string): Promise<SubcontractorEvidenceRequest[]> {

@@ -55,6 +55,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SubcontractorEvidenceRequestEntity> SubcontractorEvidenceRequests => Set<SubcontractorEvidenceRequestEntity>();
     public DbSet<PolicyTemplateEntity> PolicyTemplates => Set<PolicyTemplateEntity>();
     public DbSet<PolicyTemplateVersionEntity> PolicyTemplateVersions => Set<PolicyTemplateVersionEntity>();
+    public DbSet<GeneratedPolicyEntity> GeneratedPolicies => Set<GeneratedPolicyEntity>();
     public DbSet<EmployeeEntity> Employees => Set<EmployeeEntity>();
     public DbSet<TrainingRecordEntity> TrainingRecords => Set<TrainingRecordEntity>();
     public DbSet<WageDeterminationEntity> WageDeterminations => Set<WageDeterminationEntity>();
@@ -824,6 +825,21 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.BodyPreview).HasMaxLength(500).IsRequired();
             entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
             entity.HasOne(x => x.Template).WithMany(x => x.Versions).HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GeneratedPolicyEntity>(entity =>
+        {
+            entity.ToTable("generated_policies");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.GeneratedAt });
+            entity.Property(x => x.SourceTemplateVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Body).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.PlaceholderValuesJson).HasColumnType("jsonb");
+            entity.Property(x => x.MissingPlaceholdersJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.SourceTemplate).WithMany().HasForeignKey(x => x.SourceTemplateId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
         });
     }
 
