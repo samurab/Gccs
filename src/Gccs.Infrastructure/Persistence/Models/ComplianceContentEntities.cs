@@ -131,6 +131,24 @@ public sealed class ClauseObligationMappingEntity
     public ObligationEntity? Obligation { get; set; }
 }
 
+public sealed class SbaSizeStandardEntity
+{
+    public Guid Id { get; set; }
+    public string NaicsCode { get; set; } = string.Empty;
+    public string Metric { get; set; } = string.Empty;
+    public decimal Threshold { get; set; }
+    public string Unit { get; set; } = string.Empty;
+    public string SourceUrl { get; set; } = string.Empty;
+    public DateOnly EffectiveAt { get; set; }
+    public DateOnly LastReviewedAt { get; set; }
+    public ReviewState Status { get; set; } = ReviewState.Draft;
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
+    public Guid? UpdatedByUserId { get; set; }
+}
+
 public sealed class MvpModuleEntity
 {
     public string Key { get; set; } = string.Empty;

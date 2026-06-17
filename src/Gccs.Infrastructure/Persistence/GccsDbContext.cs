@@ -34,6 +34,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SuggestedObligationEntity> SuggestedObligations => Set<SuggestedObligationEntity>();
     public DbSet<ExpertReviewItemEntity> ExpertReviewItems => Set<ExpertReviewItemEntity>();
     public DbSet<ClauseObligationMappingEntity> ClauseObligationMappings => Set<ClauseObligationMappingEntity>();
+    public DbSet<SbaSizeStandardEntity> SbaSizeStandards => Set<SbaSizeStandardEntity>();
     public DbSet<ObligationApplicabilityEvaluationEntity> ObligationApplicabilityEvaluations => Set<ObligationApplicabilityEvaluationEntity>();
     public DbSet<ContractEntity> Contracts => Set<ContractEntity>();
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
@@ -489,6 +490,19 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.ReviewState).HasDefaultValue(ReviewState.Draft);
             entity.HasOne(x => x.Clause).WithMany().HasForeignKey(x => x.ClauseId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Obligation).WithMany().HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SbaSizeStandardEntity>(entity =>
+        {
+            entity.ToTable("sba_size_standards");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.NaicsCode, x.Status });
+            entity.Property(x => x.NaicsCode).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.Metric).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Threshold).HasPrecision(18, 2);
+            entity.Property(x => x.Unit).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.SourceUrl).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Status).HasDefaultValue(ReviewState.Draft);
         });
 
         modelBuilder.Entity<ContractDeliverableEntity>(entity =>
