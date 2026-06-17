@@ -403,6 +403,27 @@ api.MapDelete("/contracts/{contractId:guid}/documents/{documentId:guid}", async 
 .RequirePermission(Permission.ManageContracts)
 .WithName("DeleteContractDocument");
 
+api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/extraction-jobs", async (
+    Guid contractId,
+    Guid documentId,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var job = await service.StartExtractionJobAsync(contractId, documentId, tenantContext.UserId, cancellationToken);
+    return job is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract document '{documentId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Created($"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs/{job.Id}", job);
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("StartContractDocumentExtraction");
+
 api.MapGet("/contracts/{contractId:guid}/deliverables", async (
     Guid contractId,
     ContractService service,

@@ -9,7 +9,8 @@ namespace Gccs.Application.Contracts;
 public sealed class ContractService(
     IContractRepository repository,
     INoCuiAcknowledgementRepository noCuiAcknowledgementRepository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    IExtractionJobQueue extractionJobQueue)
 {
     public Task<IReadOnlyList<ContractDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
         repository.ListCurrentTenantAsync(cancellationToken);
@@ -138,6 +139,67 @@ public sealed class ContractService(
         }
 
         return deleted is not null;
+    }
+
+    public async Task<ExtractionJobDto?> StartExtractionJobAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var job = await repository.CreateExtractionJobAsync(contractId, documentId, actorUserId, cancellationToken);
+        if (job is null)
+        {
+            return null;
+        }
+
+        await WriteExtractionJobAuditAsync(
+            job,
+            actorUserId,
+            AuditAction.Created,
+            "Clause extraction job was queued for contract document analysis.",
+            cancellationToken);
+        await extractionJobQueue.EnqueueAsync(job.Id, cancellationToken);
+        return job;
+    }
+
+    public async Task<ExtractionJobDto?> MarkExtractionJobCompletedAsync(
+        Guid extractionJobId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var job = await repository.MarkExtractionJobCompletedAsync(extractionJobId, cancellationToken);
+        if (job is not null)
+        {
+            await WriteExtractionJobAuditAsync(
+                job,
+                actorUserId,
+                AuditAction.Updated,
+                "Clause extraction job completed.",
+                cancellationToken);
+        }
+
+        return job;
+    }
+
+    public async Task<ExtractionJobDto?> MarkExtractionJobFailedAsync(
+        Guid extractionJobId,
+        Guid actorUserId,
+        string failureReason,
+        CancellationToken cancellationToken = default)
+    {
+        var job = await repository.MarkExtractionJobFailedAsync(extractionJobId, failureReason, cancellationToken);
+        if (job is not null)
+        {
+            await WriteExtractionJobAuditAsync(
+                job,
+                actorUserId,
+                AuditAction.Rejected,
+                "Clause extraction job failed.",
+                cancellationToken);
+        }
+
+        return job;
     }
 
     public async Task<ContractDeliverableDto?> CreateDeliverableAsync(
@@ -475,6 +537,35 @@ public sealed class ContractService(
             cancellationToken);
     }
 
+    private async Task WriteExtractionJobAuditAsync(
+        ExtractionJobDto job,
+        Guid actorUserId,
+        AuditAction action,
+        string summary,
+        CancellationToken cancellationToken)
+    {
+        var metadata = new Dictionary<string, string>
+        {
+            ["sourceDocumentId"] = job.SourceDocumentId.ToString(),
+            ["status"] = job.Status.ToString()
+        };
+
+        if (!string.IsNullOrWhiteSpace(job.FailureReason))
+        {
+            metadata["failureReason"] = job.FailureReason;
+        }
+
+        await auditEventWriter.WriteAsync(
+            job.TenantId,
+            actorUserId,
+            action,
+            "ExtractionJob",
+            job.Id.ToString(),
+            summary,
+            metadata,
+            cancellationToken);
+    }
+
     private static Dictionary<string, string[]> ValidateDocumentUpload(ContractDocumentUploadRequest request)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
@@ -565,6 +656,21 @@ public interface IContractRepository
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 
+    Task<ExtractionJobDto?> CreateExtractionJobAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<ExtractionJobDto?> MarkExtractionJobCompletedAsync(
+        Guid extractionJobId,
+        CancellationToken cancellationToken = default);
+
+    Task<ExtractionJobDto?> MarkExtractionJobFailedAsync(
+        Guid extractionJobId,
+        string failureReason,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ContractDeliverableDto>?> ListDeliverablesAsync(
         Guid contractId,
         CancellationToken cancellationToken = default);
@@ -610,4 +716,9 @@ public sealed class ContractValidationException(IReadOnlyDictionary<string, stri
     : InvalidOperationException("Contract record is missing required fields.")
 {
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
+}
+
+public interface IExtractionJobQueue
+{
+    Task EnqueueAsync(Guid extractionJobId, CancellationToken cancellationToken = default);
 }

@@ -549,6 +549,18 @@ export type ContractDocumentUploadRequest = {
   containsPotentialCui: boolean;
 };
 
+export type ExtractionJob = {
+  id: string;
+  tenantId: string;
+  sourceDocumentId: string;
+  requestedByUserId: string;
+  status: string;
+  requestedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  failureReason: string | null;
+};
+
 export type ContractDeliverable = {
   id: string;
   contractId: string;
@@ -1048,6 +1060,13 @@ export async function createContractDocument(
   request: ContractDocumentUploadRequest
 ): Promise<ApiMutationResult<ContractDocument>> {
   return postJsonResult<ContractDocument>(`/api/contracts/${contractId}/documents`, request);
+}
+
+export async function startContractDocumentExtraction(
+  contractId: string,
+  documentId: string
+): Promise<ApiMutationResult<ExtractionJob>> {
+  return postJsonResult<ExtractionJob>(`/api/contracts/${contractId}/documents/${documentId}/extraction-jobs`, {});
 }
 
 export async function deleteContractDocument(contractId: string, documentId: string): Promise<ApiMutationResult<null>> {

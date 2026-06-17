@@ -84,6 +84,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<EmploymentStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<EvidenceStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<EvidenceType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ExtractionJobStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<FlowDownStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<MembershipStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<Permission>().HaveConversion<string>().HaveMaxLength(64);
@@ -353,6 +354,17 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.MalwareScanStatus).HasMaxLength(80).IsRequired();
             entity.Property(x => x.NoticeVersion).HasMaxLength(80).IsRequired();
             entity.HasOne(x => x.Contract).WithMany(x => x.Documents).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExtractionJobEntity>(entity =>
+        {
+            entity.ToTable("extraction_jobs");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.RequestedAt });
+            entity.HasIndex(x => x.SourceDocumentId);
+            entity.Property(x => x.FailureReason).HasMaxLength(1000);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.SourceDocument).WithMany(x => x.ExtractionJobs).HasForeignKey(x => x.SourceDocumentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ContractClauseEntity>(entity =>

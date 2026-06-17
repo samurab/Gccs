@@ -309,6 +309,109 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
     }
 
     [Fact]
+    public async Task TC_18_1_1_User_with_contract_edit_permission_can_start_extraction_job()
+    {
+        var tenantId = Guid.Parse("18181818-1818-1818-1818-1818181811a1");
+        var userId = Guid.Parse("18181818-1818-1818-1818-1818181811b1");
+        var contractId = Guid.Parse("18181818-1818-1818-1818-1818181811c1");
+        var documentId = Guid.Parse("18181818-1818-1818-1818-1818181811d1");
+        await using var factory = CreateFactory("tc-18-1-1", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-JOB", "Extraction job contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateDocumentEntity(contractId, documentId, userId));
+        });
+        using var client = factory.CreateClient();
+
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var response = await client.SendAsync(request);
+        var job = await response.Content.ReadFromJsonAsync<ExtractionJobDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(job);
+        Assert.Equal(tenantId, job.TenantId);
+        Assert.Equal(documentId, job.SourceDocumentId);
+        Assert.Equal(userId, job.RequestedByUserId);
+        Assert.Equal(ExtractionJobStatus.Queued, job.Status);
+        Assert.Null(job.StartedAt);
+        Assert.Null(job.CompletedAt);
+        Assert.Null(job.FailureReason);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Contains(await dbContext.AuditLogEntries.ToArrayAsync(), audit =>
+            audit.TenantId == tenantId &&
+            audit.ActorUserId == userId &&
+            audit.EntityType == "ExtractionJob" &&
+            audit.Action == AuditAction.Created);
+    }
+
+    [Fact]
+    public async Task TC_18_1_2_User_without_contract_edit_permission_cannot_start_extraction_job()
+    {
+        var tenantId = Guid.Parse("18181818-1818-1818-1818-1818181812a1");
+        var userId = Guid.Parse("18181818-1818-1818-1818-1818181812b1");
+        var contractId = Guid.Parse("18181818-1818-1818-1818-1818181812c1");
+        var documentId = Guid.Parse("18181818-1818-1818-1818-1818181812d1");
+        await using var factory = CreateFactory("tc-18-1-2", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-FORBID", "Extraction authorization contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateDocumentEntity(contractId, documentId, userId));
+        });
+        using var client = factory.CreateClient();
+
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs",
+            tenantId,
+            userId,
+            Permission.ViewContracts);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ExtractionJobEntity>().ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task TC_18_1_3_Starting_extraction_for_another_tenant_document_is_denied()
+    {
+        var tenantAId = Guid.Parse("18181818-1818-1818-1818-1818181813a1");
+        var tenantBId = Guid.Parse("18181818-1818-1818-1818-1818181813b1");
+        var userId = Guid.Parse("18181818-1818-1818-1818-1818181813c1");
+        var contractId = Guid.Parse("18181818-1818-1818-1818-1818181813d1");
+        var documentId = Guid.Parse("18181818-1818-1818-1818-1818181813e1");
+        await using var factory = CreateFactory("tc-18-1-3", dbContext =>
+        {
+            SeedTenant(dbContext, tenantAId, "Tenant A");
+            SeedTenant(dbContext, tenantBId, "Tenant B");
+            dbContext.Contracts.Add(CreateContractEntity(tenantBId, "EXT-OTHER", "Other tenant extraction contract", contractId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateDocumentEntity(contractId, documentId, userId));
+        });
+        using var client = factory.CreateClient();
+
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs",
+            tenantAId,
+            userId,
+            Permission.ManageContracts);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ExtractionJobEntity>().ToArrayAsync());
+    }
+
+    [Fact]
     public async Task TC_8_3_1_Deliverables_appear_on_contract_detail()
     {
         var tenantId = Guid.Parse("83838383-8383-8383-8383-8383838383a1");
@@ -512,6 +615,24 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             contentType,
             2048,
             false);
+
+    private static ContractDocumentEntity CreateDocumentEntity(Guid contractId, Guid documentId, Guid userId) =>
+        new()
+        {
+            Id = documentId,
+            ContractId = contractId,
+            Type = ContractDocumentType.Contract,
+            FileName = "contract.pdf",
+            ContentType = "application/pdf",
+            SizeBytes = 2048,
+            StorageUri = $"pending://contracts/{contractId}/documents/{documentId}/contract.pdf",
+            ValidationStatus = "accepted",
+            MalwareScanStatus = "scan-pending",
+            NoticeVersion = NoCuiNotice.CurrentVersion,
+            UploadedAt = DateTimeOffset.UtcNow,
+            UploadedByUserId = userId,
+            ContainsPotentialCui = false
+        };
 
     private static UpsertContractDeliverableRequest CreateDeliverableRequest(string name, DateOnly dueAt) =>
         new(

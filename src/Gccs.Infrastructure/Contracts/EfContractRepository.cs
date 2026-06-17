@@ -208,6 +208,86 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         return dto;
     }
 
+    public async Task<ExtractionJobDto?> CreateExtractionJobAsync(
+        Guid contractId,
+        Guid documentId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var documentExists = await dbContext.Set<ContractDocumentEntity>()
+            .AnyAsync(
+                document =>
+                    document.Id == documentId &&
+                    document.ContractId == contractId &&
+                    document.Contract != null &&
+                    document.Contract.TenantId == tenantContext.TenantId,
+                cancellationToken);
+
+        if (!documentExists)
+        {
+            return null;
+        }
+
+        var job = new ExtractionJobEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantContext.TenantId,
+            SourceDocumentId = documentId,
+            RequestedByUserId = actorUserId,
+            Status = ExtractionJobStatus.Queued,
+            RequestedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.Set<ExtractionJobEntity>().Add(job);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToExtractionJobDto(job);
+    }
+
+    public async Task<ExtractionJobDto?> MarkExtractionJobCompletedAsync(
+        Guid extractionJobId,
+        CancellationToken cancellationToken = default)
+    {
+        var job = await dbContext.Set<ExtractionJobEntity>()
+            .SingleOrDefaultAsync(
+                item => item.Id == extractionJobId && item.TenantId == tenantContext.TenantId,
+                cancellationToken);
+
+        if (job is null)
+        {
+            return null;
+        }
+
+        job.Status = ExtractionJobStatus.Completed;
+        job.CompletedAt = DateTimeOffset.UtcNow;
+        job.FailureReason = null;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToExtractionJobDto(job);
+    }
+
+    public async Task<ExtractionJobDto?> MarkExtractionJobFailedAsync(
+        Guid extractionJobId,
+        string failureReason,
+        CancellationToken cancellationToken = default)
+    {
+        var job = await dbContext.Set<ExtractionJobEntity>()
+            .SingleOrDefaultAsync(
+                item => item.Id == extractionJobId && item.TenantId == tenantContext.TenantId,
+                cancellationToken);
+
+        if (job is null)
+        {
+            return null;
+        }
+
+        job.Status = ExtractionJobStatus.Failed;
+        job.CompletedAt = DateTimeOffset.UtcNow;
+        job.FailureReason = string.IsNullOrWhiteSpace(failureReason)
+            ? "Extraction failed without a detailed reason."
+            : failureReason.Trim();
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToExtractionJobDto(job);
+    }
+
     public async Task<ContractDeliverableDto?> CreateDeliverableAsync(
         Guid contractId,
         UpsertContractDeliverableRequest request,
@@ -564,6 +644,18 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             entity.UploadedAt,
             entity.UploadedByUserId,
             entity.ContainsPotentialCui);
+
+    private static ExtractionJobDto ToExtractionJobDto(ExtractionJobEntity entity) =>
+        new(
+            entity.Id,
+            entity.TenantId,
+            entity.SourceDocumentId,
+            entity.RequestedByUserId,
+            entity.Status,
+            entity.RequestedAt,
+            entity.StartedAt,
+            entity.CompletedAt,
+            entity.FailureReason);
 
     private static ContractDeliverableDto ToDeliverableDto(ContractDeliverableEntity entity) =>
         new(

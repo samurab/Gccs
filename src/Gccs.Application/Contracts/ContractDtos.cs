@@ -58,6 +58,17 @@ public sealed record ContractDocumentUploadRequest(
     long SizeBytes,
     bool ContainsPotentialCui);
 
+public sealed record ExtractionJobDto(
+    Guid Id,
+    Guid TenantId,
+    Guid SourceDocumentId,
+    Guid RequestedByUserId,
+    ExtractionJobStatus Status,
+    DateTimeOffset RequestedAt,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? CompletedAt,
+    string? FailureReason);
+
 public sealed record ContractDeliverableDto(
     Guid Id,
     Guid ContractId,

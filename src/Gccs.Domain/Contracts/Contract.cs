@@ -121,6 +121,14 @@ public enum ContractDocumentType
     Other
 }
 
+public enum ExtractionJobStatus
+{
+    Queued,
+    Processing,
+    Completed,
+    Failed
+}
+
 public enum ClauseSource
 {
     Far,

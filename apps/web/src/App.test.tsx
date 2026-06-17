@@ -72,6 +72,7 @@ const {
   removeContractClauseMock,
   saveCompanyProfileMock,
   searchClauseLibraryMock,
+  startContractDocumentExtractionMock,
   updateContractDeliverableMock,
   updateContractObligationStatusMock,
   updateContractMock,
@@ -127,6 +128,7 @@ const {
   removeContractClauseMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
+  startContractDocumentExtractionMock: vi.fn(),
   updateContractDeliverableMock: vi.fn(),
   updateContractObligationStatusMock: vi.fn(),
   updateContractMock: vi.fn(),
@@ -651,6 +653,7 @@ vi.mock("@/lib/api", () => ({
   removeContractClause: removeContractClauseMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
+  startContractDocumentExtraction: startContractDocumentExtractionMock,
   updateContractDeliverable: updateContractDeliverableMock,
   updateContractObligationStatus: updateContractObligationStatusMock,
   updateContract: updateContractMock,
@@ -727,6 +730,7 @@ describe("App", () => {
     generateEvidencePackageMock.mockReset();
     generateSubcontractorComplianceReportMock.mockReset();
     removeContractClauseMock.mockReset();
+    startContractDocumentExtractionMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
     getAuditLogsMock.mockReset();
@@ -941,6 +945,20 @@ describe("App", () => {
       })
     );
     createContractDocumentMock.mockResolvedValue({ data: contractDocument, error: null });
+    startContractDocumentExtractionMock.mockResolvedValue({
+      data: {
+        id: "18181818-1818-1818-1818-1818181818a1",
+        tenantId: contract.tenantId,
+        sourceDocumentId: contractDocument.id,
+        requestedByUserId: allWorkflowAccess.userId,
+        status: "Queued",
+        requestedAt: "2026-06-17T21:15:00Z",
+        startedAt: null,
+        completedAt: null,
+        failureReason: null
+      },
+      error: null
+    });
     attachContractClauseMock.mockResolvedValue({ data: contractClause, error: null });
     removeContractClauseMock.mockResolvedValue({ data: contractClause, error: null });
     createContractDeliverableMock.mockResolvedValue({
@@ -1231,6 +1249,33 @@ describe("App", () => {
       })
     );
     expect(await screen.findByText(/Document metadata captured/i)).toBeInTheDocument();
+  });
+
+  it("TC-18.1 starts clause extraction from contract document metadata", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getNoCuiAcknowledgementStatusMock.mockResolvedValueOnce({
+      isAcknowledged: true,
+      noticeVersion: "no-cui-mvp-v1",
+      noticeCopy: "No-CUI only.",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      acknowledgedAt: "2026-06-15T12:00:00Z"
+    });
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractDocumentsMock.mockResolvedValueOnce([contractDocument]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+    await user.click(await screen.findByRole("button", { name: /start extraction/i }));
+
+    expect(startContractDocumentExtractionMock).toHaveBeenCalledWith(contract.id, contractDocument.id);
+    expect(await screen.findByText(/Extraction job queued with status Queued/i)).toBeInTheDocument();
+    expect(screen.getByText(/Extraction Queued/i)).toBeInTheDocument();
   });
 
   it("TC-8.3.1, TC-8.3.3, and TC-8.3.4 manages contract deliverables", async () => {

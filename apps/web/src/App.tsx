@@ -76,6 +76,7 @@ import {
   saveCompanyProfile,
   searchClauseLibrary,
   removeContractClause,
+  startContractDocumentExtraction,
   updateNotificationPreferences,
   updateContractObligationStatus,
   updateContract,
@@ -99,6 +100,7 @@ import {
   type ContractClause,
   type ContractDeliverable,
   type ContractDocument,
+  type ExtractionJob,
   type ContractObligationDetail,
   type ContractObligationDashboardItem,
   type ContractObligationQueryParams,
@@ -445,6 +447,7 @@ export function App() {
   const [contractClauses, setContractClauses] = useState<ContractClause[]>([]);
   const [contractDeliverables, setContractDeliverables] = useState<ContractDeliverable[]>([]);
   const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
+  const [extractionJobsByDocumentId, setExtractionJobsByDocumentId] = useState<Record<string, ExtractionJob>>({});
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceMetadata[]>([]);
   const [cmmcAssessments, setCmmcAssessments] = useState<CmmcAssessment[]>([]);
@@ -872,6 +875,7 @@ export function App() {
     setContractClauseMessage("");
     setDeliverableMessage("");
     setContractDocumentMessage("");
+    setExtractionJobsByDocumentId({});
     const [nextClauses, nextDeliverables, nextDocuments] = contractId
       ? await Promise.all([getContractClauses(contractId), getContractDeliverables(contractId), getContractDocuments(contractId)])
       : [[], [], []];
@@ -979,6 +983,11 @@ export function App() {
 
     if (!result.error) {
       setContractDocuments((currentDocuments) => currentDocuments.filter((document) => document.id !== documentId));
+      setExtractionJobsByDocumentId((currentJobs) => {
+        const nextJobs = { ...currentJobs };
+        delete nextJobs[documentId];
+        return nextJobs;
+      });
       setContractDocumentStatus("saved");
       setContractDocumentMessage("Document metadata deleted.");
       return;
@@ -986,6 +995,26 @@ export function App() {
 
     setContractDocumentStatus("failed");
     setContractDocumentMessage(result.error);
+  }
+
+  async function handleStartContractDocumentExtraction(contractId: string, documentId: string) {
+    setContractDocumentStatus("saving");
+    setContractDocumentMessage("");
+    const result = await startContractDocumentExtraction(contractId, documentId);
+
+    if (result.data) {
+      const queuedJob = result.data;
+      setExtractionJobsByDocumentId((currentJobs) => ({
+        ...currentJobs,
+        [documentId]: queuedJob
+      }));
+      setContractDocumentStatus("saved");
+      setContractDocumentMessage(`Extraction job queued with status ${queuedJob.status}.`);
+      return;
+    }
+
+    setContractDocumentStatus("failed");
+    setContractDocumentMessage(result.error ?? "Extraction job could not be started.");
   }
 
   async function handleNoCuiAcknowledgement() {
@@ -1383,6 +1412,7 @@ export function App() {
               contractClauseStatus={contractClauseStatus}
               contractDeliverables={contractDeliverables}
               contractDocuments={contractDocuments}
+              extractionJobsByDocumentId={extractionJobsByDocumentId}
               deliverableMessage={deliverableMessage}
               deliverableStatus={deliverableStatus}
               contractDocumentMessage={contractDocumentMessage}
@@ -1392,6 +1422,7 @@ export function App() {
               noCuiAcknowledgement={noCuiAcknowledgement}
               selectedContractId={selectedContractId}
               onDeleteDocument={handleContractDocumentDelete}
+              onStartExtraction={handleStartContractDocumentExtraction}
               onAttachClause={handleContractClauseAttach}
               onRemoveClause={handleContractClauseRemove}
               onSaveDeliverable={handleDeliverableSave}
@@ -2664,6 +2695,7 @@ function ContractsView({
   contractClauseStatus,
   contractDeliverables,
   contractDocuments,
+  extractionJobsByDocumentId,
   deliverableMessage,
   deliverableStatus,
   contractDocumentMessage,
@@ -2673,6 +2705,7 @@ function ContractsView({
   noCuiAcknowledgement,
   selectedContractId,
   onDeleteDocument,
+  onStartExtraction,
   onAttachClause,
   onRemoveClause,
   onSaveDeliverable,
@@ -2687,6 +2720,7 @@ function ContractsView({
   contractClauseStatus: "idle" | "saving" | "saved" | "failed";
   contractDeliverables: ContractDeliverable[];
   contractDocuments: ContractDocument[];
+  extractionJobsByDocumentId: Record<string, ExtractionJob>;
   deliverableMessage: string;
   deliverableStatus: "idle" | "saving" | "saved" | "failed";
   contractDocumentMessage: string;
@@ -2696,6 +2730,7 @@ function ContractsView({
   noCuiAcknowledgement: NoCuiAcknowledgementStatus;
   selectedContractId: string | null;
   onDeleteDocument: (contractId: string, documentId: string) => Promise<void>;
+  onStartExtraction: (contractId: string, documentId: string) => Promise<void>;
   onAttachClause: (contractId: string, request: AttachContractClauseRequest) => Promise<void>;
   onRemoveClause: (contractId: string, contractClauseId: string, reason: string) => Promise<void>;
   onSaveDeliverable: (
@@ -3119,7 +3154,17 @@ function ContractsView({
                   <div>
                     <strong>{document.fileName}</strong>
                     <span>{document.type} · {document.validationStatus} · {document.malwareScanStatus}</span>
+                    {extractionJobsByDocumentId[document.id] ? (
+                      <small>Extraction {extractionJobsByDocumentId[document.id].status}</small>
+                    ) : null}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => selectedContract && void onStartExtraction(selectedContract.id, document.id)}
+                    disabled={!canManageContracts || contractDocumentStatus === "saving"}
+                  >
+                    Start extraction
+                  </button>
                   <button
                     type="button"
                     onClick={() => selectedContract && void onDeleteDocument(selectedContract.id, document.id)}

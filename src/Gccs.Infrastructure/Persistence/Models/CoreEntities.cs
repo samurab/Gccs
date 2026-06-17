@@ -303,6 +303,23 @@ public sealed class ContractDocumentEntity
     public bool ContainsPotentialCui { get; set; }
 
     public ContractEntity? Contract { get; set; }
+    public ICollection<ExtractionJobEntity> ExtractionJobs { get; set; } = [];
+}
+
+public sealed class ExtractionJobEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid SourceDocumentId { get; set; }
+    public Guid RequestedByUserId { get; set; }
+    public ExtractionJobStatus Status { get; set; }
+    public DateTimeOffset RequestedAt { get; set; }
+    public DateTimeOffset? StartedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public string? FailureReason { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public ContractDocumentEntity? SourceDocument { get; set; }
 }
 
 public sealed class ContractClauseEntity : AuditedEntity
