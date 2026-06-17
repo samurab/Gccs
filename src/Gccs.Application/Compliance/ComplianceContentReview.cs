@@ -58,6 +58,51 @@ public sealed class ComplianceContentReviewService(
     public Task<bool> CanUseObligationForNewMappingAsync(string obligationId, CancellationToken cancellationToken = default) =>
         repository.CanUseObligationForNewMappingAsync(obligationId, cancellationToken);
 
+    public async Task<ComplianceContentReviewDto?> ChangeClauseStateAsync(
+        string clauseId,
+        ChangeComplianceContentReviewStateRequest request,
+        Guid tenantId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var current = await repository.FindClauseReviewAsync(clauseId, cancellationToken);
+        if (current is null)
+        {
+            return null;
+        }
+
+        ValidateTransition(current, request);
+        var updated = await repository.UpdateClauseReviewStateAsync(
+            clauseId,
+            request.State,
+            request.ReviewerUserId,
+            request.ReviewedAt,
+            cancellationToken);
+
+        if (updated is null)
+        {
+            return null;
+        }
+
+        await auditEventWriter.WriteAsync(
+            tenantId,
+            actorUserId,
+            AuditAction.Updated,
+            "Clause",
+            clauseId,
+            $"Clause '{clauseId}' review state changed from {current.State} to {updated.State}.",
+            new Dictionary<string, string>
+            {
+                ["beforeState"] = current.State.ToString(),
+                ["afterState"] = updated.State.ToString(),
+                ["reviewerUserId"] = updated.ReviewerUserId?.ToString() ?? string.Empty,
+                ["reviewedAt"] = updated.LastReviewedAt.ToString("O")
+            },
+            cancellationToken);
+
+        return updated;
+    }
+
     private static void ValidateTransition(
         ComplianceContentReviewDto current,
         ChangeComplianceContentReviewStateRequest request)
@@ -84,8 +129,19 @@ public interface IComplianceContentReviewRepository
         string obligationId,
         CancellationToken cancellationToken = default);
 
+    Task<ComplianceContentReviewDto?> FindClauseReviewAsync(
+        string clauseId,
+        CancellationToken cancellationToken = default);
+
     Task<ComplianceContentReviewDto?> UpdateObligationReviewStateAsync(
         string obligationId,
+        ReviewState state,
+        Guid? reviewerUserId,
+        DateOnly? reviewedAt,
+        CancellationToken cancellationToken = default);
+
+    Task<ComplianceContentReviewDto?> UpdateClauseReviewStateAsync(
+        string clauseId,
         ReviewState state,
         Guid? reviewerUserId,
         DateOnly? reviewedAt,

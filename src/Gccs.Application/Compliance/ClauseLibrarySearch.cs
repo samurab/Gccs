@@ -38,12 +38,23 @@ public sealed class ClauseLibraryService(IClauseLibraryRepository repository)
                 request.TenantId),
             cancellationToken);
     }
+
+    public Task<ClauseLibraryDetailDto?> FindDetailAsync(
+        string clauseId,
+        Guid tenantId,
+        CancellationToken cancellationToken = default) =>
+        repository.FindDetailAsync(clauseId.Trim(), tenantId, cancellationToken);
 }
 
 public interface IClauseLibraryRepository
 {
     Task<IReadOnlyList<ClauseLibraryItemDto>> SearchAsync(
         ClauseLibrarySearchRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ClauseLibraryDetailDto?> FindDetailAsync(
+        string clauseId,
+        Guid tenantId,
         CancellationToken cancellationToken = default);
 }
 
@@ -61,6 +72,16 @@ public sealed record ClauseLibraryItemDto(
     string PlainEnglishSummary,
     string SourceUrl,
     DateOnly LastReviewedAt,
+    Guid? ReviewedByUserId,
+    string ReviewState,
+    string ClauseTextVersion,
+    DateOnly? ClauseEffectiveAt,
+    string? SupersededByClauseId,
+    DateOnly? SupersededAt,
     bool IsMappable);
+
+public sealed record ClauseLibraryDetailDto(
+    ClauseLibraryItemDto Clause,
+    IReadOnlyList<ClauseLibraryItemDto> VersionHistory);
 
 public sealed class ClauseLibrarySearchValidationException(string message) : ArgumentException(message);

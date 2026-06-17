@@ -43,6 +43,37 @@ public sealed class EfClauseLibraryRepository(GccsDbContext dbContext) : IClause
         return results;
     }
 
+    public async Task<ClauseLibraryDetailDto?> FindDetailAsync(
+        string clauseId,
+        Guid tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        var clause = await dbContext.Clauses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item =>
+                item.Id == clauseId &&
+                (item.TenantId == null || item.TenantId == tenantId),
+                cancellationToken);
+
+        if (clause is null)
+        {
+            return null;
+        }
+
+        var history = await dbContext.Clauses
+            .AsNoTracking()
+            .Where(item =>
+                item.Source == clause.Source &&
+                item.Number == clause.Number &&
+                (item.TenantId == null || item.TenantId == tenantId))
+            .OrderByDescending(item => item.ClauseEffectiveAt ?? item.LastReviewedAt)
+            .ThenByDescending(item => item.LastReviewedAt)
+            .Select(item => ToDto(item))
+            .ToArrayAsync(cancellationToken);
+
+        return new ClauseLibraryDetailDto(ToDto(clause), history);
+    }
+
     private static ClauseLibraryItemDto ToDto(ClauseEntity clause) =>
         new(
             clause.Id,
@@ -53,6 +84,12 @@ public sealed class EfClauseLibraryRepository(GccsDbContext dbContext) : IClause
             clause.PlainEnglishSummary,
             clause.SourceUrl,
             clause.LastReviewedAt,
+            clause.ReviewedByUserId,
+            clause.ReviewState.ToString(),
+            clause.ClauseTextVersion,
+            clause.ClauseEffectiveAt,
+            clause.SupersededByClauseId,
+            clause.SupersededAt,
             true);
 
     internal static string ClassifyCategory(ClauseEntity clause)

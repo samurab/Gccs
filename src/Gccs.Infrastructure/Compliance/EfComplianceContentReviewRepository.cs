@@ -62,6 +62,50 @@ public sealed class EfComplianceContentReviewRepository(GccsDbContext dbContext)
             obligation.LastReviewedAt);
     }
 
+    public async Task<ComplianceContentReviewDto?> FindClauseReviewAsync(
+        string clauseId,
+        CancellationToken cancellationToken = default)
+    {
+        var clause = await dbContext.Clauses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(candidate => candidate.Id == clauseId, cancellationToken);
+
+        return clause is null
+            ? null
+            : new ComplianceContentReviewDto(
+                clause.Id,
+                clause.ReviewState,
+                clause.RequiresExpertReview || clause.SourceRequiresExpertReview,
+                clause.ReviewedByUserId,
+                clause.LastReviewedAt);
+    }
+
+    public async Task<ComplianceContentReviewDto?> UpdateClauseReviewStateAsync(
+        string clauseId,
+        ReviewState state,
+        Guid? reviewerUserId,
+        DateOnly? reviewedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var clause = await dbContext.Clauses.FirstOrDefaultAsync(candidate => candidate.Id == clauseId, cancellationToken);
+        if (clause is null)
+        {
+            return null;
+        }
+
+        clause.ReviewState = state;
+        clause.ReviewedByUserId = reviewerUserId ?? clause.ReviewedByUserId;
+        clause.LastReviewedAt = reviewedAt ?? clause.LastReviewedAt;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new ComplianceContentReviewDto(
+            clause.Id,
+            clause.ReviewState,
+            clause.RequiresExpertReview || clause.SourceRequiresExpertReview,
+            clause.ReviewedByUserId,
+            clause.LastReviewedAt);
+    }
+
     public Task<bool> CanUseObligationForNewMappingAsync(
         string obligationId,
         CancellationToken cancellationToken = default) =>

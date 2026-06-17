@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Gccs.Application.Audit;
 using Gccs.Application.Compliance;
+using Gccs.Infrastructure.Audit;
 using Gccs.Domain.Common;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
@@ -118,6 +120,91 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
         Assert.DoesNotContain(results, clause => clause.Id is "draft-custom" or "retired-custom" or "tenant-b-custom");
     }
 
+    [Fact]
+    public async Task TC_20_1_1_through_TC_20_1_4_Version_history_keeps_superseded_clauses_out_of_default_mapping()
+    {
+        var tenantId = Guid.Parse("20120120-1201-2012-0120-1201201201a1");
+        var reviewerUserId = Guid.Parse("20120120-1201-2012-0120-1201201201b1");
+        await using var factory = CreateFactory("tc-20-1-history", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.AddRange(
+                CreateClause(
+                    "far-52-204-21-v1",
+                    "FAR 52.204-21",
+                    "52.204-21",
+                    "Basic Safeguarding V1",
+                    ReviewState.Retired,
+                    null,
+                    "v1",
+                    reviewerUserId,
+                    "far-52-204-21-v2",
+                    new DateOnly(2026, 6, 1)),
+                CreateClause(
+                    "far-52-204-21-v2",
+                    "FAR 52.204-21",
+                    "52.204-21",
+                    "Basic Safeguarding V2",
+                    ReviewState.Published,
+                    null,
+                    "v2",
+                    reviewerUserId));
+        });
+        using var client = factory.CreateClient();
+
+        var searchResults = await SearchAsync(client, "/api/clauses?query=52.204-21", tenantId);
+        using var detailRequest = CreateRequest(HttpMethod.Get, "/api/clauses/far-52-204-21-v1", tenantId, Guid.NewGuid(), Permission.ViewContracts);
+        var detailResponse = await client.SendAsync(detailRequest);
+        var detail = await detailResponse.Content.ReadFromJsonAsync<ClauseLibraryDetailDto>(JsonOptions);
+
+        Assert.Equal(["far-52-204-21-v2"], searchResults.Select(clause => clause.Id).ToArray());
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+        Assert.NotNull(detail);
+        Assert.Equal("52.204-21", detail.Clause.Number);
+        Assert.Equal("Retired", detail.Clause.ReviewState);
+        Assert.Equal("v1", detail.Clause.ClauseTextVersion);
+        Assert.Equal(reviewerUserId, detail.Clause.ReviewedByUserId);
+        Assert.Equal("far-52-204-21-v2", detail.Clause.SupersededByClauseId);
+        Assert.Equal(["far-52-204-21-v1", "far-52-204-21-v2"], detail.VersionHistory.Select(clause => clause.Id).Order(StringComparer.Ordinal).ToArray());
+    }
+
+    [Fact]
+    public async Task TC_20_1_5_Clause_review_state_changes_are_audit_logged()
+    {
+        var tenantId = Guid.Parse("20120120-1201-2012-0120-1201201201a5");
+        var actorUserId = Guid.Parse("20120120-1201-2012-0120-1201201201b5");
+        var reviewerUserId = Guid.Parse("20120120-1201-2012-0120-1201201201c5");
+        await using var factory = CreateFactory("tc-20-1-audit", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.Add(CreateClause("audit-clause", "FAR 52.204-25", "52.204-25", "Telecom Restrictions", ReviewState.Draft));
+        });
+        using var client = factory.CreateClient();
+
+        using var request = CreateRequest(
+            HttpMethod.Patch,
+            "/api/clauses/audit-clause/review-state",
+            tenantId,
+            actorUserId,
+            Permission.ManageObligations);
+        request.Content = JsonContent.Create(new ChangeComplianceContentReviewStateRequest(
+            ReviewState.Published,
+            reviewerUserId,
+            new DateOnly(2026, 6, 17)),
+            options: JsonOptions);
+        var response = await client.SendAsync(request);
+        var updated = await response.Content.ReadFromJsonAsync<ComplianceContentReviewDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(updated);
+        Assert.Equal(ReviewState.Published, updated.State);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var audit = await dbContext.AuditLogEntries.SingleAsync(entry => entry.EntityType == "Clause" && entry.EntityId == "audit-clause");
+        Assert.Equal(actorUserId, audit.ActorUserId);
+        Assert.Contains("Published", audit.MetadataJson, StringComparison.Ordinal);
+    }
+
     private async Task<ClauseLibraryItemDto[]> SearchAsync(HttpClient client, string requestUri, Guid tenantId)
     {
         using var request = CreateRequest(HttpMethod.Get, requestUri, tenantId, Guid.NewGuid(), Permission.ViewContracts);
@@ -137,6 +224,9 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<ClauseLibraryService>();
                 services.AddScoped<IClauseLibraryRepository, EfClauseLibraryRepository>();
+                services.AddScoped<ComplianceContentReviewService>();
+                services.AddScoped<IComplianceContentReviewRepository, EfComplianceContentReviewRepository>();
+                services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
@@ -154,7 +244,11 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
         string number,
         string title,
         ReviewState reviewState = ReviewState.Published,
-        Guid? tenantId = null) =>
+        Guid? tenantId = null,
+        string clauseTextVersion = "current",
+        Guid? reviewedByUserId = null,
+        string? supersededByClauseId = null,
+        DateOnly? supersededAt = null) =>
         new()
         {
             Id = id,
@@ -164,7 +258,9 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
             Title = title,
             PlainEnglishSummary = $"{title} summary.",
             ApplicabilityLogic = "Clause appears in a contract or flow-down attachment.",
-            ClauseTextVersion = "current",
+            ClauseTextVersion = clauseTextVersion,
+            SupersededByClauseId = supersededByClauseId,
+            SupersededAt = supersededAt,
             RequiredActionIdsJson = "[]",
             SourceName = source,
             SourceUrl = source.StartsWith("FAR", StringComparison.OrdinalIgnoreCase)
@@ -173,6 +269,7 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
             SourceLastReviewedAt = new DateOnly(2026, 6, 3),
             SourceConfidence = "high",
             LastReviewedAt = new DateOnly(2026, 6, 3),
+            ReviewedByUserId = reviewedByUserId,
             Confidence = "high",
             ReviewState = reviewState
         };

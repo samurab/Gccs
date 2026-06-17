@@ -889,6 +889,60 @@ api.MapGet("/clauses", async (
 .RequirePermission(Permission.ViewContracts)
 .WithName("SearchClauseLibrary");
 
+api.MapGet("/clauses/{clauseId}", async (
+    string clauseId,
+    ClauseLibraryService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var detail = await service.FindDetailAsync(clauseId, tenantContext.TenantId, cancellationToken);
+    return detail is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Clause '{clauseId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(detail);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("GetClauseLibraryDetail");
+
+api.MapPatch("/clauses/{clauseId}/review-state", async (
+    string clauseId,
+    ChangeComplianceContentReviewStateRequest request,
+    ComplianceContentReviewService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ChangeClauseStateAsync(clauseId, request, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Clause '{clauseId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (ComplianceContentReviewException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["reviewState"] = [exception.Message]
+        },
+        title: "Clause review state invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("ChangeClauseReviewState");
+
 api.MapGet("/contract-obligations", async (
     Guid? contractId,
     Gccs.Domain.Compliance.RiskLevel? riskLevel,

@@ -36,6 +36,32 @@ public sealed class InMemoryClauseLibraryRepository : IClauseLibraryRepository
         return Task.FromResult<IReadOnlyList<ClauseLibraryItemDto>>(results);
     }
 
+    public Task<ClauseLibraryDetailDto?> FindDetailAsync(
+        string clauseId,
+        Guid tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        var clause = _clauses.FirstOrDefault(item =>
+            item.Id == clauseId &&
+            (item.TenantId == null || item.TenantId == tenantId));
+        if (clause is null)
+        {
+            return Task.FromResult<ClauseLibraryDetailDto?>(null);
+        }
+
+        var history = _clauses
+            .Where(item =>
+                item.Source == clause.Source &&
+                item.Number == clause.Number &&
+                (item.TenantId == null || item.TenantId == tenantId))
+            .OrderByDescending(item => item.ClauseEffectiveAt ?? item.LastReviewedAt)
+            .ThenByDescending(item => item.LastReviewedAt)
+            .Select(ToDto)
+            .ToArray();
+
+        return Task.FromResult<ClauseLibraryDetailDto?>(new ClauseLibraryDetailDto(ToDto(clause), history));
+    }
+
     private static bool MatchesQuery(ClauseEntity clause, string? query)
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -59,6 +85,12 @@ public sealed class InMemoryClauseLibraryRepository : IClauseLibraryRepository
             clause.PlainEnglishSummary,
             clause.SourceUrl,
             clause.LastReviewedAt,
+            clause.ReviewedByUserId,
+            clause.ReviewState.ToString(),
+            clause.ClauseTextVersion,
+            clause.ClauseEffectiveAt,
+            clause.SupersededByClauseId,
+            clause.SupersededAt,
             true);
 
     private static bool Contains(string value, string query) =>
