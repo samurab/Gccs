@@ -52,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<ClauseLibraryService>();
         services.AddScoped<ObligationDetailService>();
         services.AddScoped<CompanyProfileService>();
+        services.AddScoped<CompanySizeEvaluationService>();
         services.AddScoped<CompanyEntityLookupService>();
         services.AddScoped<ContractService>();
         services.AddScoped<TenantService>();
@@ -116,6 +117,7 @@ public static class DependencyInjection
             services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
             services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
             services.AddScoped<ICompanyProfileRepository, EfCompanyProfileRepository>();
+            services.AddScoped<ICompanySizeEvaluationRepository, EfCompanySizeEvaluationRepository>();
             services.AddScoped<IContractRepository, EfContractRepository>();
             services.AddScoped<IExtractionJobQueue, NoOpExtractionJobQueue>();
             services.AddScoped<IContractDocumentTextExtractor, DefaultContractDocumentTextExtractor>();
@@ -165,6 +167,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Audit persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICompanyProfileRepository>(_ =>
                 throw new InvalidOperationException("Company profile persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ICompanySizeEvaluationRepository>(_ =>
+                throw new InvalidOperationException("Company size evaluation requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IContractRepository>(_ =>
                 throw new InvalidOperationException("Contract persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IExtractionJobQueue, NoOpExtractionJobQueue>();
