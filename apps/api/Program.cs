@@ -1002,6 +1002,139 @@ api.MapGet("/obligations/{id}", async (string id, IObligationRepository reposito
 .RequirePermission(Permission.ViewObligations)
 .WithName("GetObligationById");
 
+api.MapGet("/suggested-obligations", async (
+    string? reviewStatus,
+    SuggestedObligationService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(reviewStatus, cancellationToken)))
+.RequirePermission(Permission.ViewObligations)
+.WithName("ListSuggestedObligations");
+
+api.MapGet("/suggested-obligations/{suggestionId:guid}", async (
+    Guid suggestionId,
+    SuggestedObligationService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var suggestion = await service.FindAsync(suggestionId, cancellationToken);
+    return suggestion is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Suggested obligation '{suggestionId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(suggestion);
+})
+.RequirePermission(Permission.ViewObligations)
+.WithName("GetSuggestedObligationById");
+
+api.MapPost("/suggested-obligations", async (
+    CreateSuggestedObligationRequest request,
+    SuggestedObligationService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var suggestion = await service.CreateAsync(request, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/suggested-obligations/{suggestion.Id}", suggestion);
+    }
+    catch (SuggestedObligationValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Suggested obligation invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("CreateSuggestedObligation");
+
+api.MapPost("/suggested-obligations/{suggestionId:guid}/approve", async (
+    Guid suggestionId,
+    SuggestedObligationReviewRequest request,
+    SuggestedObligationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+    await ReviewSuggestedObligationAsync(
+        suggestionId,
+        request,
+        service.ApproveAsync,
+        tenantContext,
+        httpContext,
+        cancellationToken))
+.RequirePermission(Permission.ManageObligations)
+.WithName("ApproveSuggestedObligation");
+
+api.MapPut("/suggested-obligations/{suggestionId:guid}", async (
+    Guid suggestionId,
+    ReviseSuggestedObligationRequest request,
+    SuggestedObligationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var suggestion = await service.ReviseAsync(suggestionId, request, tenantContext.UserId, cancellationToken);
+        return suggestion is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Suggested obligation '{suggestionId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(suggestion);
+    }
+    catch (SuggestedObligationValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Suggested obligation invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("ReviseSuggestedObligation");
+
+api.MapPost("/suggested-obligations/{suggestionId:guid}/reject", async (
+    Guid suggestionId,
+    SuggestedObligationReviewRequest request,
+    SuggestedObligationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+    await ReviewSuggestedObligationAsync(
+        suggestionId,
+        request,
+        service.RejectAsync,
+        tenantContext,
+        httpContext,
+        cancellationToken))
+.RequirePermission(Permission.ManageObligations)
+.WithName("RejectSuggestedObligation");
+
+api.MapPost("/suggested-obligations/{suggestionId:guid}/escalate", async (
+    Guid suggestionId,
+    SuggestedObligationReviewRequest request,
+    SuggestedObligationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+    await ReviewSuggestedObligationAsync(
+        suggestionId,
+        request,
+        service.EscalateAsync,
+        tenantContext,
+        httpContext,
+        cancellationToken))
+.RequirePermission(Permission.ManageObligations)
+.WithName("EscalateSuggestedObligation");
+
 api.MapGet("/reports/approved-evidence-packages", async (
     IReportRepository repository,
     CancellationToken cancellationToken) =>
@@ -2327,6 +2460,36 @@ api.MapPatch("/tenants/{tenantId:guid}/status", async (
 })
 .RequirePermission(Permission.ManageTenant)
 .WithName("UpdateTenantStatus");
+
+static async Task<IResult> ReviewSuggestedObligationAsync(
+    Guid suggestionId,
+    SuggestedObligationReviewRequest request,
+    Func<Guid, SuggestedObligationReviewRequest, Guid, CancellationToken, Task<SuggestedObligationDto?>> reviewAction,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken)
+{
+    try
+    {
+        var suggestion = await reviewAction(suggestionId, request, tenantContext.UserId, cancellationToken);
+        return suggestion is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Suggested obligation '{suggestionId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(suggestion);
+    }
+    catch (SuggestedObligationValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Suggested obligation review invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+}
 
 if (app.Environment.IsDevelopment())
 {

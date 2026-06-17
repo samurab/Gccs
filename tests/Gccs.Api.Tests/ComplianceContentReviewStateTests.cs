@@ -1,5 +1,6 @@
 using Gccs.Application.Audit;
 using Gccs.Application.Compliance;
+using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Common;
 using Gccs.Domain.Compliance;
@@ -125,8 +126,100 @@ public sealed class ComplianceContentReviewStateTests
         Assert.Contains(auditWriter.Events, auditEvent => auditEvent.Metadata["reviewerUserId"] == reviewerUserId.ToString());
     }
 
+    [Fact]
+    public async Task TC_19_2_1_and_TC_19_2_2_Draft_suggestions_store_ai_metadata_and_are_excluded_from_approved_obligations()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Obligations.Add(CreateObligation("published-obligation", ReviewState.Published));
+        await dbContext.SaveChangesAsync();
+        var tenantId = Guid.Parse("19219219-2192-1921-9219-2192192192a1");
+        var actorUserId = Guid.Parse("19219219-2192-1921-9219-2192192192b1");
+        var auditWriter = new CapturingAuditEventWriter();
+        var service = CreateSuggestedService(dbContext, tenantId, actorUserId, auditWriter);
+
+        var suggestion = await service.CreateAsync(CreateSuggestionRequest(), tenantId, actorUserId);
+        var customerFacingRepository = new EfObligationRepository(dbContext);
+        var approvedObligations = await customerFacingRepository.ListAsync();
+        var draftSuggestions = await service.ListAsync("draft");
+
+        Assert.Equal("draft", suggestion.ReviewStatus);
+        Assert.Equal("medium", suggestion.Confidence);
+        Assert.Equal("prompt-19.2-v1", suggestion.PromptVersion);
+        Assert.Equal("gpt-test", suggestion.ModelIdentifier);
+        Assert.Contains("https://www.acquisition.gov/far/52.204-21", suggestion.SourceCitations);
+        Assert.Contains("retrieval:far-52.204-21", suggestion.RetrievedSourceReferences);
+        Assert.Equal("published-obligation", Assert.Single(approvedObligations).Id);
+        Assert.Equal(suggestion.Id, Assert.Single(draftSuggestions).Id);
+        Assert.Contains(auditWriter.Events, auditEvent => auditEvent.Action == AuditAction.Created && auditEvent.Metadata["reviewStatus"] == "draft");
+    }
+
+    [Fact]
+    public async Task TC_19_2_3_TC_19_2_4_and_TC_19_2_5_Reviewer_can_revise_approve_reject_and_escalate_suggestions()
+    {
+        await using var dbContext = CreateDbContext();
+        var tenantId = Guid.Parse("19219219-2192-1921-9219-2192192192a3");
+        var actorUserId = Guid.Parse("19219219-2192-1921-9219-2192192192b3");
+        var auditWriter = new CapturingAuditEventWriter();
+        var service = CreateSuggestedService(dbContext, tenantId, actorUserId, auditWriter);
+        var approveSuggestion = await service.CreateAsync(CreateSuggestionRequest(), tenantId, actorUserId);
+        var rejectSuggestion = await service.CreateAsync(CreateSuggestionRequest() with { ProposedTitle = "Reject me" }, tenantId, actorUserId);
+        var escalateSuggestion = await service.CreateAsync(CreateSuggestionRequest() with { ProposedTitle = "Escalate me" }, tenantId, actorUserId);
+
+        var revised = await service.ReviseAsync(
+            approveSuggestion.Id,
+            new ReviseSuggestedObligationRequest(
+                "Revised draft summary.",
+                "Revised safeguarding obligation",
+                "IT/security",
+                "Apply the basic safeguarding controls and collect evidence.",
+                RiskLevel.High,
+                ["MFA configuration", "Access review"],
+                ["https://www.acquisition.gov/far/52.204-21"],
+                "high",
+                ["retrieval:far-52.204-21"]),
+            actorUserId);
+        var approved = await service.ApproveAsync(
+            approveSuggestion.Id,
+            new SuggestedObligationReviewRequest("SME approved source-backed wording.", ["https://www.acquisition.gov/far/52.204-21"]),
+            actorUserId);
+        var rejected = await service.RejectAsync(
+            rejectSuggestion.Id,
+            new SuggestedObligationReviewRequest("Incorrect applicability.", ["https://www.acquisition.gov/far/52.204-21"]),
+            actorUserId);
+        var escalated = await service.EscalateAsync(
+            escalateSuggestion.Id,
+            new SuggestedObligationReviewRequest("Needs legal interpretation.", ["https://www.acquisition.gov/far/52.204-21"]),
+            actorUserId);
+        var rejectedHistory = await service.FindAsync(rejectSuggestion.Id);
+
+        Assert.NotNull(revised);
+        Assert.Equal("draft", revised.ReviewStatus);
+        Assert.Equal("Revised safeguarding obligation", revised.ProposedTitle);
+        Assert.NotNull(approved);
+        Assert.Equal("approved", approved.ReviewStatus);
+        Assert.Equal(actorUserId, approved.ReviewedByUserId);
+        Assert.NotNull(approved.ReviewedAt);
+        Assert.Contains("https://www.acquisition.gov/far/52.204-21", approved.SourceCitations);
+        Assert.NotNull(rejected);
+        Assert.Equal("rejected", rejected.ReviewStatus);
+        Assert.Equal("Incorrect applicability.", rejected.ReviewReason);
+        Assert.Equal("rejected", rejectedHistory?.ReviewStatus);
+        Assert.NotNull(escalated);
+        Assert.Equal("escalated", escalated.ReviewStatus);
+        Assert.Contains(auditWriter.Events, auditEvent => auditEvent.Action == AuditAction.Approved && auditEvent.Metadata["reviewStatus"] == "approved");
+        Assert.Contains(auditWriter.Events, auditEvent => auditEvent.Action == AuditAction.Rejected && auditEvent.Metadata["reviewStatus"] == "rejected");
+        Assert.Contains(auditWriter.Events, auditEvent => auditEvent.Summary.Contains("escalated", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static ComplianceContentReviewService CreateService(GccsDbContext dbContext, IAuditEventWriter auditWriter) =>
         new(new EfComplianceContentReviewRepository(dbContext), auditWriter);
+
+    private static SuggestedObligationService CreateSuggestedService(
+        GccsDbContext dbContext,
+        Guid tenantId,
+        Guid userId,
+        IAuditEventWriter auditWriter) =>
+        new(new EfSuggestedObligationRepository(dbContext, new TestTenantContext(tenantId, userId)), auditWriter);
 
     private static GccsDbContext CreateDbContext()
     {
@@ -179,6 +272,27 @@ public sealed class ComplianceContentReviewStateTests
             RequiresExpertReview = requiresExpertReview,
             ReviewState = reviewState
         };
+
+    private static CreateSuggestedObligationRequest CreateSuggestionRequest() =>
+        new(
+            "FAR 52.204-21",
+            "https://www.acquisition.gov/far/52.204-21",
+            "AI draft summary for safeguarding FCI.",
+            "Safeguard Federal Contract Information",
+            "IT/security",
+            "Apply baseline safeguarding controls.",
+            RiskLevel.High,
+            ["Access control policy", "MFA configuration"],
+            ["https://www.acquisition.gov/far/52.204-21"],
+            "medium",
+            "prompt-19.2-v1",
+            "gpt-test",
+            ["retrieval:far-52.204-21"]);
+
+    private sealed record TestTenantContext(Guid TenantId, Guid UserId) : ICurrentTenantContext
+    {
+        public string UserEmail => "reviewer@example.com";
+    }
 
     private sealed class CapturingAuditEventWriter : IAuditEventWriter
     {

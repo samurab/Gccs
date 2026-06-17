@@ -64,6 +64,31 @@ public sealed class ObligationEntity
     public ICollection<EvidenceObligationEntity> EvidenceItems { get; set; } = [];
 }
 
+public sealed class SuggestedObligationEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string Source { get; set; } = string.Empty;
+    public string SourceUrl { get; set; } = string.Empty;
+    public string GeneratedSummary { get; set; } = string.Empty;
+    public string ProposedTitle { get; set; } = string.Empty;
+    public string ProposedOwnerFunction { get; set; } = string.Empty;
+    public string RequiredAction { get; set; } = string.Empty;
+    public RiskLevel RiskLevel { get; set; }
+    public string EvidenceSuggestionsJson { get; set; } = "[]";
+    public string SourceCitationsJson { get; set; } = "[]";
+    public string Confidence { get; set; } = "unknown";
+    public string PromptVersion { get; set; } = string.Empty;
+    public string ModelIdentifier { get; set; } = string.Empty;
+    public string RetrievedSourceReferencesJson { get; set; } = "[]";
+    public string ReviewStatus { get; set; } = "draft";
+    public Guid CreatedByUserId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? ReviewReason { get; set; }
+}
+
 public sealed class MvpModuleEntity
 {
     public string Key { get; set; } = string.Empty;

@@ -31,6 +31,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<CompanyProfileEntity> CompanyProfiles => Set<CompanyProfileEntity>();
     public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
     public DbSet<ObligationEntity> Obligations => Set<ObligationEntity>();
+    public DbSet<SuggestedObligationEntity> SuggestedObligations => Set<SuggestedObligationEntity>();
     public DbSet<ContractEntity> Contracts => Set<ContractEntity>();
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
@@ -410,6 +411,27 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => new { x.ContractClauseId, x.ObligationId });
             entity.HasOne(x => x.ContractClause).WithMany(x => x.Obligations).HasForeignKey(x => x.ContractClauseId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Obligation).WithMany(x => x.ContractClauses).HasForeignKey(x => x.ObligationId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SuggestedObligationEntity>(entity =>
+        {
+            entity.ToTable("suggested_obligations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ReviewStatus, x.CreatedAt });
+            entity.Property(x => x.Source).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.SourceUrl).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.GeneratedSummary).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.ProposedTitle).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.ProposedOwnerFunction).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.RequiredAction).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.EvidenceSuggestionsJson).HasColumnType("jsonb");
+            entity.Property(x => x.SourceCitationsJson).HasColumnType("jsonb");
+            entity.Property(x => x.Confidence).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.PromptVersion).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ModelIdentifier).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.RetrievedSourceReferencesJson).HasColumnType("jsonb");
+            entity.Property(x => x.ReviewStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ReviewReason).HasMaxLength(1000);
         });
 
         modelBuilder.Entity<ContractDeliverableEntity>(entity =>
