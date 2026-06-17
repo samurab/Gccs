@@ -3,14 +3,17 @@ using Gccs.Application.NoCui;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
 using Gccs.Domain.Contracts;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Gccs.Application.Contracts;
 
-public sealed class ContractService(
+public sealed partial class ContractService(
     IContractRepository repository,
     INoCuiAcknowledgementRepository noCuiAcknowledgementRepository,
     IAuditEventWriter auditEventWriter,
-    IExtractionJobQueue extractionJobQueue)
+    IExtractionJobQueue extractionJobQueue,
+    IContractDocumentTextExtractor textExtractor)
 {
     public Task<IReadOnlyList<ContractDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
         repository.ListCurrentTenantAsync(cancellationToken);
@@ -200,6 +203,46 @@ public sealed class ContractService(
         }
 
         return job;
+    }
+
+    public async Task<ExtractionJobProcessResultDto?> ProcessExtractionJobAsync(
+        Guid extractionJobId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var input = await repository.FindExtractionJobInputAsync(extractionJobId, cancellationToken);
+        if (input is null)
+        {
+            return null;
+        }
+
+        await repository.MarkExtractionJobProcessingAsync(extractionJobId, cancellationToken);
+        var extraction = await textExtractor.ExtractTextAsync(input.SourceDocument, cancellationToken);
+        if (!extraction.IsSuccess)
+        {
+            var failed = await MarkExtractionJobFailedAsync(
+                extractionJobId,
+                actorUserId,
+                extraction.FailureReason ?? "Document text could not be extracted.",
+                cancellationToken);
+
+            return failed is null ? null : new ExtractionJobProcessResultDto(failed, []);
+        }
+
+        var candidatesToCreate = await DetectClauseCandidatesAsync(
+            input.Job.TenantId,
+            extraction.Text,
+            cancellationToken);
+        var candidates = await repository.ReplaceClauseCandidatesAsync(
+            extractionJobId,
+            input.Job.SourceDocumentId,
+            candidatesToCreate,
+            cancellationToken);
+        var completed = await MarkExtractionJobCompletedAsync(extractionJobId, actorUserId, cancellationToken);
+
+        return completed is null
+            ? null
+            : new ExtractionJobProcessResultDto(completed, candidates);
     }
 
     public async Task<ContractDeliverableDto?> CreateDeliverableAsync(
@@ -566,6 +609,78 @@ public sealed class ContractService(
             cancellationToken);
     }
 
+    private async Task<IReadOnlyList<ClauseCandidateCreateDto>> DetectClauseCandidatesAsync(
+        Guid tenantId,
+        string text,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return [];
+        }
+
+        var candidates = new List<ClauseCandidateCreateDto>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+
+        for (var index = 0; index < lines.Length; index++)
+        {
+            var line = lines[index].Trim();
+            if (line.Length == 0)
+            {
+                continue;
+            }
+
+            foreach (Match match in ClauseReferenceRegex().Matches(line))
+            {
+                var number = match.Groups["number"].Value;
+                var source = NormalizeClauseSource(match.Groups["source"].Value, number);
+                var normalizedCitation = $"{source} {number}";
+                var key = $"{index}:{normalizedCitation}";
+                if (!seen.Add(key))
+                {
+                    continue;
+                }
+
+                var title = NormalizeDetectedTitle(match.Groups["title"].Value);
+                var libraryMatch = await repository.FindPublishedClauseLibraryMatchAsync(
+                    tenantId,
+                    number,
+                    cancellationToken);
+
+                candidates.Add(new ClauseCandidateCreateDto(
+                    normalizedCitation,
+                    line,
+                    title,
+                    libraryMatch is null ? 0.82m : 1.0m,
+                    $"line {index + 1}",
+                    libraryMatch is null ? "regex" : "exact_library_match",
+                    libraryMatch?.Id));
+            }
+        }
+
+        return candidates;
+    }
+
+    private static string NormalizeClauseSource(string source, string number)
+    {
+        if (!string.IsNullOrWhiteSpace(source))
+        {
+            return source.Trim().ToUpperInvariant();
+        }
+
+        return number.StartsWith("252.", StringComparison.Ordinal) ? "DFARS" : "FAR";
+    }
+
+    private static string? NormalizeDetectedTitle(string title)
+    {
+        var normalized = title.Trim(' ', '-', ':', '\t');
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    [GeneratedRegex(@"\b(?:(?<source>FAR|DFARS)\s+)?(?<number>(?:52|252)\.\d{3}-\d{1,4})(?:\s*[-:]\s*(?<title>[^\n.;]{3,160}))?", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ClauseReferenceRegex();
+
     private static Dictionary<string, string[]> ValidateDocumentUpload(ContractDocumentUploadRequest request)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
@@ -666,9 +781,28 @@ public interface IContractRepository
         Guid extractionJobId,
         CancellationToken cancellationToken = default);
 
+    Task<ExtractionJobDto?> MarkExtractionJobProcessingAsync(
+        Guid extractionJobId,
+        CancellationToken cancellationToken = default);
+
     Task<ExtractionJobDto?> MarkExtractionJobFailedAsync(
         Guid extractionJobId,
         string failureReason,
+        CancellationToken cancellationToken = default);
+
+    Task<ExtractionJobProcessingInputDto?> FindExtractionJobInputAsync(
+        Guid extractionJobId,
+        CancellationToken cancellationToken = default);
+
+    Task<ClauseLibraryMatchDto?> FindPublishedClauseLibraryMatchAsync(
+        Guid tenantId,
+        string clauseNumber,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ClauseCandidateDto>> ReplaceClauseCandidatesAsync(
+        Guid extractionJobId,
+        Guid sourceDocumentId,
+        IReadOnlyList<ClauseCandidateCreateDto> candidates,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ContractDeliverableDto>?> ListDeliverablesAsync(
@@ -722,3 +856,22 @@ public interface IExtractionJobQueue
 {
     Task EnqueueAsync(Guid extractionJobId, CancellationToken cancellationToken = default);
 }
+
+public interface IContractDocumentTextExtractor
+{
+    Task<DocumentTextExtractionResult> ExtractTextAsync(
+        ContractDocumentDto document,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record DocumentTextExtractionResult(
+    bool IsSuccess,
+    string Text,
+    string? FailureReason)
+{
+    public static DocumentTextExtractionResult Success(string text) => new(true, text, null);
+
+    public static DocumentTextExtractionResult Failure(string reason) => new(false, string.Empty, reason);
+}
+
+public sealed record ClauseLibraryMatchDto(string Id, string Number, string Title);

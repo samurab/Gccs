@@ -320,6 +320,27 @@ public sealed class ExtractionJobEntity
 
     public TenantEntity? Tenant { get; set; }
     public ContractDocumentEntity? SourceDocument { get; set; }
+    public ICollection<ClauseCandidateEntity> Candidates { get; set; } = [];
+}
+
+public sealed class ClauseCandidateEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ExtractionJobId { get; set; }
+    public Guid SourceDocumentId { get; set; }
+    public string NormalizedCitation { get; set; } = string.Empty;
+    public string RawExtractedText { get; set; } = string.Empty;
+    public string? DetectedTitle { get; set; }
+    public decimal Confidence { get; set; }
+    public string LocationMetadata { get; set; } = string.Empty;
+    public string MatchMethod { get; set; } = string.Empty;
+    public string? ClauseLibraryId { get; set; }
+    public string ReviewStatus { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public ExtractionJobEntity? ExtractionJob { get; set; }
+    public ContractDocumentEntity? SourceDocument { get; set; }
 }
 
 public sealed class ContractClauseEntity : AuditedEntity

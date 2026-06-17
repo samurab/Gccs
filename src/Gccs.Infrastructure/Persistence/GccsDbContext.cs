@@ -367,6 +367,24 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasOne(x => x.SourceDocument).WithMany(x => x.ExtractionJobs).HasForeignKey(x => x.SourceDocumentId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<ClauseCandidateEntity>(entity =>
+        {
+            entity.ToTable("clause_candidates");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SourceDocumentId });
+            entity.HasIndex(x => new { x.ExtractionJobId, x.NormalizedCitation });
+            entity.Property(x => x.NormalizedCitation).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.RawExtractedText).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.DetectedTitle).HasMaxLength(300);
+            entity.Property(x => x.Confidence).HasPrecision(5, 4);
+            entity.Property(x => x.LocationMetadata).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.MatchMethod).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ClauseLibraryId).HasMaxLength(160);
+            entity.Property(x => x.ReviewStatus).HasMaxLength(80).IsRequired();
+            entity.HasOne(x => x.ExtractionJob).WithMany(x => x.Candidates).HasForeignKey(x => x.ExtractionJobId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.SourceDocument).WithMany().HasForeignKey(x => x.SourceDocumentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<ContractClauseEntity>(entity =>
         {
             entity.ToTable("contract_clauses");

@@ -424,6 +424,26 @@ api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/extraction
 .RequirePermission(Permission.ManageContracts)
 .WithName("StartContractDocumentExtraction");
 
+api.MapPost("/extraction-jobs/{extractionJobId:guid}/process", async (
+    Guid extractionJobId,
+    ContractService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var result = await service.ProcessExtractionJobAsync(extractionJobId, tenantContext.UserId, cancellationToken);
+    return result is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Extraction job '{extractionJobId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(result);
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("ProcessExtractionJob");
+
 api.MapGet("/contracts/{contractId:guid}/deliverables", async (
     Guid contractId,
     ContractService service,

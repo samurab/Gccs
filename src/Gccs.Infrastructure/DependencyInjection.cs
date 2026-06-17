@@ -86,6 +86,7 @@ public static class DependencyInjection
             services.AddScoped<ICompanyProfileRepository, EfCompanyProfileRepository>();
             services.AddScoped<IContractRepository, EfContractRepository>();
             services.AddScoped<IExtractionJobQueue, NoOpExtractionJobQueue>();
+            services.AddScoped<IContractDocumentTextExtractor, DefaultContractDocumentTextExtractor>();
             services.AddScoped<IComplianceContentImporter, ComplianceContentImporter>();
             services.AddScoped<IComplianceContentReviewRepository, EfComplianceContentReviewRepository>();
             services.AddScoped<IClauseLibraryRepository, EfClauseLibraryRepository>();
@@ -130,6 +131,7 @@ public static class DependencyInjection
             services.AddScoped<IContractRepository>(_ =>
                 throw new InvalidOperationException("Contract persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IExtractionJobQueue, NoOpExtractionJobQueue>();
+            services.AddScoped<IContractDocumentTextExtractor, DefaultContractDocumentTextExtractor>();
             services.AddScoped<IComplianceContentImporter>(_ =>
                 throw new InvalidOperationException("Compliance content import requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceContentReviewRepository>(_ =>

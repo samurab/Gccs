@@ -69,6 +69,38 @@ public sealed record ExtractionJobDto(
     DateTimeOffset? CompletedAt,
     string? FailureReason);
 
+public sealed record ExtractionJobProcessingInputDto(
+    ExtractionJobDto Job,
+    ContractDocumentDto SourceDocument);
+
+public sealed record ClauseCandidateDto(
+    Guid Id,
+    Guid TenantId,
+    Guid ExtractionJobId,
+    Guid SourceDocumentId,
+    string NormalizedCitation,
+    string RawExtractedText,
+    string? DetectedTitle,
+    decimal Confidence,
+    string LocationMetadata,
+    string MatchMethod,
+    string? ClauseLibraryId,
+    string ReviewStatus,
+    DateTimeOffset CreatedAt);
+
+public sealed record ClauseCandidateCreateDto(
+    string NormalizedCitation,
+    string RawExtractedText,
+    string? DetectedTitle,
+    decimal Confidence,
+    string LocationMetadata,
+    string MatchMethod,
+    string? ClauseLibraryId);
+
+public sealed record ExtractionJobProcessResultDto(
+    ExtractionJobDto Job,
+    IReadOnlyList<ClauseCandidateDto> Candidates);
+
 public sealed record ContractDeliverableDto(
     Guid Id,
     Guid ContractId,
