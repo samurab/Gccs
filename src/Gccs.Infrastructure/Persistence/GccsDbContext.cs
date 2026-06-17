@@ -37,6 +37,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SbaSizeStandardEntity> SbaSizeStandards => Set<SbaSizeStandardEntity>();
     public DbSet<ObligationApplicabilityEvaluationEntity> ObligationApplicabilityEvaluations => Set<ObligationApplicabilityEvaluationEntity>();
     public DbSet<ContractEntity> Contracts => Set<ContractEntity>();
+    public DbSet<ContractSizeCheckEntity> ContractSizeChecks => Set<ContractSizeCheckEntity>();
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
     public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
@@ -511,6 +512,22 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.ContractId, x.DueAt });
             entity.HasOne(x => x.Contract).WithMany(x => x.Deliverables).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ContractSizeCheckEntity>(entity =>
+        {
+            entity.ToTable("contract_size_checks");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.RunAt });
+            entity.Property(x => x.NaicsCode).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.Result).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Metric).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Threshold).HasPrecision(18, 2);
+            entity.Property(x => x.Unit).HasMaxLength(80);
+            entity.Property(x => x.MissingInformationJson).HasColumnType("jsonb");
+            entity.Property(x => x.SourceUrl).HasMaxLength(600);
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ExpertReviewTask).WithMany().HasForeignKey(x => x.ExpertReviewTaskId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ContractReportingDeadlineEntity>(entity =>

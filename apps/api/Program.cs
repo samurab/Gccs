@@ -316,6 +316,46 @@ api.MapGet("/contracts/{contractId:guid}", async (
 .RequirePermission(Permission.ViewContracts)
 .WithName("GetContractById");
 
+api.MapGet("/contracts/{contractId:guid}/size-checks", async (
+    Guid contractId,
+    ContractSizeCheckService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var checks = await service.ListCurrentTenantAsync(contractId, cancellationToken);
+    return checks is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract '{contractId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(checks);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractSizeChecks");
+
+api.MapPost("/contracts/{contractId:guid}/size-checks", async (
+    Guid contractId,
+    ContractSizeCheckRequest request,
+    ContractSizeCheckService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var check = await service.RunCurrentTenantAsync(contractId, request, tenantContext.UserId, cancellationToken);
+    return check is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Contract '{contractId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(check);
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("RunContractSizeCheck");
+
 api.MapPost("/contracts", async (
     UpsertContractRequest request,
     ContractService service,

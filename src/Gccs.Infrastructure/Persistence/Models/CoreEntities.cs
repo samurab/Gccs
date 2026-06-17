@@ -419,6 +419,29 @@ public sealed class ContractDeliverableEntity
     public ContractEntity? Contract { get; set; }
 }
 
+public sealed class ContractSizeCheckEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContractId { get; set; }
+    public string NaicsCode { get; set; } = string.Empty;
+    public string Result { get; set; } = string.Empty;
+    public string Metric { get; set; } = string.Empty;
+    public decimal? Threshold { get; set; }
+    public string? Unit { get; set; }
+    public decimal? EnteredValue { get; set; }
+    public string MissingInformationJson { get; set; } = "[]";
+    public string? SourceUrl { get; set; }
+    public DateOnly? SourceEffectiveAt { get; set; }
+    public DateOnly? SourceLastReviewedAt { get; set; }
+    public Guid? ExpertReviewTaskId { get; set; }
+    public DateTimeOffset RunAt { get; set; }
+    public Guid RunByUserId { get; set; }
+
+    public ContractEntity? Contract { get; set; }
+    public ComplianceTaskEntity? ExpertReviewTask { get; set; }
+}
+
 public sealed class ContractReportingDeadlineEntity
 {
     public Guid Id { get; set; }

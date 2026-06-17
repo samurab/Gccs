@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<CompanySizeEvaluationService>();
         services.AddScoped<CompanyEntityLookupService>();
         services.AddScoped<ContractService>();
+        services.AddScoped<ContractSizeCheckService>();
         services.AddScoped<TenantService>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
@@ -119,6 +120,7 @@ public static class DependencyInjection
             services.AddScoped<ICompanyProfileRepository, EfCompanyProfileRepository>();
             services.AddScoped<ICompanySizeEvaluationRepository, EfCompanySizeEvaluationRepository>();
             services.AddScoped<IContractRepository, EfContractRepository>();
+            services.AddScoped<IContractSizeCheckRepository, EfContractSizeCheckRepository>();
             services.AddScoped<IExtractionJobQueue, NoOpExtractionJobQueue>();
             services.AddScoped<IContractDocumentTextExtractor, DefaultContractDocumentTextExtractor>();
             services.AddScoped<IComplianceContentImporter, ComplianceContentImporter>();
@@ -171,6 +173,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Company size evaluation requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IContractRepository>(_ =>
                 throw new InvalidOperationException("Contract persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IContractSizeCheckRepository>(_ =>
+                throw new InvalidOperationException("Contract size checks require ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IExtractionJobQueue, NoOpExtractionJobQueue>();
             services.AddScoped<IContractDocumentTextExtractor, DefaultContractDocumentTextExtractor>();
             services.AddScoped<IComplianceContentImporter>(_ =>
