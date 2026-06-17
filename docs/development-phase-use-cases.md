@@ -1,6 +1,6 @@
 # Development Phase Use Cases, Stories, Tasks, And Acceptance Criteria
 
-This backlog expands the Phase 1 MVP development phase into a sequential delivery plan. It assumes the MVP posture is No-CUI / compliance management only and that production compliance content is reviewed by qualified subject matter experts before publication.
+This backlog expands the Phase 1 MVP and Phase 2 Govcon Intelligence development phases into a sequential delivery plan. It assumes the MVP posture is CUI-ready by design with gated CUI acceptance and that production compliance content is reviewed by qualified subject matter experts before publication. Demo workflows may use synthetic or redacted CUI; real customer CUI requires approved CUI-ready tenant status.
 
 ## Delivery Sequence
 
@@ -9,20 +9,31 @@ This backlog expands the Phase 1 MVP development phase into a sequential deliver
 | 1 | Delivery foundation | Team can build, test, review, and deploy consistently. |
 | 2 | Tenant, identity, and RBAC | Each customer works inside an isolated tenant with role-based access. |
 | 3 | Authenticated application shell | Users can navigate the SaaS workspace and call protected APIs. |
-| 4 | No-CUI controls | Users are warned and technically guided away from uploading CUI. |
+| 4 | CUI-ready gated controls | Users are warned, guided through data classification, and blocked from uploading real CUI unless the tenant is approved as CUI-ready. |
 | 5 | Audit logging | Sensitive actions are traceable from the beginning. |
 | 6 | Compliance content foundation | Source-backed clauses and obligations can be loaded, reviewed, and published. |
 | 7 | Company compliance profile | A contractor can enter the business facts that drive compliance workflows. |
-| 8 | Contract intake | A contractor can create contract records and attach non-CUI source materials. |
+| 8 | Contract intake | A contractor can create contract records, classify data handling posture, and attach allowed source materials. |
 | 9 | Manual clause tagging | A user can map contract clauses to curated obligations. |
 | 10 | Obligation dashboard | A user can see what applies, who owns it, and what evidence is needed. |
 | 11 | Task and compliance calendar | Obligations, renewals, and deadlines become assigned work. |
-| 12 | Evidence vault | Users can store and link non-CUI evidence to obligations and controls. |
+| 12 | Evidence vault | Users can store and link allowed evidence to obligations and controls, with CUI upload governed by tenant data handling mode. |
 | 13 | CMMC readiness tracker | DoD suppliers can track Level 1 and Level 2 readiness work. |
 | 14 | Subcontractor flow-down tracker | Prime and subcontract users can track supplier obligations and evidence. |
 | 15 | Reports | Users can generate status, obligation, CMMC, evidence, and subcontractor reports. |
 | 16 | Notifications | Users receive reminders for deadlines, renewals, and assigned work. |
 | 17 | MVP hardening and release readiness | The pilot release is tested, secure, observable, and deployable. |
+| 18 | Automated clause extraction | Uploaded allowed contract text can be parsed into clause candidates, with real CUI processing limited to approved CUI-ready tenants. |
+| 19 | Human review workflow | Extracted clauses and AI-suggested obligations require review before use. |
+| 20 | Clause library expansion | Curated clauses become searchable, versioned, and source-backed. |
+| 21 | Applicability engine | Company, contract, clause, data, and subcontractor facts drive obligation applicability. |
+| 22 | SAM.gov entity lookup | Users can enrich company and subcontractor records with official SAM entity data. |
+| 23 | SBA size helper | Users can evaluate small-business size context by NAICS with source traceability. |
+| 24 | Subcontractor tracker expansion | Subcontractor management moves beyond flow-downs into full supplier compliance tracking. |
+| 25 | Policy templates | Users can generate draft policies from approved templates and obligation context. |
+| 26 | Evidence request workflows | Users can request, collect, review, and track evidence from internal users and subcontractors. |
+| 27 | CMMC Level 2 readiness expansion | Users can manage Level 2 readiness with richer assessment, evidence, and responsibility tracking. |
+| 28 | Extraction content test set | Extraction precision and recall can be measured against representative contract documents. |
 
 ## Acceptance Criteria Testability Standard
 
@@ -31,7 +42,7 @@ Every story acceptance criterion must be testable before the story can be treate
 - The actor or system under test.
 - The action, state, or input being exercised.
 - The observable result, persisted record, API response, UI state, audit event, report/export output, or blocked behavior.
-- The relevant invariant when applicable: tenant isolation, server-side RBAC, audit logging, No-CUI guardrails, source traceability, or standard error handling.
+- The relevant invariant when applicable: tenant isolation, server-side RBAC, audit logging, CUI/data-handling guardrails, source traceability, or standard error handling.
 
 Acceptance criteria should avoid subjective phrases such as "easy," "appropriate," "robust," or "clear" unless paired with an observable check. The executable `TC-*` cases in `docs/development-story-test-cases.md` are the regression contract for these acceptance criteria, and story implementation is incomplete until focused automated coverage exists for each applicable `TC-*` case.
 
@@ -59,7 +70,7 @@ Acceptance criteria:
 - A new developer can identify where frontend, backend, domain, persistence, infrastructure, and compliance content live.
 - The solution builds locally with documented commands.
 - No compliance workflow logic is embedded only in the UI.
-- Documentation points to the No-CUI MVP posture.
+- Documentation points to the CUI-ready gated MVP posture.
 
 #### Story 1.2: Local Development Services
 ## Done ##
@@ -225,7 +236,7 @@ Acceptance criteria:
 - Restricted navigation items are hidden for roles without access.
 - Empty and error states are visible and understandable.
 
-## 4. No-CUI Controls
+## 4. CUI-Ready Gated Controls
 
 ### Use Case
 
@@ -233,23 +244,23 @@ As the product owner, I need the MVP to clearly prohibit CUI uploads so that cus
 
 ### User Stories
 
-#### Story 4.1: No-CUI Acknowledgement
+#### Story 4.1: Data Handling Acknowledgement
 
 As a user, I want to understand the upload limitation before using the product so that I know what content is prohibited.
 
 Tasks:
 
-- Add No-CUI notice content to onboarding and upload workflows.
+- Add data handling notice content to onboarding and upload workflows.
 - Record acknowledgement with user, tenant, timestamp, and notice version.
 - Add a way to retrieve current acknowledgement status.
 - Add UI prompt when acknowledgement is missing.
 
 Acceptance criteria:
 
-- User sees a No-CUI notice before first upload.
+- User sees a data handling notice before first upload.
 - User must acknowledge the notice before upload is enabled.
 - Acknowledgement is audit logged.
-- Notice copy states that the MVP is compliance management only and is not ready to store CUI.
+- Notice copy states that demo tenants use synthetic/redacted CUI workflows and real CUI upload requires approved CUI-ready tenant status.
 
 #### Story 4.2: Upload Guardrails
 
@@ -468,18 +479,18 @@ Acceptance criteria:
 
 #### Story 8.2: Contract Document Metadata And Upload
 
-As a contracts admin, I want to upload non-CUI contract documents and record document metadata so that source materials are available for review.
+As a contracts admin, I want to upload allowed contract documents and record document metadata so that source materials are available for review.
 
 Tasks:
 
 - Add document metadata model for solicitation, contract, subcontract, purchase order, SOW, flow-down attachment, wage determination, DD Form 254 metadata, and CUI marking guide metadata.
-- Add upload workflow with No-CUI acknowledgement.
+- Add upload workflow with data handling acknowledgement and tenant CUI gating.
 - Store file metadata and object storage reference.
 - Add scan status and validation status.
 
 Acceptance criteria:
 
-- Upload is disabled until No-CUI acknowledgement is complete.
+- Upload is disabled until data handling acknowledgement is complete.
 - File metadata is linked to the contract.
 - Disallowed files are rejected.
 - Upload and delete actions are audit logged.
@@ -692,7 +703,7 @@ Acceptance criteria:
 
 ### Use Case
 
-As a contractor, I need a secure non-CUI evidence vault so that I can prove what I did for contracts, clauses, CMMC controls, subcontractors, and audits.
+As a contractor, I need a secure evidence vault governed by tenant data handling mode so that I can prove what I did for contracts, clauses, CMMC controls, subcontractors, and audits.
 
 ### User Stories
 
@@ -716,18 +727,18 @@ Acceptance criteria:
 
 #### Story 12.2: Evidence File Upload
 
-As a contributor, I want to upload approved non-CUI evidence files so that compliance proof is attached to the right work.
+As a contributor, I want to upload approved evidence files so that compliance proof is attached to the right work.
 
 Tasks:
 
 - Add file upload to evidence records.
-- Enforce allowed file types, size limits, No-CUI acknowledgement, and malware scan status.
+- Enforce allowed file types, size limits, data handling acknowledgement, tenant CUI gating, and malware scan status.
 - Store file version metadata.
 - Add download permissions.
 
 Acceptance criteria:
 
-- Upload requires No-CUI acknowledgement.
+- Upload requires current data handling acknowledgement.
 - Files are not marked usable until validation and scan state allow it.
 - New file uploads create versions instead of overwriting history.
 - Upload, download, and delete actions are audit logged.
@@ -1120,7 +1131,7 @@ As a product owner, I want a release checklist so that launch risks are reviewed
 
 Tasks:
 
-- Confirm No-CUI notice, terms, support path, and prohibited upload guidance.
+- Confirm data handling notice, terms, support path, and prohibited upload guidance.
 - Confirm backups, restore test, logs, alerts, and rollback plan.
 - Confirm malware scanning path or explicit MVP limitation.
 - Confirm expert-reviewed compliance content for launch obligations.
@@ -1133,13 +1144,781 @@ Acceptance criteria:
 - Launch content has source URLs and review metadata.
 - Rollback plan is documented and tested in staging.
 
+## 18. Automated Clause Extraction
+
+### Use Case
+
+As a contracts user, I need GCCS to identify likely clauses in uploaded allowed contract materials so that manual clause tagging is faster and less error-prone.
+
+### User Stories
+
+#### Story 18.1: Extraction Job Intake
+
+As a compliance manager, I want to start clause extraction from a contract document so that the system can analyze the document asynchronously.
+
+Tasks:
+
+- Add extraction job model with status, source document, tenant, requested by, started date, completed date, and failure reason.
+- Add API endpoint to start extraction from an existing contract document.
+- Add queue worker or background service stub for processing extraction jobs.
+- Add UI action to start extraction from the contract document detail view.
+- Add audit events for extraction job creation, completion, and failure.
+
+Acceptance criteria:
+
+- User with contract edit permission can start extraction for a document in the current tenant.
+- User without contract edit permission receives a server-side authorization error.
+- Extraction job stores tenant ID, source document ID, requester ID, status, and timestamps.
+- Starting extraction for another tenant's document is denied.
+- Extraction job creation is audit logged.
+
+#### Story 18.2: Text Extraction And Clause Candidate Detection
+
+As a compliance manager, I want the system to detect clause candidates from contract text so that I can review likely matches before applying them.
+
+Tasks:
+
+- Extract text from supported non-CUI document formats already allowed by the MVP upload policy.
+- Detect clause references such as FAR, DFARS, agency supplement, and local clause identifiers.
+- Store clause candidates with raw text, normalized clause number, title when detected, page or location metadata, confidence score, and match method.
+- Link candidates to known clause library records when an exact or high-confidence match exists.
+- Add error handling for unsupported, encrypted, image-only, empty, or unreadable documents.
+
+Acceptance criteria:
+
+- Supported text documents produce clause candidates when recognizable clause references are present.
+- Each candidate includes source document, normalized citation, raw extracted text, confidence, and location metadata when available.
+- Exact matches link to the corresponding clause library record.
+- Unsupported or unreadable documents produce a failed job with a user-visible reason.
+- Extracted text and candidates remain tenant-scoped.
+
+#### Story 18.3: Extraction Results Review Screen
+
+As a compliance manager, I want to see extraction results beside the source contract so that I can decide which clauses to accept.
+
+Tasks:
+
+- Add extraction result list with filters for matched, unmatched, confidence, and review status.
+- Add candidate detail view with extracted text, source location, proposed library match, and confidence.
+- Add actions to accept, reject, edit citation, or link to a clause library record.
+- Add empty, processing, failed, and completed states.
+- Add result count and extraction status to the contract detail view.
+
+Acceptance criteria:
+
+- User can view extraction results for documents in the current tenant.
+- Results show citation, confidence, match status, review status, and source location when available.
+- Accepted candidates create reviewed contract clause links only after user action.
+- Rejected candidates remain visible in extraction history and do not create contract clause links.
+- Candidate edits and review decisions are audit logged.
+
+## 19. Human Review Workflow
+
+### Use Case
+
+As a compliance team, we need extracted clauses and AI-suggested obligations reviewed before customers rely on them so that GCCS does not silently publish unverified compliance guidance.
+
+### User Stories
+
+#### Story 19.1: Review States For Extracted Clauses
+
+As a compliance manager, I want extracted clauses to move through explicit review states so that unreviewed results cannot be treated as authoritative.
+
+Tasks:
+
+- Add review states for pending review, accepted, rejected, needs clarification, and superseded.
+- Add reviewer, reviewed date, decision note, and decision reason fields.
+- Enforce allowed state transitions in application services.
+- Add review status filters to extraction result screens.
+- Add audit events for state transitions.
+
+Acceptance criteria:
+
+- New extraction candidates default to pending review.
+- Only users with clause review permission can accept or reject candidates.
+- Accepted candidates record reviewer, reviewed date, and decision note when provided.
+- Rejected and superseded candidates do not generate obligations.
+- Review state transitions are audit logged.
+
+#### Story 19.2: AI-Suggested Obligation Review
+
+As a compliance SME, I want AI-suggested obligations to require review before publication so that draft content is not shown as approved compliance guidance.
+
+Tasks:
+
+- Model suggested obligations separately from approved obligations.
+- Store generated summary, proposed owner, required actions, evidence suggestions, source citations, confidence, prompt version, model identifier, and retrieved source references.
+- Add review workflow for approve, revise, reject, and send to expert review.
+- Add UI labels that mark suggestions as draft until approved.
+- Prevent draft suggestions from appearing in customer reports as approved obligations.
+
+Acceptance criteria:
+
+- AI-suggested obligations are stored with source references, confidence, and draft status.
+- Draft suggestions are not included in approved obligation dashboards or reports.
+- Reviewer can approve, revise, reject, or escalate a suggestion.
+- Approved suggestions record reviewer, approval date, and source citations.
+- Rejected suggestions remain in review history and are audit logged.
+
+#### Story 19.3: Expert Escalation Queue
+
+As a compliance content owner, I want uncertain clause and obligation decisions escalated to experts so that high-risk interpretations receive qualified review.
+
+Tasks:
+
+- Add expert review queue for clause candidates and suggested obligations.
+- Add priority, topic, assigned expert, due date, and resolution fields.
+- Add escalation reasons such as high-risk clause, low confidence, conflicting sources, customer dispute, and legal interpretation.
+- Add queue filters and assignment workflow.
+- Add notifications for assigned expert review items.
+
+Acceptance criteria:
+
+- Reviewer can escalate a candidate or suggested obligation with a required reason.
+- Escalated items appear in an expert review queue.
+- Assigned expert receives a notification.
+- Resolution records decision, reviewer, date, and notes.
+- Escalated items cannot be published as approved until resolved.
+
+## 20. Clause Library Expansion
+
+### Use Case
+
+As a compliance content owner, I need a source-backed clause library that supports extraction matching, obligation mapping, and customer-facing traceability.
+
+### User Stories
+
+#### Story 20.1: Versioned Clause Records
+
+As a compliance content owner, I want clauses to be versioned so that changes to source text or interpretation are traceable.
+
+Tasks:
+
+- Add clause version fields for citation, title, source URL, effective date, last reviewed date, review owner, status, and supersedes relationship.
+- Add statuses for draft, under review, approved, deprecated, and superseded.
+- Add import/update workflow for curated clause records.
+- Add API and UI for clause detail with version history.
+- Add audit events for clause creation, update, approval, and deprecation.
+
+Acceptance criteria:
+
+- Clause records include citation, title, source URL, status, last reviewed date, and review owner.
+- Approved versions can be used for extraction matching and obligation mapping.
+- Deprecated or superseded versions are visible in history but not selected by default for new mappings.
+- Clause version changes preserve prior version history.
+- Clause changes are audit logged.
+
+#### Story 20.2: Clause Search And Discovery
+
+As a contracts user, I want to search the clause library by citation, title, source, and obligation area so that I can quickly find the correct clause.
+
+Tasks:
+
+- Add searchable fields for citation, normalized citation, title, source family, keywords, obligation area, and risk level.
+- Add filters for FAR, DFARS, agency supplement, CMMC, labor, cybersecurity, reporting, and flow-down relevance.
+- Add clause search API with tenant-safe access to approved library content.
+- Improve UI search results with source, last reviewed date, confidence, and status.
+- Add empty and no-results states.
+
+Acceptance criteria:
+
+- Search by exact citation returns the matching approved clause when present.
+- Search by title or keyword returns relevant approved clauses.
+- Filters narrow results by source family, obligation area, and flow-down relevance.
+- Results show source URL, status, and last reviewed date.
+- Draft or under-review clauses are hidden from standard users unless they have content review permission.
+
+#### Story 20.3: Clause-To-Obligation Mapping
+
+As a compliance content owner, I want clauses mapped to approved obligation templates so that accepted clauses can generate consistent obligations.
+
+Tasks:
+
+- Add mapping model between clause versions and obligation templates.
+- Store trigger condition, required action, owner role, evidence examples, reporting deadlines, flow-down requirement, risk level, confidence, and expert review flag.
+- Add mapping approval workflow.
+- Add validation that approved mappings include source URL, trigger condition, confidence, and last reviewed date.
+- Add UI for viewing and editing mappings.
+
+Acceptance criteria:
+
+- Approved clause mapping can generate an obligation for a contract.
+- Mapping requires trigger condition, required action, source URL, confidence, and review metadata before approval.
+- Draft mappings cannot generate customer-visible approved obligations.
+- Mapping changes preserve history.
+- Mapping approval and changes are audit logged.
+
+## 21. Applicability Engine
+
+### Use Case
+
+As a compliance manager, I need GCCS to determine which obligations likely apply based on company, contract, clause, data, and subcontractor facts so that the obligation dashboard reflects contract-specific context.
+
+### User Stories
+
+#### Story 21.1: Applicability Facts Model
+
+As a developer, I want a structured facts model so that applicability decisions can be computed consistently.
+
+Tasks:
+
+- Define facts for tenant company profile, NAICS, certifications, agency, contract type, role, place of performance, data type, labor category, clause, subcontractor role, and CUI/FCI indicators.
+- Add persistence or read model for facts used by the applicability engine.
+- Add fact provenance, source record, last updated date, and unknown values.
+- Add validation for required facts by workflow.
+- Document fact definitions and expected sources.
+
+Acceptance criteria:
+
+- Applicability facts can be derived from existing company, contract, clause, and subcontractor records.
+- Unknown facts are represented explicitly instead of inferred as false.
+- Each fact records source record and last updated date when available.
+- Fact model is tenant-scoped.
+- Fact definitions are documented.
+
+#### Story 21.2: Rule Evaluation
+
+As a compliance manager, I want rules evaluated against facts so that obligations are marked applicable, not applicable, or needs review.
+
+Tasks:
+
+- Add applicability rule format with conditions, source, confidence, effective date, and review metadata.
+- Implement rule evaluator for deterministic rules.
+- Return result states of applicable, not applicable, needs review, and insufficient information.
+- Store evaluation explanation and facts used.
+- Add tests for common FAR, DFARS, CMMC, SAM/SBA, and flow-down rule patterns.
+
+Acceptance criteria:
+
+- Rule evaluator returns a result state, explanation, source rule ID, and facts used.
+- Missing required facts produce insufficient information or needs review rather than a silent positive result.
+- Rule evaluation is repeatable for the same inputs.
+- Evaluation results are tenant-scoped.
+- Rule evaluator behavior is covered by automated tests.
+
+#### Story 21.3: Obligation Applicability Updates
+
+As a compliance manager, I want obligation applicability to update when relevant facts change so that dashboards stay current.
+
+Tasks:
+
+- Trigger reevaluation when company profile, contract facts, clause mappings, data type, subcontractor, or rule versions change.
+- Store current and prior applicability results.
+- Add UI indicators for applicable, not applicable, needs review, and insufficient information.
+- Add explanation panel showing why an obligation applies or needs review.
+- Add audit events for material applicability changes.
+
+Acceptance criteria:
+
+- Updating a relevant fact reevaluates affected obligations.
+- Dashboard displays the current applicability state.
+- Explanation shows source rule, facts used, and missing facts when applicable.
+- Prior result history is retained.
+- Material changes from applicable to not applicable or needs review are audit logged.
+
+## 22. SAM.gov Entity Lookup
+
+### Use Case
+
+As a company admin or subcontractor manager, I need to look up official SAM.gov entity data so that company and subcontractor records can be enriched with authoritative registration context.
+
+### User Stories
+
+#### Story 22.1: SAM.gov API Configuration
+
+As a developer, I want SAM.gov API access configured securely so that entity lookup can run without exposing secrets.
+
+Tasks:
+
+- Add configuration for SAM.gov base URL, API key, timeout, retry policy, and rate limit behavior.
+- Store API keys in the existing secrets management approach.
+- Add service interface and infrastructure adapter for SAM entity lookup.
+- Add health check or diagnostic endpoint that does not expose secrets.
+- Add standard error handling for unavailable, rate-limited, and invalid-response cases.
+
+Acceptance criteria:
+
+- SAM.gov API key is not stored in source control.
+- Lookup service uses configured timeout and retry behavior.
+- API failures return a standard, user-safe error.
+- Logs do not contain API keys or sensitive response payloads.
+- Adapter can be replaced or mocked in tests.
+
+#### Story 22.2: Company Entity Lookup
+
+As a tenant admin, I want to search SAM.gov by UEI or legal business name so that I can verify company registration details.
+
+Tasks:
+
+- Add company lookup form for UEI and legal business name.
+- Display matched entity details such as legal name, UEI, CAGE, registration status, expiration date, physical address, and available NAICS codes.
+- Allow authorized user to apply selected fields to company profile.
+- Store source, retrieved date, and applied by user.
+- Add conflict handling when SAM data differs from existing profile values.
+
+Acceptance criteria:
+
+- Authorized user can search by UEI or legal business name.
+- Search results show source and retrieved date.
+- User can apply selected fields to the company profile.
+- Existing profile values are not overwritten without explicit user confirmation.
+- Applied SAM data changes are audit logged.
+
+#### Story 22.3: Subcontractor Entity Lookup
+
+As a subcontractor manager, I want to enrich subcontractor profiles with SAM.gov data so that supplier compliance tracking starts from official entity records.
+
+Tasks:
+
+- Add SAM lookup action to subcontractor profile.
+- Display entity status, UEI, CAGE, expiration date, NAICS codes, and exclusion or status indicators when available from the configured API response.
+- Allow authorized user to apply selected fields to subcontractor record.
+- Store source metadata and retrieved date.
+- Add warning when lookup returns no match or multiple possible matches.
+
+Acceptance criteria:
+
+- Authorized user can search SAM.gov for a subcontractor by UEI or name.
+- Applied fields update only the current tenant's subcontractor record.
+- No-match and multiple-match results are shown without changing existing data.
+- Source and retrieved date are stored with applied data.
+- Subcontractor SAM updates are audit logged.
+
+## 23. SBA Size Helper
+
+### Use Case
+
+As a small business user, I need guidance on SBA size context by NAICS so that I can track where my company may qualify as small and where expert review may be needed.
+
+### User Stories
+
+#### Story 23.1: Size Standard Reference Data
+
+As a compliance content owner, I want SBA size standard reference data loaded with source metadata so that size helper calculations are traceable.
+
+Tasks:
+
+- Define size standard data fields for NAICS code, industry title, size metric, threshold, source URL, effective date, last reviewed date, and status.
+- Add import workflow for approved reference data.
+- Add content review states for draft, under review, approved, deprecated, and superseded.
+- Add validation for required source metadata.
+- Add tests for import validation.
+
+Acceptance criteria:
+
+- Approved size standard records include NAICS, metric, threshold, source URL, effective date, last reviewed date, and status.
+- Draft records are not used in customer-facing helper results.
+- Import rejects records missing source metadata.
+- Deprecated records remain visible to content reviewers.
+- Import and approval actions are audit logged.
+
+#### Story 23.2: Company Size Evaluation Helper
+
+As a tenant admin, I want to compare my company profile values against size standards so that I can identify likely small-business status by NAICS.
+
+Tasks:
+
+- Add UI for selecting company NAICS codes and entering annual receipts or employee count ranges.
+- Evaluate selected NAICS codes against approved size standard reference data.
+- Return result labels such as likely small, likely other than small, insufficient information, and expert review recommended.
+- Store evaluation inputs, result, source records, and run date.
+- Add disclaimer that the helper is not a final legal determination.
+
+Acceptance criteria:
+
+- Evaluation uses approved size standard records only.
+- Missing revenue or employee inputs produce insufficient information.
+- Results show NAICS, metric, threshold, entered value or range, source URL, and run date.
+- User can save evaluation results to the company profile.
+- Saved evaluations are audit logged.
+
+#### Story 23.3: Opportunity NAICS Size Check
+
+As a proposal manager, I want to check an opportunity or contract NAICS code against company data so that I can flag size-status questions early.
+
+Tasks:
+
+- Add size check action on contract or opportunity records with NAICS code.
+- Compare opportunity NAICS to company size inputs and approved size standards.
+- Show result and missing inputs.
+- Add task creation when expert review is recommended.
+- Store evaluation history on the contract.
+
+Acceptance criteria:
+
+- User can run size check for a contract NAICS code.
+- Result shows likely status, source standard, and missing information when applicable.
+- Expert-review recommended result can create a task assigned to an owner.
+- Evaluation history remains available from the contract record.
+- Size check actions are audit logged.
+
+## 24. Subcontractor Tracker Expansion
+
+### Use Case
+
+As a prime contractor or subcontractor manager, I need a fuller subcontractor compliance tracker so that flow-downs, data access, insurance, certifications, CMMC status, and evidence requests are managed together.
+
+### User Stories
+
+#### Story 24.1: Expanded Subcontractor Compliance Profile
+
+As a subcontractor manager, I want richer subcontractor profile fields so that supplier compliance risk can be assessed consistently.
+
+Tasks:
+
+- Add fields for UEI, CAGE, NAICS, small-business status, socioeconomic certifications, insurance expiration, NDA status, CUI access, export-control status, CMMC level/status, workshare percentage, and responsible owner.
+- Add validation for expiration dates and controlled vocabularies.
+- Add profile completeness indicator.
+- Add filters for status, CUI access, certification, insurance expiration, and CMMC readiness.
+- Add audit events for sensitive profile changes.
+
+Acceptance criteria:
+
+- Authorized user can create and update expanded subcontractor fields.
+- Profile completeness reflects required fields configured for the tenant.
+- Filters return only subcontractors in the current tenant.
+- Expiring insurance or certification dates can be surfaced in list filters.
+- Sensitive field changes are audit logged.
+
+#### Story 24.2: Subcontractor Risk Status
+
+As a compliance manager, I want subcontractor risk status calculated from key compliance signals so that I can prioritize follow-up.
+
+Tasks:
+
+- Define risk inputs for missing flow-downs, expired insurance, missing NDA, CUI access without CMMC status, overdue evidence, SAM status, and unresolved expert review.
+- Implement risk status labels such as low, medium, high, and needs review.
+- Show risk drivers on subcontractor detail and list views.
+- Recalculate risk when underlying signals change.
+- Add tests for risk status rules.
+
+Acceptance criteria:
+
+- Risk status is calculated from documented inputs.
+- Risk drivers are visible to authorized users.
+- Updating evidence, insurance, NDA, CMMC status, or SAM data updates risk status.
+- Missing or unknown data can produce needs review.
+- Risk calculation is covered by automated tests.
+
+#### Story 24.3: Contract-Specific Subcontractor Obligations
+
+As a subcontractor manager, I want to connect subcontractors to contract-specific obligations so that supplier requirements are tracked by contract.
+
+Tasks:
+
+- Add relationship between subcontractor, contract, flow-down clause, obligation, and evidence request.
+- Show subcontractor obligations on contract detail and subcontractor detail.
+- Add owner, due date, status, and evidence requirement to each supplier obligation.
+- Allow bulk creation from accepted flow-down clauses.
+- Add audit events for creation and status changes.
+
+Acceptance criteria:
+
+- User can link a subcontractor to a contract and applicable flow-down obligations.
+- Supplier obligations show owner, due date, status, and required evidence.
+- Bulk creation uses accepted flow-down clauses only.
+- Supplier obligations are tenant-scoped.
+- Creation and status changes are audit logged.
+
+## 25. Policy Templates
+
+### Use Case
+
+As a compliance manager, I need approved policy templates that can be tailored from company and obligation context so that draft policies are faster to prepare without becoming unreviewed legal advice.
+
+### User Stories
+
+#### Story 25.1: Approved Template Library
+
+As a compliance content owner, I want policy templates managed with review metadata so that only approved templates are available to customers.
+
+Tasks:
+
+- Add template model with title, category, body, placeholders, source references, version, status, owner, last reviewed date, and expert review flag.
+- Add statuses for draft, under review, approved, deprecated, and superseded.
+- Add template preview and version history.
+- Add validation that approved templates include source references and review metadata.
+- Add audit events for template lifecycle changes.
+
+Acceptance criteria:
+
+- Approved templates include title, category, version, source references, owner, and last reviewed date.
+- Draft templates are hidden from standard users.
+- Deprecated templates remain visible to content reviewers.
+- Template approval requires source and review metadata.
+- Template lifecycle changes are audit logged.
+
+#### Story 25.2: Generate Draft Policy From Template
+
+As a compliance manager, I want to generate a draft policy from an approved template so that I can tailor it for my company.
+
+Tasks:
+
+- Add template selection workflow.
+- Populate placeholders from company profile, contract, obligation, and CMMC context where available.
+- Mark generated policy as draft.
+- Store source template version and generation date.
+- Add edit and save workflow in the evidence vault or policy area.
+
+Acceptance criteria:
+
+- User can generate a draft policy from an approved template.
+- Placeholder values are populated from tenant data when available.
+- Missing placeholder values are flagged for user completion.
+- Generated policy stores source template version and generation date.
+- Generated policy is marked draft until approved by the tenant.
+
+#### Story 25.3: Policy Approval And Evidence Linking
+
+As a compliance manager, I want approved policies linked to obligations and controls so that they can be reused as evidence.
+
+Tasks:
+
+- Add tenant-level policy approval status and approver metadata.
+- Allow approved policies to be linked to obligations, CMMC controls, and evidence packages.
+- Add expiration or review date tracking.
+- Add audit trail for approval, rejection, and revision.
+- Add report inclusion for approved policies.
+
+Acceptance criteria:
+
+- Authorized user can approve, reject, or revise a draft policy.
+- Approved policy records approver, approval date, source template, and review date.
+- Approved policy can be linked to obligations and controls as evidence.
+- Revisions preserve prior approved versions.
+- Policy approval actions are audit logged.
+
+## 26. Evidence Request Workflows
+
+### Use Case
+
+As a compliance manager, I need to request evidence from internal users and subcontractors so that obligation, CMMC, and supplier evidence can be collected and reviewed on time.
+
+### User Stories
+
+#### Story 26.1: Evidence Request Creation
+
+As a compliance manager, I want to create evidence requests tied to obligations, controls, contracts, or subcontractors so that each request has context and a due date.
+
+Tasks:
+
+- Add evidence request model with requester, assignee, related record, due date, status, instructions, required evidence type, and priority.
+- Add create workflow from obligation, control, contract, subcontractor, and evidence vault views.
+- Add validation for assignee, due date, and related record permissions.
+- Add notification on assignment.
+- Add audit event for request creation.
+
+Acceptance criteria:
+
+- Authorized user can create an evidence request tied to a supported record type.
+- Request stores requester, assignee, due date, status, instructions, and related record.
+- Assignee receives notification.
+- User cannot assign a request to a user or subcontractor outside the tenant context.
+- Request creation is audit logged.
+
+#### Story 26.2: Evidence Submission And Review
+
+As an assignee, I want to submit evidence to a request so that the requester can review whether it satisfies the requirement.
+
+Tasks:
+
+- Add submission workflow for existing evidence items and new uploads allowed by CUI/data-handling guardrails.
+- Add statuses for open, submitted, accepted, returned, overdue, and canceled.
+- Add reviewer comments and returned-for-revision reason.
+- Link accepted submissions to the related obligation, control, or subcontractor requirement.
+- Add notifications for submission, return, acceptance, and overdue states.
+
+Acceptance criteria:
+
+- Assignee can submit evidence to an open request.
+- Upload submissions enforce CUI/data-handling guardrails and tenant scope.
+- Reviewer can accept or return submitted evidence with comments.
+- Accepted evidence is linked to the related requirement.
+- Status changes and review decisions are audit logged.
+
+#### Story 26.3: Evidence Request Dashboard
+
+As a compliance manager, I want a dashboard of evidence requests so that I can track overdue, submitted, accepted, and blocked requests.
+
+Tasks:
+
+- Add list and filters for status, due date, assignee, related record type, priority, and subcontractor.
+- Add overdue calculation.
+- Add bulk reminder action for selected open or overdue requests.
+- Add export or report section for evidence request status.
+- Add role-aware views for requester, assignee, auditor, and advisor.
+
+Acceptance criteria:
+
+- Dashboard shows only evidence requests in the current tenant.
+- Filters return requests by status, due date, assignee, related type, and priority.
+- Overdue requests are calculated from due date and current status.
+- Bulk reminders create notifications without changing request status.
+- Auditors can view approved or accepted evidence request records but cannot modify them.
+
+## 27. CMMC Level 2 Readiness Expansion
+
+### Use Case
+
+As a DoD supplier, I need richer CMMC Level 2 readiness tracking so that control implementation, evidence, responsibility, and readiness gaps can be managed before assessment.
+
+### User Stories
+
+#### Story 27.1: Level 2 Control Assessment Detail
+
+As a security owner, I want detailed Level 2 control assessment fields so that readiness is tracked beyond simple status.
+
+Tasks:
+
+- Add fields for assessment objective status, implementation status, evidence status, inherited responsibility, external service provider responsibility, notes, assessment date, and assessor.
+- Add control detail UI for Level 2 controls.
+- Add validation for allowed status values.
+- Add history for status changes.
+- Add audit events for control assessment updates.
+
+Acceptance criteria:
+
+- Authorized user can update Level 2 control assessment detail.
+- Control detail stores implementation, evidence, inherited, ESP responsibility, notes, assessment date, and assessor.
+- Status history is retained.
+- Control updates are tenant-scoped.
+- Control assessment updates are audit logged.
+
+#### Story 27.2: Responsibility Matrix
+
+As a security owner, I want a responsibility matrix for internal teams and external service providers so that CMMC control ownership is explicit.
+
+Tasks:
+
+- Add responsibility assignments for organization, MSP/ESP, cloud provider, subcontractor, and shared responsibility.
+- Link responsibility to CMMC controls and evidence requests.
+- Add matrix view grouped by control family and responsible party.
+- Add export for review with advisors or MSPs.
+- Add validation that controls with external responsibility include provider name or notes.
+
+Acceptance criteria:
+
+- User can assign responsible party for each Level 2 control.
+- Matrix shows control, responsibility type, owner, provider, evidence status, and notes.
+- Controls marked external or shared require provider or responsibility notes.
+- Responsibility changes are audit logged.
+- Matrix export reflects current tenant data.
+
+#### Story 27.3: Readiness Gap Prioritization
+
+As a compliance manager, I want Level 2 gaps prioritized so that limited resources focus on the most important readiness work.
+
+Tasks:
+
+- Define gap inputs for control status, evidence status, due date, risk level, CUI relevance, inherited responsibility, and assessment objective coverage.
+- Calculate gap priority such as critical, high, medium, low, and needs review.
+- Show prioritized gaps on CMMC dashboard.
+- Allow creating POA&M or task items from gaps.
+- Add tests for priority rules.
+
+Acceptance criteria:
+
+- Gap priority is calculated from documented inputs.
+- Dashboard lists gaps by priority with reason codes.
+- User can create a POA&M item or task from a gap.
+- Priority recalculates when control or evidence status changes.
+- Priority rules are covered by automated tests.
+
+#### Story 27.4: Level 2 Readiness Report
+
+As a compliance manager, I want a Level 2 readiness report with draft-only language and source context so that leadership and advisors can review progress.
+
+Tasks:
+
+- Add report sections for control status, evidence status, gaps, POA&M items, responsibility matrix, and source references.
+- Mark report output as readiness tracking and not certification or assessment determination.
+- Include generated date, tenant, source control version, and reviewer metadata.
+- Add export to existing report format.
+- Add permission checks for report generation and viewing.
+
+Acceptance criteria:
+
+- Authorized user can generate a Level 2 readiness report.
+- Report includes control status, evidence status, gaps, POA&M items, responsibility matrix, source references, and generated date.
+- Report contains no pass/fail certification language.
+- Report uses tenant-scoped data only.
+- Report generation is audit logged.
+
+## 28. Extraction Content Test Set
+
+### Use Case
+
+As the delivery and compliance team, we need a representative content test set so that automated clause extraction can be measured for precision, recall, and regressions before customers rely on it.
+
+### User Stories
+
+#### Story 28.1: Curated Test Document Set
+
+As a QA owner, I want representative synthetic, redacted, or otherwise allowed contract documents and expected clause labels so that extraction accuracy can be evaluated consistently.
+
+Tasks:
+
+- Create approved test corpus using public, synthetic, or customer-approved non-CUI documents.
+- Label expected clause citations, source locations, titles, and flow-down indicators.
+- Store test metadata including document type, agency/source family, contract type, and known limitations.
+- Add review workflow for label quality.
+- Document data handling rules for the test set.
+
+Acceptance criteria:
+
+- Test corpus contains only public, synthetic, or explicitly approved non-CUI documents.
+- Each labeled document includes expected clause citations and source locations when available.
+- Test metadata identifies document type, source family, and limitations.
+- Label set is reviewed before use as a benchmark.
+- Test set data handling rules are documented.
+
+#### Story 28.2: Precision And Recall Evaluation
+
+As a QA owner, I want automated extraction evaluation so that the team can measure whether clause detection is improving or regressing.
+
+Tasks:
+
+- Build evaluation runner that compares extracted candidates against expected labels.
+- Calculate precision, recall, false positives, false negatives, and unmatched expected clauses.
+- Generate machine-readable and human-readable results.
+- Add thresholds for blocking release or flagging review.
+- Add CI or scheduled execution for the extraction test set.
+
+Acceptance criteria:
+
+- Evaluation runner produces precision, recall, false positive, and false negative metrics.
+- Results identify missed and extra clause detections by document.
+- Threshold failures are visible in CI or scheduled test output.
+- Metrics are stored or published for trend review.
+- Evaluation can run without customer data.
+
+#### Story 28.3: Extraction Regression Review
+
+As a compliance content owner, I want failed extraction cases reviewed so that matcher, library, and label improvements are tracked deliberately.
+
+Tasks:
+
+- Add workflow for reviewing missed clauses and false positives.
+- Classify failures as parser issue, matcher issue, library gap, label issue, source document quality, or expected limitation.
+- Create follow-up tasks from reviewed failures.
+- Track status and resolution notes.
+- Add summary report for release readiness.
+
+Acceptance criteria:
+
+- Each reviewed failure has a classification, owner, status, and resolution note.
+- Follow-up tasks can be created from failures.
+- Resolved failures are linked to matcher, library, parser, or label updates when applicable.
+- Release summary shows open extraction risks and metric trends.
+- Regression review records are audit logged or otherwise traceable.
+
 ## Definition Of Ready
 
 A development story is ready when:
 
 - The user role and business goal are clear.
 - Required data fields and source systems are identified.
-- Tenant isolation, RBAC, audit logging, and No-CUI implications are understood.
+- Tenant isolation, RBAC, audit logging, and CUI/data-handling implications are understood.
 - Acceptance criteria are testable.
 - Dependencies are known.
 - Compliance content stories identify whether expert review is required.

@@ -7,7 +7,7 @@ Common expectations for all functional stories:
 - Tenant-owned reads and writes are scoped to the current tenant.
 - Restricted actions are denied server-side, even when UI controls are hidden.
 - Compliance-relevant create, update, delete, status, upload, approval, report, and notification actions are audit logged.
-- No-CUI controls are preserved for all upload workflows.
+- CUI/data-handling controls are preserved for all upload workflows.
 - User-facing errors are clear and use the standard API/UI error pattern.
 
 ## 1. Delivery Foundation
@@ -17,7 +17,7 @@ Common expectations for all functional stories:
 - **TC-1.1.1 - Documented structure is complete:** Verify README/docs identify `apps/api`, `apps/web`, `src/Gccs.Domain`, `src/Gccs.Application`, `src/Gccs.Infrastructure`, `packages/compliance-content`, `docs`, and `infra`, with ownership boundaries for each.
 - **TC-1.1.2 - Clean checkout build commands work:** From a clean checkout, run documented restore/build/test commands and verify backend and frontend projects build successfully.
 - **TC-1.1.3 - Compliance logic is not UI-only:** Inspect implemented workflows and tests to confirm compliance decisions live in domain/application/API layers, with UI acting as a client.
-- **TC-1.1.4 - No-CUI posture is visible:** Verify developer docs and setup guidance explicitly describe the MVP as No-CUI / compliance management only.
+- **TC-1.1.4 - CUI-ready gated posture is visible:** Verify developer docs and setup guidance explicitly describe the MVP as CUI-ready by design with gated CUI acceptance.
 
 ### Story 1.2: Local Development Services
 
@@ -79,14 +79,14 @@ Common expectations for all functional stories:
 - **TC-3.2.3 - Role-aware navigation:** Render navigation for restricted roles and verify hidden items cannot be accessed through visible links.
 - **TC-3.2.4 - Loading, empty, and error states:** Mock loading, empty, and failed route data and verify understandable states are displayed.
 
-## 4. No-CUI Controls
+## 4. CUI-Ready Gated Controls
 
-### Story 4.1: No-CUI Acknowledgement
+### Story 4.1: Data Handling Acknowledgement
 
-- **TC-4.1.1 - Notice shown before first upload:** With no acknowledgement, open an upload workflow and verify the No-CUI notice is displayed.
+- **TC-4.1.1 - Notice shown before first upload:** With no acknowledgement, open an upload workflow and verify the data handling notice is displayed.
 - **TC-4.1.2 - Upload disabled until acknowledgement:** Attempt upload before acknowledgement and verify UI and API both block it.
 - **TC-4.1.3 - Acknowledgement persisted:** Acknowledge the notice and verify user, tenant, timestamp, and notice version are stored.
-- **TC-4.1.4 - Acknowledgement audit and copy:** Verify audit event creation and confirm notice copy says the MVP is compliance management only and not ready to store CUI.
+- **TC-4.1.4 - Acknowledgement audit and copy:** Verify audit event creation and confirm notice copy says the MVP supports CUI-ready workflows with gated CUI acceptance and real CUI upload requires approved CUI-ready tenant status.
 
 ### Story 4.2: Upload Guardrails
 
@@ -168,7 +168,7 @@ Common expectations for all functional stories:
 
 ### Story 8.2: Contract Document Metadata And Upload
 
-- **TC-8.2.1 - Upload requires No-CUI acknowledgement:** Attempt upload without acknowledgement and verify disabled UI plus API rejection.
+- **TC-8.2.1 - Upload requires data handling acknowledgement:** Attempt upload without acknowledgement and verify disabled UI plus API rejection.
 - **TC-8.2.2 - Metadata linked to contract:** Upload valid non-CUI document metadata and verify document type, storage reference, scan status, and contract link.
 - **TC-8.2.3 - Disallowed file rejected:** Upload an unsupported file and verify rejection with no usable document.
 - **TC-8.2.4 - Upload/delete audit events:** Upload and delete a contract document and verify both actions are audit logged.
@@ -260,7 +260,7 @@ Common expectations for all functional stories:
 
 ### Story 12.2: Evidence File Upload
 
-- **TC-12.2.1 - Upload requires acknowledgement:** Attempt evidence upload before No-CUI acknowledgement and verify it is blocked.
+- **TC-12.2.1 - Upload requires acknowledgement:** Attempt evidence upload before data handling acknowledgement and verify it is blocked.
 - **TC-12.2.2 - Usability gated by validation/scan:** Upload file and verify it is not usable until validation and scan status allow it.
 - **TC-12.2.3 - Version history preserved:** Upload a replacement file and verify a new version is created without overwriting previous metadata.
 - **TC-12.2.4 - Download/delete permissions and audit:** Verify allowed users can download/delete per RBAC and all actions are audit logged.
@@ -411,6 +411,302 @@ Common expectations for all functional stories:
 ### Story 17.4: Production Readiness Checklist
 
 - **TC-17.4.1 - Checklist completed before launch:** Verify release cannot proceed until readiness checklist items are complete/approved.
-- **TC-17.4.2 - Known limitations documented:** Confirm No-CUI limits, malware scanning limitation/path, support path, and prohibited upload guidance are documented.
+- **TC-17.4.2 - Known limitations documented:** Confirm CUI/data-handling limits, malware scanning limitation/path, support path, and prohibited upload guidance are documented.
 - **TC-17.4.3 - Launch content reviewed:** Verify launch obligations have source URLs, last reviewed dates, confidence, and review metadata.
 - **TC-17.4.4 - Rollback tested in staging:** Execute or simulate rollback in staging and verify steps, timing, and outcome are documented.
+
+## Phase 2 - Govcon Intelligence
+
+## 18. Automated Clause Extraction
+
+### Story 18.1: Extraction Job Intake
+
+- **TC-18.1.1 - User with contract edit permission can start:** Verify user with contract edit permission can start extraction for a document in the current tenant.
+- **TC-18.1.2 - User without contract edit permission receives a:** Verify user without contract edit permission receives a server-side authorization error.
+- **TC-18.1.3 - Extraction job stores tenant ID, source document:** Verify extraction job stores tenant ID, source document ID, requester ID, status, and timestamps.
+- **TC-18.1.4 - Starting extraction for another tenant's document is:** Verify starting extraction for another tenant's document is denied.
+- **TC-18.1.5 - Extraction job creation is audit logged:** Verify extraction job creation is audit logged.
+
+### Story 18.2: Text Extraction And Clause Candidate Detection
+
+- **TC-18.2.1 - Supported text documents produce clause candidates when:** Verify supported text documents produce clause candidates when recognizable clause references are present.
+- **TC-18.2.2 - Each candidate includes source document, normalized citation,:** Verify each candidate includes source document, normalized citation, raw extracted text, confidence, and location metadata when available.
+- **TC-18.2.3 - Exact matches link to the corresponding clause:** Verify exact matches link to the corresponding clause library record.
+- **TC-18.2.4 - Unsupported or unreadable documents produce a failed:** Verify unsupported or unreadable documents produce a failed job with a user-visible reason.
+- **TC-18.2.5 - Extracted text and candidates remain tenant-scoped:** Verify extracted text and candidates remain tenant-scoped.
+
+### Story 18.3: Extraction Results Review Screen
+
+- **TC-18.3.1 - View extraction results for documents in the:** Verify user can view extraction results for documents in the current tenant.
+- **TC-18.3.2 - Results show citation, confidence, match status, review:** Verify results show citation, confidence, match status, review status, and source location when available.
+- **TC-18.3.3 - Accepted candidates create reviewed contract clause links:** Verify accepted candidates create reviewed contract clause links only after user action.
+- **TC-18.3.4 - Rejected candidates remain visible in extraction history:** Verify rejected candidates remain visible in extraction history and do not create contract clause links.
+- **TC-18.3.5 - Candidate edits and review decisions are audit:** Verify candidate edits and review decisions are audit logged.
+
+## 19. Human Review Workflow
+
+### Story 19.1: Review States For Extracted Clauses
+
+- **TC-19.1.1 - New extraction candidates default to pending review:** Verify new extraction candidates default to pending review.
+- **TC-19.1.2 - Only users with clause review permission can:** Verify only users with clause review permission can accept or reject candidates.
+- **TC-19.1.3 - Accepted candidates record reviewer, reviewed date, and:** Verify accepted candidates record reviewer, reviewed date, and decision note when provided.
+- **TC-19.1.4 - Rejected and superseded candidates do not generate:** Verify rejected and superseded candidates do not generate obligations.
+- **TC-19.1.5 - Review state transitions are audit logged:** Verify review state transitions are audit logged.
+
+### Story 19.2: AI-Suggested Obligation Review
+
+- **TC-19.2.1 - AI-suggested obligations are stored with source references,:** Verify AI-suggested obligations are stored with source references, confidence, and draft status.
+- **TC-19.2.2 - Draft suggestions are not included in approved:** Verify draft suggestions are not included in approved obligation dashboards or reports.
+- **TC-19.2.3 - Approve, revise, reject, or escalate a suggestion:** Verify reviewer can approve, revise, reject, or escalate a suggestion.
+- **TC-19.2.4 - Approved suggestions record reviewer, approval date, and:** Verify approved suggestions record reviewer, approval date, and source citations.
+- **TC-19.2.5 - Rejected suggestions remain in review history and:** Verify rejected suggestions remain in review history and are audit logged.
+
+### Story 19.3: Expert Escalation Queue
+
+- **TC-19.3.1 - Escalate a candidate or suggested obligation with:** Verify reviewer can escalate a candidate or suggested obligation with a required reason.
+- **TC-19.3.2 - Escalated items appear in an expert review:** Verify escalated items appear in an expert review queue.
+- **TC-19.3.3 - Assigned expert receives a notification:** Verify assigned expert receives a notification.
+- **TC-19.3.4 - Resolution records decision, reviewer, date, and notes:** Verify resolution records decision, reviewer, date, and notes.
+- **TC-19.3.5 - Escalated items cannot be published as approved:** Verify escalated items cannot be published as approved until resolved.
+
+## 20. Clause Library Expansion
+
+### Story 20.1: Versioned Clause Records
+
+- **TC-20.1.1 - Clause records include citation, title, source URL,:** Verify clause records include citation, title, source URL, status, last reviewed date, and review owner.
+- **TC-20.1.2 - Approved versions can be used for extraction:** Verify approved versions can be used for extraction matching and obligation mapping.
+- **TC-20.1.3 - Deprecated or superseded versions are visible in:** Verify deprecated or superseded versions are visible in history but not selected by default for new mappings.
+- **TC-20.1.4 - Clause version changes preserve prior version history:** Verify clause version changes preserve prior version history.
+- **TC-20.1.5 - Clause changes are audit logged:** Verify clause changes are audit logged.
+
+### Story 20.2: Clause Search And Discovery
+
+- **TC-20.2.1 - Search by exact citation returns the matching:** Verify search by exact citation returns the matching approved clause when present.
+- **TC-20.2.2 - Search by title or keyword returns relevant:** Verify search by title or keyword returns relevant approved clauses.
+- **TC-20.2.3 - Filters narrow results by source family, obligation:** Verify filters narrow results by source family, obligation area, and flow-down relevance.
+- **TC-20.2.4 - Results show source URL, status, and last:** Verify results show source URL, status, and last reviewed date.
+- **TC-20.2.5 - Draft or under-review clauses are hidden from:** Verify draft or under-review clauses are hidden from standard users unless they have content review permission.
+
+### Story 20.3: Clause-To-Obligation Mapping
+
+- **TC-20.3.1 - Approved clause mapping can generate an obligation:** Verify approved clause mapping can generate an obligation for a contract.
+- **TC-20.3.2 - Mapping requires trigger condition, required action, source:** Verify mapping requires trigger condition, required action, source URL, confidence, and review metadata before approval.
+- **TC-20.3.3 - Draft mappings cannot generate customer-visible approved obligations:** Verify draft mappings cannot generate customer-visible approved obligations.
+- **TC-20.3.4 - Mapping changes preserve history:** Verify mapping changes preserve history.
+- **TC-20.3.5 - Mapping approval and changes are audit logged:** Verify mapping approval and changes are audit logged.
+
+## 21. Applicability Engine
+
+### Story 21.1: Applicability Facts Model
+
+- **TC-21.1.1 - Applicability facts can be derived from existing:** Verify applicability facts can be derived from existing company, contract, clause, and subcontractor records.
+- **TC-21.1.2 - Unknown facts are represented explicitly instead of:** Verify unknown facts are represented explicitly instead of inferred as false.
+- **TC-21.1.3 - Each fact records source record and last:** Verify each fact records source record and last updated date when available.
+- **TC-21.1.4 - Fact model is tenant-scoped:** Verify fact model is tenant-scoped.
+- **TC-21.1.5 - Fact definitions are documented:** Verify fact definitions are documented.
+
+### Story 21.2: Rule Evaluation
+
+- **TC-21.2.1 - Rule evaluator returns a result state, explanation,:** Verify rule evaluator returns a result state, explanation, source rule ID, and facts used.
+- **TC-21.2.2 - Missing required facts produce insufficient information or:** Verify missing required facts produce insufficient information or needs review rather than a silent positive result.
+- **TC-21.2.3 - Rule evaluation is repeatable for the same:** Verify rule evaluation is repeatable for the same inputs.
+- **TC-21.2.4 - Evaluation results are tenant-scoped:** Verify evaluation results are tenant-scoped.
+- **TC-21.2.5 - Rule evaluator behavior is covered by automated:** Verify rule evaluator behavior is covered by automated tests.
+
+### Story 21.3: Obligation Applicability Updates
+
+- **TC-21.3.1 - Updating a relevant fact reevaluates affected obligations:** Verify updating a relevant fact reevaluates affected obligations.
+- **TC-21.3.2 - Dashboard displays the current applicability state:** Verify dashboard displays the current applicability state.
+- **TC-21.3.3 - Explanation shows source rule, facts used, and:** Verify explanation shows source rule, facts used, and missing facts when applicable.
+- **TC-21.3.4 - Prior result history is retained:** Verify prior result history is retained.
+- **TC-21.3.5 - Material changes from applicable to not applicable:** Verify material changes from applicable to not applicable or needs review are audit logged.
+
+## 22. SAM.gov Entity Lookup
+
+### Story 22.1: SAM.gov API Configuration
+
+- **TC-22.1.1 - SAM.gov API key is not stored in:** Verify SAM.gov API key is not stored in source control.
+- **TC-22.1.2 - Lookup service uses configured timeout and retry:** Verify lookup service uses configured timeout and retry behavior.
+- **TC-22.1.3 - API failures return a standard, user-safe error:** Verify API failures return a standard, user-safe error.
+- **TC-22.1.4 - Logs do not contain API keys or:** Verify logs do not contain API keys or sensitive response payloads.
+- **TC-22.1.5 - Adapter can be replaced or mocked in:** Verify adapter can be replaced or mocked in tests.
+
+### Story 22.2: Company Entity Lookup
+
+- **TC-22.2.1 - Search by UEI or legal business name:** Verify authorized user can search by UEI or legal business name.
+- **TC-22.2.2 - Search results show source and retrieved date:** Verify search results show source and retrieved date.
+- **TC-22.2.3 - Apply selected fields to the company profile:** Verify user can apply selected fields to the company profile.
+- **TC-22.2.4 - Existing profile values are not overwritten without:** Verify existing profile values are not overwritten without explicit user confirmation.
+- **TC-22.2.5 - Applied SAM data changes are audit logged:** Verify applied SAM data changes are audit logged.
+
+### Story 22.3: Subcontractor Entity Lookup
+
+- **TC-22.3.1 - Search SAM.gov for a subcontractor by UEI:** Verify authorized user can search SAM.gov for a subcontractor by UEI or name.
+- **TC-22.3.2 - Applied fields update only the current tenant's:** Verify applied fields update only the current tenant's subcontractor record.
+- **TC-22.3.3 - No-match and multiple-match results are shown without:** Verify no-match and multiple-match results are shown without changing existing data.
+- **TC-22.3.4 - Source and retrieved date are stored with:** Verify source and retrieved date are stored with applied data.
+- **TC-22.3.5 - Subcontractor SAM updates are audit logged:** Verify subcontractor SAM updates are audit logged.
+
+## 23. SBA Size Helper
+
+### Story 23.1: Size Standard Reference Data
+
+- **TC-23.1.1 - Approved size standard records include NAICS, metric,:** Verify approved size standard records include NAICS, metric, threshold, source URL, effective date, last reviewed date, and status.
+- **TC-23.1.2 - Draft records are not used in customer-facing:** Verify draft records are not used in customer-facing helper results.
+- **TC-23.1.3 - Import rejects records missing source metadata:** Verify import rejects records missing source metadata.
+- **TC-23.1.4 - Deprecated records remain visible to content reviewers:** Verify deprecated records remain visible to content reviewers.
+- **TC-23.1.5 - Import and approval actions are audit logged:** Verify import and approval actions are audit logged.
+
+### Story 23.2: Company Size Evaluation Helper
+
+- **TC-23.2.1 - Evaluation uses approved size standard records only:** Verify evaluation uses approved size standard records only.
+- **TC-23.2.2 - Missing revenue or employee inputs produce insufficient:** Verify missing revenue or employee inputs produce insufficient information.
+- **TC-23.2.3 - Results show NAICS, metric, threshold, entered value:** Verify results show NAICS, metric, threshold, entered value or range, source URL, and run date.
+- **TC-23.2.4 - Save evaluation results to the company profile:** Verify user can save evaluation results to the company profile.
+- **TC-23.2.5 - Saved evaluations are audit logged:** Verify saved evaluations are audit logged.
+
+### Story 23.3: Opportunity NAICS Size Check
+
+- **TC-23.3.1 - Run size check for a contract NAICS:** Verify user can run size check for a contract NAICS code.
+- **TC-23.3.2 - Result shows likely status, source standard, and:** Verify result shows likely status, source standard, and missing information when applicable.
+- **TC-23.3.3 - Expert-review recommended result can create a task:** Verify expert-review recommended result can create a task assigned to an owner.
+- **TC-23.3.4 - Evaluation history remains available from the contract:** Verify evaluation history remains available from the contract record.
+- **TC-23.3.5 - Size check actions are audit logged:** Verify size check actions are audit logged.
+
+## 24. Subcontractor Tracker Expansion
+
+### Story 24.1: Expanded Subcontractor Compliance Profile
+
+- **TC-24.1.1 - Create and update expanded subcontractor fields:** Verify authorized user can create and update expanded subcontractor fields.
+- **TC-24.1.2 - Profile completeness reflects required fields configured for:** Verify profile completeness reflects required fields configured for the tenant.
+- **TC-24.1.3 - Filters return only subcontractors in the current:** Verify filters return only subcontractors in the current tenant.
+- **TC-24.1.4 - Expiring insurance or certification dates can be:** Verify expiring insurance or certification dates can be surfaced in list filters.
+- **TC-24.1.5 - Sensitive field changes are audit logged:** Verify sensitive field changes are audit logged.
+
+### Story 24.2: Subcontractor Risk Status
+
+- **TC-24.2.1 - Risk status is calculated from documented inputs:** Verify risk status is calculated from documented inputs.
+- **TC-24.2.2 - Risk drivers are visible to authorized users:** Verify risk drivers are visible to authorized users.
+- **TC-24.2.3 - Updating evidence, insurance, NDA, CMMC status, or:** Verify updating evidence, insurance, NDA, CMMC status, or SAM data updates risk status.
+- **TC-24.2.4 - Missing or unknown data can produce needs:** Verify missing or unknown data can produce needs review.
+- **TC-24.2.5 - Risk calculation is covered by automated tests:** Verify risk calculation is covered by automated tests.
+
+### Story 24.3: Contract-Specific Subcontractor Obligations
+
+- **TC-24.3.1 - Link a subcontractor to a contract and:** Verify user can link a subcontractor to a contract and applicable flow-down obligations.
+- **TC-24.3.2 - Supplier obligations show owner, due date, status,:** Verify supplier obligations show owner, due date, status, and required evidence.
+- **TC-24.3.3 - Bulk creation uses accepted flow-down clauses only:** Verify bulk creation uses accepted flow-down clauses only.
+- **TC-24.3.4 - Supplier obligations are tenant-scoped:** Verify supplier obligations are tenant-scoped.
+- **TC-24.3.5 - Creation and status changes are audit logged:** Verify creation and status changes are audit logged.
+
+## 25. Policy Templates
+
+### Story 25.1: Approved Template Library
+
+- **TC-25.1.1 - Approved templates include title, category, version, source:** Verify approved templates include title, category, version, source references, owner, and last reviewed date.
+- **TC-25.1.2 - Draft templates are hidden from standard users:** Verify draft templates are hidden from standard users.
+- **TC-25.1.3 - Deprecated templates remain visible to content reviewers:** Verify deprecated templates remain visible to content reviewers.
+- **TC-25.1.4 - Template approval requires source and review metadata:** Verify template approval requires source and review metadata.
+- **TC-25.1.5 - Template lifecycle changes are audit logged:** Verify template lifecycle changes are audit logged.
+
+### Story 25.2: Generate Draft Policy From Template
+
+- **TC-25.2.1 - Generate a draft policy from an approved:** Verify user can generate a draft policy from an approved template.
+- **TC-25.2.2 - Placeholder values are populated from tenant data:** Verify placeholder values are populated from tenant data when available.
+- **TC-25.2.3 - Missing placeholder values are flagged for user:** Verify missing placeholder values are flagged for user completion.
+- **TC-25.2.4 - Generated policy stores source template version and:** Verify generated policy stores source template version and generation date.
+- **TC-25.2.5 - Generated policy is marked draft until approved:** Verify generated policy is marked draft until approved by the tenant.
+
+### Story 25.3: Policy Approval And Evidence Linking
+
+- **TC-25.3.1 - Approve, reject, or revise a draft policy:** Verify authorized user can approve, reject, or revise a draft policy.
+- **TC-25.3.2 - Approved policy records approver, approval date, source:** Verify approved policy records approver, approval date, source template, and review date.
+- **TC-25.3.3 - Approved policy can be linked to obligations:** Verify approved policy can be linked to obligations and controls as evidence.
+- **TC-25.3.4 - Revisions preserve prior approved versions:** Verify revisions preserve prior approved versions.
+- **TC-25.3.5 - Policy approval actions are audit logged:** Verify policy approval actions are audit logged.
+
+## 26. Evidence Request Workflows
+
+### Story 26.1: Evidence Request Creation
+
+- **TC-26.1.1 - Create an evidence request tied to a:** Verify authorized user can create an evidence request tied to a supported record type.
+- **TC-26.1.2 - Request stores requester, assignee, due date, status,:** Verify request stores requester, assignee, due date, status, instructions, and related record.
+- **TC-26.1.3 - Assignee receives notification:** Verify assignee receives notification.
+- **TC-26.1.4 - User cannot assign a request to a:** Verify user cannot assign a request to a user or subcontractor outside the tenant context.
+- **TC-26.1.5 - Request creation is audit logged:** Verify request creation is audit logged.
+
+### Story 26.2: Evidence Submission And Review
+
+- **TC-26.2.1 - Submit evidence to an open request:** Verify assignee can submit evidence to an open request.
+- **TC-26.2.2 - Upload submissions enforce CUI/data-handling guardrails and tenant:** Verify upload submissions enforce CUI/data-handling guardrails and tenant scope.
+- **TC-26.2.3 - Accept or return submitted evidence with comments:** Verify reviewer can accept or return submitted evidence with comments.
+- **TC-26.2.4 - Accepted evidence is linked to the related:** Verify accepted evidence is linked to the related requirement.
+- **TC-26.2.5 - Status changes and review decisions are audit:** Verify status changes and review decisions are audit logged.
+
+### Story 26.3: Evidence Request Dashboard
+
+- **TC-26.3.1 - Dashboard shows only evidence requests in the:** Verify dashboard shows only evidence requests in the current tenant.
+- **TC-26.3.2 - Filters return requests by status, due date,:** Verify filters return requests by status, due date, assignee, related type, and priority.
+- **TC-26.3.3 - Overdue requests are calculated from due date:** Verify overdue requests are calculated from due date and current status.
+- **TC-26.3.4 - Bulk reminders create notifications without changing request:** Verify bulk reminders create notifications without changing request status.
+- **TC-26.3.5 - Auditors can view approved or accepted evidence:** Verify auditors can view approved or accepted evidence request records but cannot modify them.
+
+## 27. CMMC Level 2 Readiness Expansion
+
+### Story 27.1: Level 2 Control Assessment Detail
+
+- **TC-27.1.1 - Update Level 2 control assessment detail:** Verify authorized user can update Level 2 control assessment detail.
+- **TC-27.1.2 - Control detail stores implementation, evidence, inherited, ESP:** Verify control detail stores implementation, evidence, inherited, ESP responsibility, notes, assessment date, and assessor.
+- **TC-27.1.3 - Status history is retained:** Verify status history is retained.
+- **TC-27.1.4 - Control updates are tenant-scoped:** Verify control updates are tenant-scoped.
+- **TC-27.1.5 - Control assessment updates are audit logged:** Verify control assessment updates are audit logged.
+
+### Story 27.2: Responsibility Matrix
+
+- **TC-27.2.1 - Assign responsible party for each Level 2:** Verify user can assign responsible party for each Level 2 control.
+- **TC-27.2.2 - Matrix shows control, responsibility type, owner, provider,:** Verify matrix shows control, responsibility type, owner, provider, evidence status, and notes.
+- **TC-27.2.3 - Controls marked external or shared require provider:** Verify controls marked external or shared require provider or responsibility notes.
+- **TC-27.2.4 - Responsibility changes are audit logged:** Verify responsibility changes are audit logged.
+- **TC-27.2.5 - Matrix export reflects current tenant data:** Verify matrix export reflects current tenant data.
+
+### Story 27.3: Readiness Gap Prioritization
+
+- **TC-27.3.1 - Gap priority is calculated from documented inputs:** Verify gap priority is calculated from documented inputs.
+- **TC-27.3.2 - Dashboard lists gaps by priority with reason:** Verify dashboard lists gaps by priority with reason codes.
+- **TC-27.3.3 - Create a POA&M item or task from:** Verify user can create a POA&M item or task from a gap.
+- **TC-27.3.4 - Priority recalculates when control or evidence status:** Verify priority recalculates when control or evidence status changes.
+- **TC-27.3.5 - Priority rules are covered by automated tests:** Verify priority rules are covered by automated tests.
+
+### Story 27.4: Level 2 Readiness Report
+
+- **TC-27.4.1 - Generate a Level 2 readiness report:** Verify authorized user can generate a Level 2 readiness report.
+- **TC-27.4.2 - Report includes control status, evidence status, gaps,:** Verify report includes control status, evidence status, gaps, POA&M items, responsibility matrix, source references, and generated date.
+- **TC-27.4.3 - Report contains no pass/fail certification language:** Verify report contains no pass/fail certification language.
+- **TC-27.4.4 - Report uses tenant-scoped data only:** Verify report uses tenant-scoped data only.
+- **TC-27.4.5 - Report generation is audit logged:** Verify report generation is audit logged.
+
+## 28. Extraction Content Test Set
+
+### Story 28.1: Curated Test Document Set
+
+- **TC-28.1.1 - Test corpus contains only public, synthetic, or:** Verify test corpus contains only public, synthetic, or explicitly approved non-CUI documents.
+- **TC-28.1.2 - Each labeled document includes expected clause citations:** Verify each labeled document includes expected clause citations and source locations when available.
+- **TC-28.1.3 - Test metadata identifies document type, source family,:** Verify test metadata identifies document type, source family, and limitations.
+- **TC-28.1.4 - Label set is reviewed before use as:** Verify label set is reviewed before use as a benchmark.
+- **TC-28.1.5 - Test set data handling rules are documented:** Verify test set data handling rules are documented.
+
+### Story 28.2: Precision And Recall Evaluation
+
+- **TC-28.2.1 - Evaluation metrics precision, recall, false positive, and:** Verify evaluation runner produces precision, recall, false positive, and false negative metrics.
+- **TC-28.2.2 - Results identify missed and extra clause detections:** Verify results identify missed and extra clause detections by document.
+- **TC-28.2.3 - Threshold failures are visible in CI or:** Verify threshold failures are visible in CI or scheduled test output.
+- **TC-28.2.4 - Metrics are stored or published for trend:** Verify metrics are stored or published for trend review.
+- **TC-28.2.5 - Evaluation can run without customer data:** Verify evaluation can run without customer data.
+
+### Story 28.3: Extraction Regression Review
+
+- **TC-28.3.1 - Each reviewed failure has a classification, owner,:** Verify each reviewed failure has a classification, owner, status, and resolution note.
+- **TC-28.3.2 - Follow-up tasks can be created from failures:** Verify follow-up tasks can be created from failures.
+- **TC-28.3.3 - Resolved failures are linked to matcher, library,:** Verify resolved failures are linked to matcher, library, parser, or label updates when applicable.
+- **TC-28.3.4 - Release summary shows open extraction risks and:** Verify release summary shows open extraction risks and metric trends.
+- **TC-28.3.5 - Regression review records are audit logged or:** Verify regression review records are audit logged or otherwise traceable.

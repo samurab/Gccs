@@ -1,6 +1,6 @@
 # Security Control Implications
 
-This document explains what tenant isolation, RBAC, audit logging, and No-CUI posture mean for GCCS implementation, testing, release readiness, and support. These controls are product requirements, not optional engineering preferences.
+This document explains what tenant isolation, RBAC, audit logging, and CUI-ready gated data handling mean for GCCS implementation, testing, release readiness, and support. These controls are product requirements, not optional engineering preferences.
 
 ## Control Summary
 
@@ -9,7 +9,7 @@ This document explains what tenant isolation, RBAC, audit logging, and No-CUI po
 | Tenant isolation | Every customer workspace is a hard data boundary. Users, advisors, reports, evidence, contracts, tasks, and audit events must resolve through the active tenant context. | A user from tenant A must never read, update, export, report on, or infer tenant B data through API calls, UI fallback state, background jobs, imports, exports, or search. |
 | RBAC | Roles decide what an authenticated tenant member can view, create, update, approve, export, or administer. | UI hiding is not security. Every protected action must be enforced server-side by permission policy. |
 | Audit logging | Compliance-relevant and security-relevant actions must leave a durable trail. | Create, update, delete, approval, rejection, invitation, membership, upload, export, report generation, ownership changes, and policy acknowledgement events must be audit logged. |
-| No-CUI posture | The MVP is compliance management only and is not approved to store CUI or other prohibited sensitive records. | Upload, import, paste, extraction, AI, evidence, and report workflows must warn, block when flagged, and avoid product copy that implies CUI-ready storage. |
+| CUI-ready gated posture | The MVP supports CUI-aware workflows by design, but real CUI acceptance is disabled unless the tenant or deployment is explicitly approved as CUI-ready. | Upload, import, paste, extraction, AI, evidence, and report workflows must classify data, enforce tenant data handling mode, block prohibited content, and avoid claims of certification, authorization, or assessment success. |
 
 ## Tenant Isolation Implications
 
@@ -46,22 +46,24 @@ Audit events must identify:
 Audit logging is required for:
 
 - Tenant creation, status changes, membership changes, and invitations.
-- No-CUI acknowledgement, upload allowed, upload blocked, upload delete, and future export/download events.
+- Data handling acknowledgement, upload allowed, upload blocked, upload delete, CUI classification, tenant mode changes, and future export/download events.
 - Company profile, contract, clause attachment/removal, obligation status/owner, task, evidence, CMMC, subcontractor, notification preference, and report generation changes.
 - Content import, review, approval, publication, retirement, and disputed content workflows.
 - Security-sensitive failures where logging does not leak another tenant's data.
 
 Audit logs must be append-only through normal application APIs. Corrections should be represented by new events, not mutation of historical events.
 
-## No-CUI Implications
+## CUI-Ready Gated Data Handling Implications
 
-- The product may track CUI posture, CUI access flags, and CMMC readiness metadata, but that does not authorize storing actual CUI.
-- Upload workflows must require current No-CUI acknowledgement before accepting metadata or files.
-- Users must see prohibited-content warnings near upload/import entry points.
-- If a user marks content as possible CUI or prohibited sensitive content, the MVP must block the upload.
+- The product may track CUI posture, CUI access flags, CMMC readiness metadata, CUI categories, and CUI marking guide metadata.
+- Tenant data handling mode must be explicit: `DemoSandbox`, `NoCui`, or `CuiReady`.
+- Upload workflows must require current data handling acknowledgement before accepting metadata or files.
+- Users must see prohibited-content warnings and tenant data handling status near upload/import entry points.
+- If a user marks content as possible or confirmed CUI in a tenant that is not approved as `CuiReady`, the workflow must block the upload.
+- Demo tenants may use synthetic or redacted CUI examples to show full workflow behavior without real CUI.
 - Contract packages, CUI marking guides, DD Form 254 references, wage determinations, evidence, screenshots, logs, and notes must be treated as high-risk intake surfaces.
-- Future OCR, document extraction, AI/RAG, search indexing, and report generation must not process prohibited data unless the platform has a separately approved CUI-ready architecture.
-- Customer-facing copy must not imply FedRAMP, GovCloud, CMMC certification, assessment success, legal approval, government endorsement, or CUI-ready storage unless formally approved.
+- Future OCR, document extraction, AI/RAG, search indexing, and report generation must enforce tenant data handling mode before processing real CUI.
+- Customer-facing copy must not imply FedRAMP, GovCloud, CMMC certification, assessment success, legal approval, government endorsement, or authorization to store real CUI unless formally approved.
 - Support must have an escalation path for accidental prohibited uploads, suspected CUI, tenant exposure concerns, and evidence/report export issues.
 
 ## Implementation Checklist
@@ -73,14 +75,14 @@ Before a feature is complete, answer yes to each applicable question:
 - Does the UI avoid showing actions the user cannot perform while still relying on the API for enforcement?
 - Are compliance-relevant or security-relevant mutations audit logged?
 - Does the audit event include useful metadata without storing prohibited sensitive content?
-- Does the workflow preserve No-CUI warnings and blocking controls for upload, import, paste, extraction, or evidence handling?
+- Does the workflow preserve data classification warnings, CUI gating, and blocking controls for upload, import, paste, extraction, or evidence handling?
 - Are reports and exports scoped to the tenant and filtered by the user's role?
 - Are background jobs, notifications, searches, and generated artifacts tenant-scoped?
-- Are direct API bypass, cross-tenant, denied-role, and No-CUI guardrail tests present where risk warrants?
+- Are direct API bypass, cross-tenant, denied-role, and CUI/data-handling guardrail tests present where risk warrants?
 
 ## Launch And Support Implications
 
-- Launch is blocked if tenant isolation, server-side RBAC, audit logging, or No-CUI upload controls are known to be ineffective for MVP workflows.
-- Production support must treat tenant isolation defects, unauthorized access, accidental prohibited uploads, and report/evidence exposure as security events.
-- Release notes must call out the No-CUI posture and known storage/scanning limitations.
+- Launch is blocked if tenant isolation, server-side RBAC, audit logging, or CUI gating controls are known to be ineffective for MVP workflows.
+- Production support must treat tenant isolation defects, unauthorized access, accidental prohibited uploads, accidental CUI uploads in unapproved tenants, and report/evidence exposure as security events.
+- Release notes must call out the tenant data handling posture and known storage/scanning limitations.
 - Any feature that changes what customer data can be stored, processed, searched, exported, or used by AI requires security and product review before release.

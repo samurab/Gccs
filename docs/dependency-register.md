@@ -78,8 +78,8 @@ This register identifies the known GCCS dependencies for local development, test
 | Dependency | Planned use | Status | Gate before enablement |
 | --- | --- | --- | --- |
 | Queue/background worker | Extraction, notifications, scanning, report jobs | Planned | Tenant-scoped job payloads, retry/poison handling, audit events. |
-| Search index | Compliance content and tenant document metadata search | Planned | Tenant isolation, No-CUI controls, source provenance. |
-| AI/RAG service | Draft-only clause explanations, evidence suggestions, summaries | Deferred | Source citations, logging, review workflow, No-CUI/CUI-ready decision. |
+| Search index | Compliance content and tenant document metadata search | Planned | Tenant isolation, CUI/data-handling controls, source provenance. |
+| AI/RAG service | Draft-only clause explanations, evidence suggestions, summaries | Deferred | Source citations, logging, review workflow, tenant CUI/data-handling decision. |
 | Email provider | Invitations, reminders, notifications | Placeholder/local only | Provider selection, secrets management, delivery failure handling. |
 | Production object storage | Evidence/document files | Planned | Encryption, malware scanning, retention/export/delete controls. |
 | Production malware scanner | Upload scanning | Planned | Real scanner integration or explicit launch exception. |
@@ -91,6 +91,6 @@ This register identifies the known GCCS dependencies for local development, test
 - Domain and application projects must not depend directly on EF Core, ASP.NET, React, object storage SDKs, queue SDKs, search SDKs, AI SDKs, or external API clients.
 - Infrastructure adapters own database, storage, cache, queue, search, AI, and external API implementation details.
 - Local-only credentials in `.env.example`, Docker Compose, and development appsettings must never be reused for production.
-- Any new dependency that stores, processes, searches, exports, or transmits customer data must be reviewed for tenant isolation, RBAC, audit logging, No-CUI posture, retention, and support impact.
+- Any new dependency that stores, processes, searches, exports, or transmits customer data must be reviewed for tenant isolation, RBAC, audit logging, CUI/data-handling posture, retention, and support impact.
 - Any dependency used for compliance content or AI output must preserve source URL, review metadata, confidence, and customer-facing limitations.
 - Production launch dependencies must appear in this register before launch approval.

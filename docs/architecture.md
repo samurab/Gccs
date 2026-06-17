@@ -2,9 +2,9 @@
 
 ## MVP Posture
 
-The first release is a No-CUI compliance management SaaS. Users should be prevented from uploading CUI until the platform has the right enclave design, customer terms, shared responsibility matrix, logging, access controls, and assessment posture.
+The first release is CUI-ready by design with gated CUI acceptance. Demo and sandbox tenants may use synthetic or redacted CUI workflows; real customer CUI must be blocked unless the tenant has approved CUI-ready status, customer terms, shared responsibility matrix, logging, access controls, and assessment posture.
 
-Tenant isolation, RBAC, audit logging, and No-CUI implications are defined in `docs/security-control-implications.md`. Architecture changes must preserve those controls across API requests, repositories, background jobs, imports, exports, reports, search, and future AI/RAG workflows.
+Tenant isolation, RBAC, audit logging, and CUI/data-handling implications are defined in `docs/security-control-implications.md`. Architecture changes must preserve those controls across API requests, repositories, background jobs, imports, exports, reports, search, and future AI/RAG workflows.
 
 Known runtime, local infrastructure, test, source-content, and deferred integration dependencies are registered in `docs/dependency-register.md`. New dependencies that store, process, search, export, or transmit customer data require review before release.
 
@@ -32,7 +32,7 @@ flowchart TB
     subgraph apiBoundary["Backend API Boundary"]
         api["ASP.NET Core API<br/>apps/api"]
         auth["Auth, MFA-ready access,<br/>RBAC, tenant context"]
-        uploadGuard["No-CUI upload guard<br/>file limits and warnings"]
+        uploadGuard["CUI/data-handling upload guard<br/>tenant mode, file limits, warnings"]
         audit["Immutable audit logging"]
     end
 
@@ -109,7 +109,7 @@ flowchart TB
     audit -. records sensitive actions .-> postgres
 ```
 
-The MVP deployment keeps the product in a No-CUI posture. Evidence upload, document intake, AI-assisted extraction, and external integrations must preserve tenant isolation, source traceability, and auditability before the platform is expanded into a CUI-ready enclave.
+The MVP deployment keeps the product CUI-ready by design while gating real CUI acceptance by tenant and deployment posture. Evidence upload, document intake, AI-assisted extraction, and external integrations must preserve tenant isolation, source traceability, auditability, and data handling controls before any tenant is approved to process real customer CUI.
 
 ## Frontend Strategy
 

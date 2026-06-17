@@ -2,7 +2,7 @@
 
 This document explains what each MVP sprint story does, how it fits into GCCS, and the value it adds to the project. It is written for product, engineering, QA, advisor, and stakeholder conversations.
 
-GCCS is a No-CUI govcon compliance management SaaS for small U.S. federal contractors and subcontractors. Its core promise is to help customers know what applies, prove what they did, and stay ready for audits, renewals, bids, certifications, and prime contractor reviews.
+GCCS is a CUI-ready govcon compliance management SaaS for small U.S. federal contractors and subcontractors. Its core promise is to help customers know what applies, prove what they did, and stay ready for audits, renewals, bids, certifications, and prime contractor reviews.
 
 ## Index
 
@@ -18,8 +18,8 @@ GCCS is a No-CUI govcon compliance management SaaS for small U.S. federal contra
 3. [Authenticated Application Shell](#3-authenticated-application-shell)
    - [Story 3.1: Protected API Access](#story-31-protected-api-access)
    - [Story 3.2: SaaS Navigation Shell](#story-32-saas-navigation-shell)
-4. [No-CUI Controls](#4-no-cui-controls)
-   - [Story 4.1: No-CUI Acknowledgement](#story-41-no-cui-acknowledgement)
+4. [CUI-Ready Gated Controls](#4-no-cui-controls)
+   - [Story 4.1: Data Handling Acknowledgement](#story-41-no-cui-acknowledgement)
    - [Story 4.2: Upload Guardrails](#story-42-upload-guardrails)
 5. [Audit Logging](#5-audit-logging)
    - [Story 5.1: Append-Only Audit Events](#story-51-append-only-audit-events)
@@ -91,7 +91,7 @@ This sprint area creates the engineering base that lets the team build safely an
 
 This story defines the project structure for the ASP.NET Core API, React/Vite web app, Clean Architecture source projects, compliance content package, docs, and infrastructure code. It makes clear where controllers, use cases, domain logic, infrastructure adapters, frontend code, and deployment assets belong.
 
-It fits the project by preventing the MVP from becoming a collection of mixed concerns. GCCS needs compliance logic to live in backend/domain/application layers, not only in UI screens, because obligation decisions, tenant boundaries, RBAC checks, and No-CUI rules must be enforceable server-side.
+It fits the project by preventing the MVP from becoming a collection of mixed concerns. GCCS needs compliance logic to live in backend/domain/application layers, not only in UI screens, because obligation decisions, tenant boundaries, RBAC checks, and CUI/data-handling rules must be enforceable server-side.
 
 The value is delivery clarity. New engineers can find the right place for changes, reviewers can enforce architectural boundaries, and the team can build govcon workflows without rewriting the foundation later.
 
@@ -179,20 +179,20 @@ It fits the project by giving users a stable way to move between company profile
 
 The value is usability. The first screen is the working dashboard, not marketing content, so pilot users can complete the end-to-end MVP workflow without needing engineering assistance.
 
-## 4. No-CUI Controls
+## 4. CUI-Ready Gated Controls
 
-This sprint area protects the MVP's declared No-CUI posture. It makes users acknowledge prohibited data rules and blocks unsafe upload behavior.
+This sprint area protects the MVP's declared CUI-ready gated posture. It makes users acknowledge prohibited data rules and blocks unsafe upload behavior.
 
 | Story | Pages, views, or docs added/changed |
 | --- | --- |
 | 4.1 | Upload-related onboarding notice shown in Contract document upload and Evidence upload views. |
 | 4.2 | Contract document upload and Evidence upload views; upload validation/error states. |
 
-### Story 4.1: No-CUI Acknowledgement
+### Story 4.1: Data Handling Acknowledgement
 
-This story displays a No-CUI notice before the first upload, disables upload until acknowledgement, stores the acknowledgement with tenant/user/timestamp/version, and audits the event.
+This story displays a data handling notice before the first upload, disables upload until acknowledgement, stores the acknowledgement with tenant/user/timestamp/version, and audits the event.
 
-It fits the project because the MVP is compliance management only and is not approved to store CUI, classified data, export-controlled technical data, or other prohibited sensitive records. Upload workflows are where that risk is most likely to occur.
+It fits the project because the MVP supports CUI-ready workflows with gated CUI acceptance, while real CUI upload is allowed only for approved CUI-ready tenants. Classified data, export-controlled technical data, and other prohibited sensitive records still require a separately approved deployment posture. Upload workflows are where that risk is most likely to occur.
 
 The value is risk reduction. The product creates a clear user-facing control and a record that the customer was warned before placing files into the platform.
 
@@ -317,9 +317,9 @@ The value is structured contract visibility. Customers can organize the basic fa
 
 ### Story 8.2: Contract Document Metadata And Upload
 
-This story attaches allowed non-CUI contract documents to a contract with document type, storage reference, validation status, scan status, and audit events. Uploads require No-CUI acknowledgement.
+This story attaches allowed contract documents to a contract with document type, storage reference, validation status, scan status, and audit events. Uploads require data handling acknowledgement.
 
-It fits the project because contracts, solicitations, flow-down attachments, and related documents are the inputs for clause tagging and obligation generation. The story connects file handling to the No-CUI controls.
+It fits the project because contracts, solicitations, flow-down attachments, and related documents are the inputs for clause tagging and obligation generation. The story connects file handling to the CUI/data-handling controls.
 
 The value is a safer contract intake path. Customers can store metadata and allowed documents while the platform blocks unsupported upload behavior.
 
@@ -453,9 +453,9 @@ The value is reusable proof. One policy, screenshot, attestation, or training re
 
 ### Story 12.2: Evidence File Upload
 
-This story handles evidence file uploads with No-CUI acknowledgement, validation and scan gating, version history, permissions, download/delete controls, and audit events.
+This story handles evidence file uploads with data handling acknowledgement, validation and scan gating, version history, permissions, download/delete controls, and audit events.
 
-It fits the project because customers need to attach actual artifacts, but file handling must honor the MVP No-CUI posture and security controls.
+It fits the project because customers need to attach actual artifacts, but file handling must honor the MVP CUI-ready gated posture and security controls.
 
 The value is controlled document proof. Users can upload allowed evidence, replace files without losing history, and ensure unvalidated files are not treated as usable evidence.
 
@@ -667,7 +667,7 @@ The value is operational maturity. The team can validate changes in a production
 
 ### Story 17.4: Production Readiness Checklist
 
-This story ensures launch cannot proceed until readiness checklist items are complete or approved. It documents known limitations, No-CUI boundaries, malware scanning limitations/path, support guidance, launch content review, and rollback testing.
+This story ensures launch cannot proceed until readiness checklist items are complete or approved. It documents known limitations, CUI/data-handling boundaries, malware scanning limitations/path, support guidance, launch content review, and rollback testing.
 
 It fits the project because GCCS operates in a regulated-market context where customer promises, data scope, content quality, security posture, support readiness, and rollback plans must be explicit.
 

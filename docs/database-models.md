@@ -1,6 +1,6 @@
 # Development Database Models
 
-These artifacts turn the MVP domain model into a migration-ready PostgreSQL schema for the development phase. The schema supports the current No-CUI posture and keeps CUI-ready concepts visible without making evidence storage production-authorized for CUI.
+These artifacts turn the MVP domain model into a migration-ready PostgreSQL schema for the development phase. The schema supports CUI-ready workflows while keeping real CUI storage tenant-gated until production authorization is approved.
 
 ## Artifact Set
 
@@ -59,7 +59,7 @@ Required fields, source systems, provenance rules, and deferred external integra
 
 | Group | Primary tables | Purpose |
 | --- | --- | --- |
-| Tenancy and RBAC | `tenants`, `users`, `tenant_memberships`, `tenant_invitations`, `no_cui_acknowledgements`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, explicit tenant membership assignments, invitation onboarding workflow, user-scoped No-CUI acknowledgement records, MFA-ready user profile, and role permissions. |
+| Tenancy and RBAC | `tenants`, `users`, `tenant_memberships`, `tenant_invitations`, `no_cui_acknowledgements`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, explicit tenant membership assignments, invitation onboarding workflow, user-scoped data handling acknowledgement records, MFA-ready user profile, and role permissions. |
 | Company profile | `company_profiles`, `company_naics_codes`, `company_certifications`, `company_locations` | SAM/SBA profile data, NAICS size support, certifications, locations, IT posture, and data handling posture. |
 | Compliance content | `clauses`, `obligations`, `mvp_modules` | Source-backed clause and obligation library with source URL, review metadata, confidence, and expert-review flags. |
 | Contract intake | `contracts`, `solicitations`, `contract_documents`, `contract_clauses`, `contract_clause_obligations`, `contract_deliverables`, `contract_reporting_deadlines` | Contract records, document metadata, extracted/manual clauses, obligations, deliverables, reporting dates, and flow-down signals. |

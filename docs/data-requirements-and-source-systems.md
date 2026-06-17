@@ -2,7 +2,7 @@
 
 This document identifies the MVP data fields GCCS needs, the source system or input source for each field, and the current implementation status. It is a product and engineering contract, not legal advice.
 
-The MVP remains **No-CUI / compliance management only**. Source documents, evidence, and notes must not contain CUI, classified data, export-controlled technical data, payroll records, SSNs, secrets, or other prohibited sensitive content unless a separately approved CUI-ready deployment exists.
+The MVP is **CUI-ready by design with gated CUI acceptance**. Source documents, evidence, and notes may use synthetic or redacted CUI in demo tenants. Real customer CUI is allowed only for approved CUI-ready tenants. Classified data, export-controlled technical data, payroll records, SSNs, secrets, and other prohibited sensitive content require a separately approved deployment posture.
 
 ## Source System Register
 
@@ -17,7 +17,7 @@ The MVP remains **No-CUI / compliance management only**. Source documents, evide
 | eCFR | 32 CFR Part 170 and other regulatory references | CMMC obligation source and governance review | Used as source URLs in obligation content |
 | DoD CMMC resources | CMMC program guidance and documentation references | CMMC readiness tracker and content review | Identified source; content requires SME review |
 | NIST CSRC | NIST SP 800-171 references | CMMC/NIST readiness context | Identified source; content requires SME review |
-| NARA CUI Registry | CUI category references | Data posture, CUI warnings, future CUI mapping | Identified source; MVP should not store CUI content |
+| NARA CUI Registry | CUI category references | Data posture, CUI warnings, CUI category mapping, and CUI-ready workflow support | Identified source; real CUI storage remains tenant-gated |
 | Tenant audit log | Actor, action, entity, timestamp, request metadata, summary | Traceability, reports, support review | Implemented append-only through application APIs |
 | Internal system clocks and schedulers | Reminder dates, overdue state, renewal lead times | Calendar, notifications, renewal task generation | Partly implemented for task/calendar workflows |
 
@@ -29,20 +29,20 @@ The MVP remains **No-CUI / compliance management only**. Source documents, evide
 | User membership | User ID, email, display name, role, membership status, tenant ID | Tenant admin invitation or membership workflow | Implemented |
 | User invitation | Email, role, expiration, token, status | Tenant admin entry and app-generated token | Implemented |
 | RBAC role | Role name and permission set | GCCS role catalog | Implemented |
-| No-CUI acknowledgement | Tenant ID, user ID, notice version, acknowledged timestamp | User acknowledgement and app policy | Implemented |
+| Data handling acknowledgement | Tenant ID, user ID, notice version, acknowledged timestamp, tenant data handling mode | User acknowledgement and app policy | Implemented for current acknowledgement flow; CUI-ready mode expansion required |
 | Company profile | Legal entity name, UEI, CAGE code, SAM expiration, at least one NAICS code, contractor role, products/services, employee range, revenue range, at least one location, IT environment summary, FCI/CUI posture | User entry; future assist from SAM.gov/GSA and SBA sources | Implemented validation for profile completion |
 | NAICS size status | NAICS code, title, primary flag, size standard, qualifies-as-small status | User entry; future assist from SBA size standards | Implemented in profile workflow |
 | Certification | Type, status, issuer/reference when available, effective date, expiration date | User entry; future assist from SBA/certification records where available | Implemented in profile workflow |
 | Contract record | Contract number, title, agency or prime, contractor relationship, contract type, status, place of performance, period of performance, data handling posture | User entry from solicitation, contract, subcontract, or purchase order | Implemented |
-| Contract document metadata | Document type, file name, content type, size, prohibited-content flag, No-CUI acknowledgement version | User upload metadata and upload guardrails | Implemented as metadata/guardrail workflow |
+| Contract document metadata | Document type, file name, content type, size, data classification, prohibited-content flag, acknowledgement version | User upload metadata and upload guardrails | Implemented as metadata/guardrail workflow; CUI-ready tenant gating required |
 | Contract clause attachment | Published clause library ID, attachment reason, source document reference when available | User manual tagging from contract package and governed clause library | Implemented |
 | Contract deliverable | Name, owner function, due date/status when known | User entry from contract/SOW | Implemented |
 | Obligation library item | Source, title, trigger condition, required actions, evidence examples, risk, owner function, source URL, last reviewed date, confidence, review state, flow-down flag | Governed compliance content package and SME review | Implemented for seeded content and publication metadata |
 | Contract obligation | Contract clause ID, obligation ID, status, owner user or role when assigned, due date when applicable | Generated from clause mapping and user assignment | Implemented |
 | Compliance task | Title, owner, linked entity type, linked entity ID for linked tasks, status, due date when applicable | Obligations, renewals, deliverables, evidence expiration, manual entry | Implemented |
 | Calendar event | Source module, title, owner, status, due date/date range, risk when available | Derived from tasks, renewals, deliverables, evidence, and CMMC records | Implemented |
-| Evidence metadata | Title, evidence type, owner, approval status, tags, expiration date when applicable, linked obligation/control/contract/vendor/subcontractor IDs when applicable | User entry and approved non-CUI evidence records | Implemented |
-| Evidence file metadata | File name, content type, file size, validation status, malware scan placeholder status, storage URI when enabled | Upload workflow and object storage adapter | Implemented as No-CUI guarded metadata; production storage maturity still pending |
+| Evidence metadata | Title, evidence type, owner, approval status, tags, expiration date when applicable, linked obligation/control/contract/vendor/subcontractor IDs when applicable | User entry and approved evidence records governed by tenant data handling mode | Implemented |
+| Evidence file metadata | File name, content type, file size, data classification, validation status, malware scan placeholder status, storage URI when enabled | Upload workflow and object storage adapter | Implemented as guarded metadata; CUI-ready tenant gating and production storage maturity still pending |
 | Evidence approval | Decision, reviewer, reviewed timestamp, rejection/request-changes reason when applicable | Authorized reviewer action | Implemented |
 | CMMC assessment | Name, framework, Level 1 or Level 2, owner, status, assessment dates, linked company/contract scope when available | User entry; source context from CMMC/NIST/32 CFR references | Implemented |
 | CMMC control readiness | Assessment ID, control ID, status, notes, linked evidence/tasks/assets/POA&M when available | CMMC baseline content and user readiness tracking | Implemented |
@@ -61,7 +61,7 @@ The MVP remains **No-CUI / compliance management only**. Source documents, evide
 - Derived fields such as completion percentage, overdue state, renewal reminders, report status, and CMMC progress must be reproducible from stored source records.
 - Imported or extracted fields must preserve provenance: source document, imported file/API, extraction timestamp, confidence, and human review state.
 - Customer-facing reports must expose source links and last-reviewed dates for obligation content and must distinguish tenant-entered facts from GCCS-governed content.
-- Any field that could indicate CUI, export-controlled data, classified data, payroll/PII, or security secrets must trigger No-CUI warnings or blocking controls in the MVP.
+- Any field that could indicate CUI, export-controlled data, classified data, payroll/PII, or security secrets must trigger data classification warnings and blocking controls based on tenant data handling mode.
 
 ## Deferred Source Integrations
 
@@ -72,7 +72,7 @@ The MVP remains **No-CUI / compliance management only**. Source documents, evide
 | Automated contract/clause extraction | Manual tagging is safer for MVP validation | Extraction evaluation set, precision/recall targets, confidence labels, human review workflow |
 | Wage determination lookup | Labor compliance has high complexity and risk | DOL/source integration design, labor SME review, data retention policy |
 | SPRS/CMMC external status import | Assessment/readiness claims require careful controls | Customer authorization, source limitations, CMMC SME review, audit trail |
-| CUI category mapping from NARA registry | MVP is No-CUI and must not invite CUI upload | CUI-ready architecture decision, intake controls, support process, shared responsibility matrix |
+| CUI category mapping from NARA registry | CUI-ready workflows need category support, but real CUI must remain tenant-gated | CUI-ready architecture decision, intake controls, support process, shared responsibility matrix |
 
 ## Release Checklist
 
@@ -80,4 +80,4 @@ The MVP remains **No-CUI / compliance management only**. Source documents, evide
 - Every external source has a named system, owner, update/review cadence, and limitation note before customer-facing use.
 - Every customer-visible obligation includes source URL, last reviewed date, confidence, review state, and owner/reviewer metadata.
 - Every report identifies whether data came from tenant entry, governed content, derived workflow state, or future external integration.
-- No-CUI controls are present anywhere users upload, import, paste, or describe source documents/evidence.
+- Data classification and CUI gating controls are present anywhere users upload, import, paste, or describe source documents/evidence.

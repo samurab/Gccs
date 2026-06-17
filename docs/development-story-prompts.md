@@ -6,7 +6,7 @@ These prompts are designed to be copied into a fresh implementation thread, one 
 
 Use these requirements for every story:
 
-- Treat the MVP as **No-CUI / compliance management only**.
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 - Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 - Read the referenced story, tasks, and acceptance criteria before editing.
@@ -21,43 +21,43 @@ Use these requirements for every story:
 ### Story 1.1: Repository And Project Structure
 ## Done ##
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run. 
-  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 > Context:
 >
 > - Epic: Delivery Foundation
@@ -69,67 +69,67 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 > - A new developer can identify where frontend, backend, domain, persistence, infrastructure, and compliance content live.
 > - The solution builds locally with documented commands.
 > - No compliance workflow logic is embedded only in the UI.
-> - Documentation points to the No-CUI MVP posture.
+> - Documentation points to the CUI-ready gated MVP posture.
 >
-> Implement Story 1.1, "Repository And Project Structure," from `docs/development-phase-use-cases.md`. Confirm and improve the solution organization across `apps/api`, `apps/web`, `src/Gccs.Domain`, `src/Gccs.Application`, `src/Gccs.Infrastructure`, `packages/compliance-content`, `docs`, and `infra`. Update documentation so a new developer understands ownership boundaries, local setup, build commands, and the No-CUI MVP posture. Verify the solution builds cleanly and ensure compliance workflow logic is not trapped only in the UI.
+> Implement Story 1.1, "Repository And Project Structure," from `docs/development-phase-use-cases.md`. Confirm and improve the solution organization across `apps/api`, `apps/web`, `src/Gccs.Domain`, `src/Gccs.Application`, `src/Gccs.Infrastructure`, `packages/compliance-content`, `docs`, and `infra`. Update documentation so a new developer understands ownership boundaries, local setup, build commands, and the CUI-ready gated MVP posture. Verify the solution builds cleanly and ensure compliance workflow logic is not trapped only in the UI.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 ### Story 1.2: Local Development Services
 ## Done ##
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run. 
-  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 > Context:
 >
 > - Epic: Delivery Foundation
@@ -145,21 +145,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 1.2, "Local Development Services," from `docs/development-phase-use-cases.md`. Configure or refine local PostgreSQL, Redis, object storage, and malware-scanning placeholder services; add health checks, environment examples, and local reset/migration documentation. Ensure startup failures for missing configuration are clear and that no production secrets are committed.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -169,42 +169,42 @@ After this implementation the project will have CI implemented and CD planned/do
 
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 > Context:
 >
 > - Epic: Delivery Foundation
@@ -219,21 +219,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 > - Security scan failures are visible to reviewers.
 >
 > Implement Story 1.3, "Continuous Integration Baseline," from `docs/development-phase-use-cases.md`. Add CI validation for dependency restore, backend build, frontend build, linting, unit tests, integration tests, migration validation, and available dependency or secret scans. Make failure output actionable for reviewers and ensure failing validation blocks merge.
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 
 #-----------------------------------------
@@ -243,42 +243,42 @@ Instructions:
 ### Story 2.1: Tenant Creation
 ## Done ##
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -295,63 +295,63 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 2.1, "Tenant Creation," from `docs/development-phase-use-cases.md`. Add the tenant persistence model, API contract, tenant status values, tenant-owned entity scoping, tenant filtering in repositories/services, initial tenant creation support, and audit logging for tenant creation/status changes. Add tests proving one tenant cannot retrieve another tenant's data.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
 ### Story 2.2: User Memberships
 ## Done ##
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.  
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -368,63 +368,63 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 2.2, "User Memberships," from `docs/development-phase-use-cases.md`. Model users, tenant memberships, membership status, duplicate prevention, tenant-scoped member listing, and UI for viewing members. Ensure membership changes are audit logged and users only see memberships for the active tenant.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
 ### Story 2.3: User Invitations
 ## Done ##
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -442,63 +442,63 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 2.3, "User Invitations," from `docs/development-phase-use-cases.md`. Add invitation tokens, role assignment, expiration, pending/accepted/expired/revoked states, create/accept/expire/revoke workflows, a local email or notification placeholder, and invitation UI states. Enforce admin-only invitation creation and audit all invitation actions.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
 ### Story 2.4: Role-Based Permissions
 ## Done ##
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -516,21 +516,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 2.4, "Role-Based Permissions," from `docs/development-phase-use-cases.md`. Define owner, admin, compliance manager, contributor, auditor, and advisor roles; map permissions across profile, contracts, obligations, tasks, evidence, reports, subcontractors, and admin actions; enforce authorization server-side; hide restricted UI actions; and add permission tests, including auditor read-only behavior.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -539,42 +539,42 @@ Instructions:
 ### Story 3.1: Protected API Access
 ## Done ##
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
 First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
- Important product rules: 
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -591,63 +591,63 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 3.1, "Protected API Access," from `docs/development-phase-use-cases.md`. Add authentication middleware or a development auth shim, current tenant/user resolution, consistent API error responses, and request correlation IDs. Protected endpoints must reject unauthenticated requests and return clear errors when tenant context is missing.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
 ### Story 3.2: SaaS Navigation Shell
 ## Done ##
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -664,97 +664,97 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 3.2, "SaaS Navigation Shell," from `docs/development-phase-use-cases.md`. Build the authenticated workspace layout with route placeholders for dashboard, profile, contracts, obligations, calendar, evidence, CMMC, subcontractors, reports, and settings. Include keyboard-accessible, role-aware navigation plus loading, empty, and error states.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
-## 4. No-CUI Controls
+## 4. CUI-Ready Gated Controls
 
-### Story 4.1: No-CUI Acknowledgement
+### Story 4.1: Data Handling Acknowledgement
 ## Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
-> - Epic: No-CUI Controls
+> - Epic: CUI-Ready Gated Controls
 >
 > - User story: As a user, I want to understand the upload limitation before using the product so that I know what content is prohibited.
 >
 > - Acceptance criteria:
 >
-> - User sees a No-CUI notice before first upload.
+> - User sees a data handling notice before first upload.
 > - User must acknowledge the notice before upload is enabled.
 > - Acknowledgement is audit logged.
-> - Notice copy states that the MVP is compliance management only and is not ready to store CUI.
+> - Notice copy states that the MVP supports CUI-ready workflows with gated CUI acceptance and that real CUI upload requires approved CUI-ready tenant status.
 >
-> Implement Story 4.1, "No-CUI Acknowledgement," from `docs/development-phase-use-cases.md`. Add No-CUI notice content to onboarding and upload flows, require acknowledgement before upload, store acknowledgement by user/tenant/timestamp/notice version, expose acknowledgement status, and audit the acknowledgement. The copy must clearly state the MVP is compliance management only and not ready to store CUI.
+> Implement Story 4.1, "Data Handling Acknowledgement," from `docs/development-phase-use-cases.md`. Add data handling notice content to onboarding and upload flows, require acknowledgement before upload, store acknowledgement by user/tenant/timestamp/notice version, expose acknowledgement status, and audit the acknowledgement. The copy must clearly state the MVP supports CUI-ready workflows with gated CUI acceptance and that real CUI upload requires approved CUI-ready tenant status.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -762,46 +762,46 @@ Instructions:
 ## Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
-> - Epic: No-CUI Controls
+> - Epic: CUI-Ready Gated Controls
 >
 > - User story: As a security lead, I want upload controls so that prohibited or risky files are blocked early.
 >
@@ -815,21 +815,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 4.2, "Upload Guardrails," from `docs/development-phase-use-cases.md`. Add allowed file type and size validation server-side, malware scan status placeholder, rejected upload messages, and tests for file type and size handling. Failed validation or scan states must not create usable evidence, and upload failures must be audit logged.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -839,42 +839,42 @@ Instructions:
 ## Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -891,21 +891,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 5.1, "Append-Only Audit Events," from `docs/development-phase-use-cases.md`. Model append-only audit events with tenant, actor, action, entity type, entity ID, timestamp, request metadata, and before/after summaries where useful. Add an application-level audit writer, protect events from normal editing, surface critical audit failures, and test audit creation for sensitive actions.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -913,42 +913,42 @@ Instructions:
 ## Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 > Context:
 >
 > - Epic: Audit Logging
@@ -964,21 +964,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 5.2, "Audit Log Viewer," from `docs/development-phase-use-cases.md`. Add a tenant-scoped audit log query endpoint with pagination and filters, plus a UI table showing date, actor, action, entity, and summary. Restrict access to configured admin/owner/advisor roles and test that unauthorized users cannot access audit logs.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -988,42 +988,42 @@ Instructions:
 ## Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.  
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -1040,21 +1040,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 6.1, "Obligation Schema," from `docs/development-phase-use-cases.md`. Define or refine clause, source reference, obligation, evidence example, applicability dimension, and review metadata models. Enforce required source URL, last reviewed date, trigger logic, required actions, owner, risk, confidence, flow-down requirement, and expert review metadata before publication, with tests for invalid content.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1062,42 +1062,42 @@ Instructions:
 ## Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.  
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -1114,21 +1114,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 6.2, "Content Import," from `docs/development-phase-use-cases.md`. Create or improve the seed/import process for `packages/compliance-content`, validate JSON schema before import, make imports idempotent, and add import logs/failure reporting. Verify valid content imports, invalid content fails clearly, and source/review metadata is preserved.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1136,42 +1136,42 @@ Instructions:
 ## Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -1188,21 +1188,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 6.3, "Content Review State," from `docs/development-phase-use-cases.md`. Add draft, in_review, approved, published, and retired states; restrict customer-facing views to published content; require reviewer/date for expert-review-required publication; support retiring content; and audit content state changes.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1212,42 +1212,42 @@ Instructions:
 ## Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.  
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -1264,21 +1264,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 7.1, "Create Company Profile," from `docs/development-phase-use-cases.md`. Build the API and UI for company profile creation and update, including legal entity name, UEI, CAGE code, SAM expiration, NAICS, SBA size status, certifications, agency customers, role, products/services, employee and revenue ranges, locations, IT summary, and FCI/CUI posture. Add validation, draft saves, profile detail, completion percentage, and audit events.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1286,42 +1286,42 @@ Instructions:
 ## Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -1338,21 +1338,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 7.2, "NAICS And Size Status," from `docs/development-phase-use-cases.md`. Add multiple NAICS codes to the company profile, primary NAICS selection, per-NAICS size status and basis, and profile gap warnings for missing size status. Ensure the behavior is tenant scoped and covered by validation tests.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1360,42 +1360,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.  
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -1412,21 +1412,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 7.3, "Certification Tracking," from `docs/development-phase-use-cases.md`. Add certification tracking for 8(a), WOSB, EDWOSB, HUBZone, SDVOSB, SDB, and custom certifications with issuing body, status, effective/expiration dates, and evidence links. Generate renewal tasks, flag expired/expiring certifications, show them on the dashboard, and audit changes.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1436,42 +1436,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.  
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -1488,21 +1488,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 8.1, "Create Contract Record," from `docs/development-phase-use-cases.md`. Build contract API and UI support for contract number, agency/prime, contract type, role, status, period of performance, place of performance, description, and data handling posture. Support draft/active states, tenant-scoped list/detail pages, key dates, and audit logging for create/update actions.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1510,73 +1510,73 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed. 
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
 > - Epic: Contract Intake
 >
-> - User story: As a contracts admin, I want to upload non-CUI contract documents and record document metadata so that source materials are available for review.
+> - User story: As a contracts admin, I want to upload allowed contract documents and record document metadata so that source materials are available for review.
 >
 > - Acceptance criteria:
 >
-> - Upload is disabled until No-CUI acknowledgement is complete.
+> - Upload is disabled until data handling acknowledgement is complete.
 > - File metadata is linked to the contract.
 > - Disallowed files are rejected.
 > - Upload and delete actions are audit logged.
 >
-> Implement Story 8.2, "Contract Document Metadata And Upload," from `docs/development-phase-use-cases.md`. Add contract document metadata for solicitation, contract, subcontract, purchase order, SOW, flow-down attachment, wage determination, DD Form 254 metadata, and CUI marking guide metadata. Integrate No-CUI acknowledgement, file metadata, object storage reference, scan/validation status, rejection handling, and audit logging for upload/delete.
+> Implement Story 8.2, "Contract Document Metadata And Upload," from `docs/development-phase-use-cases.md`. Add contract document metadata for solicitation, contract, subcontract, purchase order, SOW, flow-down attachment, wage determination, DD Form 254 metadata, and CUI marking guide metadata. Integrate data handling acknowledgement, file metadata, object storage reference, scan/validation status, rejection handling, and audit logging for upload/delete.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1584,42 +1584,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.  
+After implementation, run the appropriate xUnit test for .NET and Vitest, paired with the React Testing Library lint/test/build commands, and report what passed or failed.
 
 > Context:
 >
@@ -1636,21 +1636,21 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 >
 > Implement Story 8.3, "Contract Dates And Deliverables," from `docs/development-phase-use-cases.md`. Add deliverable and deadline models, UI for owner/due date/status/description, calendar task linking, overdue handling, and audit logging. Deliverables must appear on contract detail and in the compliance calendar.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1660,9 +1660,9 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
 > Context:
 >
 > - Epic: Manual Clause Tagging
@@ -1678,21 +1678,21 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 >
 > Implement Story 9.1, "Clause Library Search," from `docs/development-phase-use-cases.md`. Add clause search with filters for FAR, DFARS, CMMC, labor, telecom, ByteDance, and custom categories. Build the UI search/selection pattern and show source URL plus last reviewed date. Only published clauses should be mappable, and draft content must never leak into customer search results.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1700,42 +1700,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -1752,21 +1752,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 9.2, "Attach Clause To Contract," from `docs/development-phase-use-cases.md`. Add the contract-clause relationship, attachment reason, source document reference, duplicate prevention, and remove-with-reason workflow. Ensure add/remove actions are tenant scoped and audit logged.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1774,42 +1774,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -1826,21 +1826,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 9.3, "Generate Obligations From Clause," from `docs/development-phase-use-cases.md`. Map clauses to obligation templates and generate contract-specific obligation instances, including default tasks where required. Preserve source URL, owner, action, evidence examples, risk, confidence, review metadata, contract, and clause links. Make generation idempotent and tested.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1850,42 +1850,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -1902,21 +1902,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 10.1, "Obligation List And Filters," from `docs/development-phase-use-cases.md`. Add a tenant-scoped obligation list endpoint and dashboard/work queue with filters for contract, risk, owner, status, due date, module, and source. Make overdue and high-risk obligations easy to identify and include an empty state that guides users to profile or contract intake.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1924,42 +1924,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -1976,21 +1976,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 10.2, "Obligation Detail," from `docs/development-phase-use-cases.md`. Build obligation detail API and UI showing plain-English summary, trigger, required action, owner, evidence examples, flow-down requirement, source link, confidence, last reviewed date, expert review flag, linked tasks/evidence, and status update workflow. Audit all status changes.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -1998,42 +1998,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 > Context:
 >
 > - Epic: Obligation Dashboard
@@ -2049,21 +2049,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 10.3, "Ownership Assignment," from `docs/development-phase-use-cases.md`. Add user and role owner assignment for obligation instances, UI assignment controls, dashboard updates, authorization checks, optional notification emission, and audit logging for assignment changes.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2073,42 +2073,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
-Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -2125,21 +2125,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 11.1, "Task Management," from `docs/development-phase-use-cases.md`. Build task model/API and workflows to create, update, complete, and reopen tasks linked to obligations, contracts, controls, evidence, subcontractors, or certifications. Include owner, due date, status, priority, reminder date, notes, tenant scoping, and audit logging.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2147,42 +2147,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 > Context:
 >
 > - Epic: Task And Compliance Calendar
@@ -2198,21 +2198,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 11.2, "Calendar View," from `docs/development-phase-use-cases.md`. Add a calendar endpoint aggregating tasks, renewals, deliverables, and reviews, plus a month/list/agenda UI with filters by owner, status, risk, contract, and module. Overdue items should be visually distinct and all data tenant scoped.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2220,42 +2220,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -2272,21 +2272,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 11.3, "Renewal Generation," from `docs/development-phase-use-cases.md`. Generate renewal tasks from SAM expiration, certification expiration, evidence expiration, insurance expiration, policy review, and CMMC affirmation dates. Add configurable or default lead times, duplicate prevention, source record links, and due-date calculation tests.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2296,42 +2296,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -2348,21 +2348,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 12.1, "Evidence Metadata," from `docs/development-phase-use-cases.md`. Add evidence metadata with title, type, owner, approval status, expiration date, tags, description, and source links. Support relationships to obligations, controls, contracts, vendors, subcontractors, employees, and reports; build list/detail views; validate metadata; generate expiration tasks; and audit metadata changes.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2370,73 +2370,73 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
 > - Epic: Evidence Vault
 >
-> - User story: As a contributor, I want to upload approved non-CUI evidence files so that compliance proof is attached to the right work.
+> - User story: As a contributor, I want to upload approved allowed evidence files so that compliance proof is attached to the right work.
 >
 > - Acceptance criteria:
 >
-> - Upload requires No-CUI acknowledgement.
+> - Upload requires data handling acknowledgement.
 > - Files are not marked usable until validation and scan state allow it.
 > - New file uploads create versions instead of overwriting history.
 > - Upload, download, and delete actions are audit logged.
 >
-> Implement Story 12.2, "Evidence File Upload," from `docs/development-phase-use-cases.md`. Add file upload to evidence records with No-CUI acknowledgement, allowed file types, size limits, malware scan status, file version metadata, and download permissions. Files must not be usable until validation and scan state allow it, and upload/download/delete actions must be audit logged.
+> Implement Story 12.2, "Evidence File Upload," from `docs/development-phase-use-cases.md`. Add file upload to evidence records with data handling acknowledgement, allowed file types, size limits, malware scan status, file version metadata, and download permissions. Files must not be usable until validation and scan state allow it, and upload/download/delete actions must be audit logged.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2444,42 +2444,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -2496,21 +2496,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 12.3, "Evidence Approval," from `docs/development-phase-use-cases.md`. Add evidence states for draft, submitted, approved, rejected, expired, and archived; implement approval/rejection with comments; restrict approval to authorized roles; show approval state in obligation/report views; require rejection reasons; and audit approval decisions.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2520,42 +2520,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -2572,21 +2572,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 13.1, "CMMC Level Selection," from `docs/development-phase-use-cases.md`. Add CMMC assessment model/API/UI with target level, status, assessment date, affirmation due date, responsible owner, Level 1/Level 2 choices, company/contract links, workspace summary, progress calculation, and audit logging.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2594,42 +2594,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -2646,21 +2646,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 13.2, "Control Readiness," from `docs/development-phase-use-cases.md`. Load Level 1 controls and Level 2 readiness mappings, add control statuses, link controls to evidence/tasks/assets/POA&M items, build a control detail page, show source baseline, and roll status into assessment progress.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2668,42 +2668,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -2720,21 +2720,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 13.3, "POA&M Items," from `docs/development-phase-use-cases.md`. Add POA&M items linked to controls with gap, remediation plan, owner, due date, risk, and status. Link POA&M items to tasks, surface open/overdue counts in CMMC summary and calendar, and audit changes.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2742,42 +2742,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -2794,21 +2794,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 13.4, "Annual Affirmation Tracker," from `docs/development-phase-use-cases.md`. Add CMMC affirmation last/due dates, renewal task generation, evidence links, dashboard warnings for upcoming affirmations, calendar visibility, reminders, and audit logging.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2818,42 +2818,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -2870,21 +2870,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 14.1, "Subcontractor Profile," from `docs/development-phase-use-cases.md`. Add subcontractor model/API/UI with legal name, point of contact, role, small business status, CMMC status, insurance expiration, NDA status, CUI access flag, export-control flag, workshare percentage, list/detail pages, contract links, and audit logging.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2892,42 +2892,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -2944,21 +2944,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 14.2, "Flow-Down Clause Tracking," from `docs/development-phase-use-cases.md`. Add subcontractor flow-down relationships, assignment from contract obligations, status tracking for required/sent/acknowledged/signed/waived/not_applicable, signed evidence links, by-subcontractor and by-contract visibility, and audit logging.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -2966,9 +2966,9 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.  
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
 > Context:
 >
 > - Epic: Subcontractor Flow-Down Tracker
@@ -2984,21 +2984,21 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 >
 > Implement Story 14.3, "Subcontractor Evidence Requests," from `docs/development-phase-use-cases.md`. Add evidence requests for subcontractors with requested item, due date, status, recipient, linked obligation, internal MVP workflow, overdue tracking, calendar visibility, received evidence links, and tenant-safe access.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3008,42 +3008,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3060,21 +3060,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 15.1, "Compliance Status Report," from `docs/development-phase-use-cases.md`. Define report snapshots and generate a tenant-scoped compliance status report with obligation status, overdue tasks, evidence status, CMMC progress, subcontractor gaps, high-risk items, timestamp, HTML or PDF export for MVP, and audit logging.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3082,42 +3082,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3134,21 +3134,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 15.2, "Contract Obligation Matrix," from `docs/development-phase-use-cases.md`. Build the contract-level obligation matrix query/UI/export with clause, source, obligation, owner, status, risk, due date, evidence, flow-down requirement, source links, and last reviewed dates. Ensure exported data matches on-screen data.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3156,42 +3156,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3208,21 +3208,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 15.3, "CMMC Readiness Report," from `docs/development-phase-use-cases.md`. Generate a role-protected CMMC readiness report with target level, control statuses, evidence links the user can access, POA&M items, open gaps, affirmation dates, progress by family/category, export, and report snapshot history.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3230,42 +3230,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3282,21 +3282,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 15.4, "Evidence Package," from `docs/development-phase-use-cases.md`. Let authorized users generate evidence packages scoped by obligations, contract, CMMC controls, or subcontractor. Include approved evidence by default, support explicit authorized inclusion of draft/rejected evidence if required, produce a metadata manifest, provide a read-only package view, and audit generation.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3304,42 +3304,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3356,21 +3356,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 15.5, "Subcontractor Compliance Report," from `docs/development-phase-use-cases.md`. Generate tenant-scoped subcontractor reports with profile status, flow-down status, CMMC status, insurance expiration, NDA status, evidence requests, overdue items, contract filter, risk summary, and export.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3380,42 +3380,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3432,21 +3432,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 16.1, "Notification Preferences," from `docs/development-phase-use-cases.md`. Add notification preferences for assignments, due soon, overdue, evidence requests, certification renewals, and CMMC affirmation. Include defaults by role, UI settings, tenant-aware preference behavior, validation, and audit logging.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3454,42 +3454,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3506,21 +3506,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 16.2, "Due-Date Reminders," from `docs/development-phase-use-cases.md`. Add an idempotent reminder job that finds upcoming and overdue tasks based on configured lead time, emits in-app notifications and an email placeholder, separates overdue reminders, and logs delivery failures.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3528,42 +3528,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3580,21 +3580,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 16.3, "Assignment Notifications," from `docs/development-phase-use-cases.md`. Emit notifications when tasks, obligations, POA&M items, or evidence requests are assigned; add a notification center UI; support marking notifications as read; link notifications to source records; and enforce authorization when opening linked records.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3604,42 +3604,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3656,21 +3656,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 17.1, "End-To-End Pilot Workflow," from `docs/development-phase-use-cases.md`. Create a representative pilot tenant and users for owner, admin, compliance manager, contributor, auditor, and advisor. Exercise onboarding, profile, contract intake, clause tagging, obligations, calendar, evidence upload, CMMC, subcontractors, reports, and notifications with non-CUI data. Fix release blockers and add regression coverage for the happy path.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3678,42 +3678,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3730,21 +3730,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 17.2, "Security And Tenant Isolation Verification," from `docs/development-phase-use-cases.md`. Add automated security tests for cross-tenant access, server-side RBAC denial, direct API calls that bypass hidden UI controls, tenant-owned query filtering, and audit logging for sensitive workflows. Document security test results.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3752,42 +3752,42 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
 
 > Context:
 >
@@ -3804,21 +3804,21 @@ After implementation, run the appropriate lint/test/build commands and report wh
 >
 > Implement Story 17.3, "Staging Environment," from `docs/development-phase-use-cases.md`. Provision or document production-like staging for API, web app, database, object storage, cache, queue, and secrets. Automate migrations, configure logs, health checks, basic alerts, and staging smoke tests. Ensure staging deploys from CI/CD and contains no production customer data.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
 
 #-----------------------------------------
 
@@ -3826,43 +3826,43 @@ Instructions:
 ### Done ##
 
 Prompt:
-You are helping me build a Government Contractor Compliance SaaS application.  
+You are helping me build a Government Contractor Compliance SaaS application.
 
-First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files. 
- Important product rules: 
+First, read the Agile/Scrum plan, API specification, SQL schema, architecture files, and use-case document in this workspace. Then summarize the current implementation state, identify the next Scrum story that should be built, and propose a small implementation plan before editing files.
+ Important product rules:
 
-- This is a multi-tenant SaaS. 
+- This is a multi-tenant SaaS.
 
-- Tenant isolation is mandatory. 
+- Tenant isolation is mandatory.
 
-- RBAC must be enforced on tenant-scoped actions. 
+- RBAC must be enforced on tenant-scoped actions.
 
-- Compliance-relevant events must be audit logged. 
+- Compliance-relevant events must be audit logged.
 
-- CUI upload policy must be enforced. 
+- CUI upload policy must be enforced.
 
-- Features should follow the acceptance criteria in the Agile/Scrum plan. 
+- Features should follow the acceptance criteria in the Agile/Scrum plan.
 
-- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant. 
+- Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **No-CUI / compliance management only**. 
+- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
 
-- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata. 
+- Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
-- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package. 
+- Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 
-- Read the referenced story, tasks, and acceptance criteria before editing. 
+- Read the referenced story, tasks, and acceptance criteria before editing.
 
-- Keep changes scoped to the story unless a small supporting change is required. 
+- Keep changes scoped to the story unless a small supporting change is required.
 
-- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior. 
+- Add or update tests according to risk, especially for tenant boundaries, authorization, validation, and audit behavior.
 
-- Update docs, API contracts, seed content, or UI states when the behavior changes. 
+- Update docs, API contracts, seed content, or UI states when the behavior changes.
 
-- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.  
+- Verify the relevant build/test commands before handing off, or clearly report anything that could not be run.
 
-After implementation, run the appropriate lint/test/build commands and report what passed or failed. 
- 
+After implementation, run the appropriate lint/test/build commands and report what passed or failed.
+
 > Context:
 >
 > - Epic: MVP Hardening And Release Readiness
@@ -3876,20 +3876,794 @@ After implementation, run the appropriate lint/test/build commands and report wh
 > - Launch content has source URLs and review metadata.
 > - Rollback plan is documented and tested in staging.
 >
-> Implement Story 17.4, "Production Readiness Checklist," from `docs/development-phase-use-cases.md`. Create the MVP production readiness checklist covering No-CUI notice, terms, support path, prohibited upload guidance, backups, restore test, logs, alerts, rollback plan, malware scanning path or limitation, expert-reviewed content, release notes, known limitations, source URLs, review metadata, and staging rollback verification.
+> Implement Story 17.4, "Production Readiness Checklist," from `docs/development-phase-use-cases.md`. Create the MVP production readiness checklist covering data handling notice, terms, support path, prohibited upload guidance, backups, restore test, logs, alerts, rollback plan, malware scanning path or limitation, expert-reviewed content, release notes, known limitations, source URLs, review metadata, and staging rollback verification.
 
-Instructions: 
+Instructions:
 
-1. Inspect the existing codebase, schema, API spec, and use-case docs before editing. 
+1. Inspect the existing codebase, schema, API spec, and use-case docs before editing.
 
-2. Reuse existing project patterns and avoid broad refactors. 
+2. Reuse existing project patterns and avoid broad refactors.
 
-3. Implement the smallest complete vertical slice that satisfies the acceptance criteria. 
+3. Implement the smallest complete vertical slice that satisfies the acceptance criteria.
 
-4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable. 
+4. Enforce tenant scoping, RBAC, validation, and audit logging where applicable.
 
-5. Add or update tests for the behavior. 
+5. Add or update tests for the behavior.
 
-6. Update API/schema/docs only if the implementation changes the contract. 
+6. Update API/schema/docs only if the implementation changes the contract.
 
-7. Run the relevant verification commands and summarize results. 
+7. Run the relevant verification commands and summarize results.
+
+#-----------------------------------------
+
+### Phase 2 ###
+
+Use the shared prompt requirements above for every Phase 2 story. Each story prompt below is intended to be copied into a fresh implementation thread after the prior story has been completed and verified.
+
+## 18. Automated Clause Extraction
+
+### Story 18.1: Extraction Job Intake
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for automated clause extraction and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Automated Clause Extraction
+> - User story: As a compliance manager, I want to start clause extraction from a contract document so that the system can analyze the document asynchronously.
+> - Acceptance criteria:
+> - User with contract edit permission can start extraction for a document in the current tenant.
+> - User without contract edit permission receives a server-side authorization error.
+> - Extraction job stores tenant ID, source document ID, requester ID, status, and timestamps.
+> - Starting extraction for another tenant's document is denied.
+> - Extraction job creation is audit logged.
+
+Implement Story 18.1, "Extraction Job Intake," from `docs/development-phase-use-cases.md`. Add the extraction job model, API endpoint, queue/background worker stub, contract document UI action, and audit events for job creation, completion, and failure. Preserve tenant isolation, RBAC, validation, audit logging, and the CUI-ready gated MVP posture. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+### Story 18.2: Text Extraction And Clause Candidate Detection
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing extraction job code, upload policy, document storage, clause library, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Automated Clause Extraction
+> - User story: As a compliance manager, I want the system to detect clause candidates from contract text so that I can review likely matches before applying them.
+> - Acceptance criteria:
+> - Supported text documents produce clause candidates when recognizable clause references are present.
+> - Each candidate includes source document, normalized citation, raw extracted text, confidence, and location metadata when available.
+> - Exact matches link to the corresponding clause library record.
+> - Unsupported or unreadable documents produce a failed job with a user-visible reason.
+> - Extracted text and candidates remain tenant-scoped.
+
+Implement Story 18.2, "Text Extraction And Clause Candidate Detection," from `docs/development-phase-use-cases.md`. Extract text from MVP-allowed non-CUI formats, detect FAR/DFARS/agency/local clause references, store clause candidates with normalized citation and metadata, link exact or high-confidence library matches, and handle unsupported or unreadable documents with safe failure states. Add tests for parsing, tenant scoping, library matching, and failure handling, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+### Story 18.3: Extraction Results Review Screen
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the extraction job/candidate APIs, contract document detail UI, clause tagging workflow, audit behavior, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Automated Clause Extraction
+> - User story: As a compliance manager, I want to see extraction results beside the source contract so that I can decide which clauses to accept.
+> - Acceptance criteria:
+> - User can view extraction results for documents in the current tenant.
+> - Results show citation, confidence, match status, review status, and source location when available.
+> - Accepted candidates create reviewed contract clause links only after user action.
+> - Rejected candidates remain visible in extraction history and do not create contract clause links.
+> - Candidate edits and review decisions are audit logged.
+
+Implement Story 18.3, "Extraction Results Review Screen," from `docs/development-phase-use-cases.md`. Add result lists, filters, candidate detail, accept/reject/edit/link actions, empty/processing/failed/completed states, and contract detail status/counts. Ensure accepted candidates create contract clause links only after explicit review. Add backend and React tests for permissions, tenant scoping, review actions, states, and audit behavior, then run verification.
+
+#-----------------------------------------
+
+## 19. Human Review Workflow
+
+### Story 19.1: Review States For Extracted Clauses
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect extraction candidate models, services, APIs, UI review flows, permissions, audit logging, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Human Review Workflow
+> - User story: As a compliance manager, I want extracted clauses to move through explicit review states so that unreviewed results cannot be treated as authoritative.
+> - Acceptance criteria:
+> - New extraction candidates default to pending review.
+> - Only users with clause review permission can accept or reject candidates.
+> - Accepted candidates record reviewer, reviewed date, and decision note when provided.
+> - Rejected and superseded candidates do not generate obligations.
+> - Review state transitions are audit logged.
+
+Implement Story 19.1, "Review States For Extracted Clauses," from `docs/development-phase-use-cases.md`. Add explicit review states, reviewer metadata, allowed transition enforcement, review filters, and audit events. Prevent rejected or superseded candidates from generating obligations. Add focused tests for state transitions, authorization, audit logging, and tenant isolation, then run verification.
+
+#-----------------------------------------
+
+### Story 19.2: AI-Suggested Obligation Review
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect obligation models, obligation dashboards/reports, AI or suggestion placeholders, content review patterns, audit logging, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Human Review Workflow
+> - User story: As a compliance SME, I want AI-suggested obligations to require review before publication so that draft content is not shown as approved compliance guidance.
+> - Acceptance criteria:
+> - AI-suggested obligations are stored with source references, confidence, and draft status.
+> - Draft suggestions are not included in approved obligation dashboards or reports.
+> - Reviewer can approve, revise, reject, or escalate a suggestion.
+> - Approved suggestions record reviewer, approval date, and source citations.
+> - Rejected suggestions remain in review history and are audit logged.
+
+Implement Story 19.2, "AI-Suggested Obligation Review," from `docs/development-phase-use-cases.md`. Model suggested obligations separately from approved obligations, store generation/source metadata, add approve/revise/reject/escalate workflow, label suggestions as draft, and exclude draft suggestions from approved customer dashboards and reports. Add tests for review states, report exclusion, audit logging, and permissions, then run verification.
+
+#-----------------------------------------
+
+### Story 19.3: Expert Escalation Queue
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect review workflows, notification patterns, permissions, audit logging, queue/list UI patterns, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Human Review Workflow
+> - User story: As a compliance content owner, I want uncertain clause and obligation decisions escalated to experts so that high-risk interpretations receive qualified review.
+> - Acceptance criteria:
+> - Reviewer can escalate a candidate or suggested obligation with a required reason.
+> - Escalated items appear in an expert review queue.
+> - Assigned expert receives a notification.
+> - Resolution records decision, reviewer, date, and notes.
+> - Escalated items cannot be published as approved until resolved.
+
+Implement Story 19.3, "Expert Escalation Queue," from `docs/development-phase-use-cases.md`. Add an expert review queue for clause candidates and suggested obligations with priority, topic, assignment, due date, escalation reasons, resolution workflow, filters, and notifications. Block publication until escalation is resolved. Add tests for escalation requirements, queue scoping, notifications, publication blocking, and audit/traceability, then run verification.
+
+#-----------------------------------------
+
+## 20. Clause Library Expansion
+
+### Story 20.1: Versioned Clause Records
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect clause library models, seed/import content, APIs, UI, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Clause Library Expansion
+> - User story: As a compliance content owner, I want clauses to be versioned so that changes to source text or interpretation are traceable.
+> - Acceptance criteria:
+> - Clause records include citation, title, source URL, status, last reviewed date, and review owner.
+> - Approved versions can be used for extraction matching and obligation mapping.
+> - Deprecated or superseded versions are visible in history but not selected by default for new mappings.
+> - Clause version changes preserve prior version history.
+> - Clause changes are audit logged.
+
+Implement Story 20.1, "Versioned Clause Records," from `docs/development-phase-use-cases.md`. Add version fields, lifecycle statuses, supersedes relationships, curated import/update workflow, clause detail/version history UI and API, and audit events for create/update/approval/deprecation. Add tests for version history, default selection, approved-only matching/mapping, metadata validation, and audit logging, then run verification.
+
+#-----------------------------------------
+
+### Story 20.2: Clause Search And Discovery
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect clause library data, search patterns, permissions, UI list patterns, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Clause Library Expansion
+> - User story: As a contracts user, I want to search the clause library by citation, title, source, and obligation area so that I can quickly find the correct clause.
+> - Acceptance criteria:
+> - Search by exact citation returns the matching approved clause when present.
+> - Search by title or keyword returns relevant approved clauses.
+> - Filters narrow results by source family, obligation area, and flow-down relevance.
+> - Results show source URL, status, and last reviewed date.
+> - Draft or under-review clauses are hidden from standard users unless they have content review permission.
+
+Implement Story 20.2, "Clause Search And Discovery," from `docs/development-phase-use-cases.md`. Add searchable fields, source/area/risk/flow-down filters, tenant-safe approved-content search API, and UI results with source, status, confidence, last reviewed date, empty states, and reviewer-only draft visibility. Add tests for exact citation search, keyword search, filters, permissions, and hidden draft content, then run verification.
+
+#-----------------------------------------
+
+### Story 20.3: Clause-To-Obligation Mapping
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect clause library, obligation templates, contract obligation generation, review metadata, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Clause Library Expansion
+> - User story: As a compliance content owner, I want clauses mapped to approved obligation templates so that accepted clauses can generate consistent obligations.
+> - Acceptance criteria:
+> - Approved clause mapping can generate an obligation for a contract.
+> - Mapping requires trigger condition, required action, source URL, confidence, and review metadata before approval.
+> - Draft mappings cannot generate customer-visible approved obligations.
+> - Mapping changes preserve history.
+> - Mapping approval and changes are audit logged.
+
+Implement Story 20.3, "Clause-To-Obligation Mapping," from `docs/development-phase-use-cases.md`. Add clause-version-to-obligation-template mappings with trigger, actions, owner, evidence examples, deadlines, flow-down, risk, confidence, expert review flag, approval workflow, validation, history, and UI. Add tests for approved-only generation, required metadata validation, draft exclusion, history, tenant scoping, and audit logging, then run verification.
+
+#-----------------------------------------
+
+## 21. Applicability Engine
+
+### Story 21.1: Applicability Facts Model
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect company, contract, clause, subcontractor, obligation, and CMMC domain models; persistence patterns; docs; tests; and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Applicability Engine
+> - User story: As a developer, I want a structured facts model so that applicability decisions can be computed consistently.
+> - Acceptance criteria:
+> - Applicability facts can be derived from existing company, contract, clause, and subcontractor records.
+> - Unknown facts are represented explicitly instead of inferred as false.
+> - Each fact records source record and last updated date when available.
+> - Fact model is tenant-scoped.
+> - Fact definitions are documented.
+
+Implement Story 21.1, "Applicability Facts Model," from `docs/development-phase-use-cases.md`. Define tenant-scoped facts for company profile, NAICS, certifications, agency, contract type, role, performance location, data type, labor category, clause, subcontractor role, and CUI/FCI indicators. Store provenance, source record, update timestamps, unknown values, and validation. Document fact definitions and sources. Add tests for derivation, unknown handling, provenance, and tenant scoping, then run verification.
+
+#-----------------------------------------
+
+### Story 21.2: Rule Evaluation
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect applicability facts, obligation generation, compliance content metadata, application service patterns, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Applicability Engine
+> - User story: As a compliance manager, I want rules evaluated against facts so that obligations are marked applicable, not applicable, or needs review.
+> - Acceptance criteria:
+> - Rule evaluator returns a result state, explanation, source rule ID, and facts used.
+> - Missing required facts produce insufficient information or needs review rather than a silent positive result.
+> - Rule evaluation is repeatable for the same inputs.
+> - Evaluation results are tenant-scoped.
+> - Rule evaluator behavior is covered by automated tests.
+
+Implement Story 21.2, "Rule Evaluation," from `docs/development-phase-use-cases.md`. Add deterministic rule format with conditions, source, confidence, effective date, and review metadata; implement evaluator result states; store explanations and facts used; and cover FAR, DFARS, CMMC, SAM/SBA, and flow-down patterns. Add tests for repeatability, missing facts, state outputs, explanations, tenant scoping, and rule metadata, then run verification.
+
+#-----------------------------------------
+
+### Story 21.3: Obligation Applicability Updates
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect obligation dashboards, company/contract/subcontractor update flows, clause mappings, rule versions, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Applicability Engine
+> - User story: As a compliance manager, I want obligation applicability to update when relevant facts change so that dashboards stay current.
+> - Acceptance criteria:
+> - Updating a relevant fact reevaluates affected obligations.
+> - Dashboard displays the current applicability state.
+> - Explanation shows source rule, facts used, and missing facts when applicable.
+> - Prior result history is retained.
+> - Material changes from applicable to not applicable or needs review are audit logged.
+
+Implement Story 21.3, "Obligation Applicability Updates," from `docs/development-phase-use-cases.md`. Trigger reevaluation on relevant fact, mapping, data type, subcontractor, or rule version changes; store current and prior applicability results; add dashboard indicators and explanation panel; and audit material changes. Add tests for change triggers, result history, dashboard state, explanations, tenant scoping, and audit logging, then run verification.
+
+#-----------------------------------------
+
+## 22. SAM.gov Entity Lookup
+
+### Story 22.1: SAM.gov API Configuration
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect infrastructure configuration, secrets handling, HTTP adapter patterns, health checks, logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SAM.gov Entity Lookup
+> - User story: As a developer, I want SAM.gov API access configured securely so that entity lookup can run without exposing secrets.
+> - Acceptance criteria:
+> - SAM.gov API key is not stored in source control.
+> - Lookup service uses configured timeout and retry behavior.
+> - API failures return a standard, user-safe error.
+> - Logs do not contain API keys or sensitive response payloads.
+> - Adapter can be replaced or mocked in tests.
+
+Implement Story 22.1, "SAM.gov API Configuration," from `docs/development-phase-use-cases.md`. Add secure configuration for SAM.gov base URL, API key, timeout, retries, and rate limits; create service interface and infrastructure adapter; add safe diagnostics/health behavior; and standardize user-safe errors. Add tests for configuration, mocking, failures, retry/timeout handling, and secret redaction, then run verification.
+
+#-----------------------------------------
+
+### Story 22.2: Company Entity Lookup
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect company profile APIs/UI, SAM.gov adapter, audit logging, conflict handling patterns, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SAM.gov Entity Lookup
+> - User story: As a tenant admin, I want to search SAM.gov by UEI or legal business name so that I can verify company registration details.
+> - Acceptance criteria:
+> - Authorized user can search by UEI or legal business name.
+> - Search results show source and retrieved date.
+> - User can apply selected fields to the company profile.
+> - Existing profile values are not overwritten without explicit user confirmation.
+> - Applied SAM data changes are audit logged.
+
+Implement Story 22.2, "Company Entity Lookup," from `docs/development-phase-use-cases.md`. Add company lookup form and API, show matched legal name, UEI, CAGE, status, expiration, address, and NAICS data, allow explicit selected-field application with source metadata and conflict confirmation, and audit applied changes. Add tests for authorization, no-overwrite behavior, source metadata, tenant scoping, and audit logging, then run verification.
+
+#-----------------------------------------
+
+### Story 22.3: Subcontractor Entity Lookup
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect subcontractor profile APIs/UI, SAM.gov adapter, tenant scoping, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SAM.gov Entity Lookup
+> - User story: As a subcontractor manager, I want to enrich subcontractor profiles with SAM.gov data so that supplier compliance tracking starts from official entity records.
+> - Acceptance criteria:
+> - Authorized user can search SAM.gov for a subcontractor by UEI or name.
+> - Applied fields update only the current tenant's subcontractor record.
+> - No-match and multiple-match results are shown without changing existing data.
+> - Source and retrieved date are stored with applied data.
+> - Subcontractor SAM updates are audit logged.
+
+Implement Story 22.3, "Subcontractor Entity Lookup," from `docs/development-phase-use-cases.md`. Add subcontractor SAM lookup, display entity status, UEI, CAGE, expiration, NAICS, and exclusion/status indicators when available, support selected-field application, store source metadata, and handle no-match/multiple-match safely. Add tests for tenant scoping, authorization, no-change result states, metadata, and audit logging, then run verification.
+
+#-----------------------------------------
+
+## 23. SBA Size Helper
+
+### Story 23.1: Size Standard Reference Data
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect compliance content import patterns, reference data models, content review metadata, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SBA Size Helper
+> - User story: As a compliance content owner, I want SBA size standard reference data loaded with source metadata so that size helper calculations are traceable.
+> - Acceptance criteria:
+> - Approved size standard records include NAICS, metric, threshold, source URL, effective date, last reviewed date, and status.
+> - Draft records are not used in customer-facing helper results.
+> - Import rejects records missing source metadata.
+> - Deprecated records remain visible to content reviewers.
+> - Import and approval actions are audit logged.
+
+Implement Story 23.1, "Size Standard Reference Data," from `docs/development-phase-use-cases.md`. Define SBA size standard data fields, import workflow, content review states, required source metadata validation, and audit events. Ensure only approved records feed customer-facing helper results. Add tests for import validation, approval states, deprecated visibility, approved-only usage, and audit logging, then run verification.
+
+#-----------------------------------------
+
+### Story 23.2: Company Size Evaluation Helper
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect company profile, NAICS data, size reference records, UI form patterns, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SBA Size Helper
+> - User story: As a tenant admin, I want to compare my company profile values against size standards so that I can identify likely small-business status by NAICS.
+> - Acceptance criteria:
+> - Evaluation uses approved size standard records only.
+> - Missing revenue or employee inputs produce insufficient information.
+> - Results show NAICS, metric, threshold, entered value or range, source URL, and run date.
+> - User can save evaluation results to the company profile.
+> - Saved evaluations are audit logged.
+
+Implement Story 23.2, "Company Size Evaluation Helper," from `docs/development-phase-use-cases.md`. Add NAICS selection and annual receipts/employee range inputs, evaluate against approved size standards, return likely small/other than small/insufficient information/expert review recommended, display required source context and disclaimer, and support saving results to the profile. Add tests for approved-only data, missing inputs, result labels, saved metadata, tenant scoping, and audit logging, then run verification.
+
+#-----------------------------------------
+
+### Story 23.3: Opportunity NAICS Size Check
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect contract/opportunity models, company size evaluations, task creation, audit logging, UI detail views, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SBA Size Helper
+> - User story: As a proposal manager, I want to check an opportunity or contract NAICS code against company data so that I can flag size-status questions early.
+> - Acceptance criteria:
+> - User can run size check for a contract NAICS code.
+> - Result shows likely status, source standard, and missing information when applicable.
+> - Expert-review recommended result can create a task assigned to an owner.
+> - Evaluation history remains available from the contract record.
+> - Size check actions are audit logged.
+
+Implement Story 23.3, "Opportunity NAICS Size Check," from `docs/development-phase-use-cases.md`. Add a contract/opportunity size check action, compare NAICS against company inputs and approved standards, show source-backed results and missing data, support task creation for expert review, and store evaluation history on the contract. Add tests for results, task creation, history, tenant scoping, permissions, and audit logging, then run verification.
+
+#-----------------------------------------
+
+## 24. Subcontractor Tracker Expansion
+
+### Story 24.1: Expanded Subcontractor Compliance Profile
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect subcontractor domain models, APIs, UI list/detail views, filters, validation, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Subcontractor Tracker Expansion
+> - User story: As a subcontractor manager, I want richer subcontractor profile fields so that supplier compliance risk can be assessed consistently.
+> - Acceptance criteria:
+> - Authorized user can create and update expanded subcontractor fields.
+> - Profile completeness reflects required fields configured for the tenant.
+> - Filters return only subcontractors in the current tenant.
+> - Expiring insurance or certification dates can be surfaced in list filters.
+> - Sensitive field changes are audit logged.
+
+Implement Story 24.1, "Expanded Subcontractor Compliance Profile," from `docs/development-phase-use-cases.md`. Add UEI, CAGE, NAICS, size/certification, insurance, NDA, CUI access, export-control, CMMC, workshare, and owner fields; add validation, completeness indicator, filters, and sensitive-change audit events. Add tests for create/update, validation, filters, tenant scoping, completeness, and audit logging, then run verification.
+
+#-----------------------------------------
+
+### Story 24.2: Subcontractor Risk Status
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect subcontractor profiles, evidence/flow-down/SAM/CMMC data, risk or status patterns, UI list/detail views, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Subcontractor Tracker Expansion
+> - User story: As a compliance manager, I want subcontractor risk status calculated from key compliance signals so that I can prioritize follow-up.
+> - Acceptance criteria:
+> - Risk status is calculated from documented inputs.
+> - Risk drivers are visible to authorized users.
+> - Updating evidence, insurance, NDA, CMMC status, or SAM data updates risk status.
+> - Missing or unknown data can produce needs review.
+> - Risk calculation is covered by automated tests.
+
+Implement Story 24.2, "Subcontractor Risk Status," from `docs/development-phase-use-cases.md`. Define risk inputs for flow-downs, insurance, NDA, CUI/CMMC, overdue evidence, SAM status, and expert review; calculate low/medium/high/needs review; show drivers; recalculate when signals change; and document the rule inputs. Add tests for risk rules, updates, unknowns, visibility, and tenant scoping, then run verification.
+
+#-----------------------------------------
+
+### Story 24.3: Contract-Specific Subcontractor Obligations
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect contracts, subcontractors, flow-down clauses, obligations, evidence requests, APIs/UI, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Subcontractor Tracker Expansion
+> - User story: As a subcontractor manager, I want to connect subcontractors to contract-specific obligations so that supplier requirements are tracked by contract.
+> - Acceptance criteria:
+> - User can link a subcontractor to a contract and applicable flow-down obligations.
+> - Supplier obligations show owner, due date, status, and required evidence.
+> - Bulk creation uses accepted flow-down clauses only.
+> - Supplier obligations are tenant-scoped.
+> - Creation and status changes are audit logged.
+
+Implement Story 24.3, "Contract-Specific Subcontractor Obligations," from `docs/development-phase-use-cases.md`. Add relationships between subcontractor, contract, flow-down clause, obligation, and evidence request; display supplier obligations on contract and subcontractor detail; support owner/due/status/evidence fields and bulk creation from accepted flow-down clauses only. Add tests for linking, bulk creation, accepted-only behavior, tenant scoping, status changes, and audit logging, then run verification.
+
+#-----------------------------------------
+
+## 25. Policy Templates
+
+### Story 25.1: Approved Template Library
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect compliance content library patterns, policy/evidence areas, review metadata, APIs/UI, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Policy Templates
+> - User story: As a compliance content owner, I want policy templates managed with review metadata so that only approved templates are available to customers.
+> - Acceptance criteria:
+> - Approved templates include title, category, version, source references, owner, and last reviewed date.
+> - Draft templates are hidden from standard users.
+> - Deprecated templates remain visible to content reviewers.
+> - Template approval requires source and review metadata.
+> - Template lifecycle changes are audit logged.
+
+Implement Story 25.1, "Approved Template Library," from `docs/development-phase-use-cases.md`. Add template model, placeholders, source references, versioning, lifecycle statuses, owner/review metadata, expert review flag, preview/version history, approval validation, and lifecycle audit events. Add tests for approved-only visibility, reviewer visibility, required metadata, version history, permissions, and audit logging, then run verification.
+
+#-----------------------------------------
+
+### Story 25.2: Generate Draft Policy From Template
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect approved template library, company/contract/obligation/CMMC data, evidence vault or policy area, APIs/UI, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Policy Templates
+> - User story: As a compliance manager, I want to generate a draft policy from an approved template so that I can tailor it for my company.
+> - Acceptance criteria:
+> - User can generate a draft policy from an approved template.
+> - Placeholder values are populated from tenant data when available.
+> - Missing placeholder values are flagged for user completion.
+> - Generated policy stores source template version and generation date.
+> - Generated policy is marked draft until approved by the tenant.
+
+Implement Story 25.2, "Generate Draft Policy From Template," from `docs/development-phase-use-cases.md`. Add template selection, placeholder population from tenant context, missing value flags, generated draft policy storage with source template version/date, and edit/save workflow. Add tests for approved-template-only generation, placeholder population, missing values, draft status, tenant scoping, and permissions, then run verification.
+
+#-----------------------------------------
+
+### Story 25.3: Policy Approval And Evidence Linking
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect generated policies, evidence linking, obligations, CMMC controls, reports, approval/audit patterns, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Policy Templates
+> - User story: As a compliance manager, I want approved policies linked to obligations and controls so that they can be reused as evidence.
+> - Acceptance criteria:
+> - Authorized user can approve, reject, or revise a draft policy.
+> - Approved policy records approver, approval date, source template, and review date.
+> - Approved policy can be linked to obligations and controls as evidence.
+> - Revisions preserve prior approved versions.
+> - Policy approval actions are audit logged.
+
+Implement Story 25.3, "Policy Approval And Evidence Linking," from `docs/development-phase-use-cases.md`. Add tenant policy approval states and metadata, link approved policies to obligations, controls, and evidence packages, track expiration/review dates, preserve revisions, include approved policies in reports, and audit approval/rejection/revision actions. Add tests for approval permissions, linking, revision history, report inclusion, tenant scoping, and audit logging, then run verification.
+
+#-----------------------------------------
+
+## 26. Evidence Request Workflows
+
+### Story 26.1: Evidence Request Creation
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect evidence vault, obligations, controls, contracts, subcontractors, notifications, permissions, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Evidence Request Workflows
+> - User story: As a compliance manager, I want to create evidence requests tied to obligations, controls, contracts, or subcontractors so that each request has context and a due date.
+> - Acceptance criteria:
+> - Authorized user can create an evidence request tied to a supported record type.
+> - Request stores requester, assignee, due date, status, instructions, and related record.
+> - Assignee receives notification.
+> - User cannot assign a request to a user or subcontractor outside the tenant context.
+> - Request creation is audit logged.
+
+Implement Story 26.1, "Evidence Request Creation," from `docs/development-phase-use-cases.md`. Add evidence request model, create workflows from supported views, validation for assignee/due date/related record permissions, assignment notifications, and audit events. Add tests for supported record types, assignment boundaries, tenant scoping, notification creation, validation, permissions, and audit logging, then run verification.
+
+#-----------------------------------------
+
+### Story 26.2: Evidence Submission And Review
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect evidence requests, evidence upload guardrails, evidence linking, notifications, permissions, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Evidence Request Workflows
+> - User story: As an assignee, I want to submit evidence to a request so that the requester can review whether it satisfies the requirement.
+> - Acceptance criteria:
+> - Assignee can submit evidence to an open request.
+> - Upload submissions enforce CUI/data-handling guardrails and tenant scope.
+> - Reviewer can accept or return submitted evidence with comments.
+> - Accepted evidence is linked to the related requirement.
+> - Status changes and review decisions are audit logged.
+
+Implement Story 26.2, "Evidence Submission And Review," from `docs/development-phase-use-cases.md`. Add submission workflow for existing evidence and new allowed uploads, statuses for open/submitted/accepted/returned/overdue/canceled, reviewer comments and return reasons, accepted evidence linking, and notifications. Add tests for assignee submission, CUI/data-handling enforcement, reviewer decisions, linking, notifications, tenant scoping, and audit logging, then run verification.
+
+#-----------------------------------------
+
+### Story 26.3: Evidence Request Dashboard
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect evidence request data, dashboards/list patterns, role permissions, notifications, reports/exports, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Evidence Request Workflows
+> - User story: As a compliance manager, I want a dashboard of evidence requests so that I can track overdue, submitted, accepted, and blocked requests.
+> - Acceptance criteria:
+> - Dashboard shows only evidence requests in the current tenant.
+> - Filters return requests by status, due date, assignee, related type, and priority.
+> - Overdue requests are calculated from due date and current status.
+> - Bulk reminders create notifications without changing request status.
+> - Auditors can view approved or accepted evidence request records but cannot modify them.
+
+Implement Story 26.3, "Evidence Request Dashboard," from `docs/development-phase-use-cases.md`. Add dashboard list and filters, overdue calculation, bulk reminders, export/report section, and role-aware requester/assignee/auditor/advisor views. Add tests for filters, overdue logic, tenant scoping, bulk reminders, auditor read-only behavior, and notification creation, then run verification.
+
+#-----------------------------------------
+
+## 27. CMMC Level 2 Readiness Expansion
+
+### Story 27.1: Level 2 Control Assessment Detail
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect CMMC control models, assessment UI/API, evidence status, history/audit patterns, validation, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: CMMC Level 2 Readiness Expansion
+> - User story: As a security owner, I want detailed Level 2 control assessment fields so that readiness is tracked beyond simple status.
+> - Acceptance criteria:
+> - Authorized user can update Level 2 control assessment detail.
+> - Control detail stores implementation, evidence, inherited, ESP responsibility, notes, assessment date, and assessor.
+> - Status history is retained.
+> - Control updates are tenant-scoped.
+> - Control assessment updates are audit logged.
+
+Implement Story 27.1, "Level 2 Control Assessment Detail," from `docs/development-phase-use-cases.md`. Add detailed assessment objective, implementation, evidence, inherited, ESP responsibility, notes, assessment date, and assessor fields; update Level 2 control detail UI; validate statuses; retain history; and audit updates. Add tests for update permissions, validation, history, tenant scoping, and audit logging, then run verification.
+
+#-----------------------------------------
+
+### Story 27.2: Responsibility Matrix
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect CMMC control ownership patterns, evidence requests, exports/reports, UI table patterns, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: CMMC Level 2 Readiness Expansion
+> - User story: As a security owner, I want a responsibility matrix for internal teams and external service providers so that CMMC control ownership is explicit.
+> - Acceptance criteria:
+> - User can assign responsible party for each Level 2 control.
+> - Matrix shows control, responsibility type, owner, provider, evidence status, and notes.
+> - Controls marked external or shared require provider or responsibility notes.
+> - Responsibility changes are audit logged.
+> - Matrix export reflects current tenant data.
+
+Implement Story 27.2, "Responsibility Matrix," from `docs/development-phase-use-cases.md`. Add responsibility assignments for organization, MSP/ESP, cloud provider, subcontractor, and shared responsibility; link to controls/evidence requests; add grouped matrix view and export; validate external/shared provider notes; and audit changes. Add tests for assignment, validation, matrix rendering/API, export, tenant scoping, and audit logging, then run verification.
+
+#-----------------------------------------
+
+### Story 27.3: Readiness Gap Prioritization
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect CMMC control assessment data, evidence status, POA&M/task creation, dashboard patterns, rule tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: CMMC Level 2 Readiness Expansion
+> - User story: As a compliance manager, I want Level 2 gaps prioritized so that limited resources focus on the most important readiness work.
+> - Acceptance criteria:
+> - Gap priority is calculated from documented inputs.
+> - Dashboard lists gaps by priority with reason codes.
+> - User can create a POA&M item or task from a gap.
+> - Priority recalculates when control or evidence status changes.
+> - Priority rules are covered by automated tests.
+
+Implement Story 27.3, "Readiness Gap Prioritization," from `docs/development-phase-use-cases.md`. Define priority inputs, calculate critical/high/medium/low/needs review, show prioritized gaps with reason codes, support POA&M/task creation, and recalculate on control/evidence changes. Add tests for priority rules, recalculation, dashboard data, POA&M/task creation, tenant scoping, and permissions, then run verification.
+
+#-----------------------------------------
+
+### Story 27.4: Level 2 Readiness Report
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect report generation, CMMC Level 2 data, responsibility matrix, POA&M/gaps, source references, permissions, audit logging, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: CMMC Level 2 Readiness Expansion
+> - User story: As a compliance manager, I want a Level 2 readiness report with draft-only language and source context so that leadership and advisors can review progress.
+> - Acceptance criteria:
+> - Authorized user can generate a Level 2 readiness report.
+> - Report includes control status, evidence status, gaps, POA&M items, responsibility matrix, source references, and generated date.
+> - Report contains no pass/fail certification language.
+> - Report uses tenant-scoped data only.
+> - Report generation is audit logged.
+
+Implement Story 27.4, "Level 2 Readiness Report," from `docs/development-phase-use-cases.md`. Add report sections for control/evidence status, gaps, POA&M items, responsibility matrix, and source references; include generated date, tenant, control version, and reviewer metadata; use draft-only readiness language; add export; enforce permissions; and audit generation. Add tests for content, forbidden certification language, tenant scoping, permissions, export, and audit logging, then run verification.
+
+#-----------------------------------------
+
+## 28. Extraction Content Test Set
+
+### Story 28.1: Curated Test Document Set
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect extraction tests, sample content directories, data handling docs, label/review patterns, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Extraction Content Test Set
+> - User story: As a QA owner, I want representative allowed contract documents and expected clause labels so that extraction accuracy can be evaluated consistently.
+> - Acceptance criteria:
+> - Test corpus contains only public, synthetic, or explicitly approved non-CUI documents.
+> - Each labeled document includes expected clause citations and source locations when available.
+> - Test metadata identifies document type, source family, and limitations.
+> - Label set is reviewed before use as a benchmark.
+> - Test set data handling rules are documented.
+
+Implement Story 28.1, "Curated Test Document Set," from `docs/development-phase-use-cases.md`. Create a public/synthetic/approved non-CUI test corpus structure, labels for expected clause citations/locations/titles/flow-down indicators, metadata for source family and limitations, label review workflow, and documented data handling rules. Add tests or validation for corpus metadata and label requirements where practical, then run verification.
+
+#-----------------------------------------
+
+### Story 28.2: Precision And Recall Evaluation
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect extraction runner/tests, test corpus labels, CI configuration, reporting patterns, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Extraction Content Test Set
+> - User story: As a QA owner, I want automated extraction evaluation so that the team can measure whether clause detection is improving or regressing.
+> - Acceptance criteria:
+> - Evaluation runner produces precision, recall, false positive, and false negative metrics.
+> - Results identify missed and extra clause detections by document.
+> - Threshold failures are visible in CI or scheduled test output.
+> - Metrics are stored or published for trend review.
+> - Evaluation can run without customer data.
+
+Implement Story 28.2, "Precision And Recall Evaluation," from `docs/development-phase-use-cases.md`. Build an evaluation runner comparing extracted candidates to expected labels, calculate precision/recall/false positives/false negatives/unmatched expected clauses, output machine-readable and human-readable results, add thresholds, and wire CI or scheduled execution without customer data. Add tests for metric calculation, threshold behavior, and output format, then run verification.
+
+#-----------------------------------------
+
+### Story 28.3: Extraction Regression Review
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect extraction evaluation outputs, task/workflow models, content review queues, reporting/audit patterns, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Extraction Content Test Set
+> - User story: As a compliance content owner, I want failed extraction cases reviewed so that matcher, library, and label improvements are tracked deliberately.
+> - Acceptance criteria:
+> - Each reviewed failure has a classification, owner, status, and resolution note.
+> - Follow-up tasks can be created from failures.
+> - Resolved failures are linked to matcher, library, parser, or label updates when applicable.
+> - Release summary shows open extraction risks and metric trends.
+> - Regression review records are audit logged or otherwise traceable.
+
+Implement Story 28.3, "Extraction Regression Review," from `docs/development-phase-use-cases.md`. Add workflow for missed clauses and false positives, classify failures as parser/matcher/library/label/source-quality/expected-limitation, create follow-up tasks, track owner/status/resolution notes, link resolved failures to updates, and produce release readiness summary with metric trends and open risks. Add tests for classifications, task creation, traceability/audit behavior, summary output, and tenant/content boundaries where applicable, then run verification.

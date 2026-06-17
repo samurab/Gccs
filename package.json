@@ -8,10 +8,19 @@
     "dev:web": "npm --workspace apps/web run dev",
     "build:web": "npm --workspace apps/web run build",
     "lint:web": "npm --workspace apps/web run lint",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:headed:slow": "PLAYWRIGHT_SLOW_MO=1000 playwright test --headed --workers=1",
+    "test:e2e:debug": "PWDEBUG=1 playwright test --debug --workers=1",
+    "test:e2e:ui": "playwright test --ui",
     "test:web": "npm --workspace apps/web run test:run",
     "test": "npm run test:api && npm run test:web",
     "restore:api": "dotnet restore Gccs.slnx",
     "build:api": "dotnet build Gccs.slnx",
     "test:api": "dotnet test Gccs.slnx"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "playwright": "^1.61.0"
   }
 }

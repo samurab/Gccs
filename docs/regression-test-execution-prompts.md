@@ -44,7 +44,7 @@ Please execute the regression workflow for this story:
 
 1. Read docs/development-story-test-cases.md and locate Story <story id>.
 2. For every TC-* case under that story, confirm there is focused automated coverage or add/update it now.
-3. Keep these invariants in scope for every functional case: tenant scoping, server-side RBAC, audit logging, No-CUI controls, and standard API/UI error behavior.
+3. Keep these invariants in scope for every functional case: tenant scoping, server-side RBAC, audit logging, CUI/data-handling controls, and standard API/UI error behavior.
 4. Run the narrowest relevant test command for the changed files.
 5. Run the development-story regression coverage test or the backend test suite that contains it.
 6. If UI changed, also run lint, Vitest, and the web production build.
@@ -64,7 +64,7 @@ Requirements:
 
 1. Read the parent story and all sibling TC-* cases so this test fits the intended workflow.
 2. Implement the narrowest focused automated test for <TC id> using the repo's existing test patterns.
-3. Include tenant scoping, server-side RBAC, audit logging, No-CUI controls, and standard error behavior where relevant.
+3. Include tenant scoping, server-side RBAC, audit logging, CUI/data-handling controls, and standard error behavior where relevant.
 4. Prefer backend xUnit tests for domain/application/API enforcement, Vitest/React Testing Library for UI behavior, and integration/smoke tests only when the workflow crosses boundaries.
 5. Run the narrowest relevant test command, then run the development-story regression coverage test.
 6. Report exact commands, results, and any remaining coverage gap.
@@ -81,7 +81,7 @@ Please run the regression workflow for the batch:
 
 1. Read docs/development-story-test-cases.md and collect every TC-* case under the listed stories.
 2. Confirm focused automated coverage exists for each case or add/update the missing tests.
-3. Check shared invariants across the batch: tenant scoping, server-side RBAC, audit logging, No-CUI controls, and standard API/UI error behavior.
+3. Check shared invariants across the batch: tenant scoping, server-side RBAC, audit logging, CUI/data-handling controls, and standard API/UI error behavior.
 4. Run the narrowest tests for the changed areas, then run the relevant broader suite:
    - backend/API changes: dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
    - frontend changes: npm run lint:web && npm run test:web && npm run build:web

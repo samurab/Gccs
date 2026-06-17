@@ -21,7 +21,7 @@ Company profile
 -> Reports and audit trail
 ```
 
-The MVP posture is **No-CUI / compliance management only**. Users should not upload CUI, classified data, export-controlled technical data, payroll records, SSNs, secrets, private keys, or other prohibited sensitive information unless a separately approved deployment exists.
+The MVP posture is **CUI-ready by design with gated CUI acceptance**. Demo tenants may use synthetic or redacted CUI examples, but users should not upload real customer CUI unless the tenant is explicitly approved as CUI-ready. Classified data, export-controlled technical data, payroll records, SSNs, secrets, private keys, and other prohibited sensitive information require a separately approved deployment posture.
 
 ## Acronym Quick Reference
 
@@ -257,7 +257,7 @@ A security or privacy event that may require investigation, containment, notific
 
 ### ITAR And Export-Controlled Data
 
-ITAR regulates defense articles, defense services, and related technical data. Export-controlled technical data is prohibited in the No-CUI MVP unless a separately approved environment and operating model exist.
+ITAR regulates defense articles, defense services, and related technical data. Export-controlled technical data is prohibited in the CUI-ready gated MVP unless a separately approved environment and operating model exist.
 
 ### MFA
 
@@ -345,7 +345,7 @@ A content metadata field that tells users how reliable or mature an obligation m
 
 Documentation or artifacts that support completion of a requirement. Examples include policies, screenshots, training records, signed flow-downs, vendor attestations, access reviews, risk assessments, and meeting notes.
 
-In the No-CUI MVP, evidence uploads must not include prohibited sensitive data.
+In the CUI-ready gated MVP, evidence uploads must not include prohibited sensitive data.
 
 ### Evidence Vault
 
@@ -359,9 +359,9 @@ Review by a qualified subject matter expert, such as a government contracts atto
 
 The date content was last reviewed by the responsible content owner or expert. This is important because government rules, clauses, and program requirements change.
 
-### No-CUI
+### NoCui Mode
 
-The MVP posture that GCCS may manage compliance workflows and non-sensitive evidence, but does not accept customer CUI, classified data, export-controlled technical data, or other prohibited sensitive information.
+A tenant data handling mode where GCCS may manage compliance workflows and non-sensitive evidence, but does not accept real customer CUI, classified data, export-controlled technical data, or other prohibited sensitive information. Demo and sandbox tenants may use synthetic or redacted CUI examples without enabling real CUI upload.
 
 ### Obligation
 
@@ -510,9 +510,8 @@ Useful public references:
 
 ## Study Path For New Team Members
 
-1. Read the product promise and No-CUI posture in `docs/product-strategy.md`.
+1. Read the product promise and CUI-ready gated posture in `docs/product-strategy.md`.
 2. Learn the workflow terms in this glossary: company profile, contract, clause, obligation, evidence, report, audit log.
 3. Review `docs/compliance-content-governance.md` to understand why every customer-visible obligation needs a source URL, trigger condition, confidence label, and review state.
 4. Review `docs/mvp-execution-plan.md` to understand launch gates, data policy, support escalation, and acceptance criteria.
 5. Review `packages/compliance-content/README.md` and `packages/compliance-content/obligations/mvp.json` to see how source-backed obligations are represented.
-

@@ -1,6 +1,6 @@
 # MVP Production Readiness Checklist
 
-Story 17.4 defines the launch gate for the No-CUI MVP. This checklist must be reviewed before any production launch. It is a release-control artifact, not a claim that production is approved.
+Story 17.4 defines the launch gate for the CUI-ready MVP with gated CUI acceptance. This checklist must be reviewed before any production launch. It is a release-control artifact, not a claim that production is approved.
 
 ## Launch Gate
 
@@ -17,7 +17,7 @@ Required approvals before production launch:
 
 | Area | Required item | Evidence | Owner | Approver | Current status |
 | --- | --- | --- | --- | --- | --- |
-| No-CUI posture | Customer-facing No-CUI notice is visible in onboarding, upload flows, docs, and support scripts. | `README.md`, `docs/product-strategy.md`, `docs/mvp-execution-plan.md` | Product owner | Legal or contracting advisor | Ready for approval |
+| CUI-ready gated posture | Customer-facing data handling notice is visible in onboarding, upload flows, docs, and support scripts. Demo tenants use synthetic/redacted CUI; real CUI requires approved CUI-ready tenant status. | `README.md`, `docs/product-strategy.md`, `docs/mvp-execution-plan.md` | Product owner | Legal or contracting advisor | Ready for approval |
 | Terms and claims | Product copy avoids legal advice, certification, CMMC approval, assessment success, and government endorsement claims. | `docs/software-delivery-plan.md`, `docs/compliance-content-governance.md` | Product owner | Legal or contracting advisor | Ready for approval |
 | Support path | Support path exists for prohibited uploads, access issues, evidence upload failures, tenant isolation concerns, and compliance content corrections. | `docs/mvp-execution-plan.md`, `docs/software-delivery-plan.md` | Customer success/support owner | Product owner | Ready for approval |
 | Prohibited uploads | Prohibited upload guidance covers CUI, classified data, export-controlled technical data, SSNs, payroll, protected health or disability data, credentials, unrestricted security logs, and sensitive incident details. | `docs/mvp-execution-plan.md` | Security owner | Legal or contracting advisor | Ready for approval |
@@ -26,12 +26,14 @@ Required approvals before production launch:
 | Rollback plan | Production rollback plan is documented and simulated in staging before launch. | This checklist, `docs/staging-environment.md` | Engineering lead | Product owner | Simulated for staging |
 | Malware scanning | MVP limitation is documented when scanner is placeholder-only; production launch requires an enabled malware scanning path or explicit launch exception. | `README.md`, `docs/software-delivery-plan.md`, `docs/mvp-execution-plan.md` | Security owner | Product owner | Needs launch decision |
 | Expert-reviewed content | Customer-facing launch content has source URL, last reviewed date, confidence, review owner, and review state. | `packages/compliance-content/obligations/mvp.json` | Compliance content owner | Legal or contracting advisor | Needs high-risk review completion |
-| Release notes | Release notes call out No-CUI posture, known limitations, source-backed content scope, support path, rollback plan, and staging smoke results. | Release notes draft for the launch tag | Product owner | Customer success/support owner | Pending launch tag |
+| Release notes | Release notes call out tenant data handling posture, known limitations, source-backed content scope, support path, rollback plan, and staging smoke results. | Release notes draft for the launch tag | Product owner | Customer success/support owner | Pending launch tag |
 
 ## Known Limitations
 
-- The MVP is No-CUI / compliance management only.
-- The MVP must not store CUI, classified data, ITAR/export-controlled technical data, SSNs, payroll records, bank or tax details, protected health or disability data, credentials, unrestricted security logs, or sensitive incident details.
+- The MVP is CUI-ready by design with gated CUI acceptance.
+- Demo and sandbox tenants may use synthetic or redacted CUI examples.
+- Real customer CUI must not be stored unless the tenant is explicitly approved as CUI-ready.
+- The MVP must not store classified data, ITAR/export-controlled technical data, SSNs, payroll records, bank or tax details, protected health or disability data, credentials, unrestricted security logs, or sensitive incident details unless a separately approved deployment posture exists.
 - Malware scanning is represented by a local placeholder in development. Production launch requires an enabled scanner integration or a documented launch exception accepted by the product owner and security owner.
 - CMMC, FAR, DFARS, SBA, labor, and reporting content is workflow guidance, not legal, accounting, certification, assessment, or contracting-officer advice.
 - Some high-risk launch obligations are marked `needs_review` in the content package and must be approved or hidden from customer-facing production views before production launch.

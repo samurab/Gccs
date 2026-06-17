@@ -14,11 +14,13 @@ This is product and engineering guidance, not legal advice. Production complianc
 
 ## MVP Positioning
 
-The MVP is **No-CUI / compliance management only**.
+The MVP is **CUI-ready by design with gated CUI acceptance**.
 
-The product should not store customer CUI, classified data, ITAR/export-controlled technical data, SSNs, payroll records, protected medical or disability data, or other highly sensitive employee records unless a separate approved deployment posture exists.
+GCCS should demonstrate full CUI-aware workflows from day one using synthetic, sample, or redacted data. Real customer CUI may be stored only when the tenant or deployment is explicitly approved for CUI-ready operation with the required architecture, customer terms, support process, shared responsibility matrix, and operating controls.
 
-No-CUI positioning must appear in:
+The product must not store classified data, ITAR/export-controlled technical data, SSNs, payroll records, protected medical or disability data, or other highly sensitive employee records unless a separate approved deployment posture exists.
+
+CUI-readiness positioning must appear in:
 
 - Onboarding.
 - Contract upload.
@@ -26,6 +28,8 @@ No-CUI positioning must appear in:
 - Help and support scripts.
 - Terms, privacy, and data handling documentation.
 - Customer-facing sales and implementation materials.
+
+The default demo posture should be **Demo/Sandbox CUI workflows with synthetic or redacted data**. Production tenants start with CUI upload disabled unless CUI-ready approval is granted.
 
 ## MVP Scope
 
@@ -52,7 +56,7 @@ The following should be deferred unless pilot customers make them launch blocker
 - SSP builder.
 - SPRS score calculator.
 - Full AI assistant.
-- GovCloud, FedRAMP readiness, and CUI-ready hosting.
+- GovCloud and FedRAMP readiness.
 - Public-sector direct sales features.
 
 ## Product Claims Policy
@@ -71,7 +75,7 @@ Customer-facing claims require source backing and review when they touch legal, 
 
 ## Success Definition
 
-MVP success means pilot users can onboard a company, enter a contract, tag clauses, generate an obligation matrix, assign tasks, upload allowed evidence, and produce a report without engineering support.
+MVP success means pilot users can onboard a company, enter a contract, tag clauses, classify data handling posture, generate an obligation matrix, assign tasks, upload allowed evidence, and produce a report without engineering support.
 
 Every customer-visible MVP obligation must have:
 
@@ -90,11 +94,10 @@ Every customer-visible MVP obligation must have:
 
 | Decision | MVP approach |
 | --- | --- |
-| Data posture | No-CUI / compliance management only. |
-| Hosting | Commercial-cloud-friendly architecture first; GovCloud remains enterprise roadmap. |
+| Data posture | CUI-ready by design; real CUI upload remains tenant-gated until approved. |
+| Hosting | Commercial-cloud-friendly CUI-ready architecture first; GovCloud remains enterprise roadmap. |
 | Clause handling | Manual tagging first; automated extraction later with human review. |
 | AI | Deferred or draft-only, cited, logged, and review-gated. |
 | Stack language | Current LTS .NET unless a runtime has already been chosen for the repo. |
 | Content model | Source-controlled obligation library with review workflow and versioning. |
 | Market entry | Small DoD subcontractors, MSPs/CMMC consultants, and back-office govcon teams. |
-

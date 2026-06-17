@@ -1,6 +1,6 @@
 # GCCS - Government Contractor Compliance SaaS
 
-GCCS is a starter application for a govcon-specific compliance operating system for small U.S. government contractors. The MVP posture is **No-CUI / compliance management only** until the platform is explicitly hardened and assessed for customer CUI handling.
+GCCS is a starter application for a govcon-specific compliance operating system for small U.S. government contractors. The MVP posture is **CUI-ready by design with gated CUI acceptance**: demos use synthetic or redacted CUI workflows, and real customer CUI is allowed only for explicitly approved CUI-ready tenants.
 
 ## Project Structure
 
@@ -31,7 +31,7 @@ infra/                 Local and future cloud infrastructure
 | `docs` | Product, architecture, API, database, governance, and delivery documentation. | Runtime workflow behavior. |
 | `infra` | Local Docker services, generated SQL, and future IaC. | Application business logic or compliance content. |
 
-Compliance workflow logic must be reusable from backend services and tests. The UI may explain and display obligations, but applicability, source traceability, tenant scoping, RBAC, No-CUI policy enforcement, and audit-worthy decisions belong in the API/application/domain/infrastructure boundary.
+Compliance workflow logic must be reusable from backend services and tests. The UI may explain and display obligations, but applicability, source traceability, tenant scoping, RBAC, CUI/data-handling policy enforcement, and audit-worthy decisions belong in the API/application/domain/infrastructure boundary.
 
 ## Documentation
 
@@ -88,7 +88,7 @@ The frontend expects the API at `http://localhost:5062` by default. Override wit
 
 The authenticated SaaS app uses React + Vite. If SEO-heavy public content becomes a requirement later, add a separate marketing/content site, for example `www` on Next.js, while keeping this app at an application subdomain such as `app`.
 
-When the API is unavailable, the web app may show posture-only empty states. Do not duplicate source-backed obligation records, applicability logic, review metadata, tenant authorization, RBAC decisions, No-CUI upload policy enforcement, or audit behavior in frontend fallback data.
+When the API is unavailable, the web app may show posture-only empty states. Do not duplicate source-backed obligation records, applicability logic, review metadata, tenant authorization, RBAC decisions, CUI/data-handling upload policy enforcement, or audit behavior in frontend fallback data.
 
 ### Tests
 
@@ -179,4 +179,4 @@ ruby -ryaml -e 'doc = YAML.load_file("docs/api/openapi.yaml"); puts doc["openapi
 
 This application structure is product and engineering scaffolding, not legal advice. Production content should be reviewed by qualified government contracts, labor, cybersecurity, CMMC, or finance experts depending on module scope.
 
-The MVP is explicitly **No-CUI / compliance management only**. Do not add customer CUI storage, classified data handling, ITAR/export-controlled technical data handling, or CUI-ready marketing claims until a separate architecture, shared responsibility matrix, customer terms, support model, and assessment posture are approved.
+The MVP is explicitly **CUI-ready by design with gated CUI acceptance**. Demo and sandbox tenants may show full CUI-aware workflows with synthetic or redacted data. Do not enable real customer CUI storage, classified data handling, ITAR/export-controlled technical data handling, or CUI-ready production claims for a tenant until the architecture, shared responsibility matrix, customer terms, support model, operating controls, and assessment posture are approved.

@@ -34,7 +34,7 @@ Please execute the regression workflow for this story and please provide results
 
 1. Read docs/development-story-test-cases.md and locate Story <story id>.
 2. For every TC-* case under that story, confirm there is focused automated coverage or add/update it now.
-3. Keep these invariants in scope for every functional case: tenant scoping, server-side RBAC, audit logging, No-CUI controls, and standard API/UI error behavior.
+3. Keep these invariants in scope for every functional case: tenant scoping, server-side RBAC, audit logging, CUI/data-handling controls, and standard API/UI error behavior.
 4. Run the narrowest relevant test command for the changed files.
 5. Run the development-story regression coverage test or the backend test suite that contains it.
 6. If UI changed, also run lint, Vitest, and the web production build.

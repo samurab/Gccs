@@ -1,6 +1,6 @@
 # Design Flow Diagrams
 
-These diagrams translate the GCCS MVP product guidance into design flows for the authenticated SaaS workspace. The MVP remains No-CUI: users can manage compliance work, metadata, obligations, tasks, and evidence, but known customer CUI should be blocked until a CUI-ready enclave is designed and assessed.
+These diagrams translate the GCCS MVP product guidance into design flows for the authenticated SaaS workspace. The MVP is CUI-ready by design with gated CUI acceptance: users can manage compliance work, metadata, obligations, tasks, and evidence, while real customer CUI is blocked unless the tenant is approved as CUI-ready.
 
 ## 1. User Operating Loop
 
@@ -9,8 +9,8 @@ flowchart TD
     entry["User opens GCCS workspace"]
     profile["Complete company compliance profile"]
     intake["Add contract, solicitation, subcontract, PO, SOW, wage determination, or flow-down"]
-    guard{"Known CUI in uploaded content?"}
-    block["Block upload and show No-CUI guidance"]
+    guard{"Tenant mode allows this data?"}
+    block["Block upload and show data handling guidance"]
     capture["Capture metadata and clauses"]
     obligations["Generate source-backed obligations"]
     dashboard["Review obligation dashboard"]
@@ -23,8 +23,8 @@ flowchart TD
     entry --> profile
     profile --> intake
     intake --> guard
-    guard -->|"Yes"| block
-    guard -->|"No or unknown"| capture
+    guard -->|"Blocked"| block
+    guard -->|"Allowed"| capture
     capture --> obligations
     obligations --> dashboard
     dashboard --> plan
@@ -79,7 +79,7 @@ flowchart TD
     start["Start contract intake"]
     choose["Choose intake type"]
     manual["Manual contract entry"]
-    upload["Upload No-CUI document"]
+    upload["Upload allowed document"]
     cuiCheck{"User flags CUI or classified content?"}
     rejected["Reject upload and record blocked attempt in audit log"]
     metadata["Capture contract metadata"]
@@ -140,7 +140,7 @@ flowchart TD
     owner["Assign evidence owner"]
     submit["Submit file, link, note, or attestation"]
     scan["Run upload controls and malware scan"]
-    classify{"Allowed in No-CUI MVP?"}
+    classify{"Allowed by tenant data handling mode?"}
     reject["Reject or quarantine and notify owner"]
     tag["Tag by obligation, contract, control, vendor, employee, and report"]
     review["Review and approve evidence"]
@@ -245,4 +245,3 @@ stateDiagram-v2
     Published --> Deprecated: rule retired or replaced
     Deprecated --> [*]
 ```
-

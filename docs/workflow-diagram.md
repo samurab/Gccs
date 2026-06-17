@@ -1,6 +1,6 @@
 # GCCS Workflow Diagram
 
-This workflow shows the core operating loop for the Government Contractor Compliance SaaS MVP. It keeps the product centered on helping small government contractors determine what applies, collect proof, and stay ready for reviews without storing customer CUI in the first release.
+This workflow shows the core operating loop for the Government Contractor Compliance SaaS MVP. It keeps the product centered on helping small government contractors determine what applies, collect proof, and stay ready for reviews while enforcing tenant-level CUI acceptance gates.
 
 ```mermaid
 flowchart TD
@@ -10,9 +10,9 @@ flowchart TD
 
     contractIntake["Add opportunity, contract, subcontract,<br/>purchase order, SOW, wage determination,<br/>or flow-down attachment"]
 
-    uploadGuard{"Does the document contain CUI?"}
-    noCui["Accept document in No-CUI MVP workspace"]
-    blockCui["Block upload and show No-CUI guidance<br/>Use external approved storage until<br/>a CUI-ready enclave is available"]
+    uploadGuard{"Does tenant mode allow this data?"}
+    noCui["Accept allowed document<br/>Synthetic/redacted CUI in demo<br/>Real CUI only in CUI-ready tenants"]
+    blockCui["Block upload and show<br/>data handling guidance"]
 
     extract["Extract or manually tag key facts<br/>Agency or prime, contract number,<br/>period of performance, contract type,<br/>place of performance, clauses,<br/>deliverables, reports, data handling,<br/>labor needs, flow-downs"]
 
@@ -42,8 +42,8 @@ flowchart TD
     start --> profile
     profile --> contractIntake
     contractIntake --> uploadGuard
-    uploadGuard -->|"No or unknown"| noCui
-    uploadGuard -->|"Yes"| blockCui
+    uploadGuard -->|"Allowed"| noCui
+    uploadGuard -->|"Blocked"| blockCui
     noCui --> extract
     extract --> obligationEngine
     obligationEngine --> reviewApplicability
@@ -69,7 +69,7 @@ flowchart TD
 
 ## Workflow Notes
 
-- The MVP is intentionally No-CUI. Users should be warned and blocked from uploading known CUI until the product has a CUI-ready enclave and clear shared responsibility model.
+- The MVP is CUI-ready by design with gated CUI acceptance. Users should be warned and blocked from uploading real CUI unless the tenant is approved as CUI-ready with a clear shared responsibility model.
 - The obligation engine should rely on curated, source-backed compliance content instead of free-form AI determinations.
 - Expert review is required when applicability, labor standards, CMMC scope, or legal interpretation is uncertain.
 - Evidence is reusable across obligations, controls, contracts, vendors, employees, and reports.

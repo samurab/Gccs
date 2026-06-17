@@ -1,6 +1,6 @@
 # Software Delivery Plan
 
-This plan turns GCCS into a practical, shippable No-CUI government contractor compliance SaaS for small U.S. businesses. It is product and engineering guidance, not legal advice. Production obligation content must be reviewed by qualified government contracts, cybersecurity, labor, CMMC, SBA, or finance experts as applicable.
+This plan turns GCCS into a practical, shippable government contractor compliance SaaS for small U.S. businesses, with CUI-ready workflows designed from day one and real CUI acceptance controlled by tenant-level approval gates. It is product and engineering guidance, not legal advice. Production obligation content must be reviewed by qualified government contracts, cybersecurity, labor, CMMC, SBA, or finance experts as applicable.
 
 ## 1. Delivery Objectives
 
@@ -23,9 +23,9 @@ The first release should provide a reliable compliance operating workspace for:
 
 ### MVP Posture
 
-The MVP is **No-CUI / compliance management only**. Users must be warned and technically prevented from intentionally uploading CUI until a CUI-ready architecture, shared responsibility matrix, customer terms, operating controls, and assessment posture are complete.
+The MVP is **CUI-ready by design with gated CUI acceptance**. Users can demo and test full CUI-aware workflows with synthetic or redacted data. Real customer CUI must remain disabled for a tenant until the CUI-ready architecture, shared responsibility matrix, customer terms, support model, operating controls, and assessment posture are approved.
 
-Allowed No-CUI MVP data includes company profile metadata, contract metadata, clause references, non-sensitive policies, screenshots, checklists, attestations, training records, vendor documents, and evidence metadata. Prohibited data includes CUI, classified data, ITAR/export-controlled technical data, SSNs, payroll records, protected medical or disability data, secrets, private keys, and unrestricted security logs unless a separately approved deployment posture exists.
+Allowed default MVP data includes company profile metadata, contract metadata, clause references, non-sensitive policies, screenshots, checklists, attestations, training records, vendor documents, evidence metadata, and synthetic or redacted CUI demo artifacts. Real CUI is allowed only in approved CUI-ready tenants. Prohibited data includes classified data, ITAR/export-controlled technical data, SSNs, payroll records, protected medical or disability data, secrets, private keys, and unrestricted security logs unless a separately approved deployment posture exists.
 
 ## 2. Team And Cadence
 
@@ -65,7 +65,7 @@ Allowed No-CUI MVP data includes company profile metadata, contract metadata, cl
 #### Contract Intake
 
 - Support manual contract creation for solicitations, contracts, subcontracts, purchase orders, statements of work, wage determinations, flow-down attachments, DD Form 254 metadata, and CUI marking guide metadata.
-- Support file upload in No-CUI mode with clear prohibited content messaging.
+- Support file upload with data classification, tenant-level CUI gating, and clear prohibited content messaging.
 - Capture agency or prime, contract number, period of performance, contract type, place of performance, clauses, deliverables, reporting deadlines, data handling requirements, labor requirements, and flow-down obligations.
 - MVP starts with manual clause tagging; automated extraction comes later.
 
@@ -89,7 +89,7 @@ Allowed No-CUI MVP data includes company profile metadata, contract metadata, cl
 - Link evidence to obligations, controls, contracts, vendors, subcontractors, employees, and reports.
 - Track version, expiration date, owner, approval status, and audit history.
 - Support read-only evidence package generation.
-- MVP must include No-CUI warning, malware scanning path, allowed file types, and upload size limits.
+- MVP must include data classification warnings, CUI upload gating, malware scanning path, allowed file types, and upload size limits.
 
 #### CMMC / NIST Workspace
 
@@ -127,7 +127,7 @@ Allowed No-CUI MVP data includes company profile metadata, contract metadata, cl
 - Immutable audit logs for sensitive actions.
 - Least-privilege service accounts.
 - Malware scanning for uploads.
-- Explicit No-CUI content controls.
+- Explicit data classification and CUI gating controls.
 
 #### Reliability
 
@@ -197,7 +197,7 @@ PostgreSQL + Object Storage + Redis + Queue + Search
 - Compliance content should be versioned and source-backed.
 - Background work should be queued for upload scanning, document processing, notification delivery, report generation, and future extraction.
 - AI features must be deferred until source-backed workflows and audit logging are mature.
-- CUI storage must remain disabled until a separate CUI-ready architecture is designed and assessed.
+- Real CUI storage must remain tenant-gated until the CUI-ready architecture, support process, customer terms, and operating controls are approved.
 
 ### Key Data Domains
 
@@ -222,7 +222,7 @@ Deliverables:
 - Competitive matrix.
 - Clickable prototypes for core workflows.
 - Delivery backlog with estimates.
-- Architecture decision records for No-CUI posture, tenancy, file storage, and content governance.
+- Architecture decision records for CUI-ready posture, tenant CUI gating, tenancy, file storage, and content governance.
 - Definition of Ready (`docs/definition-of-ready.md`) and Definition of Done.
 - Initial CI pipeline with build, lint, and tests.
 
@@ -231,7 +231,7 @@ Exit criteria:
 - MVP scope approved.
 - Top 20-30 obligations identified and source-backed.
 - Prototype validated with target users.
-- Security and No-CUI posture approved by product and technical lead.
+- Security and CUI-ready posture approved by product, technical lead, and security owner.
 
 ### Phase 1: MVP Foundation, 10-14 Weeks
 
@@ -242,7 +242,7 @@ Deliverables:
 - Contract intake and manual clause tagging.
 - Obligation dashboard backed by curated content.
 - Task calendar.
-- Evidence vault with metadata and No-CUI controls.
+- Evidence vault with metadata, data classification controls, and tenant-level CUI gating.
 - Basic CMMC Level 1 and Level 2 readiness tracker.
 - Subcontractor tracker.
 - Basic reports.
@@ -251,9 +251,26 @@ Deliverables:
 
 Exit criteria:
 
-- One pilot tenant can onboard, enter company and contract data, map clauses to obligations, upload non-CUI evidence, track tasks, and generate reports.
+- One pilot tenant can onboard, enter company and contract data, map clauses to obligations, classify data handling posture, upload allowed evidence, track tasks, and generate reports.
 - All MVP workflows have acceptance tests and release verification.
 - Production-like staging environment is operational.
+
+### Phase 1A: CUI Readiness Gate, Runs Inside Phase 1
+
+Deliverables:
+
+- Tenant data handling modes: `DemoSandbox`, `NoCui`, and `CuiReady`.
+- Upload, note, report, extraction, and evidence workflows enforce tenant data handling mode.
+- Synthetic CUI demo package for contracts, CUI marking guide metadata, evidence, CMMC control evidence, and reporting.
+- CUI-ready approval checklist covering tenant isolation, RBAC, audit logging, encryption, malware scanning, retention, backup, restore, admin access, support escalation, and incident response.
+- Shared responsibility matrix baseline and customer-facing CUI data handling notice.
+- Audit events for mode changes, CUI classification, upload blocks, approvals, downloads, exports, deletions, and support escalations.
+
+Exit criteria:
+
+- Demo tenants can show complete CUI-aware workflows without real CUI.
+- Production tenants cannot upload real CUI unless explicitly approved as CUI-ready.
+- CUI-ready approval requires product, engineering, security, compliance content, and legal/compliance advisor signoff.
 
 ### Phase 2: Govcon Intelligence, 8-12 Weeks
 
@@ -273,6 +290,7 @@ Exit criteria:
 - Clause extraction produces reviewable drafts with source traceability.
 - Users can approve or reject extracted obligations.
 - Content changes are versioned and auditable.
+- Extraction and AI-adjacent workflows respect tenant data handling mode and block real CUI processing for unapproved tenants.
 
 ### Phase 3: Advanced Compliance, 12-20 Weeks
 
@@ -291,7 +309,7 @@ Deliverables:
 
 Exit criteria:
 
-- Advanced workflows can support higher-tier pilots without storing CUI unless a CUI-ready tier is formally launched.
+- Advanced workflows can support higher-tier pilots with synthetic, redacted, or approved CUI-ready tenant data depending on deployment posture.
 
 ### Phase 4: Enterprise And Regulated Deployment
 
@@ -323,7 +341,7 @@ Deliverables:
 - A user cannot access another tenant's contracts, obligations, tasks, or evidence.
 - A contributor cannot perform admin-only user management.
 - A read-only auditor can view approved evidence packages but cannot modify data.
-- A No-CUI upload warning appears before file upload.
+- A data handling upload warning appears before file upload.
 - Disallowed file types and oversized files are rejected.
 - Uploaded files create audit log entries.
 - A contract clause creates the expected obligation tasks.
@@ -392,7 +410,7 @@ Pipeline stages:
 - Malware scanning path enabled for uploads.
 - WAF configured.
 - Error tracking enabled.
-- Privacy, terms, No-CUI notice, and support paths published.
+- Privacy, terms, data handling notice, and support paths published.
 - Customer-facing claims reviewed so the product does not imply legal advice, certification, CMMC approval, assessment success, or government endorsement.
 
 ## 8. Production Support
@@ -517,15 +535,15 @@ Acceptance criteria:
 - Expiring certifications create calendar tasks.
 - Expired certifications are flagged on the dashboard.
 
-#### Story 2.3: No-CUI Posture Disclosure
+#### Story 2.3: CUI-Ready Gated Posture Disclosure
 
-As a product owner, I want users to acknowledge No-CUI limitations so that upload expectations are clear.
+As a product owner, I want users to acknowledge tenant data handling limitations so that upload expectations are clear.
 
 Acceptance criteria:
 
-- User sees a No-CUI notice during onboarding and before file upload.
+- User sees a data handling notice during onboarding and before file upload.
 - Acknowledgement is recorded.
-- The notice explains that the MVP is for compliance management only and is not ready to store CUI.
+- The notice explains that demo tenants use synthetic/redacted CUI workflows and real CUI upload requires approved CUI-ready tenant status.
 
 ### Epic 3: Contract And Clause Intake
 
@@ -543,11 +561,11 @@ Acceptance criteria:
 
 #### Story 3.2: Upload Contract Documents
 
-As a contracts admin, I want to upload non-CUI contract documents so that evidence and source materials are attached to the contract.
+As a contracts admin, I want to upload allowed contract documents so that evidence and source materials are attached to the contract.
 
 Acceptance criteria:
 
-- Upload requires No-CUI acknowledgement.
+- Upload requires current data handling acknowledgement.
 - File metadata is saved with contract link.
 - Disallowed file types and oversized files are rejected.
 - Upload creates audit log entry.
@@ -647,11 +665,11 @@ Acceptance criteria:
 
 #### Story 6.2: Evidence Upload
 
-As a contributor, I want to upload non-CUI evidence so that compliance proof is stored with the obligation.
+As a contributor, I want to upload allowed evidence so that compliance proof is stored with the obligation.
 
 Acceptance criteria:
 
-- Upload requires No-CUI acknowledgement.
+- Upload requires current data handling acknowledgement.
 - File is associated with evidence metadata.
 - File is queued for malware scanning.
 - File is unavailable for approval until scan succeeds.
@@ -813,7 +831,7 @@ Acceptance criteria:
 | P0 | Tenant/RBAC | Server-side permission checks | Story | Phase 1 |
 | P0 | Operations | CI build, lint, test pipeline | Story | Phase 1 |
 | P0 | Company Profile | Company profile create/edit | Story | Phase 1 |
-| P0 | Company Profile | No-CUI acknowledgement workflow | Story | Phase 1 |
+| P0 | Company Profile | Data handling acknowledgement workflow | Story | Phase 1 |
 | P0 | Contracts | Contract record create/edit/list | Story | Phase 1 |
 | P0 | Contracts | Manual clause tagging | Story | Phase 1 |
 | P0 | Obligations | Source-backed obligation schema | Story | Phase 1 |
@@ -867,7 +885,7 @@ Acceptance criteria:
 
 - Build profile API and UI.
 - Add certification tracking.
-- Add No-CUI acknowledgement.
+- Add data handling acknowledgement.
 - Add profile completeness indicators.
 
 ### Sprint 3: Contracts And Clause Intake
@@ -928,4 +946,4 @@ The MVP is releasable when:
 - Reports are useful enough for owner, prime, and internal review conversations.
 - Tenant isolation, RBAC, audit logging, backup, and monitoring are verified.
 - Compliance content has source URLs, last-reviewed dates, and review status.
-- No-CUI posture is visible, acknowledged, and enforced in the upload workflow.
+- CUI-ready gated posture is visible, acknowledged, and enforced in the upload workflow.

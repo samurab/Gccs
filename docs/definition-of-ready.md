@@ -13,9 +13,9 @@ Each ready story must have:
 - Known affected modules, files, APIs, data models, or UI surfaces.
 - Required data fields and source systems identified or linked through `docs/data-requirements-and-source-systems.md`.
 - Dependencies identified or linked through `docs/dependency-register.md`.
-- Tenant isolation, RBAC, audit logging, and No-CUI implications considered through `docs/security-control-implications.md`.
+- Tenant isolation, RBAC, audit logging, and CUI/data-handling implications considered through `docs/security-control-implications.md`.
 - Compliance content items marked for whether expert review is required when the story touches obligation, clause, regulatory, CMMC, SBA, FAR, DFARS, labor, reporting, or AI-generated guidance.
-- No-CUI impact stated for upload, import, paste, extraction, evidence, search, AI, report, or export workflows.
+- CUI/data-handling impact stated for upload, import, paste, extraction, evidence, search, AI, report, or export workflows.
 - Open questions, assumptions, and deferred items called out.
 
 ## Ready With Constraints
@@ -23,7 +23,7 @@ Each ready story must have:
 A story may be accepted as ready with constraints when:
 
 - The missing item is explicitly deferred.
-- The deferral does not affect tenant isolation, RBAC, audit logging, No-CUI controls, or customer-facing compliance claims.
+- The deferral does not affect tenant isolation, RBAC, audit logging, CUI/data-handling controls, or customer-facing compliance claims.
 - The deferred work has a named follow-up story, risk note, or acceptance limitation.
 
 ## Not Ready
@@ -32,7 +32,7 @@ A story is not ready when:
 
 - Acceptance criteria are subjective or cannot map to a focused `TC-*` case.
 - Required fields, source systems, or dependencies are unknown.
-- The story could change stored/processed customer data without No-CUI and security impact review.
+- The story could change stored/processed customer data without CUI/data-handling and security impact review.
 - The story introduces or changes customer-facing compliance content without source metadata, review state, and expert-review-required status.
 - Cross-tenant, RBAC, audit, upload, report/export, AI, or search behavior is affected but not testable.
 
@@ -47,7 +47,7 @@ Constraints:
 - Some stories are already marked done and should be treated as implementation-complete unless regression gaps are discovered.
 - External integrations such as SAM.gov/GSA lookup, SBA size automation, wage determination lookup, SPRS/CMMC status import, AI/RAG, search indexing, production object storage, production malware scanning, SSO/SAML, and GovCloud remain deferred unless a story explicitly activates them.
 - Compliance content stories are ready only if each content record preserves source metadata, review state, review owner, confidence, and whether expert review is required.
-- Any future story that expands data storage, upload, extraction, report export, search, or AI processing must be rechecked against the No-CUI posture before implementation.
+- Any future story that expands data storage, upload, extraction, report export, search, or AI processing must be rechecked against the CUI-ready gated posture before implementation.
 
 ## Verification
 

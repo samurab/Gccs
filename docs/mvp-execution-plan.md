@@ -1,10 +1,10 @@
 # MVP Execution Plan
 
-This artifact turns the product strategy into a launch plan for the No-CUI MVP.
+This artifact turns the product strategy into a launch plan for a CUI-ready MVP with gated CUI acceptance.
 
 ## Launch Gates
 
-Tenant isolation, RBAC, audit logging, and No-CUI implications are release-blocking controls. Use `docs/security-control-implications.md` when reviewing feature acceptance, security tests, support paths, imports, exports, reports, and launch readiness.
+Tenant isolation, RBAC, audit logging, and CUI/data-handling implications are release-blocking controls. Use `docs/security-control-implications.md` when reviewing feature acceptance, security tests, support paths, imports, exports, reports, and launch readiness.
 
 ### Alpha
 
@@ -16,7 +16,7 @@ Alpha can begin when internal users can complete the core workflow end to end:
 - Manually tag clauses.
 - Generate obligations.
 - Create tasks.
-- Upload allowed non-CUI evidence.
+- Upload allowed evidence and demonstrate CUI-aware workflows with synthetic or redacted CUI examples.
 - Generate a basic report.
 
 ### Beta
@@ -25,7 +25,7 @@ Beta can begin with 3-5 design partners when:
 
 - Security review for tenant isolation and upload controls is complete.
 - Initial obligation library is SME reviewed.
-- No-CUI warnings and prohibited-data controls are visible in upload flows.
+- Data classification warnings, CUI gating, and prohibited-data controls are visible in upload flows.
 - Support playbook and escalation paths are documented.
 - Backup restore has been verified in staging.
 
@@ -41,17 +41,23 @@ MVP launch can begin with 8-12 pilot customers when:
 
 ## MVP Data Policy
 
-Allowed in the No-CUI MVP:
+Allowed in default MVP and demo tenants:
 
 - Company profile metadata.
 - Contract metadata.
 - Clause numbers and non-sensitive clause notes.
 - Non-CUI policies, screenshots, checklists, attestations, training records, vendor documents, and audit notes.
 - Evidence metadata and non-sensitive evidence files.
+- Synthetic or redacted CUI demo artifacts.
+
+Allowed only in approved CUI-ready tenants:
+
+- Real customer CUI.
+- CUI marking guides and contract packages containing CUI.
+- Evidence files containing CUI.
 
 Prohibited unless a separately approved deployment exists:
 
-- CUI.
 - Classified data.
 - ITAR/export-controlled technical data.
 - SSNs and government ID numbers.
@@ -62,12 +68,13 @@ Prohibited unless a separately approved deployment exists:
 
 Required controls:
 
-- No-CUI acknowledgement during onboarding and before upload.
-- Upload warning near the file picker.
+- Data handling acknowledgement during onboarding and before upload.
+- Upload warning and tenant data handling status near the file picker.
 - Metadata checkbox for suspected CUI or prohibited sensitive content.
+- Block real CUI upload unless the tenant is approved as CUI-ready.
 - Block upload when the user marks content as prohibited.
 - Audit log for acknowledgement, upload, block, delete, and export events.
-- Support escalation path for accidental prohibited uploads.
+- Support escalation path for accidental CUI or prohibited uploads.
 
 ## Advisor Access Model
 
@@ -111,7 +118,7 @@ Exports must preserve source links, last-reviewed dates, evidence status, and au
 | --- | --- |
 | Tenant and RBAC | Tenant data is isolated; roles are enforced server-side; sensitive actions are audit logged. |
 | Company profile | User can capture UEI, CAGE, SAM, NAICS, certifications, role, locations, and FCI/CUI posture; renewals create tasks. |
-| Contract intake | User can create a contract, attach allowed files, acknowledge No-CUI rules, and manually tag clauses. |
+| Contract intake | User can create a contract, attach allowed files, acknowledge data handling rules, classify CUI posture, and manually tag clauses. |
 | Obligation dashboard | User can see source-backed obligations by contract, risk, owner, due date, status, and source. |
 | Compliance calendar | Tasks from obligations, renewals, deliverables, training, and evidence expirations appear with reminders and owners. |
 | Evidence vault | User can upload allowed evidence, tag it, link it to obligations/controls/contracts/vendors, track status and expiration, and export packages. |
@@ -147,7 +154,7 @@ The test set should measure clause extraction precision, clause extraction recal
 
 ## Release Readiness Checklist
 
-- No-CUI positioning reviewed across product, docs, support, and sales copy.
+- CUI-ready gated positioning reviewed across product, docs, support, and sales copy.
 - Tenant isolation and RBAC tests pass.
 - Upload restrictions and audit logs verified.
 - Obligation content has required source and review metadata.
