@@ -710,3 +710,177 @@ Common expectations for all functional stories:
 - **TC-28.3.3 - Resolved failures are linked to matcher, library,:** Verify resolved failures are linked to matcher, library, parser, or label updates when applicable.
 - **TC-28.3.4 - Release summary shows open extraction risks and:** Verify release summary shows open extraction risks and metric trends.
 - **TC-28.3.5 - Regression review records are audit logged or:** Verify regression review records are audit logged or otherwise traceable.
+
+## Phase 1A - CUI Readiness Gate
+
+These test cases cover the Phase 1A readiness-gate stories appended to `/Users/devups/Development/CodexProjects/Gccs/docs/development-phase-use-cases.md`. They verify the controls required before any production tenant can upload real customer CUI.
+
+## 1A.1 Tenant Data Handling Modes
+
+### Story 1A.1.1: Tenant Data Handling Mode Model
+
+- **TC-1A.1.1.1 - Single active mode per tenant:** Create or update tenants through supported workflows and verify each tenant has exactly one active mode: `DemoSandbox`, `NoCui`, or `CuiReady`.
+- **TC-1A.1.1.2 - Default mode assignment:** Create a new pilot tenant without an explicit mode and verify it defaults to `NoCui`; create an explicitly demo tenant and verify it starts as `DemoSandbox`.
+- **TC-1A.1.1.3 - CuiReady requires approval checklist:** Attempt to set a tenant to `CuiReady` without an approved checklist and verify the mode change is rejected.
+- **TC-1A.1.1.4 - Mode history persisted:** Change tenant mode and verify actor, timestamp, reason, previous mode, new mode, effective date, and approval reference are stored.
+- **TC-1A.1.1.5 - Mode available to dependent workflows:** Call upload, evidence, report, note, and extraction workflow services and verify each receives the tenant's current data handling mode.
+
+### Story 1A.1.2: Mode-Based Workflow Enforcement
+
+- **TC-1A.1.2.1 - DemoSandbox real CUI upload blocked:** As a `DemoSandbox` tenant, attempt to upload a customer file marked `CUI` and verify it is rejected while seeded synthetic examples remain usable.
+- **TC-1A.1.2.2 - NoCui real CUI processing blocked:** As a `NoCui` tenant, attempt to create, classify, process, report on, or export real CUI and verify each action is blocked.
+- **TC-1A.1.2.3 - CuiReady workflows require classification and approval:** As a `CuiReady` tenant, attempt CUI workflows with missing classification or missing approval checks and verify rejection; repeat with valid checks and verify success.
+- **TC-1A.1.2.4 - Direct API bypass denied:** Call restricted APIs directly for upload, evidence, notes, reports, and extraction and verify server-side mode checks match UI behavior.
+- **TC-1A.1.2.5 - Mode enforcement audit event:** Trigger a mode-restricted failure and verify the clear error response plus audit event with tenant, actor, workflow, mode, and result.
+
+## 1A.2 Data Classification Controls
+
+### Story 1A.2.1: Classification Metadata Schema
+
+- **TC-1A.2.1.1 - Classification required for active content:** Attempt to store uploads, notes, reports, extraction jobs, evidence items, and document records without classification metadata and verify validation fails.
+- **TC-1A.2.1.2 - CUI rejected outside CuiReady:** Create content classified as `CUI` in `DemoSandbox` and `NoCui` tenants and verify rejection.
+- **TC-1A.2.1.3 - SyntheticCui restricted to demo/test workflows:** Classify normal customer content as `SyntheticCui` and verify rejection; classify approved demo seed content and verify acceptance.
+- **TC-1A.2.1.4 - Unknown blocks downstream processing:** Save an item classified as `Unknown` and verify report generation, extraction, export, and evidence approval are blocked until review.
+- **TC-1A.2.1.5 - Classification change history preserved:** Reclassify content and verify previous value, new value, actor, timestamp, source, confidence, reviewer, review date, and reason are retained.
+
+### Story 1A.2.2: Classification UX And Review
+
+- **TC-1A.2.2.1 - User must confirm classification:** In upload, note, evidence, report, and extraction flows, attempt submission without selecting or confirming classification and verify UI and API block the action.
+- **TC-1A.2.2.2 - Unknown review queue behavior:** Create `Unknown` items and verify they appear in the review queue and cannot be used in reports or extraction jobs.
+- **TC-1A.2.2.3 - Prohibited content escalation:** Classify an item as `Prohibited` and verify it is blocked from use and routed to the escalation workflow.
+- **TC-1A.2.2.4 - Authorized reviewer reclassification:** As an authorized reviewer, update an item's classification with a reason and verify the new classification controls downstream behavior.
+- **TC-1A.2.2.5 - Classification badges visible:** Verify list, detail, and report generation screens display the current classification badge for classified items.
+
+## 1A.3 Synthetic CUI Demo Dataset
+
+### Story 1A.3.1: Synthetic Dataset Definition
+
+- **TC-1A.3.1.1 - Dataset contains no real sensitive data:** Review seeded synthetic company, contract, evidence, CMMC, subcontractor, and report examples and verify no real customer CUI, classified data, export-controlled technical data, or customer proprietary data is present.
+- **TC-1A.3.1.2 - Synthetic records tagged:** Import or inspect the dataset and verify every seeded record has `SyntheticCui` classification and dataset version.
+- **TC-1A.3.1.3 - Synthetic labels shown in demo UI:** Open demo contract, obligation, evidence, CMMC, subcontractor, and report views and verify synthetic labels are visible.
+- **TC-1A.3.1.4 - Dataset metadata complete:** Verify dataset metadata includes purpose, limitations, owner, source basis, review date, and approved reviewer.
+- **TC-1A.3.1.5 - Review required before seed import:** Attempt to run demo seed import with unapproved dataset content and verify the import is blocked.
+
+### Story 1A.3.2: Demo Tenant Seeding
+
+- **TC-1A.3.2.1 - Seed runs only for DemoSandbox tenants:** Run seed workflow for `DemoSandbox`, `NoCui`, and `CuiReady` tenants and verify only the `DemoSandbox` tenant is seeded.
+- **TC-1A.3.2.2 - Seed process is idempotent:** Run demo seed twice for the same tenant and verify duplicate records are not created.
+- **TC-1A.3.2.3 - End-to-end demo data present:** After seeding, verify demo examples appear across contract intake, clause tagging, obligations, evidence, CMMC, subcontractor, report, and escalation workflows.
+- **TC-1A.3.2.4 - Customer tenants cannot receive demo seed data:** Attempt seed import through normal admin workflows for customer `NoCui` and `CuiReady` tenants and verify rejection.
+- **TC-1A.3.2.5 - Seed and reset audited:** Run seed and reset actions and verify audit events include tenant, actor, dataset version, action, timestamp, and result.
+
+## 1A.4 CUI-Ready Tenant Approval Checklist
+
+### Story 1A.4.1: Approval Checklist Model
+
+- **TC-1A.4.1.1 - Required checklist items block approval:** Attempt to approve a checklist with incomplete required items and verify approval fails.
+- **TC-1A.4.1.2 - Completed item metadata required:** Complete checklist items and verify owner, reviewer, review date, and supporting note or evidence link are required and stored.
+- **TC-1A.4.1.3 - Rejected checklist records reason:** Reject a checklist and verify rejection reason, reviewer, timestamp, and tenant link are retained.
+- **TC-1A.4.1.4 - Approved checklist required for CuiReady mode:** Approve a checklist and verify its ID is required and referenced when changing tenant mode to `CuiReady`.
+- **TC-1A.4.1.5 - Checklist changes audited:** Create, update, approve, reject, and supersede checklist records and verify audit events for each action.
+
+### Story 1A.4.2: Approval Gate Enforcement
+
+- **TC-1A.4.2.1 - Final approval permission enforced:** Attempt final checklist approval as unauthorized and authorized roles and verify only authorized platform roles succeed.
+- **TC-1A.4.2.2 - Invalid checklist states block CuiReady:** Try `CuiReady` mode change with incomplete, rejected, expired, and superseded checklists and verify all are blocked.
+- **TC-1A.4.2.3 - Final approval metadata persisted:** Approve a checklist and verify approving user, timestamp, checklist version, and approval notes are stored.
+- **TC-1A.4.2.4 - CuiReady mode references approved checklist:** Change a tenant to `CuiReady` and verify the mode history points to the approved checklist record.
+- **TC-1A.4.2.5 - Failed approval attempt audited:** Trigger failed approval and failed `CuiReady` enablement attempts and verify clear errors plus audit events.
+
+## 1A.5 Shared Responsibility Matrix Baseline
+
+### Story 1A.5.1: Baseline Responsibility Matrix
+
+- **TC-1A.5.1.1 - Matrix categories complete:** Verify the baseline matrix includes tenant administration, user access, MFA, upload classification, evidence storage, encryption, malware scanning, retention, backup, export, deletion, incident reporting, support, and customer content decisions.
+- **TC-1A.5.1.2 - Matrix row metadata complete:** Verify each row has responsibility value, notes, source reference when applicable, effective date, review owner, and version.
+- **TC-1A.5.1.3 - Publish validation enforced:** Attempt to publish a matrix with missing owner or review metadata and verify publication fails.
+- **TC-1A.5.1.4 - Published matrix visible in workflows:** Publish the matrix and verify it is visible from tenant settings and the CUI approval checklist.
+- **TC-1A.5.1.5 - Matrix lifecycle traceable:** Publish and retire a matrix and verify audit events or source-control traceability capture the lifecycle.
+
+### Story 1A.5.2: Tenant Matrix Acknowledgement
+
+- **TC-1A.5.2.1 - Tenant admin acknowledges current matrix:** As a tenant admin, view and acknowledge the current matrix and verify acknowledgement status is persisted.
+- **TC-1A.5.2.2 - Missing acknowledgement blocks approval:** Attempt CUI-ready approval without current matrix acknowledgement and verify the checklist or approval gate blocks it.
+- **TC-1A.5.2.3 - Acknowledgement history complete:** Verify history records matrix version, user, tenant, timestamp, and status.
+- **TC-1A.5.2.4 - New matrix version invalidates prior acknowledgement:** Publish a new matrix version and verify prior acknowledgement is marked outdated for future approvals.
+- **TC-1A.5.2.5 - Matrix acknowledgement audited:** Acknowledge the matrix and verify an audit event records tenant, actor, matrix version, timestamp, and result.
+
+## 1A.6 Customer-Facing Data Handling Notices
+
+### Story 1A.6.1: Versioned Notice Content
+
+- **TC-1A.6.1.1 - Published notice exists for each mode:** Verify published notice content is available for `DemoSandbox`, `NoCui`, and `CuiReady` tenant modes.
+- **TC-1A.6.1.2 - Notice publish metadata required:** Attempt to publish notice content without owner, reviewer, review date, or effective date and verify validation fails.
+- **TC-1A.6.1.3 - NoCui notice prohibits real CUI:** Retrieve the `NoCui` notice and verify it states that real customer CUI upload is prohibited.
+- **TC-1A.6.1.4 - CuiReady notice limits CUI handling:** Retrieve the `CuiReady` notice and verify it states CUI handling is limited to approved workflows and customer responsibilities.
+- **TC-1A.6.1.5 - Notice retrieval matches mode and context:** Request notice content for multiple tenant modes and workflow contexts and verify the correct published version is returned.
+
+### Story 1A.6.2: Notice Placement And Acknowledgement
+
+- **TC-1A.6.2.1 - Missing acknowledgement blocks CUI-relevant actions:** Without acknowledgement, attempt upload, classified note save, report generation from classified content, and extraction job creation and verify each is blocked.
+- **TC-1A.6.2.2 - Acknowledgement metadata persisted:** Acknowledge a notice and verify user, tenant, mode, workflow, notice version, and timestamp are stored.
+- **TC-1A.6.2.3 - Updated notice requires renewal:** Publish a new notice version and verify previously acknowledged users are re-prompted before CUI-relevant actions.
+- **TC-1A.6.2.4 - Notice copy matches tenant mode:** Open onboarding, upload, note, report, extraction, and support flows for each mode and verify displayed notice text matches the current mode.
+- **TC-1A.6.2.5 - Notice acknowledgement audited:** Acknowledge and renew acknowledgement and verify audit events are created.
+
+## 1A.7 CUI Support Escalation Path
+
+### Story 1A.7.1: Escalation Intake And Classification
+
+- **TC-1A.7.1.1 - Authorized escalation creation:** Create escalation records from upload rejection, evidence detail, note detail, report detail, extraction job detail, and support page and verify they persist with required metadata.
+- **TC-1A.7.1.2 - Escalations are tenant scoped:** Seed escalations in two tenants and verify users only see escalations for their active tenant.
+- **TC-1A.7.1.3 - Prohibited data blocks affected content:** Create a prohibited data escalation and verify the affected content is blocked from use.
+- **TC-1A.7.1.4 - Support fields can be assigned:** As a support agent, assign owner, severity, and status and verify updates persist.
+- **TC-1A.7.1.5 - Escalation access restricted and audited:** Verify unauthorized users cannot access restricted escalation views and create/update actions are audit logged.
+
+### Story 1A.7.2: Escalation Workflow And Resolution
+
+- **TC-1A.7.2.1 - Status changes require note:** Change escalation status and verify actor, timestamp, and note are required and persisted.
+- **TC-1A.7.2.2 - Containment blocks affected content:** Keep escalation in submitted, triage, and contained states and verify affected downloads, exports, extraction jobs, report use, and evidence approval are blocked.
+- **TC-1A.7.2.3 - Resolution records complete:** Resolve an escalation and verify resolution type, resolver, timestamp, and summary are stored.
+- **TC-1A.7.2.4 - Reopen preserves history:** Reopen a resolved escalation and verify prior resolution history remains visible.
+- **TC-1A.7.2.5 - Escalation workflow audited:** Move an escalation through multiple statuses and verify each workflow event is audit logged.
+
+## 1A.8 CUI Audit Event Coverage
+
+### Story 1A.8.1: Required CUI Audit Events
+
+- **TC-1A.8.1.1 - Required event types emitted:** Perform mode changes, classification create/update, upload block, checklist approval/rejection, matrix acknowledgement, notice acknowledgement, download, export, deletion, escalation create/update, and extraction start/stop and verify matching audit events.
+- **TC-1A.8.1.2 - Blocked actions audited:** Trigger blocked upload, blocked extraction, blocked report, failed mode change, and failed CUI approval and verify failure-path audit events.
+- **TC-1A.8.1.3 - Audit fields complete:** Inspect Phase 1A audit events and verify tenant ID, actor ID, event type, entity reference, classification, mode, timestamp, request metadata, and result when applicable.
+- **TC-1A.8.1.4 - Sensitive content excluded from summaries:** Audit CUI-relevant actions with document text and verify event summaries do not expose sensitive document content.
+- **TC-1A.8.1.5 - Successful and blocked paths covered:** Verify automated tests exist for both successful and blocked audit paths for each required Phase 1A event family.
+
+### Story 1A.8.2: CUI Audit Filters And Export
+
+- **TC-1A.8.2.1 - CUI audit filters return correct data:** Filter audit events by event type, classification, tenant mode, actor, entity type, date range, and result and verify matching tenant-scoped results.
+- **TC-1A.8.2.2 - Unauthorized audit access denied:** As a non-authorized user, attempt to view or export CUI audit events and verify access is denied.
+- **TC-1A.8.2.3 - Export tenant scope enforced:** Export CUI audit events from a tenant with neighboring tenant data seeded and verify the export contains only current-tenant events.
+- **TC-1A.8.2.4 - Export metadata included:** Verify audit export includes generated by, generated at, tenant, and filter criteria metadata.
+- **TC-1A.8.2.5 - Export action audited:** Generate a CUI audit export and verify the export action itself creates an audit event.
+
+## 1A.9 Security Readiness Review
+
+### Story 1A.9.1: Security Review Checklist
+
+- **TC-1A.9.1.1 - Review areas complete:** Verify the security review checklist includes tenant isolation, evidence storage, encryption, malware scanning, retention, backup, restore, admin access, support access, logging, monitoring, and incident response.
+- **TC-1A.9.1.2 - Checklist item evidence required:** Complete checklist items and verify status, reviewer, review date, and evidence link or rationale are required.
+- **TC-1A.9.1.3 - High or critical findings block approval:** Create high and critical open findings and verify CUI-ready tenant approval is blocked.
+- **TC-1A.9.1.4 - Accepted risk metadata complete:** Record an accepted risk and verify approver, date, scope, expiration or review date, and mitigation note are stored.
+- **TC-1A.9.1.5 - Security review changes audited:** Create, update, close, and accept risk items and verify audit events are written.
+
+### Story 1A.9.2: Technical Control Verification
+
+- **TC-1A.9.2.1 - CUI tenant isolation tests pass:** Seed CUI-classified records and files in two tenants and verify one tenant cannot access another tenant's classified records or files.
+- **TC-1A.9.2.2 - Evidence storage control metadata present:** Upload or inspect evidence files and verify encryption state, scan state, retention state, deletion state, and storage access-control metadata are recorded.
+- **TC-1A.9.2.3 - Backup and restore verification documented:** Verify backup and restore evidence includes date, environment, reviewer, and result for classified tenant content metadata.
+- **TC-1A.9.2.4 - Admin/support access permission checked:** Attempt admin/support access to CUI-relevant records with allowed and disallowed roles and verify permission checks plus audit events.
+- **TC-1A.9.2.5 - Readiness summary complete:** Generate or review the security readiness summary and verify it identifies passed checks, open findings, accepted risks, and release recommendation.
+
+### Story 1A.9.3: Incident Response Readiness
+
+- **TC-1A.9.3.1 - Required playbooks exist:** Verify playbooks exist for accidental CUI upload, suspected CUI in a non-CUI tenant, prohibited data upload, cross-tenant exposure suspicion, malware detection, and failed deletion/export request.
+- **TC-1A.9.3.2 - Playbook content complete:** Inspect each playbook and verify trigger, containment steps, notification path, evidence to collect, owner, and closure criteria are present.
+- **TC-1A.9.3.3 - Tabletop evidence captured:** Record a readiness tabletop and verify date, participants, findings, and follow-up actions are stored.
+- **TC-1A.9.3.4 - Critical response gaps block approval:** Create an open critical incident response gap and verify `CuiReady` approval is blocked.
+- **TC-1A.9.3.5 - Incident readiness approval traceable:** Approve incident response readiness and verify the approval is audit logged or source-control traceable.

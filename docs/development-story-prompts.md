@@ -4667,3 +4667,424 @@ First, inspect extraction evaluation outputs, task/workflow models, content revi
 > - Regression review records are audit logged or otherwise traceable.
 
 Implement Story 28.3, "Extraction Regression Review," from `docs/development-phase-use-cases.md`. Add workflow for missed clauses and false positives, classify failures as parser/matcher/library/label/source-quality/expected-limitation, create follow-up tasks, track owner/status/resolution notes, link resolved failures to updates, and produce release readiness summary with metric trends and open risks. Add tests for classifications, task creation, traceability/audit behavior, summary output, and tenant/content boundaries where applicable, then run verification.
+
+
+## Phase 1A - CUI Readiness Gate
+Use the shared prompt requirements above for every Phase 1A story. Phase 1A is a readiness gate inside Phase 1 and must be completed before any production tenant can upload real customer CUI. Each story prompt below is intended to be copied into a fresh implementation thread after the prior story has been completed and verified.
+
+## 1A.1 Tenant Data Handling Modes
+### Story 1A.1.1: Tenant Data Handling Mode Model
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Tenant Data Handling Modes
+> - User story: As a platform admin, I want each tenant to have a data handling mode so that CUI controls can be enforced consistently across the application.
+> - Acceptance criteria:
+> - Each tenant has exactly one active data handling mode.
+> - New pilot tenants default to `NoCui` unless explicitly created as `DemoSandbox`.
+> - `CuiReady` cannot be assigned without a completed approval checklist.
+> - Mode changes persist actor, timestamp, reason, previous mode, and new mode.
+> - Tenant data handling mode is available to upload, evidence, report, note, and extraction workflows.
+
+Implement Story 1A.1.1, "Tenant Data Handling Mode Model," from `docs/development-phase-use-cases.md`. Add the tenant data handling mode model, mode history, validation, tenant administration display, and service access for upload, evidence, report, note, and extraction workflows. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 1A.1.2: Mode-Based Workflow Enforcement
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Tenant Data Handling Modes
+> - User story: As a compliance manager, I want the application to enforce tenant mode automatically so that users cannot bypass CUI restrictions from the UI or direct API calls.
+> - Acceptance criteria:
+> - `DemoSandbox` tenants can use seeded synthetic CUI examples but cannot upload real customer files marked as CUI.
+> - `NoCui` tenants cannot create or process records classified as real CUI.
+> - `CuiReady` tenants can use CUI workflows only when required classification and approval checks pass.
+> - Direct API calls receive the same mode restrictions as UI actions.
+> - Mode enforcement failures return a clear error and create an audit event.
+
+Implement Story 1A.1.2, "Mode-Based Workflow Enforcement," from `docs/development-phase-use-cases.md`. Add centralized server-side mode enforcement across contract intake, evidence, notes, reports, and extraction jobs, with matching UI restrictions, standard errors, and audit events. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 1A.2 Data Classification Controls
+### Story 1A.2.1: Classification Metadata Schema
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Data Classification Controls
+> - User story: As a developer, I want a shared classification metadata schema so that every CUI-relevant object stores data handling facts consistently.
+> - Acceptance criteria:
+> - Classification metadata is required before content can be stored as active tenant content.
+> - `CUI` classification is rejected for tenants that are not in `CuiReady` mode.
+> - `SyntheticCui` classification is allowed only for approved demo or test data workflows.
+> - `Unknown` classification blocks downstream processing until reviewed or reclassified.
+> - Classification changes preserve previous value, new value, actor, timestamp, and reason.
+
+Implement Story 1A.2.1, "Classification Metadata Schema," from `docs/development-phase-use-cases.md`. Add shared classification metadata for uploads, notes, reports, extraction jobs, evidence items, and documents, including validation, review metadata, and change history. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 1A.2.2: Classification UX And Review
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Data Classification Controls
+> - User story: As a user, I want to classify content during normal work so that I can make data handling decisions before uploading or processing information.
+> - Acceptance criteria:
+> - User must select or confirm classification before upload, note save, report generation, or extraction job creation.
+> - Items classified as `Unknown` are visible in a review queue and cannot be used in reports or extraction jobs.
+> - Items classified as `Prohibited` are blocked from use and routed to escalation.
+> - Authorized reviewers can update classification with a reason.
+> - Lists and detail views display the current classification for each classified item.
+
+Implement Story 1A.2.2, "Classification UX And Review," from `docs/development-phase-use-cases.md`. Add classification selectors, warnings, badges, review queue behavior, reviewer reclassification, and blocked/prohibited routing across CUI-relevant workflows. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 1A.3 Synthetic CUI Demo Dataset
+### Story 1A.3.1: Synthetic Dataset Definition
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Synthetic CUI Demo Dataset
+> - User story: As a compliance content owner, I want a reviewed synthetic CUI dataset so that demo content cannot be mistaken for real controlled information.
+> - Acceptance criteria:
+> - Synthetic dataset contains no real customer CUI, classified data, export-controlled technical data, or customer proprietary information.
+> - Every seeded synthetic record is tagged with `SyntheticCui` and dataset version.
+> - Demo UI views identify synthetic examples as synthetic.
+> - Dataset metadata includes owner, source basis, review date, and approved reviewer.
+> - Dataset review status is required before demo seed import runs.
+
+Implement Story 1A.3.1, "Synthetic Dataset Definition," from `docs/development-phase-use-cases.md`. Create the reviewed synthetic CUI dataset definition, metadata, classification tags, visible synthetic labels, and import precheck. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 1A.3.2: Demo Tenant Seeding
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Synthetic CUI Demo Dataset
+> - User story: As a customer success lead, I want demo tenants to be seeded with synthetic CUI workflows so that onboarding and training can show end-to-end behavior safely.
+> - Acceptance criteria:
+> - Seed process runs only for `DemoSandbox` tenants.
+> - Re-running the seed process does not duplicate demo records.
+> - Demo tenants show seeded examples across contract, obligation, evidence, CMMC, subcontractor, and report workflows.
+> - Customer `NoCui` and `CuiReady` tenants cannot receive demo seed data through normal admin workflows.
+> - Seed and reset actions are audit logged.
+
+Implement Story 1A.3.2, "Demo Tenant Seeding," from `docs/development-phase-use-cases.md`. Create the demo tenant seed/reset workflow for synthetic contract, obligation, evidence, CMMC, subcontractor, report, and escalation examples with idempotency and mode restrictions. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 1A.4 CUI-Ready Tenant Approval Checklist
+### Story 1A.4.1: Approval Checklist Model
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: CUI-Ready Tenant Approval Checklist
+> - User story: As a platform admin, I want a CUI-ready approval checklist so that required readiness evidence is captured before enabling CUI workflows.
+> - Acceptance criteria:
+> - Checklist cannot be approved while required items are incomplete.
+> - Each completed item records owner, reviewer, review date, and supporting note or evidence link.
+> - Rejected checklists include rejection reason and remain linked to the tenant.
+> - Approved checklist ID is required for a tenant mode change to `CuiReady`.
+> - Checklist changes are audit logged.
+
+Implement Story 1A.4.1, "Approval Checklist Model," from `docs/development-phase-use-cases.md`. Add the CUI-ready approval checklist model, states, item metadata, tenant linkage, API/UI workflows, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 1A.4.2: Approval Gate Enforcement
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: CUI-Ready Tenant Approval Checklist
+> - User story: As an engineering lead, I want `CuiReady` enablement to be blocked unless approval criteria are complete so that configuration mistakes do not authorize CUI handling.
+> - Acceptance criteria:
+> - Only authorized platform roles can approve a checklist.
+> - A tenant cannot move to `CuiReady` from an incomplete, rejected, expired, or superseded checklist.
+> - Final approval records approving user, timestamp, checklist version, and approval notes.
+> - Mode change to `CuiReady` references the approved checklist record.
+> - Failed approval attempts return a clear error and create an audit event.
+
+Implement Story 1A.4.2, "Approval Gate Enforcement," from `docs/development-phase-use-cases.md`. Add server-side approval gate enforcement for `CuiReady` mode, final approval permissions, stale-check detection, UI messaging, and failure audit events. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 1A.5 Shared Responsibility Matrix Baseline
+### Story 1A.5.1: Baseline Responsibility Matrix
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Shared Responsibility Matrix Baseline
+> - User story: As a security owner, I want a baseline shared responsibility matrix so that internal teams and customers understand who owns each control, process, and support obligation.
+> - Acceptance criteria:
+> - Matrix includes all Phase 1A categories required for CUI readiness.
+> - Each row has responsibility owner, notes, effective date, review owner, and version.
+> - Matrix cannot be published without required owner and review metadata.
+> - Published matrix is viewable from tenant settings and CUI approval checklist.
+> - Matrix publication and retirement are audit logged or source-control traceable.
+
+Implement Story 1A.5.1, "Baseline Responsibility Matrix," from `docs/development-phase-use-cases.md`. Create the baseline shared responsibility matrix content/model, review and publish workflow, tenant settings visibility, checklist linkage, and lifecycle traceability. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 1A.5.2: Tenant Matrix Acknowledgement
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Shared Responsibility Matrix Baseline
+> - User story: As a tenant admin, I want to acknowledge the shared responsibility matrix so that CUI-ready operation has a recorded customer acceptance.
+> - Acceptance criteria:
+> - Tenant admin can view and acknowledge the current published matrix.
+> - CUI-ready approval is blocked if the tenant has not acknowledged the current matrix version.
+> - Acknowledgement history records version, user, timestamp, and tenant.
+> - New matrix version marks prior acknowledgement as outdated for future approvals.
+> - Matrix acknowledgement is audit logged.
+
+Implement Story 1A.5.2, "Tenant Matrix Acknowledgement," from `docs/development-phase-use-cases.md`. Add tenant admin matrix acknowledgement, version history, current-version approval gate enforcement, change notifications, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 1A.6 Customer-Facing Data Handling Notices
+### Story 1A.6.1: Versioned Notice Content
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Customer-Facing Data Handling Notices
+> - User story: As a product owner, I want versioned data handling notices so that customer-facing guidance is consistent, reviewable, and traceable.
+> - Acceptance criteria:
+> - Published notice exists for each tenant data handling mode.
+> - Notice content cannot publish without owner, reviewer, review date, and effective date.
+> - `NoCui` notice states that real customer CUI upload is prohibited.
+> - `CuiReady` notice states that CUI handling is limited to approved tenant workflows and customer responsibilities.
+> - Notice retrieval returns the correct published version for tenant mode and workflow context.
+
+Implement Story 1A.6.1, "Versioned Notice Content," from `docs/development-phase-use-cases.md`. Create versioned data handling notices for `DemoSandbox`, `NoCui`, and `CuiReady` modes with review metadata and context-aware retrieval. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 1A.6.2: Notice Placement And Acknowledgement
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Customer-Facing Data Handling Notices
+> - User story: As a user, I want relevant data handling notices in the workflows where mistakes can occur so that I see restrictions before submitting content.
+> - Acceptance criteria:
+> - User cannot upload, save classified notes, generate reports from classified content, or start extraction until required notice acknowledgement exists.
+> - Acknowledgement records include user, tenant, mode, workflow, notice version, and timestamp.
+> - Updated notice versions require renewed acknowledgement.
+> - Notice copy shown to the user matches the tenant's current mode.
+> - Acknowledgement and renewed acknowledgement are audit logged.
+
+Implement Story 1A.6.2, "Notice Placement And Acknowledgement," from `docs/development-phase-use-cases.md`. Place and enforce data handling notices in onboarding, upload, note, report, extraction, and support flows, including renewed acknowledgement on version changes. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 1A.7 CUI Support Escalation Path
+### Story 1A.7.1: Escalation Intake And Classification
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: CUI Support Escalation Path
+> - User story: As a user or support agent, I want to report suspected CUI or prohibited data so that the issue can be triaged quickly.
+> - Acceptance criteria:
+> - Authorized users can create escalation records from CUI-relevant workflows.
+> - Escalation records are tenant scoped and hidden from unrelated tenants.
+> - Prohibited data escalations mark affected content as blocked from use.
+> - Support agents can assign owner, severity, and status.
+> - Escalation creation and updates are audit logged.
+
+Implement Story 1A.7.1, "Escalation Intake And Classification," from `docs/development-phase-use-cases.md`. Add CUI support escalation intake, categories, affected item references, restricted support/admin views, prohibited-content blocking, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 1A.7.2: Escalation Workflow And Resolution
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: CUI Support Escalation Path
+> - User story: As a support lead, I want escalation status tracking so that accidental CUI and prohibited data cases have documented outcomes.
+> - Acceptance criteria:
+> - Escalation status changes require actor, timestamp, and note.
+> - Affected content remains blocked while escalation status is submitted, triage, or contained.
+> - Resolution records include resolution type, resolver, timestamp, and summary.
+> - Reopened escalations preserve prior resolution history.
+> - Escalation workflow events are audit logged.
+
+Implement Story 1A.7.2, "Escalation Workflow And Resolution," from `docs/development-phase-use-cases.md`. Add escalation status transitions, containment behavior, resolution history, reopen handling, notifications, reporting, and audit events. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 1A.8 CUI Audit Event Coverage
+### Story 1A.8.1: Required CUI Audit Events
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: CUI Audit Event Coverage
+> - User story: As a security owner, I want required CUI audit events defined and emitted so that every high-risk data handling action is traceable.
+> - Acceptance criteria:
+> - Each required Phase 1A event type is emitted when the corresponding action occurs.
+> - Blocked upload, blocked extraction, blocked report, failed mode change, and failed CUI approval attempts are audit logged.
+> - Audit events include tenant ID, actor ID, event type, entity reference, timestamp, and result.
+> - Audit events do not expose sensitive document content in event summaries.
+> - Automated tests cover successful and blocked audit paths.
+
+Implement Story 1A.8.1, "Required CUI Audit Events," from `docs/development-phase-use-cases.md`. Define and emit required Phase 1A CUI audit event types across success and blocked paths without leaking sensitive content in summaries. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 1A.8.2: CUI Audit Filters And Export
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: CUI Audit Event Coverage
+> - User story: As a tenant admin or security reviewer, I want to filter and export CUI-relevant audit events so that readiness reviews and incident investigations are efficient.
+> - Acceptance criteria:
+> - Authorized users can filter audit events by CUI-relevant event type, classification, mode, actor, entity, date range, and result.
+> - Non-authorized users cannot view or export CUI audit events.
+> - Export contains only tenant-scoped events.
+> - Export includes generated by, generated at, tenant, and filter criteria metadata.
+> - Audit export action is itself audit logged.
+
+Implement Story 1A.8.2, "CUI Audit Filters And Export," from `docs/development-phase-use-cases.md`. Add CUI audit filters, saved readiness view or equivalent, tenant-scoped export, export metadata, authorization, and export audit event. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 1A.9 Security Readiness Review
+### Story 1A.9.1: Security Review Checklist
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Security Readiness Review
+> - User story: As a security owner, I want a Phase 1A security review checklist so that required CUI readiness controls are assessed consistently.
+> - Acceptance criteria:
+> - Security review checklist includes every required Phase 1A review area.
+> - Each checklist item records status, reviewer, review date, and evidence or rationale.
+> - High or critical open findings block CUI-ready approval.
+> - Accepted risks include approver, date, scope, expiration or review date, and mitigation note.
+> - Security review changes are audit logged.
+
+Implement Story 1A.9.1, "Security Review Checklist," from `docs/development-phase-use-cases.md`. Add the Phase 1A security review checklist, finding tracking, accepted risk metadata, CUI approval linkage, open finding reporting, and audit events. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 1A.9.2: Technical Control Verification
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Security Readiness Review
+> - User story: As an engineering lead, I want automated or documented verification for CUI readiness controls so that approval is based on evidence rather than assumption.
+> - Acceptance criteria:
+> - Tenant isolation tests prove one tenant cannot access another tenant's classified records or files.
+> - Evidence file storage records encryption state, scan state, retention state, and deletion state.
+> - Backup and restore verification includes date, environment, reviewer, and result.
+> - Admin/support access to CUI-relevant records is permission checked and audit logged.
+> - Security readiness summary identifies passed checks, open findings, accepted risks, and release recommendation.
+
+Implement Story 1A.9.2, "Technical Control Verification," from `docs/development-phase-use-cases.md`. Add or document technical control verification for CUI tenant isolation, storage controls, backup/restore evidence, admin/support access, and readiness summary output. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 1A.9.3: Incident Response Readiness
+
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 1A CUI readiness gate story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Security Readiness Review
+> - User story: As a security owner, I want incident response readiness checked before CUI workflows are enabled so that accidental CUI upload or data handling incidents can be handled immediately.
+> - Acceptance criteria:
+> - Required incident playbooks exist before `CuiReady` approval.
+> - Each playbook identifies trigger, containment steps, notification path, evidence to collect, owner, and closure criteria.
+> - Readiness review records tabletop date, participants, findings, and follow-up actions.
+> - Open critical incident response gaps block CUI-ready approval.
+> - Incident readiness approval is audit logged or source-control traceable.
+
+Implement Story 1A.9.3, "Incident Response Readiness," from `docs/development-phase-use-cases.md`. Add incident response readiness playbooks, escalation owner records, tabletop checklist/evidence capture, approval linkage, reminders, and traceability. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------

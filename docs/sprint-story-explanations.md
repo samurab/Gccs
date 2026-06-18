@@ -76,6 +76,26 @@ GCCS is a CUI-ready govcon compliance management SaaS for small U.S. federal con
     - [Story 17.2: Security And Tenant Isolation Verification](#story-172-security-and-tenant-isolation-verification)
     - [Story 17.3: Staging Environment](#story-173-staging-environment)
     - [Story 17.4: Production Readiness Checklist](#story-174-production-readiness-checklist)
+17A. [Phase 1A: CUI Readiness Gate](#17a-phase-1a-cui-readiness-gate)
+    - [Story 1A.1.1: Tenant Data Handling Mode Model](#story-1a11-tenant-data-handling-mode-model)
+    - [Story 1A.1.2: Mode-Based Workflow Enforcement](#story-1a12-mode-based-workflow-enforcement)
+    - [Story 1A.2.1: Classification Metadata Schema](#story-1a21-classification-metadata-schema)
+    - [Story 1A.2.2: Classification UX And Review](#story-1a22-classification-ux-and-review)
+    - [Story 1A.3.1: Synthetic Dataset Definition](#story-1a31-synthetic-dataset-definition)
+    - [Story 1A.3.2: Demo Tenant Seeding](#story-1a32-demo-tenant-seeding)
+    - [Story 1A.4.1: Approval Checklist Model](#story-1a41-approval-checklist-model)
+    - [Story 1A.4.2: Approval Gate Enforcement](#story-1a42-approval-gate-enforcement)
+    - [Story 1A.5.1: Baseline Responsibility Matrix](#story-1a51-baseline-responsibility-matrix)
+    - [Story 1A.5.2: Tenant Matrix Acknowledgement](#story-1a52-tenant-matrix-acknowledgement)
+    - [Story 1A.6.1: Versioned Notice Content](#story-1a61-versioned-notice-content)
+    - [Story 1A.6.2: Notice Placement And Acknowledgement](#story-1a62-notice-placement-and-acknowledgement)
+    - [Story 1A.7.1: Escalation Intake And Classification](#story-1a71-escalation-intake-and-classification)
+    - [Story 1A.7.2: Escalation Workflow And Resolution](#story-1a72-escalation-workflow-and-resolution)
+    - [Story 1A.8.1: Required CUI Audit Events](#story-1a81-required-cui-audit-events)
+    - [Story 1A.8.2: CUI Audit Filters And Export](#story-1a82-cui-audit-filters-and-export)
+    - [Story 1A.9.1: Security Review Checklist](#story-1a91-security-review-checklist)
+    - [Story 1A.9.2: Technical Control Verification](#story-1a92-technical-control-verification)
+    - [Story 1A.9.3: Incident Response Readiness](#story-1a93-incident-response-readiness)
 18. [Automated Clause Extraction](#18-automated-clause-extraction)
     - [Story 18.1: Extraction Job Intake](#story-181-extraction-job-intake)
     - [Story 18.2: Text Extraction And Clause Candidate Detection](#story-182-text-extraction-and-clause-candidate-detection)
@@ -1100,3 +1120,143 @@ This story adds a workflow for reviewing missed clauses and false positives. Fai
 It fits the project by connecting extraction metrics to corrective action. Measurement alone is not enough; GCCS needs a way to decide what failed, who owns the fix, and whether open issues affect release readiness.
 
 The value is continuous improvement. The extraction system becomes easier to govern, tune, and explain because every known failure can be tracked to a decision or follow-up task.
+
+## 17A. Phase 1A: CUI Readiness Gate
+
+This sprint area is a readiness gate inside Phase 1. It turns the product posture from general CUI-aware intent into explicit controls for tenant mode, classification, approval, customer responsibility, notices, escalation, auditability, and security review before any production tenant can upload real customer CUI.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 1A.1.1 | Tenant data handling mode model, mode history, validation, tenant administration display, and workflow access to current mode. |
+| 1A.1.2 | Centralized mode enforcement across upload, evidence, notes, reports, extraction, UI restrictions, standard errors, and audit events. |
+| 1A.2.1 | Shared classification metadata schema, review metadata, validation, downstream blocking, and change history. |
+| 1A.2.2 | Classification selectors, warnings, badges, review queue, reviewer reclassification, and prohibited-data routing. |
+| 1A.3.1 | Reviewed synthetic CUI demo dataset definition, metadata, classification, labels, and import precheck. |
+| 1A.3.2 | Demo tenant seed/reset workflow with synthetic end-to-end examples, idempotency, mode restrictions, and audit logging. |
+| 1A.4.1 | CUI-ready tenant approval checklist model, item metadata, states, tenant linkage, API/UI workflows, and audit logging. |
+| 1A.4.2 | Server-side `CuiReady` approval gate, final approval permissions, stale-check detection, messaging, and failed-attempt audits. |
+| 1A.5.1 | Baseline shared responsibility matrix, review/publish workflow, tenant settings visibility, checklist linkage, and traceability. |
+| 1A.5.2 | Tenant matrix acknowledgement, version history, approval gate enforcement, change notifications, and audit logging. |
+| 1A.6.1 | Versioned data handling notices for `DemoSandbox`, `NoCui`, and `CuiReady` modes with review metadata and retrieval. |
+| 1A.6.2 | Notice placement and acknowledgement enforcement across onboarding, upload, notes, reports, extraction, and support. |
+| 1A.7.1 | CUI support escalation intake, categories, affected item references, restricted views, content blocking, and audit logging. |
+| 1A.7.2 | Escalation statuses, containment behavior, resolution history, reopen handling, notifications, reporting, and audit events. |
+| 1A.8.1 | Required CUI audit event definitions and emission across success and blocked paths without sensitive content in summaries. |
+| 1A.8.2 | CUI audit filters, readiness view, tenant-scoped export, export metadata, authorization, and export audit event. |
+| 1A.9.1 | Security review checklist, finding tracking, accepted risk metadata, approval linkage, open finding reporting, and audit events. |
+| 1A.9.2 | Technical control verification for tenant isolation, storage controls, backup/restore, admin/support access, and readiness summary. |
+| 1A.9.3 | Incident response playbooks, escalation owners, tabletop evidence, approval linkage, reminders, and traceability. |
+
+### Story 1A.1.1: Tenant Data Handling Mode Model
+
+This story gives every tenant an explicit mode: `DemoSandbox`, `NoCui`, or `CuiReady`. It records mode history, approval references, reasons, and effective dates so every data-handling workflow can make decisions from one source of truth.
+
+The value is enforceable posture. GCCS can distinguish demo-only, non-CUI, and approved CUI-ready tenants without relying on informal support notes or UI copy.
+
+### Story 1A.1.2: Mode-Based Workflow Enforcement
+
+This story applies tenant mode checks server-side and in the UI across uploads, evidence, notes, reports, and extraction jobs. It blocks direct API bypasses, returns standard errors, and records audit events for mode-restricted failures.
+
+The value is operational safety. Users cannot accidentally or deliberately process real CUI in workflows that are not approved for it.
+
+### Story 1A.2.1: Classification Metadata Schema
+
+This story creates shared classification metadata for CUI-relevant objects, including `Unclassified`, `FCI`, `CUI`, `SyntheticCui`, `Prohibited`, and `Unknown`, plus source, confidence, reviewer, date, reason, and change history.
+
+The value is consistent control. Uploads, notes, evidence, reports, documents, and extraction jobs can all enforce the same classification rules.
+
+### Story 1A.2.2: Classification UX And Review
+
+This story adds classification selection, warnings, badges, review queues, and reviewer reclassification workflows. Items marked `Unknown` or `Prohibited` are visibly controlled before they can be reused.
+
+The value is human-in-the-loop data handling. Users see and resolve classification risk before content enters reports, extraction, or evidence approval.
+
+### Story 1A.3.1: Synthetic Dataset Definition
+
+This story defines reviewed synthetic CUI examples for demos, testing, and training. Every record is labeled `SyntheticCui`, versioned, reviewed, and visibly marked so nobody mistakes it for real customer CUI.
+
+The value is safe demonstration. Sales, support, and QA can show realistic CUI workflows without exposing controlled or proprietary information.
+
+### Story 1A.3.2: Demo Tenant Seeding
+
+This story seeds `DemoSandbox` tenants with synthetic contracts, obligations, evidence, CMMC examples, subcontractor records, reports, and escalations. It prevents seed data from being loaded into production customer tenants.
+
+The value is repeatable onboarding. Demo and training environments can be reset and reused without risking real customer data.
+
+### Story 1A.4.1: Approval Checklist Model
+
+This story creates the CUI-ready tenant approval checklist, including customer agreement, notices, responsibility matrix, security review, support escalation, backup/restore, admin access, retention, and incident response items.
+
+The value is disciplined enablement. CUI workflows cannot be turned on without recorded evidence, review ownership, and approval state.
+
+### Story 1A.4.2: Approval Gate Enforcement
+
+This story enforces the CUI-ready approval checklist before tenant mode can change to `CuiReady`. It blocks incomplete, rejected, expired, or superseded approvals and audits failed attempts.
+
+The value is configuration control. A mistaken tenant setting cannot authorize real CUI handling without the required approval trail.
+
+### Story 1A.5.1: Baseline Responsibility Matrix
+
+This story creates the shared responsibility matrix for tenant administration, access, MFA, classification, evidence storage, encryption, malware scanning, retention, backup, export, deletion, incident reporting, support, and customer content decisions.
+
+The value is expectation clarity. Customers and internal teams can see who owns each CUI-relevant control before CUI workflows are enabled.
+
+### Story 1A.5.2: Tenant Matrix Acknowledgement
+
+This story lets tenant admins acknowledge the current responsibility matrix and requires that acknowledgement before CUI-ready approval. New matrix versions make prior acknowledgements outdated for future approvals.
+
+The value is customer acceptance. GCCS has a record that the customer saw and accepted the current shared responsibility baseline.
+
+### Story 1A.6.1: Versioned Notice Content
+
+This story creates reviewed data handling notices for each tenant mode and workflow context. Notices carry version, effective date, owner, reviewer, and approval status.
+
+The value is consistent guidance. Users see mode-appropriate CUI restrictions and responsibilities from governed content instead of ad hoc text.
+
+### Story 1A.6.2: Notice Placement And Acknowledgement
+
+This story places notices in onboarding, uploads, notes, reports, extraction, and support flows, and requires acknowledgement before CUI-relevant actions. Updated notice versions require renewed acknowledgement.
+
+The value is timely warning. Users encounter data-handling guidance at the exact moments where a mistaken upload or processing action can happen.
+
+### Story 1A.7.1: Escalation Intake And Classification
+
+This story creates escalation intake for accidental CUI upload, suspected CUI, prohibited data, misclassification, and customer questions. It links affected content, severity, owner, status, and restricted support views.
+
+The value is rapid triage. Potential data-handling problems become controlled records instead of scattered messages.
+
+### Story 1A.7.2: Escalation Workflow And Resolution
+
+This story adds escalation statuses, containment behavior, resolution types, reopen history, notifications, and reporting for CUI and prohibited-data cases.
+
+The value is documented containment. Affected content stays blocked during triage, and resolutions preserve the decision history.
+
+### Story 1A.8.1: Required CUI Audit Events
+
+This story defines and emits audit events for mode changes, classification, upload blocks, checklist approvals, acknowledgements, downloads, exports, deletions, escalations, and extraction job actions.
+
+The value is traceability. Readiness reviews and incident investigations can reconstruct what happened without exposing sensitive document content in audit summaries.
+
+### Story 1A.8.2: CUI Audit Filters And Export
+
+This story adds filters and tenant-scoped export for CUI-relevant audit events, including generated-by, generated-at, tenant, and filter metadata.
+
+The value is review efficiency. Security reviewers and tenant admins can produce focused audit packages for readiness checks and investigations.
+
+### Story 1A.9.1: Security Review Checklist
+
+This story creates a formal security review checklist covering tenant isolation, storage, encryption, malware scanning, retention, backup, restore, admin/support access, logging, monitoring, and incident response.
+
+The value is release discipline. High or critical open findings block CUI-ready approval unless properly accepted with scope, mitigation, and review date.
+
+### Story 1A.9.2: Technical Control Verification
+
+This story verifies the technical controls behind CUI readiness: tenant isolation for classified records and files, storage metadata, backup/restore evidence, admin/support permission checks, and readiness summary output.
+
+The value is evidence-backed approval. CUI-ready status is based on tests and documented verification instead of assumptions.
+
+### Story 1A.9.3: Incident Response Readiness
+
+This story creates playbooks and readiness checks for accidental CUI upload, suspected CUI in non-CUI tenants, prohibited data, cross-tenant exposure suspicion, malware detection, and failed deletion/export requests.
+
+The value is immediate response capability. The team has owners, triggers, containment steps, evidence collection, and closure criteria before CUI workflows are enabled.
