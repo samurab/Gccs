@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-06-18T15:00:00Z",
+  "reviewedBy": "QA Owner",
+  "metricTrends": [
+    {
+      "runId": "2026-06-17",
+      "precision": 0.9,
+      "recall": 0.75,
+      "falsePositiveCount": 1,
+      "falseNegativeCount": 2
+    },
+    {
+      "runId": "2026-06-18",
+      "precision": 1.0,
+      "recall": 1.0,
+      "falsePositiveCount": 0,
+      "falseNegativeCount": 0
+    }
+  ],
+  "openRisks": [
+    {
+      "recordId": "err-2026-06-18-001",
+      "risk": "Repeated citation windows may undercount safeguarding clause mentions in longer documents.",
+      "owner": "Compliance Content Owner",
+      "targetDate": "2026-06-25"
+    }
+  ],
+  "releaseReadinessNote": "Synthetic and public non-CUI corpus metrics are passing; one matcher improvement remains open for broader document diversity."
+}
