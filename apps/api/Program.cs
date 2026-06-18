@@ -2412,6 +2412,30 @@ api.MapPost("/evidence-requests", async (
 .RequirePermission(Permission.ManageEvidence)
 .WithName("CreateEvidenceRequest");
 
+api.MapGet("/evidence-requests", async (
+    EvidenceRequestStatus? status,
+    DateOnly? dueFrom,
+    DateOnly? dueTo,
+    Guid? assigneeUserId,
+    EvidenceRequestRelatedRecordType? relatedRecordType,
+    EvidenceRequestPriority? priority,
+    EvidenceRequestService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(
+        new EvidenceRequestDashboardQuery(status, dueFrom, dueTo, assigneeUserId, relatedRecordType, priority),
+        cancellationToken)))
+.RequirePermission(Permission.ViewEvidence)
+.WithName("ListEvidenceRequests");
+
+api.MapPost("/evidence-requests/reminders", async (
+    EvidenceRequestReminderRequest request,
+    EvidenceRequestService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(new { count = await service.SendBulkRemindersAsync(request, tenantContext.UserId, cancellationToken) }))
+.RequirePermission(Permission.ManageEvidence)
+.WithName("SendEvidenceRequestReminders");
+
 api.MapPut("/evidence-requests/{requestId:guid}/submit", async (
     Guid requestId,
     SubmitEvidenceRequestRequest request,

@@ -47,6 +47,7 @@ public sealed class EvidenceRequestEntity : AuditedEntity
     public Guid? AssigneeSubcontractorId { get; set; }
     public DateOnly DueDate { get; set; }
     public string Status { get; set; } = "Open";
+    public string Priority { get; set; } = "Normal";
     public string Instructions { get; set; } = string.Empty;
     public string RelatedRecordType { get; set; } = string.Empty;
     public string RelatedRecordId { get; set; } = string.Empty;

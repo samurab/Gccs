@@ -526,6 +526,7 @@ export type EvidenceRequest = {
   assigneeSubcontractorId: string | null;
   dueDate: string;
   status: string;
+  priority: string;
   instructions: string;
   relatedRecordType: string;
   relatedRecordId: string;
@@ -539,6 +540,19 @@ export type CreateEvidenceRequestRequest = Omit<
   EvidenceRequest,
   "id" | "tenantId" | "requesterUserId" | "status" | "submittedEvidenceItemId" | "submissionComment" | "reviewComment" | "createdAt"
 >;
+
+export type EvidenceRequestDashboardItem = EvidenceRequest & {
+  isOverdue: boolean;
+};
+
+export type EvidenceRequestDashboardQuery = {
+  status?: string;
+  dueFrom?: string;
+  dueTo?: string;
+  assigneeUserId?: string;
+  relatedRecordType?: string;
+  priority?: string;
+};
 
 export type SubmitEvidenceRequestRequest = {
   evidenceItemId: string;
@@ -1240,6 +1254,21 @@ export async function getGeneratedPolicyRevisions(policyId: string): Promise<Pol
 
 export async function createEvidenceRequest(request: CreateEvidenceRequestRequest): Promise<ApiMutationResult<EvidenceRequest>> {
   return postJsonResult<EvidenceRequest>("/api/evidence-requests", request);
+}
+
+export async function getEvidenceRequests(query: EvidenceRequestDashboardQuery = {}): Promise<EvidenceRequestDashboardItem[]> {
+  const params = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      params.set(key, value);
+    }
+  });
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return getJson<EvidenceRequestDashboardItem[]>(`/api/evidence-requests${suffix}`, []);
+}
+
+export async function sendEvidenceRequestReminders(evidenceRequestIds: string[]): Promise<ApiMutationResult<{ count: number }>> {
+  return postJsonResult<{ count: number }>("/api/evidence-requests/reminders", { evidenceRequestIds });
 }
 
 export async function submitEvidenceRequest(

@@ -568,7 +568,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("evidence_requests");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Status, x.DueDate });
+            entity.HasIndex(x => new { x.TenantId, x.Priority });
             entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Priority).HasMaxLength(40).IsRequired();
             entity.Property(x => x.Instructions).HasMaxLength(2000).IsRequired();
             entity.Property(x => x.RelatedRecordType).HasMaxLength(80).IsRequired();
             entity.Property(x => x.RelatedRecordId).HasMaxLength(160).IsRequired();

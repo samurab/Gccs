@@ -7,6 +7,17 @@ public sealed class EvidenceRequestService(
     IEvidenceRequestRepository repository,
     IAuditEventWriter auditEventWriter)
 {
+    public Task<IReadOnlyList<EvidenceRequestDashboardItemDto>> ListAsync(
+        EvidenceRequestDashboardQuery query,
+        CancellationToken cancellationToken = default) =>
+        repository.ListAsync(query, cancellationToken);
+
+    public Task<int> SendBulkRemindersAsync(
+        EvidenceRequestReminderRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default) =>
+        repository.SendBulkRemindersAsync(request, actorUserId, cancellationToken);
+
     public async Task<EvidenceRequestDto> CreateAsync(
         CreateEvidenceRequestRequest request,
         Guid requesterUserId,
@@ -120,6 +131,8 @@ public sealed class EvidenceRequestService(
 
 public interface IEvidenceRequestRepository
 {
+    Task<IReadOnlyList<EvidenceRequestDashboardItemDto>> ListAsync(EvidenceRequestDashboardQuery query, CancellationToken cancellationToken = default);
+    Task<int> SendBulkRemindersAsync(EvidenceRequestReminderRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<EvidenceRequestDto> CreateAsync(CreateEvidenceRequestRequest request, Guid requesterUserId, CancellationToken cancellationToken = default);
     Task<EvidenceRequestDto?> SubmitAsync(Guid requestId, SubmitEvidenceRequestRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<EvidenceRequestDto?> ReviewAsync(Guid requestId, ReviewEvidenceRequestRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
@@ -143,6 +156,14 @@ public enum EvidenceRequestStatus
     Cancelled
 }
 
+public enum EvidenceRequestPriority
+{
+    Low,
+    Normal,
+    High,
+    Critical
+}
+
 public enum EvidenceRequestReviewDecision
 {
     Accept,
@@ -155,7 +176,8 @@ public sealed record CreateEvidenceRequestRequest(
     Guid? AssigneeUserId,
     Guid? AssigneeSubcontractorId,
     DateOnly DueDate,
-    string Instructions);
+    string Instructions,
+    EvidenceRequestPriority Priority = EvidenceRequestPriority.Normal);
 
 public sealed record SubmitEvidenceRequestRequest(
     Guid EvidenceItemId,
@@ -175,11 +197,37 @@ public sealed record EvidenceRequestDto(
     DateOnly DueDate,
     EvidenceRequestStatus Status,
     string Instructions,
+    EvidenceRequestPriority Priority,
     EvidenceRequestRelatedRecordType RelatedRecordType,
     string RelatedRecordId,
     Guid? SubmittedEvidenceItemId,
     string? SubmissionComment,
     string? ReviewComment,
     DateTimeOffset CreatedAt);
+
+public sealed record EvidenceRequestDashboardQuery(
+    EvidenceRequestStatus? Status = null,
+    DateOnly? DueFrom = null,
+    DateOnly? DueTo = null,
+    Guid? AssigneeUserId = null,
+    EvidenceRequestRelatedRecordType? RelatedRecordType = null,
+    EvidenceRequestPriority? Priority = null);
+
+public sealed record EvidenceRequestDashboardItemDto(
+    Guid Id,
+    Guid TenantId,
+    Guid RequesterUserId,
+    Guid? AssigneeUserId,
+    Guid? AssigneeSubcontractorId,
+    DateOnly DueDate,
+    EvidenceRequestStatus Status,
+    EvidenceRequestPriority Priority,
+    string Instructions,
+    EvidenceRequestRelatedRecordType RelatedRecordType,
+    string RelatedRecordId,
+    bool IsOverdue,
+    DateTimeOffset CreatedAt);
+
+public sealed record EvidenceRequestReminderRequest(IReadOnlyList<Guid> EvidenceRequestIds);
 
 public sealed class EvidenceRequestValidationException(string message) : InvalidOperationException(message);

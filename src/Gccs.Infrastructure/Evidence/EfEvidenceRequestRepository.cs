@@ -10,6 +10,85 @@ public sealed class EfEvidenceRequestRepository(
     GccsDbContext dbContext,
     ICurrentTenantContext tenantContext) : IEvidenceRequestRepository
 {
+    public async Task<IReadOnlyList<EvidenceRequestDashboardItemDto>> ListAsync(
+        EvidenceRequestDashboardQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        var items = dbContext.EvidenceRequests
+            .AsNoTracking()
+            .Where(request => request.TenantId == tenantContext.TenantId);
+        if (query.Status is not null)
+        {
+            var status = query.Status.Value.ToString();
+            items = items.Where(request => request.Status == status);
+        }
+
+        if (query.DueFrom is not null)
+        {
+            items = items.Where(request => request.DueDate >= query.DueFrom);
+        }
+
+        if (query.DueTo is not null)
+        {
+            items = items.Where(request => request.DueDate <= query.DueTo);
+        }
+
+        if (query.AssigneeUserId is not null)
+        {
+            items = items.Where(request => request.AssigneeUserId == query.AssigneeUserId);
+        }
+
+        if (query.RelatedRecordType is not null)
+        {
+            var relatedType = query.RelatedRecordType.Value.ToString();
+            items = items.Where(request => request.RelatedRecordType == relatedType);
+        }
+
+        if (query.Priority is not null)
+        {
+            var priority = query.Priority.Value.ToString();
+            items = items.Where(request => request.Priority == priority);
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var requests = await items.OrderBy(request => request.DueDate).ThenBy(request => request.CreatedAt).ToArrayAsync(cancellationToken);
+        return requests.Select(request => ToDashboardDto(request, today)).ToArray();
+    }
+
+    public async Task<int> SendBulkRemindersAsync(
+        EvidenceRequestReminderRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var requests = await dbContext.EvidenceRequests
+            .Where(candidate =>
+                candidate.TenantId == tenantContext.TenantId &&
+                request.EvidenceRequestIds.Contains(candidate.Id) &&
+                candidate.AssigneeUserId != null)
+            .ToArrayAsync(cancellationToken);
+        foreach (var evidenceRequest in requests)
+        {
+            dbContext.NotificationDeliveries.Add(new NotificationDeliveryEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                UserId = evidenceRequest.AssigneeUserId!.Value,
+                SourceTaskId = evidenceRequest.Id,
+                SourceType = "EvidenceRequest",
+                LinkUrl = $"/evidence-requests/{evidenceRequest.Id}",
+                Category = "evidence_request_reminder",
+                Status = "Delivered",
+                Placeholder = $"Reminder: evidence request due {evidenceRequest.DueDate:O}.",
+                AttemptedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedByUserId = actorUserId
+            });
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return requests.Length;
+    }
+
     public async Task<EvidenceRequestDto> CreateAsync(
         CreateEvidenceRequestRequest request,
         Guid requesterUserId,
@@ -28,6 +107,7 @@ public sealed class EfEvidenceRequestRepository(
             AssigneeSubcontractorId = request.AssigneeSubcontractorId,
             DueDate = request.DueDate,
             Status = EvidenceRequestStatus.Open.ToString(),
+            Priority = request.Priority.ToString(),
             Instructions = request.Instructions.Trim(),
             RelatedRecordType = request.RelatedRecordType.ToString(),
             RelatedRecordId = request.RelatedRecordId.Trim(),
@@ -218,12 +298,32 @@ public sealed class EfEvidenceRequestRepository(
             entity.DueDate,
             Enum.Parse<EvidenceRequestStatus>(entity.Status),
             entity.Instructions,
+            Enum.Parse<EvidenceRequestPriority>(entity.Priority),
             Enum.Parse<EvidenceRequestRelatedRecordType>(entity.RelatedRecordType),
             entity.RelatedRecordId,
             entity.SubmittedEvidenceItemId,
             entity.SubmissionComment,
             entity.ReviewComment,
             entity.CreatedAt);
+
+    private static EvidenceRequestDashboardItemDto ToDashboardDto(EvidenceRequestEntity entity, DateOnly today)
+    {
+        var status = Enum.Parse<EvidenceRequestStatus>(entity.Status);
+        return new EvidenceRequestDashboardItemDto(
+            entity.Id,
+            entity.TenantId,
+            entity.RequesterUserId,
+            entity.AssigneeUserId,
+            entity.AssigneeSubcontractorId,
+            entity.DueDate,
+            status,
+            Enum.Parse<EvidenceRequestPriority>(entity.Priority),
+            entity.Instructions,
+            Enum.Parse<EvidenceRequestRelatedRecordType>(entity.RelatedRecordType),
+            entity.RelatedRecordId,
+            entity.DueDate < today && status is EvidenceRequestStatus.Open or EvidenceRequestStatus.Submitted or EvidenceRequestStatus.Returned,
+            entity.CreatedAt);
+    }
 
     private void LinkAcceptedEvidence(EvidenceRequestEntity entity)
     {
