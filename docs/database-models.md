@@ -17,6 +17,7 @@ These artifacts turn the MVP domain model into a migration-ready PostgreSQL sche
 - Obligation publication metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615011257_AddObligationPublicationMetadata.cs`
 - Clause tenant scope migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615040552_AddClauseTenantScope.cs`
 - Contract clause attachment workflow migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615041300_AddContractClauseAttachmentWorkflow.cs`
+- Content classification metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260618212037_AddContentClassificationMetadata.cs`
 - Generated SQL script: `infra/database/development-schema.sql`
 - Local EF tool manifest: `dotnet-tools.json`
 
@@ -63,13 +64,13 @@ Required fields, source systems, provenance rules, and deferred external integra
 | Tenancy and RBAC | `tenants`, `tenant_data_handling_mode_history`, `users`, `tenant_memberships`, `tenant_invitations`, `no_cui_acknowledgements`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, active data handling mode, mode-change history, explicit tenant membership assignments, invitation onboarding workflow, user-scoped data handling acknowledgement records, MFA-ready user profile, and role permissions. |
 | Company profile | `company_profiles`, `company_naics_codes`, `company_certifications`, `company_locations` | SAM/SBA profile data, NAICS size support, certifications, locations, IT posture, and data handling posture. |
 | Compliance content | `clauses`, `obligations`, `mvp_modules` | Source-backed clause and obligation library with source URL, review metadata, confidence, and expert-review flags. |
-| Contract intake | `contracts`, `solicitations`, `contract_documents`, `contract_clauses`, `contract_clause_obligations`, `contract_deliverables`, `contract_reporting_deadlines` | Contract records, document metadata, extracted/manual clauses, obligations, deliverables, reporting dates, and flow-down signals. |
+| Contract intake | `contracts`, `solicitations`, `contract_documents`, `contract_clauses`, `contract_clause_obligations`, `contract_deliverables`, `contract_reporting_deadlines` | Contract records, document metadata with classification metadata, extracted/manual clauses, obligations, deliverables, reporting dates, and flow-down signals. |
 | Calendar and work | `compliance_tasks` | Due dates, renewals, evidence requests, policy reviews, corrective actions, and control assessment tasks. |
-| Evidence vault | `evidence_items`, `evidence_obligations`, `evidence_contracts`, `evidence_controls`, `evidence_vendors`, `evidence_employees` | Folderless evidence tagging across obligations, contracts, controls, vendors, and employees. |
+| Evidence vault | `evidence_items`, `evidence_file_versions`, `content_classification_history`, `evidence_obligations`, `evidence_contracts`, `evidence_controls`, `evidence_vendors`, `evidence_employees` | Folderless evidence tagging across obligations, contracts, controls, vendors, and employees, with classification metadata and reclassification history. |
 | CMMC workspace | `controls`, `assessments`, `control_assessments`, `poam_items`, `poam_evidence`, `assets`, `system_boundaries`, `system_boundary_assets`, `system_boundary_external_service_providers`, `system_boundary_evidence`, `annual_affirmations` | Level 1/2 readiness, evidence mapping, POA&M, asset inventory, system boundaries, ESP responsibility support, and affirmation tracking. |
 | Vendors and subcontractors | `vendors`, `subcontractors`, `flow_down_clauses`, `contract_subcontractors`, `subcontractor_evidence` | Supplier risk, subcontractor access posture, contract workshare, required flow-downs, and evidence collection. |
 | People and labor | `employees`, `training_records`, `wage_determinations`, `labor_category_rates`, `labor_classifications`, `payroll_records` | Training, SCA/DBA-friendly wage records, labor category mapping, and payroll evidence references. |
-| Reporting and audit | `reports`, `report_contracts`, `report_obligations`, `report_evidence`, `audit_log_entries` | Generated reports, report source scope, and immutable activity/audit history. |
+| Reporting and audit | `reports`, `report_contracts`, `report_obligations`, `report_evidence`, `audit_log_entries` | Generated reports with classification metadata, report source scope, and immutable activity/audit history. |
 
 ## Design Choices
 
@@ -81,6 +82,7 @@ Required fields, source systems, provenance rules, and deferred external integra
 - Contract clause attachments keep source library id, attachment reason, source document reference, soft-removal timestamp/user/reason, and audit columns so manual tagging remains traceable.
 - Obligation records carry publication review metadata, flow-down flags, trigger logic, required action text, owner, risk, confidence, and linked evidence examples before customer-facing publication.
 - Evidence files are represented by metadata and storage URI only. Upload intents now record original file name, content type, file size, validation status, and malware scan placeholder status before later object storage workflows make files usable.
+- CUI-relevant content tables store classification, classification source, confidence, reviewer, review timestamp, reason, and approved-demo flags; reclassification changes append to `content_classification_history`.
 - Tenant-scoped operational tables include `tenant_id` indexes to support later tenant isolation enforcement in repositories and query filters.
 - Audit log entries are append-only through normal application APIs and record tenant, actor, action, entity, timestamp, IP address, user agent, correlation ID, summary, and structured metadata.
 

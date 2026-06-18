@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Gccs.Application.Common;
 using Gccs.Application.Reports;
 using Gccs.Application.Security;
 using Gccs.Domain.Cmmc;
@@ -119,6 +120,11 @@ public sealed class EfReportRepository(
             .ToArrayAsync(cancellationToken);
 
         var evidenceIds = evidenceItems.Select(evidence => evidence.Id).ToArray();
+        foreach (var evidence in evidenceItems)
+        {
+            ContentClassificationPolicy.EnsureProcessable(evidence.Classification, "Evidence package generation");
+        }
+
         var subcontractorLinks = await dbContext.Set<SubcontractorEvidenceEntity>()
             .AsNoTracking()
             .Where(link => evidenceIds.Contains(link.EvidenceItemId))

@@ -316,6 +316,13 @@ public sealed class ContractDocumentEntity
     public DateTimeOffset UploadedAt { get; set; }
     public Guid UploadedByUserId { get; set; }
     public bool ContainsPotentialCui { get; set; }
+    public ContentClassification Classification { get; set; } = ContentClassification.Unclassified;
+    public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.UserSelected;
+    public decimal? ClassificationConfidence { get; set; }
+    public Guid? ClassificationReviewedByUserId { get; set; }
+    public DateTimeOffset? ClassificationReviewedAt { get; set; }
+    public string? ClassificationReason { get; set; }
+    public bool ClassificationIsApprovedDemoContent { get; set; }
 
     public ContractEntity? Contract { get; set; }
     public ICollection<ExtractionJobEntity> ExtractionJobs { get; set; } = [];
@@ -332,6 +339,13 @@ public sealed class ExtractionJobEntity
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public string? FailureReason { get; set; }
+    public ContentClassification Classification { get; set; } = ContentClassification.Unclassified;
+    public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.SystemSuggested;
+    public decimal? ClassificationConfidence { get; set; }
+    public Guid? ClassificationReviewedByUserId { get; set; }
+    public DateTimeOffset? ClassificationReviewedAt { get; set; }
+    public string? ClassificationReason { get; set; }
+    public bool ClassificationIsApprovedDemoContent { get; set; }
 
     public TenantEntity? Tenant { get; set; }
     public ContractDocumentEntity? SourceDocument { get; set; }

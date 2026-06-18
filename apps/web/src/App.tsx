@@ -1041,7 +1041,16 @@ export function App() {
       fileName: file.name,
       contentType: file.type || "application/octet-stream",
       sizeBytes: file.size,
-      containsPotentialCui: false
+      containsPotentialCui: false,
+      classification: {
+        classification: "Unclassified",
+        source: "UserSelected",
+        confidence: null,
+        reviewedByUserId: null,
+        reviewedAt: null,
+        reason: "User confirmed non-CUI contract document metadata.",
+        isApprovedDemoContent: false
+      }
     });
 
     if (result.data) {

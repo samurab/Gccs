@@ -1,3 +1,5 @@
+using Gccs.Application.Common;
+
 namespace Gccs.Application.NoCui;
 
 public static class NoCuiNotice
@@ -23,7 +25,8 @@ public sealed record EvidenceUploadIntentRequest(
     string FileName,
     string ContentType,
     long SizeBytes,
-    bool ContainsPotentialCui = false);
+    bool ContainsPotentialCui = false,
+    ContentClassificationRequest? Classification = null);
 
 public sealed record EvidenceUploadIntentDto(
     Guid Id,
@@ -38,7 +41,8 @@ public sealed record EvidenceUploadIntentDto(
     string MalwareScanStatus,
     string Message,
     string NoticeVersion,
-    DateTimeOffset ExpiresAt);
+    DateTimeOffset ExpiresAt,
+    ContentClassificationDto Classification);
 
 public sealed record EvidenceFileVersionDto(
     Guid Id,
@@ -50,6 +54,7 @@ public sealed record EvidenceFileVersionDto(
     string ValidationStatus,
     string MalwareScanStatus,
     bool IsUsable,
+    ContentClassificationDto Classification,
     DateTimeOffset UploadedAt,
     DateTimeOffset? DeletedAt);
 
@@ -63,6 +68,7 @@ public sealed record EvidenceFileAccessDto(
     string ValidationStatus,
     string MalwareScanStatus,
     bool IsUsable,
+    ContentClassificationDto Classification,
     string Message);
 
 public static class EvidenceUploadGuardrails

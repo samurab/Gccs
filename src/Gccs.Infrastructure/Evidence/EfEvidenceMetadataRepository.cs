@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Gccs.Application.Common;
 using Gccs.Application.Evidence;
 using Gccs.Application.Security;
 using Gccs.Domain.Common;
@@ -63,12 +64,20 @@ public sealed class EfEvidenceMetadataRepository(
             EffectiveAt = request.EffectiveAt,
             ExpiresAt = request.ExpiresAt,
             TagsJson = JsonSerializer.Serialize(request.Tags, JsonOptions),
+            Classification = request.Classification?.Classification ?? ContentClassification.Unclassified,
+            ClassificationSource = request.Classification?.Source ?? ContentClassificationSource.UserSelected,
+            ClassificationConfidence = request.Classification?.Confidence,
+            ClassificationReviewedByUserId = request.Classification?.ReviewedByUserId,
+            ClassificationReviewedAt = request.Classification?.ReviewedAt,
+            ClassificationReason = request.Classification?.Reason,
+            ClassificationIsApprovedDemoContent = request.Classification?.IsApprovedDemoContent ?? false,
             CreatedAt = now,
             CreatedByUserId = actorUserId
         };
 
         dbContext.EvidenceItems.Add(entity);
         SyncLinks(entity.Id, request);
+        AddClassificationHistory(entity.TenantId, entity.Id.ToString(), null, entity, actorUserId, now);
         await SyncExpirationTaskAsync(entity, actorUserId, now, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return (await FindCurrentTenantAsync(entity.Id, cancellationToken))!;
@@ -89,6 +98,7 @@ public sealed class EfEvidenceMetadataRepository(
         }
 
         var now = DateTimeOffset.UtcNow;
+        var previousClassification = entity.Classification;
         entity.Name = request.Title;
         entity.Description = request.Description;
         entity.Type = request.Type;
@@ -97,10 +107,18 @@ public sealed class EfEvidenceMetadataRepository(
         entity.EffectiveAt = request.EffectiveAt;
         entity.ExpiresAt = request.ExpiresAt;
         entity.TagsJson = JsonSerializer.Serialize(request.Tags, JsonOptions);
+        if (request.Classification is not null)
+        {
+            ApplyClassification(entity, request.Classification);
+        }
         entity.UpdatedAt = now;
         entity.UpdatedByUserId = actorUserId;
 
         SyncLinks(entity.Id, request);
+        if (previousClassification != entity.Classification)
+        {
+            AddClassificationHistory(entity.TenantId, entity.Id.ToString(), previousClassification, entity, actorUserId, now);
+        }
         await SyncExpirationTaskAsync(entity, actorUserId, now, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity);
@@ -283,8 +301,56 @@ public sealed class EfEvidenceMetadataRepository(
             ReadSubcontractorIds(entity.Id),
             entity.Employees.Select(link => link.EmployeeId).OrderBy(id => id).ToArray(),
             ReadReportIds(entity.Id),
+            ToClassificationDto(entity),
             entity.CreatedAt,
             entity.UpdatedAt);
+
+    private static void ApplyClassification(EvidenceItemEntity entity, ContentClassificationRequest classification)
+    {
+        entity.Classification = classification.Classification;
+        entity.ClassificationSource = classification.Source;
+        entity.ClassificationConfidence = classification.Confidence;
+        entity.ClassificationReviewedByUserId = classification.ReviewedByUserId;
+        entity.ClassificationReviewedAt = classification.ReviewedAt;
+        entity.ClassificationReason = classification.Reason;
+        entity.ClassificationIsApprovedDemoContent = classification.IsApprovedDemoContent;
+    }
+
+    private void AddClassificationHistory(
+        Guid tenantId,
+        string entityId,
+        ContentClassification? previousClassification,
+        EvidenceItemEntity entity,
+        Guid actorUserId,
+        DateTimeOffset changedAt)
+    {
+        dbContext.ContentClassificationHistory.Add(new ContentClassificationHistoryEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            EntityType = "EvidenceItem",
+            EntityId = entityId,
+            PreviousClassification = previousClassification,
+            NewClassification = entity.Classification,
+            Source = entity.ClassificationSource,
+            Confidence = entity.ClassificationConfidence,
+            ReviewedByUserId = entity.ClassificationReviewedByUserId,
+            ReviewedAt = entity.ClassificationReviewedAt,
+            Reason = entity.ClassificationReason,
+            ChangedByUserId = actorUserId,
+            ChangedAt = changedAt
+        });
+    }
+
+    private static ContentClassificationDto ToClassificationDto(EvidenceItemEntity entity) =>
+        new(
+            entity.Classification,
+            entity.ClassificationSource,
+            entity.ClassificationConfidence,
+            entity.ClassificationReviewedByUserId,
+            entity.ClassificationReviewedAt,
+            entity.ClassificationReason,
+            entity.ClassificationIsApprovedDemoContent);
 
     private IReadOnlyList<Guid> ReadSubcontractorIds(Guid evidenceItemId) =>
         dbContext.Set<SubcontractorEvidenceEntity>()

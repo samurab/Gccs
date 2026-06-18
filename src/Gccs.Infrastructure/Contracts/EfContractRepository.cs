@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Gccs.Application.Common;
 using Gccs.Application.Contracts;
 using Gccs.Application.Security;
 using Gccs.Domain.Common;
@@ -173,7 +174,14 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             NoticeVersion = noticeVersion,
             UploadedAt = DateTimeOffset.UtcNow,
             UploadedByUserId = actorUserId,
-            ContainsPotentialCui = request.ContainsPotentialCui
+            ContainsPotentialCui = request.ContainsPotentialCui,
+            Classification = request.Classification?.Classification ?? ContentClassification.Unclassified,
+            ClassificationSource = request.Classification?.Source ?? ContentClassificationSource.UserSelected,
+            ClassificationConfidence = request.Classification?.Confidence,
+            ClassificationReviewedByUserId = request.Classification?.ReviewedByUserId,
+            ClassificationReviewedAt = request.Classification?.ReviewedAt,
+            ClassificationReason = request.Classification?.Reason,
+            ClassificationIsApprovedDemoContent = request.Classification?.IsApprovedDemoContent ?? false
         };
 
         dbContext.Set<ContractDocumentEntity>().Add(document);
@@ -233,8 +241,9 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var documentExists = await dbContext.Set<ContractDocumentEntity>()
-            .AnyAsync(
+        var document = await dbContext.Set<ContractDocumentEntity>()
+            .Include(item => item.Contract)
+            .SingleOrDefaultAsync(
                 document =>
                     document.Id == documentId &&
                     document.ContractId == contractId &&
@@ -242,7 +251,7 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
                     document.Contract.TenantId == tenantContext.TenantId,
                 cancellationToken);
 
-        if (!documentExists)
+        if (document is null)
         {
             return null;
         }
@@ -254,7 +263,14 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             SourceDocumentId = documentId,
             RequestedByUserId = actorUserId,
             Status = ExtractionJobStatus.Queued,
-            RequestedAt = DateTimeOffset.UtcNow
+            RequestedAt = DateTimeOffset.UtcNow,
+            Classification = document.Classification,
+            ClassificationSource = document.ClassificationSource,
+            ClassificationConfidence = document.ClassificationConfidence,
+            ClassificationReviewedByUserId = document.ClassificationReviewedByUserId,
+            ClassificationReviewedAt = document.ClassificationReviewedAt,
+            ClassificationReason = document.ClassificationReason,
+            ClassificationIsApprovedDemoContent = document.ClassificationIsApprovedDemoContent
         };
 
         dbContext.Set<ExtractionJobEntity>().Add(job);
@@ -993,7 +1009,18 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             entity.NoticeVersion,
             entity.UploadedAt,
             entity.UploadedByUserId,
-            entity.ContainsPotentialCui);
+            entity.ContainsPotentialCui,
+            ToClassificationDto(entity));
+
+    private static ContentClassificationDto ToClassificationDto(ContractDocumentEntity entity) =>
+        new(
+            entity.Classification,
+            entity.ClassificationSource,
+            entity.ClassificationConfidence,
+            entity.ClassificationReviewedByUserId,
+            entity.ClassificationReviewedAt,
+            entity.ClassificationReason,
+            entity.ClassificationIsApprovedDemoContent);
 
     private async Task<ClauseCandidateEntity?> FindCandidateForCurrentTenantAsync(
         Guid contractId,

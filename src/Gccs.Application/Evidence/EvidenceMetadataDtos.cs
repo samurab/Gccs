@@ -1,3 +1,4 @@
+using Gccs.Application.Common;
 using Gccs.Domain.Evidence;
 
 namespace Gccs.Application.Evidence;
@@ -20,6 +21,7 @@ public sealed record EvidenceMetadataDto(
     IReadOnlyList<Guid> SubcontractorIds,
     IReadOnlyList<Guid> EmployeeIds,
     IReadOnlyList<Guid> ReportIds,
+    ContentClassificationDto Classification,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
 
@@ -38,7 +40,8 @@ public sealed record UpsertEvidenceMetadataRequest(
     IReadOnlyList<Guid> VendorIds,
     IReadOnlyList<Guid> SubcontractorIds,
     IReadOnlyList<Guid> EmployeeIds,
-    IReadOnlyList<Guid> ReportIds);
+    IReadOnlyList<Guid> ReportIds,
+    ContentClassificationRequest? Classification = null);
 
 public sealed record EvidenceMetadataQuery(string? Tag);
 

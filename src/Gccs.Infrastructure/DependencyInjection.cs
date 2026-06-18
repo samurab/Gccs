@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Calendar;
 using Gccs.Application.Companies;
 using Gccs.Application.Cmmc;
@@ -59,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<ContractSizeCheckService>();
         services.AddScoped<TenantService>();
         services.AddScoped<TenantDataHandlingModePolicyService>();
+        services.AddScoped<ContentClassificationPolicy>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();

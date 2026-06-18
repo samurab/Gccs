@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Contracts;
 using Gccs.Application.Evidence;
 using Gccs.Application.NoCui;
@@ -57,7 +58,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         using var upload = CreateRequest(
             HttpMethod.Post,
             $"/api/contracts/{ids.ContractId}/documents",
-            new ContractDocumentUploadRequest(ContractDocumentType.Contract, "customer-cui.pdf", "application/pdf", 2048, true),
+            new ContractDocumentUploadRequest(ContractDocumentType.Contract, "customer-cui.pdf", "application/pdf", 2048, true, CuiClassification()),
             ids.TenantId,
             ids.ActorUserId,
             Permission.ManageContracts);
@@ -183,7 +184,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         var directCalls = new[]
         {
             CreateRequest(HttpMethod.Post, "/api/contracts", CreateContractRequest(DataHandlingPosture.Cui), ids.TenantId, ids.ActorUserId, Permission.ManageContracts),
-            CreateRequest(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/documents", new ContractDocumentUploadRequest(ContractDocumentType.Contract, "direct-cui.pdf", "application/pdf", 1024, true), ids.TenantId, ids.ActorUserId, Permission.ManageContracts),
+            CreateRequest(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/documents", new ContractDocumentUploadRequest(ContractDocumentType.Contract, "direct-cui.pdf", "application/pdf", 1024, true, CuiClassification()), ids.TenantId, ids.ActorUserId, Permission.ManageContracts),
             CreateRequest(HttpMethod.Put, $"/api/evidence-requests/{ids.EvidenceRequestId}/submit", new SubmitEvidenceRequestRequest(ids.EvidenceItemId, true, "Direct CUI"), ids.TenantId, ids.ActorUserId, Permission.ManageEvidence),
             CreateRequest<object?>(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/documents/{ids.DocumentId}/extraction-jobs", null, ids.TenantId, ids.ActorUserId, Permission.ManageContracts)
         };
@@ -304,6 +305,9 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
             "Arlington, VA",
             "Mode enforcement test contract.",
             posture);
+
+    private static ContentClassificationRequest CuiClassification() =>
+        new(ContentClassification.Cui, Reason: "Direct API test marked real CUI.");
 
     private static void SeedTenant(GccsDbContext dbContext, Guid tenantId, TenantDataPosture mode)
     {

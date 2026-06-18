@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Security;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Identity;
@@ -238,6 +239,11 @@ public static class ApiSecurityExtensions
                         "Tenant data handling mode restricted",
                         modeRestriction.Message,
                         "tenant_data_handling_mode_restricted"),
+                    ContentClassificationValidationException classification => (
+                        StatusCodes.Status400BadRequest,
+                        "Content classification invalid",
+                        classification.Message,
+                        "content_classification_invalid"),
                     _ => (
                         StatusCodes.Status500InternalServerError,
                         "API request failed",

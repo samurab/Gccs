@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Security;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
@@ -9,7 +10,7 @@ public sealed class NoCuiAcknowledgementService(
     INoCuiAcknowledgementRepository repository,
     ICurrentTenantContext tenantContext,
     IAuditEventWriter auditEventWriter,
-    TenantDataHandlingModePolicyService dataHandlingModePolicy)
+    ContentClassificationPolicy classificationPolicy)
 {
     public async Task<NoCuiAcknowledgementStatusDto> GetCurrentStatusAsync(
         CancellationToken cancellationToken = default)
@@ -92,13 +93,14 @@ public sealed class NoCuiAcknowledgementService(
             throw new UploadGuardrailValidationException(validationErrors);
         }
 
-        await dataHandlingModePolicy.EnsureAllowedAsync(
-            new TenantDataHandlingModePolicyRequest(
-                TenantDataHandlingWorkflow.EvidenceUpload,
-                ContainsRealCui: request.ContainsPotentialCui,
-                EntityType: "EvidenceItem",
-                EntityId: evidenceItemId.ToString()),
+        var classification = request.Classification ??
+            ContentClassificationPolicy.FromLegacyCuiFlag(request.ContainsPotentialCui);
+        await classificationPolicy.EnsureAllowedAsync(
+            classification,
+            TenantDataHandlingWorkflow.EvidenceUpload,
             actorUserId,
+            "EvidenceItem",
+            evidenceItemId.ToString(),
             cancellationToken);
 
         var uploadIntent = new EvidenceUploadIntentDto(
@@ -114,7 +116,8 @@ public sealed class NoCuiAcknowledgementService(
             EvidenceUploadGuardrails.PendingMalwareScanStatus,
             "Upload metadata passed No-CUI guardrails. The file is not usable until future storage and malware scanning workflows complete.",
             acknowledgement.NoticeVersion,
-            DateTimeOffset.UtcNow.AddMinutes(15));
+            DateTimeOffset.UtcNow.AddMinutes(15),
+            ToClassificationDto(classification));
 
         var version = await repository.RecordAcceptedEvidenceUploadIntentAsync(uploadIntent, cancellationToken);
         await auditEventWriter.WriteAsync(
@@ -280,6 +283,7 @@ public sealed class NoCuiAcknowledgementService(
             version.ValidationStatus,
             version.MalwareScanStatus,
             version.IsUsable,
+            version.Classification,
             message);
 
     private static Dictionary<string, string> ToAuditMetadata(EvidenceFileVersionDto version) =>
@@ -292,6 +296,16 @@ public sealed class NoCuiAcknowledgementService(
             ["malwareScanStatus"] = version.MalwareScanStatus,
             ["isUsable"] = version.IsUsable.ToString()
         };
+
+    private static ContentClassificationDto ToClassificationDto(ContentClassificationRequest classification) =>
+        new(
+            classification.Classification,
+            classification.Source,
+            classification.Confidence,
+            classification.ReviewedByUserId,
+            classification.ReviewedAt,
+            classification.Reason,
+            classification.IsApprovedDemoContent);
 }
 
 public sealed class NoCuiAcknowledgementRequiredException(string message) : InvalidOperationException(message);

@@ -378,7 +378,16 @@ const {
     noticeVersion: "no-cui-mvp-v1",
     uploadedAt: "2026-06-15T12:00:00Z",
     uploadedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
-    containsPotentialCui: false
+    containsPotentialCui: false,
+    classification: {
+      classification: "Unclassified",
+      source: "UserSelected",
+      confidence: null,
+      reviewedByUserId: null,
+      reviewedAt: null,
+      reason: "Test fixture.",
+      isApprovedDemoContent: false
+    }
   },
   contractDeliverable: {
     id: "66666666-6666-6666-6666-666666666661",
@@ -1319,7 +1328,8 @@ describe("App", () => {
         type: "Contract",
         fileName: "sow.pdf",
         contentType: "application/pdf",
-        containsPotentialCui: false
+        containsPotentialCui: false,
+        classification: expect.objectContaining({ classification: "Unclassified" })
       })
     );
     expect(await screen.findByText(/Document metadata captured/i)).toBeInTheDocument();

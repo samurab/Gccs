@@ -1,5 +1,6 @@
 using Gccs.Application.NoCui;
 using Gccs.Application.Security;
+using Gccs.Application.Common;
 using Gccs.Domain.Evidence;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
@@ -75,6 +76,13 @@ public sealed class EfNoCuiAcknowledgementRepository(
                 Status = EvidenceStatus.InReview,
                 OwnerFunction = "Compliance",
                 TagsJson = "[\"no-cui\",\"upload-intent\"]",
+                Classification = uploadIntent.Classification.Classification,
+                ClassificationSource = uploadIntent.Classification.Source,
+                ClassificationConfidence = uploadIntent.Classification.Confidence,
+                ClassificationReviewedByUserId = uploadIntent.Classification.ReviewedByUserId,
+                ClassificationReviewedAt = uploadIntent.Classification.ReviewedAt,
+                ClassificationReason = uploadIntent.Classification.Reason,
+                ClassificationIsApprovedDemoContent = uploadIntent.Classification.IsApprovedDemoContent,
                 CreatedAt = now,
                 CreatedByUserId = uploadIntent.CreatedByUserId
             };
@@ -94,6 +102,13 @@ public sealed class EfNoCuiAcknowledgementRepository(
         evidenceItem.MalwareScanStatus = uploadIntent.MalwareScanStatus;
         evidenceItem.StorageUri = null;
         evidenceItem.FileHash = null;
+        evidenceItem.Classification = uploadIntent.Classification.Classification;
+        evidenceItem.ClassificationSource = uploadIntent.Classification.Source;
+        evidenceItem.ClassificationConfidence = uploadIntent.Classification.Confidence;
+        evidenceItem.ClassificationReviewedByUserId = uploadIntent.Classification.ReviewedByUserId;
+        evidenceItem.ClassificationReviewedAt = uploadIntent.Classification.ReviewedAt;
+        evidenceItem.ClassificationReason = uploadIntent.Classification.Reason;
+        evidenceItem.ClassificationIsApprovedDemoContent = uploadIntent.Classification.IsApprovedDemoContent;
 
         var nextVersionNumber = await dbContext.EvidenceFileVersions
             .Where(version => version.EvidenceItemId == evidenceItem.Id)
@@ -112,7 +127,14 @@ public sealed class EfNoCuiAcknowledgementRepository(
             StorageUri = null,
             FileHash = null,
             UploadedAt = now,
-            UploadedByUserId = uploadIntent.CreatedByUserId
+            UploadedByUserId = uploadIntent.CreatedByUserId,
+            Classification = uploadIntent.Classification.Classification,
+            ClassificationSource = uploadIntent.Classification.Source,
+            ClassificationConfidence = uploadIntent.Classification.Confidence,
+            ClassificationReviewedByUserId = uploadIntent.Classification.ReviewedByUserId,
+            ClassificationReviewedAt = uploadIntent.Classification.ReviewedAt,
+            ClassificationReason = uploadIntent.Classification.Reason,
+            ClassificationIsApprovedDemoContent = uploadIntent.Classification.IsApprovedDemoContent
         };
         dbContext.EvidenceFileVersions.Add(version);
 
@@ -182,6 +204,14 @@ public sealed class EfNoCuiAcknowledgementRepository(
             version.ValidationStatus,
             version.MalwareScanStatus,
             IsUsable(version.ValidationStatus, version.MalwareScanStatus),
+            new ContentClassificationDto(
+                version.Classification,
+                version.ClassificationSource,
+                version.ClassificationConfidence,
+                version.ClassificationReviewedByUserId,
+                version.ClassificationReviewedAt,
+                version.ClassificationReason,
+                version.ClassificationIsApprovedDemoContent),
             version.UploadedAt,
             version.DeletedAt);
 

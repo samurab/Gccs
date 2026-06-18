@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.Contracts;
+using Gccs.Application.Common;
 using Gccs.Application.NoCui;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
@@ -1014,7 +1015,11 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             fileName,
             contentType,
             2048,
-            false);
+            false,
+            Unclassified());
+
+    private static ContentClassificationRequest Unclassified() =>
+        new(ContentClassification.Unclassified, Reason: "Test non-CUI document.");
 
     private static ContractDocumentEntity CreateDocumentEntity(Guid contractId, Guid documentId, Guid userId) =>
         new()

@@ -893,6 +893,7 @@ export type ContractDocument = {
   uploadedAt: string;
   uploadedByUserId: string;
   containsPotentialCui: boolean;
+  classification: ContentClassification;
 };
 
 export type ContractDocumentUploadRequest = {
@@ -901,6 +902,17 @@ export type ContractDocumentUploadRequest = {
   contentType: string;
   sizeBytes: number;
   containsPotentialCui: boolean;
+  classification: ContentClassification;
+};
+
+export type ContentClassification = {
+  classification: "Unclassified" | "Fci" | "Cui" | "SyntheticCui" | "Prohibited" | "Unknown" | string;
+  source: "UserSelected" | "SystemSuggested" | "AdminReviewed" | "ImportedDemoSeed" | string;
+  confidence: number | null;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  reason: string | null;
+  isApprovedDemoContent: boolean;
 };
 
 export type ExtractionJob = {
@@ -1869,7 +1881,16 @@ export async function createEvidenceUploadIntent(file: File): Promise<ApiMutatio
     fileName: file.name,
     contentType: file.type || "application/octet-stream",
     sizeBytes: file.size,
-    containsPotentialCui: false
+    containsPotentialCui: false,
+    classification: {
+      classification: "Unclassified",
+      source: "UserSelected",
+      confidence: null,
+      reviewedByUserId: null,
+      reviewedAt: null,
+      reason: "User confirmed non-CUI upload intent.",
+      isApprovedDemoContent: false
+    }
   });
 }
 

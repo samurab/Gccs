@@ -1,11 +1,14 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 
 namespace Gccs.Application.Evidence;
 
 public sealed class EvidenceMetadataService(
     IEvidenceMetadataRepository repository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    ContentClassificationPolicy classificationPolicy)
 {
     public Task<IReadOnlyList<EvidenceMetadataDto>> ListCurrentTenantAsync(
         EvidenceMetadataQuery query,
@@ -24,6 +27,13 @@ public sealed class EvidenceMetadataService(
     {
         var normalized = Normalize(request);
         Validate(normalized);
+        await classificationPolicy.EnsureAllowedAsync(
+            normalized.Classification ?? ContentClassificationPolicy.DefaultUnclassified(),
+            TenantDataHandlingWorkflow.EvidenceUpload,
+            actorUserId,
+            "EvidenceItem",
+            null,
+            cancellationToken);
         var created = await repository.CreateCurrentTenantAsync(normalized, actorUserId, cancellationToken);
         await WriteAuditAsync(created, actorUserId, AuditAction.Created, "Evidence metadata was created.", cancellationToken);
         return created;
@@ -37,6 +47,13 @@ public sealed class EvidenceMetadataService(
     {
         var normalized = Normalize(request);
         Validate(normalized);
+        await classificationPolicy.EnsureAllowedAsync(
+            normalized.Classification ?? ContentClassificationPolicy.DefaultUnclassified(),
+            TenantDataHandlingWorkflow.EvidenceUpload,
+            actorUserId,
+            "EvidenceItem",
+            evidenceItemId.ToString(),
+            cancellationToken);
         var updated = await repository.UpdateCurrentTenantAsync(evidenceItemId, normalized, actorUserId, cancellationToken);
 
         if (updated is null)

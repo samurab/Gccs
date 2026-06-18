@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.NoCui;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
@@ -14,6 +15,7 @@ public sealed partial class ContractService(
     INoCuiAcknowledgementRepository noCuiAcknowledgementRepository,
     IAuditEventWriter auditEventWriter,
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
+    ContentClassificationPolicy classificationPolicy,
     IExtractionJobQueue extractionJobQueue,
     IContractDocumentTextExtractor textExtractor)
 {
@@ -87,13 +89,14 @@ public sealed partial class ContractService(
         }
 
         var normalized = NormalizeDocument(request);
-        await dataHandlingModePolicy.EnsureAllowedAsync(
-            new TenantDataHandlingModePolicyRequest(
-                TenantDataHandlingWorkflow.ContractDocumentUpload,
-                ContainsRealCui: normalized.ContainsPotentialCui,
-                EntityType: "ContractDocument",
-                EntityId: contractId.ToString()),
+        var classification = normalized.Classification ??
+            throw new ContentClassificationValidationException("Classification metadata is required before contract document metadata can be stored.");
+        await classificationPolicy.EnsureAllowedAsync(
+            classification,
+            TenantDataHandlingWorkflow.ContractDocumentUpload,
             actorUserId,
+            "ContractDocument",
+            contractId.ToString(),
             cancellationToken);
 
         var validationErrors = ValidateDocumentUpload(normalized);
@@ -177,6 +180,7 @@ public sealed partial class ContractService(
                 EntityId: documentId.ToString()),
             actorUserId,
             cancellationToken);
+        ContentClassificationPolicy.EnsureProcessable(document.Classification.Classification, "Clause extraction");
 
         var job = await repository.CreateExtractionJobAsync(contractId, documentId, actorUserId, cancellationToken);
         if (job is null)
@@ -252,6 +256,7 @@ public sealed partial class ContractService(
                 EntityId: extractionJobId.ToString()),
             actorUserId,
             cancellationToken);
+        ContentClassificationPolicy.EnsureProcessable(input.SourceDocument.Classification.Classification, "Clause extraction processing");
 
         await repository.MarkExtractionJobProcessingAsync(extractionJobId, cancellationToken);
         var extraction = await textExtractor.ExtractTextAsync(input.SourceDocument, cancellationToken);
@@ -934,11 +939,6 @@ public sealed partial class ContractService(
     private static Dictionary<string, string[]> ValidateDocumentUpload(ContractDocumentUploadRequest request)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
-
-        if (request.ContainsPotentialCui)
-        {
-            errors["containsPotentialCui"] = ["Contract document metadata cannot be accepted when the file is marked as potential CUI in the No-CUI MVP."];
-        }
 
         if (string.IsNullOrWhiteSpace(request.FileName) || request.FileName.Length > 300)
         {

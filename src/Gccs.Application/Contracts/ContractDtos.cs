@@ -1,3 +1,4 @@
+using Gccs.Application.Common;
 using Gccs.Domain.Companies;
 using Gccs.Domain.Contracts;
 
@@ -49,14 +50,16 @@ public sealed record ContractDocumentDto(
     string NoticeVersion,
     DateTimeOffset UploadedAt,
     Guid UploadedByUserId,
-    bool ContainsPotentialCui);
+    bool ContainsPotentialCui,
+    ContentClassificationDto Classification);
 
 public sealed record ContractDocumentUploadRequest(
     ContractDocumentType Type,
     string FileName,
     string ContentType,
     long SizeBytes,
-    bool ContainsPotentialCui);
+    bool ContainsPotentialCui,
+    ContentClassificationRequest? Classification = null);
 
 public sealed record ExtractionJobDto(
     Guid Id,

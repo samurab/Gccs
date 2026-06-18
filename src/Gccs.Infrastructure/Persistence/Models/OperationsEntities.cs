@@ -1,5 +1,6 @@
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
 using Gccs.Domain.Evidence;
 using Gccs.Domain.Labor;
 using Gccs.Domain.People;
@@ -29,6 +30,13 @@ public sealed class EvidenceItemEntity : AuditedEntity
     public string TagsJson { get; set; } = "[]";
     public Guid? ApprovedByUserId { get; set; }
     public DateTimeOffset? ApprovedAt { get; set; }
+    public ContentClassification Classification { get; set; } = ContentClassification.Unclassified;
+    public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.UserSelected;
+    public decimal? ClassificationConfidence { get; set; }
+    public Guid? ClassificationReviewedByUserId { get; set; }
+    public DateTimeOffset? ClassificationReviewedAt { get; set; }
+    public string? ClassificationReason { get; set; }
+    public bool ClassificationIsApprovedDemoContent { get; set; }
 
     public ICollection<EvidenceObligationEntity> Obligations { get; set; } = [];
     public ICollection<EvidenceContractEntity> Contracts { get; set; } = [];
@@ -74,6 +82,13 @@ public sealed class EvidenceFileVersionEntity
     public Guid UploadedByUserId { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
     public Guid? DeletedByUserId { get; set; }
+    public ContentClassification Classification { get; set; } = ContentClassification.Unclassified;
+    public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.UserSelected;
+    public decimal? ClassificationConfidence { get; set; }
+    public Guid? ClassificationReviewedByUserId { get; set; }
+    public DateTimeOffset? ClassificationReviewedAt { get; set; }
+    public string? ClassificationReason { get; set; }
+    public bool ClassificationIsApprovedDemoContent { get; set; }
 
     public EvidenceItemEntity? EvidenceItem { get; set; }
 }
@@ -574,6 +589,13 @@ public sealed class ReportEntity : AuditedEntity
     public string? StorageUri { get; set; }
     public string SnapshotJson { get; set; } = "{}";
     public string ExportHtml { get; set; } = string.Empty;
+    public ContentClassification Classification { get; set; } = ContentClassification.Unclassified;
+    public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.SystemSuggested;
+    public decimal? ClassificationConfidence { get; set; }
+    public Guid? ClassificationReviewedByUserId { get; set; }
+    public DateTimeOffset? ClassificationReviewedAt { get; set; }
+    public string? ClassificationReason { get; set; }
+    public bool ClassificationIsApprovedDemoContent { get; set; }
 
     public ICollection<ReportContractEntity> Contracts { get; set; } = [];
     public ICollection<ReportObligationEntity> Obligations { get; set; } = [];
@@ -596,4 +618,21 @@ public sealed class ReportEvidenceEntity
 {
     public Guid ReportId { get; set; }
     public Guid EvidenceItemId { get; set; }
+}
+
+public sealed class ContentClassificationHistoryEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string EntityType { get; set; } = string.Empty;
+    public string EntityId { get; set; } = string.Empty;
+    public ContentClassification? PreviousClassification { get; set; }
+    public ContentClassification NewClassification { get; set; }
+    public ContentClassificationSource Source { get; set; }
+    public decimal? Confidence { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? Reason { get; set; }
+    public Guid ChangedByUserId { get; set; }
+    public DateTimeOffset ChangedAt { get; set; }
 }

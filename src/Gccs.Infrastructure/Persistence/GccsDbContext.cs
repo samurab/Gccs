@@ -44,6 +44,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
     public DbSet<EvidenceRequestEntity> EvidenceRequests => Set<EvidenceRequestEntity>();
     public DbSet<EvidenceFileVersionEntity> EvidenceFileVersions => Set<EvidenceFileVersionEntity>();
+    public DbSet<ContentClassificationHistoryEntity> ContentClassificationHistory => Set<ContentClassificationHistoryEntity>();
     public DbSet<ControlEntity> Controls => Set<ControlEntity>();
     public DbSet<AssessmentEntity> Assessments => Set<AssessmentEntity>();
     public DbSet<ControlAssessmentEntity> ControlAssessments => Set<ControlAssessmentEntity>();
@@ -85,6 +86,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<CompanyRange>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ComplianceTaskStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ComplianceTaskType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ContentClassification>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ContentClassificationSource>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContractDocumentType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContractKind>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContractorRelationship>().HaveConversion<string>().HaveMaxLength(64);
@@ -376,6 +379,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.ValidationStatus).HasMaxLength(80).IsRequired();
             entity.Property(x => x.MalwareScanStatus).HasMaxLength(80).IsRequired();
             entity.Property(x => x.NoticeVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
             entity.HasOne(x => x.Contract).WithMany(x => x.Documents).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -386,6 +390,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.TenantId, x.Status, x.RequestedAt });
             entity.HasIndex(x => x.SourceDocumentId);
             entity.Property(x => x.FailureReason).HasMaxLength(1000);
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
             entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.SourceDocument).WithMany(x => x.ExtractionJobs).HasForeignKey(x => x.SourceDocumentId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -572,6 +577,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.UploadValidationStatus).HasMaxLength(80);
             entity.Property(x => x.MalwareScanStatus).HasMaxLength(80);
             entity.Property(x => x.TagsJson).HasColumnType("jsonb");
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
             ConfigureAuditColumns(entity);
         });
 
@@ -640,7 +646,18 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.ContentType).HasMaxLength(160).IsRequired();
             entity.Property(x => x.ValidationStatus).HasMaxLength(80).IsRequired();
             entity.Property(x => x.MalwareScanStatus).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
             entity.HasOne(x => x.EvidenceItem).WithMany(x => x.FileVersions).HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ContentClassificationHistoryEntity>(entity =>
+        {
+            entity.ToTable("content_classification_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EntityType, x.EntityId, x.ChangedAt });
+            entity.Property(x => x.EntityType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.EntityId).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(600);
         });
     }
 
@@ -970,6 +987,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Type, x.Status });
             entity.Property(x => x.SnapshotJson).HasColumnType("jsonb");
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
             ConfigureAuditColumns(entity);
         });
 
