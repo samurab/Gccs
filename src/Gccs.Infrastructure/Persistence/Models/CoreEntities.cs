@@ -106,6 +106,23 @@ public sealed class DataHandlingNoticeAcknowledgementEntity : AuditedEntity
     public TenantEntity? Tenant { get; set; }
 }
 
+public sealed class CuiSupportEscalationEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string SourceWorkflow { get; set; } = string.Empty;
+    public string AffectedEntityType { get; set; } = string.Empty;
+    public string AffectedEntityId { get; set; } = string.Empty;
+    public CuiSupportEscalationCategory Category { get; set; }
+    public CuiSupportEscalationSeverity Severity { get; set; }
+    public CuiSupportEscalationStatus Status { get; set; }
+    public string? Owner { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public bool IsAffectedContentBlocked { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+}
+
 public sealed class UserEntity : AuditedEntity
 {
     public Guid Id { get; set; }

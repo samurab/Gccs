@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<SharedResponsibilityMatrixAcknowledgementService>();
         services.AddScoped<DataHandlingNoticeService>();
         services.AddScoped<DataHandlingNoticeAcknowledgementService>();
+        services.AddScoped<CuiSupportEscalationService>();
         services.AddScoped<TenantDataHandlingModePolicyService>();
         services.AddScoped<ContentClassificationPolicy>();
         services.AddScoped<ContentClassificationReviewService>();
@@ -128,6 +129,7 @@ public static class DependencyInjection
             services.AddScoped<ICuiReadyApprovalChecklistRepository, EfCuiReadyApprovalChecklistRepository>();
             services.AddScoped<ISharedResponsibilityMatrixAcknowledgementRepository, EfSharedResponsibilityMatrixAcknowledgementRepository>();
             services.AddScoped<IDataHandlingNoticeAcknowledgementRepository, EfDataHandlingNoticeAcknowledgementRepository>();
+            services.AddScoped<ICuiSupportEscalationRepository, EfCuiSupportEscalationRepository>();
             services.AddScoped<ICuiReadyApprovalChecklistGate>(provider => provider.GetRequiredService<CuiReadyApprovalChecklistService>());
             services.AddScoped<ITenantMembershipRepository, EfTenantMembershipRepository>();
             services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
@@ -182,6 +184,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Shared responsibility matrix acknowledgement persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IDataHandlingNoticeAcknowledgementRepository>(_ =>
                 throw new InvalidOperationException("Data handling notice acknowledgement persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ICuiSupportEscalationRepository>(_ =>
+                throw new InvalidOperationException("CUI support escalation persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ITenantMembershipRepository>(_ =>
                 throw new InvalidOperationException("Tenant membership persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ITenantInvitationRepository>(_ =>

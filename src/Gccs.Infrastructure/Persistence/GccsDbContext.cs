@@ -27,6 +27,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<CuiReadyApprovalChecklistItemEntity> CuiReadyApprovalChecklistItems => Set<CuiReadyApprovalChecklistItemEntity>();
     public DbSet<SharedResponsibilityMatrixAcknowledgementEntity> SharedResponsibilityMatrixAcknowledgements => Set<SharedResponsibilityMatrixAcknowledgementEntity>();
     public DbSet<DataHandlingNoticeAcknowledgementEntity> DataHandlingNoticeAcknowledgements => Set<DataHandlingNoticeAcknowledgementEntity>();
+    public DbSet<CuiSupportEscalationEntity> CuiSupportEscalations => Set<CuiSupportEscalationEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
@@ -95,6 +96,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<ContentClassificationSource>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<CuiReadyChecklistItemStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<CuiReadyChecklistState>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiSupportEscalationCategory>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiSupportEscalationSeverity>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiSupportEscalationStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContractDocumentType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContractKind>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContractorRelationship>().HaveConversion<string>().HaveMaxLength(64);
@@ -215,6 +219,21 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.WorkflowContext).HasMaxLength(120).IsRequired();
             entity.Property(x => x.NoticeId).HasMaxLength(160).IsRequired();
             entity.Property(x => x.NoticeVersion).HasMaxLength(80).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<CuiSupportEscalationEntity>(entity =>
+        {
+            entity.ToTable("cui_support_escalations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.CreatedAt });
+            entity.HasIndex(x => new { x.TenantId, x.AffectedEntityType, x.AffectedEntityId });
+            entity.Property(x => x.SourceWorkflow).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.AffectedEntityType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.AffectedEntityId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.Owner).HasMaxLength(180);
+            entity.Property(x => x.Description).HasMaxLength(1200).IsRequired();
             entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
             ConfigureAuditColumns(entity);
         });

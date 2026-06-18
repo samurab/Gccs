@@ -3684,6 +3684,64 @@ api.MapPost("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", as
 .RequirePermission(Permission.ManageTenant)
 .WithName("AcknowledgeDataHandlingNotice");
 
+api.MapGet("/tenants/{tenantId:guid}/cui-support-escalations", async (
+    Guid tenantId,
+    CuiSupportEscalationService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(tenantId, cancellationToken)))
+.RequirePermission(Permission.ManageTenant)
+.WithName("ListCuiSupportEscalations");
+
+api.MapPost("/tenants/{tenantId:guid}/cui-support-escalations", async (
+    Guid tenantId,
+    CreateCuiSupportEscalationRequest request,
+    CuiSupportEscalationService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var escalation = await service.CreateAsync(tenantId, request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/tenants/{tenantId}/cui-support-escalations/{escalation.Id}", escalation);
+    }
+    catch (CuiSupportEscalationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cuiSupportEscalation"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CreateCuiSupportEscalation");
+
+api.MapPatch("/tenants/{tenantId:guid}/cui-support-escalations/{escalationId:guid}", async (
+    Guid tenantId,
+    Guid escalationId,
+    UpdateCuiSupportEscalationRequest request,
+    CuiSupportEscalationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var escalation = await service.UpdateSupportFieldsAsync(tenantId, escalationId, request, tenantContext.UserId, cancellationToken);
+        return escalation is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "CUI support escalation was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(escalation);
+    }
+    catch (CuiSupportEscalationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cuiSupportEscalation"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("UpdateCuiSupportEscalation");
+
 api.MapGet("/tenants/{tenantId:guid}/shared-responsibility-matrix/acknowledgements", async (
     Guid tenantId,
     SharedResponsibilityMatrixService matrixService,

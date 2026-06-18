@@ -240,6 +240,39 @@ export type AcknowledgeDataHandlingNoticeRequest = {
   acknowledged: boolean;
 };
 
+export type CuiSupportEscalation = {
+  id: string;
+  tenantId: string;
+  sourceWorkflow: string;
+  affectedEntityType: string;
+  affectedEntityId: string;
+  category: "SuspectedCui" | "ProhibitedData" | "ClassificationQuestion" | string;
+  severity: "Low" | "Medium" | "High" | "Critical" | string;
+  status: "Submitted" | "Triage" | "Contained" | "Resolved" | string;
+  owner: string | null;
+  description: string;
+  isAffectedContentBlocked: boolean;
+  createdAt: string;
+  createdByUserId: string;
+  updatedAt: string | null;
+  updatedByUserId: string | null;
+};
+
+export type CreateCuiSupportEscalationRequest = {
+  sourceWorkflow: string;
+  affectedEntityType: string;
+  affectedEntityId: string;
+  category: "SuspectedCui" | "ProhibitedData" | "ClassificationQuestion" | string;
+  severity: "Low" | "Medium" | "High" | "Critical" | string;
+  description: string;
+};
+
+export type UpdateCuiSupportEscalationRequest = {
+  owner: string;
+  severity: "Low" | "Medium" | "High" | "Critical" | string;
+  status: "Submitted" | "Triage" | "Contained" | "Resolved" | string;
+};
+
 export type NotificationCenterItem = {
   id: string;
   tenantId: string;
@@ -1416,6 +1449,10 @@ export async function getNotifications(): Promise<NotificationCenterItem[]> {
   return getJson<NotificationCenterItem[]>("/api/notifications", []);
 }
 
+export async function getCuiSupportEscalations(tenantId: string): Promise<CuiSupportEscalation[]> {
+  return getJson<CuiSupportEscalation[]>(`/api/tenants/${tenantId}/cui-support-escalations`, []);
+}
+
 export async function markNotificationRead(notificationId: string): Promise<ApiMutationResult<NotificationCenterItem>> {
   return postJsonResult<NotificationCenterItem>(`/api/notifications/${notificationId}/read`, {});
 }
@@ -2170,6 +2207,21 @@ export async function acknowledgeDataHandlingNotice(
     `/api/tenants/${tenantId}/data-handling-notice-acknowledgements`,
     request
   );
+}
+
+export async function createCuiSupportEscalation(
+  tenantId: string,
+  request: CreateCuiSupportEscalationRequest
+): Promise<ApiMutationResult<CuiSupportEscalation>> {
+  return postJsonResult<CuiSupportEscalation>(`/api/tenants/${tenantId}/cui-support-escalations`, request);
+}
+
+export async function updateCuiSupportEscalation(
+  tenantId: string,
+  escalationId: string,
+  request: UpdateCuiSupportEscalationRequest
+): Promise<ApiMutationResult<CuiSupportEscalation>> {
+  return patchJsonResult<CuiSupportEscalation>(`/api/tenants/${tenantId}/cui-support-escalations/${escalationId}`, request);
 }
 
 export async function createCuiReadyApprovalChecklist(tenantId: string): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
