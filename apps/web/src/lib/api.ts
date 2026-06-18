@@ -226,6 +226,7 @@ export type EvidenceMetadata = {
   subcontractorIds: string[];
   employeeIds: string[];
   reportIds: string[];
+  classification: ContentClassification;
   createdAt: string;
   updatedAt: string | null;
 };
@@ -913,6 +914,20 @@ export type ContentClassification = {
   reviewedAt: string | null;
   reason: string | null;
   isApprovedDemoContent: boolean;
+};
+
+export type ContentClassificationReviewItem = {
+  tenantId: string;
+  entityType: string;
+  entityId: string;
+  title: string;
+  classification: ContentClassification;
+  createdAt: string;
+  reviewRoute: string;
+};
+
+export type ReclassifyContentRequest = {
+  classification: ContentClassification;
 };
 
 export type ExtractionJob = {
@@ -1873,6 +1888,17 @@ export async function updateEvidenceMetadata(
   request: UpsertEvidenceMetadataRequest
 ): Promise<ApiMutationResult<EvidenceMetadata>> {
   return putJsonResult<EvidenceMetadata>(`/api/evidence-items/${evidenceItemId}`, request);
+}
+
+export async function getContentClassificationReviewItems(): Promise<ContentClassificationReviewItem[]> {
+  return getJson<ContentClassificationReviewItem[]>("/api/content-classification-review-items", []);
+}
+
+export async function reclassifyEvidenceItem(
+  evidenceItemId: string,
+  request: ReclassifyContentRequest
+): Promise<ApiMutationResult<EvidenceMetadata>> {
+  return patchJsonResult<EvidenceMetadata>(`/api/evidence-items/${evidenceItemId}/classification`, request);
 }
 
 export async function createEvidenceUploadIntent(file: File): Promise<ApiMutationResult<EvidenceUploadIntent>> {

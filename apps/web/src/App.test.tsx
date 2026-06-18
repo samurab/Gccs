@@ -42,6 +42,7 @@ const {
   getContractObligationDetailMock,
   getContractObligationsMock,
   getContractsMock,
+  getContentClassificationReviewItemsMock,
   getEvidenceItemsMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
@@ -74,6 +75,7 @@ const {
   generateSubcontractorComplianceReportMock,
   removeContractClauseMock,
   rejectClauseCandidateMock,
+  reclassifyEvidenceItemMock,
   saveCompanyProfileMock,
   searchClauseLibraryMock,
   startContractDocumentExtractionMock,
@@ -118,6 +120,7 @@ const {
   getContractObligationDetailMock: vi.fn(),
   getContractObligationsMock: vi.fn(),
   getContractsMock: vi.fn(),
+  getContentClassificationReviewItemsMock: vi.fn(),
   getEvidenceItemsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
@@ -135,6 +138,7 @@ const {
   runDueDateRemindersMock: vi.fn(),
   removeContractClauseMock: vi.fn(),
   rejectClauseCandidateMock: vi.fn(),
+  reclassifyEvidenceItemMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
   startContractDocumentExtractionMock: vi.fn(),
@@ -162,6 +166,7 @@ const {
       "ViewTasks",
       "ViewEvidence",
       "ManageEvidence",
+      "ApproveEvidence",
       "ViewCmmc",
       "ManageCmmc",
       "ViewSubcontractors",
@@ -555,6 +560,15 @@ const {
     subcontractorIds: [],
     employeeIds: [],
     reportIds: [],
+    classification: {
+      classification: "Unclassified",
+      source: "UserSelected",
+      confidence: null,
+      reviewedByUserId: null,
+      reviewedAt: null,
+      reason: "Test fixture.",
+      isApprovedDemoContent: false
+    },
     createdAt: "2026-06-15T12:00:00Z",
     updatedAt: null
   },
@@ -671,6 +685,7 @@ vi.mock("@/lib/api", () => ({
   getContractObligationDetail: getContractObligationDetailMock,
   getContractObligations: getContractObligationsMock,
   getContracts: getContractsMock,
+  getContentClassificationReviewItems: getContentClassificationReviewItemsMock,
   getEvidenceItems: getEvidenceItemsMock,
   getNotificationPreferences: getNotificationPreferencesMock,
   getNotifications: getNotificationsMock,
@@ -683,6 +698,7 @@ vi.mock("@/lib/api", () => ({
   runDueDateReminders: runDueDateRemindersMock,
   removeContractClause: removeContractClauseMock,
   rejectClauseCandidate: rejectClauseCandidateMock,
+  reclassifyEvidenceItem: reclassifyEvidenceItemMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
   startContractDocumentExtraction: startContractDocumentExtractionMock,
@@ -766,6 +782,7 @@ describe("App", () => {
     generateSubcontractorComplianceReportMock.mockReset();
     removeContractClauseMock.mockReset();
     rejectClauseCandidateMock.mockReset();
+    reclassifyEvidenceItemMock.mockReset();
     startContractDocumentExtractionMock.mockReset();
     supersedeClauseCandidateMock.mockReset();
     getComplianceOverviewMock.mockReset();
@@ -785,6 +802,7 @@ describe("App", () => {
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
     getContractsMock.mockReset();
+    getContentClassificationReviewItemsMock.mockReset();
     getEvidenceItemsMock.mockReset();
     getContractClausesMock.mockReset();
     getContractDeliverablesMock.mockReset();
@@ -865,6 +883,7 @@ describe("App", () => {
     });
     getCompanyProfileMock.mockResolvedValue(profile);
     getContractsMock.mockResolvedValue([]);
+    getContentClassificationReviewItemsMock.mockResolvedValue([]);
     getEvidenceItemsMock.mockResolvedValue([]);
     getCmmcAssessmentsMock.mockResolvedValue([]);
     getCmmcControlStatusesMock.mockResolvedValue([]);
@@ -968,6 +987,16 @@ describe("App", () => {
           ...evidenceMetadata,
           ...request,
           updatedAt: "2026-06-15T13:00:00Z"
+        },
+        error: null
+      })
+    );
+    reclassifyEvidenceItemMock.mockImplementation((_evidenceItemId, request) =>
+      Promise.resolve({
+        data: {
+          ...evidenceMetadata,
+          classification: request.classification,
+          updatedAt: "2026-06-15T13:10:00Z"
         },
         error: null
       })
@@ -1924,6 +1953,25 @@ describe("App", () => {
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
     getEvidenceItemsMock.mockResolvedValueOnce([evidenceMetadata]);
+    getContentClassificationReviewItemsMock.mockResolvedValueOnce([
+      {
+        tenantId: evidenceMetadata.tenantId,
+        entityType: "EvidenceItem",
+        entityId: evidenceMetadata.id,
+        title: "Needs classification",
+        classification: {
+          classification: "Unknown",
+          source: "UserSelected",
+          confidence: null,
+          reviewedByUserId: null,
+          reviewedAt: null,
+          reason: "Uploader was not sure.",
+          isApprovedDemoContent: false
+        },
+        createdAt: "2026-06-15T12:00:00Z",
+        reviewRoute: "review"
+      }
+    ]);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1932,6 +1980,9 @@ describe("App", () => {
     expect(await screen.findByText("Evidence metadata")).toBeInTheDocument();
     expect(screen.getByText("Access control policy")).toBeInTheDocument();
     expect(screen.getByDisplayValue("obligation-fci-safeguards")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Classification review queue")).getByText("Needs classification")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Classification review queue")).getByText("Unknown")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Evidence list")).getByText("Unclassified")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /new evidence/i }));
     await user.clear(screen.getByLabelText("Title"));
@@ -1946,7 +1997,8 @@ describe("App", () => {
         title: "Quarterly access review",
         type: "AccessReview",
         tags: ["access-review", "quarterly"],
-        obligationIds: ["obligation-access-review"]
+        obligationIds: ["obligation-access-review"],
+        classification: expect.objectContaining({ classification: "Unclassified" })
       })
     );
     expect(await screen.findByText("Evidence metadata created.")).toBeInTheDocument();

@@ -41,6 +41,7 @@ import {
   createTenantInvitation,
   createEvidenceUploadIntent,
   createEvidenceMetadata,
+  getContentClassificationReviewItems,
   deleteContractDocument,
   fallbackAuditLogs,
   fallbackAccess,
@@ -77,6 +78,7 @@ import {
   getTenantDataHandlingModeHistory,
   getTenantInvitations,
   getTenantMembers,
+  reclassifyEvidenceItem,
   markClauseCandidateNeedsClarification,
   markNotificationRead,
   runDueDateReminders,
@@ -110,6 +112,7 @@ import {
   type CmmcPoamItem,
   type ComplianceOverview,
   type ComplianceStatusReport,
+  type ContentClassificationReviewItem,
   type ContractClause,
   type ContractDeliverable,
   type ContractDocument,
@@ -148,6 +151,7 @@ import {
   type UpsertSubcontractorFlowDownRequest,
   type UpsertSubcontractorRequest,
   type UpdateTenantDataHandlingModeRequest,
+  type ReclassifyContentRequest,
   type TenantMember
 } from "@/lib/api";
 
@@ -472,6 +476,7 @@ export function App() {
   const [clauseCandidateReviewStatusFilter, setClauseCandidateReviewStatusFilter] = useState("all");
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceMetadata[]>([]);
+  const [classificationReviewItems, setClassificationReviewItems] = useState<ContentClassificationReviewItem[]>([]);
   const [cmmcAssessments, setCmmcAssessments] = useState<CmmcAssessment[]>([]);
   const [cmmcControls, setCmmcControls] = useState<CmmcControlStatus[]>([]);
   const [cmmcPoamItems, setCmmcPoamItems] = useState<CmmcPoamItem[]>([]);
@@ -605,7 +610,9 @@ export function App() {
         const nextNoCuiAcknowledgement = canLoadNoCuiStatus
           ? await getNoCuiAcknowledgementStatus()
           : fallbackNoCuiAcknowledgementStatus;
-        const nextEvidenceItems = canLoadNoCuiStatus ? await getEvidenceItems() : [];
+        const [nextEvidenceItems, nextClassificationReviewItems] = canLoadNoCuiStatus
+          ? await Promise.all([getEvidenceItems(), getContentClassificationReviewItems()])
+          : [[], []];
         const nextCompanyProfile = canLoadCompanyProfile ? await getCompanyProfile() : null;
         const nextContracts = canLoadContracts ? await getContracts() : [];
         const nextObligationDashboardItems = canLoadObligations ? await getContractObligations() : [];
@@ -664,6 +671,7 @@ export function App() {
           setAuditLogStatus(canLoadAuditLogs ? "ready" : "idle");
           setNoCuiAcknowledgement(nextNoCuiAcknowledgement);
           setEvidenceItems(nextEvidenceItems);
+          setClassificationReviewItems(nextClassificationReviewItems);
           setCmmcAssessments(nextCmmcAssessments);
           setCmmcControls(nextCmmcControls);
           setCmmcPoamItems(nextCmmcPoamItems);
@@ -1027,7 +1035,7 @@ export function App() {
     setDeliverableMessage(result.error ?? "Deliverable could not be saved.");
   }
 
-  async function handleContractDocumentUpload(contractId: string, documentType: string, file: File | null) {
+  async function handleContractDocumentUpload(contractId: string, documentType: string, file: File | null, classification = "Unclassified") {
     if (!file) {
       setContractDocumentStatus("failed");
       setContractDocumentMessage("Select a contract document before upload.");
@@ -1041,14 +1049,14 @@ export function App() {
       fileName: file.name,
       contentType: file.type || "application/octet-stream",
       sizeBytes: file.size,
-      containsPotentialCui: false,
+      containsPotentialCui: classification === "Cui" || classification === "SyntheticCui",
       classification: {
-        classification: "Unclassified",
+        classification,
         source: "UserSelected",
         confidence: null,
         reviewedByUserId: null,
         reviewedAt: null,
-        reason: "User confirmed non-CUI contract document metadata.",
+        reason: `User selected ${classification} for contract document metadata.`,
         isApprovedDemoContent: false
       }
     });
@@ -1245,6 +1253,7 @@ export function App() {
         const exists = currentItems.some((item) => item.id === saved.id);
         return exists ? currentItems.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...currentItems];
       });
+      setClassificationReviewItems(await getContentClassificationReviewItems());
       setSelectedEvidenceItemId(saved.id);
       setEvidenceMetadataStatus("saved");
       setEvidenceMetadataMessage(evidenceItemId ? "Evidence metadata updated." : "Evidence metadata created.");
@@ -1253,6 +1262,23 @@ export function App() {
 
     setEvidenceMetadataStatus("failed");
     setEvidenceMetadataMessage(result.error ?? "Evidence metadata could not be saved.");
+  }
+
+  async function handleEvidenceReclassify(evidenceItemId: string, request: ReclassifyContentRequest) {
+    setEvidenceMetadataStatus("saving");
+    setEvidenceMetadataMessage("");
+    const result = await reclassifyEvidenceItem(evidenceItemId, request);
+    if (result.data) {
+      const saved = result.data;
+      setEvidenceItems((currentItems) => currentItems.map((item) => (item.id === saved.id ? saved : item)));
+      setClassificationReviewItems(await getContentClassificationReviewItems());
+      setEvidenceMetadataStatus("saved");
+      setEvidenceMetadataMessage("Classification updated.");
+      return;
+    }
+
+    setEvidenceMetadataStatus("failed");
+    setEvidenceMetadataMessage(result.error ?? "Classification could not be updated.");
   }
 
   async function handleCmmcAssessmentCreate(request: UpsertCmmcAssessmentRequest) {
@@ -1649,8 +1675,10 @@ export function App() {
               selectedFile={selectedEvidenceFile}
               uploadMessage={uploadMessage}
               uploadStatus={uploadStatus}
+              classificationReviewItems={classificationReviewItems}
               onAcknowledge={handleNoCuiAcknowledgement}
               onFileSelected={setSelectedEvidenceFile}
+              onReclassifyEvidence={handleEvidenceReclassify}
               onMetadataSave={handleEvidenceMetadataSave}
               onSelectEvidence={setSelectedEvidenceItemId}
               onUploadIntentSubmit={handleEvidenceUploadIntentSubmit}
@@ -2948,13 +2976,14 @@ function ContractsView({
     deliverableId: string | null,
     request: UpsertContractDeliverableRequest
   ) => Promise<void>;
-  onUploadDocument: (contractId: string, documentType: string, file: File | null) => Promise<void>;
+  onUploadDocument: (contractId: string, documentType: string, file: File | null, classification?: string) => Promise<void>;
   onSave: (contractId: string | null, request: UpsertContractRequest) => Promise<void>;
   onSelectContract: (contractId: string | null) => void;
 }) {
   const selectedContract = contracts.find((contract) => contract.id === selectedContractId) ?? null;
   const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState("Contract");
+  const [documentClassification, setDocumentClassification] = useState("Unclassified");
   const [clauseDraft, setClauseDraft] = useState<AttachContractClauseRequest>({
     clauseLibraryId: "",
     attachmentReason: "",
@@ -3331,6 +3360,19 @@ function ContractsView({
               <option value="Other">Other</option>
             </select>
             <select
+              aria-label="Contract document classification"
+              value={documentClassification}
+              onChange={(event) => setDocumentClassification(event.target.value)}
+              disabled={uploadDisabled}
+            >
+              <option value="Unclassified">Unclassified</option>
+              <option value="Fci">FCI</option>
+              <option value="Cui">CUI</option>
+              <option value="SyntheticCui">Synthetic CUI</option>
+              <option value="Unknown">Unknown</option>
+              <option value="Prohibited">Prohibited</option>
+            </select>
+            <select
               aria-label="Clause candidate review status"
               value={clauseCandidateReviewStatusFilter}
               onChange={(event) => onChangeClauseCandidateReviewStatusFilter(event.target.value)}
@@ -3348,7 +3390,7 @@ function ContractsView({
             onSubmit={(event) => {
               event.preventDefault();
               if (selectedContract) {
-                void onUploadDocument(selectedContract.id, documentType, selectedDocumentFile);
+                void onUploadDocument(selectedContract.id, documentType, selectedDocumentFile, documentClassification);
               }
             }}
           >
@@ -3377,6 +3419,7 @@ function ContractsView({
                   <div>
                     <strong>{document.fileName}</strong>
                     <span>{document.type} · {document.validationStatus} · {document.malwareScanStatus}</span>
+                    <ClassificationBadge classification={document.classification.classification} />
                     {extractionJobsByDocumentId[document.id] ? (
                       <small>Extraction {extractionJobsByDocumentId[document.id].status}</small>
                     ) : null}
@@ -5452,12 +5495,14 @@ function EvidenceView({
   acknowledgement,
   acknowledgementStatus,
   canManageEvidence,
+  classificationReviewItems,
   evidenceItems,
   evidenceMetadataMessage,
   evidenceMetadataStatus,
   onAcknowledge,
   onFileSelected,
   onMetadataSave,
+  onReclassifyEvidence,
   onSelectEvidence,
   onUploadIntentSubmit,
   selectedEvidenceItemId,
@@ -5468,12 +5513,14 @@ function EvidenceView({
   acknowledgement: NoCuiAcknowledgementStatus;
   acknowledgementStatus: "idle" | "saving" | "saved" | "failed";
   canManageEvidence: boolean;
+  classificationReviewItems: ContentClassificationReviewItem[];
   evidenceItems: EvidenceMetadata[];
   evidenceMetadataMessage: string;
   evidenceMetadataStatus: "idle" | "saving" | "saved" | "failed";
   onAcknowledge: () => void;
   onFileSelected: (file: File | null) => void;
   onMetadataSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
+  onReclassifyEvidence: (evidenceItemId: string, request: ReclassifyContentRequest) => Promise<void>;
   onSelectEvidence: (evidenceItemId: string | null) => void;
   onUploadIntentSubmit: (event: FormEvent<HTMLFormElement>) => void;
   selectedEvidenceItemId: string | null;
@@ -5498,10 +5545,34 @@ function EvidenceView({
         evidenceItems={evidenceItems}
         message={evidenceMetadataMessage}
         onSave={onMetadataSave}
+        onReclassifyEvidence={onReclassifyEvidence}
         onSelectEvidence={onSelectEvidence}
         selectedEvidence={selectedEvidence}
         status={evidenceMetadataStatus}
       />
+
+      <section className="evidence-metadata" aria-label="Classification review queue">
+        <div className="section-heading--split">
+          <div>
+            <h3>Classification review</h3>
+            <p>Unknown items are blocked from reports and extraction until reviewed; prohibited items route to escalation.</p>
+          </div>
+          <strong>{classificationReviewItems.length}</strong>
+        </div>
+        <div className="evidence-list">
+          {classificationReviewItems.length > 0 ? (
+            classificationReviewItems.map((item) => (
+              <article className="evidence-list__item" key={`${item.entityType}-${item.entityId}`}>
+                <strong>{item.title}</strong>
+                <span>{item.entityType} · {item.reviewRoute}</span>
+                <ClassificationBadge classification={item.classification.classification} />
+              </article>
+            ))
+          ) : (
+            <EmptyState title="No classification reviews" body="Unknown and prohibited content will appear here for reviewer action." />
+          )}
+        </div>
+      </section>
 
       <div className={`notice-panel${acknowledgement.isAcknowledged ? " notice-panel--acknowledged" : ""}`}>
         <span className="notice-panel__icon" aria-hidden="true">
@@ -5592,6 +5663,8 @@ type EvidenceMetadataFormState = {
   tags: string;
   obligationIds: string;
   controlIds: string;
+  classification: string;
+  classificationReason: string;
   description: string;
 };
 
@@ -5605,6 +5678,8 @@ const defaultEvidenceMetadataForm: EvidenceMetadataFormState = {
   tags: "",
   obligationIds: "",
   controlIds: "",
+  classification: "Unclassified",
+  classificationReason: "User confirmed evidence classification.",
   description: ""
 };
 
@@ -5613,6 +5688,7 @@ function EvidenceMetadataPanel({
   evidenceItems,
   message,
   onSave,
+  onReclassifyEvidence,
   onSelectEvidence,
   selectedEvidence,
   status
@@ -5621,6 +5697,7 @@ function EvidenceMetadataPanel({
   evidenceItems: EvidenceMetadata[];
   message: string;
   onSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
+  onReclassifyEvidence: (evidenceItemId: string, request: ReclassifyContentRequest) => Promise<void>;
   onSelectEvidence: (evidenceItemId: string | null) => void;
   selectedEvidence: EvidenceMetadata | null;
   status: "idle" | "saving" | "saved" | "failed";
@@ -5633,6 +5710,24 @@ function EvidenceMetadataPanel({
 
   function save() {
     void onSave(selectedEvidence?.id ?? null, evidenceMetadataFormToRequest(form, selectedEvidence));
+  }
+
+  function reclassify() {
+    if (!selectedEvidence) {
+      return;
+    }
+
+    void onReclassifyEvidence(selectedEvidence.id, {
+      classification: {
+        classification: form.classification,
+        source: "AdminReviewed",
+        confidence: null,
+        reviewedByUserId: null,
+        reviewedAt: null,
+        reason: form.classificationReason,
+        isApprovedDemoContent: false
+      }
+    });
   }
 
   return (
@@ -5658,6 +5753,7 @@ function EvidenceMetadataPanel({
               >
                 <strong>{item.title}</strong>
                 <span>{item.status} · {item.ownerFunction} · {item.expiresAt ?? "No expiration"}</span>
+                <ClassificationBadge classification={item.classification.classification} />
               </button>
             ))
           ) : (
@@ -5721,6 +5817,21 @@ function EvidenceMetadataPanel({
                 <span>Controls</span>
                 <input value={form.controlIds} onChange={(event) => updateField("controlIds", event.target.value)} />
               </label>
+              <label>
+                <span>Classification</span>
+                <select value={form.classification} onChange={(event) => updateField("classification", event.target.value)}>
+                  <option value="Unclassified">Unclassified</option>
+                  <option value="Fci">FCI</option>
+                  <option value="Cui">CUI</option>
+                  <option value="SyntheticCui">Synthetic CUI</option>
+                  <option value="Unknown">Unknown</option>
+                  <option value="Prohibited">Prohibited</option>
+                </select>
+              </label>
+              <label>
+                <span>Classification reason</span>
+                <input value={form.classificationReason} onChange={(event) => updateField("classificationReason", event.target.value)} />
+              </label>
               <label className="span-2">
                 <span>Description</span>
                 <textarea value={form.description} onChange={(event) => updateField("description", event.target.value)} />
@@ -5730,6 +5841,9 @@ function EvidenceMetadataPanel({
           <div className="form-actions">
             <button type="button" onClick={save} disabled={!canManageEvidence || status === "saving"}>
               {selectedEvidence ? "Update metadata" : "Create metadata"}
+            </button>
+            <button type="button" onClick={reclassify} disabled={!selectedEvidence || !canManageEvidence || status === "saving"}>
+              Review classification
             </button>
           </div>
           {message ? (
@@ -5756,6 +5870,8 @@ function evidenceToMetadataForm(evidence: EvidenceMetadata | null): EvidenceMeta
     tags: evidence.tags.join(", "),
     obligationIds: evidence.obligationIds.join(", "),
     controlIds: evidence.controlIds.join(", "),
+    classification: evidence.classification.classification,
+    classificationReason: evidence.classification.reason ?? "Reviewer confirmed evidence classification.",
     description: evidence.description
   };
 }
@@ -5779,7 +5895,16 @@ function evidenceMetadataFormToRequest(
     vendorIds: evidence?.vendorIds ?? [],
     subcontractorIds: evidence?.subcontractorIds ?? [],
     employeeIds: evidence?.employeeIds ?? [],
-    reportIds: evidence?.reportIds ?? []
+    reportIds: evidence?.reportIds ?? [],
+    classification: {
+      classification: form.classification,
+      source: "UserSelected",
+      confidence: null,
+      reviewedByUserId: null,
+      reviewedAt: null,
+      reason: form.classificationReason,
+      isApprovedDemoContent: false
+    }
   };
 }
 
@@ -6198,4 +6323,8 @@ function EmptyState({ body, title }: { body: string; title: string }) {
       <p>{body}</p>
     </div>
   );
+}
+
+function ClassificationBadge({ classification }: { classification: string }) {
+  return <span className={`status status--${classification.toLowerCase()}`}>{classification}</span>;
 }

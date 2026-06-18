@@ -20,6 +20,7 @@ using Gccs.Infrastructure.Calendar;
 using Gccs.Infrastructure.Companies;
 using Gccs.Infrastructure.Cmmc;
 using Gccs.Infrastructure.Compliance;
+using Gccs.Infrastructure.Common;
 using Gccs.Infrastructure.Contracts;
 using Gccs.Infrastructure.Evidence;
 using Gccs.Infrastructure.Identity;
@@ -61,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<TenantService>();
         services.AddScoped<TenantDataHandlingModePolicyService>();
         services.AddScoped<ContentClassificationPolicy>();
+        services.AddScoped<ContentClassificationReviewService>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
@@ -149,6 +151,7 @@ public static class DependencyInjection
             services.AddScoped<ICmmcPoamRepository, EfCmmcPoamRepository>();
             services.AddScoped<ICmmcAffirmationRepository, EfCmmcAffirmationRepository>();
             services.AddScoped<ISubcontractorRepository, EfSubcontractorRepository>();
+            services.AddScoped<IContentClassificationReviewRepository, EfContentClassificationReviewRepository>();
         }
         else
         {
@@ -222,6 +225,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("CMMC affirmation persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ISubcontractorRepository>(_ =>
                 throw new InvalidOperationException("Subcontractor persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IContentClassificationReviewRepository>(_ =>
+                throw new InvalidOperationException("Content classification review persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

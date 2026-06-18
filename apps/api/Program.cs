@@ -4,6 +4,7 @@ using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
 using Gccs.Application.Audit;
 using Gccs.Application.Calendar;
+using Gccs.Application.Common;
 using Gccs.Application.Companies;
 using Gccs.Application.Cmmc;
 using Gccs.Application.Compliance;
@@ -2388,6 +2389,34 @@ api.MapPut("/evidence-items/{evidenceItemId:guid}", async (
 })
 .RequirePermission(Permission.ManageEvidence)
 .WithName("UpdateEvidenceItem");
+
+api.MapGet("/content-classification-review-items", async (
+    ContentClassificationReviewService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(cancellationToken)))
+.RequirePermission(Permission.ViewEvidence)
+.WithName("ListContentClassificationReviewItems");
+
+api.MapPatch("/evidence-items/{evidenceItemId:guid}/classification", async (
+    Guid evidenceItemId,
+    ReclassifyContentRequest request,
+    ContentClassificationReviewService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var evidence = await service.ReclassifyEvidenceAsync(evidenceItemId, request, tenantContext.UserId, cancellationToken);
+    return evidence is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Evidence item '{evidenceItemId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(evidence);
+})
+.RequirePermission(Permission.ApproveEvidence)
+.WithName("ReclassifyEvidenceItem");
 
 api.MapPost("/evidence-requests", async (
     CreateEvidenceRequestRequest request,
