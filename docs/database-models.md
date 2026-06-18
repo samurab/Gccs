@@ -11,6 +11,7 @@ These artifacts turn the MVP domain model into a migration-ready PostgreSQL sche
 - Tenant membership migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260613213418_AddTenantMemberships.cs`
 - Tenant invitation migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260613221118_AddTenantInvitations.cs`
 - No-CUI acknowledgement migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615003848_AddNoCuiAcknowledgements.cs`
+- Tenant data handling mode history migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260618205911_AddTenantDataHandlingModeHistory.cs`
 - Evidence upload guardrails migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615005659_AddEvidenceUploadGuardrails.cs`
 - Audit request metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615010139_AddAuditRequestMetadata.cs`
 - Obligation publication metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615011257_AddObligationPublicationMetadata.cs`
@@ -59,7 +60,7 @@ Required fields, source systems, provenance rules, and deferred external integra
 
 | Group | Primary tables | Purpose |
 | --- | --- | --- |
-| Tenancy and RBAC | `tenants`, `users`, `tenant_memberships`, `tenant_invitations`, `no_cui_acknowledgements`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, explicit tenant membership assignments, invitation onboarding workflow, user-scoped data handling acknowledgement records, MFA-ready user profile, and role permissions. |
+| Tenancy and RBAC | `tenants`, `tenant_data_handling_mode_history`, `users`, `tenant_memberships`, `tenant_invitations`, `no_cui_acknowledgements`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, active data handling mode, mode-change history, explicit tenant membership assignments, invitation onboarding workflow, user-scoped data handling acknowledgement records, MFA-ready user profile, and role permissions. |
 | Company profile | `company_profiles`, `company_naics_codes`, `company_certifications`, `company_locations` | SAM/SBA profile data, NAICS size support, certifications, locations, IT posture, and data handling posture. |
 | Compliance content | `clauses`, `obligations`, `mvp_modules` | Source-backed clause and obligation library with source URL, review metadata, confidence, and expert-review flags. |
 | Contract intake | `contracts`, `solicitations`, `contract_documents`, `contract_clauses`, `contract_clause_obligations`, `contract_deliverables`, `contract_reporting_deadlines` | Contract records, document metadata, extracted/manual clauses, obligations, deliverables, reporting dates, and flow-down signals. |

@@ -24,6 +24,39 @@ public sealed class EfTenantRepository(GccsDbContext dbContext, ICurrentTenantCo
         return entity is null ? null : ToDomain(entity);
     }
 
+    public async Task<TenantDataPosture?> FindCurrentTenantDataHandlingModeAsync(CancellationToken cancellationToken = default) =>
+        await dbContext.Tenants
+            .AsNoTracking()
+            .Where(candidate => candidate.Id == tenantContext.TenantId)
+            .Select(candidate => (TenantDataPosture?)candidate.DataPosture)
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<TenantDataHandlingModeHistoryDto>> ListDataHandlingModeHistoryInCurrentTenantScopeAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        if (tenantId != tenantContext.TenantId)
+        {
+            return [];
+        }
+
+        return await dbContext.TenantDataHandlingModeHistory
+            .AsNoTracking()
+            .Where(candidate => candidate.TenantId == tenantId)
+            .OrderByDescending(candidate => candidate.ChangedAt)
+            .ThenByDescending(candidate => candidate.Id)
+            .Select(candidate => new TenantDataHandlingModeHistoryDto(
+                candidate.Id,
+                candidate.TenantId,
+                candidate.PreviousMode,
+                candidate.NewMode,
+                candidate.ActorUserId,
+                candidate.ChangedAt,
+                candidate.Reason,
+                candidate.ApprovalRecordReference))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Tenant tenant, CancellationToken cancellationToken = default)
     {
         dbContext.Tenants.Add(new TenantEntity
@@ -37,6 +70,32 @@ public sealed class EfTenantRepository(GccsDbContext dbContext, ICurrentTenantCo
             CreatedByUserId = tenant.Audit.CreatedByUserId,
             UpdatedAt = tenant.Audit.UpdatedAt,
             UpdatedByUserId = tenant.Audit.UpdatedByUserId
+        });
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AddDataHandlingModeHistoryAsync(
+        Guid tenantId,
+        TenantDataPosture? previousMode,
+        TenantDataPosture newMode,
+        Guid actorUserId,
+        string reason,
+        string? approvalRecordReference,
+        CancellationToken cancellationToken = default)
+    {
+        dbContext.TenantDataHandlingModeHistory.Add(new TenantDataHandlingModeHistoryEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            PreviousMode = previousMode,
+            NewMode = newMode,
+            ActorUserId = actorUserId,
+            ChangedAt = DateTimeOffset.UtcNow,
+            Reason = reason,
+            ApprovalRecordReference = string.IsNullOrWhiteSpace(approvalRecordReference)
+                ? null
+                : approvalRecordReference.Trim()
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -63,6 +122,34 @@ public sealed class EfTenantRepository(GccsDbContext dbContext, ICurrentTenantCo
         entity.Status = status;
         entity.UpdatedAt = DateTimeOffset.UtcNow;
         entity.UpdatedByUserId = tenantContext.UserId;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDomain(entity);
+    }
+
+    public async Task<Tenant?> UpdateDataHandlingModeInCurrentTenantScopeAsync(
+        Guid tenantId,
+        TenantDataPosture dataHandlingMode,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        if (tenantId != tenantContext.TenantId)
+        {
+            return null;
+        }
+
+        var entity = await dbContext.Tenants
+            .SingleOrDefaultAsync(candidate => candidate.Id == tenantId, cancellationToken);
+
+        if (entity is null)
+        {
+            return null;
+        }
+
+        entity.DataPosture = dataHandlingMode;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

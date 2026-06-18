@@ -20,7 +20,7 @@ public enum TenantStatus
 
 public enum TenantDataPosture
 {
+    DemoSandbox,
     NoCui,
-    CuiReady,
-    GovCloud
+    CuiReady
 }

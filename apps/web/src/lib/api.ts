@@ -94,6 +94,34 @@ export type TenantInvitation = {
   updatedAt: string | null;
 };
 
+export type Tenant = {
+  id: string;
+  displayName: string;
+  status: string;
+  dataPosture: string;
+  dataHandlingMode: "DemoSandbox" | "NoCui" | "CuiReady" | string;
+  trialEndsAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type TenantDataHandlingModeHistory = {
+  id: string;
+  tenantId: string;
+  previousMode: string | null;
+  newMode: string;
+  actorUserId: string;
+  changedAt: string;
+  reason: string;
+  approvalRecordReference: string | null;
+};
+
+export type UpdateTenantDataHandlingModeRequest = {
+  dataHandlingMode: "DemoSandbox" | "NoCui" | "CuiReady" | string;
+  reason: string;
+  approvalRecordReference?: string | null;
+};
+
 export type NotificationCenterItem = {
   id: string;
   tenantId: string;
@@ -1144,6 +1172,14 @@ export async function getTenantInvitations(): Promise<TenantInvitation[]> {
   return getJson<TenantInvitation[]>("/api/tenant-invitations", []);
 }
 
+export async function getTenant(tenantId: string): Promise<Tenant | null> {
+  return getJson<Tenant | null>(`/api/tenants/${tenantId}`, null);
+}
+
+export async function getTenantDataHandlingModeHistory(tenantId: string): Promise<TenantDataHandlingModeHistory[]> {
+  return getJson<TenantDataHandlingModeHistory[]>(`/api/tenants/${tenantId}/data-handling-mode/history`, []);
+}
+
 export async function getNotifications(): Promise<NotificationCenterItem[]> {
   return getJson<NotificationCenterItem[]>("/api/notifications", []);
 }
@@ -1838,6 +1874,13 @@ export async function createEvidenceUploadIntent(file: File): Promise<ApiMutatio
 
 export async function createTenantInvitation(request: CreateTenantInvitationRequest): Promise<TenantInvitation | null> {
   return postJson<TenantInvitation>("/api/tenant-invitations", request);
+}
+
+export async function updateTenantDataHandlingMode(
+  tenantId: string,
+  request: UpdateTenantDataHandlingModeRequest
+): Promise<ApiMutationResult<Tenant>> {
+  return patchJsonResult<Tenant>(`/api/tenants/${tenantId}/data-handling-mode`, request);
 }
 
 async function postJson<T>(path: string, body: unknown): Promise<T | null> {

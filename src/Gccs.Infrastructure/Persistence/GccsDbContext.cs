@@ -21,6 +21,7 @@ namespace Gccs.Infrastructure.Persistence;
 public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbContext(options)
 {
     public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
+    public DbSet<TenantDataHandlingModeHistoryEntity> TenantDataHandlingModeHistory => Set<TenantDataHandlingModeHistoryEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
@@ -144,6 +145,16 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
             ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantDataHandlingModeHistoryEntity>(entity =>
+        {
+            entity.ToTable("tenant_data_handling_mode_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ChangedAt });
+            entity.Property(x => x.Reason).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.ApprovalRecordReference).HasMaxLength(160);
+            entity.HasOne(x => x.Tenant).WithMany(x => x.DataHandlingModeHistory).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<UserEntity>(entity =>

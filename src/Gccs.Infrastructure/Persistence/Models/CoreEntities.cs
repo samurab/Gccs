@@ -28,6 +28,21 @@ public sealed class TenantEntity : AuditedEntity
     public ICollection<TenantMembershipEntity> Memberships { get; set; } = [];
     public ICollection<TenantInvitationEntity> Invitations { get; set; } = [];
     public ICollection<RoleEntity> Roles { get; set; } = [];
+    public ICollection<TenantDataHandlingModeHistoryEntity> DataHandlingModeHistory { get; set; } = [];
+}
+
+public sealed class TenantDataHandlingModeHistoryEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public TenantDataPosture? PreviousMode { get; set; }
+    public TenantDataPosture NewMode { get; set; }
+    public Guid ActorUserId { get; set; }
+    public DateTimeOffset ChangedAt { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string? ApprovalRecordReference { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
 }
 
 public sealed class UserEntity : AuditedEntity

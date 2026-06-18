@@ -3285,6 +3285,63 @@ api.MapPatch("/tenants/{tenantId:guid}/status", async (
 .RequirePermission(Permission.ManageTenant)
 .WithName("UpdateTenantStatus");
 
+api.MapPatch("/tenants/{tenantId:guid}/data-handling-mode", async (
+    Guid tenantId,
+    UpdateTenantDataHandlingModeRequest request,
+    TenantService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var tenant = await service.UpdateDataHandlingModeAsync(tenantId, request, tenantContext.UserId, cancellationToken);
+        return tenant is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "Tenant was not found in the current tenant scope.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(tenant);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["tenantDataHandlingMode"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("UpdateTenantDataHandlingMode");
+
+api.MapGet("/tenants/{tenantId:guid}/data-handling-mode/history", async (
+    Guid tenantId,
+    TenantService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var history = await service.ListDataHandlingModeHistoryAsync(tenantId, cancellationToken);
+    if (history.Count == 0)
+    {
+        var tenant = await service.FindInCurrentTenantScopeAsync(tenantId, cancellationToken);
+        if (tenant is null)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "Tenant was not found in the current tenant scope.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found");
+        }
+    }
+
+    return Results.Ok(history);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ListTenantDataHandlingModeHistory");
+
 static async Task<IResult> ReviewSuggestedObligationAsync(
     Guid suggestionId,
     SuggestedObligationReviewRequest request,

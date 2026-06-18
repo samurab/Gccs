@@ -73,6 +73,8 @@ import {
   getNoCuiAcknowledgementStatus,
   getNotificationPreferences,
   getNotifications,
+  getTenant,
+  getTenantDataHandlingModeHistory,
   getTenantInvitations,
   getTenantMembers,
   markClauseCandidateNeedsClarification,
@@ -87,6 +89,7 @@ import {
   startContractDocumentExtraction,
   supersedeClauseCandidate,
   updateNotificationPreferences,
+  updateTenantDataHandlingMode,
   updateContractObligationStatus,
   updateContract,
   updateContractDeliverable,
@@ -132,6 +135,8 @@ import {
   type SubcontractorEvidenceRequest,
   type SubcontractorFlowDown,
   type TenantInvitation,
+  type Tenant,
+  type TenantDataHandlingModeHistory,
   type AttachContractClauseRequest,
   type UpsertContractDeliverableRequest,
   type UpsertContractRequest,
@@ -142,6 +147,7 @@ import {
   type UpsertSubcontractorEvidenceRequestRequest,
   type UpsertSubcontractorFlowDownRequest,
   type UpsertSubcontractorRequest,
+  type UpdateTenantDataHandlingModeRequest,
   type TenantMember
 } from "@/lib/api";
 
@@ -448,6 +454,8 @@ export function App() {
   const [access, setAccess] = useState<CurrentUserAccess>(fallbackAccess);
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
+  const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
+  const [tenantModeHistory, setTenantModeHistory] = useState<TenantDataHandlingModeHistory[]>([]);
   const [notifications, setNotifications] = useState<NotificationCenterItem[]>([]);
   const [notificationPreference, setNotificationPreference] = useState<NotificationPreference | null>(null);
   const [reminderRunResult, setReminderRunResult] = useState<DueDateReminderRunResult | null>(null);
@@ -525,6 +533,8 @@ export function App() {
   const [reportMessage, setReportMessage] = useState("");
   const [notificationPreferenceStatus, setNotificationPreferenceStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [notificationPreferenceMessage, setNotificationPreferenceMessage] = useState("");
+  const [tenantModeStatus, setTenantModeStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [tenantModeMessage, setTenantModeMessage] = useState("");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
@@ -539,6 +549,7 @@ export function App() {
   const canManageCmmc = access.permissions.includes("ManageCmmc");
   const canManageReports = access.permissions.includes("ManageReports");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
+  const canManageTenant = access.permissions.includes("ManageTenant");
 
   useEffect(() => {
     function handleHashChange() {
@@ -568,6 +579,7 @@ export function App() {
     Promise.all([getComplianceOverview(), getCurrentUserAccess()])
       .then(async ([nextOverview, nextAccess]) => {
         const canLoadUserManagement = nextAccess.permissions.includes("ManageUsers");
+        const canLoadTenantAdministration = nextAccess.permissions.includes("ManageTenant") && nextAccess.tenantId !== null;
         const canLoadAuditLogs = nextAccess.permissions.includes("ViewAuditLog");
         const canLoadNoCuiStatus = hasAnyPermission(nextAccess, ["ViewEvidence", "ManageEvidence"]);
         const canLoadCompanyProfile = hasAnyPermission(nextAccess, ["ViewCompanyProfile", "ManageCompanyProfile"]);
@@ -581,6 +593,12 @@ export function App() {
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
+        const [nextTenant, nextTenantModeHistory] = canLoadTenantAdministration
+          ? await Promise.all([
+              getTenant(nextAccess.tenantId!),
+              getTenantDataHandlingModeHistory(nextAccess.tenantId!)
+            ])
+          : [null, []];
         const nextNotifications = canLoadNotifications ? await getNotifications() : [];
         const nextNotificationPreference = canLoadNotifications ? await getNotificationPreferences() : null;
         const nextAuditLogs = canLoadAuditLogs ? await getAuditLogs({ page: 1, pageSize: 5 }) : fallbackAuditLogs;
@@ -620,6 +638,8 @@ export function App() {
           setAccess(nextAccess);
           setMembers(nextMembers);
           setInvitations(nextInvitations);
+          setCurrentTenant(nextTenant);
+          setTenantModeHistory(nextTenantModeHistory);
           setNotifications(nextNotifications);
           setNotificationPreference(nextNotificationPreference);
           setCompanyProfile(nextCompanyProfile);
@@ -665,6 +685,8 @@ export function App() {
           setAccess(fallbackAccess);
           setMembers([]);
           setInvitations([]);
+          setCurrentTenant(null);
+          setTenantModeHistory([]);
           setNotifications([]);
           setNotificationPreference(null);
           setReminderRunResult(null);
@@ -724,6 +746,27 @@ export function App() {
     }
 
     setInviteStatus("failed");
+  }
+
+  async function handleTenantModeUpdate(request: UpdateTenantDataHandlingModeRequest) {
+    if (!currentTenant) {
+      return;
+    }
+
+    setTenantModeStatus("saving");
+    setTenantModeMessage("");
+    const result = await updateTenantDataHandlingMode(currentTenant.id, request);
+
+    if (result.data) {
+      setCurrentTenant(result.data);
+      setTenantModeHistory(await getTenantDataHandlingModeHistory(result.data.id));
+      setTenantModeStatus("saved");
+      setTenantModeMessage("Tenant data handling mode updated.");
+      return;
+    }
+
+    setTenantModeStatus("failed");
+    setTenantModeMessage(result.error ?? "Tenant data handling mode could not be updated.");
   }
 
   async function handleNotificationRead(notificationId: string) {
@@ -1667,11 +1710,13 @@ export function App() {
             />
           ) : activeRoute === "settings" ? (
             <SettingsView
+              canManageTenant={canManageTenant}
               canManageUsers={canManageUsers}
               canViewAuditLog={canViewAuditLog}
               auditLogFilters={auditLogFilters}
               auditLogStatus={auditLogStatus}
               auditLogs={auditLogs}
+              currentTenant={currentTenant}
               inviteEmail={inviteEmail}
               inviteRole={inviteRole}
               inviteStatus={inviteStatus}
@@ -1681,6 +1726,9 @@ export function App() {
               notificationPreferenceMessage={notificationPreferenceMessage}
               notificationPreferenceStatus={notificationPreferenceStatus}
               reminderRunResult={reminderRunResult}
+              tenantModeHistory={tenantModeHistory}
+              tenantModeMessage={tenantModeMessage}
+              tenantModeStatus={tenantModeStatus}
               onAuditLogFilterChange={setAuditLogFilters}
               onAuditLogFilterSubmit={handleAuditLogFilterSubmit}
               onAuditLogPageChange={handleAuditLogPageChange}
@@ -1689,6 +1737,7 @@ export function App() {
               onInviteRoleChange={setInviteRole}
               onInvitationSubmit={handleInvitationSubmit}
               onNotificationPreferenceSave={handleNotificationPreferenceSave}
+              onTenantModeUpdate={handleTenantModeUpdate}
             />
           ) : (
             <DashboardView overview={overview} />
@@ -5721,12 +5770,113 @@ function splitEvidenceList(value: string): string[] {
     .filter(Boolean);
 }
 
+function TenantModePanel({
+  currentTenant,
+  history,
+  message,
+  onUpdate,
+  status
+}: {
+  currentTenant: Tenant | null;
+  history: TenantDataHandlingModeHistory[];
+  message: string;
+  onUpdate: (request: UpdateTenantDataHandlingModeRequest) => Promise<void>;
+  status: "idle" | "saving" | "saved" | "failed";
+}) {
+  const currentMode = currentTenant?.dataHandlingMode ?? "NoCui";
+  const [selectedMode, setSelectedMode] = useState("");
+  const [reason, setReason] = useState("");
+  const [approvalRecordReference, setApprovalRecordReference] = useState("");
+  const mode = selectedMode || currentMode;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await onUpdate({
+      dataHandlingMode: mode,
+      reason,
+      approvalRecordReference: approvalRecordReference.trim() || null
+    });
+    setSelectedMode("");
+    setReason("");
+    setApprovalRecordReference("");
+  }
+
+  return (
+    <section className="members-section" aria-label="Tenant data handling mode">
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">CUI readiness gate</p>
+          <h2>Data handling mode</h2>
+          <p className="section-summary">
+            The active tenant mode is the server-side source of truth for upload, evidence, report, note, and extraction controls.
+          </p>
+        </div>
+        <span className={`status status--${(currentTenant?.dataHandlingMode ?? "unknown").toLowerCase()}`}>
+          {currentTenant?.dataHandlingMode ?? "Unknown"}
+        </span>
+      </div>
+      <form className="invite-form" onSubmit={submit}>
+        <label>
+          <span>Mode</span>
+          <select value={mode} onChange={(event) => setSelectedMode(event.target.value)}>
+            <option value="DemoSandbox">DemoSandbox</option>
+            <option value="NoCui">NoCui</option>
+            <option value="CuiReady">CuiReady</option>
+          </select>
+        </label>
+        <label>
+          <span>Reason</span>
+          <input value={reason} onChange={(event) => setReason(event.target.value)} required maxLength={600} />
+        </label>
+        <label>
+          <span>Approval reference</span>
+          <input
+            value={approvalRecordReference}
+            onChange={(event) => setApprovalRecordReference(event.target.value)}
+            maxLength={160}
+            required={mode === "CuiReady"}
+          />
+        </label>
+        <button type="submit" disabled={!currentTenant || status === "saving"}>
+          <ShieldCheck size={16} />
+          <span>{status === "saving" ? "Saving" : "Update mode"}</span>
+        </button>
+      </form>
+      {message ? (
+        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+      ) : null}
+      {history.length > 0 ? (
+        <div className="member-table" role="table" aria-label="Tenant data handling mode history">
+          <div className="member-row member-row--header" role="row">
+            <span role="columnheader">Changed</span>
+            <span role="columnheader">Previous</span>
+            <span role="columnheader">New</span>
+            <span role="columnheader">Reason</span>
+          </div>
+          {history.map((entry) => (
+            <article className="member-row" role="row" key={entry.id}>
+              <span role="cell">{new Date(entry.changedAt).toLocaleString()}</span>
+              <span role="cell">{entry.previousMode ?? "Initial"}</span>
+              <span role="cell">{entry.newMode}</span>
+              <span role="cell">{entry.reason}</span>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="No mode history yet" body="Tenant mode changes will appear here after the first recorded event." />
+      )}
+    </section>
+  );
+}
+
 function SettingsView({
   auditLogFilters,
   auditLogStatus,
   auditLogs,
+  canManageTenant,
   canManageUsers,
   canViewAuditLog,
+  currentTenant,
   inviteEmail,
   inviteRole,
   inviteStatus,
@@ -5736,6 +5886,9 @@ function SettingsView({
   notificationPreferenceMessage,
   notificationPreferenceStatus,
   reminderRunResult,
+  tenantModeHistory,
+  tenantModeMessage,
+  tenantModeStatus,
   onAuditLogFilterChange,
   onAuditLogFilterSubmit,
   onAuditLogPageChange,
@@ -5743,13 +5896,16 @@ function SettingsView({
   onInviteEmailChange,
   onInviteRoleChange,
   onInvitationSubmit,
-  onNotificationPreferenceSave
+  onNotificationPreferenceSave,
+  onTenantModeUpdate
 }: {
   auditLogFilters: AuditLogFilters;
   auditLogStatus: "idle" | "loading" | "ready" | "failed";
   auditLogs: PagedResult<AuditLogEntry>;
+  canManageTenant: boolean;
   canManageUsers: boolean;
   canViewAuditLog: boolean;
+  currentTenant: Tenant | null;
   inviteEmail: string;
   inviteRole: string;
   inviteStatus: "idle" | "sending" | "created" | "failed";
@@ -5759,6 +5915,9 @@ function SettingsView({
   notificationPreferenceMessage: string;
   notificationPreferenceStatus: "idle" | "saving" | "saved" | "failed";
   reminderRunResult: DueDateReminderRunResult | null;
+  tenantModeHistory: TenantDataHandlingModeHistory[];
+  tenantModeMessage: string;
+  tenantModeStatus: "idle" | "saving" | "saved" | "failed";
   onAuditLogFilterChange: (filters: AuditLogFilters) => void;
   onAuditLogFilterSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onAuditLogPageChange: (page: number) => void;
@@ -5767,8 +5926,9 @@ function SettingsView({
   onInviteRoleChange: (roleName: string) => void;
   onInvitationSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onNotificationPreferenceSave: (request: NotificationPreferenceUpdateRequest) => Promise<void>;
+  onTenantModeUpdate: (request: UpdateTenantDataHandlingModeRequest) => Promise<void>;
 }) {
-  if (!canManageUsers && !canViewAuditLog && !notificationPreference) {
+  if (!canManageTenant && !canManageUsers && !canViewAuditLog && !notificationPreference) {
     return (
       <section className="route-panel">
         <EmptyState
@@ -5781,6 +5941,15 @@ function SettingsView({
 
   return (
     <>
+      {canManageTenant ? (
+        <TenantModePanel
+          currentTenant={currentTenant}
+          history={tenantModeHistory}
+          message={tenantModeMessage}
+          onUpdate={onTenantModeUpdate}
+          status={tenantModeStatus}
+        />
+      ) : null}
       <NotificationPreferencesPanel
         message={notificationPreferenceMessage}
         onReminderRun={onDueDateReminderRun}
