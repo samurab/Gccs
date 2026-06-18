@@ -53,6 +53,7 @@ public sealed class CuiReadyApprovalChecklistEntity : AuditedEntity
     public int Version { get; set; }
     public CuiReadyChecklistState State { get; set; }
     public string? RejectionReason { get; set; }
+    public string? ReviewNotes { get; set; }
     public Guid? ReviewedByUserId { get; set; }
     public DateTimeOffset? ReviewedAt { get; set; }
 

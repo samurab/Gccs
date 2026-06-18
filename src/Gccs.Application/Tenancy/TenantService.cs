@@ -144,7 +144,29 @@ public sealed class TenantService(
 
         if (request.DataHandlingMode is TenantDataPosture.CuiReady && checklistGate is not null)
         {
-            await checklistGate.EnsureApprovedChecklistAsync(tenantId, request.ApprovalRecordReference!, cancellationToken);
+            try
+            {
+                await checklistGate.EnsureApprovedChecklistAsync(tenantId, request.ApprovalRecordReference!, cancellationToken);
+            }
+            catch (CuiReadyApprovalChecklistValidationException exception)
+            {
+                await auditEventWriter.WriteAsync(
+                    tenantId,
+                    actorUserId,
+                    AuditAction.Rejected,
+                    "TenantDataHandlingMode",
+                    tenantId.ToString(),
+                    "CuiReady data handling mode enablement failed approval gate.",
+                    new Dictionary<string, string>
+                    {
+                        ["requestedDataHandlingMode"] = request.DataHandlingMode.ToString(),
+                        ["approvalRecordReference"] = request.ApprovalRecordReference ?? string.Empty,
+                        ["result"] = "failed",
+                        ["reason"] = exception.Message
+                    },
+                    cancellationToken);
+                throw;
+            }
         }
 
         var tenant = await tenantRepository.UpdateDataHandlingModeInCurrentTenantScopeAsync(

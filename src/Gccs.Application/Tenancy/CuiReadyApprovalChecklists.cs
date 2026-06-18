@@ -66,6 +66,21 @@ public sealed class CuiReadyApprovalChecklistService(
         var incomplete = current.Items.Where(item => item.IsRequired && item.Status is not CuiReadyChecklistItemStatus.Complete).ToArray();
         if (incomplete.Length > 0)
         {
+            await auditEventWriter.WriteAsync(
+                tenantId,
+                actorUserId,
+                AuditAction.Rejected,
+                "CuiReadyApprovalChecklist",
+                checklistId.ToString(),
+                "CUI-ready approval checklist approval failed.",
+                new Dictionary<string, string>
+                {
+                    ["tenantId"] = tenantId.ToString(),
+                    ["checklistId"] = checklistId.ToString(),
+                    ["result"] = "failed",
+                    ["reason"] = "required_items_incomplete"
+                },
+                cancellationToken);
             throw new CuiReadyApprovalChecklistValidationException("Checklist cannot be approved while required items are incomplete.");
         }
 
@@ -126,6 +141,11 @@ public sealed class CuiReadyApprovalChecklistService(
         if (checklist is null || checklist.State is not CuiReadyChecklistState.Approved)
         {
             throw new CuiReadyApprovalChecklistValidationException("CuiReady mode requires an approved checklist linked to the current tenant.");
+        }
+
+        if (checklist.ReviewedAt is null || checklist.ReviewedAt.Value < DateTimeOffset.UtcNow.AddYears(-1))
+        {
+            throw new CuiReadyApprovalChecklistValidationException("CuiReady mode requires a non-expired checklist approval reviewed within the last year.");
         }
     }
 
@@ -217,6 +237,7 @@ public sealed record CuiReadyApprovalChecklistDto(
     int Version,
     CuiReadyChecklistState State,
     string? RejectionReason,
+    string? ReviewNotes,
     Guid? ReviewedByUserId,
     DateTimeOffset? ReviewedAt,
     DateTimeOffset CreatedAt,

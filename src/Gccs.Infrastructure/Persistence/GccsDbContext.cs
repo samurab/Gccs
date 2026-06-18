@@ -172,6 +172,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.TenantId, x.State, x.CreatedAt });
             entity.Property(x => x.Version).IsRequired();
             entity.Property(x => x.RejectionReason).HasMaxLength(1000);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1000);
             entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
             ConfigureAuditColumns(entity);
         });

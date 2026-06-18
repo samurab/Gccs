@@ -143,6 +143,7 @@ export type CuiReadyApprovalChecklist = {
   version: number;
   state: "Draft" | "InReview" | "Approved" | "Rejected" | "Superseded" | string;
   rejectionReason: string | null;
+  reviewNotes: string | null;
   reviewedByUserId: string | null;
   reviewedAt: string | null;
   createdAt: string;

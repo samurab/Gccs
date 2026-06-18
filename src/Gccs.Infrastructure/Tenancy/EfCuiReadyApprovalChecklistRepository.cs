@@ -98,6 +98,9 @@ public sealed class EfCuiReadyApprovalChecklistRepository(GccsDbContext dbContex
 
         entity.State = state;
         entity.RejectionReason = state is CuiReadyChecklistState.Rejected ? Normalize(reason) : entity.RejectionReason;
+        entity.ReviewNotes = state is CuiReadyChecklistState.Approved or CuiReadyChecklistState.Superseded
+            ? Normalize(reason)
+            : entity.ReviewNotes;
         entity.ReviewedByUserId = actorUserId;
         entity.ReviewedAt = DateTimeOffset.UtcNow;
         entity.UpdatedAt = entity.ReviewedAt;
@@ -119,6 +122,7 @@ public sealed class EfCuiReadyApprovalChecklistRepository(GccsDbContext dbContex
             entity.Version,
             entity.State,
             entity.RejectionReason,
+            entity.ReviewNotes,
             entity.ReviewedByUserId,
             entity.ReviewedAt,
             entity.CreatedAt,

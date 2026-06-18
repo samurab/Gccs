@@ -130,6 +130,85 @@ public sealed class CuiReadyApprovalChecklistTests
         Assert.Contains(auditWriter.Events, audit => audit.Metadata["lifecycleAction"] == "superseded");
     }
 
+    [Fact]
+    public async Task TC_1A_4_2_2_Invalid_checklist_states_block_cui_ready()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTenant(dbContext);
+        var auditWriter = new CapturingAuditEventWriter();
+        var service = CreateService(dbContext, auditWriter);
+        var tenantService = new TenantService(new CapturingTenantRepository(TenantDataPosture.NoCui), auditWriter, service);
+        var draft = await service.CreateAsync(TenantId, ActorUserId);
+        var rejected = await service.CreateAsync(TenantId, ActorUserId);
+        await service.RejectAsync(TenantId, rejected.Id, new ReviewCuiReadyChecklistRequest("Rejected."), ActorUserId);
+        var superseded = await service.CreateAsync(TenantId, ActorUserId);
+        superseded = await CompleteAllItemsAsync(service, superseded);
+        await service.ApproveAsync(TenantId, superseded.Id, new ReviewCuiReadyChecklistRequest("Approved."), ActorUserId);
+        await service.SupersedeAsync(TenantId, superseded.Id, new ReviewCuiReadyChecklistRequest("Superseded."), ActorUserId);
+        var expired = await service.CreateAsync(TenantId, ActorUserId);
+        expired = await CompleteAllItemsAsync(service, expired);
+        await service.ApproveAsync(TenantId, expired.Id, new ReviewCuiReadyChecklistRequest("Approved but old."), ActorUserId);
+        var expiredEntity = await dbContext.CuiReadyApprovalChecklists.SingleAsync(checklist => checklist.Id == expired.Id);
+        expiredEntity.ReviewedAt = DateTimeOffset.UtcNow.AddYears(-2);
+        await dbContext.SaveChangesAsync();
+
+        foreach (var checklistId in new[] { draft.Id, rejected.Id, superseded.Id, expired.Id })
+        {
+            await Assert.ThrowsAsync<CuiReadyApprovalChecklistValidationException>(() =>
+                tenantService.UpdateDataHandlingModeAsync(
+                    TenantId,
+                    new UpdateTenantDataHandlingModeRequest(TenantDataPosture.CuiReady, "Enable CUI-ready mode.", checklistId.ToString()),
+                    ActorUserId));
+        }
+    }
+
+    [Fact]
+    public async Task TC_1A_4_2_3_Final_approval_metadata_persisted()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTenant(dbContext);
+        var service = CreateService(dbContext);
+        var checklist = await service.CreateAsync(TenantId, ActorUserId);
+        checklist = await CompleteAllItemsAsync(service, checklist);
+
+        var approved = await service.ApproveAsync(TenantId, checklist.Id, new ReviewCuiReadyChecklistRequest("Final approval notes."), ActorUserId);
+
+        Assert.NotNull(approved);
+        Assert.Equal(CuiReadyChecklistState.Approved, approved.State);
+        Assert.Equal(ActorUserId, approved.ReviewedByUserId);
+        Assert.NotNull(approved.ReviewedAt);
+        Assert.Equal(1, approved.Version);
+        Assert.Equal("Final approval notes.", approved.ReviewNotes);
+    }
+
+    [Fact]
+    public async Task TC_1A_4_2_5_Failed_attempts_are_audited()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTenant(dbContext);
+        var auditWriter = new CapturingAuditEventWriter();
+        var service = CreateService(dbContext, auditWriter);
+        var checklist = await service.CreateAsync(TenantId, ActorUserId);
+        var tenantService = new TenantService(new CapturingTenantRepository(TenantDataPosture.NoCui), auditWriter, service);
+
+        await Assert.ThrowsAsync<CuiReadyApprovalChecklistValidationException>(() =>
+            service.ApproveAsync(TenantId, checklist.Id, new ReviewCuiReadyChecklistRequest("Premature approval."), ActorUserId));
+        await Assert.ThrowsAsync<CuiReadyApprovalChecklistValidationException>(() =>
+            tenantService.UpdateDataHandlingModeAsync(
+                TenantId,
+                new UpdateTenantDataHandlingModeRequest(TenantDataPosture.CuiReady, "Enable CUI-ready mode.", checklist.Id.ToString()),
+                ActorUserId));
+
+        Assert.Contains(auditWriter.Events, audit =>
+            audit.EntityType == "CuiReadyApprovalChecklist" &&
+            audit.Metadata.TryGetValue("result", out var result) &&
+            result == "failed");
+        Assert.Contains(auditWriter.Events, audit =>
+            audit.EntityType == "TenantDataHandlingMode" &&
+            audit.Metadata.TryGetValue("result", out var result) &&
+            result == "failed");
+    }
+
     private static async Task<CuiReadyApprovalChecklistDto> CompleteAllItemsAsync(
         CuiReadyApprovalChecklistService service,
         CuiReadyApprovalChecklistDto checklist)

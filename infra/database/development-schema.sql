@@ -2116,3 +2116,11 @@ INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260618215924_AddCuiReadyApprovalChecklists', '10.0.4');
 
 COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.cui_ready_approval_checklists ADD review_notes character varying(1000);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260618220401_AddCuiReadyApprovalGateMetadata', '10.0.4');
+
+COMMIT;
