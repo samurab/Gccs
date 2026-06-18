@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   acknowledgeNoCuiNoticeMock,
+  acknowledgeSharedResponsibilityMatrixMock,
   acceptClauseCandidateMock,
   allWorkflowAccess,
   approveCuiReadyApprovalChecklistMock,
@@ -52,6 +53,7 @@ const {
   getNotificationPreferencesMock,
   getNotificationsMock,
   getPublishedSharedResponsibilityMatrixMock,
+  getSharedResponsibilityMatrixAcknowledgementsMock,
   getComplianceOverviewMock,
   getCurrentUserAccessMock,
   getTenantInvitationsMock,
@@ -96,6 +98,7 @@ const {
   updateSubcontractorFlowDownMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
+  acknowledgeSharedResponsibilityMatrixMock: vi.fn(),
   acceptClauseCandidateMock: vi.fn(),
   approveCuiReadyApprovalChecklistMock: vi.fn(),
   assignContractObligationOwnerMock: vi.fn(),
@@ -139,6 +142,7 @@ const {
   getNotificationPreferencesMock: vi.fn(),
   getNotificationsMock: vi.fn(),
   getPublishedSharedResponsibilityMatrixMock: vi.fn(),
+  getSharedResponsibilityMatrixAcknowledgementsMock: vi.fn(),
   generateCmmcReadinessReportMock: vi.fn(),
   generateComplianceStatusReportMock: vi.fn(),
   generateEvidencePackageMock: vi.fn(),
@@ -709,6 +713,7 @@ vi.mock("@/lib/api", () => ({
   getNotificationPreferences: getNotificationPreferencesMock,
   getNotifications: getNotificationsMock,
   getPublishedSharedResponsibilityMatrix: getPublishedSharedResponsibilityMatrixMock,
+  getSharedResponsibilityMatrixAcknowledgements: getSharedResponsibilityMatrixAcknowledgementsMock,
   generateCmmcReadinessReport: generateCmmcReadinessReportMock,
   generateComplianceStatusReport: generateComplianceStatusReportMock,
   generateEvidencePackage: generateEvidencePackageMock,
@@ -734,6 +739,7 @@ vi.mock("@/lib/api", () => ({
   updateNotificationPreferences: updateNotificationPreferencesMock,
   updateSubcontractorFlowDown: updateSubcontractorFlowDownMock,
   acknowledgeNoCuiNotice: acknowledgeNoCuiNoticeMock,
+  acknowledgeSharedResponsibilityMatrix: acknowledgeSharedResponsibilityMatrixMock,
   createEvidenceUploadIntent: createEvidenceUploadIntentMock,
   fallbackAccess: {
     tenantId: null,
@@ -775,6 +781,7 @@ describe("App", () => {
   beforeEach(() => {
     window.location.hash = "";
     acknowledgeNoCuiNoticeMock.mockReset();
+    acknowledgeSharedResponsibilityMatrixMock.mockReset();
     acceptClauseCandidateMock.mockReset();
     approveCuiReadyApprovalChecklistMock.mockReset();
     assignContractObligationOwnerMock.mockReset();
@@ -830,6 +837,7 @@ describe("App", () => {
     getNotificationPreferencesMock.mockReset();
     getNotificationsMock.mockReset();
     getPublishedSharedResponsibilityMatrixMock.mockReset();
+    getSharedResponsibilityMatrixAcknowledgementsMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
     getContractsMock.mockReset();
@@ -895,6 +903,7 @@ describe("App", () => {
     });
     getNotificationsMock.mockResolvedValue([]);
     getPublishedSharedResponsibilityMatrixMock.mockResolvedValue(null);
+    getSharedResponsibilityMatrixAcknowledgementsMock.mockResolvedValue([]);
     markNotificationReadMock.mockImplementation((notificationId) =>
       Promise.resolve({
         data: {

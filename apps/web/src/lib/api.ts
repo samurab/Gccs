@@ -188,6 +188,23 @@ export type SharedResponsibilityMatrix = {
   rows: SharedResponsibilityMatrixRow[];
 };
 
+export type SharedResponsibilityMatrixAcknowledgement = {
+  id: string;
+  tenantId: string;
+  matrixId: string;
+  matrixVersion: string;
+  matrixTitle: string;
+  acknowledgedByUserId: string;
+  acknowledgedAt: string;
+  status: "Current" | "Outdated" | string;
+};
+
+export type AcknowledgeSharedResponsibilityMatrixRequest = {
+  matrixId: string;
+  matrixVersion: string;
+  acknowledged: boolean;
+};
+
 export type NotificationCenterItem = {
   id: string;
   tenantId: string;
@@ -1333,6 +1350,15 @@ export async function getPublishedSharedResponsibilityMatrix(): Promise<SharedRe
   return getJson<SharedResponsibilityMatrix | null>("/api/shared-responsibility-matrix/published", null);
 }
 
+export async function getSharedResponsibilityMatrixAcknowledgements(
+  tenantId: string
+): Promise<SharedResponsibilityMatrixAcknowledgement[]> {
+  return getJson<SharedResponsibilityMatrixAcknowledgement[]>(
+    `/api/tenants/${tenantId}/shared-responsibility-matrix/acknowledgements`,
+    []
+  );
+}
+
 export async function getNotifications(): Promise<NotificationCenterItem[]> {
   return getJson<NotificationCenterItem[]>("/api/notifications", []);
 }
@@ -2071,6 +2097,16 @@ export async function updateTenantDataHandlingMode(
   request: UpdateTenantDataHandlingModeRequest
 ): Promise<ApiMutationResult<Tenant>> {
   return patchJsonResult<Tenant>(`/api/tenants/${tenantId}/data-handling-mode`, request);
+}
+
+export async function acknowledgeSharedResponsibilityMatrix(
+  tenantId: string,
+  request: AcknowledgeSharedResponsibilityMatrixRequest
+): Promise<ApiMutationResult<SharedResponsibilityMatrixAcknowledgement>> {
+  return postJsonResult<SharedResponsibilityMatrixAcknowledgement>(
+    `/api/tenants/${tenantId}/shared-responsibility-matrix/acknowledgements`,
+    request
+  );
 }
 
 export async function createCuiReadyApprovalChecklist(tenantId: string): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {

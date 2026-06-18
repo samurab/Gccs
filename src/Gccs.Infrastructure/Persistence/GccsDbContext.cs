@@ -25,6 +25,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<TenantDataHandlingModeHistoryEntity> TenantDataHandlingModeHistory => Set<TenantDataHandlingModeHistoryEntity>();
     public DbSet<CuiReadyApprovalChecklistEntity> CuiReadyApprovalChecklists => Set<CuiReadyApprovalChecklistEntity>();
     public DbSet<CuiReadyApprovalChecklistItemEntity> CuiReadyApprovalChecklistItems => Set<CuiReadyApprovalChecklistItemEntity>();
+    public DbSet<SharedResponsibilityMatrixAcknowledgementEntity> SharedResponsibilityMatrixAcknowledgements => Set<SharedResponsibilityMatrixAcknowledgementEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
@@ -189,6 +190,19 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.EvidenceLink).HasMaxLength(600);
             entity.Property(x => x.Notes).HasMaxLength(1200);
             entity.HasOne(x => x.Checklist).WithMany(x => x.Items).HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SharedResponsibilityMatrixAcknowledgementEntity>(entity =>
+        {
+            entity.ToTable("shared_responsibility_matrix_acknowledgements");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.MatrixId, x.MatrixVersion }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.AcknowledgedAt });
+            entity.Property(x => x.MatrixId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.MatrixVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.MatrixTitle).HasMaxLength(240).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
         });
 
         modelBuilder.Entity<UserEntity>(entity =>

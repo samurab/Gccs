@@ -64,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<TenantService>();
         services.AddScoped<CuiReadyApprovalChecklistService>();
         services.AddScoped<SharedResponsibilityMatrixService>();
+        services.AddScoped<SharedResponsibilityMatrixAcknowledgementService>();
         services.AddScoped<TenantDataHandlingModePolicyService>();
         services.AddScoped<ContentClassificationPolicy>();
         services.AddScoped<ContentClassificationReviewService>();
@@ -122,6 +123,7 @@ public static class DependencyInjection
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
             services.AddScoped<ICuiReadyApprovalChecklistRepository, EfCuiReadyApprovalChecklistRepository>();
+            services.AddScoped<ISharedResponsibilityMatrixAcknowledgementRepository, EfSharedResponsibilityMatrixAcknowledgementRepository>();
             services.AddScoped<ICuiReadyApprovalChecklistGate>(provider => provider.GetRequiredService<CuiReadyApprovalChecklistService>());
             services.AddScoped<ITenantMembershipRepository, EfTenantMembershipRepository>();
             services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
@@ -172,6 +174,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Tenant persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICuiReadyApprovalChecklistRepository>(_ =>
                 throw new InvalidOperationException("CUI-ready approval checklist persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ISharedResponsibilityMatrixAcknowledgementRepository>(_ =>
+                throw new InvalidOperationException("Shared responsibility matrix acknowledgement persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ITenantMembershipRepository>(_ =>
                 throw new InvalidOperationException("Tenant membership persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ITenantInvitationRepository>(_ =>

@@ -22,6 +22,7 @@ using Gccs.Application.Tenancy;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Compliance;
 using Gccs.Domain.Identity;
+using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
@@ -3406,12 +3407,23 @@ api.MapPatch("/tenants/{tenantId:guid}/data-handling-mode", async (
     Guid tenantId,
     UpdateTenantDataHandlingModeRequest request,
     TenantService service,
+    IServiceProvider serviceProvider,
+    IWebHostEnvironment environment,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
+        if (request.DataHandlingMode is TenantDataPosture.CuiReady && !string.IsNullOrWhiteSpace(request.ApprovalRecordReference))
+        {
+            var matrixService = serviceProvider.GetRequiredService<SharedResponsibilityMatrixService>();
+            var matrixAcknowledgementService = serviceProvider.GetRequiredService<SharedResponsibilityMatrixAcknowledgementService>();
+            var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+            var matrix = await matrixService.GetPublishedAsync(packageRoot, cancellationToken);
+            await matrixAcknowledgementService.EnsureCurrentAcknowledgedAsync(tenantId, matrix, tenantContext.UserId, cancellationToken);
+        }
+
         var tenant = await service.UpdateDataHandlingModeAsync(tenantId, request, tenantContext.UserId, cancellationToken);
         return tenant is null
             ? ApiProblemDetails.Create(
@@ -3434,6 +3446,13 @@ api.MapPatch("/tenants/{tenantId:guid}/data-handling-mode", async (
         return Results.ValidationProblem(new Dictionary<string, string[]>
         {
             ["approvalRecordReference"] = [exception.Message]
+        });
+    }
+    catch (SharedResponsibilityMatrixAcknowledgementException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["sharedResponsibilityMatrix"] = [exception.Message]
         });
     }
 })
@@ -3508,10 +3527,29 @@ api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/ap
     Guid checklistId,
     ReviewCuiReadyChecklistRequest request,
     CuiReadyApprovalChecklistService service,
+    SharedResponsibilityMatrixService matrixService,
+    SharedResponsibilityMatrixAcknowledgementService matrixAcknowledgementService,
+    IWebHostEnvironment environment,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
-    await ReviewCuiReadyChecklistAsync(tenantId, checklistId, request, service.ApproveAsync, tenantContext, httpContext, cancellationToken))
+{
+    try
+    {
+        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+        var matrix = await matrixService.GetPublishedAsync(packageRoot, cancellationToken);
+        await matrixAcknowledgementService.EnsureCurrentAcknowledgedAsync(tenantId, matrix, tenantContext.UserId, cancellationToken);
+    }
+    catch (SharedResponsibilityMatrixAcknowledgementException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["sharedResponsibilityMatrix"] = [exception.Message]
+        });
+    }
+
+    return await ReviewCuiReadyChecklistAsync(tenantId, checklistId, request, service.ApproveAsync, tenantContext, httpContext, cancellationToken);
+})
 .RequirePermission(Permission.ManageTenant)
 .WithName("ApproveCuiReadyApprovalChecklist");
 
@@ -3559,6 +3597,47 @@ api.MapGet("/shared-responsibility-matrix/published", async (
 })
 .RequirePermission(Permission.ManageTenant)
 .WithName("GetPublishedSharedResponsibilityMatrix");
+
+api.MapGet("/tenants/{tenantId:guid}/shared-responsibility-matrix/acknowledgements", async (
+    Guid tenantId,
+    SharedResponsibilityMatrixService matrixService,
+    SharedResponsibilityMatrixAcknowledgementService acknowledgementService,
+    IWebHostEnvironment environment,
+    CancellationToken cancellationToken) =>
+{
+    var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+    var matrix = await matrixService.GetPublishedAsync(packageRoot, cancellationToken);
+    return Results.Ok(await acknowledgementService.ListAsync(tenantId, matrix, cancellationToken));
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ListSharedResponsibilityMatrixAcknowledgements");
+
+api.MapPost("/tenants/{tenantId:guid}/shared-responsibility-matrix/acknowledgements", async (
+    Guid tenantId,
+    AcknowledgeSharedResponsibilityMatrixRequest request,
+    SharedResponsibilityMatrixService matrixService,
+    SharedResponsibilityMatrixAcknowledgementService acknowledgementService,
+    IWebHostEnvironment environment,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+        var matrix = await matrixService.GetPublishedAsync(packageRoot, cancellationToken);
+        var acknowledgement = await acknowledgementService.AcknowledgeAsync(tenantId, matrix, request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/tenants/{tenantId}/shared-responsibility-matrix/acknowledgements", acknowledgement);
+    }
+    catch (SharedResponsibilityMatrixAcknowledgementException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["sharedResponsibilityMatrix"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("AcknowledgeSharedResponsibilityMatrix");
 
 api.MapGet("/tenants/{tenantId:guid}/data-handling-mode/history", async (
     Guid tenantId,

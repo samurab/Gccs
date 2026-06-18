@@ -25,6 +25,7 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "re
 import { ModuleCard } from "@/components/ModuleCard";
 import {
   acknowledgeNoCuiNotice,
+  acknowledgeSharedResponsibilityMatrix,
   acceptClauseCandidate,
   applyCompanyEntityLookup,
   applySubcontractorEntityLookup,
@@ -78,6 +79,7 @@ import {
   getNotificationPreferences,
   getNotifications,
   getPublishedSharedResponsibilityMatrix,
+  getSharedResponsibilityMatrixAcknowledgements,
   getTenant,
   getTenantDataHandlingModeHistory,
   getTenantInvitations,
@@ -125,6 +127,7 @@ import {
   type CuiReadyApprovalChecklistItem,
   type UpdateCuiReadyChecklistItemRequest,
   type SharedResponsibilityMatrix,
+  type SharedResponsibilityMatrixAcknowledgement,
   type ContractClause,
   type ContractDeliverable,
   type ContractDocument,
@@ -474,6 +477,9 @@ export function App() {
   const [tenantModeHistory, setTenantModeHistory] = useState<TenantDataHandlingModeHistory[]>([]);
   const [cuiReadyChecklists, setCuiReadyChecklists] = useState<CuiReadyApprovalChecklist[]>([]);
   const [sharedResponsibilityMatrix, setSharedResponsibilityMatrix] = useState<SharedResponsibilityMatrix | null>(null);
+  const [sharedResponsibilityMatrixAcknowledgements, setSharedResponsibilityMatrixAcknowledgements] = useState<
+    SharedResponsibilityMatrixAcknowledgement[]
+  >([]);
   const [notifications, setNotifications] = useState<NotificationCenterItem[]>([]);
   const [notificationPreference, setNotificationPreference] = useState<NotificationPreference | null>(null);
   const [reminderRunResult, setReminderRunResult] = useState<DueDateReminderRunResult | null>(null);
@@ -556,6 +562,8 @@ export function App() {
   const [tenantModeMessage, setTenantModeMessage] = useState("");
   const [cuiReadyChecklistStatus, setCuiReadyChecklistStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [cuiReadyChecklistMessage, setCuiReadyChecklistMessage] = useState("");
+  const [matrixAcknowledgementStatus, setMatrixAcknowledgementStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [matrixAcknowledgementMessage, setMatrixAcknowledgementMessage] = useState("");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
@@ -614,14 +622,21 @@ export function App() {
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
-        const [nextTenant, nextTenantModeHistory, nextCuiReadyChecklists, nextSharedResponsibilityMatrix] = canLoadTenantAdministration
+        const [
+          nextTenant,
+          nextTenantModeHistory,
+          nextCuiReadyChecklists,
+          nextSharedResponsibilityMatrix,
+          nextSharedResponsibilityMatrixAcknowledgements
+        ] = canLoadTenantAdministration
           ? await Promise.all([
               getTenant(nextAccess.tenantId!),
               getTenantDataHandlingModeHistory(nextAccess.tenantId!),
               getCuiReadyApprovalChecklists(nextAccess.tenantId!),
-              getPublishedSharedResponsibilityMatrix()
+              getPublishedSharedResponsibilityMatrix(),
+              getSharedResponsibilityMatrixAcknowledgements(nextAccess.tenantId!)
             ])
-          : [null, [], [], null];
+          : [null, [], [], null, []];
         const nextNotifications = canLoadNotifications ? await getNotifications() : [];
         const nextNotificationPreference = canLoadNotifications ? await getNotificationPreferences() : null;
         const nextAuditLogs = canLoadAuditLogs ? await getAuditLogs({ page: 1, pageSize: 5 }) : fallbackAuditLogs;
@@ -667,6 +682,7 @@ export function App() {
           setTenantModeHistory(nextTenantModeHistory);
           setCuiReadyChecklists(nextCuiReadyChecklists);
           setSharedResponsibilityMatrix(nextSharedResponsibilityMatrix);
+          setSharedResponsibilityMatrixAcknowledgements(nextSharedResponsibilityMatrixAcknowledgements);
           setNotifications(nextNotifications);
           setNotificationPreference(nextNotificationPreference);
           setCompanyProfile(nextCompanyProfile);
@@ -717,6 +733,7 @@ export function App() {
           setTenantModeHistory([]);
           setCuiReadyChecklists([]);
           setSharedResponsibilityMatrix(null);
+          setSharedResponsibilityMatrixAcknowledgements([]);
           setNotifications([]);
           setNotificationPreference(null);
           setReminderRunResult(null);
@@ -871,6 +888,32 @@ export function App() {
 
     setCuiReadyChecklistStatus("failed");
     setCuiReadyChecklistMessage(result.error ?? "CUI-ready checklist action failed.");
+  }
+
+  async function handleSharedResponsibilityMatrixAcknowledge() {
+    if (!currentTenant || !sharedResponsibilityMatrix) {
+      return;
+    }
+
+    setMatrixAcknowledgementStatus("saving");
+    setMatrixAcknowledgementMessage("");
+    const result = await acknowledgeSharedResponsibilityMatrix(currentTenant.id, {
+      matrixId: sharedResponsibilityMatrix.matrixId,
+      matrixVersion: sharedResponsibilityMatrix.version,
+      acknowledged: true
+    });
+
+    if (result.data) {
+      setSharedResponsibilityMatrixAcknowledgements(
+        await getSharedResponsibilityMatrixAcknowledgements(currentTenant.id)
+      );
+      setMatrixAcknowledgementStatus("saved");
+      setMatrixAcknowledgementMessage("Shared responsibility matrix acknowledged.");
+      return;
+    }
+
+    setMatrixAcknowledgementStatus("failed");
+    setMatrixAcknowledgementMessage(result.error ?? "Shared responsibility matrix acknowledgement failed.");
   }
 
   async function handleNotificationRead(notificationId: string) {
@@ -1865,6 +1908,9 @@ export function App() {
               notificationPreferenceStatus={notificationPreferenceStatus}
               reminderRunResult={reminderRunResult}
               sharedResponsibilityMatrix={sharedResponsibilityMatrix}
+              sharedResponsibilityMatrixAcknowledgements={sharedResponsibilityMatrixAcknowledgements}
+              sharedResponsibilityMatrixAcknowledgementMessage={matrixAcknowledgementMessage}
+              sharedResponsibilityMatrixAcknowledgementStatus={matrixAcknowledgementStatus}
               tenantModeHistory={tenantModeHistory}
               tenantModeMessage={tenantModeMessage}
               tenantModeStatus={tenantModeStatus}
@@ -1875,6 +1921,7 @@ export function App() {
               onCuiReadyChecklistCreate={handleCuiReadyChecklistCreate}
               onCuiReadyChecklistItemUpdate={handleCuiReadyChecklistItemUpdate}
               onCuiReadyChecklistReview={handleCuiReadyChecklistReview}
+              onSharedResponsibilityMatrixAcknowledge={handleSharedResponsibilityMatrixAcknowledge}
               onInviteEmailChange={setInviteEmail}
               onInviteRoleChange={setInviteRole}
               onInvitationSubmit={handleInvitationSubmit}
@@ -6125,7 +6172,28 @@ function CuiReadyChecklistPanel({
   );
 }
 
-function SharedResponsibilityMatrixPanel({ matrix }: { matrix: SharedResponsibilityMatrix | null }) {
+function SharedResponsibilityMatrixPanel({
+  acknowledgements,
+  matrix,
+  message,
+  onAcknowledge,
+  status
+}: {
+  acknowledgements: SharedResponsibilityMatrixAcknowledgement[];
+  matrix: SharedResponsibilityMatrix | null;
+  message: string;
+  onAcknowledge: () => Promise<void>;
+  status: "idle" | "saving" | "saved" | "failed";
+}) {
+  const currentAcknowledgement = matrix
+    ? acknowledgements.find(
+        (acknowledgement) =>
+          acknowledgement.matrixId === matrix.matrixId &&
+          acknowledgement.matrixVersion === matrix.version &&
+          acknowledgement.status === "Current"
+      )
+    : null;
+
   return (
     <section className="members-section" aria-label="Shared responsibility matrix">
       <div className="section-heading section-heading--split">
@@ -6136,8 +6204,21 @@ function SharedResponsibilityMatrixPanel({ matrix }: { matrix: SharedResponsibil
             Published ownership baseline for platform controls, customer decisions, support obligations, and third-party dependencies.
           </p>
         </div>
-        {matrix ? <span className={`status status--${matrix.state.toLowerCase()}`}>{matrix.state}</span> : null}
+        <div className="button-row">
+          {matrix ? <span className={`status status--${matrix.state.toLowerCase()}`}>{matrix.state}</span> : null}
+          <button
+            type="button"
+            onClick={() => void onAcknowledge()}
+            disabled={!matrix || Boolean(currentAcknowledgement) || status === "saving"}
+          >
+            <CheckCircle2 size={16} />
+            <span>{status === "saving" ? "Saving" : currentAcknowledgement ? "Acknowledged" : "Acknowledge"}</span>
+          </button>
+        </div>
       </div>
+      {message ? (
+        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+      ) : null}
       {matrix ? (
         <>
           <div className="metric-grid">
@@ -6152,6 +6233,10 @@ function SharedResponsibilityMatrixPanel({ matrix }: { matrix: SharedResponsibil
             <div className="metric-card">
               <span>Review owner</span>
               <strong>{matrix.reviewOwner}</strong>
+            </div>
+            <div className="metric-card">
+              <span>Acknowledgement</span>
+              <strong>{currentAcknowledgement ? "Current" : "Required"}</strong>
             </div>
             <div className="metric-card">
               <span>Rows</span>
@@ -6174,6 +6259,26 @@ function SharedResponsibilityMatrixPanel({ matrix }: { matrix: SharedResponsibil
               </article>
             ))}
           </div>
+          {acknowledgements.length > 0 ? (
+            <div className="member-table" role="table" aria-label="Shared responsibility matrix acknowledgement history">
+              <div className="member-row member-row--header" role="row">
+                <span role="columnheader">Version</span>
+                <span role="columnheader">Status</span>
+                <span role="columnheader">Acknowledged</span>
+                <span role="columnheader">User</span>
+              </div>
+              {acknowledgements.map((acknowledgement) => (
+                <article className="member-row" role="row" key={acknowledgement.id}>
+                  <span role="cell">{acknowledgement.matrixVersion}</span>
+                  <span role="cell">{acknowledgement.status}</span>
+                  <span role="cell">{new Date(acknowledgement.acknowledgedAt).toLocaleString()}</span>
+                  <span role="cell">{acknowledgement.acknowledgedByUserId}</span>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="form-status form-status--error">Current matrix acknowledgement is required before CUI-ready approval.</p>
+          )}
         </>
       ) : (
         <EmptyState title="No published matrix" body="Publish a governed shared responsibility matrix before CUI-ready approval review." />
@@ -6310,6 +6415,9 @@ function SettingsView({
   notificationPreferenceStatus,
   reminderRunResult,
   sharedResponsibilityMatrix,
+  sharedResponsibilityMatrixAcknowledgements,
+  sharedResponsibilityMatrixAcknowledgementMessage,
+  sharedResponsibilityMatrixAcknowledgementStatus,
   tenantModeHistory,
   tenantModeMessage,
   tenantModeStatus,
@@ -6324,6 +6432,7 @@ function SettingsView({
   onInviteRoleChange,
   onInvitationSubmit,
   onNotificationPreferenceSave,
+  onSharedResponsibilityMatrixAcknowledge,
   onTenantModeUpdate
 }: {
   auditLogFilters: AuditLogFilters;
@@ -6347,6 +6456,9 @@ function SettingsView({
   notificationPreferenceStatus: "idle" | "saving" | "saved" | "failed";
   reminderRunResult: DueDateReminderRunResult | null;
   sharedResponsibilityMatrix: SharedResponsibilityMatrix | null;
+  sharedResponsibilityMatrixAcknowledgements: SharedResponsibilityMatrixAcknowledgement[];
+  sharedResponsibilityMatrixAcknowledgementMessage: string;
+  sharedResponsibilityMatrixAcknowledgementStatus: "idle" | "saving" | "saved" | "failed";
   tenantModeHistory: TenantDataHandlingModeHistory[];
   tenantModeMessage: string;
   tenantModeStatus: "idle" | "saving" | "saved" | "failed";
@@ -6369,6 +6481,7 @@ function SettingsView({
   onInviteRoleChange: (roleName: string) => void;
   onInvitationSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onNotificationPreferenceSave: (request: NotificationPreferenceUpdateRequest) => Promise<void>;
+  onSharedResponsibilityMatrixAcknowledge: () => Promise<void>;
   onTenantModeUpdate: (request: UpdateTenantDataHandlingModeRequest) => Promise<void>;
 }) {
   if (!canManageTenant && !canManageUsers && !canViewAuditLog && !notificationPreference) {
@@ -6386,7 +6499,13 @@ function SettingsView({
     <>
       {canManageTenant ? (
         <>
-          <SharedResponsibilityMatrixPanel matrix={sharedResponsibilityMatrix} />
+          <SharedResponsibilityMatrixPanel
+            acknowledgements={sharedResponsibilityMatrixAcknowledgements}
+            matrix={sharedResponsibilityMatrix}
+            message={sharedResponsibilityMatrixAcknowledgementMessage}
+            onAcknowledge={onSharedResponsibilityMatrixAcknowledge}
+            status={sharedResponsibilityMatrixAcknowledgementStatus}
+          />
           <CuiReadyChecklistPanel
             checklists={cuiReadyChecklists}
             currentTenant={currentTenant}

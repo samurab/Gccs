@@ -79,6 +79,19 @@ public sealed class CuiReadyApprovalChecklistItemEntity
     public CuiReadyApprovalChecklistEntity? Checklist { get; set; }
 }
 
+public sealed class SharedResponsibilityMatrixAcknowledgementEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string MatrixId { get; set; } = string.Empty;
+    public string MatrixVersion { get; set; } = string.Empty;
+    public string MatrixTitle { get; set; } = string.Empty;
+    public Guid AcknowledgedByUserId { get; set; }
+    public DateTimeOffset AcknowledgedAt { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+}
+
 public sealed class UserEntity : AuditedEntity
 {
     public Guid Id { get; set; }
