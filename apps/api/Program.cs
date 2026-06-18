@@ -3539,6 +3539,27 @@ api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/su
 .RequirePermission(Permission.ManageTenant)
 .WithName("SupersedeCuiReadyApprovalChecklist");
 
+api.MapGet("/shared-responsibility-matrix/published", async (
+    SharedResponsibilityMatrixService service,
+    IWebHostEnvironment environment,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+        return Results.Ok(await service.GetPublishedAsync(packageRoot, cancellationToken));
+    }
+    catch (SharedResponsibilityMatrixValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["sharedResponsibilityMatrix"] = exception.Errors.Count > 0 ? exception.Errors.ToArray() : [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("GetPublishedSharedResponsibilityMatrix");
+
 api.MapGet("/tenants/{tenantId:guid}/data-handling-mode/history", async (
     Guid tenantId,
     TenantService service,

@@ -63,12 +63,14 @@ public static class DependencyInjection
         services.AddScoped<ContractSizeCheckService>();
         services.AddScoped<TenantService>();
         services.AddScoped<CuiReadyApprovalChecklistService>();
+        services.AddScoped<SharedResponsibilityMatrixService>();
         services.AddScoped<TenantDataHandlingModePolicyService>();
         services.AddScoped<ContentClassificationPolicy>();
         services.AddScoped<ContentClassificationReviewService>();
         services.AddScoped<SyntheticDemoDatasetService>();
         services.AddScoped<DemoTenantSeedService>();
         services.AddSingleton<ISyntheticDemoDatasetRepository, FileSyntheticDemoDatasetRepository>();
+        services.AddSingleton<ISharedResponsibilityMatrixRepository, FileSharedResponsibilityMatrixRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();

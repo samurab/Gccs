@@ -51,6 +51,7 @@ const {
   getNoCuiAcknowledgementStatusMock,
   getNotificationPreferencesMock,
   getNotificationsMock,
+  getPublishedSharedResponsibilityMatrixMock,
   getComplianceOverviewMock,
   getCurrentUserAccessMock,
   getTenantInvitationsMock,
@@ -137,6 +138,7 @@ const {
   getNoCuiAcknowledgementStatusMock: vi.fn(),
   getNotificationPreferencesMock: vi.fn(),
   getNotificationsMock: vi.fn(),
+  getPublishedSharedResponsibilityMatrixMock: vi.fn(),
   generateCmmcReadinessReportMock: vi.fn(),
   generateComplianceStatusReportMock: vi.fn(),
   generateEvidencePackageMock: vi.fn(),
@@ -706,6 +708,7 @@ vi.mock("@/lib/api", () => ({
   getEvidenceItems: getEvidenceItemsMock,
   getNotificationPreferences: getNotificationPreferencesMock,
   getNotifications: getNotificationsMock,
+  getPublishedSharedResponsibilityMatrix: getPublishedSharedResponsibilityMatrixMock,
   generateCmmcReadinessReport: generateCmmcReadinessReportMock,
   generateComplianceStatusReport: generateComplianceStatusReportMock,
   generateEvidencePackage: generateEvidencePackageMock,
@@ -826,6 +829,7 @@ describe("App", () => {
     getNoCuiAcknowledgementStatusMock.mockReset();
     getNotificationPreferencesMock.mockReset();
     getNotificationsMock.mockReset();
+    getPublishedSharedResponsibilityMatrixMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
     getContractsMock.mockReset();
@@ -890,6 +894,7 @@ describe("App", () => {
       error: null
     });
     getNotificationsMock.mockResolvedValue([]);
+    getPublishedSharedResponsibilityMatrixMock.mockResolvedValue(null);
     markNotificationReadMock.mockImplementation((notificationId) =>
       Promise.resolve({
         data: {

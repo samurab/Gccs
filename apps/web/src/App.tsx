@@ -77,6 +77,7 @@ import {
   getNoCuiAcknowledgementStatus,
   getNotificationPreferences,
   getNotifications,
+  getPublishedSharedResponsibilityMatrix,
   getTenant,
   getTenantDataHandlingModeHistory,
   getTenantInvitations,
@@ -123,6 +124,7 @@ import {
   type CuiReadyApprovalChecklist,
   type CuiReadyApprovalChecklistItem,
   type UpdateCuiReadyChecklistItemRequest,
+  type SharedResponsibilityMatrix,
   type ContractClause,
   type ContractDeliverable,
   type ContractDocument,
@@ -471,6 +473,7 @@ export function App() {
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
   const [tenantModeHistory, setTenantModeHistory] = useState<TenantDataHandlingModeHistory[]>([]);
   const [cuiReadyChecklists, setCuiReadyChecklists] = useState<CuiReadyApprovalChecklist[]>([]);
+  const [sharedResponsibilityMatrix, setSharedResponsibilityMatrix] = useState<SharedResponsibilityMatrix | null>(null);
   const [notifications, setNotifications] = useState<NotificationCenterItem[]>([]);
   const [notificationPreference, setNotificationPreference] = useState<NotificationPreference | null>(null);
   const [reminderRunResult, setReminderRunResult] = useState<DueDateReminderRunResult | null>(null);
@@ -611,13 +614,14 @@ export function App() {
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
-        const [nextTenant, nextTenantModeHistory, nextCuiReadyChecklists] = canLoadTenantAdministration
+        const [nextTenant, nextTenantModeHistory, nextCuiReadyChecklists, nextSharedResponsibilityMatrix] = canLoadTenantAdministration
           ? await Promise.all([
               getTenant(nextAccess.tenantId!),
               getTenantDataHandlingModeHistory(nextAccess.tenantId!),
-              getCuiReadyApprovalChecklists(nextAccess.tenantId!)
+              getCuiReadyApprovalChecklists(nextAccess.tenantId!),
+              getPublishedSharedResponsibilityMatrix()
             ])
-          : [null, [], []];
+          : [null, [], [], null];
         const nextNotifications = canLoadNotifications ? await getNotifications() : [];
         const nextNotificationPreference = canLoadNotifications ? await getNotificationPreferences() : null;
         const nextAuditLogs = canLoadAuditLogs ? await getAuditLogs({ page: 1, pageSize: 5 }) : fallbackAuditLogs;
@@ -662,6 +666,7 @@ export function App() {
           setCurrentTenant(nextTenant);
           setTenantModeHistory(nextTenantModeHistory);
           setCuiReadyChecklists(nextCuiReadyChecklists);
+          setSharedResponsibilityMatrix(nextSharedResponsibilityMatrix);
           setNotifications(nextNotifications);
           setNotificationPreference(nextNotificationPreference);
           setCompanyProfile(nextCompanyProfile);
@@ -711,6 +716,7 @@ export function App() {
           setCurrentTenant(null);
           setTenantModeHistory([]);
           setCuiReadyChecklists([]);
+          setSharedResponsibilityMatrix(null);
           setNotifications([]);
           setNotificationPreference(null);
           setReminderRunResult(null);
@@ -1858,6 +1864,7 @@ export function App() {
               notificationPreferenceMessage={notificationPreferenceMessage}
               notificationPreferenceStatus={notificationPreferenceStatus}
               reminderRunResult={reminderRunResult}
+              sharedResponsibilityMatrix={sharedResponsibilityMatrix}
               tenantModeHistory={tenantModeHistory}
               tenantModeMessage={tenantModeMessage}
               tenantModeStatus={tenantModeStatus}
@@ -6016,6 +6023,7 @@ function CuiReadyChecklistPanel({
   checklists,
   currentTenant,
   currentUserId,
+  matrix,
   message,
   onCreate,
   onItemUpdate,
@@ -6025,6 +6033,7 @@ function CuiReadyChecklistPanel({
   checklists: CuiReadyApprovalChecklist[];
   currentTenant: Tenant | null;
   currentUserId: string | null;
+  matrix: SharedResponsibilityMatrix | null;
   message: string;
   onCreate: () => Promise<void>;
   onItemUpdate: (checklistId: string, itemKey: string, request: UpdateCuiReadyChecklistItemRequest) => Promise<void>;
@@ -6071,6 +6080,11 @@ function CuiReadyChecklistPanel({
             </div>
             <span className={`status status--${latest.state.toLowerCase()}`}>{latest.state}</span>
           </div>
+          {matrix ? (
+            <p className="section-summary">
+              Shared responsibility matrix {matrix.version} · {matrix.state} · {matrix.reviewOwner}
+            </p>
+          ) : null}
           <div className="evidence-list">
             {latest.items.map((item) => (
               <article className="evidence-list__item" key={item.id}>
@@ -6109,6 +6123,70 @@ function CuiReadyChecklistPanel({
       )}
     </section>
   );
+}
+
+function SharedResponsibilityMatrixPanel({ matrix }: { matrix: SharedResponsibilityMatrix | null }) {
+  return (
+    <section className="members-section" aria-label="Shared responsibility matrix">
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">CUI-ready baseline</p>
+          <h2>Shared responsibility matrix</h2>
+          <p className="section-summary">
+            Published ownership baseline for platform controls, customer decisions, support obligations, and third-party dependencies.
+          </p>
+        </div>
+        {matrix ? <span className={`status status--${matrix.state.toLowerCase()}`}>{matrix.state}</span> : null}
+      </div>
+      {matrix ? (
+        <>
+          <div className="metric-grid">
+            <div className="metric-card">
+              <span>Version</span>
+              <strong>{matrix.version}</strong>
+            </div>
+            <div className="metric-card">
+              <span>Effective</span>
+              <strong>{matrix.effectiveAt}</strong>
+            </div>
+            <div className="metric-card">
+              <span>Review owner</span>
+              <strong>{matrix.reviewOwner}</strong>
+            </div>
+            <div className="metric-card">
+              <span>Rows</span>
+              <strong>{matrix.rows.length}</strong>
+            </div>
+          </div>
+          <div className="member-table" role="table" aria-label="Shared responsibility matrix rows">
+            <div className="member-row member-row--header" role="row">
+              <span role="columnheader">Category</span>
+              <span role="columnheader">Owner</span>
+              <span role="columnheader">Notes</span>
+              <span role="columnheader">Review</span>
+            </div>
+            {matrix.rows.map((row) => (
+              <article className="member-row" role="row" key={row.category}>
+                <span role="cell">{formatResponsibilityCategory(row.category)}</span>
+                <span role="cell">{row.responsibility}</span>
+                <span role="cell">{row.notes}</span>
+                <span role="cell">{row.reviewOwner} · {row.effectiveAt}</span>
+              </article>
+            ))}
+          </div>
+        </>
+      ) : (
+        <EmptyState title="No published matrix" body="Publish a governed shared responsibility matrix before CUI-ready approval review." />
+      )}
+    </section>
+  );
+}
+
+function formatResponsibilityCategory(value: string): string {
+  return value
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function TenantModePanel({
@@ -6231,6 +6309,7 @@ function SettingsView({
   notificationPreferenceMessage,
   notificationPreferenceStatus,
   reminderRunResult,
+  sharedResponsibilityMatrix,
   tenantModeHistory,
   tenantModeMessage,
   tenantModeStatus,
@@ -6267,6 +6346,7 @@ function SettingsView({
   notificationPreferenceMessage: string;
   notificationPreferenceStatus: "idle" | "saving" | "saved" | "failed";
   reminderRunResult: DueDateReminderRunResult | null;
+  sharedResponsibilityMatrix: SharedResponsibilityMatrix | null;
   tenantModeHistory: TenantDataHandlingModeHistory[];
   tenantModeMessage: string;
   tenantModeStatus: "idle" | "saving" | "saved" | "failed";
@@ -6306,10 +6386,12 @@ function SettingsView({
     <>
       {canManageTenant ? (
         <>
+          <SharedResponsibilityMatrixPanel matrix={sharedResponsibilityMatrix} />
           <CuiReadyChecklistPanel
             checklists={cuiReadyChecklists}
             currentTenant={currentTenant}
             currentUserId={currentUserId}
+            matrix={sharedResponsibilityMatrix}
             message={cuiReadyChecklistMessage}
             onCreate={onCuiReadyChecklistCreate}
             onItemUpdate={onCuiReadyChecklistItemUpdate}

@@ -1,0 +1,26 @@
+{
+  "matrixId": "gccs-cui-ready-baseline",
+  "version": "2026.06.phase1a",
+  "title": "GCCS CUI-Ready Shared Responsibility Matrix",
+  "state": "Published",
+  "effectiveAt": "2026-06-18",
+  "reviewOwner": "GCCS Security Owner",
+  "reviewedAt": "2026-06-18",
+  "sourceReference": "Phase 1A CUI readiness baseline",
+  "rows": [
+    { "category": "tenant-administration", "responsibility": "Shared", "notes": "GCCS provides tenant controls; customer approves tenant administrators.", "sourceReference": "Phase 1A approval checklist", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "user-access", "responsibility": "Shared", "notes": "GCCS enforces RBAC; customer grants least-privilege access.", "sourceReference": "Security control implications", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "mfa", "responsibility": "Shared", "notes": "GCCS supports MFA-ready access controls; customer ensures users enroll and maintain MFA.", "sourceReference": "Security requirements baseline", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "upload-classification", "responsibility": "Customer", "notes": "Customer classifies uploads accurately; GCCS enforces classification guardrails.", "sourceReference": "Phase 1A classification metadata", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "evidence-storage", "responsibility": "GCCS", "notes": "GCCS protects stored evidence according to the approved tenant data handling mode.", "sourceReference": "Evidence vault requirements", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "encryption", "responsibility": "GCCS", "notes": "GCCS owns platform encryption controls; customer manages customer-side source systems.", "sourceReference": "Security requirements baseline", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "malware-scanning", "responsibility": "GCCS", "notes": "GCCS validates upload scan status before files are accepted for workflows.", "sourceReference": "Upload guardrails", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "retention", "responsibility": "Shared", "notes": "GCCS provides retention controls; customer defines contract-specific retention expectations.", "sourceReference": "Data retention controls", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "backup", "responsibility": "GCCS", "notes": "GCCS owns platform backup and restore procedures for approved environments.", "sourceReference": "MVP operating plan", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "export", "responsibility": "Shared", "notes": "GCCS provides export workflows; customer controls downstream handling after export.", "sourceReference": "Export and deletion workflows", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "deletion", "responsibility": "Shared", "notes": "GCCS executes platform deletion controls; customer confirms deletion authority and holds.", "sourceReference": "Retention and deletion behavior", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "incident-reporting", "responsibility": "Shared", "notes": "GCCS escalates platform incidents; customer handles contract and agency reporting obligations.", "sourceReference": "Incident response process", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "support", "responsibility": "GCCS", "notes": "GCCS provides support escalation paths for approved CUI-ready tenants.", "sourceReference": "Support escalation paths", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" },
+    { "category": "customer-content-decisions", "responsibility": "Customer", "notes": "Customer owns decisions about whether content may be uploaded, retained, exported, or deleted.", "sourceReference": "CUI data handling notice", "effectiveAt": "2026-06-18", "reviewOwner": "GCCS Security Owner", "version": "2026.06.phase1a" }
+  ]
+}

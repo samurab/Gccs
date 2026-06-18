@@ -166,6 +166,28 @@ export type ReviewCuiReadyChecklistRequest = {
   reason: string | null;
 };
 
+export type SharedResponsibilityMatrixRow = {
+  category: string;
+  responsibility: "GCCS" | "Customer" | "Shared" | "ThirdPartyProvider" | "NotApplicable" | string;
+  notes: string;
+  sourceReference: string;
+  effectiveAt: string;
+  reviewOwner: string;
+  version: string;
+};
+
+export type SharedResponsibilityMatrix = {
+  matrixId: string;
+  version: string;
+  title: string;
+  state: "Published" | "Draft" | "Retired" | string;
+  effectiveAt: string;
+  reviewOwner: string;
+  reviewedAt: string;
+  sourceReference: string;
+  rows: SharedResponsibilityMatrixRow[];
+};
+
 export type NotificationCenterItem = {
   id: string;
   tenantId: string;
@@ -1305,6 +1327,10 @@ export async function getTenantDataHandlingModeHistory(tenantId: string): Promis
 
 export async function getCuiReadyApprovalChecklists(tenantId: string): Promise<CuiReadyApprovalChecklist[]> {
   return getJson<CuiReadyApprovalChecklist[]>(`/api/tenants/${tenantId}/cui-ready-checklists`, []);
+}
+
+export async function getPublishedSharedResponsibilityMatrix(): Promise<SharedResponsibilityMatrix | null> {
+  return getJson<SharedResponsibilityMatrix | null>("/api/shared-responsibility-matrix/published", null);
 }
 
 export async function getNotifications(): Promise<NotificationCenterItem[]> {
