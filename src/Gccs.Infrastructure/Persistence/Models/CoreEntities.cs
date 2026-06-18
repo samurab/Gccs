@@ -119,8 +119,24 @@ public sealed class CuiSupportEscalationEntity : AuditedEntity
     public string? Owner { get; set; }
     public string Description { get; set; } = string.Empty;
     public bool IsAffectedContentBlocked { get; set; }
+    public string? StatusNote { get; set; }
+    public DateTimeOffset? StatusChangedAt { get; set; }
+    public Guid? StatusChangedByUserId { get; set; }
 
     public TenantEntity? Tenant { get; set; }
+    public ICollection<CuiSupportEscalationResolutionEntity> Resolutions { get; set; } = [];
+}
+
+public sealed class CuiSupportEscalationResolutionEntity
+{
+    public Guid Id { get; set; }
+    public Guid EscalationId { get; set; }
+    public CuiSupportEscalationResolutionType ResolutionType { get; set; }
+    public string Summary { get; set; } = string.Empty;
+    public DateTimeOffset ResolvedAt { get; set; }
+    public Guid ResolvedByUserId { get; set; }
+
+    public CuiSupportEscalationEntity? Escalation { get; set; }
 }
 
 public sealed class UserEntity : AuditedEntity

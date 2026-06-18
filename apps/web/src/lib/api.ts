@@ -252,10 +252,23 @@ export type CuiSupportEscalation = {
   owner: string | null;
   description: string;
   isAffectedContentBlocked: boolean;
+  statusNote: string | null;
+  statusChangedAt: string | null;
+  statusChangedByUserId: string | null;
   createdAt: string;
   createdByUserId: string;
   updatedAt: string | null;
   updatedByUserId: string | null;
+  resolutions: CuiSupportEscalationResolution[];
+};
+
+export type CuiSupportEscalationResolution = {
+  id: string;
+  escalationId: string;
+  resolutionType: "FalsePositive" | "ContentRemoved" | "ApprovedForUse" | "ReferredToCustomer" | string;
+  summary: string;
+  resolvedAt: string;
+  resolvedByUserId: string;
 };
 
 export type CreateCuiSupportEscalationRequest = {
@@ -271,6 +284,16 @@ export type UpdateCuiSupportEscalationRequest = {
   owner: string;
   severity: "Low" | "Medium" | "High" | "Critical" | string;
   status: "Submitted" | "Triage" | "Contained" | "Resolved" | string;
+};
+
+export type ChangeCuiSupportEscalationStatusRequest = {
+  status: "Submitted" | "Triage" | "Contained" | "Resolved" | string;
+  note: string;
+};
+
+export type ResolveCuiSupportEscalationRequest = {
+  resolutionType: "FalsePositive" | "ContentRemoved" | "ApprovedForUse" | "ReferredToCustomer" | string;
+  summary: string;
 };
 
 export type NotificationCenterItem = {
@@ -2222,6 +2245,28 @@ export async function updateCuiSupportEscalation(
   request: UpdateCuiSupportEscalationRequest
 ): Promise<ApiMutationResult<CuiSupportEscalation>> {
   return patchJsonResult<CuiSupportEscalation>(`/api/tenants/${tenantId}/cui-support-escalations/${escalationId}`, request);
+}
+
+export async function changeCuiSupportEscalationStatus(
+  tenantId: string,
+  escalationId: string,
+  request: ChangeCuiSupportEscalationStatusRequest
+): Promise<ApiMutationResult<CuiSupportEscalation>> {
+  return postJsonResult<CuiSupportEscalation>(
+    `/api/tenants/${tenantId}/cui-support-escalations/${escalationId}/status`,
+    request
+  );
+}
+
+export async function resolveCuiSupportEscalation(
+  tenantId: string,
+  escalationId: string,
+  request: ResolveCuiSupportEscalationRequest
+): Promise<ApiMutationResult<CuiSupportEscalation>> {
+  return postJsonResult<CuiSupportEscalation>(
+    `/api/tenants/${tenantId}/cui-support-escalations/${escalationId}/resolve`,
+    request
+  );
 }
 
 export async function createCuiReadyApprovalChecklist(tenantId: string): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {

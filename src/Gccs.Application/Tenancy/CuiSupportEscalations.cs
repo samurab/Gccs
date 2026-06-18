@@ -39,6 +39,44 @@ public sealed class CuiSupportEscalationService(
         return escalation;
     }
 
+    public async Task<CuiSupportEscalationDto?> ChangeStatusAsync(
+        Guid tenantId,
+        Guid escalationId,
+        ChangeCuiSupportEscalationStatusRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateStatusChange(request.Note);
+        var escalation = await repository.ChangeStatusAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
+        if (escalation is not null)
+        {
+            await WriteAuditAsync(escalation, actorUserId, AuditAction.Updated, "status_changed", cancellationToken);
+        }
+
+        return escalation;
+    }
+
+    public async Task<CuiSupportEscalationDto?> ResolveAsync(
+        Guid tenantId,
+        Guid escalationId,
+        ResolveCuiSupportEscalationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Summary))
+        {
+            throw new CuiSupportEscalationValidationException("Resolution summary is required.");
+        }
+
+        var escalation = await repository.ResolveAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
+        if (escalation is not null)
+        {
+            await WriteAuditAsync(escalation, actorUserId, AuditAction.Updated, "resolved", cancellationToken);
+        }
+
+        return escalation;
+    }
+
     private static void ValidateCreate(CreateCuiSupportEscalationRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.SourceWorkflow))
@@ -62,6 +100,14 @@ public sealed class CuiSupportEscalationService(
         if (string.IsNullOrWhiteSpace(request.Owner))
         {
             throw new CuiSupportEscalationValidationException("Escalation owner is required.");
+        }
+    }
+
+    private static void ValidateStatusChange(string note)
+    {
+        if (string.IsNullOrWhiteSpace(note))
+        {
+            throw new CuiSupportEscalationValidationException("Status change note is required.");
         }
     }
 
@@ -111,6 +157,22 @@ public interface ICuiSupportEscalationRepository
         Guid actorUserId,
         DateTimeOffset updatedAt,
         CancellationToken cancellationToken = default);
+
+    Task<CuiSupportEscalationDto?> ChangeStatusAsync(
+        Guid tenantId,
+        Guid escalationId,
+        ChangeCuiSupportEscalationStatusRequest request,
+        Guid actorUserId,
+        DateTimeOffset changedAt,
+        CancellationToken cancellationToken = default);
+
+    Task<CuiSupportEscalationDto?> ResolveAsync(
+        Guid tenantId,
+        Guid escalationId,
+        ResolveCuiSupportEscalationRequest request,
+        Guid actorUserId,
+        DateTimeOffset resolvedAt,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class CuiSupportEscalationValidationException(string message) : InvalidOperationException(message);
@@ -128,6 +190,14 @@ public sealed record UpdateCuiSupportEscalationRequest(
     CuiSupportEscalationSeverity Severity,
     CuiSupportEscalationStatus Status);
 
+public sealed record ChangeCuiSupportEscalationStatusRequest(
+    CuiSupportEscalationStatus Status,
+    string Note);
+
+public sealed record ResolveCuiSupportEscalationRequest(
+    CuiSupportEscalationResolutionType ResolutionType,
+    string Summary);
+
 public sealed record CuiSupportEscalationDto(
     Guid Id,
     Guid TenantId,
@@ -140,10 +210,22 @@ public sealed record CuiSupportEscalationDto(
     string? Owner,
     string Description,
     bool IsAffectedContentBlocked,
+    string? StatusNote,
+    DateTimeOffset? StatusChangedAt,
+    Guid? StatusChangedByUserId,
     DateTimeOffset CreatedAt,
     Guid CreatedByUserId,
     DateTimeOffset? UpdatedAt,
-    Guid? UpdatedByUserId);
+    Guid? UpdatedByUserId,
+    IReadOnlyList<CuiSupportEscalationResolutionDto> Resolutions);
+
+public sealed record CuiSupportEscalationResolutionDto(
+    Guid Id,
+    Guid EscalationId,
+    CuiSupportEscalationResolutionType ResolutionType,
+    string Summary,
+    DateTimeOffset ResolvedAt,
+    Guid ResolvedByUserId);
 
 public enum CuiSupportEscalationCategory
 {
@@ -166,4 +248,12 @@ public enum CuiSupportEscalationStatus
     Triage,
     Contained,
     Resolved
+}
+
+public enum CuiSupportEscalationResolutionType
+{
+    FalsePositive,
+    ContentRemoved,
+    ApprovedForUse,
+    ReferredToCustomer
 }
