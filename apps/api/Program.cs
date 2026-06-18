@@ -2266,6 +2266,15 @@ api.MapGet("/audit-logs", async (
 .RequirePermission(Permission.ViewAuditLog)
 .WithName("ListAuditLogs");
 
+api.MapPost("/audit-logs/cui-export", async (
+    CuiAuditExportRequest request,
+    CuiAuditExportService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ExportAsync(tenantContext.TenantId, tenantContext.UserId, request, cancellationToken)))
+.RequirePermission(Permission.ViewAuditLog)
+.WithName("ExportCuiAuditLogs");
+
 api.MapMethods("/audit-logs/{auditLogEntryId:guid}", [HttpMethods.Put, HttpMethods.Patch, HttpMethods.Delete], (
     Guid auditLogEntryId,
     HttpContext httpContext) =>

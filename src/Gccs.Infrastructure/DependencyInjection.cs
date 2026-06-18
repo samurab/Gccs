@@ -82,6 +82,7 @@ public static class DependencyInjection
         services.AddScoped<NotificationPreferenceService>();
         services.AddScoped<DueDateReminderService>();
         services.AddScoped<AuditLogService>();
+        services.AddScoped<CuiAuditExportService>();
         services.AddScoped<ComplianceTaskService>();
         services.AddScoped<RenewalGenerationService>();
         services.AddScoped<EvidenceMetadataService>();

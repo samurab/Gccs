@@ -938,6 +938,25 @@ export type AuditLogEntry = {
   metadata: Record<string, string>;
 };
 
+export type CuiAuditExportRequest = {
+  eventType?: string | null;
+  classification?: string | null;
+  mode?: string | null;
+  actorUserId?: string | null;
+  entityType?: string | null;
+  from?: string | null;
+  to?: string | null;
+  result?: string | null;
+};
+
+export type CuiAuditExport = {
+  tenantId: string;
+  generatedByUserId: string;
+  generatedAt: string;
+  filters: CuiAuditExportRequest;
+  events: AuditLogEntry[];
+};
+
 export type CompanyNaicsCode = {
   code: string;
   title: string;
@@ -1508,6 +1527,10 @@ export async function getAuditLogs(params: AuditLogQueryParams = {}): Promise<Pa
   }
 
   return getJson<PagedResult<AuditLogEntry>>(`/api/audit-logs?${searchParams.toString()}`, fallbackAuditLogs);
+}
+
+export async function exportCuiAuditLogs(request: CuiAuditExportRequest): Promise<ApiMutationResult<CuiAuditExport>> {
+  return postJsonResult<CuiAuditExport>("/api/audit-logs/cui-export", request);
 }
 
 export async function getNoCuiAcknowledgementStatus(): Promise<NoCuiAcknowledgementStatus> {
