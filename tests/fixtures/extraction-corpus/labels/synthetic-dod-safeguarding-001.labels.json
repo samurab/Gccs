@@ -1,0 +1,25 @@
+{
+  "documentId": "synthetic-dod-safeguarding-001",
+  "expectedClauses": [
+    {
+      "citation": "FAR 52.204-21",
+      "title": "Basic Safeguarding of Covered Contractor Information Systems",
+      "flowDownRequired": true,
+      "sourceLocation": {
+        "lineStart": 2,
+        "lineEnd": 3,
+        "textAnchor": "FAR 52.204-21"
+      }
+    },
+    {
+      "citation": "FAR 52.204-25",
+      "title": "Prohibition on Contracting for Certain Telecommunications and Video Surveillance Services or Equipment",
+      "flowDownRequired": true,
+      "sourceLocation": {
+        "lineStart": 4,
+        "lineEnd": 5,
+        "textAnchor": "FAR 52.204-25"
+      }
+    }
+  ]
+}

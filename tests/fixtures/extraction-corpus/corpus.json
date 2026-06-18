@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0",
+  "dataHandlingRules": {
+    "allowedDataClasses": ["public", "synthetic", "approved_non_cui"],
+    "prohibitedContent": ["cui", "classified", "export_controlled", "payroll", "personal_data", "secrets"],
+    "requiresNonCuiConfirmation": true
+  },
+  "documents": [
+    {
+      "id": "synthetic-dod-safeguarding-001",
+      "title": "Synthetic DoD Safeguarding Purchase Order",
+      "file": "documents/synthetic-dod-safeguarding-001.txt",
+      "labelFile": "labels/synthetic-dod-safeguarding-001.labels.json",
+      "documentType": "purchase_order",
+      "sourceFamily": "synthetic_dod",
+      "contractType": "firm_fixed_price",
+      "dataClass": "synthetic",
+      "containsCui": false,
+      "limitations": [
+        "Synthetic text for matcher evaluation only.",
+        "No pricing, customer, employee, CUI, export-controlled, or classified content."
+      ],
+      "approvedForBenchmark": true,
+      "labelReview": {
+        "status": "approved",
+        "reviewedBy": "QA Owner",
+        "reviewedAt": "2026-06-18",
+        "notes": "Clause labels checked against synthetic source lines."
+      }
+    },
+    {
+      "id": "public-far-labor-002",
+      "title": "Public FAR Labor Standards Excerpt",
+      "file": "documents/public-far-labor-002.txt",
+      "labelFile": "labels/public-far-labor-002.labels.json",
+      "documentType": "solicitation_excerpt",
+      "sourceFamily": "public_far",
+      "contractType": "service",
+      "dataClass": "public",
+      "containsCui": false,
+      "limitations": [
+        "Short public-style excerpt for citation and location evaluation.",
+        "Not a complete solicitation."
+      ],
+      "approvedForBenchmark": true,
+      "labelReview": {
+        "status": "approved",
+        "reviewedBy": "Compliance Content Owner",
+        "reviewedAt": "2026-06-18",
+        "notes": "Public FAR clause citation labels reviewed for benchmark use."
+      }
+    }
+  ]
+}

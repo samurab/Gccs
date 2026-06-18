@@ -1,0 +1,25 @@
+{
+  "documentId": "public-far-labor-002",
+  "expectedClauses": [
+    {
+      "citation": "FAR 52.222-41",
+      "title": "Service Contract Labor Standards",
+      "flowDownRequired": false,
+      "sourceLocation": {
+        "lineStart": 2,
+        "lineEnd": 2,
+        "textAnchor": "FAR 52.222-41"
+      }
+    },
+    {
+      "citation": "FAR 52.204-27",
+      "title": "Prohibition on a ByteDance Covered Application",
+      "flowDownRequired": false,
+      "sourceLocation": {
+        "lineStart": 4,
+        "lineEnd": 4,
+        "textAnchor": "FAR 52.204-27"
+      }
+    }
+  ]
+}
