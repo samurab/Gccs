@@ -122,6 +122,49 @@ export type UpdateTenantDataHandlingModeRequest = {
   approvalRecordReference?: string | null;
 };
 
+export type CuiReadyApprovalChecklistItem = {
+  id: string;
+  checklistId: string;
+  itemKey: string;
+  section: string;
+  description: string;
+  isRequired: boolean;
+  status: "NotStarted" | "InProgress" | "Complete" | "NotApplicable" | string;
+  owner: string | null;
+  evidenceLink: string | null;
+  reviewerUserId: string | null;
+  reviewedAt: string | null;
+  notes: string | null;
+};
+
+export type CuiReadyApprovalChecklist = {
+  id: string;
+  tenantId: string;
+  version: number;
+  state: "Draft" | "InReview" | "Approved" | "Rejected" | "Superseded" | string;
+  rejectionReason: string | null;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  createdByUserId: string | null;
+  updatedAt: string | null;
+  updatedByUserId: string | null;
+  items: CuiReadyApprovalChecklistItem[];
+};
+
+export type UpdateCuiReadyChecklistItemRequest = {
+  status: "NotStarted" | "InProgress" | "Complete" | "NotApplicable" | string;
+  owner: string | null;
+  evidenceLink: string | null;
+  reviewerUserId: string | null;
+  reviewedAt: string | null;
+  notes: string | null;
+};
+
+export type ReviewCuiReadyChecklistRequest = {
+  reason: string | null;
+};
+
 export type NotificationCenterItem = {
   id: string;
   tenantId: string;
@@ -1259,6 +1302,10 @@ export async function getTenantDataHandlingModeHistory(tenantId: string): Promis
   return getJson<TenantDataHandlingModeHistory[]>(`/api/tenants/${tenantId}/data-handling-mode/history`, []);
 }
 
+export async function getCuiReadyApprovalChecklists(tenantId: string): Promise<CuiReadyApprovalChecklist[]> {
+  return getJson<CuiReadyApprovalChecklist[]>(`/api/tenants/${tenantId}/cui-ready-checklists`, []);
+}
+
 export async function getNotifications(): Promise<NotificationCenterItem[]> {
   return getJson<NotificationCenterItem[]>("/api/notifications", []);
 }
@@ -1997,6 +2044,53 @@ export async function updateTenantDataHandlingMode(
   request: UpdateTenantDataHandlingModeRequest
 ): Promise<ApiMutationResult<Tenant>> {
   return patchJsonResult<Tenant>(`/api/tenants/${tenantId}/data-handling-mode`, request);
+}
+
+export async function createCuiReadyApprovalChecklist(tenantId: string): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists`, {});
+}
+
+export async function updateCuiReadyApprovalChecklistItem(
+  tenantId: string,
+  checklistId: string,
+  itemKey: string,
+  request: UpdateCuiReadyChecklistItemRequest
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return putJsonResult<CuiReadyApprovalChecklist>(
+    `/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/items/${encodeURIComponent(itemKey)}`,
+    request
+  );
+}
+
+export async function submitCuiReadyApprovalChecklist(
+  tenantId: string,
+  checklistId: string
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/submit`, {});
+}
+
+export async function approveCuiReadyApprovalChecklist(
+  tenantId: string,
+  checklistId: string,
+  request: ReviewCuiReadyChecklistRequest
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/approve`, request);
+}
+
+export async function rejectCuiReadyApprovalChecklist(
+  tenantId: string,
+  checklistId: string,
+  request: ReviewCuiReadyChecklistRequest
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/reject`, request);
+}
+
+export async function supersedeCuiReadyApprovalChecklist(
+  tenantId: string,
+  checklistId: string,
+  request: ReviewCuiReadyChecklistRequest
+): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
+  return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/supersede`, request);
 }
 
 async function postJson<T>(path: string, body: unknown): Promise<T | null> {

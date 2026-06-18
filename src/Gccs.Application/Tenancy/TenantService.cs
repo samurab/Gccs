@@ -5,7 +5,10 @@ using Gccs.Domain.Tenancy;
 
 namespace Gccs.Application.Tenancy;
 
-public sealed class TenantService(ITenantRepository tenantRepository, IAuditEventWriter auditEventWriter)
+public sealed class TenantService(
+    ITenantRepository tenantRepository,
+    IAuditEventWriter auditEventWriter,
+    ICuiReadyApprovalChecklistGate? checklistGate = null)
 {
     private static readonly TenantStatus[] CreatableStatuses =
     [
@@ -137,6 +140,11 @@ public sealed class TenantService(ITenantRepository tenantRepository, IAuditEven
         if (reason is null)
         {
             throw new ArgumentException("Data handling mode change reason is required.", nameof(request));
+        }
+
+        if (request.DataHandlingMode is TenantDataPosture.CuiReady && checklistGate is not null)
+        {
+            await checklistGate.EnsureApprovedChecklistAsync(tenantId, request.ApprovalRecordReference!, cancellationToken);
         }
 
         var tenant = await tenantRepository.UpdateDataHandlingModeInCurrentTenantScopeAsync(

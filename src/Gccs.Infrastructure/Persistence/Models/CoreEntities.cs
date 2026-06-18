@@ -1,3 +1,4 @@
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
 using Gccs.Domain.Compliance;
@@ -43,6 +44,38 @@ public sealed class TenantDataHandlingModeHistoryEntity
     public string? ApprovalRecordReference { get; set; }
 
     public TenantEntity? Tenant { get; set; }
+}
+
+public sealed class CuiReadyApprovalChecklistEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public int Version { get; set; }
+    public CuiReadyChecklistState State { get; set; }
+    public string? RejectionReason { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public ICollection<CuiReadyApprovalChecklistItemEntity> Items { get; set; } = [];
+}
+
+public sealed class CuiReadyApprovalChecklistItemEntity
+{
+    public Guid Id { get; set; }
+    public Guid ChecklistId { get; set; }
+    public string ItemKey { get; set; } = string.Empty;
+    public string Section { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public bool IsRequired { get; set; }
+    public CuiReadyChecklistItemStatus Status { get; set; }
+    public string? Owner { get; set; }
+    public string? EvidenceLink { get; set; }
+    public Guid? ReviewerUserId { get; set; }
+    public DateOnly? ReviewedAt { get; set; }
+    public string? Notes { get; set; }
+
+    public CuiReadyApprovalChecklistEntity? Checklist { get; set; }
 }
 
 public sealed class UserEntity : AuditedEntity

@@ -6,6 +6,7 @@ const {
   acknowledgeNoCuiNoticeMock,
   acceptClauseCandidateMock,
   allWorkflowAccess,
+  approveCuiReadyApprovalChecklistMock,
   assignContractObligationOwnerMock,
   attachContractClauseMock,
   clauseLibraryItem,
@@ -21,6 +22,7 @@ const {
   createContractDeliverableMock,
   createContractMock,
   createContractDocumentMock,
+  createCuiReadyApprovalChecklistMock,
   createEvidenceMetadataMock,
   createEvidenceUploadIntentMock,
   createTenantInvitationMock,
@@ -43,6 +45,7 @@ const {
   getContractObligationsMock,
   getContractsMock,
   getContentClassificationReviewItemsMock,
+  getCuiReadyApprovalChecklistsMock,
   getEvidenceItemsMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
@@ -75,11 +78,15 @@ const {
   generateSubcontractorComplianceReportMock,
   removeContractClauseMock,
   rejectClauseCandidateMock,
+  rejectCuiReadyApprovalChecklistMock,
   reclassifyEvidenceItemMock,
   saveCompanyProfileMock,
   searchClauseLibraryMock,
   startContractDocumentExtractionMock,
   supersedeClauseCandidateMock,
+  supersedeCuiReadyApprovalChecklistMock,
+  submitCuiReadyApprovalChecklistMock,
+  updateCuiReadyApprovalChecklistItemMock,
   updateContractDeliverableMock,
   updateContractObligationStatusMock,
   updateContractMock,
@@ -89,6 +96,7 @@ const {
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
   acceptClauseCandidateMock: vi.fn(),
+  approveCuiReadyApprovalChecklistMock: vi.fn(),
   assignContractObligationOwnerMock: vi.fn(),
   attachContractClauseMock: vi.fn(),
   createContractDeliverableMock: vi.fn(),
@@ -99,6 +107,7 @@ const {
   createSubcontractorMock: vi.fn(),
   createContractMock: vi.fn(),
   createContractDocumentMock: vi.fn(),
+  createCuiReadyApprovalChecklistMock: vi.fn(),
   createEvidenceMetadataMock: vi.fn(),
   createEvidenceUploadIntentMock: vi.fn(),
   createTenantInvitationMock: vi.fn(),
@@ -121,6 +130,7 @@ const {
   getContractObligationsMock: vi.fn(),
   getContractsMock: vi.fn(),
   getContentClassificationReviewItemsMock: vi.fn(),
+  getCuiReadyApprovalChecklistsMock: vi.fn(),
   getEvidenceItemsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
@@ -138,11 +148,15 @@ const {
   runDueDateRemindersMock: vi.fn(),
   removeContractClauseMock: vi.fn(),
   rejectClauseCandidateMock: vi.fn(),
+  rejectCuiReadyApprovalChecklistMock: vi.fn(),
   reclassifyEvidenceItemMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
   startContractDocumentExtractionMock: vi.fn(),
   supersedeClauseCandidateMock: vi.fn(),
+  supersedeCuiReadyApprovalChecklistMock: vi.fn(),
+  submitCuiReadyApprovalChecklistMock: vi.fn(),
+  updateCuiReadyApprovalChecklistItemMock: vi.fn(),
   updateContractDeliverableMock: vi.fn(),
   updateContractObligationStatusMock: vi.fn(),
   updateContractMock: vi.fn(),
@@ -656,6 +670,7 @@ const {
 
 vi.mock("@/lib/api", () => ({
   acceptClauseCandidate: acceptClauseCandidateMock,
+  approveCuiReadyApprovalChecklist: approveCuiReadyApprovalChecklistMock,
   assignContractObligationOwner: assignContractObligationOwnerMock,
   attachContractClause: attachContractClauseMock,
   createTenantInvitation: createTenantInvitationMock,
@@ -667,6 +682,7 @@ vi.mock("@/lib/api", () => ({
   createContractDeliverable: createContractDeliverableMock,
   createContract: createContractMock,
   createContractDocument: createContractDocumentMock,
+  createCuiReadyApprovalChecklist: createCuiReadyApprovalChecklistMock,
   createEvidenceMetadata: createEvidenceMetadataMock,
   deleteContractDocument: deleteContractDocumentMock,
   getCalendarEvents: getCalendarEventsMock,
@@ -686,6 +702,7 @@ vi.mock("@/lib/api", () => ({
   getContractObligations: getContractObligationsMock,
   getContracts: getContractsMock,
   getContentClassificationReviewItems: getContentClassificationReviewItemsMock,
+  getCuiReadyApprovalChecklists: getCuiReadyApprovalChecklistsMock,
   getEvidenceItems: getEvidenceItemsMock,
   getNotificationPreferences: getNotificationPreferencesMock,
   getNotifications: getNotificationsMock,
@@ -698,11 +715,15 @@ vi.mock("@/lib/api", () => ({
   runDueDateReminders: runDueDateRemindersMock,
   removeContractClause: removeContractClauseMock,
   rejectClauseCandidate: rejectClauseCandidateMock,
+  rejectCuiReadyApprovalChecklist: rejectCuiReadyApprovalChecklistMock,
   reclassifyEvidenceItem: reclassifyEvidenceItemMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
   startContractDocumentExtraction: startContractDocumentExtractionMock,
   supersedeClauseCandidate: supersedeClauseCandidateMock,
+  supersedeCuiReadyApprovalChecklist: supersedeCuiReadyApprovalChecklistMock,
+  submitCuiReadyApprovalChecklist: submitCuiReadyApprovalChecklistMock,
+  updateCuiReadyApprovalChecklistItem: updateCuiReadyApprovalChecklistItemMock,
   updateContractDeliverable: updateContractDeliverableMock,
   updateContractObligationStatus: updateContractObligationStatusMock,
   updateContract: updateContractMock,
@@ -752,6 +773,7 @@ describe("App", () => {
     window.location.hash = "";
     acknowledgeNoCuiNoticeMock.mockReset();
     acceptClauseCandidateMock.mockReset();
+    approveCuiReadyApprovalChecklistMock.mockReset();
     assignContractObligationOwnerMock.mockReset();
     attachContractClauseMock.mockReset();
     createEvidenceUploadIntentMock.mockReset();
@@ -764,6 +786,7 @@ describe("App", () => {
     createContractDeliverableMock.mockReset();
     createContractMock.mockReset();
     createContractDocumentMock.mockReset();
+    createCuiReadyApprovalChecklistMock.mockReset();
     createTenantInvitationMock.mockReset();
     deleteContractDocumentMock.mockReset();
     updateContractDeliverableMock.mockReset();
@@ -782,9 +805,13 @@ describe("App", () => {
     generateSubcontractorComplianceReportMock.mockReset();
     removeContractClauseMock.mockReset();
     rejectClauseCandidateMock.mockReset();
+    rejectCuiReadyApprovalChecklistMock.mockReset();
     reclassifyEvidenceItemMock.mockReset();
     startContractDocumentExtractionMock.mockReset();
     supersedeClauseCandidateMock.mockReset();
+    supersedeCuiReadyApprovalChecklistMock.mockReset();
+    submitCuiReadyApprovalChecklistMock.mockReset();
+    updateCuiReadyApprovalChecklistItemMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
     getAuditLogsMock.mockReset();
@@ -803,6 +830,7 @@ describe("App", () => {
     getTenantMembersMock.mockReset();
     getContractsMock.mockReset();
     getContentClassificationReviewItemsMock.mockReset();
+    getCuiReadyApprovalChecklistsMock.mockReset();
     getEvidenceItemsMock.mockReset();
     getContractClausesMock.mockReset();
     getContractDeliverablesMock.mockReset();
@@ -884,6 +912,7 @@ describe("App", () => {
     getCompanyProfileMock.mockResolvedValue(profile);
     getContractsMock.mockResolvedValue([]);
     getContentClassificationReviewItemsMock.mockResolvedValue([]);
+    getCuiReadyApprovalChecklistsMock.mockResolvedValue([]);
     getEvidenceItemsMock.mockResolvedValue([]);
     getCmmcAssessmentsMock.mockResolvedValue([]);
     getCmmcControlStatusesMock.mockResolvedValue([]);

@@ -3429,9 +3429,115 @@ api.MapPatch("/tenants/{tenantId:guid}/data-handling-mode", async (
             ["tenantDataHandlingMode"] = [exception.Message]
         });
     }
+    catch (CuiReadyApprovalChecklistValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["approvalRecordReference"] = [exception.Message]
+        });
+    }
 })
 .RequirePermission(Permission.ManageTenant)
 .WithName("UpdateTenantDataHandlingMode");
+
+api.MapGet("/tenants/{tenantId:guid}/cui-ready-checklists", async (
+    Guid tenantId,
+    CuiReadyApprovalChecklistService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(tenantId, cancellationToken)))
+.RequirePermission(Permission.ManageTenant)
+.WithName("ListCuiReadyApprovalChecklists");
+
+api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists", async (
+    Guid tenantId,
+    CuiReadyApprovalChecklistService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Created(
+        $"/api/tenants/{tenantId}/cui-ready-checklists",
+        await service.CreateAsync(tenantId, tenantContext.UserId, cancellationToken)))
+.RequirePermission(Permission.ManageTenant)
+.WithName("CreateCuiReadyApprovalChecklist");
+
+api.MapPut("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/items/{itemKey}", async (
+    Guid tenantId,
+    Guid checklistId,
+    string itemKey,
+    UpdateCuiReadyChecklistItemRequest request,
+    CuiReadyApprovalChecklistService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var checklist = await service.UpdateItemAsync(tenantId, checklistId, itemKey, request, tenantContext.UserId, cancellationToken);
+        return checklist is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Checklist item was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(checklist);
+    }
+    catch (CuiReadyApprovalChecklistValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["checklistItem"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("UpdateCuiReadyApprovalChecklistItem");
+
+api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/submit", async (
+    Guid tenantId,
+    Guid checklistId,
+    CuiReadyApprovalChecklistService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var checklist = await service.SubmitForReviewAsync(tenantId, checklistId, tenantContext.UserId, cancellationToken);
+    return checklist is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Checklist was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(checklist);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("SubmitCuiReadyApprovalChecklist");
+
+api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/approve", async (
+    Guid tenantId,
+    Guid checklistId,
+    ReviewCuiReadyChecklistRequest request,
+    CuiReadyApprovalChecklistService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+    await ReviewCuiReadyChecklistAsync(tenantId, checklistId, request, service.ApproveAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageTenant)
+.WithName("ApproveCuiReadyApprovalChecklist");
+
+api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/reject", async (
+    Guid tenantId,
+    Guid checklistId,
+    ReviewCuiReadyChecklistRequest request,
+    CuiReadyApprovalChecklistService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+    await ReviewCuiReadyChecklistAsync(tenantId, checklistId, request, service.RejectAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageTenant)
+.WithName("RejectCuiReadyApprovalChecklist");
+
+api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/supersede", async (
+    Guid tenantId,
+    Guid checklistId,
+    ReviewCuiReadyChecklistRequest request,
+    CuiReadyApprovalChecklistService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+    await ReviewCuiReadyChecklistAsync(tenantId, checklistId, request, service.SupersedeAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageTenant)
+.WithName("SupersedeCuiReadyApprovalChecklist");
 
 api.MapGet("/tenants/{tenantId:guid}/data-handling-mode/history", async (
     Guid tenantId,
@@ -3458,6 +3564,31 @@ api.MapGet("/tenants/{tenantId:guid}/data-handling-mode/history", async (
 })
 .RequirePermission(Permission.ManageTenant)
 .WithName("ListTenantDataHandlingModeHistory");
+
+static async Task<IResult> ReviewCuiReadyChecklistAsync(
+    Guid tenantId,
+    Guid checklistId,
+    ReviewCuiReadyChecklistRequest request,
+    Func<Guid, Guid, ReviewCuiReadyChecklistRequest, Guid, CancellationToken, Task<CuiReadyApprovalChecklistDto?>> reviewAction,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken)
+{
+    try
+    {
+        var checklist = await reviewAction(tenantId, checklistId, request, tenantContext.UserId, cancellationToken);
+        return checklist is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Checklist was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(checklist);
+    }
+    catch (CuiReadyApprovalChecklistValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["checklist"] = [exception.Message]
+        });
+    }
+}
 
 static async Task<IResult> ReviewSuggestedObligationAsync(
     Guid suggestionId,

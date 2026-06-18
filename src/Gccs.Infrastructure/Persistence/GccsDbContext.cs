@@ -1,4 +1,5 @@
 using System.Text;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Companies;
@@ -22,6 +23,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 {
     public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
     public DbSet<TenantDataHandlingModeHistoryEntity> TenantDataHandlingModeHistory => Set<TenantDataHandlingModeHistoryEntity>();
+    public DbSet<CuiReadyApprovalChecklistEntity> CuiReadyApprovalChecklists => Set<CuiReadyApprovalChecklistEntity>();
+    public DbSet<CuiReadyApprovalChecklistItemEntity> CuiReadyApprovalChecklistItems => Set<CuiReadyApprovalChecklistItemEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
@@ -88,6 +91,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<ComplianceTaskType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContentClassification>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContentClassificationSource>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiReadyChecklistItemStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<CuiReadyChecklistState>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContractDocumentType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContractKind>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ContractorRelationship>().HaveConversion<string>().HaveMaxLength(64);
@@ -158,6 +163,31 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.Reason).HasMaxLength(600).IsRequired();
             entity.Property(x => x.ApprovalRecordReference).HasMaxLength(160);
             entity.HasOne(x => x.Tenant).WithMany(x => x.DataHandlingModeHistory).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CuiReadyApprovalChecklistEntity>(entity =>
+        {
+            entity.ToTable("cui_ready_approval_checklists");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.State, x.CreatedAt });
+            entity.Property(x => x.Version).IsRequired();
+            entity.Property(x => x.RejectionReason).HasMaxLength(1000);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<CuiReadyApprovalChecklistItemEntity>(entity =>
+        {
+            entity.ToTable("cui_ready_approval_checklist_items");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ChecklistId, x.ItemKey }).IsUnique();
+            entity.Property(x => x.ItemKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Section).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Owner).HasMaxLength(180);
+            entity.Property(x => x.EvidenceLink).HasMaxLength(600);
+            entity.Property(x => x.Notes).HasMaxLength(1200);
+            entity.HasOne(x => x.Checklist).WithMany(x => x.Items).HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<UserEntity>(entity =>

@@ -28,9 +28,11 @@ import {
   acceptClauseCandidate,
   applyCompanyEntityLookup,
   applySubcontractorEntityLookup,
+  approveCuiReadyApprovalChecklist,
   assignContractObligationOwner,
   attachContractClause,
   createContract,
+  createCuiReadyApprovalChecklist,
   createCmmcAssessment,
   createCmmcPoamItem,
   createSubcontractorEvidenceRequest,
@@ -67,6 +69,7 @@ import {
   getContractObligationDetail,
   getContractObligations,
   getContracts,
+  getCuiReadyApprovalChecklists,
   getAuditLogs,
   getComplianceOverview,
   getCurrentUserAccess,
@@ -90,7 +93,11 @@ import {
   rejectClauseCandidate,
   startContractDocumentExtraction,
   supersedeClauseCandidate,
+  supersedeCuiReadyApprovalChecklist,
+  rejectCuiReadyApprovalChecklist,
+  submitCuiReadyApprovalChecklist,
   updateNotificationPreferences,
+  updateCuiReadyApprovalChecklistItem,
   updateTenantDataHandlingMode,
   updateContractObligationStatus,
   updateContract,
@@ -113,6 +120,9 @@ import {
   type ComplianceOverview,
   type ComplianceStatusReport,
   type ContentClassificationReviewItem,
+  type CuiReadyApprovalChecklist,
+  type CuiReadyApprovalChecklistItem,
+  type UpdateCuiReadyChecklistItemRequest,
   type ContractClause,
   type ContractDeliverable,
   type ContractDocument,
@@ -460,6 +470,7 @@ export function App() {
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
   const [tenantModeHistory, setTenantModeHistory] = useState<TenantDataHandlingModeHistory[]>([]);
+  const [cuiReadyChecklists, setCuiReadyChecklists] = useState<CuiReadyApprovalChecklist[]>([]);
   const [notifications, setNotifications] = useState<NotificationCenterItem[]>([]);
   const [notificationPreference, setNotificationPreference] = useState<NotificationPreference | null>(null);
   const [reminderRunResult, setReminderRunResult] = useState<DueDateReminderRunResult | null>(null);
@@ -540,6 +551,8 @@ export function App() {
   const [notificationPreferenceMessage, setNotificationPreferenceMessage] = useState("");
   const [tenantModeStatus, setTenantModeStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [tenantModeMessage, setTenantModeMessage] = useState("");
+  const [cuiReadyChecklistStatus, setCuiReadyChecklistStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [cuiReadyChecklistMessage, setCuiReadyChecklistMessage] = useState("");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
@@ -598,12 +611,13 @@ export function App() {
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
-        const [nextTenant, nextTenantModeHistory] = canLoadTenantAdministration
+        const [nextTenant, nextTenantModeHistory, nextCuiReadyChecklists] = canLoadTenantAdministration
           ? await Promise.all([
               getTenant(nextAccess.tenantId!),
-              getTenantDataHandlingModeHistory(nextAccess.tenantId!)
+              getTenantDataHandlingModeHistory(nextAccess.tenantId!),
+              getCuiReadyApprovalChecklists(nextAccess.tenantId!)
             ])
-          : [null, []];
+          : [null, [], []];
         const nextNotifications = canLoadNotifications ? await getNotifications() : [];
         const nextNotificationPreference = canLoadNotifications ? await getNotificationPreferences() : null;
         const nextAuditLogs = canLoadAuditLogs ? await getAuditLogs({ page: 1, pageSize: 5 }) : fallbackAuditLogs;
@@ -647,6 +661,7 @@ export function App() {
           setInvitations(nextInvitations);
           setCurrentTenant(nextTenant);
           setTenantModeHistory(nextTenantModeHistory);
+          setCuiReadyChecklists(nextCuiReadyChecklists);
           setNotifications(nextNotifications);
           setNotificationPreference(nextNotificationPreference);
           setCompanyProfile(nextCompanyProfile);
@@ -695,6 +710,7 @@ export function App() {
           setInvitations([]);
           setCurrentTenant(null);
           setTenantModeHistory([]);
+          setCuiReadyChecklists([]);
           setNotifications([]);
           setNotificationPreference(null);
           setReminderRunResult(null);
@@ -775,6 +791,80 @@ export function App() {
 
     setTenantModeStatus("failed");
     setTenantModeMessage(result.error ?? "Tenant data handling mode could not be updated.");
+  }
+
+  async function handleCuiReadyChecklistCreate() {
+    if (!currentTenant) {
+      return;
+    }
+
+    setCuiReadyChecklistStatus("saving");
+    setCuiReadyChecklistMessage("");
+    const result = await createCuiReadyApprovalChecklist(currentTenant.id);
+    if (result.data) {
+      setCuiReadyChecklists((current) => [result.data!, ...current]);
+      setCuiReadyChecklistStatus("saved");
+      setCuiReadyChecklistMessage("CUI-ready checklist created.");
+      return;
+    }
+
+    setCuiReadyChecklistStatus("failed");
+    setCuiReadyChecklistMessage(result.error ?? "CUI-ready checklist could not be created.");
+  }
+
+  async function handleCuiReadyChecklistItemUpdate(
+    checklistId: string,
+    itemKey: string,
+    request: UpdateCuiReadyChecklistItemRequest
+  ) {
+    if (!currentTenant) {
+      return;
+    }
+
+    setCuiReadyChecklistStatus("saving");
+    setCuiReadyChecklistMessage("");
+    const result = await updateCuiReadyApprovalChecklistItem(currentTenant.id, checklistId, itemKey, request);
+    handleCuiReadyChecklistResult(result, "Checklist item updated.");
+  }
+
+  async function handleCuiReadyChecklistReview(
+    checklistId: string,
+    action: "submit" | "approve" | "reject" | "supersede",
+    reason: string | null
+  ) {
+    if (!currentTenant) {
+      return;
+    }
+
+    setCuiReadyChecklistStatus("saving");
+    setCuiReadyChecklistMessage("");
+    const request = { reason };
+    const result =
+      action === "submit"
+        ? await submitCuiReadyApprovalChecklist(currentTenant.id, checklistId)
+        : action === "approve"
+          ? await approveCuiReadyApprovalChecklist(currentTenant.id, checklistId, request)
+          : action === "reject"
+            ? await rejectCuiReadyApprovalChecklist(currentTenant.id, checklistId, request)
+            : await supersedeCuiReadyApprovalChecklist(currentTenant.id, checklistId, request);
+    handleCuiReadyChecklistResult(result, `Checklist ${action} completed.`);
+  }
+
+  function handleCuiReadyChecklistResult(
+    result: { data: CuiReadyApprovalChecklist | null; error: string | null },
+    successMessage: string
+  ) {
+    if (result.data) {
+      setCuiReadyChecklists((current) =>
+        current.map((checklist) => (checklist.id === result.data!.id ? result.data! : checklist))
+      );
+      setCuiReadyChecklistStatus("saved");
+      setCuiReadyChecklistMessage(successMessage);
+      return;
+    }
+
+    setCuiReadyChecklistStatus("failed");
+    setCuiReadyChecklistMessage(result.error ?? "CUI-ready checklist action failed.");
   }
 
   async function handleNotificationRead(notificationId: string) {
@@ -1755,6 +1845,10 @@ export function App() {
               auditLogStatus={auditLogStatus}
               auditLogs={auditLogs}
               currentTenant={currentTenant}
+              currentUserId={access.userId}
+              cuiReadyChecklists={cuiReadyChecklists}
+              cuiReadyChecklistMessage={cuiReadyChecklistMessage}
+              cuiReadyChecklistStatus={cuiReadyChecklistStatus}
               inviteEmail={inviteEmail}
               inviteRole={inviteRole}
               inviteStatus={inviteStatus}
@@ -1771,6 +1865,9 @@ export function App() {
               onAuditLogFilterSubmit={handleAuditLogFilterSubmit}
               onAuditLogPageChange={handleAuditLogPageChange}
               onDueDateReminderRun={handleDueDateReminderRun}
+              onCuiReadyChecklistCreate={handleCuiReadyChecklistCreate}
+              onCuiReadyChecklistItemUpdate={handleCuiReadyChecklistItemUpdate}
+              onCuiReadyChecklistReview={handleCuiReadyChecklistReview}
               onInviteEmailChange={setInviteEmail}
               onInviteRoleChange={setInviteRole}
               onInvitationSubmit={handleInvitationSubmit}
@@ -5915,6 +6012,105 @@ function splitEvidenceList(value: string): string[] {
     .filter(Boolean);
 }
 
+function CuiReadyChecklistPanel({
+  checklists,
+  currentTenant,
+  currentUserId,
+  message,
+  onCreate,
+  onItemUpdate,
+  onReview,
+  status
+}: {
+  checklists: CuiReadyApprovalChecklist[];
+  currentTenant: Tenant | null;
+  currentUserId: string | null;
+  message: string;
+  onCreate: () => Promise<void>;
+  onItemUpdate: (checklistId: string, itemKey: string, request: UpdateCuiReadyChecklistItemRequest) => Promise<void>;
+  onReview: (checklistId: string, action: "submit" | "approve" | "reject" | "supersede", reason: string | null) => Promise<void>;
+  status: "idle" | "saving" | "saved" | "failed";
+}) {
+  const [reviewReason, setReviewReason] = useState("Approved for CUI-ready mode.");
+  const latest = checklists[0] ?? null;
+  const completedCount = latest?.items.filter((item) => item.status === "Complete").length ?? 0;
+
+  function completeItem(checklistId: string, item: CuiReadyApprovalChecklistItem) {
+    void onItemUpdate(checklistId, item.itemKey, {
+      status: "Complete",
+      owner: item.owner ?? "Security",
+      evidenceLink: item.evidenceLink ?? "https://example.invalid/evidence/cui-ready",
+      reviewerUserId: item.reviewerUserId ?? currentUserId,
+      reviewedAt: item.reviewedAt ?? new Date().toISOString().slice(0, 10),
+      notes: item.notes
+    });
+  }
+
+  return (
+    <section className="members-section" aria-label="CUI-ready approval checklist">
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">CUI-ready approval</p>
+          <h2>Approval checklist</h2>
+          <p className="section-summary">Required readiness records must be complete and approved before enabling CUI-ready mode.</p>
+        </div>
+        <button type="button" onClick={() => void onCreate()} disabled={!currentTenant || status === "saving"}>
+          <ClipboardCheck size={16} />
+          <span>New checklist</span>
+        </button>
+      </div>
+      {message ? (
+        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+      ) : null}
+      {latest ? (
+        <div className="approval-checklist">
+          <div className="section-heading--split">
+            <div>
+              <h3>Version {latest.version}</h3>
+              <p>{completedCount} of {latest.items.length} items complete</p>
+            </div>
+            <span className={`status status--${latest.state.toLowerCase()}`}>{latest.state}</span>
+          </div>
+          <div className="evidence-list">
+            {latest.items.map((item) => (
+              <article className="evidence-list__item" key={item.id}>
+                <strong>{item.section}</strong>
+                <span>{item.description}</span>
+                <span>{item.status} · {item.owner ?? "No owner"} · {item.reviewedAt ?? "No review date"}</span>
+                <button type="button" onClick={() => completeItem(latest.id, item)} disabled={status === "saving"}>
+                  Mark complete
+                </button>
+              </article>
+            ))}
+          </div>
+          <form className="invite-form" onSubmit={(event) => event.preventDefault()}>
+            <label>
+              <span>Review reason</span>
+              <input value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} />
+            </label>
+            <button type="button" onClick={() => void onReview(latest.id, "submit", null)} disabled={status === "saving"}>
+              Submit
+            </button>
+            <button type="button" onClick={() => void onReview(latest.id, "approve", reviewReason)} disabled={status === "saving"}>
+              Approve
+            </button>
+            <button type="button" onClick={() => void onReview(latest.id, "reject", reviewReason)} disabled={status === "saving"}>
+              Reject
+            </button>
+            <button type="button" onClick={() => void onReview(latest.id, "supersede", reviewReason)} disabled={status === "saving"}>
+              Supersede
+            </button>
+          </form>
+          {latest.state === "Approved" ? <p className="form-status form-status--ok">Approved checklist ID: {latest.id}</p> : null}
+          {latest.rejectionReason ? <p className="form-status form-status--error">{latest.rejectionReason}</p> : null}
+        </div>
+      ) : (
+        <EmptyState title="No CUI-ready checklist" body="Create a checklist before requesting CUI-ready tenant mode." />
+      )}
+    </section>
+  );
+}
+
 function TenantModePanel({
   currentTenant,
   history,
@@ -6022,6 +6218,10 @@ function SettingsView({
   canManageUsers,
   canViewAuditLog,
   currentTenant,
+  currentUserId,
+  cuiReadyChecklists,
+  cuiReadyChecklistMessage,
+  cuiReadyChecklistStatus,
   inviteEmail,
   inviteRole,
   inviteStatus,
@@ -6037,6 +6237,9 @@ function SettingsView({
   onAuditLogFilterChange,
   onAuditLogFilterSubmit,
   onAuditLogPageChange,
+  onCuiReadyChecklistCreate,
+  onCuiReadyChecklistItemUpdate,
+  onCuiReadyChecklistReview,
   onDueDateReminderRun,
   onInviteEmailChange,
   onInviteRoleChange,
@@ -6051,6 +6254,10 @@ function SettingsView({
   canManageUsers: boolean;
   canViewAuditLog: boolean;
   currentTenant: Tenant | null;
+  currentUserId: string | null;
+  cuiReadyChecklists: CuiReadyApprovalChecklist[];
+  cuiReadyChecklistMessage: string;
+  cuiReadyChecklistStatus: "idle" | "saving" | "saved" | "failed";
   inviteEmail: string;
   inviteRole: string;
   inviteStatus: "idle" | "sending" | "created" | "failed";
@@ -6066,6 +6273,17 @@ function SettingsView({
   onAuditLogFilterChange: (filters: AuditLogFilters) => void;
   onAuditLogFilterSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onAuditLogPageChange: (page: number) => void;
+  onCuiReadyChecklistCreate: () => Promise<void>;
+  onCuiReadyChecklistItemUpdate: (
+    checklistId: string,
+    itemKey: string,
+    request: UpdateCuiReadyChecklistItemRequest
+  ) => Promise<void>;
+  onCuiReadyChecklistReview: (
+    checklistId: string,
+    action: "submit" | "approve" | "reject" | "supersede",
+    reason: string | null
+  ) => Promise<void>;
   onDueDateReminderRun: (leadTimeDays: number) => Promise<void>;
   onInviteEmailChange: (email: string) => void;
   onInviteRoleChange: (roleName: string) => void;
@@ -6087,13 +6305,25 @@ function SettingsView({
   return (
     <>
       {canManageTenant ? (
-        <TenantModePanel
-          currentTenant={currentTenant}
-          history={tenantModeHistory}
-          message={tenantModeMessage}
-          onUpdate={onTenantModeUpdate}
-          status={tenantModeStatus}
-        />
+        <>
+          <CuiReadyChecklistPanel
+            checklists={cuiReadyChecklists}
+            currentTenant={currentTenant}
+            currentUserId={currentUserId}
+            message={cuiReadyChecklistMessage}
+            onCreate={onCuiReadyChecklistCreate}
+            onItemUpdate={onCuiReadyChecklistItemUpdate}
+            onReview={onCuiReadyChecklistReview}
+            status={cuiReadyChecklistStatus}
+          />
+          <TenantModePanel
+            currentTenant={currentTenant}
+            history={tenantModeHistory}
+            message={tenantModeMessage}
+            onUpdate={onTenantModeUpdate}
+            status={tenantModeStatus}
+          />
+        </>
       ) : null}
       <NotificationPreferencesPanel
         message={notificationPreferenceMessage}

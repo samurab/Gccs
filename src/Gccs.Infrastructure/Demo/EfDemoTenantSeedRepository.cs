@@ -340,7 +340,7 @@ public sealed class EfDemoTenantSeedRepository(GccsDbContext dbContext) : IDemoT
             HasExportControlledAccess = false,
             RequiredCmmcLevel = "Level 1",
             ContactName = "Demo Contact",
-            ContactEmail = "demo-subcontractor@example.invalid",
+            ContactEmail = "demo-subcontractor-contact",
             OwnerFunction = "Contracts",
             CreatedAt = now,
             CreatedByUserId = actorUserId
@@ -377,7 +377,7 @@ public sealed class EfDemoTenantSeedRepository(GccsDbContext dbContext) : IDemoT
             Status = SubcontractorEvidenceRequestStatus.Satisfied,
             OwnerFunction = "Contracts",
             RecipientName = "Demo Contact",
-            RecipientEmail = "demo-subcontractor@example.invalid",
+            RecipientEmail = "demo-subcontractor-contact",
             ObligationId = ObligationId,
             RelatedFlowDownClauseId = FlowDownId,
             ReceivedEvidenceItemId = EvidenceId,

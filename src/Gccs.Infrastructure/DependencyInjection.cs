@@ -62,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<ContractService>();
         services.AddScoped<ContractSizeCheckService>();
         services.AddScoped<TenantService>();
+        services.AddScoped<CuiReadyApprovalChecklistService>();
         services.AddScoped<TenantDataHandlingModePolicyService>();
         services.AddScoped<ContentClassificationPolicy>();
         services.AddScoped<ContentClassificationReviewService>();
@@ -118,6 +119,8 @@ public static class DependencyInjection
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "gccs")));
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
+            services.AddScoped<ICuiReadyApprovalChecklistRepository, EfCuiReadyApprovalChecklistRepository>();
+            services.AddScoped<ICuiReadyApprovalChecklistGate>(provider => provider.GetRequiredService<CuiReadyApprovalChecklistService>());
             services.AddScoped<ITenantMembershipRepository, EfTenantMembershipRepository>();
             services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
             services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
@@ -165,6 +168,8 @@ public static class DependencyInjection
             services.AddSingleton<IObligationRepository, InMemoryObligationRepository>();
             services.AddScoped<ITenantRepository>(_ =>
                 throw new InvalidOperationException("Tenant persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ICuiReadyApprovalChecklistRepository>(_ =>
+                throw new InvalidOperationException("CUI-ready approval checklist persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ITenantMembershipRepository>(_ =>
                 throw new InvalidOperationException("Tenant membership persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ITenantInvitationRepository>(_ =>
