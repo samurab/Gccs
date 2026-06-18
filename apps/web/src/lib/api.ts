@@ -220,6 +220,26 @@ export type DataHandlingNotice = {
   sourceReference: string;
 };
 
+export type DataHandlingNoticeAcknowledgement = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  mode: "DemoSandbox" | "NoCui" | "CuiReady" | string;
+  workflowContext: string;
+  noticeId: string;
+  noticeVersion: string;
+  acknowledgedAt: string;
+  status: "Current" | "Outdated" | string;
+};
+
+export type AcknowledgeDataHandlingNoticeRequest = {
+  mode: "DemoSandbox" | "NoCui" | "CuiReady" | string;
+  workflowContext: string;
+  noticeId: string;
+  noticeVersion: string;
+  acknowledged: boolean;
+};
+
 export type NotificationCenterItem = {
   id: string;
   tenantId: string;
@@ -1381,6 +1401,17 @@ export async function getPublishedDataHandlingNotice(mode: string, workflowConte
   );
 }
 
+export async function getDataHandlingNoticeAcknowledgements(
+  tenantId: string,
+  mode: string,
+  workflowContext: string
+): Promise<DataHandlingNoticeAcknowledgement[]> {
+  return getJson<DataHandlingNoticeAcknowledgement[]>(
+    `/api/tenants/${tenantId}/data-handling-notice-acknowledgements?mode=${encodeURIComponent(mode)}&workflowContext=${encodeURIComponent(workflowContext)}`,
+    []
+  );
+}
+
 export async function getNotifications(): Promise<NotificationCenterItem[]> {
   return getJson<NotificationCenterItem[]>("/api/notifications", []);
 }
@@ -2127,6 +2158,16 @@ export async function acknowledgeSharedResponsibilityMatrix(
 ): Promise<ApiMutationResult<SharedResponsibilityMatrixAcknowledgement>> {
   return postJsonResult<SharedResponsibilityMatrixAcknowledgement>(
     `/api/tenants/${tenantId}/shared-responsibility-matrix/acknowledgements`,
+    request
+  );
+}
+
+export async function acknowledgeDataHandlingNotice(
+  tenantId: string,
+  request: AcknowledgeDataHandlingNoticeRequest
+): Promise<ApiMutationResult<DataHandlingNoticeAcknowledgement>> {
+  return postJsonResult<DataHandlingNoticeAcknowledgement>(
+    `/api/tenants/${tenantId}/data-handling-notice-acknowledgements`,
     request
   );
 }

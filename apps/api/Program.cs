@@ -3625,6 +3625,65 @@ api.MapGet("/data-handling-notices/published", async (
 .RequirePermission(Permission.ManageTenant)
 .WithName("GetPublishedDataHandlingNotice");
 
+api.MapGet("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", async (
+    Guid tenantId,
+    [FromQuery] TenantDataPosture mode,
+    [FromQuery] string workflowContext,
+    DataHandlingNoticeService noticeService,
+    DataHandlingNoticeAcknowledgementService acknowledgementService,
+    IWebHostEnvironment environment,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+    var notice = await noticeService.GetPublishedAsync(packageRoot, mode, workflowContext, cancellationToken);
+    if (notice is null)
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(await acknowledgementService.ListAsync(tenantId, tenantContext.UserId, notice, cancellationToken));
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ListDataHandlingNoticeAcknowledgements");
+
+api.MapPost("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", async (
+    Guid tenantId,
+    AcknowledgeDataHandlingNoticeRequest request,
+    DataHandlingNoticeService noticeService,
+    DataHandlingNoticeAcknowledgementService acknowledgementService,
+    IWebHostEnvironment environment,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+        var notice = await noticeService.GetPublishedAsync(packageRoot, request.Mode, request.WorkflowContext, cancellationToken);
+        if (notice is null)
+        {
+            return Results.NotFound();
+        }
+
+        var acknowledgement = await acknowledgementService.AcknowledgeAsync(
+            tenantId,
+            tenantContext.UserId,
+            notice,
+            request,
+            cancellationToken);
+        return Results.Created($"/api/tenants/{tenantId}/data-handling-notice-acknowledgements", acknowledgement);
+    }
+    catch (DataHandlingNoticeAcknowledgementRequiredException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["dataHandlingNotice"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("AcknowledgeDataHandlingNotice");
+
 api.MapGet("/tenants/{tenantId:guid}/shared-responsibility-matrix/acknowledgements", async (
     Guid tenantId,
     SharedResponsibilityMatrixService matrixService,

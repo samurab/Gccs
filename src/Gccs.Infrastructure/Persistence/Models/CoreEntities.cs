@@ -92,6 +92,20 @@ public sealed class SharedResponsibilityMatrixAcknowledgementEntity : AuditedEnt
     public TenantEntity? Tenant { get; set; }
 }
 
+public sealed class DataHandlingNoticeAcknowledgementEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid UserId { get; set; }
+    public TenantDataPosture Mode { get; set; }
+    public string WorkflowContext { get; set; } = string.Empty;
+    public string NoticeId { get; set; } = string.Empty;
+    public string NoticeVersion { get; set; } = string.Empty;
+    public DateTimeOffset AcknowledgedAt { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+}
+
 public sealed class UserEntity : AuditedEntity
 {
     public Guid Id { get; set; }

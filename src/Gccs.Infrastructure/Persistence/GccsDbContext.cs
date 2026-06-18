@@ -26,6 +26,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<CuiReadyApprovalChecklistEntity> CuiReadyApprovalChecklists => Set<CuiReadyApprovalChecklistEntity>();
     public DbSet<CuiReadyApprovalChecklistItemEntity> CuiReadyApprovalChecklistItems => Set<CuiReadyApprovalChecklistItemEntity>();
     public DbSet<SharedResponsibilityMatrixAcknowledgementEntity> SharedResponsibilityMatrixAcknowledgements => Set<SharedResponsibilityMatrixAcknowledgementEntity>();
+    public DbSet<DataHandlingNoticeAcknowledgementEntity> DataHandlingNoticeAcknowledgements => Set<DataHandlingNoticeAcknowledgementEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
@@ -201,6 +202,19 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.MatrixId).HasMaxLength(160).IsRequired();
             entity.Property(x => x.MatrixVersion).HasMaxLength(80).IsRequired();
             entity.Property(x => x.MatrixTitle).HasMaxLength(240).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<DataHandlingNoticeAcknowledgementEntity>(entity =>
+        {
+            entity.ToTable("data_handling_notice_acknowledgements");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.UserId, x.Mode, x.WorkflowContext, x.NoticeId, x.NoticeVersion }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.UserId, x.AcknowledgedAt });
+            entity.Property(x => x.WorkflowContext).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.NoticeId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.NoticeVersion).HasMaxLength(80).IsRequired();
             entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
             ConfigureAuditColumns(entity);
         });
