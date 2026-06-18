@@ -496,6 +496,11 @@ public sealed class EfReportRepository(
         }
 
         var generatedAt = DateTimeOffset.UtcNow;
+        var tenantName = await dbContext.Tenants
+            .AsNoTracking()
+            .Where(tenant => tenant.Id == tenantContext.TenantId)
+            .Select(tenant => tenant.Name)
+            .SingleOrDefaultAsync(cancellationToken) ?? "Current tenant";
         var scopedControls = await QueryControlsForLevel(assessment.Level)
             .OrderBy(control => control.Family)
             .ThenBy(control => control.Id)
@@ -510,6 +515,7 @@ public sealed class EfReportRepository(
                 status?.Result ?? AssessmentResult.NotAssessed,
                 ReadGuidArray(status?.EvidenceItemIdsJson ?? "[]"));
         }).ToArray();
+        var evidenceStatusByControl = await BuildEvidenceStatusByControlAsync(controlRows, cancellationToken);
         var progress = controlRows
             .GroupBy(row => row.Control.Family)
             .Select(group => new CmmcFamilyProgressDto(
@@ -522,6 +528,18 @@ public sealed class EfReportRepository(
                 group.Count(row => row.Status == ControlImplementationStatus.NotApplicable)))
             .OrderBy(item => item.Family)
             .ToArray();
+        var controlStatuses = controlRows
+            .Select(row => new CmmcReportControlStatusDto(
+                row.Control.Id,
+                row.Control.Family,
+                row.Control.Title,
+                row.Status,
+                row.Result,
+                evidenceStatusByControl.GetValueOrDefault(row.Control.Id, "Missing"),
+                row.Control.SourceName,
+                row.Control.SourceUrl,
+                row.Control.SourceLastReviewedAt))
+            .ToArray();
         var gaps = controlRows
             .Where(row => row.Status is ControlImplementationStatus.NotStarted or ControlImplementationStatus.PartiallyImplemented or ControlImplementationStatus.NeedsReview)
             .Select(row => new CmmcControlGapDto(
@@ -530,6 +548,25 @@ public sealed class EfReportRepository(
                 row.Control.Title,
                 row.Status,
                 row.Result))
+            .ToArray();
+        var prioritizedGaps = controlRows
+            .Select(row =>
+            {
+                statusLookup.TryGetValue(row.Control.Id, out var status);
+                var evidenceStatus = evidenceStatusByControl.GetValueOrDefault(row.Control.Id, "Missing");
+                var priority = CalculateReportGapPriority(row, evidenceStatus);
+                return new CmmcReportGapPriorityDto(
+                    row.Control.Id,
+                    row.Control.Family,
+                    row.Control.Title,
+                    priority,
+                    BuildReportGapReasons(row, evidenceStatus, status),
+                    evidenceStatus);
+            })
+            .Where(row => row.Priority != CmmcGapPriority.Low)
+            .OrderBy(row => ReportGapPriorityRank(row.Priority))
+            .ThenBy(row => row.Family)
+            .ThenBy(row => row.ControlId)
             .ToArray();
         var poamItems = await dbContext.PoamItems
             .AsNoTracking()
@@ -550,6 +587,27 @@ public sealed class EfReportRepository(
         var evidenceLinks = includeEvidenceLinks
             ? await BuildEvidenceLinksAsync(controlRows, cancellationToken)
             : [];
+        var responsibilityMatrix = controlRows
+            .Select(row =>
+            {
+                statusLookup.TryGetValue(row.Control.Id, out var status);
+                return new CmmcReportResponsibilityRowDto(
+                    row.Control.Id,
+                    row.Control.Family,
+                    status?.ResponsibilityType ?? ControlResponsibilityType.Organization,
+                    string.IsNullOrWhiteSpace(status?.OwnerFunction) ? assessment.OwnerFunction : status.OwnerFunction,
+                    status?.ResponsibilityProvider,
+                    status?.ResponsibilityNotes ?? string.Empty);
+            })
+            .ToArray();
+        var sourceReferences = controlRows
+            .Select(row => new CmmcReportSourceReferenceDto(
+                row.Control.Id,
+                row.Control.SourceName,
+                row.Control.SourceUrl,
+                row.Control.SourceLastReviewedAt,
+                row.Control.SourceConfidence))
+            .ToArray();
         var affirmations = await dbContext.AnnualAffirmations
             .AsNoTracking()
             .Where(affirmation => affirmation.TenantId == tenantContext.TenantId)
@@ -569,12 +627,19 @@ public sealed class EfReportRepository(
         var snapshot = new CmmcReadinessSnapshotDto(
             assessment.Id,
             assessment.Name,
+            tenantName,
             assessment.Level,
+            assessment.Framework,
             generatedAt,
+            actorUserId,
             progress,
+            controlStatuses,
             gaps,
+            prioritizedGaps,
             poamItems,
             evidenceLinks,
+            responsibilityMatrix,
+            sourceReferences,
             affirmations,
             historyCount);
         var exportHtml = BuildHtml(snapshot);
@@ -665,8 +730,68 @@ public sealed class EfReportRepository(
         var html = new StringBuilder();
         html.Append("<!doctype html><html><head><meta charset=\"utf-8\"><title>CMMC readiness report</title></head><body>");
         html.Append("<h1>CMMC readiness report</h1>");
+        html.Append("<p>Draft readiness tracking only. This report is not an official assessment determination.</p>");
+        html.Append("<p>Tenant: ").Append(snapshot.TenantName).Append("</p>");
         html.Append("<p>Target level: ").Append(snapshot.TargetLevel).Append("</p>");
+        html.Append("<p>Control version: ").Append(snapshot.ControlVersion).Append("</p>");
+        html.Append("<p>Reviewer: ").Append(snapshot.ReviewerUserId).Append("</p>");
         html.Append("<p>Generated at ").Append(snapshot.GeneratedAt.ToString("O")).Append("</p>");
+        html.Append("<h2>Control status and evidence</h2><ul>");
+        foreach (var control in snapshot.ControlStatuses)
+        {
+            html.Append("<li>")
+                .Append(control.ControlId)
+                .Append(" - ")
+                .Append(control.Status)
+                .Append(" - evidence ")
+                .Append(control.EvidenceStatus)
+                .Append("</li>");
+        }
+
+        html.Append("</ul>");
+        html.Append("<h2>Prioritized gaps</h2><ul>");
+        foreach (var gap in snapshot.PrioritizedGaps)
+        {
+            html.Append("<li>")
+                .Append(gap.ControlId)
+                .Append(" - ")
+                .Append(gap.Priority)
+                .Append(" - ")
+                .Append(string.Join("|", gap.ReasonCodes))
+                .Append("</li>");
+        }
+
+        html.Append("</ul>");
+        html.Append("<h2>Responsibility matrix</h2><ul>");
+        foreach (var row in snapshot.ResponsibilityMatrix)
+        {
+            html.Append("<li>")
+                .Append(row.ControlId)
+                .Append(" - ")
+                .Append(row.ResponsibilityType)
+                .Append(" - ")
+                .Append(row.OwnerFunction)
+                .Append(" - ")
+                .Append(row.Provider ?? "Internal")
+                .Append("</li>");
+        }
+
+        html.Append("</ul>");
+        html.Append("<h2>Source references</h2><ul>");
+        foreach (var source in snapshot.SourceReferences)
+        {
+            html.Append("<li>")
+                .Append(source.ControlId)
+                .Append(" - ")
+                .Append(source.SourceName)
+                .Append(" - ")
+                .Append(source.SourceUrl)
+                .Append(" - reviewed ")
+                .Append(source.LastReviewedAt.ToString("O"))
+                .Append("</li>");
+        }
+
+        html.Append("</ul>");
         html.Append("<p>Open gaps: ").Append(snapshot.OpenGaps.Count).Append("</p>");
         html.Append("<p>Open POA&M items: ").Append(snapshot.OpenPoamItems.Count).Append("</p>");
         html.Append("</body></html>");
@@ -752,6 +877,122 @@ public sealed class EfReportRepository(
             .Select(pair => new CmmcReportEvidenceLinkDto(pair.EvidenceItemId, evidence[pair.EvidenceItemId], pair.Id))
             .ToArray();
     }
+
+    private async Task<IReadOnlyDictionary<string, string>> BuildEvidenceStatusByControlAsync(
+        IEnumerable<CmmcControlReportRow> controlRows,
+        CancellationToken cancellationToken)
+    {
+        var pairs = controlRows
+            .SelectMany(row => row.EvidenceItemIds.Select(id => new { EvidenceItemId = id, row.Control.Id }))
+            .ToArray();
+        var evidenceIds = pairs.Select(pair => pair.EvidenceItemId).Distinct().ToArray();
+        if (evidenceIds.Length == 0)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var evidenceStatuses = await dbContext.EvidenceItems
+            .AsNoTracking()
+            .Where(item => item.TenantId == tenantContext.TenantId && evidenceIds.Contains(item.Id))
+            .Select(item => new { item.Id, item.Status })
+            .ToDictionaryAsync(item => item.Id, item => item.Status.ToString(), cancellationToken);
+        return pairs
+            .Where(pair => evidenceStatuses.ContainsKey(pair.EvidenceItemId))
+            .GroupBy(pair => pair.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => SummarizeReportEvidenceStatus(group.Select(pair => evidenceStatuses[pair.EvidenceItemId]).ToArray()),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string SummarizeReportEvidenceStatus(IReadOnlyCollection<string> statuses)
+    {
+        if (statuses.Contains("Approved", StringComparer.OrdinalIgnoreCase))
+        {
+            return "Approved";
+        }
+
+        if (statuses.Contains("Submitted", StringComparer.OrdinalIgnoreCase))
+        {
+            return "Submitted";
+        }
+
+        if (statuses.Contains("Draft", StringComparer.OrdinalIgnoreCase))
+        {
+            return "Draft";
+        }
+
+        return statuses.Count == 0 ? "Missing" : string.Join("/", statuses.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(status => status));
+    }
+
+    private static CmmcGapPriority CalculateReportGapPriority(CmmcControlReportRow row, string evidenceStatus)
+    {
+        if (row.Status == ControlImplementationStatus.NeedsReview || row.Result == AssessmentResult.NotAssessed)
+        {
+            return CmmcGapPriority.NeedsReview;
+        }
+
+        if ((row.Status == ControlImplementationStatus.NotStarted || row.Result == AssessmentResult.NotMet) &&
+            row.Control.CmmcLevel is CmmcLevel.Level2 or CmmcLevel.Level3 &&
+            !string.Equals(evidenceStatus, "Approved", StringComparison.OrdinalIgnoreCase))
+        {
+            return CmmcGapPriority.Critical;
+        }
+
+        if (row.Status == ControlImplementationStatus.PartiallyImplemented || row.Result == AssessmentResult.NotMet)
+        {
+            return CmmcGapPriority.High;
+        }
+
+        if (!string.Equals(evidenceStatus, "Approved", StringComparison.OrdinalIgnoreCase))
+        {
+            return CmmcGapPriority.Medium;
+        }
+
+        return CmmcGapPriority.Low;
+    }
+
+    private static IReadOnlyList<string> BuildReportGapReasons(CmmcControlReportRow row, string evidenceStatus, ControlAssessmentEntity? status)
+    {
+        var reasons = new List<string>();
+        if (row.Status is ControlImplementationStatus.NeedsReview || row.Result is AssessmentResult.NotAssessed)
+        {
+            reasons.Add("needs-review");
+        }
+
+        if (row.Status is ControlImplementationStatus.NotStarted or ControlImplementationStatus.PartiallyImplemented || row.Result == AssessmentResult.NotMet)
+        {
+            reasons.Add("control-status-gap");
+        }
+
+        if (!string.Equals(evidenceStatus, "Approved", StringComparison.OrdinalIgnoreCase))
+        {
+            reasons.Add("evidence-status-gap");
+        }
+
+        if (row.Control.CmmcLevel is CmmcLevel.Level2 or CmmcLevel.Level3)
+        {
+            reasons.Add("cui-relevant");
+        }
+
+        if (status?.IsInherited == true)
+        {
+            reasons.Add("inherited-control");
+        }
+
+        return reasons.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static int ReportGapPriorityRank(CmmcGapPriority priority) =>
+        priority switch
+        {
+            CmmcGapPriority.Critical => 0,
+            CmmcGapPriority.High => 1,
+            CmmcGapPriority.Medium => 2,
+            CmmcGapPriority.NeedsReview => 3,
+            CmmcGapPriority.Low => 4,
+            _ => 5
+        };
 
     private static IReadOnlyList<Guid> ReadGuidArray(string json)
     {

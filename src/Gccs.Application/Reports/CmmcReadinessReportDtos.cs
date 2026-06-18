@@ -18,12 +18,19 @@ public sealed record CmmcReadinessReportDto(
 public sealed record CmmcReadinessSnapshotDto(
     Guid AssessmentId,
     string AssessmentName,
+    string TenantName,
     CmmcLevel TargetLevel,
+    string ControlVersion,
     DateTimeOffset GeneratedAt,
+    Guid ReviewerUserId,
     IReadOnlyList<CmmcFamilyProgressDto> ProgressByFamily,
+    IReadOnlyList<CmmcReportControlStatusDto> ControlStatuses,
     IReadOnlyList<CmmcControlGapDto> OpenGaps,
+    IReadOnlyList<CmmcReportGapPriorityDto> PrioritizedGaps,
     IReadOnlyList<CmmcReportPoamItemDto> OpenPoamItems,
     IReadOnlyList<CmmcReportEvidenceLinkDto> EvidenceLinks,
+    IReadOnlyList<CmmcReportResponsibilityRowDto> ResponsibilityMatrix,
+    IReadOnlyList<CmmcReportSourceReferenceDto> SourceReferences,
     IReadOnlyList<CmmcReportAffirmationDto> Affirmations,
     int SnapshotHistoryCount);
 
@@ -43,6 +50,25 @@ public sealed record CmmcControlGapDto(
     ControlImplementationStatus Status,
     AssessmentResult Result);
 
+public sealed record CmmcReportControlStatusDto(
+    string ControlId,
+    string Family,
+    string Title,
+    ControlImplementationStatus Status,
+    AssessmentResult Result,
+    string EvidenceStatus,
+    string SourceName,
+    string SourceUrl,
+    DateOnly SourceLastReviewedAt);
+
+public sealed record CmmcReportGapPriorityDto(
+    string ControlId,
+    string Family,
+    string Title,
+    CmmcGapPriority Priority,
+    IReadOnlyList<string> ReasonCodes,
+    string EvidenceStatus);
+
 public sealed record CmmcReportPoamItemDto(
     Guid Id,
     string ControlId,
@@ -55,6 +81,21 @@ public sealed record CmmcReportEvidenceLinkDto(
     Guid EvidenceItemId,
     string Name,
     string ControlId);
+
+public sealed record CmmcReportResponsibilityRowDto(
+    string ControlId,
+    string Family,
+    ControlResponsibilityType ResponsibilityType,
+    string OwnerFunction,
+    string? Provider,
+    string Notes);
+
+public sealed record CmmcReportSourceReferenceDto(
+    string ControlId,
+    string SourceName,
+    string SourceUrl,
+    DateOnly LastReviewedAt,
+    string Confidence);
 
 public sealed record CmmcReportAffirmationDto(
     Guid Id,

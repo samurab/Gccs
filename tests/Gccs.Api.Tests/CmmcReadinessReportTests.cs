@@ -106,6 +106,48 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
             audit.EntityType == "Report" && audit.Action == AuditAction.Created && audit.MetadataJson.Contains("CmmcReadiness", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task TC_27_4_1_through_TC_27_4_5_Level_2_readiness_report_has_draft_scoped_sections_and_audit()
+    {
+        var ids = StoryIds.ForCase("tc-27-4");
+        await using var factory = CreateFactory("tc-27-4", dbContext => SeedScenario(dbContext, ids));
+        using var client = factory.CreateClient();
+
+        var report = await GenerateReportAsync(client, ids.TenantId, ids.AssessmentId, includeEvidencePermission: true);
+
+        Assert.Equal(CmmcLevel.Level2, report.Snapshot.TargetLevel);
+        Assert.Equal("CMMC", report.Snapshot.ControlVersion);
+        Assert.Equal("CMMC Report Tenant", report.Snapshot.TenantName);
+        Assert.NotEqual(Guid.Empty, report.Snapshot.ReviewerUserId);
+        Assert.Contains(report.Snapshot.ControlStatuses, row =>
+            row.ControlId == "AC.L1-3.1.1" &&
+            row.EvidenceStatus == "Approved" &&
+            row.SourceUrl == "https://example.test/cmmc");
+        Assert.Contains(report.Snapshot.PrioritizedGaps, gap =>
+            gap.ControlId == "AC.L1-3.1.2" &&
+            gap.ReasonCodes.Contains("control-status-gap"));
+        Assert.Contains(report.Snapshot.OpenPoamItems, poam => poam.ControlId == "AC.L1-3.1.2");
+        Assert.Contains(report.Snapshot.ResponsibilityMatrix, row =>
+            row.ControlId == "AC.L1-3.1.2" &&
+            row.ResponsibilityType == ControlResponsibilityType.Shared &&
+            row.Provider == "Secure MSP");
+        Assert.Contains(report.Snapshot.SourceReferences, source =>
+            source.ControlId == "AC.L1-3.1.1" &&
+            source.LastReviewedAt == new DateOnly(2026, 6, 15));
+        Assert.Contains("Draft readiness tracking only", report.ExportHtml, StringComparison.Ordinal);
+        Assert.Contains("Responsibility matrix", report.ExportHtml, StringComparison.Ordinal);
+        Assert.Contains("Source references", report.ExportHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("pass", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("fail", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("certification", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Other tenant evidence", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Contains(await dbContext.AuditLogEntries.Where(audit => audit.TenantId == ids.TenantId).ToArrayAsync(), audit =>
+            audit.EntityType == "Report" && audit.Action == AuditAction.Created && audit.MetadataJson.Contains(ids.AssessmentId.ToString(), StringComparison.Ordinal));
+    }
+
     private static async Task<CmmcReadinessReportDto> GenerateReportAsync(
         HttpClient client,
         Guid tenantId,
@@ -162,10 +204,18 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
 
     private static void SeedScenario(GccsDbContext dbContext, StoryIds ids)
     {
-        dbContext.Tenants.Add(new TenantEntity
+        dbContext.Tenants.AddRange(new TenantEntity
         {
             Id = ids.TenantId,
             Name = "CMMC Report Tenant",
+            Status = TenantStatus.Active,
+            DataPosture = TenantDataPosture.NoCui,
+            CreatedAt = DateTimeOffset.UtcNow
+        },
+        new TenantEntity
+        {
+            Id = ids.OtherTenantId,
+            Name = "Other CMMC Report Tenant",
             Status = TenantStatus.Active,
             DataPosture = TenantDataPosture.NoCui,
             CreatedAt = DateTimeOffset.UtcNow
@@ -185,13 +235,24 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
             Status = EvidenceStatus.Approved,
             CreatedAt = DateTimeOffset.UtcNow
         });
+        dbContext.EvidenceItems.Add(new EvidenceItemEntity
+        {
+            Id = ids.OtherTenantEvidenceItemId,
+            TenantId = ids.OtherTenantId,
+            Name = "Other tenant evidence",
+            Description = "Must not appear in tenant report.",
+            Type = EvidenceType.SystemConfiguration,
+            OwnerFunction = "Security",
+            Status = EvidenceStatus.Approved,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
         dbContext.Assessments.Add(new AssessmentEntity
         {
             Id = ids.AssessmentId,
             TenantId = ids.TenantId,
-            Name = "Level 1 readiness",
+            Name = "Level 2 readiness",
             Type = AssessmentType.Readiness,
-            Level = CmmcLevel.Level1,
+            Level = CmmcLevel.Level2,
             Framework = "CMMC",
             Status = AssessmentStatus.InProgress,
             StartedAt = new DateOnly(2026, 6, 15),
@@ -205,6 +266,8 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
                     ControlId = "AC.L1-3.1.1",
                     ImplementationStatus = ControlImplementationStatus.Implemented,
                     Result = AssessmentResult.Met,
+                    ImplementationDetails = "MFA evidence reviewed.",
+                    OwnerFunction = "Security",
                     EvidenceItemIdsJson = JsonSerializer.Serialize(new[] { ids.EvidenceItemId }, JsonOptions)
                 },
                 new ControlAssessmentEntity
@@ -212,7 +275,11 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
                     AssessmentId = ids.AssessmentId,
                     ControlId = "AC.L1-3.1.2",
                     ImplementationStatus = ControlImplementationStatus.PartiallyImplemented,
-                    Result = AssessmentResult.NotMet
+                    Result = AssessmentResult.NotMet,
+                    ResponsibilityType = ControlResponsibilityType.Shared,
+                    OwnerFunction = "Security",
+                    ResponsibilityProvider = "Secure MSP",
+                    ResponsibilityNotes = "Shared operations."
                 }
             ]
         });
@@ -257,15 +324,17 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
             SourceConfidence = "high"
         };
 
-    private sealed record StoryIds(Guid TenantId, Guid AssessmentId, Guid EvidenceItemId, Guid PoamItemId, Guid AffirmationId)
+    private sealed record StoryIds(Guid TenantId, Guid OtherTenantId, Guid AssessmentId, Guid EvidenceItemId, Guid OtherTenantEvidenceItemId, Guid PoamItemId, Guid AffirmationId)
     {
         public static StoryIds ForCase(string caseName)
         {
             var suffix = Math.Abs(caseName.GetHashCode(StringComparison.Ordinal)) % 10000;
             return new StoryIds(
                 Guid.Parse($"15315315-3153-1531-5315-31531531{suffix:D4}"),
+                Guid.Parse($"15315315-3153-1531-5315-31531536{suffix:D4}"),
                 Guid.Parse($"15315315-3153-1531-5315-31531532{suffix:D4}"),
                 Guid.Parse($"15315315-3153-1531-5315-31531533{suffix:D4}"),
+                Guid.Parse($"15315315-3153-1531-5315-31531537{suffix:D4}"),
                 Guid.Parse($"15315315-3153-1531-5315-31531534{suffix:D4}"),
                 Guid.Parse($"15315315-3153-1531-5315-31531535{suffix:D4}"));
         }
