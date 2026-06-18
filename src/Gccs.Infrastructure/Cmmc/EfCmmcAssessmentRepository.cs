@@ -167,6 +167,10 @@ public sealed class EfCmmcAssessmentRepository(
         control.InheritedFrom = request.InheritedFrom;
         control.EspResponsible = request.EspResponsible;
         control.EspName = request.EspName;
+        control.ResponsibilityType = request.ResponsibilityType;
+        control.OwnerFunction = request.OwnerFunction ?? "Security";
+        control.ResponsibilityProvider = request.ResponsibilityProvider;
+        control.ResponsibilityNotes = request.ResponsibilityNotes ?? string.Empty;
         control.AssessedByUserId = request.AssessedByUserId ?? actorUserId;
         control.AssessedAt = request.AssessedAt ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var history = new ControlAssessmentHistoryEntity
@@ -187,6 +191,87 @@ public sealed class EfCmmcAssessmentRepository(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(baselineControl, control, assessmentId);
+    }
+
+    public async Task<IReadOnlyList<CmmcResponsibilityMatrixRowDto>?> GetResponsibilityMatrixAsync(
+        Guid assessmentId,
+        CancellationToken cancellationToken = default)
+    {
+        var assessment = await QueryCurrentTenant()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == assessmentId, cancellationToken);
+        if (assessment is null)
+        {
+            return null;
+        }
+
+        var controls = await QueryControlsForLevel(assessment.Level)
+            .OrderBy(control => control.Family)
+            .ThenBy(control => control.Id)
+            .ToArrayAsync(cancellationToken);
+        var statuses = assessment.Controls.ToDictionary(control => control.ControlId, StringComparer.OrdinalIgnoreCase);
+        var controlIds = controls.Select(control => control.Id).ToArray();
+        var evidenceRequests = await dbContext.EvidenceRequests
+            .AsNoTracking()
+            .Where(request =>
+                request.TenantId == tenantContext.TenantId &&
+                request.RelatedRecordType == "Control" &&
+                controlIds.Contains(request.RelatedRecordId))
+            .ToArrayAsync(cancellationToken);
+        var evidenceStatusByControl = evidenceRequests
+            .GroupBy(request => request.RelatedRecordId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+            group => group.Key,
+            group => SummarizeEvidenceStatus(group.Select(request => request.Status).ToArray()),
+            StringComparer.OrdinalIgnoreCase);
+
+        return controls
+            .Select(control =>
+            {
+                statuses.TryGetValue(control.Id, out var status);
+                return new CmmcResponsibilityMatrixRowDto(
+                    assessmentId,
+                    control.Id,
+                    control.Title,
+                    control.Family,
+                    status?.ResponsibilityType ?? ControlResponsibilityType.Organization,
+                    string.IsNullOrWhiteSpace(status?.OwnerFunction) ? "Security" : status.OwnerFunction,
+                    status?.ResponsibilityProvider,
+                    evidenceStatusByControl.GetValueOrDefault(control.Id, "NoRequests"),
+                    status?.ResponsibilityNotes ?? string.Empty);
+            })
+            .OrderBy(row => row.Family, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.ResponsibilityType)
+            .ThenBy(row => row.ControlId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    public async Task<string?> ExportResponsibilityMatrixCsvAsync(
+        Guid assessmentId,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await GetResponsibilityMatrixAsync(assessmentId, cancellationToken);
+        if (rows is null)
+        {
+            return null;
+        }
+
+        var lines = new List<string>
+        {
+            "Control,Family,Title,Responsibility Type,Owner,Provider,Evidence Status,Notes"
+        };
+        lines.AddRange(rows.Select(row => string.Join(
+            ",",
+            Csv(row.ControlId),
+            Csv(row.Family),
+            Csv(row.Title),
+            Csv(row.ResponsibilityType.ToString()),
+            Csv(row.OwnerFunction),
+            Csv(row.Provider ?? string.Empty),
+            Csv(row.EvidenceStatus),
+            Csv(row.Notes))));
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     private IQueryable<AssessmentEntity> QueryCurrentTenant() =>
@@ -270,6 +355,10 @@ public sealed class EfCmmcAssessmentRepository(
             status?.InheritedFrom,
             status?.EspResponsible ?? false,
             status?.EspName,
+            status?.ResponsibilityType ?? ControlResponsibilityType.Organization,
+            string.IsNullOrWhiteSpace(status?.OwnerFunction) ? "Security" : status.OwnerFunction,
+            status?.ResponsibilityProvider,
+            status?.ResponsibilityNotes ?? string.Empty,
             status?.History
                 .OrderByDescending(history => history.ChangedAt)
                 .Select(history => new CmmcControlStatusHistoryDto(
@@ -280,6 +369,39 @@ public sealed class EfCmmcAssessmentRepository(
                     history.ChangedAt,
                     history.Notes))
                 .ToArray() ?? []);
+
+    private static string SummarizeEvidenceStatus(IReadOnlyCollection<string> statuses)
+    {
+        if (statuses.Contains("Accepted", StringComparer.OrdinalIgnoreCase))
+        {
+            return "Accepted";
+        }
+
+        if (statuses.Contains("Submitted", StringComparer.OrdinalIgnoreCase))
+        {
+            return "Submitted";
+        }
+
+        if (statuses.Contains("Returned", StringComparer.OrdinalIgnoreCase))
+        {
+            return "Returned";
+        }
+
+        if (statuses.Contains("Open", StringComparer.OrdinalIgnoreCase))
+        {
+            return "Open";
+        }
+
+        return statuses.Count == 0 ? "NoRequests" : string.Join("/", statuses.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(status => status));
+    }
+
+    private static string Csv(string value)
+    {
+        var escaped = value.Replace("\"", "\"\"", StringComparison.Ordinal);
+        return escaped.Contains(',') || escaped.Contains('"') || escaped.Contains('\n') || escaped.Contains('\r')
+            ? $"\"{escaped}\""
+            : escaped;
+    }
 
     private static ControlSummaryDto CalculateSummary(
         IReadOnlyCollection<string> scopedControlIds,

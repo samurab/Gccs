@@ -178,6 +178,10 @@ public sealed class ControlAssessmentEntity
     public string? InheritedFrom { get; set; }
     public bool EspResponsible { get; set; }
     public string? EspName { get; set; }
+    public ControlResponsibilityType ResponsibilityType { get; set; } = ControlResponsibilityType.Organization;
+    public string OwnerFunction { get; set; } = "Security";
+    public string? ResponsibilityProvider { get; set; }
+    public string ResponsibilityNotes { get; set; } = string.Empty;
 
     public AssessmentEntity? Assessment { get; set; }
     public ControlEntity? Control { get; set; }

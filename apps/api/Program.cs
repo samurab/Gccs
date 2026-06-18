@@ -2688,6 +2688,44 @@ api.MapGet("/cmmc/assessments/{assessmentId:guid}/controls", async (
 .RequirePermission(Permission.ViewCmmc)
 .WithName("ListCmmcControlStatuses");
 
+api.MapGet("/cmmc/assessments/{assessmentId:guid}/responsibility-matrix", async (
+    Guid assessmentId,
+    CmmcAssessmentService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var matrix = await service.GetResponsibilityMatrixAsync(assessmentId, cancellationToken);
+    return matrix is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"CMMC assessment '{assessmentId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(matrix);
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("GetCmmcResponsibilityMatrix");
+
+api.MapGet("/cmmc/assessments/{assessmentId:guid}/responsibility-matrix/export", async (
+    Guid assessmentId,
+    CmmcAssessmentService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var csv = await service.ExportResponsibilityMatrixCsvAsync(assessmentId, cancellationToken);
+    return csv is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"CMMC assessment '{assessmentId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Text(csv, "text/csv");
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ExportCmmcResponsibilityMatrix");
+
 api.MapPatch("/cmmc/assessments/{assessmentId:guid}/controls/{controlId}", async (
     Guid assessmentId,
     string controlId,

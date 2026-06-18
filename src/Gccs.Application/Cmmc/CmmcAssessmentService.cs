@@ -49,6 +49,16 @@ public sealed class CmmcAssessmentService(
         CancellationToken cancellationToken = default) =>
         repository.ListControlStatusesAsync(assessmentId, cancellationToken);
 
+    public Task<IReadOnlyList<CmmcResponsibilityMatrixRowDto>?> GetResponsibilityMatrixAsync(
+        Guid assessmentId,
+        CancellationToken cancellationToken = default) =>
+        repository.GetResponsibilityMatrixAsync(assessmentId, cancellationToken);
+
+    public Task<string?> ExportResponsibilityMatrixCsvAsync(
+        Guid assessmentId,
+        CancellationToken cancellationToken = default) =>
+        repository.ExportResponsibilityMatrixCsvAsync(assessmentId, cancellationToken);
+
     public async Task<CmmcControlStatusDto?> UpsertControlStatusAsync(
         Guid assessmentId,
         string controlId,
@@ -87,7 +97,10 @@ public sealed class CmmcAssessmentService(
                 ["assessmentId"] = assessmentId.ToString(),
                 ["controlId"] = controlStatus.ControlId,
                 ["status"] = controlStatus.Status.ToString(),
-                ["result"] = controlStatus.Result.ToString()
+                ["result"] = controlStatus.Result.ToString(),
+                ["responsibilityType"] = controlStatus.ResponsibilityType.ToString(),
+                ["ownerFunction"] = controlStatus.OwnerFunction,
+                ["responsibilityProvider"] = controlStatus.ResponsibilityProvider ?? string.Empty
             },
             cancellationToken);
 
@@ -137,7 +150,10 @@ public sealed class CmmcAssessmentService(
             Notes = request.Notes?.Trim() ?? string.Empty,
             ImplementationDetails = request.ImplementationDetails?.Trim(),
             InheritedFrom = string.IsNullOrWhiteSpace(request.InheritedFrom) ? null : request.InheritedFrom.Trim(),
-            EspName = string.IsNullOrWhiteSpace(request.EspName) ? null : request.EspName.Trim()
+            EspName = string.IsNullOrWhiteSpace(request.EspName) ? null : request.EspName.Trim(),
+            OwnerFunction = string.IsNullOrWhiteSpace(request.OwnerFunction) ? "Security" : request.OwnerFunction.Trim(),
+            ResponsibilityProvider = string.IsNullOrWhiteSpace(request.ResponsibilityProvider) ? null : request.ResponsibilityProvider.Trim(),
+            ResponsibilityNotes = request.ResponsibilityNotes?.Trim() ?? string.Empty
         };
 
     private static void Validate(UpsertCmmcAssessmentRequest request)
@@ -184,7 +200,40 @@ public sealed class CmmcAssessmentService(
         {
             throw new CmmcAssessmentValidationException("ESP-responsible controls must identify the ESP name.");
         }
+
+        if (string.IsNullOrWhiteSpace(request.OwnerFunction))
+        {
+            throw new CmmcAssessmentValidationException("Control responsibility owner is required.");
+        }
+
+        if (request.OwnerFunction.Length > 120)
+        {
+            throw new CmmcAssessmentValidationException("Control responsibility owner must be 120 characters or fewer.");
+        }
+
+        if (request.ResponsibilityProvider?.Length > 240)
+        {
+            throw new CmmcAssessmentValidationException("Responsibility provider must be 240 characters or fewer.");
+        }
+
+        if (request.ResponsibilityNotes?.Length > 1000)
+        {
+            throw new CmmcAssessmentValidationException("Responsibility notes must be 1000 characters or fewer.");
+        }
+
+        if (RequiresProviderContext(request.ResponsibilityType) &&
+            string.IsNullOrWhiteSpace(request.ResponsibilityProvider) &&
+            string.IsNullOrWhiteSpace(request.ResponsibilityNotes))
+        {
+            throw new CmmcAssessmentValidationException("External or shared responsibility controls must include a provider or responsibility notes.");
+        }
     }
+
+    private static bool RequiresProviderContext(ControlResponsibilityType responsibilityType) =>
+        responsibilityType is ControlResponsibilityType.MspEsp
+            or ControlResponsibilityType.CloudProvider
+            or ControlResponsibilityType.Subcontractor
+            or ControlResponsibilityType.Shared;
 }
 
 public sealed class CmmcAssessmentValidationException(string message) : InvalidOperationException(message);

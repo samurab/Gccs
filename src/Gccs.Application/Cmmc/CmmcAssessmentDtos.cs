@@ -69,6 +69,10 @@ public sealed record CmmcControlStatusDto(
     string? InheritedFrom,
     bool EspResponsible,
     string? EspName,
+    ControlResponsibilityType ResponsibilityType,
+    string OwnerFunction,
+    string? ResponsibilityProvider,
+    string ResponsibilityNotes,
     IReadOnlyList<CmmcControlStatusHistoryDto> StatusHistory);
 
 public sealed record UpsertCmmcControlStatusRequest(
@@ -85,7 +89,11 @@ public sealed record UpsertCmmcControlStatusRequest(
     bool IsInherited = false,
     string? InheritedFrom = null,
     bool EspResponsible = false,
-    string? EspName = null);
+    string? EspName = null,
+    ControlResponsibilityType ResponsibilityType = ControlResponsibilityType.Organization,
+    string? OwnerFunction = null,
+    string? ResponsibilityProvider = null,
+    string? ResponsibilityNotes = null);
 
 public sealed record CmmcControlStatusHistoryDto(
     Guid Id,
@@ -94,6 +102,17 @@ public sealed record CmmcControlStatusHistoryDto(
     Guid ChangedByUserId,
     DateTimeOffset ChangedAt,
     string? Notes);
+
+public sealed record CmmcResponsibilityMatrixRowDto(
+    Guid AssessmentId,
+    string ControlId,
+    string Title,
+    string Family,
+    ControlResponsibilityType ResponsibilityType,
+    string OwnerFunction,
+    string? Provider,
+    string EvidenceStatus,
+    string Notes);
 
 public interface ICmmcAssessmentRepository
 {
@@ -121,5 +140,13 @@ public interface ICmmcAssessmentRepository
         string controlId,
         UpsertCmmcControlStatusRequest request,
         Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<CmmcResponsibilityMatrixRowDto>?> GetResponsibilityMatrixAsync(
+        Guid assessmentId,
+        CancellationToken cancellationToken = default);
+
+    Task<string?> ExportResponsibilityMatrixCsvAsync(
+        Guid assessmentId,
         CancellationToken cancellationToken = default);
 }

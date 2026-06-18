@@ -277,6 +277,18 @@ export type CmmcControlStatusHistory = {
   notes: string | null;
 };
 
+export type CmmcResponsibilityMatrixRow = {
+  assessmentId: string;
+  controlId: string;
+  title: string;
+  family: string;
+  responsibilityType: string;
+  ownerFunction: string;
+  provider: string | null;
+  evidenceStatus: string;
+  notes: string;
+};
+
 export type CmmcPoamItem = {
   id: string;
   tenantId: string;
@@ -1137,6 +1149,14 @@ export async function getCmmcControlStatuses(assessmentId: string): Promise<Cmmc
   return getJson<CmmcControlStatus[]>(`/api/cmmc/assessments/${assessmentId}/controls`, []);
 }
 
+export async function getCmmcResponsibilityMatrix(assessmentId: string): Promise<CmmcResponsibilityMatrixRow[]> {
+  return getJson<CmmcResponsibilityMatrixRow[]>(`/api/cmmc/assessments/${assessmentId}/responsibility-matrix`, []);
+}
+
+export async function exportCmmcResponsibilityMatrix(assessmentId: string): Promise<string> {
+  return getText(`/api/cmmc/assessments/${assessmentId}/responsibility-matrix/export`, "");
+}
+
 export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamItem[]> {
   return getJson<CmmcPoamItem[]>(`/api/cmmc/assessments/${assessmentId}/poam-items`, []);
 }
@@ -1858,6 +1878,22 @@ async function getJson<T>(path: string, fallback: T): Promise<T> {
     }
 
     return response.json();
+  } catch {
+    return fallback;
+  }
+}
+
+async function getText(path: string, fallback: string): Promise<string> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, { headers: getDevelopmentHeaders() });
+
+    if (!response.ok) {
+      return fallback;
+    }
+
+    return response.text();
   } catch {
     return fallback;
   }

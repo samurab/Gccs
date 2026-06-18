@@ -137,6 +137,15 @@ public enum AssessmentResult
     NotApplicable
 }
 
+public enum ControlResponsibilityType
+{
+    Organization,
+    MspEsp,
+    CloudProvider,
+    Subcontractor,
+    Shared
+}
+
 public enum PoamStatus
 {
     Open,

@@ -666,6 +666,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.ImplementationDetails).HasMaxLength(2000);
             entity.Property(x => x.InheritedFrom).HasMaxLength(240);
             entity.Property(x => x.EspName).HasMaxLength(240);
+            entity.Property(x => x.ResponsibilityType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120);
+            entity.Property(x => x.ResponsibilityProvider).HasMaxLength(240);
+            entity.Property(x => x.ResponsibilityNotes).HasMaxLength(1000);
             entity.HasOne(x => x.Assessment).WithMany(x => x.Controls).HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Control).WithMany().HasForeignKey(x => x.ControlId).OnDelete(DeleteBehavior.Restrict);
         });
