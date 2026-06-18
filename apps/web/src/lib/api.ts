@@ -971,6 +971,17 @@ export type SyntheticDemoDatasetPrecheckResult = {
   errors: string[];
 };
 
+export type DemoTenantSeedResult = {
+  succeeded: boolean;
+  action: string;
+  datasetId: string;
+  datasetVersion: string;
+  createdCount: number;
+  deletedCount: number;
+  recordTypes: string[];
+  recordIds: Record<string, string>;
+};
+
 export type ExtractionJob = {
   id: string;
   tenantId: string;
@@ -1950,6 +1961,14 @@ export async function precheckSyntheticDemoDataset(): Promise<ApiMutationResult<
   return postJsonResult<SyntheticDemoDatasetPrecheckResult>("/api/demo/synthetic-dataset/precheck", {});
 }
 
+export async function seedDemoTenant(): Promise<ApiMutationResult<DemoTenantSeedResult>> {
+  return postJsonResult<DemoTenantSeedResult>("/api/demo/seed", {});
+}
+
+export async function resetDemoTenantSeed(): Promise<ApiMutationResult<DemoTenantSeedResult>> {
+  return deleteJsonResult<DemoTenantSeedResult>("/api/demo/seed");
+}
+
 export async function createEvidenceUploadIntent(file: File): Promise<ApiMutationResult<EvidenceUploadIntent>> {
   const placeholderEvidenceItemId = "00000000-0000-0000-0000-000000000041";
   return postJsonResult<EvidenceUploadIntent>(`/api/evidence-items/${placeholderEvidenceItemId}/upload-intents`, {
@@ -2060,6 +2079,25 @@ async function patchJsonResult<T>(path: string, body: unknown): Promise<ApiMutat
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
+  }
+}
+
+async function deleteJsonResult<T>(path: string): Promise<ApiMutationResult<T>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "DELETE",
+      headers: getDevelopmentHeaders()
     });
 
     if (!response.ok) {

@@ -66,6 +66,7 @@ public static class DependencyInjection
         services.AddScoped<ContentClassificationPolicy>();
         services.AddScoped<ContentClassificationReviewService>();
         services.AddScoped<SyntheticDemoDatasetService>();
+        services.AddScoped<DemoTenantSeedService>();
         services.AddSingleton<ISyntheticDemoDatasetRepository, FileSyntheticDemoDatasetRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
@@ -156,6 +157,7 @@ public static class DependencyInjection
             services.AddScoped<ICmmcAffirmationRepository, EfCmmcAffirmationRepository>();
             services.AddScoped<ISubcontractorRepository, EfSubcontractorRepository>();
             services.AddScoped<IContentClassificationReviewRepository, EfContentClassificationReviewRepository>();
+            services.AddScoped<IDemoTenantSeedRepository, EfDemoTenantSeedRepository>();
         }
         else
         {
@@ -231,6 +233,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Subcontractor persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IContentClassificationReviewRepository>(_ =>
                 throw new InvalidOperationException("Content classification review persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IDemoTenantSeedRepository>(_ =>
+                throw new InvalidOperationException("Demo tenant seed persistence requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

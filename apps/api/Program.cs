@@ -2450,6 +2450,62 @@ api.MapPost("/demo/synthetic-dataset/precheck", async (
 .RequirePermission(Permission.ManageObligations)
 .WithName("PrecheckSyntheticDemoDataset");
 
+api.MapPost("/demo/seed", async (
+    SyntheticDemoDatasetService datasetService,
+    DemoTenantSeedService seedService,
+    IWebHostEnvironment environment,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var packageRoot = DemoContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+        var dataset = await datasetService.GetAsync(packageRoot, cancellationToken);
+        var result = await seedService.SeedAsync(dataset, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return Results.Ok(result);
+    }
+    catch (DemoTenantSeedValidationException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Synthetic demo seed rejected",
+            exception.Message,
+            StatusCodes.Status400BadRequest,
+            "synthetic_demo_seed_rejected");
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("SeedDemoTenant");
+
+api.MapDelete("/demo/seed", async (
+    SyntheticDemoDatasetService datasetService,
+    DemoTenantSeedService seedService,
+    IWebHostEnvironment environment,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var packageRoot = DemoContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+        var dataset = await datasetService.GetAsync(packageRoot, cancellationToken);
+        var result = await seedService.ResetAsync(dataset, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return Results.Ok(result);
+    }
+    catch (DemoTenantSeedValidationException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Synthetic demo reset rejected",
+            exception.Message,
+            StatusCodes.Status400BadRequest,
+            "synthetic_demo_reset_rejected");
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("ResetDemoTenantSeed");
+
 api.MapPost("/evidence-requests", async (
     CreateEvidenceRequestRequest request,
     EvidenceRequestService service,
