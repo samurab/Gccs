@@ -56,12 +56,22 @@ jobs:
           --logger "trx;LogFileName=gccs-backend-tests.trx"
           --results-directory TestResults/backend
 
+      - name: Run extraction precision and recall evaluation
+        run: >
+          python3 tools/extraction-evaluation/evaluate_corpus.py
+          --corpus tests/fixtures/extraction-corpus
+          --output-dir TestResults/extraction-evaluation
+          --min-precision 0.95
+          --min-recall 0.95
+
       - name: Upload backend test results
         if: always()
         uses: actions/upload-artifact@v5
         with:
           name: backend-test-results
-          path: TestResults/backend
+          path: |
+            TestResults/backend
+            TestResults/extraction-evaluation
 
   frontend:
     name: Frontend validation
