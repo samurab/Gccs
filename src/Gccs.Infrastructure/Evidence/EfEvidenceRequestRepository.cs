@@ -59,6 +59,112 @@ public sealed class EfEvidenceRequestRepository(
         return ToDto(entity);
     }
 
+    public async Task<EvidenceRequestDto?> SubmitAsync(
+        Guid requestId,
+        SubmitEvidenceRequestRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.EvidenceRequests.SingleOrDefaultAsync(
+            candidate => candidate.Id == requestId && candidate.TenantId == tenantContext.TenantId,
+            cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        if (entity.Status != EvidenceRequestStatus.Open.ToString() || entity.AssigneeUserId != actorUserId)
+        {
+            throw new EvidenceRequestValidationException("Only the assigned user can submit evidence to an open request.");
+        }
+
+        var evidenceExists = await dbContext.EvidenceItems.AnyAsync(
+            evidence => evidence.Id == request.EvidenceItemId && evidence.TenantId == tenantContext.TenantId,
+            cancellationToken);
+        if (!evidenceExists)
+        {
+            throw new EvidenceRequestValidationException("Submitted evidence was not found for the current tenant.");
+        }
+
+        entity.SubmittedEvidenceItemId = request.EvidenceItemId;
+        entity.SubmissionComment = request.Comment;
+        entity.Status = EvidenceRequestStatus.Submitted.ToString();
+        entity.SubmittedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+        dbContext.NotificationDeliveries.Add(new NotificationDeliveryEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantContext.TenantId,
+            UserId = entity.RequesterUserId,
+            SourceTaskId = entity.Id,
+            SourceType = "EvidenceRequest",
+            LinkUrl = $"/evidence-requests/{entity.Id}",
+            Category = "evidence_request_submitted",
+            Status = "Delivered",
+            Placeholder = "Evidence request was submitted for review.",
+            AttemptedAt = DateTimeOffset.UtcNow,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedByUserId = actorUserId
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<EvidenceRequestDto?> ReviewAsync(
+        Guid requestId,
+        ReviewEvidenceRequestRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.EvidenceRequests.SingleOrDefaultAsync(
+            candidate => candidate.Id == requestId && candidate.TenantId == tenantContext.TenantId,
+            cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        if (entity.Status != EvidenceRequestStatus.Submitted.ToString() || entity.SubmittedEvidenceItemId is null)
+        {
+            throw new EvidenceRequestValidationException("Only submitted evidence requests can be reviewed.");
+        }
+
+        entity.ReviewComment = request.Comment;
+        entity.ReviewedAt = DateTimeOffset.UtcNow;
+        entity.Status = request.Decision == EvidenceRequestReviewDecision.Accept
+            ? EvidenceRequestStatus.Accepted.ToString()
+            : EvidenceRequestStatus.Returned.ToString();
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+
+        if (request.Decision == EvidenceRequestReviewDecision.Accept)
+        {
+            LinkAcceptedEvidence(entity);
+        }
+        else if (entity.AssigneeUserId is not null)
+        {
+            dbContext.NotificationDeliveries.Add(new NotificationDeliveryEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                UserId = entity.AssigneeUserId.Value,
+                SourceTaskId = entity.Id,
+                SourceType = "EvidenceRequest",
+                LinkUrl = $"/evidence-requests/{entity.Id}",
+                Category = "evidence_request_returned",
+                Status = "Delivered",
+                Placeholder = $"Evidence request was returned: {request.Comment}",
+                AttemptedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedByUserId = actorUserId
+            });
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
     private async Task ValidateAssigneeAsync(CreateEvidenceRequestRequest request, CancellationToken cancellationToken)
     {
         if (request.AssigneeUserId is not null)
@@ -114,5 +220,51 @@ public sealed class EfEvidenceRequestRepository(
             entity.Instructions,
             Enum.Parse<EvidenceRequestRelatedRecordType>(entity.RelatedRecordType),
             entity.RelatedRecordId,
+            entity.SubmittedEvidenceItemId,
+            entity.SubmissionComment,
+            entity.ReviewComment,
             entity.CreatedAt);
+
+    private void LinkAcceptedEvidence(EvidenceRequestEntity entity)
+    {
+        if (entity.SubmittedEvidenceItemId is null)
+        {
+            return;
+        }
+
+        if (entity.RelatedRecordType == EvidenceRequestRelatedRecordType.Obligation.ToString())
+        {
+            dbContext.Set<EvidenceObligationEntity>().Add(new EvidenceObligationEntity
+            {
+                EvidenceItemId = entity.SubmittedEvidenceItemId.Value,
+                ObligationId = entity.RelatedRecordId
+            });
+        }
+        else if (entity.RelatedRecordType == EvidenceRequestRelatedRecordType.Control.ToString())
+        {
+            dbContext.Set<EvidenceControlEntity>().Add(new EvidenceControlEntity
+            {
+                EvidenceItemId = entity.SubmittedEvidenceItemId.Value,
+                ControlId = entity.RelatedRecordId
+            });
+        }
+        else if (entity.RelatedRecordType == EvidenceRequestRelatedRecordType.Contract.ToString() &&
+            Guid.TryParse(entity.RelatedRecordId, out var contractId))
+        {
+            dbContext.Set<EvidenceContractEntity>().Add(new EvidenceContractEntity
+            {
+                EvidenceItemId = entity.SubmittedEvidenceItemId.Value,
+                ContractId = contractId
+            });
+        }
+        else if (entity.RelatedRecordType == EvidenceRequestRelatedRecordType.Subcontractor.ToString() &&
+            Guid.TryParse(entity.RelatedRecordId, out var subcontractorId))
+        {
+            dbContext.Set<SubcontractorEvidenceEntity>().Add(new SubcontractorEvidenceEntity
+            {
+                EvidenceItemId = entity.SubmittedEvidenceItemId.Value,
+                SubcontractorId = subcontractorId
+            });
+        }
+    }
 }

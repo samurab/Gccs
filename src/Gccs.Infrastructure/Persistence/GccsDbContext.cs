@@ -572,6 +572,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.Instructions).HasMaxLength(2000).IsRequired();
             entity.Property(x => x.RelatedRecordType).HasMaxLength(80).IsRequired();
             entity.Property(x => x.RelatedRecordId).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.SubmissionComment).HasMaxLength(2000);
+            entity.Property(x => x.ReviewComment).HasMaxLength(2000);
             ConfigureAuditColumns(entity);
         });
 

@@ -529,10 +529,27 @@ export type EvidenceRequest = {
   instructions: string;
   relatedRecordType: string;
   relatedRecordId: string;
+  submittedEvidenceItemId: string | null;
+  submissionComment: string | null;
+  reviewComment: string | null;
   createdAt: string;
 };
 
-export type CreateEvidenceRequestRequest = Omit<EvidenceRequest, "id" | "tenantId" | "requesterUserId" | "status" | "createdAt">;
+export type CreateEvidenceRequestRequest = Omit<
+  EvidenceRequest,
+  "id" | "tenantId" | "requesterUserId" | "status" | "submittedEvidenceItemId" | "submissionComment" | "reviewComment" | "createdAt"
+>;
+
+export type SubmitEvidenceRequestRequest = {
+  evidenceItemId: string;
+  containsPotentialCui: boolean;
+  comment?: string | null;
+};
+
+export type ReviewEvidenceRequestRequest = {
+  decision: string;
+  comment: string;
+};
 
 export type ApprovedEvidencePackage = {
   reportId: string;
@@ -1223,6 +1240,20 @@ export async function getGeneratedPolicyRevisions(policyId: string): Promise<Pol
 
 export async function createEvidenceRequest(request: CreateEvidenceRequestRequest): Promise<ApiMutationResult<EvidenceRequest>> {
   return postJsonResult<EvidenceRequest>("/api/evidence-requests", request);
+}
+
+export async function submitEvidenceRequest(
+  requestId: string,
+  request: SubmitEvidenceRequestRequest
+): Promise<ApiMutationResult<EvidenceRequest>> {
+  return putJsonResult<EvidenceRequest>(`/api/evidence-requests/${requestId}/submit`, request);
+}
+
+export async function reviewEvidenceRequest(
+  requestId: string,
+  request: ReviewEvidenceRequestRequest
+): Promise<ApiMutationResult<EvidenceRequest>> {
+  return putJsonResult<EvidenceRequest>(`/api/evidence-requests/${requestId}/review`, request);
 }
 
 export async function getSubcontractorEvidenceRequests(subcontractorId: string): Promise<SubcontractorEvidenceRequest[]> {

@@ -2412,6 +2412,74 @@ api.MapPost("/evidence-requests", async (
 .RequirePermission(Permission.ManageEvidence)
 .WithName("CreateEvidenceRequest");
 
+api.MapPut("/evidence-requests/{requestId:guid}/submit", async (
+    Guid requestId,
+    SubmitEvidenceRequestRequest request,
+    EvidenceRequestService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.SubmitAsync(requestId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Evidence request '{requestId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EvidenceRequestValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["evidenceRequest"] = [exception.Message]
+        },
+        title: "Evidence request invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithName("SubmitEvidenceRequest");
+
+api.MapPut("/evidence-requests/{requestId:guid}/review", async (
+    Guid requestId,
+    ReviewEvidenceRequestRequest request,
+    EvidenceRequestService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ReviewAsync(requestId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Evidence request '{requestId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EvidenceRequestValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["evidenceRequest"] = [exception.Message]
+        },
+        title: "Evidence request invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ApproveEvidence)
+.WithName("ReviewEvidenceRequest");
+
 api.MapPost("/evidence-items/{evidenceItemId:guid}/reviews", async (
     Guid evidenceItemId,
     EvidenceReviewRequest request,

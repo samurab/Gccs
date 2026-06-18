@@ -50,6 +50,11 @@ public sealed class EvidenceRequestEntity : AuditedEntity
     public string Instructions { get; set; } = string.Empty;
     public string RelatedRecordType { get; set; } = string.Empty;
     public string RelatedRecordId { get; set; } = string.Empty;
+    public Guid? SubmittedEvidenceItemId { get; set; }
+    public string? SubmissionComment { get; set; }
+    public string? ReviewComment { get; set; }
+    public DateTimeOffset? SubmittedAt { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
 }
 
 public sealed class EvidenceFileVersionEntity
