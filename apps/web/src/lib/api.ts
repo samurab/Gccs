@@ -289,6 +289,30 @@ export type CmmcResponsibilityMatrixRow = {
   notes: string;
 };
 
+export type CmmcReadinessGap = {
+  assessmentId: string;
+  controlId: string;
+  title: string;
+  family: string;
+  priority: string;
+  reasonCodes: string[];
+  controlStatus: string;
+  assessmentResult: string;
+  evidenceStatus: string;
+  poamRiskLevel: string | null;
+  poamTargetCompletionAt: string | null;
+  isPoamOverdue: boolean;
+  isCuiRelevant: boolean;
+  isInherited: boolean;
+  hasAssessmentObjectiveCoverage: boolean;
+};
+
+export type CreatePoamFromGapRequest = {
+  ownerFunction: string;
+  targetCompletionAt: string;
+  ownerUserId?: string | null;
+};
+
 export type CmmcPoamItem = {
   id: string;
   tenantId: string;
@@ -1157,6 +1181,10 @@ export async function exportCmmcResponsibilityMatrix(assessmentId: string): Prom
   return getText(`/api/cmmc/assessments/${assessmentId}/responsibility-matrix/export`, "");
 }
 
+export async function getCmmcReadinessGaps(assessmentId: string): Promise<CmmcReadinessGap[]> {
+  return getJson<CmmcReadinessGap[]>(`/api/cmmc/assessments/${assessmentId}/gaps`, []);
+}
+
 export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamItem[]> {
   return getJson<CmmcPoamItem[]>(`/api/cmmc/assessments/${assessmentId}/poam-items`, []);
 }
@@ -1724,6 +1752,17 @@ export async function createCmmcPoamItem(
   request: UpsertCmmcPoamItemRequest
 ): Promise<ApiMutationResult<CmmcPoamItem>> {
   return postJsonResult<CmmcPoamItem>(`/api/cmmc/assessments/${assessmentId}/poam-items`, request);
+}
+
+export async function createCmmcPoamItemFromGap(
+  assessmentId: string,
+  controlId: string,
+  request: CreatePoamFromGapRequest
+): Promise<ApiMutationResult<CmmcPoamItem>> {
+  return postJsonResult<CmmcPoamItem>(
+    `/api/cmmc/assessments/${assessmentId}/gaps/${encodeURIComponent(controlId)}/poam-item`,
+    request
+  );
 }
 
 export async function createSubcontractor(request: UpsertSubcontractorRequest): Promise<ApiMutationResult<Subcontractor>> {

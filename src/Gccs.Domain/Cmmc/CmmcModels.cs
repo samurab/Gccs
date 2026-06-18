@@ -146,6 +146,15 @@ public enum ControlResponsibilityType
     Shared
 }
 
+public enum CmmcGapPriority
+{
+    Critical,
+    High,
+    Medium,
+    Low,
+    NeedsReview
+}
+
 public enum PoamStatus
 {
     Open,

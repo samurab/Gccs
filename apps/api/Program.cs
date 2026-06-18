@@ -17,6 +17,8 @@ using Gccs.Application.Reports;
 using Gccs.Application.Subcontractors;
 using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
+using Gccs.Domain.Cmmc;
+using Gccs.Domain.Compliance;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
@@ -2765,6 +2767,75 @@ api.MapPatch("/cmmc/assessments/{assessmentId:guid}/controls/{controlId}", async
 })
 .RequirePermission(Permission.ManageCmmc)
 .WithName("UpdateCmmcControlStatus");
+
+api.MapGet("/cmmc/assessments/{assessmentId:guid}/gaps", async (
+    Guid assessmentId,
+    CmmcAssessmentService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var gaps = await service.GetReadinessGapsAsync(assessmentId, cancellationToken);
+    return gaps is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"CMMC assessment '{assessmentId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(gaps);
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("GetCmmcReadinessGaps");
+
+api.MapPost("/cmmc/assessments/{assessmentId:guid}/gaps/{controlId}/poam-item", async (
+    Guid assessmentId,
+    string controlId,
+    CreatePoamFromGapRequest request,
+    CmmcPoamService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(
+            assessmentId,
+            new UpsertCmmcPoamItemRequest(
+                controlId.Trim(),
+                $"Readiness gap for {controlId.Trim()}",
+                "Remediate the prioritized CMMC readiness gap and attach supporting evidence.",
+                RiskLevel.High,
+                PoamStatus.Open,
+                request.OwnerUserId,
+                request.OwnerFunction,
+                request.TargetCompletionAt,
+                null,
+                null,
+                []),
+            tenantContext.UserId,
+            cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC assessment '{assessmentId}' or control '{controlId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/cmmc/assessments/{assessmentId}/poam-items/{created.Id}", created);
+    }
+    catch (CmmcPoamValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cmmcGapPoamItem"] = [exception.Message]
+        },
+        title: "CMMC gap POA&M item invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("CreateCmmcPoamItemFromGap");
 
 api.MapGet("/cmmc/assessments/{assessmentId:guid}/poam-items", async (
     Guid assessmentId,

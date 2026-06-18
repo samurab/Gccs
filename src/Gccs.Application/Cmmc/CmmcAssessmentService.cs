@@ -59,6 +59,11 @@ public sealed class CmmcAssessmentService(
         CancellationToken cancellationToken = default) =>
         repository.ExportResponsibilityMatrixCsvAsync(assessmentId, cancellationToken);
 
+    public Task<IReadOnlyList<CmmcReadinessGapDto>?> GetReadinessGapsAsync(
+        Guid assessmentId,
+        CancellationToken cancellationToken = default) =>
+        repository.GetReadinessGapsAsync(assessmentId, cancellationToken);
+
     public async Task<CmmcControlStatusDto?> UpsertControlStatusAsync(
         Guid assessmentId,
         string controlId,

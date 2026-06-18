@@ -2,6 +2,7 @@ using System.Text.Json;
 using Gccs.Application.Cmmc;
 using Gccs.Application.Security;
 using Gccs.Domain.Cmmc;
+using Gccs.Domain.Compliance;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -274,6 +275,93 @@ public sealed class EfCmmcAssessmentRepository(
         return string.Join(Environment.NewLine, lines);
     }
 
+    public async Task<IReadOnlyList<CmmcReadinessGapDto>?> GetReadinessGapsAsync(
+        Guid assessmentId,
+        CancellationToken cancellationToken = default)
+    {
+        var assessment = await QueryCurrentTenant()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == assessmentId, cancellationToken);
+        if (assessment is null)
+        {
+            return null;
+        }
+
+        var controls = await QueryControlsForLevel(assessment.Level)
+            .OrderBy(control => control.Family)
+            .ThenBy(control => control.Id)
+            .ToArrayAsync(cancellationToken);
+        var statuses = assessment.Controls.ToDictionary(control => control.ControlId, StringComparer.OrdinalIgnoreCase);
+        var controlIds = controls.Select(control => control.Id).ToArray();
+        var evidenceRequests = await dbContext.EvidenceRequests
+            .AsNoTracking()
+            .Where(request =>
+                request.TenantId == tenantContext.TenantId &&
+                request.RelatedRecordType == "Control" &&
+                controlIds.Contains(request.RelatedRecordId))
+            .ToArrayAsync(cancellationToken);
+        var evidenceStatusByControl = evidenceRequests
+            .GroupBy(request => request.RelatedRecordId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => SummarizeEvidenceStatus(group.Select(request => request.Status).ToArray()),
+                StringComparer.OrdinalIgnoreCase);
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var poamItems = await dbContext.PoamItems
+            .AsNoTracking()
+            .Where(item => item.TenantId == tenantContext.TenantId && item.AssessmentId == assessmentId && controlIds.Contains(item.ControlId))
+            .ToArrayAsync(cancellationToken);
+        var poamByControl = poamItems
+            .GroupBy(item => item.ControlId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(item => item.TargetCompletionAt < today && item.Status is not PoamStatus.Closed and not PoamStatus.AcceptedRisk)
+                    .ThenByDescending(item => item.RiskLevel)
+                    .ThenBy(item => item.TargetCompletionAt)
+                    .First(),
+                StringComparer.OrdinalIgnoreCase);
+
+        return controls
+            .Select(control =>
+            {
+                statuses.TryGetValue(control.Id, out var status);
+                var evidenceStatus = evidenceStatusByControl.GetValueOrDefault(control.Id, "NoRequests");
+                poamByControl.TryGetValue(control.Id, out var poam);
+                var isOverdue = poam is not null &&
+                    poam.TargetCompletionAt < today &&
+                    poam.Status is not PoamStatus.Closed and not PoamStatus.AcceptedRisk;
+                var hasObjectiveCoverage = !string.IsNullOrWhiteSpace(status?.ImplementationDetails) ||
+                    ReadGuidArray(status?.EvidenceItemIdsJson ?? "[]").Count > 0 ||
+                    string.Equals(evidenceStatus, "Accepted", StringComparison.OrdinalIgnoreCase);
+                var isCuiRelevant = control.CmmcLevel is CmmcLevel.Level2 or CmmcLevel.Level3;
+                var reasons = BuildGapReasonCodes(status, evidenceStatus, poam, isOverdue, isCuiRelevant, hasObjectiveCoverage);
+                var priority = CalculateGapPriority(status, evidenceStatus, poam, isOverdue, isCuiRelevant, hasObjectiveCoverage);
+
+                return new CmmcReadinessGapDto(
+                    assessmentId,
+                    control.Id,
+                    control.Title,
+                    control.Family,
+                    priority,
+                    reasons,
+                    status?.ImplementationStatus ?? ControlImplementationStatus.NotStarted,
+                    status?.Result ?? AssessmentResult.NotAssessed,
+                    evidenceStatus,
+                    poam?.RiskLevel,
+                    poam?.TargetCompletionAt,
+                    isOverdue,
+                    isCuiRelevant,
+                    status?.IsInherited ?? false,
+                    hasObjectiveCoverage);
+            })
+            .OrderBy(row => GapPriorityRank(row.Priority))
+            .ThenBy(row => row.Family, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.ControlId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     private IQueryable<AssessmentEntity> QueryCurrentTenant() =>
         dbContext.Assessments
             .Include(assessment => assessment.Controls)
@@ -402,6 +490,110 @@ public sealed class EfCmmcAssessmentRepository(
             ? $"\"{escaped}\""
             : escaped;
     }
+
+    private static IReadOnlyList<string> BuildGapReasonCodes(
+        ControlAssessmentEntity? status,
+        string evidenceStatus,
+        PoamItemEntity? poam,
+        bool isPoamOverdue,
+        bool isCuiRelevant,
+        bool hasAssessmentObjectiveCoverage)
+    {
+        var reasons = new List<string>();
+        var controlStatus = status?.ImplementationStatus ?? ControlImplementationStatus.NotStarted;
+        var result = status?.Result ?? AssessmentResult.NotAssessed;
+
+        if (controlStatus is ControlImplementationStatus.NeedsReview || result is AssessmentResult.NotAssessed)
+        {
+            reasons.Add("needs-review");
+        }
+
+        if (controlStatus is ControlImplementationStatus.NotStarted or ControlImplementationStatus.PartiallyImplemented || result == AssessmentResult.NotMet)
+        {
+            reasons.Add("control-not-implemented");
+        }
+
+        if (!string.Equals(evidenceStatus, "Accepted", StringComparison.OrdinalIgnoreCase))
+        {
+            reasons.Add(evidenceStatus == "NoRequests" ? "evidence-missing" : "evidence-not-accepted");
+        }
+
+        if (poam?.RiskLevel is RiskLevel.High or RiskLevel.Critical)
+        {
+            reasons.Add("poam-high-risk");
+        }
+
+        if (isPoamOverdue)
+        {
+            reasons.Add("poam-overdue");
+        }
+
+        if (isCuiRelevant)
+        {
+            reasons.Add("cui-relevant");
+        }
+
+        if (status?.IsInherited == true)
+        {
+            reasons.Add("inherited-control");
+        }
+
+        if (!hasAssessmentObjectiveCoverage)
+        {
+            reasons.Add("objective-coverage-missing");
+        }
+
+        return reasons.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static CmmcGapPriority CalculateGapPriority(
+        ControlAssessmentEntity? status,
+        string evidenceStatus,
+        PoamItemEntity? poam,
+        bool isPoamOverdue,
+        bool isCuiRelevant,
+        bool hasAssessmentObjectiveCoverage)
+    {
+        var controlStatus = status?.ImplementationStatus ?? ControlImplementationStatus.NotStarted;
+        var result = status?.Result ?? AssessmentResult.NotAssessed;
+        if (controlStatus == ControlImplementationStatus.NeedsReview || result == AssessmentResult.NotAssessed)
+        {
+            return CmmcGapPriority.NeedsReview;
+        }
+
+        if ((result == AssessmentResult.NotMet || controlStatus == ControlImplementationStatus.NotStarted) &&
+            isCuiRelevant &&
+            (!string.Equals(evidenceStatus, "Accepted", StringComparison.OrdinalIgnoreCase) || isPoamOverdue || poam?.RiskLevel == RiskLevel.Critical))
+        {
+            return CmmcGapPriority.Critical;
+        }
+
+        if (controlStatus == ControlImplementationStatus.PartiallyImplemented ||
+            result == AssessmentResult.NotMet ||
+            isPoamOverdue ||
+            poam?.RiskLevel is RiskLevel.High or RiskLevel.Critical)
+        {
+            return CmmcGapPriority.High;
+        }
+
+        if (!hasAssessmentObjectiveCoverage || !string.Equals(evidenceStatus, "Accepted", StringComparison.OrdinalIgnoreCase))
+        {
+            return CmmcGapPriority.Medium;
+        }
+
+        return CmmcGapPriority.Low;
+    }
+
+    private static int GapPriorityRank(CmmcGapPriority priority) =>
+        priority switch
+        {
+            CmmcGapPriority.Critical => 0,
+            CmmcGapPriority.High => 1,
+            CmmcGapPriority.Medium => 2,
+            CmmcGapPriority.NeedsReview => 3,
+            CmmcGapPriority.Low => 4,
+            _ => 5
+        };
 
     private static ControlSummaryDto CalculateSummary(
         IReadOnlyCollection<string> scopedControlIds,

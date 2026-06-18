@@ -1,4 +1,5 @@
 using Gccs.Domain.Cmmc;
+using Gccs.Domain.Compliance;
 
 namespace Gccs.Application.Cmmc;
 
@@ -114,6 +115,28 @@ public sealed record CmmcResponsibilityMatrixRowDto(
     string EvidenceStatus,
     string Notes);
 
+public sealed record CmmcReadinessGapDto(
+    Guid AssessmentId,
+    string ControlId,
+    string Title,
+    string Family,
+    CmmcGapPriority Priority,
+    IReadOnlyList<string> ReasonCodes,
+    ControlImplementationStatus ControlStatus,
+    AssessmentResult AssessmentResult,
+    string EvidenceStatus,
+    RiskLevel? PoamRiskLevel,
+    DateOnly? PoamTargetCompletionAt,
+    bool IsPoamOverdue,
+    bool IsCuiRelevant,
+    bool IsInherited,
+    bool HasAssessmentObjectiveCoverage);
+
+public sealed record CreatePoamFromGapRequest(
+    string OwnerFunction,
+    DateOnly TargetCompletionAt,
+    Guid? OwnerUserId = null);
+
 public interface ICmmcAssessmentRepository
 {
     Task<IReadOnlyList<CmmcAssessmentDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default);
@@ -147,6 +170,10 @@ public interface ICmmcAssessmentRepository
         CancellationToken cancellationToken = default);
 
     Task<string?> ExportResponsibilityMatrixCsvAsync(
+        Guid assessmentId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<CmmcReadinessGapDto>?> GetReadinessGapsAsync(
         Guid assessmentId,
         CancellationToken cancellationToken = default);
 }
