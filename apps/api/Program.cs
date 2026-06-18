@@ -2072,6 +2072,35 @@ api.MapPut("/generated-policies/{policyId:guid}", async (
 .RequirePermission(Permission.ManageEvidence)
 .WithName("UpdateGeneratedPolicy");
 
+api.MapPut("/generated-policies/{policyId:guid}/review", async (
+    Guid policyId,
+    PolicyApprovalRequest request,
+    PolicyTemplateService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.ReviewGeneratedPolicyAsync(policyId, request, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Generated policy '{policyId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ApproveEvidence)
+.WithName("ReviewGeneratedPolicy");
+
+api.MapGet("/generated-policies/{policyId:guid}/revisions", async (
+    Guid policyId,
+    PolicyTemplateService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListPolicyRevisionsAsync(policyId, cancellationToken)))
+.RequirePermission(Permission.ViewEvidence)
+.WithName("ListGeneratedPolicyRevisions");
+
 api.MapGet("/tasks", async (
     ComplianceTaskService service,
     CancellationToken cancellationToken) =>

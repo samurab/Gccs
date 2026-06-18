@@ -413,10 +413,29 @@ public sealed class GeneratedPolicyEntity : AuditedEntity
     public string Title { get; set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
     public string Status { get; set; } = "Draft";
+    public Guid? ApprovedByUserId { get; set; }
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public DateOnly? ReviewDueAt { get; set; }
+    public Guid? EvidenceItemId { get; set; }
     public string PlaceholderValuesJson { get; set; } = "{}";
     public string MissingPlaceholdersJson { get; set; } = "[]";
 
     public PolicyTemplateEntity? SourceTemplate { get; set; }
+    public EvidenceItemEntity? EvidenceItem { get; set; }
+    public ICollection<PolicyRevisionEntity> Revisions { get; set; } = [];
+}
+
+public sealed class PolicyRevisionEntity
+{
+    public Guid Id { get; set; }
+    public Guid GeneratedPolicyId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public string Status { get; set; } = "Draft";
+    public DateTimeOffset PreservedAt { get; set; }
+    public Guid PreservedByUserId { get; set; }
+
+    public GeneratedPolicyEntity? GeneratedPolicy { get; set; }
 }
 
 public sealed class EmployeeEntity : AuditedEntity

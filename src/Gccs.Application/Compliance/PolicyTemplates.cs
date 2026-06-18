@@ -16,6 +16,9 @@ public sealed class PolicyTemplateService(
     public Task<GeneratedPolicyDto?> FindGeneratedPolicyAsync(Guid policyId, CancellationToken cancellationToken = default) =>
         repository.FindGeneratedPolicyAsync(policyId, cancellationToken);
 
+    public Task<IReadOnlyList<PolicyRevisionDto>> ListPolicyRevisionsAsync(Guid policyId, CancellationToken cancellationToken = default) =>
+        repository.ListPolicyRevisionsAsync(policyId, cancellationToken);
+
     public async Task<PolicyTemplateDto> CreateAsync(
         UpsertPolicyTemplateRequest request,
         Guid actorUserId,
@@ -104,6 +107,41 @@ public sealed class PolicyTemplateService(
             Body = request.Body.Trim()
         };
         return repository.UpdateGeneratedPolicyAsync(policyId, normalized, actorUserId, cancellationToken);
+    }
+
+    public async Task<GeneratedPolicyDto?> ReviewGeneratedPolicyAsync(
+        Guid policyId,
+        PolicyApprovalRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var updated = await repository.ReviewGeneratedPolicyAsync(policyId, request, actorUserId, cancellationToken);
+        if (updated is not null)
+        {
+            var action = request.Decision switch
+            {
+                PolicyApprovalDecision.Approve => AuditAction.Approved,
+                PolicyApprovalDecision.Reject => AuditAction.Rejected,
+                _ => AuditAction.Updated
+            };
+            await auditEventWriter.WriteAsync(
+                updated.TenantId,
+                actorUserId,
+                action,
+                "GeneratedPolicy",
+                updated.Id.ToString(),
+                $"Generated policy was {request.Decision.ToString().ToLowerInvariant()}.",
+                new Dictionary<string, string>
+                {
+                    ["status"] = updated.Status.ToString(),
+                    ["sourceTemplateId"] = updated.SourceTemplateId.ToString(),
+                    ["sourceTemplateVersion"] = updated.SourceTemplateVersion,
+                    ["evidenceItemId"] = updated.EvidenceItemId?.ToString() ?? string.Empty
+                },
+                cancellationToken);
+        }
+
+        return updated;
     }
 
     private async Task WriteAuditAsync(
@@ -232,6 +270,8 @@ public interface IPolicyTemplateRepository
     Task<GeneratedPolicyDto?> GenerateDraftPolicyAsync(Guid templateId, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<GeneratedPolicyDto?> FindGeneratedPolicyAsync(Guid policyId, CancellationToken cancellationToken = default);
     Task<GeneratedPolicyDto?> UpdateGeneratedPolicyAsync(Guid policyId, UpdateGeneratedPolicyRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<GeneratedPolicyDto?> ReviewGeneratedPolicyAsync(Guid policyId, PolicyApprovalRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PolicyRevisionDto>> ListPolicyRevisionsAsync(Guid policyId, CancellationToken cancellationToken = default);
 }
 
 public enum PolicyTemplateStatus
@@ -247,7 +287,16 @@ public enum GeneratedPolicyStatus
 {
     Draft,
     Approved,
+    Rejected,
+    RevisionRequested,
     Archived
+}
+
+public enum PolicyApprovalDecision
+{
+    Approve,
+    Reject,
+    Revise
 }
 
 public sealed record PolicyTemplateSourceReferenceDto(
@@ -308,12 +357,32 @@ public sealed record GeneratedPolicyDto(
     string Title,
     string Body,
     GeneratedPolicyStatus Status,
+    Guid? ApprovedByUserId,
+    DateTimeOffset? ApprovedAt,
+    DateOnly? ReviewDueAt,
+    Guid? EvidenceItemId,
     IReadOnlyDictionary<string, string> PlaceholderValues,
     IReadOnlyList<string> MissingPlaceholders,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
 
 public sealed record UpdateGeneratedPolicyRequest(string Title, string Body);
+
+public sealed record PolicyApprovalRequest(
+    PolicyApprovalDecision Decision,
+    DateOnly? ReviewDueAt,
+    IReadOnlyList<string> ObligationIds,
+    IReadOnlyList<string> ControlIds,
+    string? Reason = null);
+
+public sealed record PolicyRevisionDto(
+    Guid Id,
+    Guid GeneratedPolicyId,
+    string Title,
+    string Body,
+    GeneratedPolicyStatus Status,
+    DateTimeOffset PreservedAt,
+    Guid PreservedByUserId);
 
 public sealed class PolicyTemplateValidationException(IReadOnlyDictionary<string, string[]> errors) : InvalidOperationException("Policy template validation failed.")
 {

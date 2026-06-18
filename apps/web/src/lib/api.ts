@@ -485,6 +485,10 @@ export type GeneratedPolicy = {
   title: string;
   body: string;
   status: string;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  reviewDueAt: string | null;
+  evidenceItemId: string | null;
   placeholderValues: Record<string, string>;
   missingPlaceholders: string[];
   createdAt: string;
@@ -494,6 +498,24 @@ export type GeneratedPolicy = {
 export type UpdateGeneratedPolicyRequest = {
   title: string;
   body: string;
+};
+
+export type PolicyApprovalRequest = {
+  decision: string;
+  reviewDueAt: string | null;
+  obligationIds: string[];
+  controlIds: string[];
+  reason?: string | null;
+};
+
+export type PolicyRevision = {
+  id: string;
+  generatedPolicyId: string;
+  title: string;
+  body: string;
+  status: string;
+  preservedAt: string;
+  preservedByUserId: string;
 };
 
 export type ApprovedEvidencePackage = {
@@ -1170,6 +1192,17 @@ export async function updateGeneratedPolicy(
   request: UpdateGeneratedPolicyRequest
 ): Promise<ApiMutationResult<GeneratedPolicy>> {
   return putJsonResult<GeneratedPolicy>(`/api/generated-policies/${policyId}`, request);
+}
+
+export async function reviewGeneratedPolicy(
+  policyId: string,
+  request: PolicyApprovalRequest
+): Promise<ApiMutationResult<GeneratedPolicy>> {
+  return putJsonResult<GeneratedPolicy>(`/api/generated-policies/${policyId}/review`, request);
+}
+
+export async function getGeneratedPolicyRevisions(policyId: string): Promise<PolicyRevision[]> {
+  return getJson<PolicyRevision[]>(`/api/generated-policies/${policyId}/revisions`, []);
 }
 
 export async function getSubcontractorEvidenceRequests(subcontractorId: string): Promise<SubcontractorEvidenceRequest[]> {

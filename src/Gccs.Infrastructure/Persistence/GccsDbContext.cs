@@ -56,6 +56,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<PolicyTemplateEntity> PolicyTemplates => Set<PolicyTemplateEntity>();
     public DbSet<PolicyTemplateVersionEntity> PolicyTemplateVersions => Set<PolicyTemplateVersionEntity>();
     public DbSet<GeneratedPolicyEntity> GeneratedPolicies => Set<GeneratedPolicyEntity>();
+    public DbSet<PolicyRevisionEntity> PolicyRevisions => Set<PolicyRevisionEntity>();
     public DbSet<EmployeeEntity> Employees => Set<EmployeeEntity>();
     public DbSet<TrainingRecordEntity> TrainingRecords => Set<TrainingRecordEntity>();
     public DbSet<WageDeterminationEntity> WageDeterminations => Set<WageDeterminationEntity>();
@@ -839,7 +840,19 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.PlaceholderValuesJson).HasColumnType("jsonb");
             entity.Property(x => x.MissingPlaceholdersJson).HasColumnType("jsonb");
             entity.HasOne(x => x.SourceTemplate).WithMany().HasForeignKey(x => x.SourceTemplateId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Restrict);
             ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<PolicyRevisionEntity>(entity =>
+        {
+            entity.ToTable("policy_revisions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.GeneratedPolicyId, x.PreservedAt });
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Body).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.HasOne(x => x.GeneratedPolicy).WithMany(x => x.Revisions).HasForeignKey(x => x.GeneratedPolicyId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 

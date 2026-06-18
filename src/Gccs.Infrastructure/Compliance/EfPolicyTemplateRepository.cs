@@ -199,6 +199,88 @@ public sealed class EfPolicyTemplateRepository(
         return ToDto(entity);
     }
 
+    public async Task<GeneratedPolicyDto?> ReviewGeneratedPolicyAsync(
+        Guid policyId,
+        PolicyApprovalRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.GeneratedPolicies
+            .SingleOrDefaultAsync(policy => policy.Id == policyId && policy.TenantId == tenantContext.TenantId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        PreserveRevision(entity, actorUserId);
+        if (request.Decision == PolicyApprovalDecision.Approve)
+        {
+            var evidence = new EvidenceItemEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                Name = entity.Title,
+                Description = $"Approved policy generated from template version {entity.SourceTemplateVersion}.",
+                Type = Gccs.Domain.Evidence.EvidenceType.Policy,
+                OwnerFunction = "Compliance",
+                Status = Gccs.Domain.Evidence.EvidenceStatus.Approved,
+                EffectiveAt = DateOnly.FromDateTime(DateTime.UtcNow),
+                ExpiresAt = request.ReviewDueAt,
+                TagsJson = JsonSerializer.Serialize(new[] { "policy", "generated-policy" }, JsonOptions),
+                ApprovedByUserId = actorUserId,
+                ApprovedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedByUserId = actorUserId
+            };
+            foreach (var obligationId in request.ObligationIds.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                evidence.Obligations.Add(new EvidenceObligationEntity { EvidenceItemId = evidence.Id, ObligationId = obligationId });
+            }
+
+            foreach (var controlId in request.ControlIds.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                evidence.Controls.Add(new EvidenceControlEntity { EvidenceItemId = evidence.Id, ControlId = controlId });
+            }
+
+            dbContext.EvidenceItems.Add(evidence);
+            entity.Status = GeneratedPolicyStatus.Approved.ToString();
+            entity.ApprovedByUserId = actorUserId;
+            entity.ApprovedAt = DateTimeOffset.UtcNow;
+            entity.ReviewDueAt = request.ReviewDueAt;
+            entity.EvidenceItemId = evidence.Id;
+        }
+        else if (request.Decision == PolicyApprovalDecision.Reject)
+        {
+            entity.Status = GeneratedPolicyStatus.Rejected.ToString();
+        }
+        else
+        {
+            entity.Status = GeneratedPolicyStatus.RevisionRequested.ToString();
+        }
+
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        entity.UpdatedByUserId = actorUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<IReadOnlyList<PolicyRevisionDto>> ListPolicyRevisionsAsync(Guid policyId, CancellationToken cancellationToken = default)
+    {
+        var policyExists = await dbContext.GeneratedPolicies
+            .AnyAsync(policy => policy.Id == policyId && policy.TenantId == tenantContext.TenantId, cancellationToken);
+        if (!policyExists)
+        {
+            return [];
+        }
+
+        var revisions = await dbContext.PolicyRevisions
+            .AsNoTracking()
+            .Where(revision => revision.GeneratedPolicyId == policyId)
+            .OrderByDescending(revision => revision.PreservedAt)
+            .ToArrayAsync(cancellationToken);
+        return revisions.Select(ToDto).ToArray();
+    }
+
     private static void Apply(PolicyTemplateEntity entity, UpsertPolicyTemplateRequest request)
     {
         entity.Title = request.Title;
@@ -266,10 +348,38 @@ public sealed class EfPolicyTemplateRepository(
             entity.Title,
             entity.Body,
             Enum.Parse<GeneratedPolicyStatus>(entity.Status),
+            entity.ApprovedByUserId,
+            entity.ApprovedAt,
+            entity.ReviewDueAt,
+            entity.EvidenceItemId,
             ReadDictionary(entity.PlaceholderValuesJson),
             ReadArray<string>(entity.MissingPlaceholdersJson),
             entity.CreatedAt,
             entity.UpdatedAt);
+
+    private static PolicyRevisionDto ToDto(PolicyRevisionEntity entity) =>
+        new(
+            entity.Id,
+            entity.GeneratedPolicyId,
+            entity.Title,
+            entity.Body,
+            Enum.Parse<GeneratedPolicyStatus>(entity.Status),
+            entity.PreservedAt,
+            entity.PreservedByUserId);
+
+    private void PreserveRevision(GeneratedPolicyEntity entity, Guid actorUserId)
+    {
+        dbContext.PolicyRevisions.Add(new PolicyRevisionEntity
+        {
+            Id = Guid.NewGuid(),
+            GeneratedPolicyId = entity.Id,
+            Title = entity.Title,
+            Body = entity.Body,
+            Status = entity.Status,
+            PreservedAt = DateTimeOffset.UtcNow,
+            PreservedByUserId = actorUserId
+        });
+    }
 
     private static Dictionary<string, string> BuildPlaceholderValues(CompanyProfileEntity? company)
     {
