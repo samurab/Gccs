@@ -1,11 +1,13 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 
 namespace Gccs.Application.Reports;
 
 public sealed class EvidencePackageReportService(
     IReportRepository repository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    TenantDataHandlingModePolicyService dataHandlingModePolicy)
 {
     public async Task<EvidencePackageReportDto> GenerateAsync(
         EvidencePackageGenerateRequest request,
@@ -13,6 +15,11 @@ public sealed class EvidencePackageReportService(
         bool includeDraftOrRejectedEvidence,
         CancellationToken cancellationToken = default)
     {
+        await dataHandlingModePolicy.EnsureAllowedAsync(
+            new TenantDataHandlingModePolicyRequest(TenantDataHandlingWorkflow.Report, ContainsRealCui: false),
+            actorUserId,
+            cancellationToken);
+
         var report = await repository.GenerateEvidencePackageAsync(
             request,
             actorUserId,

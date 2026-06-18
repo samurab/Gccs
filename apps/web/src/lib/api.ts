@@ -1868,7 +1868,8 @@ export async function createEvidenceUploadIntent(file: File): Promise<ApiMutatio
   return postJsonResult<EvidenceUploadIntent>(`/api/evidence-items/${placeholderEvidenceItemId}/upload-intents`, {
     fileName: file.name,
     contentType: file.type || "application/octet-stream",
-    sizeBytes: file.size
+    sizeBytes: file.size,
+    containsPotentialCui: false
   });
 }
 

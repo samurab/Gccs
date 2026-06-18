@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Gccs.Application.Audit;
 using Gccs.Application.Security;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -232,6 +233,11 @@ public static class ApiSecurityExtensions
                         "User context required",
                         "A valid authenticated user context is required for this API request.",
                         "invalid_user_context"),
+                    TenantDataHandlingModeRestrictedException modeRestriction => (
+                        StatusCodes.Status403Forbidden,
+                        "Tenant data handling mode restricted",
+                        modeRestriction.Message,
+                        "tenant_data_handling_mode_restricted"),
                     _ => (
                         StatusCodes.Status500InternalServerError,
                         "API request failed",
@@ -240,7 +246,21 @@ public static class ApiSecurityExtensions
                 };
 
                 await ApiProblemDetails
-                    .Create(context, title, detail, statusCode, errorCode)
+                    .Create(
+                        context,
+                        title,
+                        detail,
+                        statusCode,
+                        errorCode,
+                        exception is TenantDataHandlingModeRestrictedException restriction
+                            ? new Dictionary<string, object?>
+                            {
+                                ["mode"] = restriction.Mode.ToString(),
+                                ["workflow"] = restriction.Workflow.ToString(),
+                                ["entityType"] = restriction.EntityType,
+                                ["entityId"] = restriction.EntityId
+                            }
+                            : null)
                     .ExecuteAsync(context);
             });
         });

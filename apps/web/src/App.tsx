@@ -1592,6 +1592,7 @@ export function App() {
               contractStatus={contractStatus}
               noCuiAcknowledgement={noCuiAcknowledgement}
               selectedContractId={selectedContractId}
+              tenantDataHandlingMode={currentTenant?.dataHandlingMode ?? "NoCui"}
               onDeleteDocument={handleContractDocumentDelete}
               onChangeClauseCandidateReviewStatusFilter={setClauseCandidateReviewStatusFilter}
               onStartExtraction={handleStartContractDocumentExtraction}
@@ -2889,6 +2890,7 @@ function ContractsView({
   contractStatus,
   noCuiAcknowledgement,
   selectedContractId,
+  tenantDataHandlingMode,
   onDeleteDocument,
   onChangeClauseCandidateReviewStatusFilter,
   onStartExtraction,
@@ -2919,6 +2921,7 @@ function ContractsView({
   contractStatus: "idle" | "saving" | "saved" | "failed";
   noCuiAcknowledgement: NoCuiAcknowledgementStatus;
   selectedContractId: string | null;
+  tenantDataHandlingMode: string;
   onDeleteDocument: (contractId: string, documentId: string) => Promise<void>;
   onChangeClauseCandidateReviewStatusFilter: (reviewStatus: string) => void;
   onStartExtraction: (contractId: string, documentId: string) => Promise<void>;
@@ -3074,6 +3077,7 @@ function ContractsView({
           canManageContracts={canManageContracts}
           contractStatus={contractStatus}
           selectedContract={selectedContract}
+          tenantDataHandlingMode={tenantDataHandlingMode}
           onSave={onSave}
         />
 
@@ -3475,14 +3479,20 @@ function ContractEditor({
   canManageContracts,
   contractStatus,
   selectedContract,
+  tenantDataHandlingMode,
   onSave
 }: {
   canManageContracts: boolean;
   contractStatus: "idle" | "saving" | "saved" | "failed";
   selectedContract: ContractRecord | null;
+  tenantDataHandlingMode: string;
   onSave: (contractId: string | null, request: UpsertContractRequest) => Promise<void>;
 }) {
   const [form, setForm] = useState<ContractFormState>(() => contractToForm(selectedContract));
+  const isCuiReady = tenantDataHandlingMode === "CuiReady";
+  const realCuiModeMessage = isCuiReady
+    ? ""
+    : `${tenantDataHandlingMode} mode blocks real CUI, classified, and export-controlled contract records.`;
 
   function updateField<TKey extends keyof ContractFormState>(field: TKey, value: ContractFormState[TKey]) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -3560,11 +3570,12 @@ function ContractEditor({
             <select value={form.dataHandlingPosture} onChange={(event) => updateField("dataHandlingPosture", event.target.value)}>
               <option value="NoFciOrCui">No FCI/CUI</option>
               <option value="FciOnly">FCI only</option>
-              <option value="Cui">CUI</option>
-              <option value="Classified">Classified</option>
-              <option value="ExportControlled">Export-controlled</option>
+              <option value="Cui" disabled={!isCuiReady}>CUI</option>
+              <option value="Classified" disabled={!isCuiReady}>Classified</option>
+              <option value="ExportControlled" disabled={!isCuiReady}>Export-controlled</option>
             </select>
           </label>
+          {realCuiModeMessage ? <p className="form-status form-status--error span-2">{realCuiModeMessage}</p> : null}
           <label className="span-2">
             <span>Place of performance</span>
             <input value={form.placeOfPerformance} onChange={(event) => updateField("placeOfPerformance", event.target.value)} />

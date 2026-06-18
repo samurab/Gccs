@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<ContractService>();
         services.AddScoped<ContractSizeCheckService>();
         services.AddScoped<TenantService>();
+        services.AddScoped<TenantDataHandlingModePolicyService>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();

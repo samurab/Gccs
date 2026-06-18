@@ -53,7 +53,7 @@ public sealed class EvidenceRequestSubmissionReviewTests : IClassFixture<WebAppl
         Assert.Equal(EvidenceRequestStatus.Submitted, submitted.Status);
         Assert.Equal(ids.EvidenceItemId, submitted.SubmittedEvidenceItemId);
         Assert.Equal("Submitted policy.", submitted.SubmissionComment);
-        Assert.Equal(HttpStatusCode.BadRequest, cuiResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, cuiResponse.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, otherTenantResponse.StatusCode);
     }
 

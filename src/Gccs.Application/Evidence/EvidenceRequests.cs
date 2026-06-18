@@ -1,11 +1,13 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 
 namespace Gccs.Application.Evidence;
 
 public sealed class EvidenceRequestService(
     IEvidenceRequestRepository repository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    TenantDataHandlingModePolicyService dataHandlingModePolicy)
 {
     public Task<IReadOnlyList<EvidenceRequestDashboardItemDto>> ListAsync(
         EvidenceRequestDashboardQuery query,
@@ -52,7 +54,14 @@ public sealed class EvidenceRequestService(
     {
         if (request.ContainsPotentialCui)
         {
-            throw new EvidenceRequestValidationException("Potential CUI cannot be submitted in a No-CUI evidence request workflow.");
+            await dataHandlingModePolicy.EnsureAllowedAsync(
+                new TenantDataHandlingModePolicyRequest(
+                    TenantDataHandlingWorkflow.EvidenceSubmission,
+                    ContainsRealCui: true,
+                    EntityType: "EvidenceRequest",
+                    EntityId: requestId.ToString()),
+                actorUserId,
+                cancellationToken);
         }
 
         var updated = await repository.SubmitAsync(requestId, request, actorUserId, cancellationToken);

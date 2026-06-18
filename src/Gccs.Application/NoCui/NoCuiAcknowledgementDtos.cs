@@ -22,7 +22,8 @@ public sealed record AcknowledgeNoCuiRequest(
 public sealed record EvidenceUploadIntentRequest(
     string FileName,
     string ContentType,
-    long SizeBytes);
+    long SizeBytes,
+    bool ContainsPotentialCui = false);
 
 public sealed record EvidenceUploadIntentDto(
     Guid Id,

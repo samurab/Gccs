@@ -181,6 +181,25 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         return ToDocumentDto(document);
     }
 
+    public async Task<ContractDocumentDto?> FindDocumentInCurrentTenantAsync(
+        Guid contractId,
+        Guid documentId,
+        CancellationToken cancellationToken = default)
+    {
+        var document = await dbContext.Set<ContractDocumentEntity>()
+            .AsNoTracking()
+            .Include(item => item.Contract)
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == documentId &&
+                    item.ContractId == contractId &&
+                    item.Contract != null &&
+                    item.Contract.TenantId == tenantContext.TenantId,
+                cancellationToken);
+
+        return document is null ? null : ToDocumentDto(document);
+    }
+
     public async Task<ContractDocumentDto?> DeleteDocumentAsync(
         Guid contractId,
         Guid documentId,

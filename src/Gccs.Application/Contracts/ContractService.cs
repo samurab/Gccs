@@ -1,5 +1,6 @@
 using Gccs.Application.Audit;
 using Gccs.Application.NoCui;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
 using Gccs.Domain.Contracts;
@@ -12,6 +13,7 @@ public sealed partial class ContractService(
     IContractRepository repository,
     INoCuiAcknowledgementRepository noCuiAcknowledgementRepository,
     IAuditEventWriter auditEventWriter,
+    TenantDataHandlingModePolicyService dataHandlingModePolicy,
     IExtractionJobQueue extractionJobQueue,
     IContractDocumentTextExtractor textExtractor)
 {
@@ -43,6 +45,7 @@ public sealed partial class ContractService(
     {
         var normalized = Normalize(request);
         Validate(normalized);
+        await EnsureContractModeAllowedAsync(normalized, actorUserId, null, cancellationToken);
         var created = await repository.CreateCurrentTenantAsync(normalized, actorUserId, cancellationToken);
         await WriteAuditAsync(created, actorUserId, AuditAction.Created, cancellationToken);
         return created;
@@ -56,6 +59,7 @@ public sealed partial class ContractService(
     {
         var normalized = Normalize(request);
         Validate(normalized);
+        await EnsureContractModeAllowedAsync(normalized, actorUserId, contractId, cancellationToken);
         var updated = await repository.UpdateCurrentTenantAsync(contractId, normalized, actorUserId, cancellationToken);
 
         if (updated is not null)
@@ -83,6 +87,15 @@ public sealed partial class ContractService(
         }
 
         var normalized = NormalizeDocument(request);
+        await dataHandlingModePolicy.EnsureAllowedAsync(
+            new TenantDataHandlingModePolicyRequest(
+                TenantDataHandlingWorkflow.ContractDocumentUpload,
+                ContainsRealCui: normalized.ContainsPotentialCui,
+                EntityType: "ContractDocument",
+                EntityId: contractId.ToString()),
+            actorUserId,
+            cancellationToken);
+
         var validationErrors = ValidateDocumentUpload(normalized);
         if (validationErrors.Count > 0)
         {
@@ -150,6 +163,21 @@ public sealed partial class ContractService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        var document = await repository.FindDocumentInCurrentTenantAsync(contractId, documentId, cancellationToken);
+        if (document is null)
+        {
+            return null;
+        }
+
+        await dataHandlingModePolicy.EnsureAllowedAsync(
+            new TenantDataHandlingModePolicyRequest(
+                TenantDataHandlingWorkflow.ExtractionJob,
+                ContainsRealCui: document.ContainsPotentialCui,
+                EntityType: "ContractDocument",
+                EntityId: documentId.ToString()),
+            actorUserId,
+            cancellationToken);
+
         var job = await repository.CreateExtractionJobAsync(contractId, documentId, actorUserId, cancellationToken);
         if (job is null)
         {
@@ -215,6 +243,15 @@ public sealed partial class ContractService(
         {
             return null;
         }
+
+        await dataHandlingModePolicy.EnsureAllowedAsync(
+            new TenantDataHandlingModePolicyRequest(
+                TenantDataHandlingWorkflow.ExtractionJob,
+                ContainsRealCui: input.SourceDocument.ContainsPotentialCui,
+                EntityType: "ExtractionJob",
+                EntityId: extractionJobId.ToString()),
+            actorUserId,
+            cancellationToken);
 
         await repository.MarkExtractionJobProcessingAsync(extractionJobId, cancellationToken);
         var extraction = await textExtractor.ExtractTextAsync(input.SourceDocument, cancellationToken);
@@ -520,6 +557,27 @@ public sealed partial class ContractService(
         {
             Reason = request.Reason.Trim()
         };
+
+    private async Task EnsureContractModeAllowedAsync(
+        UpsertContractRequest request,
+        Guid actorUserId,
+        Guid? contractId,
+        CancellationToken cancellationToken)
+    {
+        var containsRealCui = request.DataHandlingPosture is
+            DataHandlingPosture.Cui or
+            DataHandlingPosture.Classified or
+            DataHandlingPosture.ExportControlled;
+
+        await dataHandlingModePolicy.EnsureAllowedAsync(
+            new TenantDataHandlingModePolicyRequest(
+                TenantDataHandlingWorkflow.ContractIntake,
+                containsRealCui,
+                EntityType: "Contract",
+                EntityId: contractId?.ToString()),
+            actorUserId,
+            cancellationToken);
+    }
 
     private static ClauseCandidateEditRequest NormalizeCandidateEdit(ClauseCandidateEditRequest request) =>
         request with
@@ -955,6 +1013,11 @@ public interface IContractRepository
         ContractDocumentUploadRequest request,
         Guid actorUserId,
         string noticeVersion,
+        CancellationToken cancellationToken = default);
+
+    Task<ContractDocumentDto?> FindDocumentInCurrentTenantAsync(
+        Guid contractId,
+        Guid documentId,
         CancellationToken cancellationToken = default);
 
     Task<ContractDocumentDto?> DeleteDocumentAsync(

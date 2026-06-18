@@ -1,5 +1,6 @@
 using Gccs.Application.Audit;
 using Gccs.Application.Security;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 
 namespace Gccs.Application.NoCui;
@@ -7,7 +8,8 @@ namespace Gccs.Application.NoCui;
 public sealed class NoCuiAcknowledgementService(
     INoCuiAcknowledgementRepository repository,
     ICurrentTenantContext tenantContext,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    TenantDataHandlingModePolicyService dataHandlingModePolicy)
 {
     public async Task<NoCuiAcknowledgementStatusDto> GetCurrentStatusAsync(
         CancellationToken cancellationToken = default)
@@ -89,6 +91,15 @@ public sealed class NoCuiAcknowledgementService(
             await AuditRejectedUploadIntentAsync(evidenceItemId, request, actorUserId, validationErrors, cancellationToken);
             throw new UploadGuardrailValidationException(validationErrors);
         }
+
+        await dataHandlingModePolicy.EnsureAllowedAsync(
+            new TenantDataHandlingModePolicyRequest(
+                TenantDataHandlingWorkflow.EvidenceUpload,
+                ContainsRealCui: request.ContainsPotentialCui,
+                EntityType: "EvidenceItem",
+                EntityId: evidenceItemId.ToString()),
+            actorUserId,
+            cancellationToken);
 
         var uploadIntent = new EvidenceUploadIntentDto(
             Guid.NewGuid(),
