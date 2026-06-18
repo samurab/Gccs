@@ -1,0 +1,46 @@
+{
+  "notices": [
+    {
+      "noticeId": "demo-sandbox-general",
+      "version": "2026.06.phase1a",
+      "mode": "DemoSandbox",
+      "workflowContexts": ["Onboarding", "EvidenceUpload", "ContractIntake", "ReportGeneration", "Support"],
+      "title": "Demo Sandbox Data Handling Notice",
+      "body": "DemoSandbox mode is for synthetic demonstration and test data only. Do not upload real customer CUI, classified information, export-controlled technical data, payroll data, secrets, or production contract evidence.",
+      "state": "Published",
+      "owner": "GCCS Product Owner",
+      "reviewer": "GCCS Security Owner",
+      "reviewedAt": "2026-06-18",
+      "effectiveAt": "2026-06-18",
+      "sourceReference": "Phase 1A customer-facing data handling notices"
+    },
+    {
+      "noticeId": "no-cui-general",
+      "version": "2026.06.phase1a",
+      "mode": "NoCui",
+      "workflowContexts": ["Onboarding", "EvidenceUpload", "ContractIntake", "ReportGeneration", "Support"],
+      "title": "No-CUI Data Handling Notice",
+      "body": "NoCui mode is compliance management only. Real customer CUI upload is prohibited, along with classified information, export-controlled technical data, payroll data, secrets, private keys, and other prohibited sensitive content.",
+      "state": "Published",
+      "owner": "GCCS Product Owner",
+      "reviewer": "GCCS Security Owner",
+      "reviewedAt": "2026-06-18",
+      "effectiveAt": "2026-06-18",
+      "sourceReference": "Phase 1A customer-facing data handling notices"
+    },
+    {
+      "noticeId": "cui-ready-general",
+      "version": "2026.06.phase1a",
+      "mode": "CuiReady",
+      "workflowContexts": ["Onboarding", "EvidenceUpload", "ContractIntake", "ReportGeneration", "Support"],
+      "title": "CUI-Ready Data Handling Notice",
+      "body": "CuiReady mode permits CUI handling only in approved tenant workflows after CUI-ready approval. Customers remain responsible for classification decisions, shared responsibility matrix obligations, contract-specific handling rules, and downstream export or deletion decisions.",
+      "state": "Published",
+      "owner": "GCCS Product Owner",
+      "reviewer": "GCCS Security Owner",
+      "reviewedAt": "2026-06-18",
+      "effectiveAt": "2026-06-18",
+      "sourceReference": "Phase 1A customer-facing data handling notices"
+    }
+  ]
+}

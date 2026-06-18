@@ -3598,6 +3598,33 @@ api.MapGet("/shared-responsibility-matrix/published", async (
 .RequirePermission(Permission.ManageTenant)
 .WithName("GetPublishedSharedResponsibilityMatrix");
 
+api.MapGet("/data-handling-notices/published", async (
+    [FromQuery] TenantDataPosture mode,
+    [FromQuery] string workflowContext,
+    DataHandlingNoticeService service,
+    IWebHostEnvironment environment,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+        var notice = await service.GetPublishedAsync(packageRoot, mode, workflowContext, cancellationToken);
+        return notice is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "No published data handling notice matched the mode and workflow context.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(notice);
+    }
+    catch (DataHandlingNoticeValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["dataHandlingNotice"] = exception.Errors.Count > 0 ? exception.Errors.ToArray() : [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("GetPublishedDataHandlingNotice");
+
 api.MapGet("/tenants/{tenantId:guid}/shared-responsibility-matrix/acknowledgements", async (
     Guid tenantId,
     SharedResponsibilityMatrixService matrixService,

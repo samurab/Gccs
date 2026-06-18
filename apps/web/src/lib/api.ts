@@ -205,6 +205,21 @@ export type AcknowledgeSharedResponsibilityMatrixRequest = {
   acknowledged: boolean;
 };
 
+export type DataHandlingNotice = {
+  noticeId: string;
+  version: string;
+  mode: "DemoSandbox" | "NoCui" | "CuiReady" | string;
+  workflowContexts: string[];
+  title: string;
+  body: string;
+  state: string;
+  owner: string;
+  reviewer: string;
+  reviewedAt: string;
+  effectiveAt: string;
+  sourceReference: string;
+};
+
 export type NotificationCenterItem = {
   id: string;
   tenantId: string;
@@ -1356,6 +1371,13 @@ export async function getSharedResponsibilityMatrixAcknowledgements(
   return getJson<SharedResponsibilityMatrixAcknowledgement[]>(
     `/api/tenants/${tenantId}/shared-responsibility-matrix/acknowledgements`,
     []
+  );
+}
+
+export async function getPublishedDataHandlingNotice(mode: string, workflowContext: string): Promise<DataHandlingNotice | null> {
+  return getJson<DataHandlingNotice | null>(
+    `/api/data-handling-notices/published?mode=${encodeURIComponent(mode)}&workflowContext=${encodeURIComponent(workflowContext)}`,
+    null
   );
 }
 

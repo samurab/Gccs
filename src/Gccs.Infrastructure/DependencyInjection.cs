@@ -65,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<CuiReadyApprovalChecklistService>();
         services.AddScoped<SharedResponsibilityMatrixService>();
         services.AddScoped<SharedResponsibilityMatrixAcknowledgementService>();
+        services.AddScoped<DataHandlingNoticeService>();
         services.AddScoped<TenantDataHandlingModePolicyService>();
         services.AddScoped<ContentClassificationPolicy>();
         services.AddScoped<ContentClassificationReviewService>();
@@ -72,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<DemoTenantSeedService>();
         services.AddSingleton<ISyntheticDemoDatasetRepository, FileSyntheticDemoDatasetRepository>();
         services.AddSingleton<ISharedResponsibilityMatrixRepository, FileSharedResponsibilityMatrixRepository>();
+        services.AddSingleton<IDataHandlingNoticeRepository, FileDataHandlingNoticeRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
