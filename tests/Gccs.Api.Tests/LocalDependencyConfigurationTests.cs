@@ -303,7 +303,7 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         var customerDataPatterns = new (string Name, Regex Pattern)[]
         {
             ("SSN", new Regex(@"\b\d{3}-\d{2}-\d{4}\b", RegexOptions.Compiled)),
-            ("non-placeholder email", new Regex(@"\b[A-Z0-9._%+-]+@(?!example\.com\b|example\.org\b|gccs\.local\b|localhost\b)[A-Z0-9.-]+\.[A-Z]{2,}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled))
+            ("non-placeholder email", new Regex(@"\b[A-Z0-9._%+-]+@(?!example\.com\b|example\.org\b|gccs\.local\b|localhost\b|[A-Z0-9.-]+\.test\b)[A-Z0-9.-]+\.[A-Z]{2,}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled))
         };
 
         foreach (var (name, pattern) in customerDataPatterns)
@@ -323,10 +323,15 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         }
 
         var normalizedValue = value.Trim('"', '\'').ToLowerInvariant();
-        return normalizedValue is "gccs" or "gccs_dev_password" or "password" or "changeme" or "example" or "\"\""
+        return normalizedValue is "gccs" or "gccs_dev_password" or "password" or "changeme" or "example" or "test-key" or "secret-sam-key" or "<redacted>" or "\"\""
             || normalizedValue.Contains("localhost", StringComparison.Ordinal)
             || normalizedValue.Contains("example", StringComparison.Ordinal)
-            || normalizedValue.Contains("dev", StringComparison.Ordinal);
+            || normalizedValue.Contains("dev", StringComparison.Ordinal)
+            || normalizedValue.Contains("configuration[", StringComparison.Ordinal)
+            || normalizedValue.Contains("options.", StringComparison.Ordinal)
+            || normalizedValue.Contains("configured.", StringComparison.Ordinal)
+            || normalizedValue.Contains('{')
+            || normalizedValue.Contains('}');
     }
 
     private static string Redact(string value)

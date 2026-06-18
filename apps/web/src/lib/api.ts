@@ -395,7 +395,31 @@ export type ApplySubcontractorEntityLookupRequest = {
   selectedFields: string[];
 };
 
-export type UpsertSubcontractorRequest = Omit<Subcontractor, "id" | "tenantId" | "createdAt" | "updatedAt">;
+export type UpsertSubcontractorRequest = {
+  name: string;
+  uei: string | null;
+  cageCode: string | null;
+  status: string;
+  roleDescription: string;
+  smallBusinessStatus: string;
+  cmmcStatus: string;
+  insuranceExpiresAt: string | null;
+  ndaStatus: string;
+  workshareDescription: string;
+  worksharePercentage: number | null;
+  hasFciAccess: boolean;
+  hasCuiAccess: boolean;
+  hasExportControlledAccess: boolean;
+  requiredCmmcLevel: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  contactTitle: string | null;
+  contractIds: string[];
+  naicsCodes?: string[];
+  certifications?: string[];
+  ownerFunction?: string | null;
+};
 
 export type SubcontractorFlowDown = {
   id: string;
@@ -442,8 +466,10 @@ export type SubcontractorEvidenceRequest = {
 
 export type UpsertSubcontractorEvidenceRequestRequest = Omit<
   SubcontractorEvidenceRequest,
-  "id" | "tenantId" | "subcontractorId" | "isOverdue" | "completedAt" | "createdAt" | "updatedAt"
->;
+  "id" | "tenantId" | "subcontractorId" | "ownerFunction" | "isOverdue" | "completedAt" | "createdAt" | "updatedAt"
+> & {
+  ownerFunction?: string | null;
+};
 
 export type SupplierObligation = {
   id: string;

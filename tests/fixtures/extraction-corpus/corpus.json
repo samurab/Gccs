@@ -1,9 +1,22 @@
 {
   "schemaVersion": "1.0",
+  "corpusId": "gccs-extraction-content-test-set",
+  "corpusOwner": "QA Owner",
+  "benchmarkUse": "clause_extraction_precision_recall",
   "dataHandlingRules": {
     "allowedDataClasses": ["public", "synthetic", "approved_non_cui"],
     "prohibitedContent": ["cui", "classified", "export_controlled", "payroll", "personal_data", "secrets"],
-    "requiresNonCuiConfirmation": true
+    "requiresNonCuiConfirmation": true,
+    "customerDataAllowed": false,
+    "approvedNonCuiRequiresWrittenApproval": true,
+    "reviewCadence": "before_benchmark_use_and_after_material_label_changes"
+  },
+  "labelReviewWorkflow": {
+    "requiredStatusForBenchmark": "approved",
+    "allowedReviewers": ["QA Owner", "Compliance Content Owner"],
+    "requiresAnchorVerification": true,
+    "requiresDataHandlingVerification": true,
+    "reviewRecordFields": ["status", "reviewedBy", "reviewedAt", "notes"]
   },
   "documents": [
     {
@@ -13,9 +26,11 @@
       "labelFile": "labels/synthetic-dod-safeguarding-001.labels.json",
       "documentType": "purchase_order",
       "sourceFamily": "synthetic_dod",
+      "sourceReference": "GCCS-authored synthetic fixture",
       "contractType": "firm_fixed_price",
       "dataClass": "synthetic",
       "containsCui": false,
+      "approvedNonCuiBasis": "synthetic_content_created_for_tests",
       "limitations": [
         "Synthetic text for matcher evaluation only.",
         "No pricing, customer, employee, CUI, export-controlled, or classified content."
@@ -35,9 +50,11 @@
       "labelFile": "labels/public-far-labor-002.labels.json",
       "documentType": "solicitation_excerpt",
       "sourceFamily": "public_far",
+      "sourceReference": "Public FAR-style excerpt with public clause citations",
       "contractType": "service",
       "dataClass": "public",
       "containsCui": false,
+      "approvedNonCuiBasis": "public_source_family_no_customer_data",
       "limitations": [
         "Short public-style excerpt for citation and location evaluation.",
         "Not a complete solicitation."
@@ -48,6 +65,31 @@
         "reviewedBy": "Compliance Content Owner",
         "reviewedAt": "2026-06-18",
         "notes": "Public FAR clause citation labels reviewed for benchmark use."
+      }
+    },
+    {
+      "id": "approved-non-cui-flowdown-003",
+      "title": "Approved Non-CUI Subcontract Flow-Down Excerpt",
+      "file": "documents/approved-non-cui-flowdown-003.txt",
+      "labelFile": "labels/approved-non-cui-flowdown-003.labels.json",
+      "documentType": "subcontract_flowdown_excerpt",
+      "sourceFamily": "approved_non_cui_internal",
+      "sourceReference": "GCCS-approved non-CUI fixture derived from internal template language",
+      "contractType": "subcontract",
+      "dataClass": "approved_non_cui",
+      "containsCui": false,
+      "approvedNonCuiBasis": "QA approval confirms no customer, CUI, export-controlled, payroll, personal, secret, or classified content",
+      "limitations": [
+        "Approved non-CUI template excerpt for flow-down evaluation only.",
+        "Does not represent a complete subcontract or legal determination.",
+        "No customer contract data, CUI, export-controlled, classified, payroll, personal, or secret content."
+      ],
+      "approvedForBenchmark": true,
+      "labelReview": {
+        "status": "approved",
+        "reviewedBy": "QA Owner",
+        "reviewedAt": "2026-06-18",
+        "notes": "Approved non-CUI basis, source locations, titles, and flow-down indicators reviewed for benchmark use."
       }
     }
   ]

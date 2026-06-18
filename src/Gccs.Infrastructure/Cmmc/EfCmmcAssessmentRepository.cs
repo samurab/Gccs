@@ -33,9 +33,8 @@ public sealed class EfCmmcAssessmentRepository(
 
     public async Task<CmmcAssessmentDto?> FindCurrentTenantAsync(Guid assessmentId, CancellationToken cancellationToken = default)
     {
-        var assessment = await dbContext.Assessments
+        var assessment = await QueryCurrentTenant()
             .AsNoTracking()
-            .Where(candidate => candidate.TenantId == tenantContext.TenantId)
             .SingleOrDefaultAsync(candidate => candidate.Id == assessmentId, cancellationToken);
         return assessment is null ? null : await ToDtoAsync(assessment, cancellationToken);
     }

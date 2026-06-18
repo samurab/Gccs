@@ -1,6 +1,6 @@
 # GCCS - Government Contractor Compliance SaaS
 
-GCCS is a starter application for a govcon-specific compliance operating system for small U.S. government contractors. The MVP posture is **CUI-ready by design with gated CUI acceptance**: demos use synthetic or redacted CUI workflows, and real customer CUI is allowed only for explicitly approved CUI-ready tenants.
+GCCS is a starter application for a govcon-specific compliance operating system for small U.S. government contractors. The current MVP posture is **No-CUI / compliance management only**: users can manage compliance work, metadata, obligations, tasks, and evidence, but real customer CUI is prohibited until a future approved CUI-ready posture is implemented.
 
 ## Project Structure
 
@@ -179,4 +179,4 @@ ruby -ryaml -e 'doc = YAML.load_file("docs/api/openapi.yaml"); puts doc["openapi
 
 This application structure is product and engineering scaffolding, not legal advice. Production content should be reviewed by qualified government contracts, labor, cybersecurity, CMMC, or finance experts depending on module scope.
 
-The MVP is explicitly **CUI-ready by design with gated CUI acceptance**. Demo and sandbox tenants may show full CUI-aware workflows with synthetic or redacted data. Do not enable real customer CUI storage, classified data handling, ITAR/export-controlled technical data handling, or CUI-ready production claims for a tenant until the architecture, shared responsibility matrix, customer terms, support model, operating controls, and assessment posture are approved.
+The MVP is explicitly **No-CUI / compliance management only**. Do not add customer CUI storage, classified data handling, ITAR/export-controlled technical data handling, or CUI-ready production claims until a separate architecture, shared responsibility matrix, customer terms, support model, and assessment posture are approved. Upload workflows should warn users and keep them prevented from uploading CUI.

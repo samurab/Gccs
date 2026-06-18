@@ -6,8 +6,8 @@
       "title": "Service Contract Labor Standards",
       "flowDownRequired": false,
       "sourceLocation": {
-        "lineStart": 2,
-        "lineEnd": 2,
+        "lineStart": 4,
+        "lineEnd": 4,
         "textAnchor": "FAR 52.222-41"
       }
     },
@@ -16,8 +16,8 @@
       "title": "Prohibition on a ByteDance Covered Application",
       "flowDownRequired": false,
       "sourceLocation": {
-        "lineStart": 4,
-        "lineEnd": 4,
+        "lineStart": 6,
+        "lineEnd": 6,
         "textAnchor": "FAR 52.204-27"
       }
     }

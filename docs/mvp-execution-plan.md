@@ -1,6 +1,6 @@
 # MVP Execution Plan
 
-This artifact turns the product strategy into a launch plan for a CUI-ready MVP with gated CUI acceptance.
+This artifact turns the product strategy into a launch plan for a No-CUI / compliance management only MVP. CUI-ready posture is deferred to a future approved sprint.
 
 ## Launch Gates
 
@@ -154,7 +154,7 @@ The test set should measure clause extraction precision, clause extraction recal
 
 ## Release Readiness Checklist
 
-- CUI-ready gated positioning reviewed across product, docs, support, and sales copy.
+- No-CUI positioning reviewed across product, docs, support, and sales copy, with users prevented from uploading CUI.
 - Tenant isolation and RBAC tests pass.
 - Upload restrictions and audit logs verified.
 - Obligation content has required source and review metadata.

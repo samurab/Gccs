@@ -76,6 +76,51 @@ GCCS is a CUI-ready govcon compliance management SaaS for small U.S. federal con
     - [Story 17.2: Security And Tenant Isolation Verification](#story-172-security-and-tenant-isolation-verification)
     - [Story 17.3: Staging Environment](#story-173-staging-environment)
     - [Story 17.4: Production Readiness Checklist](#story-174-production-readiness-checklist)
+18. [Automated Clause Extraction](#18-automated-clause-extraction)
+    - [Story 18.1: Extraction Job Intake](#story-181-extraction-job-intake)
+    - [Story 18.2: Text Extraction And Clause Candidate Detection](#story-182-text-extraction-and-clause-candidate-detection)
+    - [Story 18.3: Extraction Results Review Screen](#story-183-extraction-results-review-screen)
+19. [Human Review Workflow](#19-human-review-workflow)
+    - [Story 19.1: Review States For Extracted Clauses](#story-191-review-states-for-extracted-clauses)
+    - [Story 19.2: AI-Suggested Obligation Review](#story-192-ai-suggested-obligation-review)
+    - [Story 19.3: Expert Escalation Queue](#story-193-expert-escalation-queue)
+20. [Clause Library Expansion](#20-clause-library-expansion)
+    - [Story 20.1: Versioned Clause Records](#story-201-versioned-clause-records)
+    - [Story 20.2: Clause Search And Discovery](#story-202-clause-search-and-discovery)
+    - [Story 20.3: Clause-To-Obligation Mapping](#story-203-clause-to-obligation-mapping)
+21. [Applicability Engine](#21-applicability-engine)
+    - [Story 21.1: Applicability Facts Model](#story-211-applicability-facts-model)
+    - [Story 21.2: Rule Evaluation](#story-212-rule-evaluation)
+    - [Story 21.3: Obligation Applicability Updates](#story-213-obligation-applicability-updates)
+22. [SAM.gov Entity Lookup](#22-samgov-entity-lookup)
+    - [Story 22.1: SAM.gov API Configuration](#story-221-samgov-api-configuration)
+    - [Story 22.2: Company Entity Lookup](#story-222-company-entity-lookup)
+    - [Story 22.3: Subcontractor Entity Lookup](#story-223-subcontractor-entity-lookup)
+23. [SBA Size Helper](#23-sba-size-helper)
+    - [Story 23.1: Size Standard Reference Data](#story-231-size-standard-reference-data)
+    - [Story 23.2: Company Size Evaluation Helper](#story-232-company-size-evaluation-helper)
+    - [Story 23.3: Opportunity NAICS Size Check](#story-233-opportunity-naics-size-check)
+24. [Subcontractor Tracker Expansion](#24-subcontractor-tracker-expansion)
+    - [Story 24.1: Expanded Subcontractor Compliance Profile](#story-241-expanded-subcontractor-compliance-profile)
+    - [Story 24.2: Subcontractor Risk Status](#story-242-subcontractor-risk-status)
+    - [Story 24.3: Contract-Specific Subcontractor Obligations](#story-243-contract-specific-subcontractor-obligations)
+25. [Policy Templates](#25-policy-templates)
+    - [Story 25.1: Approved Template Library](#story-251-approved-template-library)
+    - [Story 25.2: Generate Draft Policy From Template](#story-252-generate-draft-policy-from-template)
+    - [Story 25.3: Policy Approval And Evidence Linking](#story-253-policy-approval-and-evidence-linking)
+26. [Evidence Request Workflows](#26-evidence-request-workflows)
+    - [Story 26.1: Evidence Request Creation](#story-261-evidence-request-creation)
+    - [Story 26.2: Evidence Submission And Review](#story-262-evidence-submission-and-review)
+    - [Story 26.3: Evidence Request Dashboard](#story-263-evidence-request-dashboard)
+27. [CMMC Level 2 Readiness Expansion](#27-cmmc-level-2-readiness-expansion)
+    - [Story 27.1: Level 2 Control Assessment Detail](#story-271-level-2-control-assessment-detail)
+    - [Story 27.2: Responsibility Matrix](#story-272-responsibility-matrix)
+    - [Story 27.3: Readiness Gap Prioritization](#story-273-readiness-gap-prioritization)
+    - [Story 27.4: Level 2 Readiness Report](#story-274-level-2-readiness-report)
+28. [Extraction Content Test Set](#28-extraction-content-test-set)
+    - [Story 28.1: Curated Test Document Set](#story-281-curated-test-document-set)
+    - [Story 28.2: Precision And Recall Evaluation](#story-282-precision-and-recall-evaluation)
+    - [Story 28.3: Extraction Regression Review](#story-283-extraction-regression-review)
 
 ## 1. Delivery Foundation
 
@@ -672,3 +717,386 @@ This story ensures launch cannot proceed until readiness checklist items are com
 It fits the project because GCCS operates in a regulated-market context where customer promises, data scope, content quality, security posture, support readiness, and rollback plans must be explicit.
 
 The value is disciplined release control. The team avoids launching with unclear limitations, unreviewed content, incomplete support paths, or untested rollback procedures.
+
+## 18. Automated Clause Extraction
+
+This sprint area starts the Phase 2 move from manual clause tagging toward assisted contract analysis. It lets GCCS accept an uploaded contract document, process it asynchronously, identify likely clause references, and present those results for human review before anything becomes authoritative.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 18.1 | Contract document detail extraction action, extraction job API/status model, background worker stub, and audit events. |
+| 18.2 | Extraction processing services, clause candidate data, job failure reasons, and candidate matching against the clause library. |
+| 18.3 | Contract document extraction results review screen with filters, candidate detail, and accept/reject/edit/link actions. |
+
+### Story 18.1: Extraction Job Intake
+
+This story lets an authorized user start a clause extraction job from an existing contract document. The job records tenant, source document, requester, status, timestamps, and failure reason, then hands processing to a background worker or queue stub.
+
+It fits the project by creating the operational doorway for automated clause extraction without blocking the user in the browser. GCCS already has contract documents and manual clause tagging; this story connects those pieces to an asynchronous processing workflow that later stories can expand.
+
+The value is workflow acceleration with control. Compliance managers can start analysis from the document they are already reviewing, while tenant scoping, RBAC, validation, and audit logging keep the action secure and traceable.
+
+### Story 18.2: Text Extraction And Clause Candidate Detection
+
+This story extracts text from supported non-CUI contract files and detects likely FAR, DFARS, agency supplement, and local clause references. It stores candidates with raw text, normalized citation, title when available, location metadata, confidence, match method, and links to known clause library records when confidence is high.
+
+It fits the project by turning uploaded contract material into reviewable structured data. Instead of asking users to find every clause manually, GCCS can surface likely matches while still respecting the CUI-ready gated upload posture and safe failure handling for unsupported or unreadable files.
+
+The value is reduced manual effort and fewer missed clauses. Users get a starting point for clause review, and the system preserves enough metadata to support later review, audit, measurement, and improvement.
+
+### Story 18.3: Extraction Results Review Screen
+
+This story gives users a screen for reviewing extracted clause candidates beside the source contract context. Users can filter candidates, inspect confidence and source location, accept or reject candidates, edit citations, or link candidates to clause library records.
+
+It fits the project by ensuring automated extraction remains human-supervised. Accepted candidates become reviewed contract clause links only after user action, while rejected candidates remain visible in extraction history for traceability.
+
+The value is trustworthy automation. GCCS speeds up clause tagging but does not silently convert machine-detected text into obligations without a review decision.
+
+## 19. Human Review Workflow
+
+This sprint area adds explicit governance around extracted clauses and AI-suggested obligations. It prevents unreviewed machine output from becoming customer-facing compliance guidance.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 19.1 | Extraction candidate review states, transition rules, review filters, reviewer metadata, and audit events. |
+| 19.2 | AI-suggested obligation review model and workflow, draft labels, dashboard/report exclusion rules, and source metadata. |
+| 19.3 | Expert review queue with escalation reasons, assignments, due dates, notifications, and resolution workflow. |
+
+### Story 19.1: Review States For Extracted Clauses
+
+This story adds formal review states for extracted clause candidates, including pending review, accepted, rejected, needs clarification, and superseded. It records reviewer, reviewed date, decision notes, decision reason, and audit events for state transitions.
+
+It fits the project by putting human judgment between extraction and obligation generation. GCCS can use automation to find likely clauses, but only accepted candidates should drive downstream contract clause links and obligations.
+
+The value is governance and risk reduction. Customers and internal reviewers can see what was accepted, rejected, or left unresolved, which helps avoid treating raw extraction output as authoritative.
+
+### Story 19.2: AI-Suggested Obligation Review
+
+This story models AI-suggested obligations separately from approved obligations. It stores generated summaries, proposed owners, required actions, evidence suggestions, source citations, confidence, prompt version, model identifier, retrieved source references, and review state.
+
+It fits the project by allowing GCCS to use AI as drafting support without weakening compliance content governance. Draft suggestions stay out of approved dashboards and reports until a qualified reviewer approves or revises them.
+
+The value is safer AI-assisted content creation. The team can speed up obligation drafting while preserving source citations, reviewer accountability, and customer-facing clarity that unreviewed content is draft-only.
+
+### Story 19.3: Expert Escalation Queue
+
+This story creates a queue for uncertain or high-risk clause and obligation decisions. Reviewers can escalate items with required reasons such as low confidence, conflicting sources, customer dispute, high-risk clause, or possible legal interpretation, then assign experts and track resolution.
+
+It fits the project by giving the compliance content process a place for hard decisions. Some extracted clauses and AI suggestions should not be approved by ordinary workflow alone, especially when the interpretation affects customer obligations or risk.
+
+The value is controlled escalation. High-risk decisions get owner, priority, due date, notification, and resolution metadata before they can become approved product content.
+
+## 20. Clause Library Expansion
+
+This sprint area strengthens the source-backed clause library so it can support extraction matching, obligation mapping, search, and traceable customer explanations.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 20.1 | Clause version model, lifecycle states, version history UI/API, curated import/update workflow, and audit events. |
+| 20.2 | Clause library search API and UI with citation, title, source family, obligation area, risk, and flow-down filters. |
+| 20.3 | Clause-to-obligation mapping model, approval workflow, mapping history, validation, and mapping edit/view UI. |
+
+### Story 20.1: Versioned Clause Records
+
+This story adds versioned clause records with citation, title, source URL, effective date, last reviewed date, review owner, status, and supersedes relationships. It preserves version history when clause records are created, updated, approved, deprecated, or superseded.
+
+It fits the project because compliance content changes over time. GCCS needs to know which clause version supported a match, mapping, obligation, report, or customer explanation.
+
+The value is traceability. Approved versions can power matching and mappings, while deprecated or superseded versions remain available for history without being selected by default for new work.
+
+### Story 20.2: Clause Search And Discovery
+
+This story improves clause library search by citation, normalized citation, title, source, keyword, obligation area, risk level, and flow-down relevance. It hides draft or under-review clauses from standard users unless they have content review permission.
+
+It fits the project by supporting both manual work and automated review. Users need to quickly find the right clause when tagging contracts, reviewing extracted candidates, or understanding why an obligation appears.
+
+The value is speed and confidence. Better search reduces incorrect clause selection and makes source-backed content easier to discover during contract intake and review.
+
+### Story 20.3: Clause-To-Obligation Mapping
+
+This story maps approved clause versions to obligation templates with trigger conditions, required actions, owner roles, evidence examples, reporting deadlines, flow-down requirements, risk level, confidence, expert review flag, and review metadata.
+
+It fits the project by connecting clause detection to the obligation dashboard. Once a clause is accepted for a contract, approved mappings define what practical work GCCS should generate for that customer.
+
+The value is consistency. The same approved clause mapping can generate repeatable, source-backed obligations across contracts while keeping drafts and unreviewed mappings out of customer-facing workflows.
+
+## 21. Applicability Engine
+
+This sprint area helps GCCS decide whether an obligation likely applies based on structured facts about the company, contract, clause, data type, labor context, and subcontractor relationships.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 21.1 | Applicability facts model, provenance metadata, unknown-value handling, validation, and fact definitions documentation. |
+| 21.2 | Deterministic rule format, evaluator service, result explanations, source rule metadata, and automated rule tests. |
+| 21.3 | Applicability reevaluation triggers, dashboard indicators, explanation panel, result history, and audit events. |
+
+### Story 21.1: Applicability Facts Model
+
+This story defines tenant-scoped facts used for applicability decisions, including company profile, NAICS, certifications, agency, contract type, role, place of performance, data type, labor category, clause, subcontractor role, and FCI/CUI indicators. Facts include provenance, source record, last updated date, and explicit unknown values.
+
+It fits the project by creating a consistent input layer for obligation logic. GCCS cannot reliably explain why something applies if it does not know which facts were used and where they came from.
+
+The value is explainable decision support. Unknowns are not silently treated as false, and every applicability decision can point back to the tenant data that drove it.
+
+### Story 21.2: Rule Evaluation
+
+This story adds a deterministic rule evaluator that checks applicability rules against structured facts and returns applicable, not applicable, needs review, or insufficient information. Results include explanation, source rule ID, facts used, confidence, effective date, and review metadata.
+
+It fits the project by turning curated content and tenant facts into repeatable workflow guidance. The evaluator supports FAR, DFARS, CMMC, SAM/SBA, and flow-down rule patterns without presenting unsupported legal conclusions.
+
+The value is more accurate obligation dashboards. Customers see why an obligation appears or why more information is needed, and QA can test rule behavior consistently.
+
+### Story 21.3: Obligation Applicability Updates
+
+This story reevaluates obligations when relevant facts change, such as company profile values, contract facts, clause mappings, data type, subcontractor details, or rule versions. It stores current and prior results and displays applicability indicators with explanation panels.
+
+It fits the project because compliance status is not static. A changed NAICS code, data-handling flag, subcontractor role, or clause mapping can change what the customer needs to do.
+
+The value is current guidance. GCCS keeps dashboards aligned with the latest tenant context and audits material changes when obligations move between applicable, not applicable, and needs review states.
+
+## 22. SAM.gov Entity Lookup
+
+This sprint area connects GCCS company and subcontractor records to official SAM.gov entity data, using secure configuration and explicit user-controlled application of retrieved fields.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 22.1 | SAM.gov configuration, infrastructure adapter, service interface, diagnostics, safe errors, and secret-redaction behavior. |
+| 22.2 | Company profile SAM lookup form, result view, conflict confirmation, source metadata, and audit events. |
+| 22.3 | Subcontractor profile SAM lookup action, result handling, selected-field application, warnings, metadata, and audit events. |
+
+### Story 22.1: SAM.gov API Configuration
+
+This story configures SAM.gov lookup access with base URL, API key, timeout, retry policy, rate limit handling, service interface, infrastructure adapter, health diagnostics, and safe error behavior.
+
+It fits the project by introducing an external authoritative data source without leaking secrets or coupling business logic directly to the API provider. The adapter can be mocked in tests and replaced if the integration changes.
+
+The value is secure integration readiness. GCCS can use SAM.gov data while protecting API keys, avoiding sensitive log leakage, and giving users safe error messages when the external service is unavailable.
+
+### Story 22.2: Company Entity Lookup
+
+This story lets tenant admins search SAM.gov by UEI or legal business name, view matched legal name, UEI, CAGE, registration status, expiration date, address, and NAICS data, then explicitly apply selected fields to the company profile.
+
+It fits the project by strengthening the company compliance profile with source-backed registration context. The user remains in control, and existing profile values are not overwritten without confirmation.
+
+The value is cleaner onboarding and better profile accuracy. Customers can verify core registration information and preserve source, retrieved date, and applied-by metadata for auditability.
+
+### Story 22.3: Subcontractor Entity Lookup
+
+This story adds SAM.gov lookup to subcontractor profiles. Users can search by UEI or name, review entity status, UEI, CAGE, expiration, NAICS codes, and available status indicators, then apply selected fields to the current tenant's subcontractor record.
+
+It fits the project because supplier compliance tracking is stronger when subcontractor records start from official entity data. No-match and multiple-match cases are handled without changing existing records.
+
+The value is better subcontractor oversight. Teams can enrich supplier profiles with source metadata and reduce manual data entry while preserving tenant isolation and audit history.
+
+## 23. SBA Size Helper
+
+This sprint area adds source-backed SBA size standard reference data and guided size checks for company and opportunity workflows. It is decision support, not a final legal determination.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 23.1 | SBA size standard reference data model, import workflow, review states, validation, and audit events. |
+| 23.2 | Company profile size evaluation helper with NAICS, receipts/employee inputs, result labels, disclaimers, and saved history. |
+| 23.3 | Contract/opportunity NAICS size check action, result history, missing-data handling, expert-review task creation, and audit events. |
+
+### Story 23.1: Size Standard Reference Data
+
+This story defines and imports SBA size standard reference data with NAICS code, size metric, threshold, source URL, effective date, last reviewed date, status, owner, and review metadata. Only approved records feed customer-facing helper results.
+
+It fits the project by giving the size helper a governed content foundation. Because SBA size standards affect small-business status workflows, the data must be source-backed, reviewed, and version-aware.
+
+The value is defensible reference data. GCCS can support size-related workflows without relying on stale spreadsheets or unreviewed database edits.
+
+### Story 23.2: Company Size Evaluation Helper
+
+This story lets users select NAICS codes, enter annual receipts or employee range information, compare against approved size standards, and receive labels such as likely small, other than small, insufficient information, or expert review recommended.
+
+It fits the project by connecting the company compliance profile to practical SBA readiness checks. Results include source context, disclaimers, tenant scope, and saved metadata when users choose to store them.
+
+The value is clearer self-assessment support. Customers can identify likely gaps or uncertainties before bidding, renewing profile data, or discussing size status with advisors.
+
+### Story 23.3: Opportunity NAICS Size Check
+
+This story adds a contract or opportunity-level size check that compares the opportunity NAICS code against company inputs and approved size standards. It shows missing data, source-backed results, evaluation history, and can create expert review tasks.
+
+It fits the project because size status is often opportunity-specific. A company may be small under one NAICS code and not under another, so the check belongs close to contract and opportunity intake.
+
+The value is bid-readiness support. Customers can spot size-standard concerns early and create follow-up work before relying on a risky assumption.
+
+## 24. Subcontractor Tracker Expansion
+
+This sprint area broadens subcontractor tracking from basic profiles and flow-downs into a richer supplier compliance workspace.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 24.1 | Expanded subcontractor profile fields, validation, completeness indicator, filters, and sensitive-change audit events. |
+| 24.2 | Subcontractor risk calculation rules, risk drivers, recalculation triggers, list/detail indicators, and tests. |
+| 24.3 | Contract-specific subcontractor obligation links, accepted-flow-down bulk creation, supplier obligation status fields, and audit events. |
+
+### Story 24.1: Expanded Subcontractor Compliance Profile
+
+This story adds richer subcontractor fields: UEI, CAGE, NAICS, small-business status, certifications, insurance expiration, NDA status, CUI access, export-control status, CMMC level/status, workshare percentage, and responsible owner. It also adds validation, completeness indicators, filters, and audit events.
+
+It fits the project by making subcontractor records useful for real compliance tracking, not just contact storage. Supplier obligations often depend on data access, certifications, flow-downs, insurance, CMMC posture, and workshare.
+
+The value is better supplier visibility. Users can see which subcontractor profiles are complete, filter for expiring or risky data, and preserve history for sensitive changes.
+
+### Story 24.2: Subcontractor Risk Status
+
+This story calculates subcontractor risk from documented signals such as missing flow-downs, expired insurance, missing NDA, CUI access without CMMC status, overdue evidence, SAM status, and unresolved expert review. It shows low, medium, high, or needs review with visible risk drivers.
+
+It fits the project by helping teams prioritize subcontractor follow-up. GCCS already tracks many supplier signals; this story turns them into an operational risk view.
+
+The value is focused action. Compliance managers can quickly identify suppliers that need attention and understand why the system flagged them.
+
+### Story 24.3: Contract-Specific Subcontractor Obligations
+
+This story links subcontractors to specific contracts, flow-down clauses, obligations, and evidence requests. Supplier obligations show owner, due date, status, and required evidence, with bulk creation from accepted flow-down clauses only.
+
+It fits the project because subcontractor compliance is contract-specific. A supplier may have different flow-downs and evidence needs depending on the contract, data involved, and accepted clauses.
+
+The value is stronger flow-down management. Customers can track supplier requirements in the same contract context as prime obligations and avoid losing subcontractor work in separate spreadsheets.
+
+## 25. Policy Templates
+
+This sprint area gives customers approved policy templates that can be tailored from tenant context, reviewed, and linked as evidence without presenting draft text as final compliance advice.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 25.1 | Template library model, lifecycle states, placeholders, source references, preview/version history, and audit events. |
+| 25.2 | Draft policy generation workflow, placeholder population, missing-value flags, draft storage, and edit/save screen. |
+| 25.3 | Tenant policy approval states, revision history, obligation/control/evidence links, report inclusion, and audit events. |
+
+### Story 25.1: Approved Template Library
+
+This story creates a governed template library with title, category, body, placeholders, source references, version, lifecycle status, owner, last reviewed date, expert review flag, preview, and version history. Approval requires source and review metadata.
+
+It fits the project by supporting repeatable policy drafting while keeping content governance intact. Standard users see approved templates, while draft and deprecated templates remain controlled by reviewer permissions.
+
+The value is reusable, reviewed starting material. Customers can begin policies from source-backed templates instead of blank pages, and the team can manage template versions responsibly.
+
+### Story 25.2: Generate Draft Policy From Template
+
+This story lets users generate draft policies from approved templates. Placeholders are populated from company, contract, obligation, and CMMC context where available, missing values are flagged, and the generated policy stores the source template version and generation date.
+
+It fits the project by connecting compliance content to tenant-specific work products. The generated output is useful immediately but remains draft until tenant approval.
+
+The value is faster policy preparation. Customers can tailor policies with less manual copying while preserving source, version, and draft status.
+
+### Story 25.3: Policy Approval And Evidence Linking
+
+This story adds tenant-level approval, rejection, revision, approver metadata, review dates, expiration dates, and links between approved policies, obligations, CMMC controls, evidence packages, and reports.
+
+It fits the project because approved policies often serve as evidence for obligations and controls. GCCS needs a way to distinguish draft policies from approved evidence-ready records.
+
+The value is evidence reuse and lifecycle control. Customers can link approved policies to the compliance work they support while preserving revisions and audit history.
+
+## 26. Evidence Request Workflows
+
+This sprint area turns the evidence vault into an active collection workflow. Users can request, submit, review, return, accept, remind, and report on evidence tied to obligations, controls, contracts, and subcontractors.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 26.1 | Evidence request model, create workflows from supported records, validation, assignment notifications, and audit events. |
+| 26.2 | Evidence submission and review workflow, request statuses, reviewer comments, accepted evidence linking, and notifications. |
+| 26.3 | Evidence request dashboard with filters, overdue logic, bulk reminders, role-aware views, and export/report section. |
+
+### Story 26.1: Evidence Request Creation
+
+This story lets authorized users create evidence requests tied to obligations, controls, contracts, subcontractors, or evidence vault context. Requests include requester, assignee, related record, due date, status, instructions, required evidence type, priority, assignment notification, and audit event.
+
+It fits the project by moving evidence collection from passive upload to managed workflow. GCCS can tell users not only what evidence is needed, but who needs to provide it and by when.
+
+The value is accountability. Each evidence need has context, owner, due date, and tenant-safe assignment boundaries.
+
+### Story 26.2: Evidence Submission And Review
+
+This story lets assignees submit existing evidence or new allowed uploads, then lets reviewers accept or return submissions with comments. It manages statuses such as open, submitted, accepted, returned, overdue, and canceled, and links accepted evidence to the related requirement.
+
+It fits the project by closing the loop between request and proof. Upload guardrails and tenant scope still apply, so the evidence workflow does not bypass data-handling controls.
+
+The value is quality control. Requesters can review whether submitted evidence actually satisfies the requirement before it becomes accepted proof.
+
+### Story 26.3: Evidence Request Dashboard
+
+This story adds a dashboard for tracking evidence requests by status, due date, assignee, related record type, priority, subcontractor, and overdue state. It supports bulk reminders, export/report output, and role-aware views for requesters, assignees, auditors, and advisors.
+
+It fits the project by giving compliance managers a working queue for evidence collection. Evidence requests across obligations, controls, contracts, and suppliers become visible in one place.
+
+The value is operational control. Teams can see what is overdue, what is waiting for review, and where reminders are needed without manually reconciling records.
+
+## 27. CMMC Level 2 Readiness Expansion
+
+This sprint area deepens the CMMC workspace for DoD suppliers by adding richer Level 2 assessment detail, shared responsibility tracking, gap prioritization, and readiness reporting.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 27.1 | Level 2 control detail UI/API, assessment/evidence/responsibility fields, status history, validation, and audit events. |
+| 27.2 | Responsibility matrix view/export with organization, MSP/ESP, cloud provider, subcontractor, and shared responsibility fields. |
+| 27.3 | Gap priority rules, CMMC dashboard prioritized gaps, reason codes, POA&M/task creation, and recalculation tests. |
+| 27.4 | Level 2 readiness report sections, source/control version metadata, draft-only language checks, export, and audit events. |
+
+### Story 27.1: Level 2 Control Assessment Detail
+
+This story expands Level 2 controls with assessment objective status, implementation status, evidence status, inherited responsibility, external service provider responsibility, notes, assessment date, assessor, status history, validation, and audit logging.
+
+It fits the project by moving CMMC Level 2 tracking beyond a simple checklist. Readiness work needs detail about implementation, evidence, responsibility, and assessment history.
+
+The value is assessment preparation. Security owners and advisors can see what is implemented, what evidence exists, who assessed it, and how the record changed over time.
+
+### Story 27.2: Responsibility Matrix
+
+This story creates a responsibility matrix for Level 2 controls, covering the organization, MSP/ESP, cloud provider, subcontractor, and shared responsibility. It links responsibilities to controls and evidence requests and supports grouped views and export.
+
+It fits the project because CMMC customers often rely on external service providers, cloud providers, or subcontractors. GCCS needs to make responsibility explicit instead of leaving it buried in notes.
+
+The value is shared-responsibility clarity. Customers can review who owns each control, identify missing provider details, and export the matrix for advisors or MSPs.
+
+### Story 27.3: Readiness Gap Prioritization
+
+This story calculates Level 2 gap priorities from control status, evidence status, due dates, risk level, CUI relevance, inherited responsibility, and assessment objective coverage. It shows reason codes and lets users create POA&M items or tasks from gaps.
+
+It fits the project by helping teams focus limited resources on the most important CMMC work. Not every gap has equal operational or assessment impact.
+
+The value is practical prioritization. Users can turn readiness gaps into assigned work and see why the system ranked an issue critical, high, medium, low, or needs review.
+
+### Story 27.4: Level 2 Readiness Report
+
+This story generates a Level 2 readiness report with control status, evidence status, gaps, POA&M items, responsibility matrix, source references, generated date, tenant, control version, and reviewer metadata. It uses draft-only readiness language and avoids pass/fail certification claims.
+
+It fits the project by giving customers and advisors a governed way to discuss CMMC progress. The report reflects tenant-scoped data and source context without implying an official assessment result.
+
+The value is executive and advisor communication. Customers can export a clear readiness package while preserving permissions, audit logging, and careful compliance language.
+
+## 28. Extraction Content Test Set
+
+This sprint area gives the extraction program a benchmark corpus and measurement process so automated clause detection can improve safely before customers rely on it.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 28.1 | Approved non-CUI test corpus structure, labels, metadata, label review workflow, and data handling documentation. |
+| 28.2 | Extraction evaluation runner, precision/recall metrics, false positive/false negative output, thresholds, and CI/scheduled reporting. |
+| 28.3 | Regression review workflow for missed clauses and false positives, classifications, follow-up tasks, resolution notes, and release summary. |
+
+### Story 28.1: Curated Test Document Set
+
+This story creates a test corpus using public, synthetic, redacted, or explicitly approved non-CUI documents. Each labeled document includes expected clause citations, locations when available, titles, flow-down indicators, metadata, known limitations, review workflow, and data handling rules.
+
+It fits the project by giving extraction testing a controlled source of truth. Clause extraction cannot be measured responsibly using ad hoc customer documents or unlabeled examples.
+
+The value is trustworthy evaluation. The team can test parser and matcher behavior against reviewed labels while preserving the product's data-handling posture.
+
+### Story 28.2: Precision And Recall Evaluation
+
+This story builds an evaluation runner that compares extracted candidates to expected labels and calculates precision, recall, false positives, false negatives, unmatched expected clauses, and threshold results. It produces machine-readable and human-readable output and can run in CI or on a schedule without customer data.
+
+It fits the project by turning extraction quality into a measurable release signal. As matching logic and the clause library evolve, the team needs objective metrics rather than anecdotal confidence.
+
+The value is regression visibility. Stakeholders can see whether extraction is improving, which clauses are missed, which extras are being detected, and whether release thresholds are met.
+
+### Story 28.3: Extraction Regression Review
+
+This story adds a workflow for reviewing missed clauses and false positives. Failures are classified as parser issue, matcher issue, library gap, label issue, source document quality, or expected limitation, with owner, status, resolution notes, follow-up tasks, traceability, and release summary output.
+
+It fits the project by connecting extraction metrics to corrective action. Measurement alone is not enough; GCCS needs a way to decide what failed, who owns the fix, and whether open issues affect release readiness.
+
+The value is continuous improvement. The extraction system becomes easier to govern, tune, and explain because every known failure can be tracked to a decision or follow-up task.

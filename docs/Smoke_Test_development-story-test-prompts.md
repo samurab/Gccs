@@ -856,6 +856,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 28. Extraction Content Test Set
 
 ### Story 28.1: Curated Test Document Set
+please perform smoke test on Story 28.1: Curated Test Document Set. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-28.1.1:** Verify test corpus contains only public, synthetic, or explicitly approved non-CUI documents.
@@ -866,6 +867,9 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 28.2: Precision And Recall Evaluation
+
+Story 28.2: Precision And Recall Evaluation
+please perform smoke test on Story 28.2: Precision And Recall Evaluation. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-28.2.1:** Verify evaluation runner produces precision, recall, false positive, and false negative metrics.
@@ -876,6 +880,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 28.3: Extraction Regression Review
+please perform smoke test on Story 28.3: Extraction Regression Review. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-28.3.1:** Verify each reviewed failure has a classification, owner, status, and resolution note.

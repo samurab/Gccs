@@ -1936,3 +1936,473 @@ A development story is done when:
 - Accessibility basics are checked for user-facing UI. ? ********* this will be handled later. So: not a blocker. Keep it as a follow-up hardening item.
 - Documentation, release notes, or content metadata are updated when behavior changes. ? ********* this will be handled later. So: not a blocker. Keep it as a follow-up hardening item.
 - Product owner or delegated reviewer accepts the story.? ********* this will be handled later. So: not a blocker. Keep it as a follow-up hardening item.
+
+## Phase 1A - CUI Readiness Gate Sequential Backlog
+
+Phase 1A is a readiness gate inside Phase 1. These processes must be delivered in sequence before any production tenant can upload real customer CUI. This backlog supplements the Phase 1 CUI, audit, evidence, contract intake, extraction, and release-readiness stories with the specific controls required by `docs/mvp-roadmap.md`.
+
+### Phase 1A Delivery Sequence
+
+| Sequence | Process | Primary Outcome |
+| --- | --- | --- |
+| 1A.1 | Tenant data handling modes | Every tenant has an enforced mode: `DemoSandbox`, `NoCui`, or `CuiReady`. |
+| 1A.2 | Data classification controls | Uploads, notes, reports, extraction jobs, and evidence carry required classification metadata and enforcement. |
+| 1A.3 | Synthetic CUI demo dataset | Demo workflows can show CUI-like scenarios without using real customer CUI. |
+| 1A.4 | CUI-ready tenant approval checklist | A tenant cannot enter `CuiReady` mode until required business, security, support, and approval checks are complete. |
+| 1A.5 | Shared responsibility matrix baseline | Customers and internal teams can see which party owns each CUI-relevant responsibility. |
+| 1A.6 | Customer-facing data handling notices | Users see accurate CUI and non-CUI handling notices in onboarding, upload, extraction, report, and support workflows. |
+| 1A.7 | CUI support escalation path | Accidental CUI upload, suspected CUI, and prohibited data incidents follow a documented triage workflow. |
+| 1A.8 | CUI audit event coverage | Mode changes, classification decisions, upload blocks, approvals, downloads, exports, and deletions are traceable. |
+| 1A.9 | Security readiness review | Tenant isolation, evidence storage, encryption, malware scanning, retention, backup, restore, admin access, and incident response are reviewed before approval. |
+
+## 1A.1 Tenant Data Handling Modes
+
+### Use Case
+
+As a security owner, I need each tenant to have an explicit data handling mode so that the platform can enforce whether the tenant may use only synthetic data, non-CUI data, or approved CUI-ready workflows.
+
+### User Stories
+
+#### Story 1A.1.1: Tenant Data Handling Mode Model
+
+As a platform admin, I want each tenant to have a data handling mode so that CUI controls can be enforced consistently across the application.
+
+Tasks:
+
+- Add tenant data handling modes: `DemoSandbox`, `NoCui`, and `CuiReady`.
+- Store current mode, effective date, reason, approving user, and approval record reference.
+- Add application service validation for mode changes.
+- Update tenant administration UI to display the current mode and mode history.
+- Add automated tests for valid and invalid mode transitions.
+
+Acceptance criteria:
+
+- Each tenant has exactly one active data handling mode.
+- New pilot tenants default to `NoCui` unless explicitly created as `DemoSandbox`.
+- `CuiReady` cannot be assigned without a completed approval checklist.
+- Mode changes persist actor, timestamp, reason, previous mode, and new mode.
+- Tenant data handling mode is available to upload, evidence, report, note, and extraction workflows.
+
+#### Story 1A.1.2: Mode-Based Workflow Enforcement
+
+As a compliance manager, I want the application to enforce tenant mode automatically so that users cannot bypass CUI restrictions from the UI or direct API calls.
+
+Tasks:
+
+- Add centralized policy checks for workflows that create, upload, classify, process, export, or delete tenant content.
+- Enforce mode checks server-side in contract intake, evidence, notes, reports, and extraction jobs.
+- Add shared API error response for mode-restricted actions.
+- Hide or disable restricted UI actions with mode-specific messaging.
+- Add integration tests that call protected APIs directly.
+
+Acceptance criteria:
+
+- `DemoSandbox` tenants can use seeded synthetic CUI examples but cannot upload real customer files marked as CUI.
+- `NoCui` tenants cannot create or process records classified as real CUI.
+- `CuiReady` tenants can use CUI workflows only when required classification and approval checks pass.
+- Direct API calls receive the same mode restrictions as UI actions.
+- Mode enforcement failures return a clear error and create an audit event.
+
+## 1A.2 Data Classification Controls
+
+### Use Case
+
+As a compliance manager, I need uploads, notes, reports, extraction jobs, and evidence to carry explicit data classification so that CUI handling is intentional, visible, and enforceable.
+
+### User Stories
+
+#### Story 1A.2.1: Classification Metadata Schema
+
+As a developer, I want a shared classification metadata schema so that every CUI-relevant object stores data handling facts consistently.
+
+Tasks:
+
+- Define classification values for `Unclassified`, `FCI`, `CUI`, `SyntheticCui`, `Prohibited`, and `Unknown`.
+- Add classification metadata to uploads, notes, reports, extraction jobs, evidence items, and related document records.
+- Capture classification source: user-selected, system-suggested, admin-reviewed, or imported demo seed.
+- Capture classification confidence, reviewer, review date, and reason when applicable.
+- Add validation for missing or incompatible classification fields.
+
+Acceptance criteria:
+
+- Classification metadata is required before content can be stored as active tenant content.
+- `CUI` classification is rejected for tenants that are not in `CuiReady` mode.
+- `SyntheticCui` classification is allowed only for approved demo or test data workflows.
+- `Unknown` classification blocks downstream processing until reviewed or reclassified.
+- Classification changes preserve previous value, new value, actor, timestamp, and reason.
+
+#### Story 1A.2.2: Classification UX And Review
+
+As a user, I want to classify content during normal work so that I can make data handling decisions before uploading or processing information.
+
+Tasks:
+
+- Add classification selectors and warnings to upload, note, evidence, report, and extraction job flows.
+- Add review state for items classified as `Unknown`, `CUI`, or `Prohibited`.
+- Add admin review queue for classification decisions.
+- Show classification badges on detail views, lists, and report generation screens.
+- Add tests for blocked, reviewed, and reclassified states.
+
+Acceptance criteria:
+
+- User must select or confirm classification before upload, note save, report generation, or extraction job creation.
+- Items classified as `Unknown` are visible in a review queue and cannot be used in reports or extraction jobs.
+- Items classified as `Prohibited` are blocked from use and routed to escalation.
+- Authorized reviewers can update classification with a reason.
+- Lists and detail views display the current classification for each classified item.
+
+## 1A.3 Synthetic CUI Demo Dataset
+
+### Use Case
+
+As a product owner, I need synthetic CUI workflow examples so that sales, training, testing, and demos can show realistic CUI handling without exposing real customer CUI.
+
+### User Stories
+
+#### Story 1A.3.1: Synthetic Dataset Definition
+
+As a compliance content owner, I want a reviewed synthetic CUI dataset so that demo content cannot be mistaken for real controlled information.
+
+Tasks:
+
+- Define synthetic company, contract, evidence, CMMC, subcontractor, and report examples.
+- Mark every demo record with `SyntheticCui` classification and demo dataset version.
+- Add visible synthetic data labels to demo content.
+- Review sample text to remove real customer, government-sensitive, export-controlled, classified, or proprietary data.
+- Document dataset purpose, limitations, owner, and review date.
+
+Acceptance criteria:
+
+- Synthetic dataset contains no real customer CUI, classified data, export-controlled technical data, or customer proprietary information.
+- Every seeded synthetic record is tagged with `SyntheticCui` and dataset version.
+- Demo UI views identify synthetic examples as synthetic.
+- Dataset metadata includes owner, source basis, review date, and approved reviewer.
+- Dataset review status is required before demo seed import runs.
+
+#### Story 1A.3.2: Demo Tenant Seeding
+
+As a customer success lead, I want demo tenants to be seeded with synthetic CUI workflows so that onboarding and training can show end-to-end behavior safely.
+
+Tasks:
+
+- Create seed process for demo tenants only.
+- Seed synthetic contract intake, clause tagging, evidence, CMMC readiness, subcontractor flow-down, report, and escalation examples.
+- Prevent synthetic seed import into production customer tenants unless tenant mode is `DemoSandbox`.
+- Add reset process for demo tenants.
+- Add tests for seed idempotency and mode restrictions.
+
+Acceptance criteria:
+
+- Seed process runs only for `DemoSandbox` tenants.
+- Re-running the seed process does not duplicate demo records.
+- Demo tenants show seeded examples across contract, obligation, evidence, CMMC, subcontractor, and report workflows.
+- Customer `NoCui` and `CuiReady` tenants cannot receive demo seed data through normal admin workflows.
+- Seed and reset actions are audit logged.
+
+## 1A.4 CUI-Ready Tenant Approval Checklist
+
+### Use Case
+
+As a security owner, I need a formal approval checklist before a tenant enters `CuiReady` mode so that CUI acceptance is a deliberate release decision.
+
+### User Stories
+
+#### Story 1A.4.1: Approval Checklist Model
+
+As a platform admin, I want a CUI-ready approval checklist so that required readiness evidence is captured before enabling CUI workflows.
+
+Tasks:
+
+- Define checklist sections for customer agreement, data handling notice, shared responsibility matrix, security review, support escalation, backup/restore, admin access, retention, and incident response.
+- Add checklist item fields for status, owner, evidence link, reviewer, review date, and notes.
+- Add checklist states: draft, in review, approved, rejected, superseded.
+- Link checklist records to tenant mode changes.
+- Add API and UI for checklist creation, update, review, and approval.
+
+Acceptance criteria:
+
+- Checklist cannot be approved while required items are incomplete.
+- Each completed item records owner, reviewer, review date, and supporting note or evidence link.
+- Rejected checklists include rejection reason and remain linked to the tenant.
+- Approved checklist ID is required for a tenant mode change to `CuiReady`.
+- Checklist changes are audit logged.
+
+#### Story 1A.4.2: Approval Gate Enforcement
+
+As an engineering lead, I want `CuiReady` enablement to be blocked unless approval criteria are complete so that configuration mistakes do not authorize CUI handling.
+
+Tasks:
+
+- Add server-side guard that validates checklist approval before setting tenant mode to `CuiReady`.
+- Add permission requirement for final approval and mode change.
+- Add stale-check detection for expired or superseded approvals.
+- Add UI messaging for missing approval items.
+- Add tests for incomplete, rejected, stale, and approved checklist scenarios.
+
+Acceptance criteria:
+
+- Only authorized platform roles can approve a checklist.
+- A tenant cannot move to `CuiReady` from an incomplete, rejected, expired, or superseded checklist.
+- Final approval records approving user, timestamp, checklist version, and approval notes.
+- Mode change to `CuiReady` references the approved checklist record.
+- Failed approval attempts return a clear error and create an audit event.
+
+## 1A.5 Shared Responsibility Matrix Baseline
+
+### Use Case
+
+As a customer and security owner, we need a shared responsibility matrix so that CUI handling responsibilities are explicit before the platform accepts real customer CUI.
+
+### User Stories
+
+#### Story 1A.5.1: Baseline Responsibility Matrix
+
+As a security owner, I want a baseline shared responsibility matrix so that internal teams and customers understand who owns each control, process, and support obligation.
+
+Tasks:
+
+- Define matrix categories for tenant administration, user access, MFA, upload classification, evidence storage, encryption, malware scanning, retention, backup, export, deletion, incident reporting, support, and customer content decisions.
+- Assign responsibility values: GCCS, customer, shared, third-party provider, or not applicable.
+- Include notes, source reference, review owner, effective date, and version.
+- Add internal review and publish workflow.
+- Store matrix as source-controlled content or governed database content.
+
+Acceptance criteria:
+
+- Matrix includes all Phase 1A categories required for CUI readiness.
+- Each row has responsibility owner, notes, effective date, review owner, and version.
+- Matrix cannot be published without required owner and review metadata.
+- Published matrix is viewable from tenant settings and CUI approval checklist.
+- Matrix publication and retirement are audit logged or source-control traceable.
+
+#### Story 1A.5.2: Tenant Matrix Acknowledgement
+
+As a tenant admin, I want to acknowledge the shared responsibility matrix so that CUI-ready operation has a recorded customer acceptance.
+
+Tasks:
+
+- Add matrix acknowledgement workflow for tenant admins.
+- Record matrix version, user, tenant, timestamp, and acknowledgement status.
+- Require current matrix acknowledgement before CUI-ready approval.
+- Notify tenant admins when a published matrix version changes.
+- Add acknowledgement history view.
+
+Acceptance criteria:
+
+- Tenant admin can view and acknowledge the current published matrix.
+- CUI-ready approval is blocked if the tenant has not acknowledged the current matrix version.
+- Acknowledgement history records version, user, timestamp, and tenant.
+- New matrix version marks prior acknowledgement as outdated for future approvals.
+- Matrix acknowledgement is audit logged.
+
+## 1A.6 Customer-Facing Data Handling Notices
+
+### Use Case
+
+As a customer, I need data handling notices that match my tenant mode so that I understand whether real CUI is prohibited, allowed only after approval, or represented only by synthetic demo data.
+
+### User Stories
+
+#### Story 1A.6.1: Versioned Notice Content
+
+As a product owner, I want versioned data handling notices so that customer-facing guidance is consistent, reviewable, and traceable.
+
+Tasks:
+
+- Draft notice variants for `DemoSandbox`, `NoCui`, and `CuiReady` tenants.
+- Include prohibited data guidance for classified data, export-controlled data when unsupported, malware, and data outside approved tenant scope.
+- Add notice version, effective date, owner, reviewer, and approval status.
+- Route notice content through legal/compliance review before publication.
+- Add content retrieval by tenant mode and workflow context.
+
+Acceptance criteria:
+
+- Published notice exists for each tenant data handling mode.
+- Notice content cannot publish without owner, reviewer, review date, and effective date.
+- `NoCui` notice states that real customer CUI upload is prohibited.
+- `CuiReady` notice states that CUI handling is limited to approved tenant workflows and customer responsibilities.
+- Notice retrieval returns the correct published version for tenant mode and workflow context.
+
+#### Story 1A.6.2: Notice Placement And Acknowledgement
+
+As a user, I want relevant data handling notices in the workflows where mistakes can occur so that I see restrictions before submitting content.
+
+Tasks:
+
+- Place notices in onboarding, upload, note creation, report generation, extraction job creation, and support escalation flows.
+- Require acknowledgement before first upload or first CUI-relevant action.
+- Re-prompt users when notice version changes.
+- Record acknowledgement status per user, tenant, mode, workflow, and notice version.
+- Add UI and API tests for missing and outdated acknowledgement.
+
+Acceptance criteria:
+
+- User cannot upload, save classified notes, generate reports from classified content, or start extraction until required notice acknowledgement exists.
+- Acknowledgement records include user, tenant, mode, workflow, notice version, and timestamp.
+- Updated notice versions require renewed acknowledgement.
+- Notice copy shown to the user matches the tenant's current mode.
+- Acknowledgement and renewed acknowledgement are audit logged.
+
+## 1A.7 CUI Support Escalation Path
+
+### Use Case
+
+As a support lead, I need a defined escalation path for accidental CUI upload, suspected CUI, and prohibited data so that incidents are contained, reviewed, and resolved consistently.
+
+### User Stories
+
+#### Story 1A.7.1: Escalation Intake And Classification
+
+As a user or support agent, I want to report suspected CUI or prohibited data so that the issue can be triaged quickly.
+
+Tasks:
+
+- Add escalation categories for accidental CUI upload, suspected CUI, prohibited data, misclassification, and customer question.
+- Add escalation record fields for tenant, reporter, affected item, classification, severity, status, assigned owner, timestamps, and notes.
+- Add create escalation actions from upload rejection, evidence detail, note detail, report detail, extraction job detail, and support page.
+- Add restricted support/admin view of escalations.
+- Add tests for tenant scoping and restricted access.
+
+Acceptance criteria:
+
+- Authorized users can create escalation records from CUI-relevant workflows.
+- Escalation records are tenant scoped and hidden from unrelated tenants.
+- Prohibited data escalations mark affected content as blocked from use.
+- Support agents can assign owner, severity, and status.
+- Escalation creation and updates are audit logged.
+
+#### Story 1A.7.2: Escalation Workflow And Resolution
+
+As a support lead, I want escalation status tracking so that accidental CUI and prohibited data cases have documented outcomes.
+
+Tasks:
+
+- Define statuses: submitted, triage, contained, customer action required, resolved, closed, and reopened.
+- Add resolution types: reclassified, deleted, retained under CUI-ready approval, confirmed synthetic, false alarm, or referred to legal/security.
+- Add containment actions for blocking downloads, exports, extraction jobs, report use, and evidence approval.
+- Add notification hooks for security owner, support owner, tenant admin, and legal/compliance advisor when configured.
+- Add reporting view for open and resolved escalations.
+
+Acceptance criteria:
+
+- Escalation status changes require actor, timestamp, and note.
+- Affected content remains blocked while escalation status is submitted, triage, or contained.
+- Resolution records include resolution type, resolver, timestamp, and summary.
+- Reopened escalations preserve prior resolution history.
+- Escalation workflow events are audit logged.
+
+## 1A.8 CUI Audit Event Coverage
+
+### Use Case
+
+As a tenant admin, security reviewer, and auditor, I need CUI-relevant actions captured in the audit trail so that data handling decisions are traceable.
+
+### User Stories
+
+#### Story 1A.8.1: Required CUI Audit Events
+
+As a security owner, I want required CUI audit events defined and emitted so that every high-risk data handling action is traceable.
+
+Tasks:
+
+- Define event types for mode changes, classification create/update, upload block, checklist approval/rejection, matrix acknowledgement, notice acknowledgement, download, export, deletion, escalation create/update, and extraction job start/stop.
+- Add audit writer calls to each Phase 1A workflow.
+- Include tenant, actor, action, entity, classification, mode, timestamp, request metadata, and result.
+- Add failure-path audit events for blocked actions.
+- Add tests that verify event emission for each required event type.
+
+Acceptance criteria:
+
+- Each required Phase 1A event type is emitted when the corresponding action occurs.
+- Blocked upload, blocked extraction, blocked report, failed mode change, and failed CUI approval attempts are audit logged.
+- Audit events include tenant ID, actor ID, event type, entity reference, timestamp, and result.
+- Audit events do not expose sensitive document content in event summaries.
+- Automated tests cover successful and blocked audit paths.
+
+#### Story 1A.8.2: CUI Audit Filters And Export
+
+As a tenant admin or security reviewer, I want to filter and export CUI-relevant audit events so that readiness reviews and incident investigations are efficient.
+
+Tasks:
+
+- Add audit filters for event type, classification, tenant mode, actor, entity type, date range, and result.
+- Add CUI readiness audit view or saved filter.
+- Add export with tenant scope and permission checks.
+- Add export metadata for generated by, generated at, filter criteria, and tenant.
+- Add tests for filter correctness and export authorization.
+
+Acceptance criteria:
+
+- Authorized users can filter audit events by CUI-relevant event type, classification, mode, actor, entity, date range, and result.
+- Non-authorized users cannot view or export CUI audit events.
+- Export contains only tenant-scoped events.
+- Export includes generated by, generated at, tenant, and filter criteria metadata.
+- Audit export action is itself audit logged.
+
+## 1A.9 Security Readiness Review
+
+### Use Case
+
+As the engineering lead and security owner, we need a formal security readiness review before CUI-ready tenant approval so that the platform's technical and operational controls have been verified.
+
+### User Stories
+
+#### Story 1A.9.1: Security Review Checklist
+
+As a security owner, I want a Phase 1A security review checklist so that required CUI readiness controls are assessed consistently.
+
+Tasks:
+
+- Define review areas for tenant isolation, evidence storage, encryption, malware scanning, retention, backup, restore, admin access, support access, logging, monitoring, and incident response.
+- Add checklist fields for control status, evidence link, reviewer, review date, finding severity, remediation owner, due date, and closure notes.
+- Link security review status to CUI-ready tenant approval.
+- Add ability to record compensating controls and accepted risks.
+- Add reporting for open findings.
+
+Acceptance criteria:
+
+- Security review checklist includes every required Phase 1A review area.
+- Each checklist item records status, reviewer, review date, and evidence or rationale.
+- High or critical open findings block CUI-ready approval.
+- Accepted risks include approver, date, scope, expiration or review date, and mitigation note.
+- Security review changes are audit logged.
+
+#### Story 1A.9.2: Technical Control Verification
+
+As an engineering lead, I want automated or documented verification for CUI readiness controls so that approval is based on evidence rather than assumption.
+
+Tasks:
+
+- Add tenant isolation test coverage for CUI-classified records and files.
+- Verify object storage access controls, encryption metadata, malware scan state, retention behavior, and deletion behavior.
+- Verify backup and restore evidence for classified tenant content metadata.
+- Verify least-privilege admin/support access workflows.
+- Produce a security readiness summary for release review.
+
+Acceptance criteria:
+
+- Tenant isolation tests prove one tenant cannot access another tenant's classified records or files.
+- Evidence file storage records encryption state, scan state, retention state, and deletion state.
+- Backup and restore verification includes date, environment, reviewer, and result.
+- Admin/support access to CUI-relevant records is permission checked and audit logged.
+- Security readiness summary identifies passed checks, open findings, accepted risks, and release recommendation.
+
+#### Story 1A.9.3: Incident Response Readiness
+
+As a security owner, I want incident response readiness checked before CUI workflows are enabled so that accidental CUI upload or data handling incidents can be handled immediately.
+
+Tasks:
+
+- Define incident playbooks for accidental CUI upload, suspected CUI in a non-CUI tenant, prohibited data upload, cross-tenant exposure suspicion, malware detection, and failed deletion/export request.
+- Add contact and escalation owner records for security, support, legal/compliance, engineering, and customer success.
+- Add tabletop checklist and evidence capture.
+- Link incident response readiness to security review and tenant approval checklist.
+- Add annual or release-based review reminder.
+
+Acceptance criteria:
+
+- Required incident playbooks exist before `CuiReady` approval.
+- Each playbook identifies trigger, containment steps, notification path, evidence to collect, owner, and closure criteria.
+- Readiness review records tabletop date, participants, findings, and follow-up actions.
+- Open critical incident response gaps block CUI-ready approval.
+- Incident readiness approval is audit logged or source-control traceable.

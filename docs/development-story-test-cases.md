@@ -7,7 +7,7 @@ Common expectations for all functional stories:
 - Tenant-owned reads and writes are scoped to the current tenant.
 - Restricted actions are denied server-side, even when UI controls are hidden.
 - Compliance-relevant create, update, delete, status, upload, approval, report, and notification actions are audit logged.
-- CUI/data-handling controls are preserved for all upload workflows.
+- No-CUI controls are preserved for all upload workflows.
 - User-facing errors are clear and use the standard API/UI error pattern.
 
 ## 1. Delivery Foundation
@@ -17,7 +17,7 @@ Common expectations for all functional stories:
 - **TC-1.1.1 - Documented structure is complete:** Verify README/docs identify `apps/api`, `apps/web`, `src/Gccs.Domain`, `src/Gccs.Application`, `src/Gccs.Infrastructure`, `packages/compliance-content`, `docs`, and `infra`, with ownership boundaries for each.
 - **TC-1.1.2 - Clean checkout build commands work:** From a clean checkout, run documented restore/build/test commands and verify backend and frontend projects build successfully.
 - **TC-1.1.3 - Compliance logic is not UI-only:** Inspect implemented workflows and tests to confirm compliance decisions live in domain/application/API layers, with UI acting as a client.
-- **TC-1.1.4 - CUI-ready gated posture is visible:** Verify developer docs and setup guidance explicitly describe the MVP as CUI-ready by design with gated CUI acceptance.
+- **TC-1.1.4 - No-CUI posture is visible:** Verify developer docs and setup guidance explicitly describe the MVP as No-CUI / compliance management only.
 
 ### Story 1.2: Local Development Services
 
@@ -79,14 +79,14 @@ Common expectations for all functional stories:
 - **TC-3.2.3 - Role-aware navigation:** Render navigation for restricted roles and verify hidden items cannot be accessed through visible links.
 - **TC-3.2.4 - Loading, empty, and error states:** Mock loading, empty, and failed route data and verify understandable states are displayed.
 
-## 4. CUI-Ready Gated Controls
+## 4. No-CUI Upload Guardrails
 
 ### Story 4.1: Data Handling Acknowledgement
 
 - **TC-4.1.1 - Notice shown before first upload:** With no acknowledgement, open an upload workflow and verify the data handling notice is displayed.
 - **TC-4.1.2 - Upload disabled until acknowledgement:** Attempt upload before acknowledgement and verify UI and API both block it.
 - **TC-4.1.3 - Acknowledgement persisted:** Acknowledge the notice and verify user, tenant, timestamp, and notice version are stored.
-- **TC-4.1.4 - Acknowledgement audit and copy:** Verify audit event creation and confirm notice copy says the MVP supports CUI-ready workflows with gated CUI acceptance and real CUI upload requires approved CUI-ready tenant status.
+- **TC-4.1.4 - Acknowledgement audit and copy:** Verify audit event creation and confirm notice copy says the MVP is No-CUI / compliance management only and real CUI upload is prohibited until a future approved CUI-ready posture is implemented.
 
 ### Story 4.2: Upload Guardrails
 

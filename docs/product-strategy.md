@@ -14,13 +14,13 @@ This is product and engineering guidance, not legal advice. Production complianc
 
 ## MVP Positioning
 
-The MVP is **CUI-ready by design with gated CUI acceptance**.
+The current MVP is **No-CUI / compliance management only**.
 
-GCCS should demonstrate full CUI-aware workflows from day one using synthetic, sample, or redacted data. Real customer CUI may be stored only when the tenant or deployment is explicitly approved for CUI-ready operation with the required architecture, customer terms, support process, shared responsibility matrix, and operating controls.
+GCCS should help users organize compliance work without storing real customer CUI. CUI-ready workflows are planned for a later sprint and require a separate approved architecture, customer terms, support process, shared responsibility matrix, and operating controls before any real CUI can be accepted.
 
 The product must not store classified data, ITAR/export-controlled technical data, SSNs, payroll records, protected medical or disability data, or other highly sensitive employee records unless a separate approved deployment posture exists.
 
-CUI-readiness positioning must appear in:
+No-CUI positioning must appear in:
 
 - Onboarding.
 - Contract upload.
@@ -29,7 +29,7 @@ CUI-readiness positioning must appear in:
 - Terms, privacy, and data handling documentation.
 - Customer-facing sales and implementation materials.
 
-The default demo posture should be **Demo/Sandbox CUI workflows with synthetic or redacted data**. Production tenants start with CUI upload disabled unless CUI-ready approval is granted.
+The default posture should prevent users from uploading CUI. Demo and future CUI-ready tenant behavior must remain clearly separated from the current No-CUI MVP.
 
 ## MVP Scope
 
@@ -94,8 +94,8 @@ Every customer-visible MVP obligation must have:
 
 | Decision | MVP approach |
 | --- | --- |
-| Data posture | CUI-ready by design; real CUI upload remains tenant-gated until approved. |
-| Hosting | Commercial-cloud-friendly CUI-ready architecture first; GovCloud remains enterprise roadmap. |
+| Data posture | No-CUI / compliance management only; CUI-ready posture is deferred to a future approved sprint. |
+| Hosting | Commercial-cloud-friendly No-CUI architecture first; GovCloud remains enterprise roadmap. |
 | Clause handling | Manual tagging first; automated extraction later with human review. |
 | AI | Deferred or draft-only, cited, logged, and review-gated. |
 | Stack language | Current LTS .NET unless a runtime has already been chosen for the repo. |
