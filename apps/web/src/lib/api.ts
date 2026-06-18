@@ -930,6 +930,47 @@ export type ReclassifyContentRequest = {
   classification: ContentClassification;
 };
 
+export type SyntheticDemoDatasetMetadata = {
+  datasetId: string;
+  version: string;
+  name: string;
+  purpose: string;
+  limitations: string[];
+  owner: string;
+  sourceBasis: string;
+  reviewedAt: string | null;
+  approvedReviewer: string;
+  reviewStatus: string;
+  approvedForImport: boolean;
+};
+
+export type SyntheticDemoDatasetRecord = {
+  recordId: string;
+  recordType: string;
+  title: string;
+  datasetVersion: string;
+  syntheticLabel: string;
+  classification: ContentClassification;
+  sampleText: string;
+};
+
+export type SyntheticDemoDatasetDefinition = {
+  metadata: SyntheticDemoDatasetMetadata;
+  records: SyntheticDemoDatasetRecord[];
+};
+
+export type SyntheticDemoDatasetPrecheckResult = {
+  allowed: boolean;
+  datasetId: string;
+  version: string;
+  reviewStatus: string;
+  approvedReviewer: string;
+  reviewedAt: string | null;
+  recordCount: number;
+  recordTypes: string[];
+  errors: string[];
+};
+
 export type ExtractionJob = {
   id: string;
   tenantId: string;
@@ -1899,6 +1940,14 @@ export async function reclassifyEvidenceItem(
   request: ReclassifyContentRequest
 ): Promise<ApiMutationResult<EvidenceMetadata>> {
   return patchJsonResult<EvidenceMetadata>(`/api/evidence-items/${evidenceItemId}/classification`, request);
+}
+
+export async function getSyntheticDemoDataset(): Promise<SyntheticDemoDatasetDefinition | null> {
+  return getJson<SyntheticDemoDatasetDefinition | null>("/api/demo/synthetic-dataset", null);
+}
+
+export async function precheckSyntheticDemoDataset(): Promise<ApiMutationResult<SyntheticDemoDatasetPrecheckResult>> {
+  return postJsonResult<SyntheticDemoDatasetPrecheckResult>("/api/demo/synthetic-dataset/precheck", {});
 }
 
 export async function createEvidenceUploadIntent(file: File): Promise<ApiMutationResult<EvidenceUploadIntent>> {

@@ -1,0 +1,123 @@
+{
+  "metadata": {
+    "datasetId": "gccs-synthetic-cui-demo",
+    "version": "2026.06.phase1a",
+    "name": "GCCS Synthetic CUI Demo Dataset",
+    "purpose": "Provide realistic, clearly labeled CUI-like workflow examples for demo, training, QA, and onboarding without using real customer or government-sensitive content.",
+    "limitations": [
+      "Synthetic examples are not legal, contracting, CMMC assessment, export-control, or labor compliance advice.",
+      "Synthetic examples must not be used as customer records, official determinations, certification evidence, or production compliance content.",
+      "The dataset intentionally excludes real customer CUI, classified data, export-controlled technical data, payroll data, secrets, and customer proprietary information."
+    ],
+    "owner": "GCCS Compliance Content Owner",
+    "sourceBasis": "GCCS-authored fictional examples derived from public compliance workflow patterns and non-sensitive product requirements.",
+    "reviewedAt": "2026-06-18",
+    "approvedReviewer": "Phase 1A Compliance SME",
+    "reviewStatus": "Approved",
+    "approvedForImport": true
+  },
+  "records": [
+    {
+      "recordId": "demo-company-aegis-systems",
+      "recordType": "Company",
+      "title": "Aegis Systems Workshop LLC",
+      "datasetVersion": "2026.06.phase1a",
+      "syntheticLabel": "Synthetic demo data",
+      "classification": {
+        "classification": "SyntheticCui",
+        "source": "ImportedDemoSeed",
+        "confidence": 1.0,
+        "reviewedByUserId": null,
+        "reviewedAt": "2026-06-18T12:00:00Z",
+        "reason": "Approved fictional demo company for synthetic CUI workflow training.",
+        "isApprovedDemoContent": true
+      },
+      "sampleText": "Fictional small business profile with placeholder UEI DEMOUEI12345 and non-routable contact details."
+    },
+    {
+      "recordId": "demo-contract-cui-training-order",
+      "recordType": "Contract",
+      "title": "Synthetic CUI Handling Training Support Order",
+      "datasetVersion": "2026.06.phase1a",
+      "syntheticLabel": "Synthetic demo data",
+      "classification": {
+        "classification": "SyntheticCui",
+        "source": "ImportedDemoSeed",
+        "confidence": 1.0,
+        "reviewedByUserId": null,
+        "reviewedAt": "2026-06-18T12:00:00Z",
+        "reason": "Approved fictional contract scenario for demo-only CUI handling workflow.",
+        "isApprovedDemoContent": true
+      },
+      "sampleText": "Fictional contract DEMO-26-CUI-0001 uses placeholder clauses and invented dates for training only."
+    },
+    {
+      "recordId": "demo-evidence-access-control",
+      "recordType": "Evidence",
+      "title": "Synthetic Access Control Evidence",
+      "datasetVersion": "2026.06.phase1a",
+      "syntheticLabel": "Synthetic demo data",
+      "classification": {
+        "classification": "SyntheticCui",
+        "source": "ImportedDemoSeed",
+        "confidence": 1.0,
+        "reviewedByUserId": null,
+        "reviewedAt": "2026-06-18T12:00:00Z",
+        "reason": "Approved fictional evidence metadata for demo-only CMMC readiness workflow.",
+        "isApprovedDemoContent": true
+      },
+      "sampleText": "Fictional evidence record describes a sample MFA configuration and contains no screenshots, credentials, network details, or customer system data."
+    },
+    {
+      "recordId": "demo-cmmc-gap-boundary",
+      "recordType": "Cmmc",
+      "title": "Synthetic CMMC Boundary Gap",
+      "datasetVersion": "2026.06.phase1a",
+      "syntheticLabel": "Synthetic demo data",
+      "classification": {
+        "classification": "SyntheticCui",
+        "source": "ImportedDemoSeed",
+        "confidence": 1.0,
+        "reviewedByUserId": null,
+        "reviewedAt": "2026-06-18T12:00:00Z",
+        "reason": "Approved fictional CMMC readiness scenario for synthetic CUI demo tenant workflows.",
+        "isApprovedDemoContent": true
+      },
+      "sampleText": "Fictional readiness gap asks a demo user to document a sample system boundary for training purposes."
+    },
+    {
+      "recordId": "demo-subcontractor-flowdown",
+      "recordType": "Subcontractor",
+      "title": "Northstar Demo Components",
+      "datasetVersion": "2026.06.phase1a",
+      "syntheticLabel": "Synthetic demo data",
+      "classification": {
+        "classification": "SyntheticCui",
+        "source": "ImportedDemoSeed",
+        "confidence": 1.0,
+        "reviewedByUserId": null,
+        "reviewedAt": "2026-06-18T12:00:00Z",
+        "reason": "Approved fictional subcontractor example for synthetic flow-down tracking.",
+        "isApprovedDemoContent": true
+      },
+      "sampleText": "Fictional subcontractor record demonstrates a placeholder flow-down acknowledgement and no real supplier information."
+    },
+    {
+      "recordId": "demo-report-evidence-package",
+      "recordType": "Report",
+      "title": "Synthetic Prime Evidence Package",
+      "datasetVersion": "2026.06.phase1a",
+      "syntheticLabel": "Synthetic demo data",
+      "classification": {
+        "classification": "SyntheticCui",
+        "source": "ImportedDemoSeed",
+        "confidence": 1.0,
+        "reviewedByUserId": null,
+        "reviewedAt": "2026-06-18T12:00:00Z",
+        "reason": "Approved fictional report example for demo-only evidence package workflows.",
+        "isApprovedDemoContent": true
+      },
+      "sampleText": "Fictional report summary aggregates synthetic obligations, evidence, and subcontractor statuses for training only."
+    }
+  ]
+}

@@ -6326,5 +6326,9 @@ function EmptyState({ body, title }: { body: string; title: string }) {
 }
 
 function ClassificationBadge({ classification }: { classification: string }) {
-  return <span className={`status status--${classification.toLowerCase()}`}>{classification}</span>;
+  return (
+    <span className={`status status--${classification.toLowerCase()}`}>
+      {classification === "SyntheticCui" ? "Synthetic demo data" : classification}
+    </span>
+  );
 }

@@ -2004,6 +2004,36 @@ describe("App", () => {
     expect(await screen.findByText("Evidence metadata created.")).toBeInTheDocument();
   });
 
+  it("TC-1A.3.1.3 identifies synthetic demo evidence in the UI", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getEvidenceItemsMock.mockResolvedValueOnce([
+      {
+        ...evidenceMetadata,
+        title: "Synthetic access control evidence",
+        classification: {
+          classification: "SyntheticCui",
+          source: "ImportedDemoSeed",
+          confidence: 1,
+          reviewedByUserId: null,
+          reviewedAt: "2026-06-18T12:00:00Z",
+          reason: "Approved imported demo seed.",
+          isApprovedDemoContent: true
+        }
+      }
+    ]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /evidence/i }));
+
+    expect(await screen.findByText("Synthetic access control evidence")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Evidence list")).getByText("Synthetic demo data")).toBeInTheDocument();
+  });
+
   it("TC-4.1.3 and TC-4.1.4 saves acknowledgement before enabling upload intent creation", async () => {
     getComplianceOverviewMock.mockResolvedValueOnce(overview);
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);

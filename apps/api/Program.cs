@@ -9,6 +9,7 @@ using Gccs.Application.Companies;
 using Gccs.Application.Cmmc;
 using Gccs.Application.Compliance;
 using Gccs.Application.Contracts;
+using Gccs.Application.Demo;
 using Gccs.Application.Evidence;
 using Gccs.Application.Identity;
 using Gccs.Application.NoCui;
@@ -2418,6 +2419,37 @@ api.MapPatch("/evidence-items/{evidenceItemId:guid}/classification", async (
 .RequirePermission(Permission.ApproveEvidence)
 .WithName("ReclassifyEvidenceItem");
 
+api.MapGet("/demo/synthetic-dataset", async (
+    SyntheticDemoDatasetService service,
+    IWebHostEnvironment environment,
+    CancellationToken cancellationToken) =>
+{
+    var packageRoot = DemoContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+    return Results.Ok(await service.GetAsync(packageRoot, cancellationToken));
+})
+.RequirePermission(Permission.ViewEvidence)
+.WithName("GetSyntheticDemoDataset");
+
+api.MapPost("/demo/synthetic-dataset/precheck", async (
+    SyntheticDemoDatasetService service,
+    IWebHostEnvironment environment,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var packageRoot = DemoContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
+    var result = await service.PrecheckAsync(packageRoot, cancellationToken);
+    return result.Allowed
+        ? Results.Ok(result)
+        : ApiProblemDetails.Create(
+            httpContext,
+            "Synthetic demo dataset precheck failed",
+            string.Join(" ", result.Errors),
+            StatusCodes.Status400BadRequest,
+            "synthetic_demo_dataset_precheck_failed");
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("PrecheckSyntheticDemoDataset");
+
 api.MapPost("/evidence-requests", async (
     CreateEvidenceRequestRequest request,
     EvidenceRequestService service,
@@ -3440,5 +3472,25 @@ internal static class ComplianceContentPackageLocator
         }
 
         return Path.Combine(current.FullName, "packages", "compliance-content");
+    }
+}
+
+internal static class DemoContentPackageLocator
+{
+    public static string FindPackageRoot(string contentRootPath)
+    {
+        var current = new DirectoryInfo(contentRootPath);
+        while (current is not null && !File.Exists(Path.Combine(current.FullName, "Gccs.slnx")))
+        {
+            current = current.Parent;
+        }
+
+        if (current is null)
+        {
+            throw new DirectoryNotFoundException(
+                $"Could not locate repository root from content root '{contentRootPath}'.");
+        }
+
+        return Path.Combine(current.FullName, "packages", "demo-content");
     }
 }
