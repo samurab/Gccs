@@ -38,6 +38,20 @@ public sealed class EvidenceItemEntity : AuditedEntity
     public ICollection<EvidenceFileVersionEntity> FileVersions { get; set; } = [];
 }
 
+public sealed class EvidenceRequestEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid RequesterUserId { get; set; }
+    public Guid? AssigneeUserId { get; set; }
+    public Guid? AssigneeSubcontractorId { get; set; }
+    public DateOnly DueDate { get; set; }
+    public string Status { get; set; } = "Open";
+    public string Instructions { get; set; } = string.Empty;
+    public string RelatedRecordType { get; set; } = string.Empty;
+    public string RelatedRecordId { get; set; } = string.Empty;
+}
+
 public sealed class EvidenceFileVersionEntity
 {
     public Guid Id { get; set; }

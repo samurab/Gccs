@@ -518,6 +518,22 @@ export type PolicyRevision = {
   preservedByUserId: string;
 };
 
+export type EvidenceRequest = {
+  id: string;
+  tenantId: string;
+  requesterUserId: string;
+  assigneeUserId: string | null;
+  assigneeSubcontractorId: string | null;
+  dueDate: string;
+  status: string;
+  instructions: string;
+  relatedRecordType: string;
+  relatedRecordId: string;
+  createdAt: string;
+};
+
+export type CreateEvidenceRequestRequest = Omit<EvidenceRequest, "id" | "tenantId" | "requesterUserId" | "status" | "createdAt">;
+
 export type ApprovedEvidencePackage = {
   reportId: string;
   tenantId: string;
@@ -1203,6 +1219,10 @@ export async function reviewGeneratedPolicy(
 
 export async function getGeneratedPolicyRevisions(policyId: string): Promise<PolicyRevision[]> {
   return getJson<PolicyRevision[]>(`/api/generated-policies/${policyId}/revisions`, []);
+}
+
+export async function createEvidenceRequest(request: CreateEvidenceRequestRequest): Promise<ApiMutationResult<EvidenceRequest>> {
+  return postJsonResult<EvidenceRequest>("/api/evidence-requests", request);
 }
 
 export async function getSubcontractorEvidenceRequests(subcontractorId: string): Promise<SubcontractorEvidenceRequest[]> {

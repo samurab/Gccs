@@ -41,6 +41,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
     public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
+    public DbSet<EvidenceRequestEntity> EvidenceRequests => Set<EvidenceRequestEntity>();
     public DbSet<EvidenceFileVersionEntity> EvidenceFileVersions => Set<EvidenceFileVersionEntity>();
     public DbSet<ControlEntity> Controls => Set<ControlEntity>();
     public DbSet<AssessmentEntity> Assessments => Set<AssessmentEntity>();
@@ -559,6 +560,18 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.UploadValidationStatus).HasMaxLength(80);
             entity.Property(x => x.MalwareScanStatus).HasMaxLength(80);
             entity.Property(x => x.TagsJson).HasColumnType("jsonb");
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<EvidenceRequestEntity>(entity =>
+        {
+            entity.ToTable("evidence_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.DueDate });
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Instructions).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.RelatedRecordType).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.RelatedRecordId).HasMaxLength(160).IsRequired();
             ConfigureAuditColumns(entity);
         });
 

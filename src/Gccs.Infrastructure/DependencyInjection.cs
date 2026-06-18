@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<ComplianceTaskService>();
         services.AddScoped<RenewalGenerationService>();
         services.AddScoped<EvidenceMetadataService>();
+        services.AddScoped<EvidenceRequestService>();
         services.AddScoped<EvidenceApprovalService>();
         services.AddScoped<CmmcAssessmentService>();
         services.AddScoped<CmmcPoamService>();
@@ -140,6 +141,7 @@ public static class DependencyInjection
             services.AddScoped<IRenewalTaskRepository, EfRenewalTaskRepository>();
             services.AddScoped<ICalendarRepository, EfCalendarRepository>();
             services.AddScoped<IEvidenceMetadataRepository, EfEvidenceMetadataRepository>();
+            services.AddScoped<IEvidenceRequestRepository, EfEvidenceRequestRepository>();
             services.AddScoped<ICmmcAssessmentRepository, EfCmmcAssessmentRepository>();
             services.AddScoped<ICmmcPoamRepository, EfCmmcPoamRepository>();
             services.AddScoped<ICmmcAffirmationRepository, EfCmmcAffirmationRepository>();
@@ -207,6 +209,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Calendar persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IEvidenceMetadataRepository>(_ =>
                 throw new InvalidOperationException("Evidence metadata persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IEvidenceRequestRepository>(_ =>
+                throw new InvalidOperationException("Evidence request persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICmmcAssessmentRepository>(_ =>
                 throw new InvalidOperationException("CMMC assessment persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICmmcPoamRepository>(_ =>

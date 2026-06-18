@@ -2387,6 +2387,31 @@ api.MapPut("/evidence-items/{evidenceItemId:guid}", async (
 .RequirePermission(Permission.ManageEvidence)
 .WithName("UpdateEvidenceItem");
 
+api.MapPost("/evidence-requests", async (
+    CreateEvidenceRequestRequest request,
+    EvidenceRequestService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/evidence-requests/{created.Id}", created);
+    }
+    catch (EvidenceRequestValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["evidenceRequest"] = [exception.Message]
+        },
+        title: "Evidence request invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithName("CreateEvidenceRequest");
+
 api.MapPost("/evidence-items/{evidenceItemId:guid}/reviews", async (
     Guid evidenceItemId,
     EvidenceReviewRequest request,
