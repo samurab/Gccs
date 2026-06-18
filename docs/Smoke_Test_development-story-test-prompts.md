@@ -12,7 +12,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 1. Delivery Foundation
 
 ### Done ##
-### Please perform Smoke test on  Story 1.1: Repository And Project Structure. Please provide the results of the tests.
+## Story 1.1: Repository And Project Structure.
+Please perform Smoke test on  Story 1.1: Repository And Project Structure. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-1.1.1:** Verify the docs/README describe `apps/api`, `apps/web`, `src/Gccs.Domain`, `src/Gccs.Application`, `src/Gccs.Infrastructure`, `packages/compliance-content`, `docs`, and `infra`, including clear ownership boundaries for each.
@@ -22,7 +23,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Done ##
-### please perform smoke test on Story 1.2: Local Development Services. Please provide the results of the tests.
+## Story 1.2: Local Development Services
+please perform smoke test on Story 1.2: Local Development Services. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-1.2.1:** Run the documented one-command local services startup and verify PostgreSQL, Redis, object storage, and malware-scanning placeholder health checks pass.
@@ -32,6 +34,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 1.3: Continuous Integration Baseline
 ### Done ##
+Please perform Smoke test on  Story 1.3: Continuous Integration Baseline. Please provide the results of the tests.
+
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-1.3.1:** Open or simulate a pull request and verify CI runs restore, backend build, frontend build, lint, tests, migration validation, and security scans.
@@ -42,6 +46,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 2. Tenant, Identity, And RBAC
 ### Done ## 
 ### Story 2.1: Tenant Creation
+Please perform Smoke test on  Story 2.1: Tenant Creation Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-2.1.1:** Test tenant creation with required metadata and verify ID, display name, status, created date, and updated date persist.
@@ -49,8 +54,9 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-2.1.3:** As a user in tenant A, request tenant B data by ID and verify a 404/403-style response with no data leakage.
 - **TC-2.1.4:** Create a tenant and change its status, then verify audit events include tenant, actor, action, timestamps, and before/after status.
 #-----------------------------------
-### Story 2.2: User 
+#### Story 2.2: User Memberships
 ### Done ## 
+Please perform Smoke test on  Story 2.2: User Memberships. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-2.2.1:** Assign one user to two tenants and verify each membership is visible only when that tenant is active.
@@ -60,6 +66,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 2.3: User Invitations
 ### Done ## 
+Please perform Smoke test on  Story 2.3: User Invitations. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-2.3.1:** As a tenant admin, invite a user by email and role, then verify token, expiration, pending status, and local notification/email placeholder.
@@ -71,6 +78,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ### Done ## PLEASE RERUN LATER *****Main missing coverage: profile, contract, task/calendar, direct evidence CRUD, and subcontractor API endpoints are not implemented yet, so TC-2.4 can’t verify runtime RBAC for those endpoint families.
 ### Story 2.4: Role-Based Permissions
 ### Done ## 
+Please perform Smoke test on  Story 2.4: Role-Based Permissions. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-2.4.1:** For each role, call representative profile, contract, obligation, task, evidence, report, subcontractor, and admin endpoints and verify results match the permission matrix.
@@ -81,6 +89,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 3. Authenticated Application Shell
 ### Done ## 
 ### Story 3.1: Protected API Access
+Please perform Smoke test on  Story 3.1: Protected API Access. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-3.1.1:** Call protected endpoints without auth context and verify authentication failure.
@@ -90,6 +99,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 3.2: SaaS Navigation Shell
 ### Done ##
+Please perform Smoke test on  Story 3.2: SaaS Navigation Shell. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-3.2.1:** Sign in and verify the first authenticated screen is the workspace/dashboard, not a marketing page.
@@ -101,6 +111,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 4.1: Data Handling Acknowledgement
 ### Done ##
+Please perform Smoke test on  Story 4.1: Data Handling Acknowledgement. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-4.1.1:** With no acknowledgement on record, open an upload workflow and verify the data handling notice is displayed before upload.
@@ -110,6 +121,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 4.2: Upload Guardrails
 ### Done ##
+Please perform Smoke test on  Story 4.2: Upload Guardrails. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-4.2.1:** Upload an unsupported extension/content type and verify server-side rejection with no usable evidence record.
@@ -121,6 +133,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 5.1: Append-Only Audit Events
 ### Done ##
+Please perform Smoke test on  Story 5.1: Append-Only Audit Events. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-5.1.1:** Perform representative sensitive actions and verify audit events include tenant, actor, action, entity, timestamp, and summary.
@@ -130,6 +143,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 5.2: Audit Log Viewer
 ### Done ##
+Please perform Smoke test on  Story 5.2: Audit Log Viewer. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-5.2.1:** As admin, owner, or advisor, view audit logs and verify only current-tenant events appear.
@@ -141,6 +155,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 6.1: Obligation Schema
 ### Done ##
+Please perform Smoke test on  Story 6.1: Obligation Schema. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-6.1.1:** Attempt to publish an obligation without a source URL and verify validation fails.
@@ -150,6 +165,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 6.2: Content Import
 ### Done ##
+Please perform Smoke test on  Story 6.2: Content Import. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-6.2.1:** Import a valid compliance content package and verify clauses/obligations are created with source and review metadata.
@@ -159,6 +175,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 6.3: Content Review State
 ### Done ##
+Please perform Smoke test on  Story 6.3: Content Review State. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-6.3.1:** Seed draft and published content, then verify only published content appears in customer-facing search and mapping.
@@ -170,6 +187,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 7.1: Create Company Profile
 ### Done ##
+Please perform Smoke test on  Story 7.1: Create Company Profile. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-7.1.1:** Attempt to complete a company profile without required fields and verify validation messages.
@@ -179,6 +197,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 7.2: NAICS And Size Status
 ### Done ##
+Please perform Smoke test on  Story 7.2: NAICS And Size Status. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-7.2.1:** Add multiple valid NAICS codes and verify all are stored on the profile.
@@ -188,6 +207,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 7.3: Certification Tracking
 ### Done ##
+Please perform Smoke test on  Story 7.3: Certification Tracking Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-7.3.1:** Add 8(a), WOSB, EDWOSB, HUBZone, SDVOSB, SDB, and custom certifications and verify they persist/display correctly.
@@ -199,6 +219,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 8.1: Create Contract Record
 ### Done ##
+Please perform Smoke test on  Story 8.1: Create Contract Record. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-8.1.1:** Create draft and active contract records with required fields and verify persistence.
@@ -208,6 +229,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 8.2: Contract Document Metadata And Upload
 ### Done ##
+Please perform Smoke test on  Story 8.2: Contract Document Metadata And Upload. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-8.2.1:** Attempt contract document upload without data handling acknowledgement and verify disabled UI plus API rejection.
@@ -217,6 +239,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 8.3: Contract Dates And Deliverables
 ### Done ##
+Please perform Smoke test on  Story 8.3: Contract Dates And Deliverables. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-8.3.1:** Create deliverables with owner, due date, status, and description and verify they appear on contract detail.
@@ -228,6 +251,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 9.1: Clause Library Search
 ### Done ##
+Please perform Smoke test on  Story 9.1: Clause Library Search. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-9.1.1:** Search the clause library by clause number, title text, and category filters and verify expected results.
@@ -237,6 +261,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 9.2: Attach Clause To Contract
 ### Done ##
+Please perform Smoke test on  Story 9.2: Attach Clause To Contract. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-9.2.1:** Attach a published clause to a contract with reason and source document reference.
@@ -246,6 +271,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 9.3: Generate Obligations From Clause
 ### Done ##
+Please perform Smoke test on  Story 9.3: Generate Obligations From Clause. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-9.3.1:** Attach a clause with mapped templates and verify contract-specific obligations are generated.
@@ -257,6 +283,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 10.1: Obligation List And Filters
 ### Done ##
+Please perform Smoke test on  Story 10.1: Obligation List And Filters. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-10.1.1:** Seed obligations in multiple tenants and verify only current-tenant obligations appear on the dashboard.
@@ -266,6 +293,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 10.2: Obligation Detail
 ### Done ##
+Please perform Smoke test on  Story 10.2: Obligation Detail. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-10.2.1:** Open obligation detail and verify summary, trigger, action, owner, evidence examples, flow-down, source link, confidence, last reviewed, and expert review flag.
@@ -275,6 +303,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 10.3: Ownership Assignment
 ### Done ##
+Please perform Smoke test on  Story 10.3: Ownership Assignment. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-10.3.1:** Assign an obligation to a tenant member and verify dashboard/detail reflects the user owner.
@@ -286,6 +315,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 11.1: Task Management
 ### Done ##
+Please perform Smoke test on  Story 11.1: Task Management. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-11.1.1:** Create tasks linked to obligations, contracts, controls, evidence, subcontractors, and certifications.
@@ -295,6 +325,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 11.2: Calendar View
 ### Done ##
+Please perform Smoke test on  Story 11.2: Calendar View. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-11.2.1:** Verify the calendar shows tasks, renewals, reports, contract deadlines, deliverables, and policy reviews.
@@ -304,6 +335,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 11.3: Renewal Generation
 ### Done ##
+Please perform Smoke test on  Story 11.3: Renewal Generation. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-11.3.1:** Generate renewal tasks for SAM, certifications, evidence, insurance, policy review, and CMMC affirmation dates.
@@ -315,6 +347,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 12.1: Evidence Metadata
 ### Done ##
+Please perform Smoke test on  Story 12.1: Evidence Metadata. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-12.1.1:** Create evidence metadata with title, type, owner, approval status, expiration date, tags, description, and source links.
@@ -324,6 +357,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 12.2: Evidence File Upload
 ### Done ##
+Please perform Smoke test on  Story 12.2: Evidence File Upload. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-12.2.1:** Attempt evidence upload before data handling acknowledgement and verify it is blocked.
@@ -333,6 +367,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 12.3: Evidence Approval
 ### Done ##
+Please perform Smoke test on  Story 12.3: Evidence Approval. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-12.3.1:** Verify only configured roles can approve evidence.
@@ -344,6 +379,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 13.1: CMMC Level Selection
 ### Done ##
+Please perform Smoke test on  Story 13.1: CMMC Level Selection. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-13.1.1:** Create readiness assessments for CMMC Level 1 and Level 2 and verify target level, status, dates, and owner.
@@ -353,6 +389,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 13.2: Control Readiness
 ### Done ##
+Please perform Smoke test on  Story 13.2: Control Readiness. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-13.2.1:** Verify Level 1 controls and Level 2 mappings load for the selected assessment scope.
@@ -362,6 +399,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 13.3: POA&M Items
 ### Done ##
+Please perform Smoke test on  Story 13.3: POA&M Items. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-13.3.1:** Create a POA&M item with control, gap, remediation plan, owner, due date, risk, and status.
@@ -371,6 +409,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 13.4: Annual Affirmation Tracker
 ### Done ##
+Please perform Smoke test on  Story 13.4: Annual Affirmation Tracker. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-13.4.1:** Set an annual affirmation due date and verify it appears on the calendar.
@@ -382,6 +421,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 14.1: Subcontractor Profile
 ### Done ##
+Please perform Smoke test on  Story 14.1: Subcontractor Profile. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-14.1.1:** Create and update a subcontractor with legal name, POC, role, statuses, flags, dates, and workshare percentage.
@@ -391,6 +431,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 14.2: Flow-Down Clause Tracking
 ### Done ##
+Please perform Smoke test on  Story 14.2: Flow-Down Clause Tracking. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-14.2.1:** Assign required flow-down clauses from contract obligations to a subcontractor.
@@ -400,6 +441,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 14.3: Subcontractor Evidence Requests
 ### Done ##
+Please perform Smoke test on  Story 14.3: Subcontractor Evidence Requests. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-14.3.1:** Create a subcontractor evidence request with requested item, due date, status, recipient, and linked obligation.
@@ -411,6 +453,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 15.1: Compliance Status Report
 ### Done ##
+Please perform Smoke test on Story 15.1: Compliance Status Report. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-15.1.1:** Generate a compliance status report and verify obligation status, overdue tasks, evidence status, CMMC progress, subcontractor gaps, and high-risk items.
@@ -420,6 +463,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 15.2: Contract Obligation Matrix
 ### Done ##
+Please perform Smoke test on  Story 15.2: Contract Obligation Matrix. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-15.2.1:** Generate a contract obligation matrix for one contract and verify clause, source, obligation, owner, status, risk, due date, evidence, and flow-down columns.
@@ -429,6 +473,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 15.3: CMMC Readiness Report
 ### Done ##
+Please perform Smoke test on  Story 15.3: CMMC Readiness Report. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-15.3.1:** Generate a CMMC readiness report and verify control status rollups by family/category.
@@ -438,6 +483,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 15.4: Evidence Package
 ### Done ##
+Please perform Smoke test on  Story 15.4: Evidence Package. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-15.4.1:** Generate an evidence package scoped by selected obligations, contract, CMMC controls, or subcontractor.
@@ -447,6 +493,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 15.5: Subcontractor Compliance Report
 ### Done ##
+Please perform Smoke test on  Story 15.5: Subcontractor Compliance Report. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-15.5.1:** Generate a subcontractor compliance report filtered by contract and verify subcontractor data matches scope.
@@ -458,6 +505,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 16.1: Notification Preferences
 ### Done ##
+
+Please perform Smoke test on  Story 16.1: Notification Preferences. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-16.1.1:** Create users by role and verify default notification preferences are assigned.
@@ -467,6 +516,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 16.2: Due-Date Reminders
 ### Done ##
+Please perform Smoke test on  Story 16.2: Due-Date Reminders. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-16.2.1:** Run the due-date reminder job and verify tasks within configured lead time are selected.
@@ -476,6 +526,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 16.3: Assignment Notifications
 ### Done ##
+Please perform Smoke test on  Story 16.3: Assignment Notifications. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-16.3.1:** Assign a task, obligation, POA&M item, or evidence request and verify the assigned user receives a notification.
@@ -487,6 +538,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 17.1: End-To-End Pilot Workflow
 ### Done ##
+Please perform Smoke test on  Story 17.1: End-To-End Pilot Workflow. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-17.1.1:** With non-CUI data, execute the full pilot workflow: onboard tenant/users, create profile, contract, clauses, obligations, tasks, evidence, CMMC records, subcontractors, reports, and notifications.
@@ -496,6 +548,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 17.2: Security And Tenant Isolation Verification
 ### Done ##
+Please perform Smoke test on  Story 17.2: Security And Tenant Isolation Verification. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-17.2.1:** Attempt cross-tenant access for every tenant-owned module and verify denial with no data leakage.
@@ -505,6 +558,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 17.3: Staging Environment
 ### Done ##
+Please perform Smoke test on  Story 17.3: Staging Environment. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-17.3.1:** Trigger staging deployment and verify API, web, database, storage, cache, queue, secrets, and jobs provision/deploy.
@@ -514,6 +568,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 ### Story 17.4: Production Readiness Checklist
 ### Done ##
+Please perform Smoke test on  Story 17.4: Production Readiness Checklist. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-17.4.1:** Verify release cannot proceed until production readiness checklist items are complete and approved.
@@ -526,6 +581,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 18. Automated Clause Extraction
 
 ### Story 18.1: Extraction Job Intake
+### Done ##
+Please perform Smoke test on  Story 18.1: Extraction Job Intake. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-18.1.1:** Verify user with contract edit permission can start extraction for a document in the current tenant.
@@ -536,6 +593,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 18.2: Text Extraction And Clause Candidate Detection
+### Done ##
+Please perform Smoke test on  Story 18.2: Text Extraction And Clause Candidate Detection. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-18.2.1:** Verify supported text documents produce clause candidates when recognizable clause references are present.
@@ -546,6 +605,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 18.3: Extraction Results Review Screen
+### Done ##
+Please perform Smoke test on Story 18.3: Extraction Results Review Screen. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-18.3.1:** Verify user can view extraction results for documents in the current tenant.
@@ -558,6 +619,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 19. Human Review Workflow
 
 ### Story 19.1: Review States For Extracted Clauses
+### Done ##
+Please perform Smoke test on Story 19.1: Review States For Extracted Clauses. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-19.1.1:** Verify new extraction candidates default to pending review.
@@ -568,6 +631,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 19.2: AI-Suggested Obligation Review
+### Done ##
+Please perform Smoke test on Story 19.2: AI-Suggested Obligation Review. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-19.2.1:** Verify AI-suggested obligations are stored with source references, confidence, and draft status.
@@ -578,6 +643,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 19.3: Expert Escalation Queue
+### Done ##
+Please perform Smoke test on Story 19.3: Expert Escalation Queue. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-19.3.1:** Verify reviewer can escalate a candidate or suggested obligation with a required reason.
@@ -588,8 +655,9 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ## 20. Clause Library Expansion
-
+### Done ##
 ### Story 20.1: Versioned Clause Records
+Please perform Smoke test on Story 20.1: Versioned Clause Records. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-20.1.1:** Verify clause records include citation, title, source URL, status, last reviewed date, and review owner.
@@ -598,8 +666,9 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-20.1.4:** Verify clause version changes preserve prior version history.
 - **TC-20.1.5:** Verify clause changes are audit logged.
 #-----------------------------------
-
+### Done ##
 ### Story 20.2: Clause Search And Discovery
+Please perform Smoke test on Story 20.2: Clause Search And Discovery. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-20.2.1:** Verify search by exact citation returns the matching approved clause when present.
@@ -608,8 +677,9 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-20.2.4:** Verify results show source URL, status, and last reviewed date.
 - **TC-20.2.5:** Verify draft or under-review clauses are hidden from standard users unless they have content review permission.
 #-----------------------------------
-
+### Done ##
 ### Story 20.3: Clause-To-Obligation Mapping
+Please perform Smoke test on Story 20.3: Clause-To-Obligation Mapping. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-20.3.1:** Verify approved clause mapping can generate an obligation for a contract.
@@ -622,6 +692,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 21. Applicability Engine
 
 ### Story 21.1: Applicability Facts Model
+### Done ##
+Please perform Smoke test on Story 21.1: Applicability Facts Model. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-21.1.1:** Verify applicability facts can be derived from existing company, contract, clause, and subcontractor records.
@@ -632,6 +704,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 21.2: Rule Evaluation
+### Done ##
+Please perform Smoke test on Story 21.2: Rule Evaluation. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-21.2.1:** Verify rule evaluator returns a result state, explanation, source rule ID, and facts used.
@@ -642,6 +716,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 21.3: Obligation Applicability Updates
+### Done ##
+Please perform Smoke test on Story 21.3: Obligation Applicability Updates. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-21.3.1:** Verify updating a relevant fact reevaluates affected obligations.
@@ -654,6 +730,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 22. SAM.gov Entity Lookup
 
 ### Story 22.1: SAM.gov API Configuration
+Please perform Smoke test on Story 22.1: SAM.gov API Configuration. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-22.1.1:** Verify SAM.gov API key is not stored in source control.
@@ -664,6 +741,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 22.2: Company Entity Lookup
+Please perform Smoke test on Story 22.2: Company Entity Lookup Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-22.2.1:** Verify authorized user can search by UEI or legal business name.
@@ -674,6 +752,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 22.3: Subcontractor Entity Lookup
+### Done ##
+Please perform Smoke test on  Story 22.3: Subcontractor Entity Lookup. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-22.3.1:** Verify authorized user can search SAM.gov for a subcontractor by UEI or name.
@@ -686,6 +766,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 23. SBA Size Helper
 
 ### Story 23.1: Size Standard Reference Data
+### Done ##
+Please perform Smoke test on Story 23.1: Size Standard Reference Data. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-23.1.1:** Verify approved size standard records include NAICS, metric, threshold, source URL, effective date, last reviewed date, and status.
@@ -696,6 +778,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 23.2: Company Size Evaluation Helper
+### Done ##
+Please perform Smoke test on Story 23.2: Company Size Evaluation Helper. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-23.2.1:** Verify evaluation uses approved size standard records only.
@@ -706,6 +790,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 23.3: Opportunity NAICS Size Check
+### Done ##
+Please perform Smoke test on Story 23.3: Opportunity NAICS Size Check. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-23.3.1:** Verify user can run size check for a contract NAICS code.
@@ -718,6 +804,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 24. Subcontractor Tracker Expansion
 
 ### Story 24.1: Expanded Subcontractor Compliance Profile
+Please perform Smoke test on Story 24.1: Expanded Subcontractor Compliance Profile. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-24.1.1:** Verify authorized user can create and update expanded subcontractor fields.
@@ -728,6 +815,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 24.2: Subcontractor Risk Status
+Please perform Smoke test on Story 24.2: Subcontractor Risk Status Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-24.2.1:** Verify risk status is calculated from documented inputs.
@@ -738,6 +826,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 24.3: Contract-Specific Subcontractor Obligations
+Please perform Smoke test on Story 24.3: Contract-Specific Subcontractor Obligations. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-24.3.1:** Verify user can link a subcontractor to a contract and applicable flow-down obligations.
@@ -750,6 +839,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 25. Policy Templates
 
 ### Story 25.1: Approved Template Library
+Please perform Smoke test on  Story 25.1: Approved Template Library. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-25.1.1:** Verify approved templates include title, category, version, source references, owner, and last reviewed date.
@@ -760,6 +850,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 25.2: Generate Draft Policy From Template
+Please perform Smoke test on Story 25.2: Generate Draft Policy From Template. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-25.2.1:** Verify user can generate a draft policy from an approved template.
@@ -770,6 +861,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 25.3: Policy Approval And Evidence Linking
+Please perform Smoke test on Story 25.3: Policy Approval And Evidence Linking. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-25.3.1:** Verify authorized user can approve, reject, or revise a draft policy.
@@ -782,6 +874,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 26. Evidence Request Workflows
 
 ### Story 26.1: Evidence Request Creation
+Please perform Smoke test on Story 26.1: Evidence Request Creation. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-26.1.1:** Verify authorized user can create an evidence request tied to a supported record type.
@@ -792,6 +885,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 26.2: Evidence Submission And Review
+Please perform Smoke test on Story 26.2: Evidence Submission And Review. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-26.2.1:** Verify assignee can submit evidence to an open request.
@@ -802,6 +896,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 26.3: Evidence Request Dashboard
+Please perform Smoke test on  Story 26.3: Evidence Request Dashboard. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-26.3.1:** Verify dashboard shows only evidence requests in the current tenant.
@@ -814,6 +909,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 ## 27. CMMC Level 2 Readiness Expansion
 
 ### Story 27.1: Level 2 Control Assessment Detail
+Please perform Smoke test on Story 27.1: Level 2 Control Assessment Detail. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-27.1.1:** Verify authorized user can update Level 2 control assessment detail.
@@ -824,6 +920,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 27.2: Responsibility Matrix
+Please perform Smoke test on  Story 27.2: Responsibility Matrix. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-27.2.1:** Verify user can assign responsible party for each Level 2 control.
@@ -834,6 +931,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 27.3: Readiness Gap Prioritization
+Please perform Smoke test on  Story 27.3: Readiness Gap Prioritization. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-27.3.1:** Verify gap priority is calculated from documented inputs.
@@ -844,6 +942,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 27.4: Level 2 Readiness Report
+Please perform Smoke test on Story 27.4: Level 2 Readiness Report. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-27.4.1:** Verify authorized user can generate a Level 2 readiness report.
@@ -867,8 +966,6 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 28.2: Precision And Recall Evaluation
-
-Story 28.2: Precision And Recall Evaluation
 please perform smoke test on Story 28.2: Precision And Recall Evaluation. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
@@ -880,6 +977,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 #-----------------------------------
 
 ### Story 28.3: Extraction Regression Review
+
 please perform smoke test on Story 28.3: Extraction Regression Review. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 

@@ -51,6 +51,17 @@ public sealed class ContinuousIntegrationBaselineTests
             ]
         },
         {
+            "Backend validation",
+            "Run extraction precision and recall evaluation",
+            [
+                "python3 tools/extraction-evaluation/evaluate_corpus.py",
+                "--corpus tests/fixtures/extraction-corpus",
+                "--output-dir TestResults/extraction-evaluation",
+                "--min-precision 0.95",
+                "--min-recall 0.95"
+            ]
+        },
+        {
             "Frontend validation",
             "Restore frontend dependencies",
             ["npm ci"]
@@ -91,6 +102,7 @@ public sealed class ContinuousIntegrationBaselineTests
         { "Backend validation", "Build backend solution" },
         { "Backend validation", "Validate EF Core migrations" },
         { "Backend validation", "Run backend unit and integration tests" },
+        { "Backend validation", "Run extraction precision and recall evaluation" },
         { "Frontend validation", "Lint frontend workspace" },
         { "Frontend validation", "Run frontend unit tests" },
         { "Frontend validation", "Build frontend workspace" },
@@ -117,6 +129,8 @@ public sealed class ContinuousIntegrationBaselineTests
         AssertCiStepContains("Backend validation", "Validate EF Core migrations", "migrations has-pending-model-changes");
         AssertCiStepContains("Backend validation", "Validate EF Core migrations", "migrations script --idempotent");
         AssertCiStepContains("Backend validation", "Run backend unit and integration tests", "dotnet test Gccs.slnx");
+        AssertCiStepContains("Backend validation", "Run extraction precision and recall evaluation", "tools/extraction-evaluation/evaluate_corpus.py");
+        AssertCiStepContains("Backend validation", "Run extraction precision and recall evaluation", "TestResults/extraction-evaluation");
 
         AssertCiStepContains("Frontend validation", "Restore frontend dependencies", "npm ci");
         AssertCiStepContains("Frontend validation", "Lint frontend workspace", "npm run lint:web");
@@ -188,6 +202,7 @@ public sealed class ContinuousIntegrationBaselineTests
         Assert.Contains("if: always()", backendUpload);
         Assert.Contains("backend-test-results", backendUpload);
         Assert.Contains("TestResults/backend", backendUpload);
+        Assert.Contains("TestResults/extraction-evaluation", backendUpload);
         Assert.Contains("gccs-backend-tests.trx", GetStepBlock(workflow, "Backend validation", "Run backend unit and integration tests"));
 
         Assert.Contains("if: always()", frontendUpload);
@@ -241,6 +256,8 @@ public sealed class ContinuousIntegrationBaselineTests
         if (stepBlock.Contains("Gccs.slnx", StringComparison.Ordinal) ||
             stepBlock.Contains("src/Gccs.Infrastructure/Gccs.Infrastructure.csproj", StringComparison.Ordinal) ||
             stepBlock.Contains("apps/api/Gccs.Api.csproj", StringComparison.Ordinal) ||
+            stepBlock.Contains("tools/extraction-evaluation/evaluate_corpus.py", StringComparison.Ordinal) ||
+            stepBlock.Contains("tests/fixtures/extraction-corpus", StringComparison.Ordinal) ||
             stepBlock.Contains("apps/web", StringComparison.Ordinal) ||
             stepBlock.Contains("lint:web", StringComparison.Ordinal) ||
             stepBlock.Contains("build:web", StringComparison.Ordinal) ||

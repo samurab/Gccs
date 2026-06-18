@@ -18,14 +18,35 @@ public sealed class ExtractionEvaluationRunnerTests
         Assert.Contains("precision=1", result.StdOut);
         var jsonPath = Path.Combine(output, "latest.json");
         var markdownPath = Path.Combine(output, "latest.md");
+        var historyPath = Path.Combine(output, "history.json");
         Assert.True(File.Exists(jsonPath));
         Assert.True(File.Exists(markdownPath));
+        Assert.True(File.Exists(historyPath));
         using var report = JsonDocument.Parse(await File.ReadAllTextAsync(jsonPath));
+        Assert.Equal("1.0", report.RootElement.GetProperty("schemaVersion").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(report.RootElement.GetProperty("runId").GetString()));
+        Assert.Equal("gccs-extraction-content-test-set", report.RootElement.GetProperty("corpusId").GetString());
         Assert.False(report.RootElement.GetProperty("customerDataUsed").GetBoolean());
         Assert.Equal(1m, report.RootElement.GetProperty("metrics").GetProperty("precision").GetDecimal());
         Assert.Equal(1m, report.RootElement.GetProperty("metrics").GetProperty("recall").GetDecimal());
+        Assert.Equal(0, report.RootElement.GetProperty("metrics").GetProperty("falsePositiveCount").GetInt32());
+        Assert.Equal(0, report.RootElement.GetProperty("metrics").GetProperty("falseNegativeCount").GetInt32());
         Assert.Equal("passed", report.RootElement.GetProperty("thresholdStatus").GetString());
-        Assert.Contains("Extraction Evaluation", await File.ReadAllTextAsync(markdownPath));
+        var firstDocument = report.RootElement.GetProperty("documents").EnumerateArray().First();
+        Assert.True(firstDocument.GetProperty("expectedCount").GetInt32() > 0);
+        Assert.True(firstDocument.GetProperty("detectedCount").GetInt32() > 0);
+        Assert.True(firstDocument.TryGetProperty("matchedClauses", out var matchedClauses));
+        Assert.NotEmpty(matchedClauses.EnumerateArray());
+        Assert.Empty(firstDocument.GetProperty("extraClauseDetections").EnumerateArray());
+        Assert.Empty(firstDocument.GetProperty("unmatchedExpectedClauses").EnumerateArray());
+        var markdown = await File.ReadAllTextAsync(markdownPath);
+        Assert.Contains("Extraction Evaluation", markdown);
+        Assert.Contains("Unmatched expected clauses", markdown);
+        using var history = JsonDocument.Parse(await File.ReadAllTextAsync(historyPath));
+        Assert.False(history.RootElement.GetProperty("customerDataUsed").GetBoolean());
+        var run = history.RootElement.GetProperty("runs").EnumerateArray().Single();
+        Assert.Equal("passed", run.GetProperty("thresholdStatus").GetString());
+        Assert.Equal(1m, run.GetProperty("metrics").GetProperty("precision").GetDecimal());
     }
 
     [Fact]
@@ -46,7 +67,29 @@ public sealed class ExtractionEvaluationRunnerTests
         var document = report.RootElement.GetProperty("documents").EnumerateArray().Single();
         Assert.Contains("FAR 52.999-1", document.GetProperty("falsePositives").EnumerateArray().Select(item => item.GetString()));
         Assert.Contains("FAR 52.222-41", document.GetProperty("falseNegatives").EnumerateArray().Select(item => item.GetString()));
+        var extra = document.GetProperty("extraClauseDetections").EnumerateArray().Single();
+        Assert.Equal("FAR 52.999-1", extra.GetProperty("citation").GetString());
+        Assert.True(extra.GetProperty("line").GetInt32() > 0);
+        var missed = document.GetProperty("unmatchedExpectedClauses").EnumerateArray().Single();
+        Assert.Equal("FAR 52.222-41", missed.GetProperty("citation").GetString());
+        Assert.Equal("Service Contract Labor Standards", missed.GetProperty("title").GetString());
+        Assert.True(missed.GetProperty("sourceLocation").GetProperty("lineStart").GetInt32() > 0);
         Assert.Equal("failed", report.RootElement.GetProperty("thresholdStatus").GetString());
+    }
+
+    [Fact]
+    public async Task TC_28_2_5_Runner_rejects_cui_or_disallowed_corpus_documents_before_writing_metrics()
+    {
+        var repoRoot = FindRepoRoot();
+        var corpusRoot = CreateDisallowedCuiCorpus();
+        var output = Path.Combine(Path.GetTempPath(), $"gccs-extraction-eval-{Guid.NewGuid():N}");
+
+        var result = await RunEvaluationAsync(repoRoot, $"--corpus \"{corpusRoot}\" --output-dir \"{output}\" --min-precision 0.95 --min-recall 0.95");
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("disallowed or CUI document", result.StdErr, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(Path.Combine(output, "latest.json")));
+        Assert.False(File.Exists(Path.Combine(output, "history.json")));
     }
 
     private static async Task<(int ExitCode, string StdOut, string StdErr)> RunEvaluationAsync(string repoRoot, string arguments)
@@ -121,6 +164,60 @@ public sealed class ExtractionEvaluationRunnerTests
                   "title": "Service Contract Labor Standards",
                   "flowDownRequired": false,
                   "sourceLocation": { "lineStart": 2, "lineEnd": 2, "textAnchor": "FAR 52.222-41" }
+                }
+              ]
+            }
+            """);
+        return root;
+    }
+
+    private static string CreateDisallowedCuiCorpus()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"gccs-corpus-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "documents"));
+        Directory.CreateDirectory(Path.Combine(root, "labels"));
+        File.WriteAllText(Path.Combine(root, "corpus.json"), """
+            {
+              "schemaVersion": "1.0",
+              "dataHandlingRules": {
+                "allowedDataClasses": ["synthetic"],
+                "prohibitedContent": ["cui"],
+                "requiresNonCuiConfirmation": true,
+                "customerDataAllowed": false
+              },
+              "documents": [
+                {
+                  "id": "blocked-cui",
+                  "title": "Blocked CUI Fixture",
+                  "file": "documents/blocked-cui.txt",
+                  "labelFile": "labels/blocked-cui.labels.json",
+                  "documentType": "test",
+                  "sourceFamily": "synthetic",
+                  "contractType": "test",
+                  "dataClass": "cui",
+                  "containsCui": true,
+                  "limitations": ["Negative data-handling test fixture."],
+                  "approvedForBenchmark": false,
+                  "labelReview": {
+                    "status": "not_approved",
+                    "reviewedBy": "QA",
+                    "reviewedAt": "2026-06-18",
+                    "notes": "Must be rejected before metrics are written."
+                  }
+                }
+              ]
+            }
+            """);
+        File.WriteAllText(Path.Combine(root, "documents", "blocked-cui.txt"), "Line 1: FAR 52.204-21 is present.\n");
+        File.WriteAllText(Path.Combine(root, "labels", "blocked-cui.labels.json"), """
+            {
+              "documentId": "blocked-cui",
+              "expectedClauses": [
+                {
+                  "citation": "FAR 52.204-21",
+                  "title": "Basic Safeguarding",
+                  "flowDownRequired": true,
+                  "sourceLocation": { "lineStart": 1, "lineEnd": 1, "textAnchor": "FAR 52.204-21" }
                 }
               ]
             }

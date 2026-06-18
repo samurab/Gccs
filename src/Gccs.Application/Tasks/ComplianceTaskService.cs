@@ -187,7 +187,8 @@ public sealed class ComplianceTaskService(
         "control",
         "evidence",
         "subcontractor",
-        "certification"
+        "certification",
+        "extraction_regression_review"
     ];
 }
 
