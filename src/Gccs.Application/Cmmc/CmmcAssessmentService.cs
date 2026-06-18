@@ -134,7 +134,10 @@ public sealed class CmmcAssessmentService(
             TaskIds = request.TaskIds.Distinct().OrderBy(id => id).ToArray(),
             AssetIds = request.AssetIds.Distinct().OrderBy(id => id).ToArray(),
             PoamItemIds = request.PoamItemIds.Distinct().OrderBy(id => id).ToArray(),
-            Notes = request.Notes?.Trim() ?? string.Empty
+            Notes = request.Notes?.Trim() ?? string.Empty,
+            ImplementationDetails = request.ImplementationDetails?.Trim(),
+            InheritedFrom = string.IsNullOrWhiteSpace(request.InheritedFrom) ? null : request.InheritedFrom.Trim(),
+            EspName = string.IsNullOrWhiteSpace(request.EspName) ? null : request.EspName.Trim()
         };
 
     private static void Validate(UpsertCmmcAssessmentRequest request)
@@ -165,6 +168,21 @@ public sealed class CmmcAssessmentService(
         if (request.Notes?.Length > 1000)
         {
             throw new CmmcAssessmentValidationException("Control assessment notes must be 1000 characters or fewer.");
+        }
+
+        if (request.ImplementationDetails?.Length > 2000)
+        {
+            throw new CmmcAssessmentValidationException("Implementation details must be 2000 characters or fewer.");
+        }
+
+        if (request.IsInherited && string.IsNullOrWhiteSpace(request.InheritedFrom))
+        {
+            throw new CmmcAssessmentValidationException("Inherited controls must identify the inheritance source.");
+        }
+
+        if (request.EspResponsible && string.IsNullOrWhiteSpace(request.EspName))
+        {
+            throw new CmmcAssessmentValidationException("ESP-responsible controls must identify the ESP name.");
         }
     }
 }

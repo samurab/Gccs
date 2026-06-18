@@ -260,6 +260,21 @@ export type CmmcControlStatus = {
   assessedByUserId: string | null;
   assessedAt: string | null;
   notes: string;
+  implementationDetails: string;
+  isInherited: boolean;
+  inheritedFrom: string | null;
+  espResponsible: boolean;
+  espName: string | null;
+  statusHistory: CmmcControlStatusHistory[];
+};
+
+export type CmmcControlStatusHistory = {
+  id: string;
+  status: string;
+  result: string;
+  changedByUserId: string;
+  changedAt: string;
+  notes: string | null;
 };
 
 export type CmmcPoamItem = {

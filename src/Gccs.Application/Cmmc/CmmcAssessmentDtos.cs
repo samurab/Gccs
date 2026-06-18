@@ -63,7 +63,13 @@ public sealed record CmmcControlStatusDto(
     IReadOnlyList<Guid> PoamItemIds,
     Guid? AssessedByUserId,
     DateOnly? AssessedAt,
-    string Notes);
+    string Notes,
+    string ImplementationDetails,
+    bool IsInherited,
+    string? InheritedFrom,
+    bool EspResponsible,
+    string? EspName,
+    IReadOnlyList<CmmcControlStatusHistoryDto> StatusHistory);
 
 public sealed record UpsertCmmcControlStatusRequest(
     ControlImplementationStatus Status,
@@ -74,6 +80,19 @@ public sealed record UpsertCmmcControlStatusRequest(
     IReadOnlyList<Guid> PoamItemIds,
     Guid? AssessedByUserId,
     DateOnly? AssessedAt,
+    string? Notes,
+    string? ImplementationDetails = null,
+    bool IsInherited = false,
+    string? InheritedFrom = null,
+    bool EspResponsible = false,
+    string? EspName = null);
+
+public sealed record CmmcControlStatusHistoryDto(
+    Guid Id,
+    ControlImplementationStatus Status,
+    AssessmentResult Result,
+    Guid ChangedByUserId,
+    DateTimeOffset ChangedAt,
     string? Notes);
 
 public interface ICmmcAssessmentRepository

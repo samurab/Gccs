@@ -32,7 +32,9 @@ public sealed class EfCmmcAssessmentRepository(
 
     public async Task<CmmcAssessmentDto?> FindCurrentTenantAsync(Guid assessmentId, CancellationToken cancellationToken = default)
     {
-        var assessment = await QueryCurrentTenant()
+        var assessment = await dbContext.Assessments
+            .AsNoTracking()
+            .Where(candidate => candidate.TenantId == tenantContext.TenantId)
             .SingleOrDefaultAsync(candidate => candidate.Id == assessmentId, cancellationToken);
         return assessment is null ? null : await ToDtoAsync(assessment, cancellationToken);
     }
@@ -138,6 +140,7 @@ public sealed class EfCmmcAssessmentRepository(
         }
 
         var control = await dbContext.ControlAssessments
+            .Include(candidate => candidate.History)
             .SingleOrDefaultAsync(
                 candidate => candidate.AssessmentId == assessmentId && candidate.ControlId == controlId,
                 cancellationToken);
@@ -159,8 +162,26 @@ public sealed class EfCmmcAssessmentRepository(
         control.TaskIdsJson = JsonSerializer.Serialize(request.TaskIds, JsonOptions);
         control.AssetIdsJson = JsonSerializer.Serialize(request.AssetIds, JsonOptions);
         control.PoamItemIdsJson = JsonSerializer.Serialize(request.PoamItemIds, JsonOptions);
+        control.ImplementationDetails = request.ImplementationDetails ?? string.Empty;
+        control.IsInherited = request.IsInherited;
+        control.InheritedFrom = request.InheritedFrom;
+        control.EspResponsible = request.EspResponsible;
+        control.EspName = request.EspName;
         control.AssessedByUserId = request.AssessedByUserId ?? actorUserId;
         control.AssessedAt = request.AssessedAt ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var history = new ControlAssessmentHistoryEntity
+        {
+            Id = Guid.NewGuid(),
+            AssessmentId = assessmentId,
+            ControlId = controlId,
+            Status = control.ImplementationStatus,
+            Result = control.Result,
+            Notes = control.Notes,
+            ChangedByUserId = actorUserId,
+            ChangedAt = DateTimeOffset.UtcNow
+        };
+        dbContext.ControlAssessmentHistory.Add(history);
+        control.History.Add(history);
         assessment.UpdatedAt = DateTimeOffset.UtcNow;
         assessment.UpdatedByUserId = actorUserId;
 
@@ -171,6 +192,7 @@ public sealed class EfCmmcAssessmentRepository(
     private IQueryable<AssessmentEntity> QueryCurrentTenant() =>
         dbContext.Assessments
             .Include(assessment => assessment.Controls)
+                .ThenInclude(control => control.History)
             .Where(assessment => assessment.TenantId == tenantContext.TenantId);
 
     private IQueryable<ControlEntity> QueryControlsForLevel(CmmcLevel level)
@@ -242,7 +264,22 @@ public sealed class EfCmmcAssessmentRepository(
             ReadGuidArray(status?.PoamItemIdsJson ?? "[]"),
             status?.AssessedByUserId,
             status?.AssessedAt,
-            status?.Notes ?? string.Empty);
+            status?.Notes ?? string.Empty,
+            status?.ImplementationDetails ?? string.Empty,
+            status?.IsInherited ?? false,
+            status?.InheritedFrom,
+            status?.EspResponsible ?? false,
+            status?.EspName,
+            status?.History
+                .OrderByDescending(history => history.ChangedAt)
+                .Select(history => new CmmcControlStatusHistoryDto(
+                    history.Id,
+                    history.Status,
+                    history.Result,
+                    history.ChangedByUserId,
+                    history.ChangedAt,
+                    history.Notes))
+                .ToArray() ?? []);
 
     private static ControlSummaryDto CalculateSummary(
         IReadOnlyCollection<string> scopedControlIds,

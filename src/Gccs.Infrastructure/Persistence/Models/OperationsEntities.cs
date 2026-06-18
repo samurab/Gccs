@@ -173,9 +173,29 @@ public sealed class ControlAssessmentEntity
     public string TaskIdsJson { get; set; } = "[]";
     public string AssetIdsJson { get; set; } = "[]";
     public string PoamItemIdsJson { get; set; } = "[]";
+    public string ImplementationDetails { get; set; } = string.Empty;
+    public bool IsInherited { get; set; }
+    public string? InheritedFrom { get; set; }
+    public bool EspResponsible { get; set; }
+    public string? EspName { get; set; }
 
     public AssessmentEntity? Assessment { get; set; }
     public ControlEntity? Control { get; set; }
+    public ICollection<ControlAssessmentHistoryEntity> History { get; set; } = [];
+}
+
+public sealed class ControlAssessmentHistoryEntity
+{
+    public Guid Id { get; set; }
+    public Guid AssessmentId { get; set; }
+    public string ControlId { get; set; } = string.Empty;
+    public ControlImplementationStatus Status { get; set; }
+    public AssessmentResult Result { get; set; }
+    public string? Notes { get; set; }
+    public Guid ChangedByUserId { get; set; }
+    public DateTimeOffset ChangedAt { get; set; }
+
+    public ControlAssessmentEntity? ControlAssessment { get; set; }
 }
 
 public sealed class PoamItemEntity : AuditedEntity

@@ -46,6 +46,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<ControlEntity> Controls => Set<ControlEntity>();
     public DbSet<AssessmentEntity> Assessments => Set<AssessmentEntity>();
     public DbSet<ControlAssessmentEntity> ControlAssessments => Set<ControlAssessmentEntity>();
+    public DbSet<ControlAssessmentHistoryEntity> ControlAssessmentHistory => Set<ControlAssessmentHistoryEntity>();
     public DbSet<PoamItemEntity> PoamItems => Set<PoamItemEntity>();
     public DbSet<AssetEntity> Assets => Set<AssetEntity>();
     public DbSet<SystemBoundaryEntity> SystemBoundaries => Set<SystemBoundaryEntity>();
@@ -662,8 +663,24 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.TaskIdsJson).HasColumnType("jsonb");
             entity.Property(x => x.AssetIdsJson).HasColumnType("jsonb");
             entity.Property(x => x.PoamItemIdsJson).HasColumnType("jsonb");
+            entity.Property(x => x.ImplementationDetails).HasMaxLength(2000);
+            entity.Property(x => x.InheritedFrom).HasMaxLength(240);
+            entity.Property(x => x.EspName).HasMaxLength(240);
             entity.HasOne(x => x.Assessment).WithMany(x => x.Controls).HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Control).WithMany().HasForeignKey(x => x.ControlId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ControlAssessmentHistoryEntity>(entity =>
+        {
+            entity.ToTable("control_assessment_history");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.HasIndex(x => new { x.AssessmentId, x.ControlId, x.ChangedAt });
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+            entity.HasOne(x => x.ControlAssessment)
+                .WithMany(x => x.History)
+                .HasForeignKey(x => new { x.AssessmentId, x.ControlId })
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<PoamItemEntity>(entity =>
