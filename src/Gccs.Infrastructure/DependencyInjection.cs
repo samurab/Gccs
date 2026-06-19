@@ -54,6 +54,7 @@ public static class DependencyInjection
     {
         services.AddScoped<ComplianceOverviewService>();
         services.AddScoped<ComplianceContentReviewService>();
+        services.AddScoped<FedRampControlMappingService>();
         services.AddScoped<PolicyTemplateService>();
         services.AddScoped<SbaSizeStandardService>();
         services.AddScoped<SuggestedObligationService>();
@@ -98,6 +99,7 @@ public static class DependencyInjection
         services.AddSingleton<IExternalPortalAccessRepository, InMemoryExternalPortalAccessRepository>();
         services.AddSingleton<IPortalPackageRepository, InMemoryPortalPackageRepository>();
         services.AddSingleton<IPortalPackageLifecycleRepository, InMemoryPortalPackageLifecycleRepository>();
+        services.AddSingleton<IFedRampControlMappingRepository, InMemoryFedRampControlMappingRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<SamlIdentityProviderConfigurationService>();

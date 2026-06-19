@@ -4201,6 +4201,91 @@ api.MapPost("/enterprise/government-cloud-release-readiness/{readinessId:guid}/d
 .RequirePermission(Permission.ManageTenant)
 .WithName("DeployGovernmentCloudRelease");
 
+api.MapGet("/enterprise/fedramp/control-mappings", async (
+    string? family,
+    FedRampGapSeverity? severity,
+    string? owner,
+    DateOnly? targetDate,
+    FedRampControlMappingService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(new FedRampGapReportFilter(family, severity, owner, targetDate), cancellationToken)))
+.RequirePermission(Permission.ManageTenant)
+.WithName("ListFedRampControlMappings");
+
+api.MapPost("/enterprise/fedramp/control-mappings", async (
+    CreateFedRampControlMappingRequest request,
+    FedRampControlMappingService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/enterprise/fedramp/control-mappings/{created.Id}", created);
+    }
+    catch (FedRampControlMappingValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["fedRampControlMapping"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CreateFedRampControlMapping");
+
+api.MapPost("/enterprise/fedramp/control-mappings/{mappingId:guid}/evidence", async (
+    Guid mappingId,
+    FedRampEvidenceLinkRequest request,
+    FedRampControlMappingService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.LinkEvidenceAsync(mappingId, request, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "FedRAMP control mapping was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("LinkFedRampControlEvidence");
+
+api.MapPost("/enterprise/fedramp/control-mappings/{mappingId:guid}/gaps", async (
+    Guid mappingId,
+    FedRampGapRequest request,
+    FedRampControlMappingService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.AddGapAsync(mappingId, request, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "FedRAMP control mapping was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("AddFedRampControlGap");
+
+api.MapPost("/enterprise/fedramp/control-mappings/{mappingId:guid}/state", async (
+    Guid mappingId,
+    FedRampControlReviewRequest request,
+    FedRampControlMappingService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ChangeStateAsync(mappingId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "FedRAMP control mapping was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (FedRampControlMappingValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["fedRampControlReview"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ChangeFedRampControlMappingState");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,
