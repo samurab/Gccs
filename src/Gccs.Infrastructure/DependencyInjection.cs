@@ -8,6 +8,7 @@ using Gccs.Application.Contracts;
 using Gccs.Application.Demo;
 using Gccs.Application.Evidence;
 using Gccs.Application.Identity;
+using Gccs.Application.Labor;
 using Gccs.Application.NoCui;
 using Gccs.Application.Notifications;
 using Gccs.Application.Repositories;
@@ -26,6 +27,7 @@ using Gccs.Infrastructure.Contracts;
 using Gccs.Infrastructure.Demo;
 using Gccs.Infrastructure.Evidence;
 using Gccs.Infrastructure.Identity;
+using Gccs.Infrastructure.Labor;
 using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Notifications;
 using Gccs.Infrastructure.Persistence;
@@ -81,6 +83,7 @@ public static class DependencyInjection
         services.AddSingleton<IEsrsApplicabilityRepository, InMemoryEsrsApplicabilityRepository>();
         services.AddSingleton<ISubcontractingReportDataRepository, InMemorySubcontractingReportDataRepository>();
         services.AddSingleton<IEsrsReportPackageRepository, InMemoryEsrsReportPackageRepository>();
+        services.AddSingleton<ILaborApplicabilityRepository, InMemoryLaborApplicabilityRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
@@ -106,6 +109,8 @@ public static class DependencyInjection
         services.AddScoped<EsrsApplicabilityService>();
         services.AddScoped<SubcontractingReportDataService>();
         services.AddScoped<EsrsReportPackageService>();
+        services.AddScoped<LaborApplicabilityService>();
+        services.AddScoped<ILaborWageDeterminationUploadGuard, TenantLaborWageDeterminationUploadGuard>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         if (configuration is not null)
