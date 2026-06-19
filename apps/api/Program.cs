@@ -4491,6 +4491,92 @@ api.MapPost("/compliance/ssp/sections/{sectionId:guid}/status", async (
 .RequirePermission(Permission.ManageTenant)
 .WithName("ChangeSspSectionStatus");
 
+api.MapPost("/compliance/ssp/sections/{sectionId:guid}/narratives", async (
+    Guid sectionId,
+    GenerateSspNarrativeDraftRequest request,
+    SspSectionService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var narrative = await service.GenerateNarrativeDraftAsync(sectionId, request, tenantContext.UserId, cancellationToken);
+        return narrative is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP section was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/compliance/ssp/sections/{sectionId}/narratives/{narrative.Id}", narrative);
+    }
+    catch (SspNarrativeValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspNarrative"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("GenerateSspNarrativeDraft");
+
+api.MapPut("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:guid}", async (
+    Guid sectionId,
+    Guid narrativeId,
+    EditSspNarrativeDraftRequest request,
+    SspSectionService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var narrative = await service.EditNarrativeDraftAsync(sectionId, narrativeId, request, tenantContext.UserId, cancellationToken);
+        return narrative is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP narrative was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(narrative);
+    }
+    catch (SspNarrativeValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspNarrative"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("EditSspNarrativeDraft");
+
+api.MapPost("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:guid}/approve", async (
+    Guid sectionId,
+    Guid narrativeId,
+    ApproveSspNarrativeRequest request,
+    SspSectionService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var narrative = await service.ApproveNarrativeAsync(sectionId, narrativeId, request, tenantContext.UserId, cancellationToken);
+        return narrative is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP narrative was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(narrative);
+    }
+    catch (SspNarrativeValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspNarrativeApproval"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ApproveSspNarrative");
+
+api.MapGet("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:guid}/comparison", async (
+    Guid sectionId,
+    Guid narrativeId,
+    SspSectionService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var comparison = await service.CompareNarrativeAsync(sectionId, narrativeId, cancellationToken);
+    return comparison is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP narrative was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(comparison);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CompareSspNarrative");
+
 api.MapPost("/enterprise/cui/enclaves", async (
     CreateCuiEnclaveBoundaryRequest request,
     CuiEnclaveBoundaryService service,

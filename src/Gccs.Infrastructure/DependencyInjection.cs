@@ -109,6 +109,7 @@ public static class DependencyInjection
         services.AddSingleton<ITrustArtifactLibraryRepository, InMemoryTrustArtifactLibraryRepository>();
         services.AddSingleton<IFedRampReadinessExportPackageRepository, InMemoryFedRampReadinessExportPackageRepository>();
         services.AddSingleton<ISspSectionRepository, InMemorySspSectionRepository>();
+        services.AddSingleton<ISspNarrativeRepository>(provider => (InMemorySspSectionRepository)provider.GetRequiredService<ISspSectionRepository>());
         services.AddSingleton<ICuiEnclaveBoundaryRepository, InMemoryCuiEnclaveBoundaryRepository>();
         services.AddSingleton<ICustomerManagedKeyPolicyRepository, InMemoryCustomerManagedKeyPolicyRepository>();
         services.AddSingleton<ICuiEnclaveAccessControlRepository, InMemoryCuiEnclaveAccessControlRepository>();

@@ -5112,6 +5112,27 @@ Implement Story 29.1, "SSP Data Model And Sections," from `docs/development-phas
 
 #-----------------------------------------
 
+### Story 29.2: SSP Narrative Builder
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SSP Builder
+> - User story: As a compliance manager, I want to build SSP narratives from approved data and editable drafts so that the plan reflects actual implementation without becoming unreviewed legal or assessment advice.
+> - Acceptance criteria:
+> - User can create draft SSP narrative text from approved tenant records.
+> - Draft or AI-assisted narrative text is visibly marked as draft until approved.
+> - Narrative approval is blocked when required source links are missing or referenced records are outdated.
+> - User can compare current approved narrative with proposed changes.
+> - Narrative generation, edits, and approvals are audit logged.
+
+Implement Story 29.2, "SSP Narrative Builder," from `docs/development-phase-use-cases.md`. Add SSP narrative draft generation from approved tenant records and approved compliance content, editable narrative text, source links, reviewer notes, draft-only marking for generated or AI-assisted text, comparison between current approved narrative and proposed changes, validation for missing source links, unresolved placeholders, outdated references, unapproved sources, and cross-tenant sources, plus audit logging for generation, edits, and approvals. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, source traceability, review metadata, draft-only language, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
 ### Story 30.1: Scoring Rule Baseline
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.

@@ -5,7 +5,7 @@ namespace Gccs.Api.Tests;
 
 public sealed partial class DevelopmentStoryRegressionCoverageTests
 {
-    private const int ExpectedDocumentedRegressionCaseCount = 612;
+    private const int ExpectedDocumentedRegressionCaseCount = 622;
 
     private static readonly string[] CommonExpectationSignals =
     [

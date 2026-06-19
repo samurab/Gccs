@@ -721,6 +721,14 @@ Common expectations for all functional stories:
 - **TC-29.1.4 - Cross-tenant SSP sections hidden:** Seed an SSP section for one tenant and verify another tenant cannot retrieve or list it.
 - **TC-29.1.5 - SSP section lifecycle audited:** Create, update, approve, supersede, or archive an SSP section and verify audit events include section type, owner, and status metadata.
 
+### Story 29.2: SSP Narrative Builder
+
+- **TC-29.2.1 - Draft narrative generated from approved sources only:** Verify narrative drafts are generated only from approved current-tenant records and approved compliance content and remain marked draft-only when generated or AI-assisted.
+- **TC-29.2.2 - Unapproved or cross-tenant sources rejected:** Attempt to generate an SSP narrative from unapproved, prohibited, or cross-tenant source records and verify validation blocks it.
+- **TC-29.2.3 - Narrative approval blockers enforced:** Verify approval is blocked when source links are missing, placeholders remain unresolved, or referenced records are outdated.
+- **TC-29.2.4 - Comparison shows approved and proposed text:** Create an approved narrative, create a later draft, and verify comparison shows current approved text, proposed text, reviewer metadata, and source references.
+- **TC-29.2.5 - Narrative lifecycle audited:** Verify narrative generation, edits, and approvals are audit logged with section, status, and draft-only metadata.
+
 ## 30. SPRS Score Calculator
 
 ### Story 30.1: Scoring Rule Baseline

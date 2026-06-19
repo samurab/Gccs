@@ -1144,8 +1144,25 @@ Using the existing GCCS architecture and test patterns, create or update automat
 
 ### Story 29.1: SSP Data Model And Sections
 Please perform automated test on Story 29.1: SSP Data Model And Sections. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, source traceability, review metadata, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
-Run focused automated tests that verify tenant-scoped SSP section create/update APIs, lifecycle transitions, approval metadata validation, linked source records, source references, status history, cross-tenant blocking, RBAC, and audit logging. Include regression checks for standard API error behavior and source/review metadata requirements.
+- **TC-29.1.1:** Verify authorized users can create and update SSP sections for the current tenant with owner, section type, linked records, and source references.
+- **TC-29.1.2:** Attempt to approve an SSP section without reviewer, review date, source references, or rationale and verify validation blocks unsupported approval.
+- **TC-29.1.3:** Move an SSP section through draft, in_review, and approved states and verify status history retains actor, timestamp, status, and notes.
+- **TC-29.1.4:** Seed an SSP section for one tenant and verify another tenant cannot retrieve or list it.
+- **TC-29.1.5:** Create, update, approve, supersede, or archive an SSP section and verify audit events include section type, owner, and status metadata.
+#-----------------------------------
+
+### Story 29.2: SSP Narrative Builder
+Please perform automated test on Story 29.2: SSP Narrative Builder. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, source traceability, review metadata, draft-only language, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-29.2.1:** Verify narrative drafts are generated only from approved current-tenant records and approved compliance content and remain marked draft-only when generated or AI-assisted.
+- **TC-29.2.2:** Attempt to generate an SSP narrative from unapproved, prohibited, or cross-tenant source records and verify validation blocks it.
+- **TC-29.2.3:** Verify approval is blocked when source links are missing, placeholders remain unresolved, or referenced records are outdated.
+- **TC-29.2.4:** Create an approved narrative, create a later draft, and verify comparison shows current approved text, proposed text, reviewer metadata, and source references.
+- **TC-29.2.5:** Verify narrative generation, edits, and approvals are audit logged with section, status, and draft-only metadata.
+#-----------------------------------
 
 ### Story 30.1: Scoring Rule Baseline
 Please perform automated test on Story 30.1: Scoring Rule Baseline. Please provide the results of the tests.

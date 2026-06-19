@@ -1203,8 +1203,25 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ### Story 29.1: SSP Data Model And Sections
 Please perform Smoke test on Story 29.1: SSP Data Model And Sections. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
-Verify an authorized user can create, retrieve, update, approve, and archive an SSP section in the current tenant with section type, owner, linked source records, source references, reviewer metadata, status history, and audit events. Verify unsupported approval is blocked when reviewer, review date, source references, or rationale are missing. Verify another tenant cannot list or retrieve the section.
+- **TC-29.1.1:** Verify authorized users can create and update SSP sections for the current tenant with owner, section type, linked records, and source references.
+- **TC-29.1.2:** Attempt to approve an SSP section without reviewer, review date, source references, or rationale and verify validation blocks unsupported approval.
+- **TC-29.1.3:** Move an SSP section through draft, in_review, and approved states and verify status history retains actor, timestamp, status, and notes.
+- **TC-29.1.4:** Seed an SSP section for one tenant and verify another tenant cannot retrieve or list it.
+- **TC-29.1.5:** Create, update, approve, supersede, or archive an SSP section and verify audit events include section type, owner, and status metadata.
+#-----------------------------------
+
+### Story 29.2: SSP Narrative Builder
+Please perform Smoke test on Story 29.2: SSP Narrative Builder. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-29.2.1:** Verify narrative drafts are generated only from approved current-tenant records and approved compliance content and remain marked draft-only when generated or AI-assisted.
+- **TC-29.2.2:** Attempt to generate an SSP narrative from unapproved, prohibited, or cross-tenant source records and verify validation blocks it.
+- **TC-29.2.3:** Verify approval is blocked when source links are missing, placeholders remain unresolved, or referenced records are outdated.
+- **TC-29.2.4:** Create an approved narrative, create a later draft, and verify comparison shows current approved text, proposed text, reviewer metadata, and source references.
+- **TC-29.2.5:** Verify narrative generation, edits, and approvals are audit logged with section, status, and draft-only metadata.
+#-----------------------------------
 
 ### Story 30.1: Scoring Rule Baseline
 Please perform Smoke test on Story 30.1: Scoring Rule Baseline. Please provide the results of the tests.

@@ -157,7 +157,9 @@ public sealed class SspSectionTests : IClassFixture<WebApplicationFactory<Progra
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
-                services.AddSingleton<ISspSectionRepository, InMemorySspSectionRepository>();
+                var repository = new InMemorySspSectionRepository();
+                services.AddSingleton<ISspSectionRepository>(repository);
+                services.AddSingleton<ISspNarrativeRepository>(repository);
                 services.AddScoped<SspSectionService>();
                 services.AddSingleton(auditWriter);
             });
