@@ -4088,6 +4088,119 @@ api.MapPost("/enterprise/regulated-tenant-provisioning/{requestId:guid}/retire",
 .RequirePermission(Permission.ManageTenant)
 .WithName("RetireRegulatedTenantProvisioning");
 
+api.MapPost("/enterprise/government-cloud-release-readiness", async (
+    CreateGovernmentCloudReleaseReadinessRequest request,
+    GovernmentCloudReleaseReadinessService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/enterprise/government-cloud-release-readiness/{created.Id}", created);
+    }
+    catch (GovernmentCloudReleaseReadinessValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["releaseReadiness"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CreateGovernmentCloudReleaseReadiness");
+
+api.MapPost("/enterprise/government-cloud-release-readiness/{readinessId:guid}/checklist", async (
+    Guid readinessId,
+    CompleteGovernmentCloudReleaseChecklistRequest request,
+    GovernmentCloudReleaseReadinessService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.CompleteChecklistAsync(readinessId, request, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud release readiness record was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CompleteGovernmentCloudReleaseChecklist");
+
+api.MapPost("/enterprise/government-cloud-release-readiness/{readinessId:guid}/evidence", async (
+    Guid readinessId,
+    GovernmentCloudReleaseEvidenceRequest request,
+    GovernmentCloudReleaseReadinessService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.LinkEvidenceAsync(readinessId, request, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud release readiness record was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("LinkGovernmentCloudReleaseEvidence");
+
+api.MapPost("/enterprise/government-cloud-release-readiness/{readinessId:guid}/gaps", async (
+    Guid readinessId,
+    GovernmentCloudReleaseGapRequest request,
+    GovernmentCloudReleaseReadinessService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.AddGapAsync(readinessId, request, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud release readiness record was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("AddGovernmentCloudReleaseGap");
+
+api.MapPost("/enterprise/government-cloud-release-readiness/{readinessId:guid}/approve", async (
+    Guid readinessId,
+    GovernmentCloudReleaseApprovalRequest request,
+    GovernmentCloudReleaseReadinessService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ApproveAsync(readinessId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud release readiness record was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (GovernmentCloudReleaseReadinessValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["releaseApproval"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ApproveGovernmentCloudRelease");
+
+api.MapPost("/enterprise/government-cloud-release-readiness/{readinessId:guid}/deploy", async (
+    Guid readinessId,
+    GovernmentCloudReleaseDeploymentRequest request,
+    GovernmentCloudReleaseReadinessService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.DeployAsync(readinessId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud release readiness record was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (GovernmentCloudReleaseReadinessValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["releaseDeployment"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("DeployGovernmentCloudRelease");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,

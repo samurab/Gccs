@@ -161,6 +161,67 @@ public sealed class RegulatedTenantProvisioningHistoryEntity
     public RegulatedTenantProvisioningRequestEntity? Request { get; set; }
 }
 
+public sealed class GovernmentCloudReleaseReadinessEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid EnvironmentId { get; set; }
+    public string Version { get; set; } = string.Empty;
+    public string ReleaseWindow { get; set; } = string.Empty;
+    public string Owner { get; set; } = string.Empty;
+    public GovernmentCloudReleaseStatus Status { get; set; }
+    public string? ApproverName { get; set; }
+    public string? ApprovalNotes { get; set; }
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public string? Result { get; set; }
+    public string? RollbackStatus { get; set; }
+    public DateTimeOffset? DeployedAt { get; set; }
+
+    public GovernmentCloudEnvironmentEntity? Environment { get; set; }
+    public ICollection<GovernmentCloudReleaseChecklistEntity> Checklist { get; set; } = [];
+    public ICollection<GovernmentCloudReleaseEvidenceEntity> Evidence { get; set; } = [];
+    public ICollection<GovernmentCloudReleaseGapEntity> Gaps { get; set; } = [];
+}
+
+public sealed class GovernmentCloudReleaseChecklistEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ReadinessId { get; set; }
+    public GovernmentCloudReleaseChecklistItem Item { get; set; }
+    public string EvidenceReference { get; set; } = string.Empty;
+    public DateTimeOffset CompletedAt { get; set; }
+    public Guid CompletedByUserId { get; set; }
+
+    public GovernmentCloudReleaseReadinessEntity? Readiness { get; set; }
+}
+
+public sealed class GovernmentCloudReleaseEvidenceEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ReadinessId { get; set; }
+    public GovernmentCloudReleaseEvidenceType EvidenceType { get; set; }
+    public string Link { get; set; } = string.Empty;
+    public DateTimeOffset LinkedAt { get; set; }
+    public Guid LinkedByUserId { get; set; }
+
+    public GovernmentCloudReleaseReadinessEntity? Readiness { get; set; }
+}
+
+public sealed class GovernmentCloudReleaseGapEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ReadinessId { get; set; }
+    public GovernmentCloudReleaseGapArea Area { get; set; }
+    public GovernmentCloudReleaseGapSeverity Severity { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public bool IsOpen { get; set; }
+
+    public GovernmentCloudReleaseReadinessEntity? Readiness { get; set; }
+}
+
 public sealed class CuiReadyApprovalChecklistEntity : AuditedEntity
 {
     public Guid Id { get; set; }

@@ -30,6 +30,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<RegulatedProvisioningApprovalEntity> RegulatedProvisioningApprovals => Set<RegulatedProvisioningApprovalEntity>();
     public DbSet<RegulatedProvisioningChecklistEntity> RegulatedProvisioningChecklist => Set<RegulatedProvisioningChecklistEntity>();
     public DbSet<RegulatedTenantProvisioningHistoryEntity> RegulatedTenantProvisioningHistory => Set<RegulatedTenantProvisioningHistoryEntity>();
+    public DbSet<GovernmentCloudReleaseReadinessEntity> GovernmentCloudReleaseReadiness => Set<GovernmentCloudReleaseReadinessEntity>();
+    public DbSet<GovernmentCloudReleaseChecklistEntity> GovernmentCloudReleaseChecklist => Set<GovernmentCloudReleaseChecklistEntity>();
+    public DbSet<GovernmentCloudReleaseEvidenceEntity> GovernmentCloudReleaseEvidence => Set<GovernmentCloudReleaseEvidenceEntity>();
+    public DbSet<GovernmentCloudReleaseGapEntity> GovernmentCloudReleaseGaps => Set<GovernmentCloudReleaseGapEntity>();
     public DbSet<CuiReadyApprovalChecklistEntity> CuiReadyApprovalChecklists => Set<CuiReadyApprovalChecklistEntity>();
     public DbSet<CuiReadyApprovalChecklistItemEntity> CuiReadyApprovalChecklistItems => Set<CuiReadyApprovalChecklistItemEntity>();
     public DbSet<SharedResponsibilityMatrixAcknowledgementEntity> SharedResponsibilityMatrixAcknowledgements => Set<SharedResponsibilityMatrixAcknowledgementEntity>();
@@ -132,6 +136,11 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<EvidenceType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ExtractionJobStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<FlowDownStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<GovernmentCloudReleaseChecklistItem>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<GovernmentCloudReleaseEvidenceType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<GovernmentCloudReleaseGapArea>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<GovernmentCloudReleaseGapSeverity>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<GovernmentCloudReleaseStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<MembershipStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<Permission>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<PoamStatus>().HaveConversion<string>().HaveMaxLength(64);
@@ -277,6 +286,50 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.TenantId, x.RequestId, x.ChangedAt });
             entity.Property(x => x.Note).HasMaxLength(600).IsRequired();
             entity.HasOne(x => x.Request).WithMany().HasForeignKey(x => x.RequestId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GovernmentCloudReleaseReadinessEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_release_readiness");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EnvironmentId, x.Version }).IsUnique();
+            entity.Property(x => x.Version).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ReleaseWindow).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Owner).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ApproverName).HasMaxLength(200);
+            entity.Property(x => x.ApprovalNotes).HasMaxLength(1200);
+            entity.Property(x => x.Result).HasMaxLength(400);
+            entity.Property(x => x.RollbackStatus).HasMaxLength(400);
+            entity.HasOne(x => x.Environment).WithMany().HasForeignKey(x => x.EnvironmentId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<GovernmentCloudReleaseChecklistEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_release_checklist");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ReadinessId, x.Item }).IsUnique();
+            entity.Property(x => x.EvidenceReference).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Readiness).WithMany(x => x.Checklist).HasForeignKey(x => x.ReadinessId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GovernmentCloudReleaseEvidenceEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_release_evidence");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ReadinessId, x.EvidenceType }).IsUnique();
+            entity.Property(x => x.Link).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Readiness).WithMany(x => x.Evidence).HasForeignKey(x => x.ReadinessId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GovernmentCloudReleaseGapEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_release_gaps");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ReadinessId, x.Severity, x.IsOpen });
+            entity.Property(x => x.Description).HasMaxLength(1000).IsRequired();
+            entity.HasOne(x => x.Readiness).WithMany(x => x.Gaps).HasForeignKey(x => x.ReadinessId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
         });
 
         modelBuilder.Entity<CuiReadyApprovalChecklistEntity>(entity =>
