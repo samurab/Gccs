@@ -34,6 +34,12 @@ This backlog expands the Phase 1 MVP and Phase 2 Govcon Intelligence development
 | 26 | Evidence request workflows | Users can request, collect, review, and track evidence from internal users and subcontractors. |
 | 27 | CMMC Level 2 readiness expansion | Users can manage Level 2 readiness with richer assessment, evidence, and responsibility tracking. |
 | 28 | Extraction content test set | Extraction precision and recall can be measured against representative contract documents. |
+| 29 | SSP builder | Users can assemble a source-backed System Security Plan from approved profile, boundary, asset, control, and evidence data. |
+| 30 | SPRS score calculator | Users can calculate, review, and track draft NIST SP 800-171 assessment scores before SPRS submission. |
+| 31 | eSRS support | Users can track subcontracting plan reporting obligations and prepare eSRS report packages. |
+| 32 | Labor compliance module | Users can manage wage determinations, labor categories, worker classifications, and labor evidence when required by contract. |
+| 33 | AI assistant with guardrails | Users can ask source-backed compliance questions with citations, logging, and human-review controls. |
+| 34 | Prime contractor and auditor portals | External prime and auditor users can review approved packages without modifying tenant workspaces. |
 
 ## Acceptance Criteria Testability Standard
 
@@ -1144,6 +1150,7 @@ Acceptance criteria:
 - Launch content has source URLs and review metadata.
 - Rollback plan is documented and tested in staging.
 
+# Phase 2 - Govcon Intelligence
 ## 18. Automated Clause Extraction
 
 ### Use Case
@@ -1911,6 +1918,415 @@ Acceptance criteria:
 - Resolved failures are linked to matcher, library, parser, or label updates when applicable.
 - Release summary shows open extraction risks and metric trends.
 - Regression review records are audit logged or otherwise traceable.
+
+## Phase 3 - Advanced Compliance
+## 29. SSP Builder
+
+### Use Case
+
+As a DoD supplier preparing for CMMC or NIST SP 800-171 review, I need to assemble a System Security Plan from governed system, asset, control, responsibility, and evidence data so that the SSP can be reviewed before customer, advisor, or assessment use.
+
+### User Stories
+
+#### Story 29.1: SSP Data Model And Sections
+
+As a security owner, I want structured SSP sections so that system security plan content is consistent, source-backed, and reusable.
+
+Tasks:
+
+- Define SSP sections for system description, authorization boundary, environment, interconnections, users, roles, data types, CUI handling posture, control implementation narratives, inherited responsibilities, external service providers, and evidence references.
+- Link SSP sections to company profile, system boundary, assets, CMMC controls, responsibility matrix, policies, POA&M items, and evidence.
+- Add section ownership, review status, reviewer, review date, and source references.
+- Add draft, in_review, approved, superseded, and archived states.
+- Add tenant-scoped API contracts and validation rules for SSP section data.
+
+Acceptance criteria:
+
+- Authorized user can create and update SSP sections for the current tenant.
+- SSP sections link to source records instead of duplicating unsupported compliance claims.
+- Required sections cannot be marked approved without owner, reviewer, review date, and source references or rationale.
+- SSP section changes preserve status history.
+- SSP section create, update, approval, and archive actions are audit logged.
+
+#### Story 29.2: SSP Narrative Builder
+
+As a compliance manager, I want to build SSP narratives from approved data and editable drafts so that the plan reflects actual implementation without becoming unreviewed legal or assessment advice.
+
+Tasks:
+
+- Add narrative editor for each SSP section with generated draft, user-edited text, source links, and reviewer notes.
+- Generate draft text only from approved tenant records and approved compliance content.
+- Mark generated or AI-assisted text as draft until human reviewed.
+- Add comparison view between current approved narrative and proposed changes.
+- Add validation for missing source links, unresolved placeholders, and outdated control or evidence references.
+
+Acceptance criteria:
+
+- User can create draft SSP narrative text from approved tenant records.
+- Draft or AI-assisted narrative text is visibly marked as draft until approved.
+- Narrative approval is blocked when required source links are missing or referenced records are outdated.
+- User can compare current approved narrative with proposed changes.
+- Narrative generation, edits, and approvals are audit logged.
+
+#### Story 29.3: SSP Export And Review Package
+
+As a security owner, I want to export an SSP review package so that leadership, advisors, or assessors can review the current plan with supporting references.
+
+Tasks:
+
+- Add SSP export options for human-readable report and machine-readable package metadata.
+- Include section status, generated date, tenant, system boundary, control implementation summaries, evidence references, POA&M references, reviewer metadata, and disclaimers.
+- Exclude prohibited, unknown, unapproved, or cross-tenant evidence.
+- Add export permission checks and external-share restrictions.
+- Add export history and package versioning.
+
+Acceptance criteria:
+
+- Authorized user can export an SSP package for the current tenant.
+- Export includes generated date, package version, tenant, section statuses, reviewer metadata, and source references.
+- Export excludes prohibited, unknown, unapproved, and cross-tenant records.
+- Export contains no certification or assessor determination language.
+- SSP export is audit logged.
+
+## 30. SPRS Score Calculator
+
+### Use Case
+
+As a DoD supplier, I need to calculate and track draft NIST SP 800-171 assessment scores so that leadership can understand readiness before making any SPRS submission or affirmation.
+
+### User Stories
+
+#### Story 30.1: Scoring Rule Baseline
+
+As a compliance content owner, I want the SPRS scoring rule baseline captured with source metadata so that calculations are traceable and reviewable.
+
+Tasks:
+
+- Define scoring rules for applicable NIST SP 800-171 Rev. 2 requirements and assessment objective status.
+- Store score weights, maximum score, deduction logic, source references, version, owner, reviewer, review date, and effective date.
+- Add draft, approved, published, retired, and superseded scoring rule states.
+- Add validation that published scoring rules require source and review metadata.
+- Add tests for scoring edge cases.
+
+Acceptance criteria:
+
+- Published scoring rule set includes source URL, version, owner, reviewer, review date, and effective date.
+- Scoring rules cannot publish without required review metadata.
+- Retired scoring rules cannot be used for new calculations.
+- Calculation services identify which scoring rule version was used.
+- Scoring rule lifecycle changes are audit logged or source-control traceable.
+
+#### Story 30.2: Score Calculation Workspace
+
+As a security owner, I want to calculate a draft SPRS score from control assessment data so that I can identify score drivers and gaps.
+
+Tasks:
+
+- Add calculation workflow from Level 2 control assessment statuses and scoring rule version.
+- Show current score, maximum score, deductions, requirement-level reasons, excluded or not-applicable rationale, and unresolved gaps.
+- Allow manual reviewer notes without overriding the rule calculation.
+- Add recalculation when control assessment status changes.
+- Add tenant-scoped calculation history.
+
+Acceptance criteria:
+
+- Authorized user can calculate a draft SPRS score for the current tenant.
+- Calculation output shows score, deductions, requirement reasons, rule version, generated date, and unresolved gaps.
+- Score recalculates when relevant control assessment status changes.
+- Manual notes are stored separately from calculated values.
+- Score calculations are tenant-scoped and audit logged.
+
+#### Story 30.3: SPRS Readiness Report
+
+As a compliance manager, I want an SPRS readiness report so that leadership can review score context before deciding whether to submit or update SPRS.
+
+Tasks:
+
+- Add report sections for score summary, major deductions, unresolved controls, POA&M references, evidence status, assessment date, scoring rule version, and reviewer notes.
+- Include draft-only and not-submitted language.
+- Add optional leadership review status.
+- Add export and report history.
+- Add permission checks for report generation and viewing.
+
+Acceptance criteria:
+
+- Authorized user can generate an SPRS readiness report for the current tenant.
+- Report includes score, deductions, unresolved controls, POA&M references, evidence status, scoring rule version, and generated date.
+- Report states that GCCS has not submitted the score to SPRS.
+- Report uses tenant-scoped data only.
+- Report generation is audit logged.
+
+## 31. eSRS Support
+
+### Use Case
+
+As a contractor with subcontracting plan obligations, I need to track eSRS reporting requirements and prepare report packages so that reporting deadlines, data, and evidence are managed before submission.
+
+### User Stories
+
+#### Story 31.1: eSRS Applicability And Reporting Calendar
+
+As a contracts manager, I want to identify contracts with eSRS reporting obligations so that required reports appear on the compliance calendar.
+
+Tasks:
+
+- Add eSRS applicability fields for contract type, agency, subcontracting plan type, prime/lower-tier role, reporting period, report type, due date, and source clause.
+- Link eSRS obligations to contracts, subcontractors, tasks, and calendar items.
+- Add default reporting schedule templates for ISR and SSR tracking where applicable.
+- Add validation requiring source clause or documented rationale.
+- Add reminders and overdue status for eSRS report tasks.
+
+Acceptance criteria:
+
+- Authorized user can mark a contract as eSRS-applicable with report type, period, due date, and source.
+- eSRS report obligations appear on the compliance calendar.
+- Missing source clause or rationale blocks activation of an eSRS obligation.
+- Overdue eSRS tasks are calculated from due date and status.
+- eSRS applicability changes are audit logged.
+
+#### Story 31.2: Subcontracting Report Data Collection
+
+As a contracts manager, I want to collect subcontracting report data so that eSRS package preparation uses documented subcontractor and spend information.
+
+Tasks:
+
+- Add report data fields for subcontractor, socioeconomic category, award/spend amount, period, contract, plan category, and supporting evidence.
+- Link data rows to subcontractor profiles and evidence records.
+- Add validation for missing subcontractor category, negative amounts, duplicate rows, and period mismatch.
+- Add import template for manual data entry.
+- Add review status for report data rows.
+
+Acceptance criteria:
+
+- User can create report data rows linked to subcontractor and contract records.
+- Validation rejects negative amounts, missing required categories, duplicate rows, and period mismatches.
+- Report data rows link to supporting evidence when provided.
+- Data rows cannot be included in a final package until reviewed or explicitly marked as accepted.
+- Data row changes are audit logged.
+
+#### Story 31.3: eSRS Report Package
+
+As a contracts manager, I want to prepare an eSRS report package so that internal reviewers can verify data before external submission.
+
+Tasks:
+
+- Add package generation for selected contract, period, and report type.
+- Include reporting metadata, subcontractor/spend summaries, exceptions, evidence references, review notes, and generated date.
+- Mark package as preparation-only and not submitted by GCCS.
+- Add review workflow for draft, in_review, approved, superseded, and archived packages.
+- Add export history and permission checks.
+
+Acceptance criteria:
+
+- Authorized user can generate an eSRS preparation package for the current tenant.
+- Package includes contract, period, report type, subcontractor/spend summaries, exceptions, evidence references, and generated date.
+- Package states that GCCS has not submitted the report to eSRS.
+- Approved packages include reviewer and approval date.
+- Package generation and approval are audit logged.
+
+## 32. Labor Compliance Module
+
+### Use Case
+
+As a service or construction contractor, I need to track labor obligations, wage determinations, labor categories, classifications, and evidence so that contract-specific labor compliance work is organized and reviewable.
+
+### User Stories
+
+#### Story 32.1: Labor Applicability And Wage Determinations
+
+As a contracts or HR manager, I want to identify labor clauses and wage determinations for a contract so that labor compliance tasks are generated from source-backed requirements.
+
+Tasks:
+
+- Add labor applicability fields for SCA, DBA, other FAR Part 22 obligations, place of performance, contract period, source clause, and wage determination reference.
+- Attach wage determination documents subject to tenant data-handling guardrails.
+- Link labor obligations to contracts, clauses, tasks, employees, labor categories, and evidence.
+- Add review status for labor applicability decisions.
+- Generate labor review tasks for applicable contracts.
+
+Acceptance criteria:
+
+- Authorized user can record labor applicability with source clause, place of performance, and wage determination reference.
+- Wage determination uploads enforce tenant data-handling guardrails.
+- Missing source clause or documented rationale blocks labor obligation activation.
+- Labor applicability creates or updates linked review tasks.
+- Labor applicability changes are audit logged.
+
+#### Story 32.2: Labor Category And Employee Classification
+
+As an HR or compliance manager, I want to map employees to labor categories so that wage, fringe, and classification evidence can be tracked by contract.
+
+Tasks:
+
+- Add labor category records with title, contract, wage determination classification, rate, fringe information, effective dates, and source reference.
+- Add employee assignment records with employee, labor category, contract, work location, start date, end date, status, and evidence links.
+- Add validation for effective date conflicts, missing source references, and inactive categories.
+- Add restricted access controls for sensitive employee data.
+- Add history for classification changes.
+
+Acceptance criteria:
+
+- Authorized user can create labor categories and employee assignments for the current tenant.
+- Assignment validation rejects inactive categories, missing source references, and conflicting effective dates.
+- Sensitive employee fields are permission restricted.
+- Classification history preserves prior category, new category, actor, timestamp, and reason.
+- Labor category and assignment changes are audit logged.
+
+#### Story 32.3: Labor Evidence And Compliance Report
+
+As a compliance manager, I want a labor evidence package and status report so that contract, HR, and advisor reviewers can see labor compliance status.
+
+Tasks:
+
+- Add evidence links for wage determination, payroll support, fringe documentation, classification review, training, and corrective actions.
+- Add labor dashboard filters for contract, employee, labor category, location, status, due date, and missing evidence.
+- Generate labor compliance report with source clauses, wage determinations, assignments, gaps, evidence references, reviewer notes, and disclaimers.
+- Add permission checks for report generation and employee-sensitive sections.
+- Add report history and export.
+
+Acceptance criteria:
+
+- Dashboard shows labor obligations, assignments, evidence status, gaps, and overdue items for the current tenant.
+- Report includes source clauses, wage determinations, labor categories, assignments, gaps, evidence references, and generated date.
+- Employee-sensitive sections are visible only to authorized roles.
+- Report contains workflow status and not legal determination language.
+- Report generation is audit logged.
+
+## 33. AI Assistant With Citations, Logging, And Human Review
+
+### Use Case
+
+As a compliance user, I need an AI assistant that answers from approved sources and tenant documents with citations, draft labels, and review controls so that AI helps workflow without inventing final compliance advice.
+
+### User Stories
+
+#### Story 33.1: Retrieval And Source Citation Pipeline
+
+As a developer, I want AI responses grounded in approved retrieval sources so that every answer can be traced to compliance content or tenant documents.
+
+Tasks:
+
+- Define approved retrieval sources for published obligation library content, approved tenant documents, approved reports, and explicitly allowed evidence metadata.
+- Enforce tenant scope, RBAC, classification, and data-handling guardrails before retrieval.
+- Return citations with source title, source type, source URL or tenant record reference, excerpt pointer, version, and last reviewed date when available.
+- Block answers when no approved source is available.
+- Log retrieval source IDs and policy decisions.
+
+Acceptance criteria:
+
+- Assistant retrieves only tenant-authorized and approved sources.
+- Responses include citations for every substantive compliance statement.
+- Assistant refuses or asks for review when no approved source supports the answer.
+- Retrieval excludes prohibited, unknown, unapproved, or cross-tenant content.
+- Retrieval source IDs and policy decisions are logged.
+
+#### Story 33.2: AI Output Logging And Review
+
+As a compliance content owner, I want prompts, retrieved sources, generated output, and user decisions logged so that AI-assisted work can be reviewed and improved.
+
+Tasks:
+
+- Log prompt, user, tenant, workflow context, model configuration, retrieved sources, generated output, classification, timestamp, and result.
+- Add human review states for draft, needs_review, approved, rejected, superseded, and archived output.
+- Allow reviewer comments and rejection reasons.
+- Add retention and export controls for AI logs.
+- Add redaction or exclusion for prohibited data.
+
+Acceptance criteria:
+
+- AI interaction logs include prompt metadata, retrieved sources, output, actor, tenant, timestamp, and workflow context.
+- AI output is marked draft until human approved where used in reports, policies, SSPs, POA&Ms, or customer deliverables.
+- Reviewer can approve, reject, or supersede AI output with notes.
+- AI logs respect tenant scope, RBAC, retention, and data-handling mode.
+- AI review decisions are audit logged.
+
+#### Story 33.3: Guarded Assistant User Experience
+
+As a compliance manager, I want the assistant to provide bounded answers and next actions so that users understand source limits and review requirements.
+
+Tasks:
+
+- Add assistant UI for questions from obligation, contract, evidence, CMMC, SSP, POA&M, labor, and subcontractor contexts.
+- Show citations, confidence, draft label, review requirement, and escalation option.
+- Add prohibited prompt handling for legal determinations, certification claims, unsupported CUI processing, classified data, and cross-tenant requests.
+- Add actions to create draft tasks, evidence requests, notes, or review items from an answer.
+- Add feedback capture for helpful, incorrect, missing source, or needs expert review.
+
+Acceptance criteria:
+
+- Assistant answers include citations, draft label, confidence or support status, and review requirement.
+- Assistant blocks or redirects unsupported legal, certification, classified, prohibited, or cross-tenant requests.
+- User can create draft tasks, evidence requests, notes, or review items from supported answers.
+- Feedback is stored with answer, user, tenant, timestamp, and reason.
+- Assistant actions and blocked requests are audit logged.
+
+## 34. Prime Contractor And Auditor Portals
+
+### Use Case
+
+As a tenant admin, I need controlled external portals for prime contractors and auditors so that approved compliance packages can be shared without exposing unrelated workspace data or allowing unauthorized edits.
+
+### User Stories
+
+#### Story 34.1: External Portal Access Model
+
+As a tenant admin, I want to invite prime contractor and auditor users into limited portals so that external review access is controlled by role, scope, and expiration.
+
+Tasks:
+
+- Define external roles for prime reviewer, auditor reviewer, advisor reviewer, and package recipient.
+- Add portal invitations with scope, expiration, allowed packages, allowed contracts, download permission, and revocation.
+- Enforce MFA or strong authentication requirement where configured.
+- Add portal access history and last access timestamp.
+- Add tenant admin controls for revoke, extend, and resend invitation.
+
+Acceptance criteria:
+
+- Tenant admin can invite external portal users with role, scope, expiration, and package access.
+- Expired or revoked portal invitations cannot be used.
+- Portal users can access only assigned packages and scoped records.
+- Portal users cannot modify tenant workspace data.
+- Portal invitation, access, and revocation events are audit logged.
+
+#### Story 34.2: Approved Package Portal Review
+
+As a prime contractor or auditor reviewer, I want to review approved packages, evidence references, and status reports so that I can complete my review without direct access to the tenant workspace.
+
+Tasks:
+
+- Add portal dashboard for assigned packages, status, due date, reviewer notes, and download availability.
+- Show approved obligation matrix, CMMC readiness report, SSP package, evidence package, subcontractor report, labor report, or audit log export when explicitly shared.
+- Hide drafts, internal notes, prohibited data, unknown classification records, and unrelated tenant records.
+- Add controlled reviewer questions or comments.
+- Add download watermarking or export metadata when configured.
+
+Acceptance criteria:
+
+- Portal reviewer sees only approved packages explicitly shared with them.
+- Drafts, internal notes, prohibited data, unknown classification records, and unrelated records are hidden.
+- Reviewer can add comments or questions without modifying source tenant records.
+- Downloads include package metadata and watermarking when configured.
+- Portal review and download actions are audit logged.
+
+#### Story 34.3: Portal Package Lifecycle And Revocation
+
+As a tenant admin, I want to manage shared package lifecycle so that outdated or over-shared packages can be superseded, revoked, or reissued.
+
+Tasks:
+
+- Add shared package states for active, superseded, expired, revoked, and archived.
+- Add expiration reminders and automatic expiration.
+- Add reissue workflow that links new package version to superseded version.
+- Add revocation reason and immediate access cutoff.
+- Add portal activity report for tenant admins.
+
+Acceptance criteria:
+
+- Tenant admin can expire, revoke, supersede, and reissue shared packages.
+- Revoked packages become inaccessible immediately to portal users.
+- Superseded packages link to the replacement package version.
+- Portal activity report shows access, comments, downloads, expiration, and revocation history.
+- Package lifecycle actions are audit logged.
 
 ## Definition Of Ready
 

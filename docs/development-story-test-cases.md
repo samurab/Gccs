@@ -711,6 +711,136 @@ Common expectations for all functional stories:
 - **TC-28.3.4 - Release summary shows open extraction risks and:** Verify release summary shows open extraction risks and metric trends.
 - **TC-28.3.5 - Regression review records are audit logged or:** Verify regression review records are audit logged or otherwise traceable.
 
+## 30. SPRS Score Calculator
+
+### Story 30.1: Scoring Rule Baseline
+
+- **TC-30.1.1 - Published scoring metadata complete:** Verify published scoring rules include source URL, version, owner, reviewer, review date, and effective date.
+- **TC-30.1.2 - Publish validation enforced:** Attempt to publish scoring rules with missing source or review metadata and verify validation fails.
+- **TC-30.1.3 - Retired rules blocked:** Retire a scoring rule set and verify it cannot be selected for a new calculation.
+- **TC-30.1.4 - Rule version attached to calculations:** Calculate a score and verify the calculation stores the scoring rule version used.
+- **TC-30.1.5 - Scoring rule lifecycle traceable:** Move scoring rules through draft, approved, published, superseded, and retired states and verify audit events or source-control traceability.
+
+### Story 30.2: Score Calculation Workspace
+
+- **TC-30.2.1 - Draft score calculation succeeds:** As an authorized user, calculate a draft SPRS score from Level 2 control assessment data and verify score, deductions, reasons, rule version, generated date, and gaps are returned.
+- **TC-30.2.2 - Score is tenant scoped:** Seed assessment data in two tenants and verify each score uses only current-tenant data.
+- **TC-30.2.3 - Recalculation follows control changes:** Change a relevant control assessment status and verify recalculation updates score and deductions.
+- **TC-30.2.4 - Manual notes do not override calculated values:** Add reviewer notes and verify calculated score and deduction values remain rule-derived.
+- **TC-30.2.5 - Score calculation audited:** Run score calculation and verify audit event includes tenant, actor, rule version, generated date, and result.
+
+### Story 30.3: SPRS Readiness Report
+
+- **TC-30.3.1 - Generate readiness report:** As an authorized user, generate an SPRS readiness report and verify score, deductions, unresolved controls, POA&M references, evidence status, scoring rule version, and generated date are included.
+- **TC-30.3.2 - Not-submitted language present:** Verify the report states that GCCS has not submitted the score to SPRS.
+- **TC-30.3.3 - Report uses tenant data only:** Seed neighboring tenant score data and verify the report excludes it.
+- **TC-30.3.4 - Report permissions enforced:** Attempt to generate or view the report as unauthorized roles and verify access is denied.
+- **TC-30.3.5 - Report generation audited:** Generate the report and verify report generation is audit logged.
+
+## 31. eSRS Support
+
+### Story 31.1: eSRS Applicability And Reporting Calendar
+
+- **TC-31.1.1 - eSRS applicability recorded:** Mark a contract as eSRS-applicable with report type, period, due date, and source and verify persistence.
+- **TC-31.1.2 - Calendar item created:** Activate an eSRS obligation and verify the reporting deadline appears on the compliance calendar.
+- **TC-31.1.3 - Source or rationale required:** Attempt to activate an eSRS obligation without source clause or documented rationale and verify validation fails.
+- **TC-31.1.4 - Overdue eSRS task calculated:** Seed an incomplete past-due eSRS report task and verify overdue status.
+- **TC-31.1.5 - Applicability changes audited:** Create and update eSRS applicability and verify audit events are written.
+
+### Story 31.2: Subcontracting Report Data Collection
+
+- **TC-31.2.1 - Report data row created:** Create subcontracting report data linked to contract and subcontractor records and verify required fields persist.
+- **TC-31.2.2 - Report data validation enforced:** Attempt negative amounts, missing socioeconomic category, duplicate rows, and period mismatches and verify validation errors.
+- **TC-31.2.3 - Evidence link stored:** Attach supporting evidence to a report data row and verify the link is returned in detail and package preparation.
+- **TC-31.2.4 - Review required for package inclusion:** Attempt to include unreviewed data rows in a final package and verify they are blocked unless explicitly accepted.
+- **TC-31.2.5 - Data row changes audited:** Create, update, accept, and reject report data rows and verify audit events.
+
+### Story 31.3: eSRS Report Package
+
+- **TC-31.3.1 - Generate eSRS preparation package:** Generate a package for contract, period, and report type and verify subcontractor/spend summaries, exceptions, evidence references, and generated date.
+- **TC-31.3.2 - Not-submitted language present:** Verify package states that GCCS has not submitted the report to eSRS.
+- **TC-31.3.3 - Package approval metadata complete:** Approve a package and verify reviewer, approval date, package version, and review notes are stored.
+- **TC-31.3.4 - Package permissions enforced:** Attempt package generation, approval, and viewing with unauthorized roles and verify denial.
+- **TC-31.3.5 - Package generation and approval audited:** Verify package generation, approval, supersede, and archive actions are audit logged.
+
+## 32. Labor Compliance Module
+
+### Story 32.1: Labor Applicability And Wage Determinations
+
+- **TC-32.1.1 - Labor applicability recorded:** Record labor applicability with source clause, place of performance, contract period, and wage determination reference and verify persistence.
+- **TC-32.1.2 - Wage determination upload guardrails:** Upload a wage determination document and verify tenant data-handling guardrails, classification, scan status, and contract link.
+- **TC-32.1.3 - Missing source blocks activation:** Attempt to activate labor obligations without source clause or documented rationale and verify validation fails.
+- **TC-32.1.4 - Labor review task generated:** Activate labor applicability and verify linked review tasks are created or updated.
+- **TC-32.1.5 - Labor applicability audited:** Create, update, activate, and deactivate labor applicability and verify audit events.
+
+### Story 32.2: Labor Category And Employee Classification
+
+- **TC-32.2.1 - Labor category and assignment created:** Create labor categories and employee assignments for a contract and verify required fields persist.
+- **TC-32.2.2 - Assignment validation enforced:** Attempt inactive category assignment, missing source reference, and conflicting effective dates and verify validation errors.
+- **TC-32.2.3 - Sensitive employee fields restricted:** As roles with and without HR permissions, view assignment details and verify sensitive fields are shown or hidden appropriately.
+- **TC-32.2.4 - Classification history preserved:** Change an employee classification and verify prior category, new category, actor, timestamp, and reason are retained.
+- **TC-32.2.5 - Assignment changes audited:** Create, update, deactivate, and reclassify labor assignments and verify audit events.
+
+### Story 32.3: Labor Evidence And Compliance Report
+
+- **TC-32.3.1 - Dashboard shows labor status:** Seed labor obligations, assignments, evidence, gaps, and overdue items and verify dashboard filters show current-tenant results.
+- **TC-32.3.2 - Generate labor report:** Generate a labor compliance report and verify source clauses, wage determinations, categories, assignments, gaps, evidence references, and generated date.
+- **TC-32.3.3 - Employee-sensitive report sections restricted:** Generate or view labor report sections as roles with and without HR permissions and verify restricted content handling.
+- **TC-32.3.4 - No legal determination language:** Inspect labor report and verify it presents workflow status without final legal determination language.
+- **TC-32.3.5 - Labor report audited:** Generate and export the labor report and verify audit events are written.
+
+## 33. AI Assistant With Citations, Logging, And Human Review
+
+### Story 33.1: Retrieval And Source Citation Pipeline
+
+- **TC-33.1.1 - Retrieval respects tenant and RBAC:** Ask a question with neighboring tenant sources seeded and verify retrieved sources are limited to authorized current-tenant and approved library content.
+- **TC-33.1.2 - Citations required:** Ask a substantive compliance question and verify every substantive answer statement includes citation metadata.
+- **TC-33.1.3 - Unsupported answer blocked:** Ask a question with no approved supporting source and verify the assistant refuses or routes to review rather than inventing an answer.
+- **TC-33.1.4 - Unsafe sources excluded:** Seed prohibited, unknown, unapproved, and cross-tenant content and verify retrieval excludes all unsafe sources.
+- **TC-33.1.5 - Retrieval decisions logged:** Verify retrieval source IDs, policy decisions, tenant, actor, and workflow context are logged.
+
+### Story 33.2: AI Output Logging And Review
+
+- **TC-33.2.1 - AI interaction log complete:** Trigger an AI interaction and verify prompt metadata, model config, retrieved sources, output, actor, tenant, timestamp, and workflow context are stored.
+- **TC-33.2.2 - Draft state required for deliverables:** Use AI output in a report, policy, SSP, POA&M, or customer deliverable and verify it remains draft until human approved.
+- **TC-33.2.3 - Review decisions stored:** Approve, reject, supersede, and archive AI output and verify reviewer, note, reason, timestamp, and state are retained.
+- **TC-33.2.4 - AI logs respect retention and access:** Verify AI logs are tenant-scoped, RBAC-protected, and follow retention and data-handling mode rules.
+- **TC-33.2.5 - AI review audited:** Verify AI review decisions and state changes are audit logged.
+
+### Story 33.3: Guarded Assistant User Experience
+
+- **TC-33.3.1 - Answer displays guardrails:** Ask an allowed assistant question and verify citations, draft label, confidence or support status, and review requirement are shown.
+- **TC-33.3.2 - Prohibited prompts blocked:** Ask for legal determination, certification claim, unsupported CUI processing, classified content handling, and cross-tenant data and verify each is blocked or redirected.
+- **TC-33.3.3 - Draft actions created from answer:** Create a draft task, evidence request, note, or review item from a supported answer and verify it links back to the AI answer.
+- **TC-33.3.4 - Feedback stored:** Submit helpful, incorrect, missing source, and needs expert review feedback and verify answer, user, tenant, timestamp, and reason are stored.
+- **TC-33.3.5 - Assistant actions audited:** Verify assistant-created actions and blocked requests create audit events.
+
+## 34. Prime Contractor And Auditor Portals
+
+### Story 34.1: External Portal Access Model
+
+- **TC-34.1.1 - Portal invitation created:** As tenant admin, invite an external reviewer with role, scope, expiration, package access, and download permission and verify persistence.
+- **TC-34.1.2 - Expired and revoked invitations blocked:** Attempt to use expired and revoked invitations and verify portal access is denied.
+- **TC-34.1.3 - Portal scope enforced:** Seed multiple packages and contracts and verify portal user can access only assigned scope.
+- **TC-34.1.4 - Portal users are read only:** Attempt workspace modification through portal UI and direct API calls and verify denial.
+- **TC-34.1.5 - Portal access audited:** Verify invitation, access, resend, extension, and revocation actions are audit logged.
+
+### Story 34.2: Approved Package Portal Review
+
+- **TC-34.2.1 - Only approved shared packages visible:** Share approved and draft packages and verify portal reviewer sees only approved packages explicitly assigned.
+- **TC-34.2.2 - Unsafe records hidden:** Seed drafts, internal notes, prohibited data, unknown classification records, and unrelated tenant records and verify they are hidden from portal review.
+- **TC-34.2.3 - Reviewer comments do not modify source records:** Add portal comments and questions and verify source tenant package and evidence records remain unchanged.
+- **TC-34.2.4 - Downloads include metadata:** Download a package with watermarking enabled and verify package metadata and watermark are included.
+- **TC-34.2.5 - Portal review audited:** View, comment, question, and download package records and verify audit events.
+
+### Story 34.3: Portal Package Lifecycle And Revocation
+
+- **TC-34.3.1 - Shared package lifecycle states work:** Move shared packages through active, superseded, expired, revoked, and archived states and verify allowed transitions.
+- **TC-34.3.2 - Revocation cuts off access:** Revoke an active package and verify portal users lose access immediately.
+- **TC-34.3.3 - Superseded package links replacement:** Supersede a package and verify the old package links to the replacement version.
+- **TC-34.3.4 - Portal activity report complete:** Generate activity report and verify access, comments, downloads, expiration, supersede, and revocation history are included.
+- **TC-34.3.5 - Lifecycle actions audited:** Expire, revoke, supersede, reissue, and archive shared packages and verify audit events.
+
 ## Phase 1A - CUI Readiness Gate
 
 These test cases cover the Phase 1A readiness-gate stories appended to `/Users/devups/Development/CodexProjects/Gccs/docs/development-phase-use-cases.md`. They verify the controls required before any production tenant can upload real customer CUI.

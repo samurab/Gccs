@@ -3749,7 +3749,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 17.3: Staging Environment
-### Done ##
+## Done ##
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3903,7 +3903,7 @@ Use the shared prompt requirements above for every Phase 2 story. Each story pro
 ## 18. Automated Clause Extraction
 
 ### Story 18.1: Extraction Job Intake
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -3925,7 +3925,7 @@ Implement Story 18.1, "Extraction Job Intake," from `docs/development-phase-use-
 #-----------------------------------------
 
 ### Story 18.2: Text Extraction And Clause Candidate Detection
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -3947,7 +3947,7 @@ Implement Story 18.2, "Text Extraction And Clause Candidate Detection," from `do
 #-----------------------------------------
 
 ### Story 18.3: Extraction Results Review Screen
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -3971,7 +3971,7 @@ Implement Story 18.3, "Extraction Results Review Screen," from `docs/development
 ## 19. Human Review Workflow
 
 ### Story 19.1: Review States For Extracted Clauses
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -3993,7 +3993,7 @@ Implement Story 19.1, "Review States For Extracted Clauses," from `docs/developm
 #-----------------------------------------
 
 ### Story 19.2: AI-Suggested Obligation Review
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4015,7 +4015,7 @@ Implement Story 19.2, "AI-Suggested Obligation Review," from `docs/development-p
 #-----------------------------------------
 
 ### Story 19.3: Expert Escalation Queue
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4039,7 +4039,7 @@ Implement Story 19.3, "Expert Escalation Queue," from `docs/development-phase-us
 ## 20. Clause Library Expansion
 
 ### Story 20.1: Versioned Clause Records
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4061,7 +4061,7 @@ Implement Story 20.1, "Versioned Clause Records," from `docs/development-phase-u
 #-----------------------------------------
 
 ### Story 20.2: Clause Search And Discovery
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4083,7 +4083,7 @@ Implement Story 20.2, "Clause Search And Discovery," from `docs/development-phas
 #-----------------------------------------
 
 ### Story 20.3: Clause-To-Obligation Mapping
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4107,7 +4107,7 @@ Implement Story 20.3, "Clause-To-Obligation Mapping," from `docs/development-pha
 ## 21. Applicability Engine
 
 ### Story 21.1: Applicability Facts Model
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4129,7 +4129,7 @@ Implement Story 21.1, "Applicability Facts Model," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 21.2: Rule Evaluation
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4151,7 +4151,7 @@ Implement Story 21.2, "Rule Evaluation," from `docs/development-phase-use-cases.
 #-----------------------------------------
 
 ### Story 21.3: Obligation Applicability Updates
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4175,7 +4175,7 @@ Implement Story 21.3, "Obligation Applicability Updates," from `docs/development
 ## 22. SAM.gov Entity Lookup
 
 ### Story 22.1: SAM.gov API Configuration
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4197,7 +4197,7 @@ Implement Story 22.1, "SAM.gov API Configuration," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 22.2: Company Entity Lookup
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4219,7 +4219,7 @@ Implement Story 22.2, "Company Entity Lookup," from `docs/development-phase-use-
 #-----------------------------------------
 
 ### Story 22.3: Subcontractor Entity Lookup
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4243,7 +4243,7 @@ Implement Story 22.3, "Subcontractor Entity Lookup," from `docs/development-phas
 ## 23. SBA Size Helper
 
 ### Story 23.1: Size Standard Reference Data
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4265,7 +4265,7 @@ Implement Story 23.1, "Size Standard Reference Data," from `docs/development-pha
 #-----------------------------------------
 
 ### Story 23.2: Company Size Evaluation Helper
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4287,7 +4287,7 @@ Implement Story 23.2, "Company Size Evaluation Helper," from `docs/development-p
 #-----------------------------------------
 
 ### Story 23.3: Opportunity NAICS Size Check
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4311,7 +4311,7 @@ Implement Story 23.3, "Opportunity NAICS Size Check," from `docs/development-pha
 ## 24. Subcontractor Tracker Expansion
 
 ### Story 24.1: Expanded Subcontractor Compliance Profile
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4333,7 +4333,7 @@ Implement Story 24.1, "Expanded Subcontractor Compliance Profile," from `docs/de
 #-----------------------------------------
 
 ### Story 24.2: Subcontractor Risk Status
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4355,7 +4355,7 @@ Implement Story 24.2, "Subcontractor Risk Status," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 24.3: Contract-Specific Subcontractor Obligations
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4379,7 +4379,7 @@ Implement Story 24.3, "Contract-Specific Subcontractor Obligations," from `docs/
 ## 25. Policy Templates
 
 ### Story 25.1: Approved Template Library
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4401,7 +4401,7 @@ Implement Story 25.1, "Approved Template Library," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 25.2: Generate Draft Policy From Template
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4423,7 +4423,7 @@ Implement Story 25.2, "Generate Draft Policy From Template," from `docs/developm
 #-----------------------------------------
 
 ### Story 25.3: Policy Approval And Evidence Linking
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4447,7 +4447,7 @@ Implement Story 25.3, "Policy Approval And Evidence Linking," from `docs/develop
 ## 26. Evidence Request Workflows
 
 ### Story 26.1: Evidence Request Creation
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4469,7 +4469,7 @@ Implement Story 26.1, "Evidence Request Creation," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 26.2: Evidence Submission And Review
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4491,7 +4491,7 @@ Implement Story 26.2, "Evidence Submission And Review," from `docs/development-p
 #-----------------------------------------
 
 ### Story 26.3: Evidence Request Dashboard
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4515,7 +4515,7 @@ Implement Story 26.3, "Evidence Request Dashboard," from `docs/development-phase
 ## 27. CMMC Level 2 Readiness Expansion
 
 ### Story 27.1: Level 2 Control Assessment Detail
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4537,7 +4537,7 @@ Implement Story 27.1, "Level 2 Control Assessment Detail," from `docs/developmen
 #-----------------------------------------
 
 ### Story 27.2: Responsibility Matrix
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4559,7 +4559,7 @@ Implement Story 27.2, "Responsibility Matrix," from `docs/development-phase-use-
 #-----------------------------------------
 
 ### Story 27.3: Readiness Gap Prioritization
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4581,7 +4581,7 @@ Implement Story 27.3, "Readiness Gap Prioritization," from `docs/development-pha
 #-----------------------------------------
 
 ### Story 27.4: Level 2 Readiness Report
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4605,7 +4605,7 @@ Implement Story 27.4, "Level 2 Readiness Report," from `docs/development-phase-u
 ## 28. Extraction Content Test Set
 
 ### Story 28.1: Curated Test Document Set
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4627,7 +4627,7 @@ Implement Story 28.1, "Curated Test Document Set," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 28.2: Precision And Recall Evaluation
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4649,7 +4649,7 @@ Implement Story 28.2, "Precision And Recall Evaluation," from `docs/development-
 #-----------------------------------------
 
 ### Story 28.3: Extraction Regression Review
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4674,7 +4674,7 @@ Use the shared prompt requirements above for every Phase 1A story. Phase 1A is a
 
 ## 1A.1 Tenant Data Handling Modes
 ### Story 1A.1.1: Tenant Data Handling Mode Model
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4695,7 +4695,7 @@ Implement Story 1A.1.1, "Tenant Data Handling Mode Model," from `docs/developmen
 
 #-----------------------------------------
 ### Story 1A.1.2: Mode-Based Workflow Enforcement
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4718,7 +4718,7 @@ Implement Story 1A.1.2, "Mode-Based Workflow Enforcement," from `docs/developmen
 
 ## 1A.2 Data Classification Controls
 ### Story 1A.2.1: Classification Metadata Schema
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4739,7 +4739,7 @@ Implement Story 1A.2.1, "Classification Metadata Schema," from `docs/development
 
 #-----------------------------------------
 ### Story 1A.2.2: Classification UX And Review
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4762,7 +4762,7 @@ Implement Story 1A.2.2, "Classification UX And Review," from `docs/development-p
 
 ## 1A.3 Synthetic CUI Demo Dataset
 ### Story 1A.3.1: Synthetic Dataset Definition
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4783,7 +4783,7 @@ Implement Story 1A.3.1, "Synthetic Dataset Definition," from `docs/development-p
 
 #-----------------------------------------
 ### Story 1A.3.2: Demo Tenant Seeding
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4806,7 +4806,7 @@ Implement Story 1A.3.2, "Demo Tenant Seeding," from `docs/development-phase-use-
 
 ## 1A.4 CUI-Ready Tenant Approval Checklist
 ### Story 1A.4.1: Approval Checklist Model
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4827,7 +4827,7 @@ Implement Story 1A.4.1, "Approval Checklist Model," from `docs/development-phase
 
 #-----------------------------------------
 ### Story 1A.4.2: Approval Gate Enforcement
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4850,7 +4850,7 @@ Implement Story 1A.4.2, "Approval Gate Enforcement," from `docs/development-phas
 
 ## 1A.5 Shared Responsibility Matrix Baseline
 ### Story 1A.5.1: Baseline Responsibility Matrix
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4871,7 +4871,7 @@ Implement Story 1A.5.1, "Baseline Responsibility Matrix," from `docs/development
 
 #-----------------------------------------
 ### Story 1A.5.2: Tenant Matrix Acknowledgement
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4894,7 +4894,7 @@ Implement Story 1A.5.2, "Tenant Matrix Acknowledgement," from `docs/development-
 
 ## 1A.6 Customer-Facing Data Handling Notices
 ### Story 1A.6.1: Versioned Notice Content
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4915,7 +4915,7 @@ Implement Story 1A.6.1, "Versioned Notice Content," from `docs/development-phase
 
 #-----------------------------------------
 ### Story 1A.6.2: Notice Placement And Acknowledgement
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4938,7 +4938,7 @@ Implement Story 1A.6.2, "Notice Placement And Acknowledgement," from `docs/devel
 
 ## 1A.7 CUI Support Escalation Path
 ### Story 1A.7.1: Escalation Intake And Classification
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4959,7 +4959,7 @@ Implement Story 1A.7.1, "Escalation Intake And Classification," from `docs/devel
 
 #-----------------------------------------
 ### Story 1A.7.2: Escalation Workflow And Resolution
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4982,7 +4982,7 @@ Implement Story 1A.7.2, "Escalation Workflow And Resolution," from `docs/develop
 
 ## 1A.8 CUI Audit Event Coverage
 ### Story 1A.8.1: Required CUI Audit Events
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5003,7 +5003,7 @@ Implement Story 1A.8.1, "Required CUI Audit Events," from `docs/development-phas
 
 #-----------------------------------------
 ### Story 1A.8.2: CUI Audit Filters And Export
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5026,7 +5026,7 @@ Implement Story 1A.8.2, "CUI Audit Filters And Export," from `docs/development-p
 
 ## 1A.9 Security Readiness Review
 ### Story 1A.9.1: Security Review Checklist
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5047,7 +5047,7 @@ Implement Story 1A.9.1, "Security Review Checklist," from `docs/development-phas
 
 #-----------------------------------------
 ### Story 1A.9.2: Technical Control Verification
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5068,7 +5068,7 @@ Implement Story 1A.9.2, "Technical Control Verification," from `docs/development
 
 #-----------------------------------------
 ### Story 1A.9.3: Incident Response Readiness
-
+## Done ##
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5086,5 +5086,316 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > - Incident readiness approval is audit logged or source-control traceable.
 
 Implement Story 1A.9.3, "Incident Response Readiness," from `docs/development-phase-use-cases.md`. Add incident response readiness playbooks, escalation owner records, tabletop checklist/evidence capture, approval linkage, reminders, and traceability. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## Phase 3 - Advanced Compliance
+
+### Story 30.1: Scoring Rule Baseline
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SPRS Score Calculator
+> - User story: As a compliance content owner, I want the SPRS scoring rule baseline captured with source metadata so that calculations are traceable and reviewable.
+> - Acceptance criteria:
+> - Published scoring rule set includes source URL, version, owner, reviewer, review date, and effective date.
+> - Scoring rules cannot publish without required review metadata.
+> - Retired scoring rules cannot be used for new calculations.
+> - Calculation services identify which scoring rule version was used.
+> - Scoring rule lifecycle changes are audit logged or source-control traceable.
+
+Implement Story 30.1, "Scoring Rule Baseline," from `docs/development-phase-use-cases.md`. Add governed SPRS scoring rule content/model, lifecycle states, publish validation, source and review metadata, retired-rule protections, calculation version identification, and scoring edge-case tests. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 30.2: Score Calculation Workspace
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SPRS Score Calculator
+> - User story: As a security owner, I want to calculate a draft SPRS score from control assessment data so that I can identify score drivers and gaps.
+> - Acceptance criteria:
+> - Authorized user can calculate a draft SPRS score for the current tenant.
+> - Calculation output shows score, deductions, requirement reasons, rule version, generated date, and unresolved gaps.
+> - Score recalculates when relevant control assessment status changes.
+> - Manual notes are stored separately from calculated values.
+> - Score calculations are tenant-scoped and audit logged.
+
+Implement Story 30.2, "Score Calculation Workspace," from `docs/development-phase-use-cases.md`. Add tenant-scoped draft SPRS score calculation from Level 2 control assessment data, deduction reasons, unresolved gap output, recalculation behavior, manual reviewer notes separated from calculated values, calculation history, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 30.3: SPRS Readiness Report
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SPRS Score Calculator
+> - User story: As a compliance manager, I want an SPRS readiness report so that leadership can review score context before deciding whether to submit or update SPRS.
+> - Acceptance criteria:
+> - Authorized user can generate an SPRS readiness report for the current tenant.
+> - Report includes score, deductions, unresolved controls, POA&M references, evidence status, scoring rule version, and generated date.
+> - Report states that GCCS has not submitted the score to SPRS.
+> - Report uses tenant-scoped data only.
+> - Report generation is audit logged.
+
+Implement Story 30.3, "SPRS Readiness Report," from `docs/development-phase-use-cases.md`. Add the SPRS readiness report with score summary, deductions, unresolved controls, POA&M and evidence context, scoring rule version, generated date, draft/not-submitted language, permissions, export/history behavior, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 31. eSRS Support
+### Story 31.1: eSRS Applicability And Reporting Calendar
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: eSRS Support
+> - User story: As a contracts manager, I want to identify contracts with eSRS reporting obligations so that required reports appear on the compliance calendar.
+> - Acceptance criteria:
+> - Authorized user can mark a contract as eSRS-applicable with report type, period, due date, and source.
+> - eSRS report obligations appear on the compliance calendar.
+> - Missing source clause or rationale blocks activation of an eSRS obligation.
+> - Overdue eSRS tasks are calculated from due date and status.
+> - eSRS applicability changes are audit logged.
+
+Implement Story 31.1, "eSRS Applicability And Reporting Calendar," from `docs/development-phase-use-cases.md`. Add eSRS applicability fields, source-backed activation validation, reporting period and due-date tracking, calendar/task integration, default ISR/SSR schedule support where applicable, overdue behavior, reminders, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 31.2: Subcontracting Report Data Collection
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: eSRS Support
+> - User story: As a contracts manager, I want to collect subcontracting report data so that eSRS package preparation uses documented subcontractor and spend information.
+> - Acceptance criteria:
+> - User can create report data rows linked to subcontractor and contract records.
+> - Validation rejects negative amounts, missing required categories, duplicate rows, and period mismatches.
+> - Report data rows link to supporting evidence when provided.
+> - Data rows cannot be included in a final package until reviewed or explicitly marked as accepted.
+> - Data row changes are audit logged.
+
+Implement Story 31.2, "Subcontracting Report Data Collection," from `docs/development-phase-use-cases.md`. Add eSRS report data rows linked to contracts, subcontractors, spend/category data, periods, plans, evidence, review states, import template support, validation for bad or duplicate data, package-inclusion gating, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 31.3: eSRS Report Package
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: eSRS Support
+> - User story: As a contracts manager, I want to prepare an eSRS report package so that internal reviewers can verify data before external submission.
+> - Acceptance criteria:
+> - Authorized user can generate an eSRS preparation package for the current tenant.
+> - Package includes contract, period, report type, subcontractor/spend summaries, exceptions, evidence references, and generated date.
+> - Package states that GCCS has not submitted the report to eSRS.
+> - Approved packages include reviewer and approval date.
+> - Package generation and approval are audit logged.
+
+Implement Story 31.3, "eSRS Report Package," from `docs/development-phase-use-cases.md`. Add eSRS preparation package generation, report metadata, subcontractor/spend summaries, exceptions, evidence references, preparation-only/not-submitted language, review workflow, package version/history, permissions, export behavior, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 32. Labor Compliance Module
+### Story 32.1: Labor Applicability And Wage Determinations
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Labor Compliance Module
+> - User story: As a contracts or HR manager, I want to identify labor clauses and wage determinations for a contract so that labor compliance tasks are generated from source-backed requirements.
+> - Acceptance criteria:
+> - Authorized user can record labor applicability with source clause, place of performance, and wage determination reference.
+> - Wage determination uploads enforce tenant data-handling guardrails.
+> - Missing source clause or documented rationale blocks labor obligation activation.
+> - Labor applicability creates or updates linked review tasks.
+> - Labor applicability changes are audit logged.
+
+Implement Story 32.1, "Labor Applicability And Wage Determinations," from `docs/development-phase-use-cases.md`. Add labor applicability records, SCA/DBA/FAR Part 22 fields, wage determination references/uploads with data-handling guardrails, source-backed activation validation, contract/clause/task/evidence links, review status, task generation, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 32.2: Labor Category And Employee Classification
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Labor Compliance Module
+> - User story: As an HR or compliance manager, I want to map employees to labor categories so that wage, fringe, and classification evidence can be tracked by contract.
+> - Acceptance criteria:
+> - Authorized user can create labor categories and employee assignments for the current tenant.
+> - Assignment validation rejects inactive categories, missing source references, and conflicting effective dates.
+> - Sensitive employee fields are permission restricted.
+> - Classification history preserves prior category, new category, actor, timestamp, and reason.
+> - Labor category and assignment changes are audit logged.
+
+Implement Story 32.2, "Labor Category And Employee Classification," from `docs/development-phase-use-cases.md`. Add labor categories, employee assignment records, wage determination classification/rate/fringe/effective-date data, source references, validation for inactive categories and date conflicts, sensitive employee-data permissions, classification history, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 32.3: Labor Evidence And Compliance Report
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Labor Compliance Module
+> - User story: As a compliance manager, I want a labor evidence package and status report so that contract, HR, and advisor reviewers can see labor compliance status.
+> - Acceptance criteria:
+> - Dashboard shows labor obligations, assignments, evidence status, gaps, and overdue items for the current tenant.
+> - Report includes source clauses, wage determinations, labor categories, assignments, gaps, evidence references, and generated date.
+> - Employee-sensitive sections are visible only to authorized roles.
+> - Report contains workflow status and not legal determination language.
+> - Report generation is audit logged.
+
+Implement Story 32.3, "Labor Evidence And Compliance Report," from `docs/development-phase-use-cases.md`. Add labor evidence links, dashboard filters, gap/overdue status, labor compliance report generation, employee-sensitive report section authorization, workflow-status disclaimers, report history/export, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 33. AI Assistant With Citations, Logging, And Human Review
+### Story 33.1: Retrieval And Source Citation Pipeline
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: AI Assistant With Citations, Logging, And Human Review
+> - User story: As a developer, I want AI responses grounded in approved retrieval sources so that every answer can be traced to compliance content or tenant documents.
+> - Acceptance criteria:
+> - Assistant retrieves only tenant-authorized and approved sources.
+> - Responses include citations for every substantive compliance statement.
+> - Assistant refuses or asks for review when no approved source supports the answer.
+> - Retrieval excludes prohibited, unknown, unapproved, or cross-tenant content.
+> - Retrieval source IDs and policy decisions are logged.
+
+Implement Story 33.1, "Retrieval And Source Citation Pipeline," from `docs/development-phase-use-cases.md`. Add approved retrieval-source policy, tenant/RBAC/classification/data-handling enforcement, citation metadata, unsupported-answer refusal behavior, unsafe-source exclusion, and retrieval source/policy logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 33.2: AI Output Logging And Review
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: AI Assistant With Citations, Logging, And Human Review
+> - User story: As a compliance content owner, I want prompts, retrieved sources, generated output, and user decisions logged so that AI-assisted work can be reviewed and improved.
+> - Acceptance criteria:
+> - AI interaction logs include prompt metadata, retrieved sources, output, actor, tenant, timestamp, and workflow context.
+> - AI output is marked draft until human approved where used in reports, policies, SSPs, POA&Ms, or customer deliverables.
+> - Reviewer can approve, reject, or supersede AI output with notes.
+> - AI logs respect tenant scope, RBAC, retention, and data-handling mode.
+> - AI review decisions are audit logged.
+
+Implement Story 33.2, "AI Output Logging And Review," from `docs/development-phase-use-cases.md`. Add AI interaction logging, draft/review states, deliverable approval gates, reviewer decisions and comments, retention/export controls, prohibited-data handling, tenant/RBAC/data-mode protections, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 33.3: Guarded Assistant User Experience
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: AI Assistant With Citations, Logging, And Human Review
+> - User story: As a compliance manager, I want the assistant to provide bounded answers and next actions so that users understand source limits and review requirements.
+> - Acceptance criteria:
+> - Assistant answers include citations, draft label, confidence or support status, and review requirement.
+> - Assistant blocks or redirects unsupported legal, certification, classified, prohibited, or cross-tenant requests.
+> - User can create draft tasks, evidence requests, notes, or review items from supported answers.
+> - Feedback is stored with answer, user, tenant, timestamp, and reason.
+> - Assistant actions and blocked requests are audit logged.
+
+Implement Story 33.3, "Guarded Assistant User Experience," from `docs/development-phase-use-cases.md`. Add assistant UI entry points, citation/draft/confidence/review displays, prohibited prompt handling, safe draft action creation, user feedback capture, escalation routing, and audit logging for actions and blocked requests. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 34. Prime Contractor And Auditor Portals
+### Story 34.1: External Portal Access Model
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Prime Contractor And Auditor Portals
+> - User story: As a tenant admin, I want to invite prime contractor and auditor users into limited portals so that external review access is controlled by role, scope, and expiration.
+> - Acceptance criteria:
+> - Tenant admin can invite external portal users with role, scope, expiration, and package access.
+> - Expired or revoked portal invitations cannot be used.
+> - Portal users can access only assigned packages and scoped records.
+> - Portal users cannot modify tenant workspace data.
+> - Portal invitation, access, and revocation events are audit logged.
+
+Implement Story 34.1, "External Portal Access Model," from `docs/development-phase-use-cases.md`. Add external portal roles, scoped invitations, expiration/revocation/resend/extension behavior, assigned package and contract scopes, strong-authentication hooks where configured, read-only portal enforcement, access history, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 34.2: Approved Package Portal Review
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Prime Contractor And Auditor Portals
+> - User story: As a prime contractor or auditor reviewer, I want to review approved packages, evidence references, and status reports so that I can complete my review without direct access to the tenant workspace.
+> - Acceptance criteria:
+> - Portal reviewer sees only approved packages explicitly shared with them.
+> - Drafts, internal notes, prohibited data, unknown classification records, and unrelated records are hidden.
+> - Reviewer can add comments or questions without modifying source tenant records.
+> - Downloads include package metadata and watermarking when configured.
+> - Portal review and download actions are audit logged.
+
+Implement Story 34.2, "Approved Package Portal Review," from `docs/development-phase-use-cases.md`. Add the external portal package dashboard, approved-package visibility, unsafe/draft/internal/cross-tenant record exclusion, reviewer comments/questions, controlled download metadata/watermarking, and portal activity audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 34.3: Portal Package Lifecycle And Revocation
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Prime Contractor And Auditor Portals
+> - User story: As a tenant admin, I want to manage shared package lifecycle so that outdated or over-shared packages can be superseded, revoked, or reissued.
+> - Acceptance criteria:
+> - Tenant admin can expire, revoke, supersede, and reissue shared packages.
+> - Revoked packages become inaccessible immediately to portal users.
+> - Superseded packages link to the replacement package version.
+> - Portal activity report shows access, comments, downloads, expiration, and revocation history.
+> - Package lifecycle actions are audit logged.
+
+Implement Story 34.3, "Portal Package Lifecycle And Revocation," from `docs/development-phase-use-cases.md`. Add shared package lifecycle states, expiration reminders and automatic expiration, reissue/supersede linkage, revocation reason and immediate access cutoff, tenant admin portal activity reporting, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
 
 #-----------------------------------------

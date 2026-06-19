@@ -1198,3 +1198,164 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-1A.9.3.4:** Create an open critical incident response gap and verify `CuiReady` approval is blocked.
 - **TC-1A.9.3.5:** Approve incident response readiness and verify the approval is audit logged or source-control traceable.
 #-----------------------------------
+
+## Phase 3 - Advanced Compliance
+
+### Story 30.1: Scoring Rule Baseline
+Please perform Smoke test on Story 30.1: Scoring Rule Baseline. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-30.1.1:** Verify published scoring rules include source URL, version, owner, reviewer, review date, and effective date.
+- **TC-30.1.2:** Attempt to publish scoring rules with missing source or review metadata and verify validation fails.
+- **TC-30.1.3:** Retire a scoring rule set and verify it cannot be selected for a new calculation.
+- **TC-30.1.4:** Calculate a score and verify the calculation stores the scoring rule version used.
+- **TC-30.1.5:** Move scoring rules through draft, approved, published, superseded, and retired states and verify audit events or source-control traceability.
+#-----------------------------------
+### Story 30.2: Score Calculation Workspace
+Please perform Smoke test on Story 30.2: Score Calculation Workspace. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-30.2.1:** As an authorized user, calculate a draft SPRS score from Level 2 control assessment data and verify score, deductions, reasons, rule version, generated date, and gaps are returned.
+- **TC-30.2.2:** Seed assessment data in two tenants and verify each score uses only current-tenant data.
+- **TC-30.2.3:** Change a relevant control assessment status and verify recalculation updates score and deductions.
+- **TC-30.2.4:** Add reviewer notes and verify calculated score and deduction values remain rule-derived.
+- **TC-30.2.5:** Run score calculation and verify audit event includes tenant, actor, rule version, generated date, and result.
+#-----------------------------------
+### Story 30.3: SPRS Readiness Report
+Please perform Smoke test on Story 30.3: SPRS Readiness Report. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-30.3.1:** As an authorized user, generate an SPRS readiness report and verify score, deductions, unresolved controls, POA&M references, evidence status, scoring rule version, and generated date are included.
+- **TC-30.3.2:** Verify the report states that GCCS has not submitted the score to SPRS.
+- **TC-30.3.3:** Seed neighboring tenant score data and verify the report excludes it.
+- **TC-30.3.4:** Attempt to generate or view the report as unauthorized roles and verify access is denied.
+- **TC-30.3.5:** Generate the report and verify report generation is audit logged.
+#-----------------------------------
+
+## 31. eSRS Support
+### Story 31.1: eSRS Applicability And Reporting Calendar
+Please perform Smoke test on Story 31.1: eSRS Applicability And Reporting Calendar. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-31.1.1:** Mark a contract as eSRS-applicable with report type, period, due date, and source and verify persistence.
+- **TC-31.1.2:** Activate an eSRS obligation and verify the reporting deadline appears on the compliance calendar.
+- **TC-31.1.3:** Attempt to activate an eSRS obligation without source clause or documented rationale and verify validation fails.
+- **TC-31.1.4:** Seed an incomplete past-due eSRS report task and verify overdue status.
+- **TC-31.1.5:** Create and update eSRS applicability and verify audit events are written.
+#-----------------------------------
+### Story 31.2: Subcontracting Report Data Collection
+Please perform Smoke test on Story 31.2: Subcontracting Report Data Collection. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-31.2.1:** Create subcontracting report data linked to contract and subcontractor records and verify required fields persist.
+- **TC-31.2.2:** Attempt negative amounts, missing socioeconomic category, duplicate rows, and period mismatches and verify validation errors.
+- **TC-31.2.3:** Attach supporting evidence to a report data row and verify the link is returned in detail and package preparation.
+- **TC-31.2.4:** Attempt to include unreviewed data rows in a final package and verify they are blocked unless explicitly accepted.
+- **TC-31.2.5:** Create, update, accept, and reject report data rows and verify audit events.
+#-----------------------------------
+### Story 31.3: eSRS Report Package
+Please perform Smoke test on Story 31.3: eSRS Report Package. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-31.3.1:** Generate a package for contract, period, and report type and verify subcontractor/spend summaries, exceptions, evidence references, and generated date.
+- **TC-31.3.2:** Verify package states that GCCS has not submitted the report to eSRS.
+- **TC-31.3.3:** Approve a package and verify reviewer, approval date, package version, and review notes are stored.
+- **TC-31.3.4:** Attempt package generation, approval, and viewing with unauthorized roles and verify denial.
+- **TC-31.3.5:** Verify package generation, approval, supersede, and archive actions are audit logged.
+#-----------------------------------
+
+## 32. Labor Compliance Module
+### Story 32.1: Labor Applicability And Wage Determinations
+Please perform Smoke test on Story 32.1: Labor Applicability And Wage Determinations. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-32.1.1:** Record labor applicability with source clause, place of performance, contract period, and wage determination reference and verify persistence.
+- **TC-32.1.2:** Upload a wage determination document and verify tenant data-handling guardrails, classification, scan status, and contract link.
+- **TC-32.1.3:** Attempt to activate labor obligations without source clause or documented rationale and verify validation fails.
+- **TC-32.1.4:** Activate labor applicability and verify linked review tasks are created or updated.
+- **TC-32.1.5:** Create, update, activate, and deactivate labor applicability and verify audit events.
+#-----------------------------------
+### Story 32.2: Labor Category And Employee Classification
+Please perform Smoke test on Story 32.2: Labor Category And Employee Classification. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-32.2.1:** Create labor categories and employee assignments for a contract and verify required fields persist.
+- **TC-32.2.2:** Attempt inactive category assignment, missing source reference, and conflicting effective dates and verify validation errors.
+- **TC-32.2.3:** As roles with and without HR permissions, view assignment details and verify sensitive fields are shown or hidden appropriately.
+- **TC-32.2.4:** Change an employee classification and verify prior category, new category, actor, timestamp, and reason are retained.
+- **TC-32.2.5:** Create, update, deactivate, and reclassify labor assignments and verify audit events.
+#-----------------------------------
+### Story 32.3: Labor Evidence And Compliance Report
+Please perform Smoke test on Story 32.3: Labor Evidence And Compliance Report. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-32.3.1:** Seed labor obligations, assignments, evidence, gaps, and overdue items and verify dashboard filters show current-tenant results.
+- **TC-32.3.2:** Generate a labor compliance report and verify source clauses, wage determinations, categories, assignments, gaps, evidence references, and generated date.
+- **TC-32.3.3:** Generate or view labor report sections as roles with and without HR permissions and verify restricted content handling.
+- **TC-32.3.4:** Inspect labor report and verify it presents workflow status without final legal determination language.
+- **TC-32.3.5:** Generate and export the labor report and verify audit events are written.
+#-----------------------------------
+
+## 33. AI Assistant With Citations, Logging, And Human Review
+### Story 33.1: Retrieval And Source Citation Pipeline
+Please perform Smoke test on Story 33.1: Retrieval And Source Citation Pipeline. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-33.1.1:** Ask a question with neighboring tenant sources seeded and verify retrieved sources are limited to authorized current-tenant and approved library content.
+- **TC-33.1.2:** Ask a substantive compliance question and verify every substantive answer statement includes citation metadata.
+- **TC-33.1.3:** Ask a question with no approved supporting source and verify the assistant refuses or routes to review rather than inventing an answer.
+- **TC-33.1.4:** Seed prohibited, unknown, unapproved, and cross-tenant content and verify retrieval excludes all unsafe sources.
+- **TC-33.1.5:** Verify retrieval source IDs, policy decisions, tenant, actor, and workflow context are logged.
+#-----------------------------------
+### Story 33.2: AI Output Logging And Review
+Please perform Smoke test on Story 33.2: AI Output Logging And Review. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-33.2.1:** Trigger an AI interaction and verify prompt metadata, model config, retrieved sources, output, actor, tenant, timestamp, and workflow context are stored.
+- **TC-33.2.2:** Use AI output in a report, policy, SSP, POA&M, or customer deliverable and verify it remains draft until human approved.
+- **TC-33.2.3:** Approve, reject, supersede, and archive AI output and verify reviewer, note, reason, timestamp, and state are retained.
+- **TC-33.2.4:** Verify AI logs are tenant-scoped, RBAC-protected, and follow retention and data-handling mode rules.
+- **TC-33.2.5:** Verify AI review decisions and state changes are audit logged.
+#-----------------------------------
+### Story 33.3: Guarded Assistant User Experience
+Please perform Smoke test on Story 33.3: Guarded Assistant User Experience. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-33.3.1:** Ask an allowed assistant question and verify citations, draft label, confidence or support status, and review requirement are shown.
+- **TC-33.3.2:** Ask for legal determination, certification claim, unsupported CUI processing, classified content handling, and cross-tenant data and verify each is blocked or redirected.
+- **TC-33.3.3:** Create a draft task, evidence request, note, or review item from a supported answer and verify it links back to the AI answer.
+- **TC-33.3.4:** Submit helpful, incorrect, missing source, and needs expert review feedback and verify answer, user, tenant, timestamp, and reason are stored.
+- **TC-33.3.5:** Verify assistant-created actions and blocked requests create audit events.
+#-----------------------------------
+
+## 34. Prime Contractor And Auditor Portals
+### Story 34.1: External Portal Access Model
+Please perform Smoke test on Story 34.1: External Portal Access Model. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-34.1.1:** As tenant admin, invite an external reviewer with role, scope, expiration, package access, and download permission and verify persistence.
+- **TC-34.1.2:** Attempt to use expired and revoked invitations and verify portal access is denied.
+- **TC-34.1.3:** Seed multiple packages and contracts and verify portal user can access only assigned scope.
+- **TC-34.1.4:** Attempt workspace modification through portal UI and direct API calls and verify denial.
+- **TC-34.1.5:** Verify invitation, access, resend, extension, and revocation actions are audit logged.
+#-----------------------------------
+### Story 34.2: Approved Package Portal Review
+Please perform Smoke test on Story 34.2: Approved Package Portal Review. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-34.2.1:** Share approved and draft packages and verify portal reviewer sees only approved packages explicitly assigned.
+- **TC-34.2.2:** Seed drafts, internal notes, prohibited data, unknown classification records, and unrelated tenant records and verify they are hidden from portal review.
+- **TC-34.2.3:** Add portal comments and questions and verify source tenant package and evidence records remain unchanged.
+- **TC-34.2.4:** Download a package with watermarking enabled and verify package metadata and watermark are included.
+- **TC-34.2.5:** View, comment, question, and download package records and verify audit events.
+#-----------------------------------
+### Story 34.3: Portal Package Lifecycle And Revocation
+Please perform Smoke test on Story 34.3: Portal Package Lifecycle And Revocation. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-34.3.1:** Move shared packages through active, superseded, expired, revoked, and archived states and verify allowed transitions.
+- **TC-34.3.2:** Revoke an active package and verify portal users lose access immediately.
+- **TC-34.3.3:** Supersede a package and verify the old package links to the replacement version.
+- **TC-34.3.4:** Generate activity report and verify access, comments, downloads, expiration, supersede, and revocation history are included.
+- **TC-34.3.5:** Expire, revoke, supersede, reissue, and archive shared packages and verify audit events.
+#-----------------------------------
