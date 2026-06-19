@@ -80,6 +80,7 @@ public static class DependencyInjection
         services.AddSingleton<ISprsScoreCalculationHistoryRepository, InMemorySprsScoreCalculationHistoryRepository>();
         services.AddSingleton<IEsrsApplicabilityRepository, InMemoryEsrsApplicabilityRepository>();
         services.AddSingleton<ISubcontractingReportDataRepository, InMemorySubcontractingReportDataRepository>();
+        services.AddSingleton<IEsrsReportPackageRepository, InMemoryEsrsReportPackageRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
@@ -104,6 +105,7 @@ public static class DependencyInjection
         services.AddScoped<SprsReadinessReportService>();
         services.AddScoped<EsrsApplicabilityService>();
         services.AddScoped<SubcontractingReportDataService>();
+        services.AddScoped<EsrsReportPackageService>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         if (configuration is not null)
