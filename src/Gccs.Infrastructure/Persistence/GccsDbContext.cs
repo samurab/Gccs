@@ -37,6 +37,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<TenantSsoPolicyEntity> TenantSsoPolicies => Set<TenantSsoPolicyEntity>();
     public DbSet<SamlAccountLinkEntity> SamlAccountLinks => Set<SamlAccountLinkEntity>();
     public DbSet<BreakGlassAccessGrantEntity> BreakGlassAccessGrants => Set<BreakGlassAccessGrantEntity>();
+    public DbSet<ScimProvisioningConfigurationEntity> ScimProvisioningConfigurations => Set<ScimProvisioningConfigurationEntity>();
+    public DbSet<ScimGroupMappingEntity> ScimGroupMappings => Set<ScimGroupMappingEntity>();
+    public DbSet<ScimProvisionedIdentityEntity> ScimProvisionedIdentities => Set<ScimProvisionedIdentityEntity>();
     public DbSet<NoCuiAcknowledgementEntity> NoCuiAcknowledgements => Set<NoCuiAcknowledgementEntity>();
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
     public DbSet<NotificationDeliveryEntity> NotificationDeliveries => Set<NotificationDeliveryEntity>();
@@ -354,6 +357,43 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.ApprovalReference).HasMaxLength(240).IsRequired();
             entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ScimProvisioningConfigurationEntity>(entity =>
+        {
+            entity.ToTable("scim_provisioning_configurations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TenantId).IsUnique();
+            entity.Property(x => x.TokenHash).HasMaxLength(128);
+            entity.Property(x => x.EndpointLabel).HasMaxLength(160);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ScimGroupMappingEntity>(entity =>
+        {
+            entity.ToTable("scim_group_mappings");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.GroupDisplayName }).IsUnique();
+            entity.Property(x => x.GroupDisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ScimProvisionedIdentityEntity>(entity =>
+        {
+            entity.ToTable("scim_provisioned_identities");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ExternalId }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.UserName });
+            entity.HasIndex(x => x.ExternalId);
+            entity.Property(x => x.ExternalId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.UserName).HasMaxLength(320).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Membership).WithMany().HasForeignKey(x => x.MembershipId).OnDelete(DeleteBehavior.Cascade);
             ConfigureAuditColumns(entity);
         });
 

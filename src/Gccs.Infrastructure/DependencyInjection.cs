@@ -99,6 +99,7 @@ public static class DependencyInjection
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<SamlIdentityProviderConfigurationService>();
         services.AddScoped<SsoSignInEnforcementService>();
+        services.AddScoped<ScimProvisioningService>();
         services.AddScoped<NoCuiAcknowledgementService>();
         services.AddScoped<NotificationPreferenceService>();
         services.AddScoped<DueDateReminderService>();
@@ -173,6 +174,7 @@ public static class DependencyInjection
             services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
             services.AddScoped<ISamlIdentityProviderConfigurationRepository, EfSamlIdentityProviderConfigurationRepository>();
             services.AddScoped<ISsoSignInEnforcementRepository, EfSsoSignInEnforcementRepository>();
+            services.AddScoped<IScimProvisioningRepository, EfScimProvisioningRepository>();
             services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
             services.AddScoped<INotificationPreferenceRepository, EfNotificationPreferenceRepository>();
             services.AddScoped<IDueDateReminderRepository, EfDueDateReminderRepository>();
@@ -234,6 +236,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("SAML identity provider persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ISsoSignInEnforcementRepository>(_ =>
                 throw new InvalidOperationException("SSO sign-in enforcement persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IScimProvisioningRepository>(_ =>
+                throw new InvalidOperationException("SCIM provisioning persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<INoCuiAcknowledgementRepository>(_ =>
                 throw new InvalidOperationException("No-CUI acknowledgement persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<INotificationPreferenceRepository>(_ =>

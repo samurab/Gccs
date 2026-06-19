@@ -255,6 +255,45 @@ public sealed class BreakGlassAccessGrantEntity : AuditedEntity
     public UserEntity? User { get; set; }
 }
 
+public sealed class ScimProvisioningConfigurationEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public bool Enabled { get; set; }
+    public string? TokenHash { get; set; }
+    public string? EndpointLabel { get; set; }
+    public DateTimeOffset? LastSyncAt { get; set; }
+    public DateTimeOffset? TokenRotatedAt { get; set; }
+    public DateTimeOffset? TokenRevokedAt { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+}
+
+public sealed class ScimGroupMappingEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string GroupDisplayName { get; set; } = string.Empty;
+    public string RoleName { get; set; } = string.Empty;
+
+    public TenantEntity? Tenant { get; set; }
+}
+
+public sealed class ScimProvisionedIdentityEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string ExternalId { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
+    public Guid MembershipId { get; set; }
+    public DateTimeOffset? LastProvisionedAt { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public UserEntity? User { get; set; }
+    public TenantMembershipEntity? Membership { get; set; }
+}
+
 public sealed class NoCuiAcknowledgementEntity : AuditedEntity
 {
     public Guid Id { get; set; }

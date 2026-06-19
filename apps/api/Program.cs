@@ -3614,6 +3614,152 @@ api.MapPost("/enterprise/sso/break-glass/{grantId:guid}/use", async (
 .RequirePermission(Permission.ManageUsers)
 .WithName("UseBreakGlassAccessGrant");
 
+api.MapGet("/enterprise/scim/configuration", async (
+    ScimProvisioningService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.GetConfigurationAsync(cancellationToken)))
+.RequirePermission(Permission.ManageUsers)
+.WithName("GetScimProvisioningConfiguration");
+
+api.MapPost("/enterprise/scim/enable", async (
+    EnableScimProvisioningRequest request,
+    ScimProvisioningService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.EnableAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (ScimProvisioningValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["scim"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("EnableScimProvisioning");
+
+api.MapPost("/enterprise/scim/token/rotate", async (
+    ScimProvisioningService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var result = await service.RotateTokenAsync(tenantContext.UserId, cancellationToken);
+    return result is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "SCIM provisioning is not enabled for the current tenant.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(result);
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("RotateScimToken");
+
+api.MapPost("/enterprise/scim/token/revoke", async (
+    ScimProvisioningService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var configuration = await service.RevokeTokenAsync(tenantContext.UserId, cancellationToken);
+    return configuration is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "SCIM provisioning is not enabled for the current tenant.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(configuration);
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("RevokeScimToken");
+
+api.MapPut("/enterprise/scim/group-mappings", async (
+    UpsertScimGroupMappingRequest request,
+    ScimProvisioningService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.UpsertGroupMappingAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (ScimProvisioningValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["scimGroupMapping"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("UpsertScimGroupMapping");
+
+api.MapPut("/enterprise/scim/users", async (
+    ScimProvisionUserRequest request,
+    ScimProvisioningService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ProvisionUserAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (ScimProvisioningValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["scimUser"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("ProvisionScimUser");
+
+api.MapPost("/enterprise/scim/users/{externalId}/reactivate", async (
+    string externalId,
+    ScimTokenRequest request,
+    ScimProvisioningService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ReactivateUserAsync(request, externalId, tenantContext.UserId, cancellationToken));
+    }
+    catch (ScimProvisioningValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["scimUser"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("ReactivateScimUser");
+
+api.MapPost("/enterprise/scim/users/{externalId}/groups", async (
+    string externalId,
+    ScimGroupAssignmentRequest request,
+    ScimProvisioningService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.AssignGroupAsync(request, externalId, tenantContext.UserId, cancellationToken));
+    }
+    catch (ScimProvisioningValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["scimGroup"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("AssignScimUserGroup");
+
+api.MapDelete("/enterprise/scim/users/{externalId}/groups", async (
+    string externalId,
+    [FromBody] ScimGroupAssignmentRequest request,
+    ScimProvisioningService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.RemoveGroupAsync(request, externalId, tenantContext.UserId, cancellationToken));
+    }
+    catch (ScimProvisioningValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["scimGroup"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("RemoveScimUserGroup");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,
