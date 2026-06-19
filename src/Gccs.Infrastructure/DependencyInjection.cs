@@ -57,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<FedRampControlMappingService>();
         services.AddScoped<TrustArtifactLibraryService>();
         services.AddScoped<FedRampReadinessExportPackageService>();
+        services.AddScoped<CuiEnclaveBoundaryService>();
         services.AddScoped<PolicyTemplateService>();
         services.AddScoped<SbaSizeStandardService>();
         services.AddScoped<SuggestedObligationService>();
@@ -104,6 +105,7 @@ public static class DependencyInjection
         services.AddSingleton<IFedRampControlMappingRepository, InMemoryFedRampControlMappingRepository>();
         services.AddSingleton<ITrustArtifactLibraryRepository, InMemoryTrustArtifactLibraryRepository>();
         services.AddSingleton<IFedRampReadinessExportPackageRepository, InMemoryFedRampReadinessExportPackageRepository>();
+        services.AddSingleton<ICuiEnclaveBoundaryRepository, InMemoryCuiEnclaveBoundaryRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<SamlIdentityProviderConfigurationService>();

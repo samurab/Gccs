@@ -4402,6 +4402,64 @@ api.MapPost("/enterprise/fedramp/readiness-packages/{packageId:guid}/share", asy
 .RequirePermission(Permission.ManageTenant)
 .WithName("ShareFedRampReadinessPackage");
 
+api.MapPost("/enterprise/cui/enclaves", async (
+    CreateCuiEnclaveBoundaryRequest request,
+    CuiEnclaveBoundaryService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var enclave = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/enterprise/cui/enclaves/{enclave.Id}", enclave);
+    }
+    catch (CuiEnclaveBoundaryValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["cuiEnclave"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CreateCuiEnclaveBoundary");
+
+api.MapPost("/enterprise/cui/enclaves/{enclaveId:guid}/status", async (
+    Guid enclaveId,
+    CuiEnclaveStatusRequest request,
+    CuiEnclaveBoundaryService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var enclave = await service.ChangeStatusAsync(enclaveId, request, tenantContext.UserId, cancellationToken);
+        return enclave is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "CUI enclave boundary was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(enclave);
+    }
+    catch (CuiEnclaveBoundaryValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["cuiEnclaveStatus"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ChangeCuiEnclaveBoundaryStatus");
+
+api.MapPost("/enterprise/cui/enclaves/{enclaveId:guid}/processing-check", async (
+    Guid enclaveId,
+    CuiProcessingRequest request,
+    CuiEnclaveBoundaryService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var decision = await service.EvaluateProcessingAsync(enclaveId, request, tenantContext.UserId, cancellationToken);
+    return decision is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "CUI enclave boundary was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(decision);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("EvaluateCuiEnclaveProcessing");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,
