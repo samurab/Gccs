@@ -12,6 +12,7 @@ using Gccs.Application.Identity;
 using Gccs.Application.Labor;
 using Gccs.Application.NoCui;
 using Gccs.Application.Notifications;
+using Gccs.Application.Portals;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
 using Gccs.Application.SamGov;
@@ -33,6 +34,7 @@ using Gccs.Infrastructure.Labor;
 using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Notifications;
 using Gccs.Infrastructure.Persistence;
+using Gccs.Infrastructure.Portals;
 using Gccs.Infrastructure.Reports;
 using Gccs.Infrastructure.SamGov;
 using Gccs.Infrastructure.Subcontractors;
@@ -90,6 +92,7 @@ public static class DependencyInjection
         services.AddSingleton<IAiRetrievalSourceRepository, InMemoryAiRetrievalSourceRepository>();
         services.AddSingleton<IAiOutputReviewRepository, InMemoryAiOutputReviewRepository>();
         services.AddSingleton<IGuardedAssistantRepository, InMemoryGuardedAssistantRepository>();
+        services.AddSingleton<IExternalPortalAccessRepository, InMemoryExternalPortalAccessRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
@@ -122,6 +125,7 @@ public static class DependencyInjection
         services.AddScoped<AiRetrievalAssistantService>();
         services.AddScoped<AiOutputReviewService>();
         services.AddScoped<GuardedAssistantExperienceService>();
+        services.AddScoped<ExternalPortalAccessService>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         if (configuration is not null)
