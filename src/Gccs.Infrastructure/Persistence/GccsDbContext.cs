@@ -26,6 +26,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<TenantDataHandlingModeHistoryEntity> TenantDataHandlingModeHistory => Set<TenantDataHandlingModeHistoryEntity>();
     public DbSet<GovernmentCloudEnvironmentEntity> GovernmentCloudEnvironments => Set<GovernmentCloudEnvironmentEntity>();
     public DbSet<GovernmentCloudEnvironmentStatusHistoryEntity> GovernmentCloudEnvironmentStatusHistory => Set<GovernmentCloudEnvironmentStatusHistoryEntity>();
+    public DbSet<RegulatedTenantProvisioningRequestEntity> RegulatedTenantProvisioningRequests => Set<RegulatedTenantProvisioningRequestEntity>();
+    public DbSet<RegulatedProvisioningApprovalEntity> RegulatedProvisioningApprovals => Set<RegulatedProvisioningApprovalEntity>();
+    public DbSet<RegulatedProvisioningChecklistEntity> RegulatedProvisioningChecklist => Set<RegulatedProvisioningChecklistEntity>();
+    public DbSet<RegulatedTenantProvisioningHistoryEntity> RegulatedTenantProvisioningHistory => Set<RegulatedTenantProvisioningHistoryEntity>();
     public DbSet<CuiReadyApprovalChecklistEntity> CuiReadyApprovalChecklists => Set<CuiReadyApprovalChecklistEntity>();
     public DbSet<CuiReadyApprovalChecklistItemEntity> CuiReadyApprovalChecklistItems => Set<CuiReadyApprovalChecklistItemEntity>();
     public DbSet<SharedResponsibilityMatrixAcknowledgementEntity> SharedResponsibilityMatrixAcknowledgements => Set<SharedResponsibilityMatrixAcknowledgementEntity>();
@@ -132,6 +136,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<Permission>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<PoamStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<RecurrencePattern>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<RegulatedProvisioningApprovalArea>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<RegulatedProvisioningChecklistItem>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<RegulatedProvisioningStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ReportStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ReportType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ReviewState>().HaveConversion<string>().HaveMaxLength(64);
@@ -222,6 +229,54 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.HistoryNote).HasMaxLength(600).IsRequired();
             entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Environment).WithMany(x => x.StatusHistory).HasForeignKey(x => x.EnvironmentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RegulatedTenantProvisioningRequestEntity>(entity =>
+        {
+            entity.ToTable("regulated_tenant_provisioning_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.EnvironmentId });
+            entity.Property(x => x.TenantName).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.CustomerType).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.KeyPolicy).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.SupportModel).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.MigrationSource).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.FailureReason).HasMaxLength(1200);
+            entity.Property(x => x.RollbackDecision).HasMaxLength(1200);
+            entity.Property(x => x.FailureOwner).HasMaxLength(200);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Environment).WithMany().HasForeignKey(x => x.EnvironmentId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<RegulatedProvisioningApprovalEntity>(entity =>
+        {
+            entity.ToTable("regulated_provisioning_approvals");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.RequestId, x.Area }).IsUnique();
+            entity.Property(x => x.ApproverName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(1200).IsRequired();
+            entity.HasOne(x => x.Request).WithMany(x => x.Approvals).HasForeignKey(x => x.RequestId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RegulatedProvisioningChecklistEntity>(entity =>
+        {
+            entity.ToTable("regulated_provisioning_checklist");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.RequestId, x.Item }).IsUnique();
+            entity.Property(x => x.CompletedByName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.EvidenceReference).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Request).WithMany(x => x.Checklist).HasForeignKey(x => x.RequestId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RegulatedTenantProvisioningHistoryEntity>(entity =>
+        {
+            entity.ToTable("regulated_tenant_provisioning_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.RequestId, x.ChangedAt });
+            entity.Property(x => x.Note).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Request).WithMany().HasForeignKey(x => x.RequestId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<CuiReadyApprovalChecklistEntity>(entity =>

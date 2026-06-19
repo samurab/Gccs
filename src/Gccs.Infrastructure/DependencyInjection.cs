@@ -69,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<ContractSizeCheckService>();
         services.AddScoped<TenantService>();
         services.AddScoped<GovernmentCloudEnvironmentService>();
+        services.AddScoped<RegulatedTenantProvisioningService>();
         services.AddScoped<CuiReadyApprovalChecklistService>();
         services.AddScoped<SharedResponsibilityMatrixService>();
         services.AddScoped<SharedResponsibilityMatrixAcknowledgementService>();
@@ -167,6 +168,7 @@ public static class DependencyInjection
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
             services.AddScoped<IGovernmentCloudEnvironmentRepository, EfGovernmentCloudEnvironmentRepository>();
+            services.AddScoped<IRegulatedTenantProvisioningRepository, EfRegulatedTenantProvisioningRepository>();
             services.AddScoped<ICuiReadyApprovalChecklistRepository, EfCuiReadyApprovalChecklistRepository>();
             services.AddScoped<ISharedResponsibilityMatrixAcknowledgementRepository, EfSharedResponsibilityMatrixAcknowledgementRepository>();
             services.AddScoped<IDataHandlingNoticeAcknowledgementRepository, EfDataHandlingNoticeAcknowledgementRepository>();
@@ -224,6 +226,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Tenant persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IGovernmentCloudEnvironmentRepository>(_ =>
                 throw new InvalidOperationException("Government cloud environment persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IRegulatedTenantProvisioningRepository>(_ =>
+                throw new InvalidOperationException("Regulated tenant provisioning persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICuiReadyApprovalChecklistRepository>(_ =>
                 throw new InvalidOperationException("CUI-ready approval checklist persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ISharedResponsibilityMatrixAcknowledgementRepository>(_ =>

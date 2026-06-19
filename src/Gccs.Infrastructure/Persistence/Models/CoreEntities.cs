@@ -95,6 +95,72 @@ public sealed class GovernmentCloudEnvironmentStatusHistoryEntity
     public GovernmentCloudEnvironmentEntity? Environment { get; set; }
 }
 
+public sealed class RegulatedTenantProvisioningRequestEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string TenantName { get; set; } = string.Empty;
+    public string CustomerType { get; set; } = string.Empty;
+    public Guid EnvironmentId { get; set; }
+    public TenantDataPosture DataHandlingMode { get; set; }
+    public bool CuiApprovalComplete { get; set; }
+    public string KeyPolicy { get; set; } = string.Empty;
+    public string SupportModel { get; set; } = string.Empty;
+    public string MigrationSource { get; set; } = string.Empty;
+    public RegulatedProvisioningStatus Status { get; set; }
+    public Guid? ProvisionedTenantId { get; set; }
+    public string? FailureReason { get; set; }
+    public string? RollbackDecision { get; set; }
+    public string? FailureOwner { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public GovernmentCloudEnvironmentEntity? Environment { get; set; }
+    public ICollection<RegulatedProvisioningApprovalEntity> Approvals { get; set; } = [];
+    public ICollection<RegulatedProvisioningChecklistEntity> Checklist { get; set; } = [];
+}
+
+public sealed class RegulatedProvisioningApprovalEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid RequestId { get; set; }
+    public RegulatedProvisioningApprovalArea Area { get; set; }
+    public string ApproverName { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
+    public DateTimeOffset ApprovedAt { get; set; }
+    public Guid ApprovedByUserId { get; set; }
+
+    public RegulatedTenantProvisioningRequestEntity? Request { get; set; }
+}
+
+public sealed class RegulatedProvisioningChecklistEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid RequestId { get; set; }
+    public RegulatedProvisioningChecklistItem Item { get; set; }
+    public string CompletedByName { get; set; } = string.Empty;
+    public string EvidenceReference { get; set; } = string.Empty;
+    public DateTimeOffset CompletedAt { get; set; }
+    public Guid CompletedByUserId { get; set; }
+
+    public RegulatedTenantProvisioningRequestEntity? Request { get; set; }
+}
+
+public sealed class RegulatedTenantProvisioningHistoryEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid RequestId { get; set; }
+    public RegulatedProvisioningStatus? PreviousStatus { get; set; }
+    public RegulatedProvisioningStatus NewStatus { get; set; }
+    public DateTimeOffset ChangedAt { get; set; }
+    public Guid ChangedByUserId { get; set; }
+    public string Note { get; set; } = string.Empty;
+
+    public RegulatedTenantProvisioningRequestEntity? Request { get; set; }
+}
+
 public sealed class CuiReadyApprovalChecklistEntity : AuditedEntity
 {
     public Guid Id { get; set; }

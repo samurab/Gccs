@@ -3918,6 +3918,176 @@ api.MapPost("/enterprise/government-cloud-environments/{environmentId:guid}/sele
 .RequirePermission(Permission.ManageTenant)
 .WithName("SelectGovernmentCloudEnvironmentForRegulatedDeployment");
 
+api.MapGet("/enterprise/regulated-tenant-provisioning", async (
+    RegulatedTenantProvisioningService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(cancellationToken)))
+.RequirePermission(Permission.ManageTenant)
+.WithName("ListRegulatedTenantProvisioningRequests");
+
+api.MapPost("/enterprise/regulated-tenant-provisioning", async (
+    CreateRegulatedTenantProvisioningRequest request,
+    RegulatedTenantProvisioningService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/enterprise/regulated-tenant-provisioning/{created.Id}", created);
+    }
+    catch (RegulatedTenantProvisioningValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["regulatedTenantProvisioning"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CreateRegulatedTenantProvisioningRequest");
+
+api.MapPost("/enterprise/regulated-tenant-provisioning/{requestId:guid}/approvals", async (
+    Guid requestId,
+    RegulatedProvisioningApprovalRequest request,
+    RegulatedTenantProvisioningService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ApproveAsync(requestId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Regulated tenant provisioning request was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (RegulatedTenantProvisioningValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["regulatedTenantProvisioningApproval"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ApproveRegulatedTenantProvisioningRequest");
+
+api.MapPost("/enterprise/regulated-tenant-provisioning/{requestId:guid}/checklist", async (
+    Guid requestId,
+    RegulatedProvisioningChecklistRequest request,
+    RegulatedTenantProvisioningService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.CompleteChecklistItemAsync(requestId, request, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Regulated tenant provisioning request was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CompleteRegulatedTenantProvisioningChecklistItem");
+
+api.MapPost("/enterprise/regulated-tenant-provisioning/{requestId:guid}/start", async (
+    Guid requestId,
+    RegulatedTenantProvisioningService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.StartProvisioningAsync(requestId, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Regulated tenant provisioning request was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (RegulatedTenantProvisioningValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["regulatedTenantProvisioningStart"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("StartRegulatedTenantProvisioning");
+
+api.MapPost("/enterprise/regulated-tenant-provisioning/{requestId:guid}/validation", async (
+    Guid requestId,
+    RegulatedTenantProvisioningService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.MarkValidationAsync(requestId, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Regulated tenant provisioning request was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ValidateRegulatedTenantProvisioning");
+
+api.MapPost("/enterprise/regulated-tenant-provisioning/{requestId:guid}/complete", async (
+    Guid requestId,
+    RegulatedTenantProvisioningService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.CompleteProvisioningAsync(requestId, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Regulated tenant provisioning request was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (RegulatedTenantProvisioningValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["regulatedTenantProvisioningComplete"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CompleteRegulatedTenantProvisioning");
+
+api.MapPost("/enterprise/regulated-tenant-provisioning/{requestId:guid}/fail", async (
+    Guid requestId,
+    RegulatedProvisioningFailureRequest request,
+    RegulatedTenantProvisioningService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.RecordFailureAsync(requestId, request, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Regulated tenant provisioning request was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("FailRegulatedTenantProvisioning");
+
+api.MapPost("/enterprise/regulated-tenant-provisioning/{requestId:guid}/suspend", async (
+    Guid requestId,
+    RegulatedTenantProvisioningService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.SuspendAsync(requestId, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Regulated tenant provisioning request was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("SuspendRegulatedTenantProvisioning");
+
+api.MapPost("/enterprise/regulated-tenant-provisioning/{requestId:guid}/retire", async (
+    Guid requestId,
+    RegulatedTenantProvisioningService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var updated = await service.RetireAsync(requestId, tenantContext.UserId, cancellationToken);
+    return updated is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Regulated tenant provisioning request was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(updated);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("RetireRegulatedTenantProvisioning");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,
