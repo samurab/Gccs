@@ -66,6 +66,19 @@ public sealed class InMemoryLaborApplicabilityRepository : ILaborApplicabilityRe
     public Task<LaborApplicabilityDto?> FindAsync(Guid applicabilityId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_records.SingleOrDefault(record => record.Id == applicabilityId));
 
+    public Task<IReadOnlyList<LaborApplicabilityDto>> ListAsync(
+        Guid tenantId,
+        Guid? contractId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var records = _records
+            .Where(record => record.TenantId == tenantId)
+            .Where(record => contractId is null || record.ContractId == contractId)
+            .OrderBy(record => record.ContractPeriodEnd)
+            .ToArray();
+        return Task.FromResult<IReadOnlyList<LaborApplicabilityDto>>(records);
+    }
+
     public Task<LaborApplicabilityDto?> UpdateStatusAsync(
         Guid applicabilityId,
         LaborApplicabilityStatus status,

@@ -81,6 +81,19 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
     public Task<LaborCategoryDto?> FindCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_categories.SingleOrDefault(category => category.Id == categoryId));
 
+    public Task<IReadOnlyList<LaborCategoryDto>> ListCategoriesAsync(
+        Guid tenantId,
+        Guid? contractId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var categories = _categories
+            .Where(category => category.TenantId == tenantId)
+            .Where(category => contractId is null || category.ContractId == contractId)
+            .OrderBy(category => category.Title)
+            .ToArray();
+        return Task.FromResult<IReadOnlyList<LaborCategoryDto>>(categories);
+    }
+
     public Task<LaborEmployeeAssignmentDto> CreateAssignmentAsync(
         LaborEmployeeAssignmentRequest request,
         Guid tenantId,
@@ -196,6 +209,19 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
 
     public Task<LaborEmployeeAssignmentDto?> FindAssignmentAsync(Guid assignmentId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_assignments.SingleOrDefault(assignment => assignment.Id == assignmentId));
+
+    public Task<IReadOnlyList<LaborEmployeeAssignmentDto>> ListAssignmentsAsync(
+        Guid tenantId,
+        Guid? contractId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var assignments = _assignments
+            .Where(assignment => assignment.TenantId == tenantId)
+            .Where(assignment => contractId is null || assignment.ContractId == contractId)
+            .OrderBy(assignment => assignment.EmployeeName)
+            .ToArray();
+        return Task.FromResult<IReadOnlyList<LaborEmployeeAssignmentDto>>(assignments);
+    }
 
     public Task<bool> HasDateConflictAsync(
         Guid tenantId,

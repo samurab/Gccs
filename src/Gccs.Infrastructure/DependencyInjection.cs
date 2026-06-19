@@ -112,6 +112,7 @@ public static class DependencyInjection
         services.AddScoped<EsrsReportPackageService>();
         services.AddScoped<LaborApplicabilityService>();
         services.AddScoped<LaborClassificationService>();
+        services.AddScoped<LaborComplianceReportService>();
         services.AddScoped<ILaborWageDeterminationUploadGuard, TenantLaborWageDeterminationUploadGuard>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();

@@ -289,11 +289,13 @@ public interface ILaborClassificationRepository
     Task<LaborCategoryDto?> UpdateCategoryAsync(Guid categoryId, LaborCategoryRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<LaborCategoryDto?> SetCategoryActiveAsync(Guid categoryId, bool isActive, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<LaborCategoryDto?> FindCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<LaborCategoryDto>> ListCategoriesAsync(Guid tenantId, Guid? contractId = null, CancellationToken cancellationToken = default);
     Task<LaborEmployeeAssignmentDto> CreateAssignmentAsync(LaborEmployeeAssignmentRequest request, Guid tenantId, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<LaborEmployeeAssignmentDto?> UpdateAssignmentAsync(Guid assignmentId, LaborEmployeeAssignmentRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<LaborEmployeeAssignmentDto?> SetAssignmentStatusAsync(Guid assignmentId, LaborAssignmentStatus status, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<LaborEmployeeAssignmentDto?> ReclassifyAsync(Guid assignmentId, Guid newCategoryId, string reason, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<LaborEmployeeAssignmentDto?> FindAssignmentAsync(Guid assignmentId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<LaborEmployeeAssignmentDto>> ListAssignmentsAsync(Guid tenantId, Guid? contractId = null, CancellationToken cancellationToken = default);
     Task<bool> HasDateConflictAsync(Guid tenantId, LaborEmployeeAssignmentRequest request, Guid? existingAssignmentId, CancellationToken cancellationToken = default);
 }
 

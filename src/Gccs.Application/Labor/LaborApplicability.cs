@@ -227,6 +227,11 @@ public interface ILaborApplicabilityRepository
 
     Task<LaborApplicabilityDto?> FindAsync(Guid applicabilityId, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<LaborApplicabilityDto>> ListAsync(
+        Guid tenantId,
+        Guid? contractId = null,
+        CancellationToken cancellationToken = default);
+
     Task<LaborApplicabilityDto?> UpdateStatusAsync(
         Guid applicabilityId,
         LaborApplicabilityStatus status,
