@@ -3760,6 +3760,164 @@ api.MapDelete("/enterprise/scim/users/{externalId}/groups", async (
 .RequirePermission(Permission.ManageUsers)
 .WithName("RemoveScimUserGroup");
 
+api.MapGet("/enterprise/government-cloud-environments", async (
+    GovernmentCloudEnvironmentService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(cancellationToken)))
+.RequirePermission(Permission.ManageTenant)
+.WithName("ListGovernmentCloudEnvironments");
+
+api.MapPost("/enterprise/government-cloud-environments", async (
+    UpsertGovernmentCloudEnvironmentRequest request,
+    GovernmentCloudEnvironmentService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var environment = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/enterprise/government-cloud-environments/{environment.Id}", environment);
+    }
+    catch (GovernmentCloudEnvironmentValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["environment"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CreateGovernmentCloudEnvironment");
+
+api.MapPut("/enterprise/government-cloud-environments/{environmentId:guid}", async (
+    Guid environmentId,
+    UpsertGovernmentCloudEnvironmentRequest request,
+    GovernmentCloudEnvironmentService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var environment = await service.UpdateAsync(environmentId, request, tenantContext.UserId, cancellationToken);
+        return environment is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud environment was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(environment);
+    }
+    catch (GovernmentCloudEnvironmentValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["environment"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("UpdateGovernmentCloudEnvironment");
+
+api.MapPost("/enterprise/government-cloud-environments/{environmentId:guid}/submit-review", async (
+    Guid environmentId,
+    ReviewGovernmentCloudEnvironmentRequest request,
+    GovernmentCloudEnvironmentService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var environment = await service.SubmitForReviewAsync(environmentId, request, tenantContext.UserId, cancellationToken);
+        return environment is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud environment was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(environment);
+    }
+    catch (GovernmentCloudEnvironmentValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["environmentReview"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("SubmitGovernmentCloudEnvironmentReview");
+
+api.MapPost("/enterprise/government-cloud-environments/{environmentId:guid}/approve", async (
+    Guid environmentId,
+    ReviewGovernmentCloudEnvironmentRequest request,
+    GovernmentCloudEnvironmentService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var environment = await service.ApproveAsync(environmentId, request, tenantContext.UserId, cancellationToken);
+        return environment is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud environment was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(environment);
+    }
+    catch (GovernmentCloudEnvironmentValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["environmentApproval"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ApproveGovernmentCloudEnvironment");
+
+api.MapPost("/enterprise/government-cloud-environments/{environmentId:guid}/block", async (
+    Guid environmentId,
+    ReviewGovernmentCloudEnvironmentRequest request,
+    GovernmentCloudEnvironmentService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var environment = await service.BlockAsync(environmentId, request, tenantContext.UserId, cancellationToken);
+    return environment is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud environment was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(environment);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("BlockGovernmentCloudEnvironment");
+
+api.MapPost("/enterprise/government-cloud-environments/{environmentId:guid}/deploy", async (
+    Guid environmentId,
+    ReviewGovernmentCloudEnvironmentRequest request,
+    GovernmentCloudEnvironmentService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var environment = await service.MarkDeployedAsync(environmentId, request, tenantContext.UserId, cancellationToken);
+    return environment is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud environment was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(environment);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("DeployGovernmentCloudEnvironment");
+
+api.MapPost("/enterprise/government-cloud-environments/{environmentId:guid}/retire", async (
+    Guid environmentId,
+    ReviewGovernmentCloudEnvironmentRequest request,
+    GovernmentCloudEnvironmentService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var environment = await service.RetireAsync(environmentId, request, tenantContext.UserId, cancellationToken);
+    return environment is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud environment was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(environment);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("RetireGovernmentCloudEnvironment");
+
+api.MapPost("/enterprise/government-cloud-environments/{environmentId:guid}/select-regulated-deployment", async (
+    Guid environmentId,
+    GovernmentCloudEnvironmentService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var result = await service.SelectForRegulatedTenantDeploymentAsync(environmentId, tenantContext.UserId, cancellationToken);
+    return result is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Government cloud environment was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(result);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("SelectGovernmentCloudEnvironmentForRegulatedDeployment");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,

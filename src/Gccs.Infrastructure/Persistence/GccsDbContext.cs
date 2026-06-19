@@ -24,6 +24,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 {
     public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
     public DbSet<TenantDataHandlingModeHistoryEntity> TenantDataHandlingModeHistory => Set<TenantDataHandlingModeHistoryEntity>();
+    public DbSet<GovernmentCloudEnvironmentEntity> GovernmentCloudEnvironments => Set<GovernmentCloudEnvironmentEntity>();
+    public DbSet<GovernmentCloudEnvironmentStatusHistoryEntity> GovernmentCloudEnvironmentStatusHistory => Set<GovernmentCloudEnvironmentStatusHistoryEntity>();
     public DbSet<CuiReadyApprovalChecklistEntity> CuiReadyApprovalChecklists => Set<CuiReadyApprovalChecklistEntity>();
     public DbSet<CuiReadyApprovalChecklistItemEntity> CuiReadyApprovalChecklistItems => Set<CuiReadyApprovalChecklistItemEntity>();
     public DbSet<SharedResponsibilityMatrixAcknowledgementEntity> SharedResponsibilityMatrixAcknowledgements => Set<SharedResponsibilityMatrixAcknowledgementEntity>();
@@ -120,6 +122,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<DataHandlingPosture>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<DeliverableStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<EmploymentStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<EnvironmentDeploymentType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<EnvironmentReadinessStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<EvidenceStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<EvidenceType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ExtractionJobStatus>().HaveConversion<string>().HaveMaxLength(64);
@@ -185,6 +189,39 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.Reason).HasMaxLength(600).IsRequired();
             entity.Property(x => x.ApprovalRecordReference).HasMaxLength(160);
             entity.HasOne(x => x.Tenant).WithMany(x => x.DataHandlingModeHistory).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GovernmentCloudEnvironmentEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_environments");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Region).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Boundary).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.NetworkSegment).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.StorageAccount).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.DatabaseService).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.KeyManagementService).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.LoggingWorkspace).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.BackupPolicy).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ReviewerName).HasMaxLength(200);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1200);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<GovernmentCloudEnvironmentStatusHistoryEntity>(entity =>
+        {
+            entity.ToTable("government_cloud_environment_status_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EnvironmentId, x.ChangedAt });
+            entity.Property(x => x.ReviewerName).HasMaxLength(200);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1200);
+            entity.Property(x => x.HistoryNote).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Environment).WithMany(x => x.StatusHistory).HasForeignKey(x => x.EnvironmentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<CuiReadyApprovalChecklistEntity>(entity =>

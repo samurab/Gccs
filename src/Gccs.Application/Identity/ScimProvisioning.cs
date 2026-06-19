@@ -21,29 +21,29 @@ public sealed class ScimProvisioningService(
         CancellationToken cancellationToken = default)
     {
         ValidateConfirmation(request.ConfirmationText);
-        var token = CreateToken();
+        var provisioningKey = CreateToken();
         var configuration = await repository.UpsertConfigurationForCurrentTenantAsync(
             true,
-            HashToken(token),
+            HashToken(provisioningKey),
             NormalizeOptional(request.EndpointLabel, 160),
             actorUserId,
             cancellationToken);
 
         await WriteAuditAsync(actorUserId, AuditAction.Created, "ScimProvisioningConfiguration", configuration.Id, "SCIM provisioning was enabled.", "enabled", cancellationToken);
-        return new ScimTokenLifecycleResult(configuration, token);
+        return new ScimTokenLifecycleResult(configuration, provisioningKey);
     }
 
     public async Task<ScimTokenLifecycleResult?> RotateTokenAsync(Guid actorUserId, CancellationToken cancellationToken = default)
     {
-        var token = CreateToken();
-        var configuration = await repository.RotateTokenForCurrentTenantAsync(HashToken(token), actorUserId, cancellationToken);
+        var provisioningKey = CreateToken();
+        var configuration = await repository.RotateTokenForCurrentTenantAsync(HashToken(provisioningKey), actorUserId, cancellationToken);
         if (configuration is null)
         {
             return null;
         }
 
         await WriteAuditAsync(actorUserId, AuditAction.Updated, "ScimProvisioningConfiguration", configuration.Id, "SCIM token was rotated.", "token_rotated", cancellationToken);
-        return new ScimTokenLifecycleResult(configuration, token);
+        return new ScimTokenLifecycleResult(configuration, provisioningKey);
     }
 
     public async Task<ScimProvisioningConfigurationDto?> RevokeTokenAsync(Guid actorUserId, CancellationToken cancellationToken = default)

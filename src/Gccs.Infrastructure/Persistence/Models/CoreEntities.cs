@@ -47,6 +47,54 @@ public sealed class TenantDataHandlingModeHistoryEntity
     public TenantEntity? Tenant { get; set; }
 }
 
+public sealed class GovernmentCloudEnvironmentEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public EnvironmentDeploymentType EnvironmentType { get; set; }
+    public string Region { get; set; } = string.Empty;
+    public string Boundary { get; set; } = string.Empty;
+    public string NetworkSegment { get; set; } = string.Empty;
+    public string StorageAccount { get; set; } = string.Empty;
+    public string DatabaseService { get; set; } = string.Empty;
+    public string KeyManagementService { get; set; } = string.Empty;
+    public string LoggingWorkspace { get; set; } = string.Empty;
+    public string BackupPolicy { get; set; } = string.Empty;
+    public bool PrivateNetworkingEnabled { get; set; }
+    public bool StorageEncryptionEnabled { get; set; }
+    public bool DatabaseEncryptionEnabled { get; set; }
+    public bool CustomerManagedKeysEnabled { get; set; }
+    public bool AuditLoggingEnabled { get; set; }
+    public bool ImmutableLoggingEnabled { get; set; }
+    public bool BackupEnabled { get; set; }
+    public bool RestoreTested { get; set; }
+    public EnvironmentReadinessStatus Status { get; set; }
+    public string? ReviewerName { get; set; }
+    public string? ReviewNotes { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public ICollection<GovernmentCloudEnvironmentStatusHistoryEntity> StatusHistory { get; set; } = [];
+}
+
+public sealed class GovernmentCloudEnvironmentStatusHistoryEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid EnvironmentId { get; set; }
+    public EnvironmentReadinessStatus? PreviousStatus { get; set; }
+    public EnvironmentReadinessStatus NewStatus { get; set; }
+    public string? ReviewerName { get; set; }
+    public string? ReviewNotes { get; set; }
+    public DateTimeOffset ChangedAt { get; set; }
+    public Guid ChangedByUserId { get; set; }
+    public string HistoryNote { get; set; } = string.Empty;
+
+    public TenantEntity? Tenant { get; set; }
+    public GovernmentCloudEnvironmentEntity? Environment { get; set; }
+}
+
 public sealed class CuiReadyApprovalChecklistEntity : AuditedEntity
 {
     public Guid Id { get; set; }
