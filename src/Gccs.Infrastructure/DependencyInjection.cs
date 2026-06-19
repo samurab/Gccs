@@ -84,6 +84,7 @@ public static class DependencyInjection
         services.AddSingleton<ISubcontractingReportDataRepository, InMemorySubcontractingReportDataRepository>();
         services.AddSingleton<IEsrsReportPackageRepository, InMemoryEsrsReportPackageRepository>();
         services.AddSingleton<ILaborApplicabilityRepository, InMemoryLaborApplicabilityRepository>();
+        services.AddSingleton<ILaborClassificationRepository, InMemoryLaborClassificationRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
@@ -110,6 +111,7 @@ public static class DependencyInjection
         services.AddScoped<SubcontractingReportDataService>();
         services.AddScoped<EsrsReportPackageService>();
         services.AddScoped<LaborApplicabilityService>();
+        services.AddScoped<LaborClassificationService>();
         services.AddScoped<ILaborWageDeterminationUploadGuard, TenantLaborWageDeterminationUploadGuard>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
