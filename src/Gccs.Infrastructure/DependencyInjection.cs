@@ -99,6 +99,7 @@ public static class DependencyInjection
         services.AddScoped<SubcontractorEntityLookupService>();
         services.AddScoped<ComplianceStatusReportService>();
         services.AddScoped<CmmcReadinessReportService>();
+        services.AddScoped<SprsReadinessReportService>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         if (configuration is not null)
