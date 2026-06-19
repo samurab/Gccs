@@ -4286,6 +4286,64 @@ api.MapPost("/enterprise/fedramp/control-mappings/{mappingId:guid}/state", async
 .RequirePermission(Permission.ManageTenant)
 .WithName("ChangeFedRampControlMappingState");
 
+api.MapPost("/enterprise/trust-artifacts", async (
+    CreateTrustArtifactRequest request,
+    TrustArtifactLibraryService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/enterprise/trust-artifacts/{created.Id}", created);
+    }
+    catch (TrustArtifactValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["trustArtifact"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CreateTrustArtifact");
+
+api.MapPost("/enterprise/trust-artifacts/{artifactId:guid}/status", async (
+    Guid artifactId,
+    TrustArtifactStatusRequest request,
+    TrustArtifactLibraryService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ChangeStatusAsync(artifactId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Trust artifact was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (TrustArtifactValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["trustArtifactStatus"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ChangeTrustArtifactStatus");
+
+api.MapPost("/enterprise/trust-artifacts/{artifactId:guid}/share", async (
+    Guid artifactId,
+    TrustArtifactShareRequest request,
+    TrustArtifactLibraryService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var result = await service.ShareAsync(artifactId, request, tenantContext.UserId, cancellationToken);
+    return result is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Trust artifact was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(result);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ShareTrustArtifact");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,
