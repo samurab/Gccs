@@ -89,6 +89,7 @@ public static class DependencyInjection
         services.AddSingleton<ILaborClassificationRepository, InMemoryLaborClassificationRepository>();
         services.AddSingleton<IAiRetrievalSourceRepository, InMemoryAiRetrievalSourceRepository>();
         services.AddSingleton<IAiOutputReviewRepository, InMemoryAiOutputReviewRepository>();
+        services.AddSingleton<IGuardedAssistantRepository, InMemoryGuardedAssistantRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
@@ -120,6 +121,7 @@ public static class DependencyInjection
         services.AddScoped<ILaborWageDeterminationUploadGuard, TenantLaborWageDeterminationUploadGuard>();
         services.AddScoped<AiRetrievalAssistantService>();
         services.AddScoped<AiOutputReviewService>();
+        services.AddScoped<GuardedAssistantExperienceService>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         if (configuration is not null)
