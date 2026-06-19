@@ -4543,6 +4543,127 @@ api.MapPost("/enterprise/cui/customer-managed-key-policies/{policyId:guid}/workf
 .RequirePermission(Permission.ManageTenant)
 .WithName("EvaluateCustomerManagedKeyWorkflow");
 
+api.MapPost("/enterprise/cui/access/view", async (
+    CuiEnclaveOperationRequest request,
+    CuiEnclaveAccessControlService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.RecordOperationAsync(request with { Operation = CuiEnclaveOperation.View }, tenantContext.UserId, cancellationToken)))
+.RequirePermission(Permission.ViewEnclave)
+.WithName("ViewCuiEnclaveAccess");
+
+api.MapPost("/enterprise/cui/access/upload", async (
+    CuiEnclaveOperationRequest request,
+    CuiEnclaveAccessControlService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.RecordOperationAsync(request with { Operation = CuiEnclaveOperation.Upload }, tenantContext.UserId, cancellationToken)))
+.RequirePermission(Permission.UploadEnclave)
+.WithName("UploadCuiEnclaveAccess");
+
+api.MapPost("/enterprise/cui/access/download", async (
+    CuiEnclaveOperationRequest request,
+    CuiEnclaveAccessControlService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.RecordOperationAsync(request with { Operation = CuiEnclaveOperation.Download }, tenantContext.UserId, cancellationToken)))
+.RequirePermission(Permission.DownloadEnclave)
+.WithName("DownloadCuiEnclaveAccess");
+
+api.MapPost("/enterprise/cui/access/approve", async (
+    CuiEnclaveOperationRequest request,
+    CuiEnclaveAccessControlService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.RecordOperationAsync(request with { Operation = CuiEnclaveOperation.Approve }, tenantContext.UserId, cancellationToken)))
+.RequirePermission(Permission.ApproveEnclave)
+.WithName("ApproveCuiEnclaveAccess");
+
+api.MapPost("/enterprise/cui/support-access", async (
+    CuiEnclaveSupportAccessRequest request,
+    CuiEnclaveAccessControlService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.RequestSupportAccessAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (CuiEnclaveAccessValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["cuiEnclaveSupportAccess"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.SupportEnclave)
+.WithName("RequestCuiEnclaveSupportAccess");
+
+api.MapPost("/enterprise/cui/support-access/{accessId:guid}/expire", async (
+    Guid accessId,
+    CuiEnclaveAccessControlService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var expired = await service.ExpireSupportAccessAsync(accessId, tenantContext.UserId, cancellationToken);
+    return expired is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "CUI enclave support access was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(expired);
+})
+.RequirePermission(Permission.SupportEnclave)
+.WithName("ExpireCuiEnclaveSupportAccess");
+
+api.MapPost("/enterprise/cui/exports", async (
+    CuiEnclaveExportRequest request,
+    CuiEnclaveAccessControlService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.CreateExportAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (CuiEnclaveAccessValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["cuiEnclaveExport"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ExportEnclave)
+.WithName("CreateCuiEnclaveExport");
+
+api.MapPost("/enterprise/cui/emergency-access", async (
+    CuiEnclaveEmergencyAccessRequest request,
+    CuiEnclaveAccessControlService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.RequestEmergencyAccessAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (CuiEnclaveAccessValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["cuiEnclaveEmergencyAccess"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.EmergencyEnclave)
+.WithName("RequestCuiEnclaveEmergencyAccess");
+
+api.MapPost("/enterprise/cui/emergency-access/{accessId:guid}/post-access-review", async (
+    Guid accessId,
+    CuiEnclavePostAccessReviewRequest request,
+    CuiEnclaveAccessControlService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var reviewed = await service.CompletePostAccessReviewAsync(accessId, request.Reviewer, tenantContext.UserId, cancellationToken);
+    return reviewed is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "CUI enclave emergency access was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(reviewed);
+})
+.RequirePermission(Permission.EmergencyEnclave)
+.WithName("CompleteCuiEnclaveEmergencyPostAccessReview");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,

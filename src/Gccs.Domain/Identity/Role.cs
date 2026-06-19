@@ -32,7 +32,14 @@ public enum Permission
     ViewReports,
     ManageReports,
     ViewAuditLog,
-    AuditorReadOnly
+    AuditorReadOnly,
+    ViewEnclave,
+    UploadEnclave,
+    DownloadEnclave,
+    ExportEnclave,
+    ApproveEnclave,
+    SupportEnclave,
+    EmergencyEnclave
 }
 
 public static class RoleCatalog
@@ -74,7 +81,14 @@ public static class RoleCatalog
         Permission.ViewSubcontractors,
         Permission.ManageSubcontractors,
         Permission.ViewReports,
-        Permission.ManageReports
+        Permission.ManageReports,
+        Permission.ViewEnclave,
+        Permission.UploadEnclave,
+        Permission.DownloadEnclave,
+        Permission.ExportEnclave,
+        Permission.ApproveEnclave,
+        Permission.SupportEnclave,
+        Permission.EmergencyEnclave
     ];
 
     public static readonly IReadOnlyDictionary<string, IReadOnlySet<Permission>> PermissionsByRole =
