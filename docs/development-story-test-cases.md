@@ -711,6 +711,16 @@ Common expectations for all functional stories:
 - **TC-28.3.4 - Release summary shows open extraction risks and:** Verify release summary shows open extraction risks and metric trends.
 - **TC-28.3.5 - Regression review records are audit logged or:** Verify regression review records are audit logged or otherwise traceable.
 
+## 29. SSP Builder
+
+### Story 29.1: SSP Data Model And Sections
+
+- **TC-29.1.1 - Authorized user can create and update tenant-scoped SSP section:** Verify authorized users can create and update SSP sections for the current tenant with owner, section type, linked records, and source references.
+- **TC-29.1.2 - Approval metadata validation enforced:** Attempt to approve an SSP section without reviewer, review date, source references, or rationale and verify validation blocks unsupported approval.
+- **TC-29.1.3 - SSP section status history preserved:** Move an SSP section through draft, in_review, and approved states and verify status history retains actor, timestamp, status, and notes.
+- **TC-29.1.4 - Cross-tenant SSP sections hidden:** Seed an SSP section for one tenant and verify another tenant cannot retrieve or list it.
+- **TC-29.1.5 - SSP section lifecycle audited:** Create, update, approve, supersede, or archive an SSP section and verify audit events include section type, owner, and status metadata.
+
 ## 30. SPRS Score Calculator
 
 ### Story 30.1: Scoring Rule Baseline

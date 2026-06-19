@@ -1142,6 +1142,11 @@ Using the existing GCCS architecture and test patterns, create or update automat
 
 ## Phase 3 - Advanced Compliance
 
+### Story 29.1: SSP Data Model And Sections
+Please perform automated test on Story 29.1: SSP Data Model And Sections. Please provide the results of the tests.
+
+Run focused automated tests that verify tenant-scoped SSP section create/update APIs, lifecycle transitions, approval metadata validation, linked source records, source references, status history, cross-tenant blocking, RBAC, and audit logging. Include regression checks for standard API error behavior and source/review metadata requirements.
+
 ### Story 30.1: Scoring Rule Baseline
 Please perform automated test on Story 30.1: Scoring Rule Baseline. Please provide the results of the tests.
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, source traceability, review metadata, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.

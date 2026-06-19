@@ -1201,6 +1201,11 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 ## Phase 3 - Advanced Compliance
 
+### Story 29.1: SSP Data Model And Sections
+Please perform Smoke test on Story 29.1: SSP Data Model And Sections. Please provide the results of the tests.
+
+Verify an authorized user can create, retrieve, update, approve, and archive an SSP section in the current tenant with section type, owner, linked source records, source references, reviewer metadata, status history, and audit events. Verify unsupported approval is blocked when reviewer, review date, source references, or rationale are missing. Verify another tenant cannot list or retrieve the section.
+
 ### Story 30.1: Scoring Rule Baseline
 Please perform Smoke test on Story 30.1: Scoring Rule Baseline. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.

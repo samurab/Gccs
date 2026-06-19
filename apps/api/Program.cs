@@ -4402,6 +4402,95 @@ api.MapPost("/enterprise/fedramp/readiness-packages/{packageId:guid}/share", asy
 .RequirePermission(Permission.ManageTenant)
 .WithName("ShareFedRampReadinessPackage");
 
+api.MapGet("/compliance/ssp/sections", async (
+    SspSectionService service,
+    CancellationToken cancellationToken) =>
+{
+    var sections = await service.ListAsync(cancellationToken);
+    return Results.Ok(sections);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ListSspSections");
+
+api.MapGet("/compliance/ssp/sections/{sectionId:guid}", async (
+    Guid sectionId,
+    SspSectionService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var section = await service.GetAsync(sectionId, cancellationToken);
+    return section is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP section was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(section);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("GetSspSection");
+
+api.MapPost("/compliance/ssp/sections", async (
+    CreateSspSectionRequest request,
+    SspSectionService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var section = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/compliance/ssp/sections/{section.Id}", section);
+    }
+    catch (SspSectionValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspSection"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("CreateSspSection");
+
+api.MapPut("/compliance/ssp/sections/{sectionId:guid}", async (
+    Guid sectionId,
+    UpdateSspSectionRequest request,
+    SspSectionService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var section = await service.UpdateAsync(sectionId, request, tenantContext.UserId, cancellationToken);
+        return section is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP section was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(section);
+    }
+    catch (SspSectionValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspSection"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("UpdateSspSection");
+
+api.MapPost("/compliance/ssp/sections/{sectionId:guid}/status", async (
+    Guid sectionId,
+    SspSectionStatusRequest request,
+    SspSectionService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var section = await service.ChangeStatusAsync(sectionId, request, tenantContext.UserId, cancellationToken);
+        return section is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP section was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(section);
+    }
+    catch (SspSectionValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspSectionStatus"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ChangeSspSectionStatus");
+
 api.MapPost("/enterprise/cui/enclaves", async (
     CreateCuiEnclaveBoundaryRequest request,
     CuiEnclaveBoundaryService service,

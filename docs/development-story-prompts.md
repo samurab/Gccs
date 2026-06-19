@@ -5091,6 +5091,27 @@ Implement Story 1A.9.3, "Incident Response Readiness," from `docs/development-ph
 
 ## Phase 3 - Advanced Compliance
 
+### Story 29.1: SSP Data Model And Sections
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SSP Builder
+> - User story: As a security owner, I want structured SSP sections so that system security plan content is consistent, source-backed, and reusable.
+> - Acceptance criteria:
+> - Authorized user can create and update SSP sections for the current tenant.
+> - SSP sections link to source records instead of duplicating unsupported compliance claims.
+> - Required sections cannot be marked approved without owner, reviewer, review date, and source references or rationale.
+> - SSP section changes preserve status history.
+> - SSP section create, update, approval, and archive actions are audit logged.
+
+Implement Story 29.1, "SSP Data Model And Sections," from `docs/development-phase-use-cases.md`. Add structured SSP section types for system description, authorization boundary, environment, interconnections, users, roles, data types, CUI handling posture, control implementation narratives, inherited responsibilities, external service providers, and evidence references; link sections to company profile, system boundary, assets, CMMC controls, responsibility matrix, policies, POA&M items, and evidence; add ownership, review status, reviewer, review date, source references, lifecycle states, tenant-scoped API contracts, validation, history, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
 ### Story 30.1: Scoring Rule Baseline
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
