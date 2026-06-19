@@ -4344,6 +4344,64 @@ api.MapPost("/enterprise/trust-artifacts/{artifactId:guid}/share", async (
 .RequirePermission(Permission.ManageTenant)
 .WithName("ShareTrustArtifact");
 
+api.MapPost("/enterprise/fedramp/readiness-packages", async (
+    CreateFedRampReadinessPackageRequest request,
+    FedRampReadinessExportPackageService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var package = await service.GenerateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/enterprise/fedramp/readiness-packages/{package.Id}", package);
+    }
+    catch (FedRampReadinessPackageValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["fedRampReadinessPackage"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("GenerateFedRampReadinessPackage");
+
+api.MapPost("/enterprise/fedramp/readiness-packages/{packageId:guid}/status", async (
+    Guid packageId,
+    FedRampReadinessPackageStatusRequest request,
+    FedRampReadinessExportPackageService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var package = await service.ChangeStatusAsync(packageId, request, tenantContext.UserId, cancellationToken);
+    return package is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "FedRAMP readiness package was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(package);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ChangeFedRampReadinessPackageStatus");
+
+api.MapPost("/enterprise/fedramp/readiness-packages/{packageId:guid}/share", async (
+    Guid packageId,
+    FedRampReadinessPackageShareRequest request,
+    FedRampReadinessExportPackageService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var package = await service.ShareAsync(packageId, request, tenantContext.UserId, cancellationToken);
+        return package is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "FedRAMP readiness package was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(package);
+    }
+    catch (FedRampReadinessPackageValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["fedRampReadinessPackageShare"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ShareFedRampReadinessPackage");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,
