@@ -13,6 +13,8 @@ After implementing any user story:
 
 The regression coverage harness is useful, but it is not a substitute for functional tests. It verifies that every documented `TC-*` case has an executable regression strategy; feature implementation still needs focused backend, frontend, integration, or smoke tests.
 
+For Phase 1A CUI Readiness Gate stories from Story `1A.1.1` through Story `1A.9.3`, apply this same story-level regression prompt and keep tenant data handling mode, classification metadata, CUI upload restrictions, approval gates, shared responsibility acknowledgements, notices, escalation handling, audit event completeness, tenant isolation, server-side RBAC, and standard API/UI error behavior in scope.
+
 ## Command Selection
 
 
@@ -41,3 +43,5 @@ Please execute the regression workflow for this story and please provide results
 7. Report exact commands, pass/fail results, any skipped checks, and any manual verification still required.
 
 Do not treat the manifest/coverage test as the only regression. Add focused functional tests for the story behavior before reporting completion.
+
+For Phase 1A stories, also report any remaining CUI-readiness risk, manual reviewer approval gap, or approval-gate behavior that could not be verified automatically.

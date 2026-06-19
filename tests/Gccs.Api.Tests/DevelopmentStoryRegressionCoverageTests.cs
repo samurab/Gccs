@@ -5,7 +5,7 @@ namespace Gccs.Api.Tests;
 
 public sealed partial class DevelopmentStoryRegressionCoverageTests
 {
-    private const int ExpectedDocumentedRegressionCaseCount = 382;
+    private const int ExpectedDocumentedRegressionCaseCount = 477;
 
     private static readonly string[] CommonExpectationSignals =
     [
@@ -161,9 +161,9 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             cases.Select(regressionCase => regressionCase.Id).Distinct().OrderBy(id => id, StringComparer.Ordinal).ToArray());
         Assert.All(cases, regressionCase =>
         {
-            Assert.Matches(@"^TC-\d+\.\d+\.\d+$", regressionCase.Id);
-            Assert.Matches(@"^\d+\. .+", regressionCase.Section);
-            Assert.Matches(@"^Story \d+\.\d+: .+", regressionCase.Story);
+            Assert.Matches(@"^TC-(?:1A\.\d+\.\d+\.\d+|\d+\.\d+\.\d+)$", regressionCase.Id);
+            Assert.Matches(@"^(?:1A\.\d+|\d+)\. .+", regressionCase.Section);
+            Assert.Matches(@"^Story (?:1A\.\d+\.\d+|\d+\.\d+): .+", regressionCase.Story);
             Assert.False(string.IsNullOrWhiteSpace(regressionCase.Title));
             Assert.False(string.IsNullOrWhiteSpace(regressionCase.ExpectedBehavior));
             Assert.True(
@@ -495,16 +495,16 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
         throw new DirectoryNotFoundException("Could not locate repository root containing Gccs.slnx.");
     }
 
-    [GeneratedRegex(@"^## (?<section>\d+\. .+)$")]
+    [GeneratedRegex(@"^## (?<section>(?:1A\.\d+|\d+)\. .+)$")]
     private static partial Regex SectionRegex();
 
-    [GeneratedRegex(@"^### (?<story>Story \d+\.\d+: .+)$")]
+    [GeneratedRegex(@"^### (?<story>Story (?:1A\.\d+\.\d+|\d+\.\d+): .+)$")]
     private static partial Regex StoryRegex();
 
-    [GeneratedRegex(@"^- \*\*(?<id>TC-\d+\.\d+\.\d+) - (?<title>[^:]+):\*\* (?<behavior>.+)$")]
+    [GeneratedRegex(@"^- \*\*(?<id>TC-(?:1A\.\d+\.\d+\.\d+|\d+\.\d+\.\d+)) - (?<title>[^:]+):\*\* (?<behavior>.+)$")]
     private static partial Regex TestCaseLineRegex();
 
-    [GeneratedRegex(@"TC-\d+\.\d+\.\d+")]
+    [GeneratedRegex(@"TC-(?:1A\.\d+\.\d+\.\d+|\d+\.\d+\.\d+)")]
     private static partial Regex TestCaseIdRegex();
 
     public sealed record DevelopmentStoryRegressionCase(
