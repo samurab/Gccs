@@ -76,6 +76,7 @@ public static class DependencyInjection
         services.AddSingleton<ISyntheticDemoDatasetRepository, FileSyntheticDemoDatasetRepository>();
         services.AddSingleton<ISharedResponsibilityMatrixRepository, FileSharedResponsibilityMatrixRepository>();
         services.AddSingleton<IDataHandlingNoticeRepository, FileDataHandlingNoticeRepository>();
+        services.AddSingleton<ISprsScoringRuleRepository, FileSprsScoringRuleRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
@@ -91,6 +92,7 @@ public static class DependencyInjection
         services.AddScoped<CmmcAssessmentService>();
         services.AddScoped<CmmcPoamService>();
         services.AddScoped<CmmcAffirmationService>();
+        services.AddScoped<SprsScoringRuleService>();
         services.AddScoped<SubcontractorService>();
         services.AddScoped<SubcontractorEntityLookupService>();
         services.AddScoped<ComplianceStatusReportService>();

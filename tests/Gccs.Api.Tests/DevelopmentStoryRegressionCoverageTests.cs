@@ -5,7 +5,7 @@ namespace Gccs.Api.Tests;
 
 public sealed partial class DevelopmentStoryRegressionCoverageTests
 {
-    private const int ExpectedDocumentedRegressionCaseCount = 477;
+    private const int ExpectedDocumentedRegressionCaseCount = 552;
 
     private static readonly string[] CommonExpectationSignals =
     [
@@ -175,7 +175,12 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
     [Fact]
     public void Development_story_test_prompts_cover_every_documented_regression_case()
     {
-        var promptDocument = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "docs", "development-story-test-prompts.md"));
+        var docsDirectory = Path.Combine(FindRepositoryRoot(), "docs");
+        var promptDocument = string.Join(
+            Environment.NewLine,
+            File.ReadAllText(Path.Combine(docsDirectory, "development-story-test-prompts.md")),
+            File.ReadAllText(Path.Combine(docsDirectory, "Smoke_Test_development-story-test-prompts.md")),
+            File.ReadAllText(Path.Combine(docsDirectory, "Automated development-story-test-prompts.md")));
         var promptedIds = TestCaseIdRegex()
             .Matches(promptDocument)
             .Select(match => match.Value)

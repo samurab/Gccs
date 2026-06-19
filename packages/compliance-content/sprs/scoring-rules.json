@@ -1,0 +1,40 @@
+{
+  "ruleSets": [
+    {
+      "id": "sprs-basic-assessment-nist-800-171-r2-v1",
+      "version": "2026.06",
+      "state": "published",
+      "sourceName": "DoD NIST SP 800-171 DoD Assessment Methodology",
+      "sourceUrl": "https://www.acq.osd.mil/asda/dpc/cp/cyber/safeguarding.html",
+      "effectiveDate": "2026-06-19",
+      "lastReviewedAt": "2026-06-19",
+      "owner": "Compliance Content Owner",
+      "reviewer": "CMMC SME Review",
+      "reviewDate": "2026-06-19",
+      "maximumScore": 110,
+      "rules": [
+        {
+          "requirementId": "3.1.1",
+          "title": "Limit system access to authorized users, processes, and devices.",
+          "deduction": 5,
+          "assessmentObjective": "Deduct when the requirement is not implemented for the assessed system boundary.",
+          "sourceUrl": "https://www.acq.osd.mil/asda/dpc/cp/cyber/safeguarding.html"
+        },
+        {
+          "requirementId": "3.1.2",
+          "title": "Limit system access to authorized transactions and functions.",
+          "deduction": 5,
+          "assessmentObjective": "Deduct when access enforcement is not implemented or cannot be supported with evidence.",
+          "sourceUrl": "https://www.acq.osd.mil/asda/dpc/cp/cyber/safeguarding.html"
+        },
+        {
+          "requirementId": "3.5.3",
+          "title": "Use multifactor authentication for privileged and non-privileged accounts.",
+          "deduction": 5,
+          "assessmentObjective": "Deduct when multifactor authentication coverage is missing or incomplete.",
+          "sourceUrl": "https://www.acq.osd.mil/asda/dpc/cp/cyber/safeguarding.html"
+        }
+      ]
+    }
+  ]
+}
