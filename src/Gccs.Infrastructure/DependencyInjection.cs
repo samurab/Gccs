@@ -93,6 +93,7 @@ public static class DependencyInjection
         services.AddSingleton<IAiOutputReviewRepository, InMemoryAiOutputReviewRepository>();
         services.AddSingleton<IGuardedAssistantRepository, InMemoryGuardedAssistantRepository>();
         services.AddSingleton<IExternalPortalAccessRepository, InMemoryExternalPortalAccessRepository>();
+        services.AddSingleton<IPortalPackageRepository, InMemoryPortalPackageRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
@@ -126,6 +127,7 @@ public static class DependencyInjection
         services.AddScoped<AiOutputReviewService>();
         services.AddScoped<GuardedAssistantExperienceService>();
         services.AddScoped<ExternalPortalAccessService>();
+        services.AddScoped<ApprovedPackagePortalReviewService>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         if (configuration is not null)
