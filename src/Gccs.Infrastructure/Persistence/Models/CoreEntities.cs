@@ -1,3 +1,4 @@
+using Gccs.Application.Identity;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
@@ -182,6 +183,28 @@ public sealed class TenantInvitationEntity : AuditedEntity
     public Guid? RevokedByUserId { get; set; }
     public DateTimeOffset? NotificationSentAt { get; set; }
     public string NotificationPlaceholder { get; set; } = string.Empty;
+
+    public TenantEntity? Tenant { get; set; }
+}
+
+public sealed class SamlIdentityProviderConfigurationEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string EntityId { get; set; } = string.Empty;
+    public string SsoUrl { get; set; } = string.Empty;
+    public string? CertificatePem { get; set; }
+    public string? CertificateFingerprint { get; set; }
+    public DateTimeOffset CertificateExpiresAt { get; set; }
+    public SamlSigningRequirement SigningRequirement { get; set; }
+    public SamlNameIdFormat NameIdFormat { get; set; }
+    public string AttributeMappingsJson { get; set; } = "{}";
+    public SamlConfigurationStatus Status { get; set; }
+    public string? MetadataUrl { get; set; }
+    public string CallbackUrl { get; set; } = string.Empty;
+    public DateTimeOffset? LastTestedAt { get; set; }
+    public SamlTestResult? LastTestResult { get; set; }
+    public string? LastTestDiagnosticSummary { get; set; }
 
     public TenantEntity? Tenant { get; set; }
 }

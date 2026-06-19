@@ -3340,6 +3340,167 @@ api.MapPost("/tenant-invitations/{invitationId:guid}/revoke", async (
 .RequirePermission(Permission.ManageUsers)
 .WithName("RevokeTenantInvitation");
 
+api.MapGet("/enterprise/saml-configurations", async (
+    SamlIdentityProviderConfigurationService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
+.RequirePermission(Permission.ManageUsers)
+.WithName("ListSamlIdentityProviderConfigurations");
+
+api.MapPost("/enterprise/saml-configurations", async (
+    UpsertSamlIdentityProviderConfigurationRequest request,
+    SamlIdentityProviderConfigurationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var configuration = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/enterprise/saml-configurations/{configuration.Id}", configuration);
+    }
+    catch (SamlConfigurationValidationException exception) when (
+        exception.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Duplicate SAML configuration",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "duplicate_saml_configuration");
+    }
+    catch (SamlConfigurationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["samlConfiguration"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("CreateSamlIdentityProviderConfiguration");
+
+api.MapPost("/enterprise/saml-configurations/{configurationId:guid}/test", async (
+    Guid configurationId,
+    SamlIdentityProviderConfigurationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var configuration = await service.TestAsync(configurationId, tenantContext.UserId, cancellationToken);
+    return configuration is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            "SAML configuration was not found in the current tenant scope.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(configuration);
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("TestSamlIdentityProviderConfiguration");
+
+api.MapPost("/enterprise/saml-configurations/{configurationId:guid}/enable", async (
+    Guid configurationId,
+    SamlIdentityProviderConfigurationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var configuration = await service.EnableAsync(configurationId, tenantContext.UserId, cancellationToken);
+        return configuration is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "SAML configuration was not found in the current tenant scope.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(configuration);
+    }
+    catch (SamlConfigurationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["samlConfiguration"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("EnableSamlIdentityProviderConfiguration");
+
+api.MapPost("/enterprise/saml-configurations/{configurationId:guid}/disable", async (
+    Guid configurationId,
+    SamlIdentityProviderConfigurationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var configuration = await service.DisableAsync(configurationId, tenantContext.UserId, cancellationToken);
+    return configuration is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            "SAML configuration was not found in the current tenant scope.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(configuration);
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("DisableSamlIdentityProviderConfiguration");
+
+api.MapPost("/enterprise/saml-configurations/{configurationId:guid}/archive", async (
+    Guid configurationId,
+    SamlIdentityProviderConfigurationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var configuration = await service.ArchiveAsync(configurationId, tenantContext.UserId, cancellationToken);
+    return configuration is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            "SAML configuration was not found in the current tenant scope.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(configuration);
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("ArchiveSamlIdentityProviderConfiguration");
+
+api.MapPost("/enterprise/saml-configurations/{configurationId:guid}/rotate-certificate", async (
+    Guid configurationId,
+    RotateSamlCertificateRequest request,
+    SamlIdentityProviderConfigurationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var configuration = await service.RotateCertificateAsync(configurationId, request, tenantContext.UserId, cancellationToken);
+        return configuration is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "SAML configuration was not found in the current tenant scope.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(configuration);
+    }
+    catch (SamlConfigurationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["samlConfiguration"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("RotateSamlIdentityProviderCertificate");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,

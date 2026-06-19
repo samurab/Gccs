@@ -1,4 +1,5 @@
 using System.Text;
+using Gccs.Application.Identity;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
@@ -32,6 +33,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
+    public DbSet<SamlIdentityProviderConfigurationEntity> SamlIdentityProviderConfigurations => Set<SamlIdentityProviderConfigurationEntity>();
     public DbSet<NoCuiAcknowledgementEntity> NoCuiAcknowledgements => Set<NoCuiAcknowledgementEntity>();
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
     public DbSet<NotificationDeliveryEntity> NotificationDeliveries => Set<NotificationDeliveryEntity>();
@@ -123,6 +125,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<ReportType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ReviewState>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<RiskLevel>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SamlConfigurationStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SamlNameIdFormat>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SamlSigningRequirement>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SamlTestResult>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorEvidenceRequestStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
@@ -285,6 +291,24 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.InvitationToken).HasMaxLength(128).IsRequired();
             entity.Property(x => x.NotificationPlaceholder).HasMaxLength(600).IsRequired();
             entity.HasOne(x => x.Tenant).WithMany(x => x.Invitations).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SamlIdentityProviderConfigurationEntity>(entity =>
+        {
+            entity.ToTable("saml_identity_provider_configurations");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.EntityId }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.Property(x => x.EntityId).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.SsoUrl).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.CertificatePem).HasMaxLength(8000);
+            entity.Property(x => x.CertificateFingerprint).HasMaxLength(128);
+            entity.Property(x => x.AttributeMappingsJson).HasColumnType("jsonb");
+            entity.Property(x => x.MetadataUrl).HasMaxLength(1000);
+            entity.Property(x => x.CallbackUrl).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.LastTestDiagnosticSummary).HasMaxLength(1200);
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             ConfigureAuditColumns(entity);
         });
 
