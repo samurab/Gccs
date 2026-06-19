@@ -34,6 +34,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
     public DbSet<SamlIdentityProviderConfigurationEntity> SamlIdentityProviderConfigurations => Set<SamlIdentityProviderConfigurationEntity>();
+    public DbSet<TenantSsoPolicyEntity> TenantSsoPolicies => Set<TenantSsoPolicyEntity>();
+    public DbSet<SamlAccountLinkEntity> SamlAccountLinks => Set<SamlAccountLinkEntity>();
+    public DbSet<BreakGlassAccessGrantEntity> BreakGlassAccessGrants => Set<BreakGlassAccessGrantEntity>();
     public DbSet<NoCuiAcknowledgementEntity> NoCuiAcknowledgements => Set<NoCuiAcknowledgementEntity>();
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
     public DbSet<NotificationDeliveryEntity> NotificationDeliveries => Set<NotificationDeliveryEntity>();
@@ -88,6 +91,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<AssetType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<AuditAction>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<BoundaryStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<BreakGlassGrantStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<CertificationStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<CertificationType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ClauseSource>().HaveConversion<string>().HaveMaxLength(64);
@@ -129,6 +133,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<SamlNameIdFormat>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SamlSigningRequirement>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SamlTestResult>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SsoEnforcementMode>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorEvidenceRequestStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
@@ -309,6 +314,46 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.CallbackUrl).HasMaxLength(1000).IsRequired();
             entity.Property(x => x.LastTestDiagnosticSummary).HasMaxLength(1200);
             entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantSsoPolicyEntity>(entity =>
+        {
+            entity.ToTable("tenant_sso_policies");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TenantId).IsUnique();
+            entity.Property(x => x.RequiredEmailDomain).HasMaxLength(160);
+            entity.Property(x => x.RequiredAttributesJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SamlAccountLinkEntity>(entity =>
+        {
+            entity.ToTable("saml_account_links");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SamlSubject }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Email });
+            entity.HasIndex(x => new { x.TenantId, x.UserId });
+            entity.Property(x => x.SamlSubject).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.AttributesJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Membership).WithMany().HasForeignKey(x => x.MembershipId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<BreakGlassAccessGrantEntity>(entity =>
+        {
+            entity.ToTable("break_glass_access_grants");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.UserId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });
+            entity.Property(x => x.Reason).HasMaxLength(800).IsRequired();
+            entity.Property(x => x.ApprovalReference).HasMaxLength(240).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             ConfigureAuditColumns(entity);
         });
 

@@ -209,6 +209,52 @@ public sealed class SamlIdentityProviderConfigurationEntity : AuditedEntity
     public TenantEntity? Tenant { get; set; }
 }
 
+public sealed class TenantSsoPolicyEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public SsoEnforcementMode Mode { get; set; }
+    public Guid? SamlConfigurationId { get; set; }
+    public string? RequiredEmailDomain { get; set; }
+    public string RequiredAttributesJson { get; set; } = "{}";
+
+    public TenantEntity? Tenant { get; set; }
+}
+
+public sealed class SamlAccountLinkEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid MembershipId { get; set; }
+    public Guid UserId { get; set; }
+    public string SamlSubject { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public Guid? SamlConfigurationId { get; set; }
+    public string AttributesJson { get; set; } = "{}";
+    public DateTimeOffset? LastSuccessfulSignInAt { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public TenantMembershipEntity? Membership { get; set; }
+    public UserEntity? User { get; set; }
+}
+
+public sealed class BreakGlassAccessGrantEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid UserId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public Guid ApprovedByUserId { get; set; }
+    public string ApprovalReference { get; set; } = string.Empty;
+    public DateTimeOffset ExpiresAt { get; set; }
+    public BreakGlassGrantStatus Status { get; set; }
+    public DateTimeOffset? LastUsedAt { get; set; }
+    public Guid? LastUsedByUserId { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public UserEntity? User { get; set; }
+}
+
 public sealed class NoCuiAcknowledgementEntity : AuditedEntity
 {
     public Guid Id { get; set; }

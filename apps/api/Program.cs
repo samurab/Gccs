@@ -3501,6 +3501,119 @@ api.MapPost("/enterprise/saml-configurations/{configurationId:guid}/rotate-certi
 .RequirePermission(Permission.ManageUsers)
 .WithName("RotateSamlIdentityProviderCertificate");
 
+api.MapGet("/enterprise/sso-policy", async (
+    SsoSignInEnforcementService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.GetPolicyAsync(cancellationToken)))
+.RequirePermission(Permission.ManageUsers)
+.WithName("GetTenantSsoPolicy");
+
+api.MapPut("/enterprise/sso-policy", async (
+    UpdateTenantSsoPolicyRequest request,
+    SsoSignInEnforcementService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.UpdatePolicyAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (SsoSignInValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["ssoPolicy"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("UpdateTenantSsoPolicy");
+
+api.MapPost("/enterprise/sso/account-links", async (
+    CreateSamlAccountLinkRequest request,
+    SsoSignInEnforcementService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var link = await service.LinkAccountAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/enterprise/sso/account-links/{link.Id}", link);
+    }
+    catch (SsoSignInValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["ssoAccountLink"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("CreateSamlAccountLink");
+
+api.MapPost("/enterprise/sso/sign-in-evaluations", async (
+    SsoSignInEvaluationRequest request,
+    SsoSignInEnforcementService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.EvaluateSamlSignInAsync(request, tenantContext.UserId, cancellationToken));
+    }
+    catch (SsoSignInValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["ssoSignIn"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("EvaluateSsoSignIn");
+
+api.MapPost("/enterprise/sso/break-glass", async (
+    CreateBreakGlassAccessRequest request,
+    SsoSignInEnforcementService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var grant = await service.CreateBreakGlassGrantAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/enterprise/sso/break-glass/{grant.Id}", grant);
+    }
+    catch (SsoSignInValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["breakGlass"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("CreateBreakGlassAccessGrant");
+
+api.MapPost("/enterprise/sso/break-glass/{grantId:guid}/use", async (
+    Guid grantId,
+    SsoSignInEnforcementService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var result = await service.UseBreakGlassGrantAsync(grantId, tenantContext.UserId, cancellationToken);
+    return result is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            "Break-glass access grant was not found in the current tenant scope.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(result);
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("UseBreakGlassAccessGrant");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,
