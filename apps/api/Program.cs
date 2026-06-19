@@ -4460,6 +4460,89 @@ api.MapPost("/enterprise/cui/enclaves/{enclaveId:guid}/processing-check", async 
 .RequirePermission(Permission.ManageTenant)
 .WithName("EvaluateCuiEnclaveProcessing");
 
+api.MapPost("/enterprise/cui/customer-managed-key-policies", async (
+    RegisterCustomerManagedKeyPolicyRequest request,
+    CustomerManagedKeyPolicyService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    var policy = await service.RegisterAsync(request, tenantContext.UserId, cancellationToken);
+    return Results.Created($"/api/enterprise/cui/customer-managed-key-policies/{policy.Id}", policy);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("RegisterCustomerManagedKeyPolicy");
+
+api.MapPost("/enterprise/cui/customer-managed-key-policies/{policyId:guid}/validate", async (
+    Guid policyId,
+    CustomerManagedKeyValidationRequest request,
+    CustomerManagedKeyPolicyService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var policy = await service.ValidateAsync(policyId, request, tenantContext.UserId, cancellationToken);
+    return policy is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Customer-managed key policy was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(policy);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ValidateCustomerManagedKeyPolicy");
+
+api.MapPost("/enterprise/cui/customer-managed-key-policies/{policyId:guid}/activate", async (
+    Guid policyId,
+    CustomerManagedKeyValidationRequest request,
+    CustomerManagedKeyPolicyService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var policy = await service.ActivateAsync(policyId, request, tenantContext.UserId, cancellationToken);
+        return policy is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Customer-managed key policy was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(policy);
+    }
+    catch (CustomerManagedKeyPolicyValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["customerManagedKeyPolicy"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ActivateCustomerManagedKeyPolicy");
+
+api.MapPost("/enterprise/cui/customer-managed-key-policies/{policyId:guid}/status", async (
+    Guid policyId,
+    CustomerManagedKeyStatusRequest request,
+    CustomerManagedKeyPolicyService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var policy = await service.ChangeStatusAsync(policyId, request, tenantContext.UserId, cancellationToken);
+    return policy is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Customer-managed key policy was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(policy);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ChangeCustomerManagedKeyPolicyStatus");
+
+api.MapPost("/enterprise/cui/customer-managed-key-policies/{policyId:guid}/workflow-check", async (
+    Guid policyId,
+    CustomerManagedKeyWorkflowRequest request,
+    CustomerManagedKeyPolicyService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var decision = await service.EvaluateWorkflowAsync(policyId, request, tenantContext.UserId, cancellationToken);
+    return decision is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Customer-managed key policy was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(decision);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("EvaluateCustomerManagedKeyWorkflow");
+
 api.MapPost("/tenants", async (
     CreateTenantRequest request,
     TenantService service,
