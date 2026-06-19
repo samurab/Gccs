@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
 using Gccs.Application.Common;
 using Gccs.Application.Calendar;
 using Gccs.Application.Companies;
@@ -18,6 +19,7 @@ using Gccs.Application.Subcontractors;
 using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
 using Gccs.Infrastructure.Audit;
+using Gccs.Infrastructure.Ai;
 using Gccs.Infrastructure.Calendar;
 using Gccs.Infrastructure.Companies;
 using Gccs.Infrastructure.Cmmc;
@@ -85,6 +87,7 @@ public static class DependencyInjection
         services.AddSingleton<IEsrsReportPackageRepository, InMemoryEsrsReportPackageRepository>();
         services.AddSingleton<ILaborApplicabilityRepository, InMemoryLaborApplicabilityRepository>();
         services.AddSingleton<ILaborClassificationRepository, InMemoryLaborClassificationRepository>();
+        services.AddSingleton<IAiRetrievalSourceRepository, InMemoryAiRetrievalSourceRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<NoCuiAcknowledgementService>();
@@ -114,6 +117,7 @@ public static class DependencyInjection
         services.AddScoped<LaborClassificationService>();
         services.AddScoped<LaborComplianceReportService>();
         services.AddScoped<ILaborWageDeterminationUploadGuard, TenantLaborWageDeterminationUploadGuard>();
+        services.AddScoped<AiRetrievalAssistantService>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         if (configuration is not null)
