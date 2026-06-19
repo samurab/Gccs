@@ -17,6 +17,8 @@ For Phase 1A CUI Readiness Gate stories from Story `1A.1.1` through Story `1A.9.
 
 For Phase 3 Advanced Compliance stories from Story `30.1` through Story `34.3`, apply this same story-level regression prompt and keep source traceability, review metadata, draft-only language, report/export permissions, external portal scope, AI citation/logging controls, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, and standard API/UI error behavior in scope.
 
+For Phase 4 Enterprise / Regulated Deployment stories from Story `35.1` through Story `38.3`, apply this same story-level regression prompt and keep enterprise identity controls, SSO/SAML, SCIM provisioning, government cloud environment governance, regulated tenant provisioning, release readiness, FedRAMP readiness artifacts, trust artifact sharing, CUI enclave boundaries, customer-managed keys, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, source traceability, review metadata, and standard API/UI error behavior in scope.
+
 ## Command Selection
 
 
@@ -49,3 +51,5 @@ Do not treat the manifest/coverage test as the only regression. Add focused func
 For Phase 1A stories, also report any remaining CUI-readiness risk, manual reviewer approval gap, or approval-gate behavior that could not be verified automatically.
 
 For Phase 3 stories, also report any remaining advisor/SME review gap, unsupported submission workflow, AI citation/review limitation, external portal sharing risk, or report/export behavior that could not be verified automatically.
+
+For Phase 4 stories, also report any remaining identity-provider integration gap, SCIM lifecycle limitation, government cloud operational readiness gap, FedRAMP artifact review gap, CUI enclave boundary risk, customer-managed key limitation, emergency/support access risk, or regulated export behavior that could not be verified automatically.

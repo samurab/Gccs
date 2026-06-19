@@ -18,8 +18,8 @@ GCCS is a CUI-ready govcon compliance management SaaS for small U.S. federal con
 3. [Authenticated Application Shell](#3-authenticated-application-shell)
    - [Story 3.1: Protected API Access](#story-31-protected-api-access)
    - [Story 3.2: SaaS Navigation Shell](#story-32-saas-navigation-shell)
-4. [CUI-Ready Gated Controls](#4-no-cui-controls)
-   - [Story 4.1: Data Handling Acknowledgement](#story-41-no-cui-acknowledgement)
+4. [CUI-Ready Gated Controls](#4-cui-ready-gated-controls)
+   - [Story 4.1: Data Handling Acknowledgement](#story-41-data-handling-acknowledgement)
    - [Story 4.2: Upload Guardrails](#story-42-upload-guardrails)
 5. [Audit Logging](#5-audit-logging)
    - [Story 5.1: Append-Only Audit Events](#story-51-append-only-audit-events)
@@ -141,6 +141,44 @@ GCCS is a CUI-ready govcon compliance management SaaS for small U.S. federal con
     - [Story 28.1: Curated Test Document Set](#story-281-curated-test-document-set)
     - [Story 28.2: Precision And Recall Evaluation](#story-282-precision-and-recall-evaluation)
     - [Story 28.3: Extraction Regression Review](#story-283-extraction-regression-review)
+29. [SSP Builder](#29-ssp-builder)
+    - [Story 29.1: SSP Data Model And Sections](#story-291-ssp-data-model-and-sections)
+    - [Story 29.2: SSP Narrative Builder](#story-292-ssp-narrative-builder)
+    - [Story 29.3: SSP Export And Review Package](#story-293-ssp-export-and-review-package)
+30. [SPRS Score Calculator](#30-sprs-score-calculator)
+    - [Story 30.1: Scoring Rule Baseline](#story-301-scoring-rule-baseline)
+    - [Story 30.2: Score Calculation Workspace](#story-302-score-calculation-workspace)
+    - [Story 30.3: SPRS Readiness Report](#story-303-sprs-readiness-report)
+31. [eSRS Support](#31-esrs-support)
+    - [Story 31.1: eSRS Applicability And Reporting Calendar](#story-311-esrs-applicability-and-reporting-calendar)
+32. [Labor Compliance Module](#32-labor-compliance-module)
+    - [Story 32.1: Labor Applicability And Wage Determinations](#story-321-labor-applicability-and-wage-determinations)
+    - [Story 32.2: Labor Category And Employee Classification](#story-322-labor-category-and-employee-classification)
+    - [Story 32.3: Labor Evidence And Compliance Report](#story-323-labor-evidence-and-compliance-report)
+33. [AI Assistant With Citations, Logging, And Human Review](#33-ai-assistant-with-citations-logging-and-human-review)
+    - [Story 33.1: Retrieval And Source Citation Pipeline](#story-331-retrieval-and-source-citation-pipeline)
+    - [Story 33.2: AI Output Logging And Review](#story-332-ai-output-logging-and-review)
+    - [Story 33.3: Guarded Assistant User Experience](#story-333-guarded-assistant-user-experience)
+34. [Prime Contractor And Auditor Portals](#34-prime-contractor-and-auditor-portals)
+    - [Story 34.1: External Portal Access Model](#story-341-external-portal-access-model)
+    - [Story 34.2: Approved Package Portal Review](#story-342-approved-package-portal-review)
+    - [Story 34.3: Portal Package Lifecycle And Revocation](#story-343-portal-package-lifecycle-and-revocation)
+35. [SSO/SAML And SCIM](#35-ssosaml-and-scim)
+    - [Story 35.1: SAML Identity Provider Configuration](#story-351-saml-identity-provider-configuration)
+    - [Story 35.2: SSO Sign-In Enforcement And Account Linking](#story-352-sso-sign-in-enforcement-and-account-linking)
+    - [Story 35.3: SCIM User And Group Provisioning](#story-353-scim-user-and-group-provisioning)
+36. [GovCloud Or Government Cloud Deployment Path](#36-govcloud-or-government-cloud-deployment-path)
+    - [Story 36.1: Government Cloud Environment Configuration](#story-361-government-cloud-environment-configuration)
+    - [Story 36.2: Regulated Tenant Provisioning Workflow](#story-362-regulated-tenant-provisioning-workflow)
+    - [Story 36.3: Government Cloud Release And Operations Readiness](#story-363-government-cloud-release-and-operations-readiness)
+37. [FedRAMP Readiness Package](#37-fedramp-readiness-package)
+    - [Story 37.1: FedRAMP Control Mapping Baseline](#story-371-fedramp-control-mapping-baseline)
+    - [Story 37.2: Trust Artifact Library](#story-372-trust-artifact-library)
+    - [Story 37.3: FedRAMP Readiness Export Package](#story-373-fedramp-readiness-export-package)
+38. [Higher-Assurance CUI Enclave And Customer-Managed Keys](#38-higher-assurance-cui-enclave-and-customer-managed-keys)
+    - [Story 38.1: CUI Enclave Boundary Model](#story-381-cui-enclave-boundary-model)
+    - [Story 38.2: Customer-Managed Key Policy And Rotation](#story-382-customer-managed-key-policy-and-rotation)
+    - [Story 38.3: Enclave Access, Export, And Support Controls](#story-383-enclave-access-export-and-support-controls)
 
 ## 1. Delivery Foundation
 
@@ -1120,6 +1158,328 @@ This story adds a workflow for reviewing missed clauses and false positives. Fai
 It fits the project by connecting extraction metrics to corrective action. Measurement alone is not enough; GCCS needs a way to decide what failed, who owns the fix, and whether open issues affect release readiness.
 
 The value is continuous improvement. The extraction system becomes easier to govern, tune, and explain because every known failure can be tracked to a decision or follow-up task.
+
+## 29. SSP Builder
+
+This sprint area turns CMMC and NIST SP 800-171 readiness data into a structured System Security Plan workflow. It helps tenants assemble reviewable SSP content from governed system, asset, control, responsibility, POA&M, policy, and evidence records.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 29.1 | SSP section model, source links, review states, tenant-scoped APIs, validation, and audit history. |
+| 29.2 | SSP narrative editor, draft generation from approved records, source validation, comparison workflow, and approval controls. |
+| 29.3 | SSP export package, package metadata, reviewer details, source references, unsafe-record exclusion, and export history. |
+
+### Story 29.1: SSP Data Model And Sections
+
+This story creates structured SSP sections for system description, authorization boundary, environment, interconnections, users, roles, data types, CUI handling posture, control narratives, inherited responsibilities, external service providers, and evidence references. Each section links back to source records and carries ownership, review status, reviewer, review date, and source references.
+
+It fits the project by connecting the CMMC readiness tracker, responsibility matrix, evidence vault, company profile, and system boundary data into one governed plan structure. Instead of treating the SSP as a disconnected document, GCCS makes it a tenant-scoped compliance artifact built from traceable records.
+
+The value is consistency and reviewability. Customers can build SSP content in a repeatable format, reviewers can see where each statement came from, and the platform avoids unsupported security or compliance claims.
+
+### Story 29.2: SSP Narrative Builder
+
+This story gives users a narrative editor for SSP sections with generated draft text, user-edited text, source links, reviewer notes, and comparison between approved and proposed language. Draft or AI-assisted text remains visibly draft until reviewed, and approval is blocked when source links, placeholders, or referenced records are missing or outdated.
+
+It fits the project by turning approved tenant records into useful written explanations while preserving human review. The builder sits between raw assessment data and formal reports, making SSP preparation easier without pretending the system has made an assessor determination.
+
+The value is faster, safer SSP drafting. Security owners and advisors can start from structured data, refine narratives, and preserve an audit trail of generation, edits, review, and approval.
+
+### Story 29.3: SSP Export And Review Package
+
+This story exports an SSP review package with generated date, package version, tenant, system boundary, section statuses, reviewer metadata, source references, control implementation summaries, evidence references, and POA&M references. The export excludes prohibited, unknown, unapproved, and cross-tenant records and avoids certification or assessor determination language.
+
+It fits the project by giving leadership, advisors, or assessors a controlled package for review without exposing unrelated tenant workspace data. It extends the reporting foundation into a CMMC-focused deliverable that respects tenant isolation, RBAC, and data-handling controls.
+
+The value is external-ready communication. Customers can share a current, governed SSP package while GCCS preserves export history, source traceability, and careful compliance language.
+
+## 30. SPRS Score Calculator
+
+This sprint area helps DoD suppliers calculate and explain draft NIST SP 800-171 assessment scores before deciding whether to submit or update SPRS externally.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 30.1 | Governed SPRS scoring rule content, source/review metadata, lifecycle states, retired-rule protections, and calculation version traceability. |
+| 30.2 | Draft score calculation workspace, deductions, gap reasons, rule version, notes, calculation history, and audit events. |
+| 30.3 | SPRS readiness report with score context, unresolved controls, POA&M/evidence references, not-submitted language, and report history. |
+
+### Story 30.1: Scoring Rule Baseline
+
+This story captures the SPRS scoring rules as governed content with source URL, version, owner, reviewer, review date, effective date, and lifecycle state. Published rules must have required review metadata, retired rules cannot be used for new calculations, and every calculation identifies the rule version used.
+
+It fits the project by applying the same source-backed content governance used for obligations to a high-stakes cybersecurity scoring workflow. The score calculator depends on rules that are reviewable, versioned, and traceable.
+
+The value is defensible scoring. Customers and reviewers can understand which rule baseline produced a draft score, and the team avoids silent use of stale or unreviewed scoring logic.
+
+### Story 30.2: Score Calculation Workspace
+
+This story lets authorized users calculate a draft SPRS score from Level 2 control assessment data. The output shows score, deductions, requirement reasons, unresolved gaps, rule version, generated date, and separate manual reviewer notes.
+
+It fits the project by connecting CMMC Level 2 readiness data, POA&M gaps, and reporting into one calculation workspace. The calculation remains tenant-scoped, auditable, and clearly separate from any external SPRS submission.
+
+The value is prioritization. Security owners can see which controls drive deductions, where gaps remain, and how changes to assessment status affect the draft score.
+
+### Story 30.3: SPRS Readiness Report
+
+This story generates an SPRS readiness report with score, deductions, unresolved controls, POA&M references, evidence status, scoring rule version, generated date, permissions, and report history. It explicitly states that GCCS has not submitted the score to SPRS.
+
+It fits the project by turning a calculation into a leadership-ready review artifact. The report supports internal decision-making while preserving tenant isolation, audit logging, and careful non-submission language.
+
+The value is informed governance. Customers can review score context, evidence gaps, and remediation priorities before deciding what to submit through official channels.
+
+## 31. eSRS Support
+
+This sprint area starts support for subcontracting-report obligations by identifying when eSRS-related reporting should appear in the compliance calendar.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 31.1 | eSRS applicability fields, source-backed activation validation, report period/due date tracking, calendar/task integration, overdue behavior, and audit logging. |
+
+### Story 31.1: eSRS Applicability And Reporting Calendar
+
+This story lets authorized users mark a contract as eSRS-applicable with report type, period, due date, source clause, and documented rationale. Activated eSRS obligations appear on the compliance calendar, missing source support blocks activation, and overdue status is calculated from due date and task status.
+
+It fits the project by extending the contract obligation and calendar model into subcontracting reporting. GCCS already tracks clauses, flow-downs, tasks, and dates; this story uses that foundation for a specific govcon reporting workflow.
+
+The value is missed-deadline prevention. Contracts teams can see eSRS obligations alongside other compliance work and keep reporting responsibilities tied to source-backed contract records.
+
+## 32. Labor Compliance Module
+
+This sprint area adds labor compliance workflows for contracts where wage determinations, labor categories, employee classifications, evidence, and source-backed review tasks matter.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 32.1 | Labor applicability records, wage determination references/uploads, source-backed activation validation, linked review tasks, and audit events. |
+| 32.2 | Labor category and employee assignment records, source references, sensitive-field permissions, classification history, and audit logging. |
+| 32.3 | Labor dashboard, evidence links, gap/overdue status, restricted employee-sensitive sections, workflow-status report, and export history. |
+
+### Story 32.1: Labor Applicability And Wage Determinations
+
+This story records labor applicability for a contract with source clause, place of performance, contract period, wage determination reference, upload guardrails, and activation status. Labor obligations cannot activate without a source clause or documented rationale, and activation creates or updates linked review tasks.
+
+It fits the project by bringing FAR Part 22-style labor tracking into the same source-backed obligation model used for other compliance areas. It connects contracts, clauses, documents, tasks, evidence, and audit logs.
+
+The value is early visibility. Contracts and HR teams can identify labor-sensitive work, attach wage determination support, and create review tasks before compliance gaps become audit issues.
+
+### Story 32.2: Labor Category And Employee Classification
+
+This story lets authorized users create labor categories and assign employees to classifications with wage, fringe, source reference, effective date, and contract context. It validates inactive categories, missing sources, and conflicting effective dates while restricting sensitive employee fields to appropriate roles.
+
+It fits the project by connecting labor obligations to the people and classifications needed to prove performance. It also preserves classification history so changes are explainable over time.
+
+The value is controlled HR-compliance tracking. Customers can manage labor category evidence without exposing sensitive employee data broadly, and reviewers can see who changed a classification, when, and why.
+
+### Story 32.3: Labor Evidence And Compliance Report
+
+This story creates a labor dashboard and report showing labor obligations, assignments, evidence status, gaps, overdue items, source clauses, wage determinations, labor categories, and generated date. Employee-sensitive sections are permission restricted, and the report uses workflow-status language rather than final legal determinations.
+
+It fits the project by turning labor records into a reviewable compliance package. It extends GCCS reporting while respecting RBAC, tenant isolation, audit logging, and careful legal/compliance wording.
+
+The value is reviewer readiness. Contracts, HR, compliance managers, and advisors can inspect labor status and evidence in one place without relying on scattered spreadsheets or informal file folders.
+
+## 33. AI Assistant With Citations, Logging, And Human Review
+
+This sprint area adds a guarded AI assistant that only answers from approved sources, cites its support, logs its work, and routes risky output through human review.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 33.1 | Approved retrieval-source policy, citation metadata, unsupported-answer refusal behavior, unsafe-source exclusion, and retrieval decision logging. |
+| 33.2 | AI interaction logs, draft/review states, deliverable approval gates, reviewer decisions, retention/export controls, and audit logging. |
+| 33.3 | Assistant UI guardrails, draft/confidence/review displays, prohibited prompt handling, safe draft actions, feedback capture, and escalation routing. |
+
+### Story 33.1: Retrieval And Source Citation Pipeline
+
+This story ensures the assistant retrieves only tenant-authorized and approved sources and includes citation metadata for substantive compliance statements. It excludes prohibited, unknown, unapproved, and cross-tenant content, and it refuses or routes unsupported questions for review.
+
+It fits the project by aligning AI with GCCS's content governance model. The assistant is not a free-form compliance oracle; it is a source-grounded workflow helper constrained by tenant scope, RBAC, classification, and approval state.
+
+The value is trust with boundaries. Users get helpful answers while the platform reduces hallucination risk and preserves evidence about which sources and policy decisions supported each response.
+
+### Story 33.2: AI Output Logging And Review
+
+This story logs prompt metadata, retrieved sources, generated output, actor, tenant, timestamp, workflow context, and reviewer decisions. AI output remains draft until approved when used in reports, policies, SSPs, POA&Ms, or customer deliverables.
+
+It fits the project by creating the audit and review layer needed for responsible AI use in regulated-market workflows. It connects assistant output to human decisions instead of letting generated text silently become official content.
+
+The value is governable AI. Compliance owners can approve, reject, supersede, or archive outputs, and the team can investigate or improve AI behavior using complete interaction history.
+
+### Story 33.3: Guarded Assistant User Experience
+
+This story gives users an assistant experience that displays citations, draft labels, support status, and review requirements. It blocks or redirects unsupported legal, certification, classified, prohibited, and cross-tenant requests, while allowing safe creation of draft tasks, evidence requests, notes, or review items from supported answers.
+
+It fits the project by making AI useful inside day-to-day compliance workflows without weakening GCCS guardrails. The assistant can help users move work forward, but its actions remain draft, auditable, and source-linked.
+
+The value is practical acceleration. Users can turn supported answers into next steps while the platform keeps risky requests contained and captures feedback for expert review.
+
+## 34. Prime Contractor And Auditor Portals
+
+This sprint area creates limited external access for prime contractors and auditors so they can review approved packages without entering the tenant's full workspace.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 34.1 | External portal roles, scoped invitations, expiration/revocation, package/contract scopes, read-only enforcement, access history, and audit logging. |
+| 34.2 | Portal package dashboard, approved-package visibility, unsafe-record exclusion, reviewer comments/questions, controlled downloads, and audit logging. |
+| 34.3 | Shared package lifecycle states, expiration, revocation, reissue/supersede linkage, portal activity reporting, and audit logging. |
+
+### Story 34.1: External Portal Access Model
+
+This story lets tenant admins invite prime contractor and auditor users into limited portals with role, scope, expiration, package access, and download permissions. Expired or revoked invitations cannot be used, portal users are read-only, and access is limited to assigned packages and scoped records.
+
+It fits the project by extending GCCS beyond internal tenant users while preserving tenant isolation and least-privilege access. External reviewers get a controlled view instead of broad workspace membership.
+
+The value is safer sharing. Customers can respond to prime or audit requests with time-limited, scoped access and a complete audit trail of invitations, access, and revocations.
+
+### Story 34.2: Approved Package Portal Review
+
+This story gives portal reviewers access only to approved packages explicitly shared with them. Drafts, internal notes, prohibited data, unknown classification records, and unrelated records are hidden, while reviewer comments, questions, and controlled downloads are tracked.
+
+It fits the project by turning evidence packages and reports into controlled external-review experiences. Reviewers can ask questions without modifying source tenant records or seeing internal work-in-progress.
+
+The value is professional review handling. Customers can support prime contractor and auditor reviews without emailing uncontrolled files or exposing more data than necessary.
+
+### Story 34.3: Portal Package Lifecycle And Revocation
+
+This story lets tenant admins expire, revoke, supersede, reissue, and archive shared packages. Revoked packages become inaccessible immediately, superseded packages link to replacements, and activity reports show access, comments, downloads, expiration, and revocation history.
+
+It fits the project by closing the loop on external sharing. Sharing is not a one-time action; GCCS needs lifecycle controls so outdated or over-shared packages can be corrected quickly.
+
+The value is ongoing control. Customers can manage what external reviewers can see over time and prove exactly when access changed, why it changed, and who took the action.
+
+## 35. SSO/SAML And SCIM
+
+This sprint area adds enterprise identity controls so larger customers can connect GCCS to their identity provider, enforce SSO, and automate user lifecycle management.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 35.1 | Tenant SAML configuration, metadata validation, test connection, lifecycle states, certificate rotation, and audit logging. |
+| 35.2 | SSO enforcement modes, SAML account linking, break-glass controls, sign-in failure handling, and audit logging. |
+| 35.3 | SCIM endpoint/token lifecycle, user and group provisioning, role mapping, provisioning logs, and audit logging. |
+
+### Story 35.1: SAML Identity Provider Configuration
+
+This story lets tenant admins configure SAML identity provider metadata, certificates, attribute mappings, signing requirements, status, and test connection results. Invalid or expired configurations cannot be enabled, and lifecycle actions are audited.
+
+It fits the project by extending JWT-based SaaS authentication into enterprise SSO while preserving tenant isolation and administrative traceability.
+
+The value is enterprise readiness. Customers can connect GCCS to their identity provider with validation and safe rollout controls before enforcing SSO.
+
+### Story 35.2: SSO Sign-In Enforcement And Account Linking
+
+This story adds tenant SSO enforcement modes, account linking from SAML identities to existing memberships, break-glass admin controls, and denial behavior for unmapped, inactive, cross-tenant, or missing-attribute sign-ins.
+
+It fits the project by making federated authentication enforceable without locking tenants out of emergency administration.
+
+The value is access governance. Enterprise admins can require SSO while GCCS keeps break-glass access explicit, expiring, approved, and auditable.
+
+### Story 35.3: SCIM User And Group Provisioning
+
+This story adds SCIM provisioning for tenant-scoped user create, update, deactivate, reactivate, group assign, and group remove workflows. It includes token lifecycle, group-to-role mapping, conflict handling, provisioning logs, and audit events.
+
+It fits the project by connecting identity lifecycle controls to GCCS membership and RBAC rather than requiring manual user administration.
+
+The value is reduced access risk. Customers can automate onboarding and offboarding while preserving audit history for deactivated users.
+
+## 36. GovCloud Or Government Cloud Deployment Path
+
+This sprint area creates the governed deployment path needed for regulated customers that require government cloud environments and stronger release evidence.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 36.1 | Government cloud environment records, control validation, approval states, deployment eligibility, and traceability. |
+| 36.2 | Regulated tenant provisioning requests, approval gates, provisioning checklist, deployment status, and rollback notes. |
+| 36.3 | Government cloud release readiness checklist, operations evidence, release approvals, history, and readiness export. |
+
+### Story 36.1: Government Cloud Environment Configuration
+
+This story captures government cloud environment settings for region, boundary, network, storage, key vault, database, logging, backup, and readiness state. Approval is blocked when required controls or reviewer metadata are missing.
+
+It fits the project by separating regulated environment configuration from commercial deployment assumptions.
+
+The value is controlled deployment eligibility. Regulated tenants can only be provisioned into approved environments with reviewable security and operations metadata.
+
+### Story 36.2: Regulated Tenant Provisioning Workflow
+
+This story defines regulated tenant provisioning requests with environment, data handling mode, CUI approval status, key policy, support model, migration source, approval gates, checklist items, status tracking, and rollback notes.
+
+It fits the project by turning regulated tenant setup into a governed workflow rather than an informal operations task.
+
+The value is safer onboarding. Operations, security, engineering, customer success, and compliance stakeholders can verify required controls before a regulated tenant becomes ready.
+
+### Story 36.3: Government Cloud Release And Operations Readiness
+
+This story adds release readiness checks for migrations, smoke tests, security scans, dependency review, backup, restore, monitoring, incident response, support coverage, rollback plan, and operations evidence.
+
+It fits the project by applying release governance to government cloud environments where operational evidence matters as much as feature completion.
+
+The value is regulated release confidence. Teams can prove what was checked, who approved it, when it shipped, and whether rollback was needed.
+
+## 37. FedRAMP Readiness Package
+
+This sprint area creates governed FedRAMP-readiness artifacts without claiming authorization status beyond approved governance language.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 37.1 | FedRAMP readiness control mappings, evidence/gap links, lifecycle states, approval validation, and gap reporting. |
+| 37.2 | Trust artifact library, artifact metadata, publication states, sharing restrictions, and expiration tasks. |
+| 37.3 | FedRAMP readiness export package, readiness summary, gap register, artifact filtering, sharing history, and revocation. |
+
+### Story 37.1: FedRAMP Control Mapping Baseline
+
+This story captures FedRAMP readiness controls with control ID, family, baseline, implementation status, owner, evidence, inherited provider, gaps, source references, review states, and reporting.
+
+It fits the project by mapping existing GCCS security and operations evidence into a federal-readiness control view.
+
+The value is readiness visibility. Leadership and advisors can see which controls are supported, which gaps remain, and who owns remediation.
+
+### Story 37.2: Trust Artifact Library
+
+This story governs trust artifacts such as security overview, architecture diagram, shared responsibility matrix, subprocessors list, data retention policy, incident response summary, AI usage policy, access control summary, and support SLA.
+
+It fits the project by making procurement and security-review materials versioned, approved, restricted, and current.
+
+The value is trustworthy external sharing. Customer-facing materials can be shared only when approved, unexpired, and appropriate for the recipient audience.
+
+### Story 37.3: FedRAMP Readiness Export Package
+
+This story generates a FedRAMP readiness package from approved controls, trust artifacts, operations evidence, gaps, accepted risks, and readiness summary. Draft, expired, restricted, prohibited, and cross-tenant records are excluded.
+
+It fits the project by packaging readiness evidence without overstating federal authorization status.
+
+The value is procurement support. Prospective federal customers and advisors can review current readiness while GCCS preserves careful authorization language and sharing history.
+
+## 38. Higher-Assurance CUI Enclave And Customer-Managed Keys
+
+This sprint area adds higher-assurance CUI enclave, key-management, access, export, and support controls for approved regulated customers.
+
+| Story | Pages, views, or docs added/changed |
+| --- | --- |
+| 38.1 | CUI enclave boundary records, approved workflows, activation gates, lifecycle states, and boundary metadata export. |
+| 38.2 | Customer-managed key policies, validation, rotation, suspension, revocation, affected workflow reporting, and audit logging. |
+| 38.3 | Enclave-specific RBAC, just-in-time support, export policies, emergency access, post-access review, and access reporting. |
+
+### Story 38.1: CUI Enclave Boundary Model
+
+This story defines CUI enclave records with tenant, environment, boundary, data handling mode, approved workflows, storage, compute, network, logging, backup, and support model metadata. Enclave activation requires `CuiReady` approval and related readiness gates.
+
+It fits the project by making CUI handling explicit, isolated, and limited to approved workflows.
+
+The value is higher-assurance data handling. Customers and security reviewers can understand where CUI workflows are allowed and when processing is blocked.
+
+### Story 38.2: Customer-Managed Key Policy And Rotation
+
+This story adds customer-managed key policies with provider, key ID, tenant, environment, status, rotation cadence, validation, suspension, revocation, revalidation, and affected workflow reporting.
+
+It fits the project by connecting encryption governance to tenant and environment readiness rather than treating key selection as a storage detail.
+
+The value is customer control. Approved customers can manage key lifecycle expectations while GCCS blocks workflows when keys are unavailable, revoked, suspended, or incompatible.
+
+### Story 38.3: Enclave Access, Export, And Support Controls
+
+This story restricts enclave access through enclave-specific RBAC, just-in-time support access, export policies, emergency access, post-access review, and tenant/admin access reporting.
+
+It fits the project by limiting operational and support exposure for high-assurance CUI workflows.
+
+The value is accountable access. Every support, export, emergency, and review action has scope, approval, duration, and audit evidence.
 
 ## 17A. Phase 1A: CUI Readiness Gate
 

@@ -5399,3 +5399,253 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 Implement Story 34.3, "Portal Package Lifecycle And Revocation," from `docs/development-phase-use-cases.md`. Add shared package lifecycle states, expiration reminders and automatic expiration, reissue/supersede linkage, revocation reason and immediate access cutoff, tenant admin portal activity reporting, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
 
 #-----------------------------------------
+
+## Phase 4 - Enterprise / Regulated Deployment
+
+## 35. SSO/SAML And SCIM
+### Story 35.1: SAML Identity Provider Configuration
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SSO/SAML And SCIM
+> - User story: As a tenant admin, I want to configure a SAML identity provider so that my users can sign in through enterprise SSO.
+> - Acceptance criteria:
+> - Authorized tenant admin can create and test a SAML configuration for the current tenant.
+> - SAML configuration cannot be enabled with missing metadata, expired certificate, invalid callback, or failed validation.
+> - Test connection results include timestamp, actor, result, and diagnostic summary without exposing secrets.
+> - Disabled or archived SAML configurations cannot be used for sign-in.
+> - SAML configuration lifecycle actions are audit logged.
+
+Implement Story 35.1, "SAML Identity Provider Configuration," from `docs/development-phase-use-cases.md`. Add tenant SAML configuration fields for entity ID, SSO URL, certificate, signing requirement, name ID format, attribute mappings, status, and metadata URL, validation for required provider metadata, certificate expiration, duplicate entity IDs, and callback URL ownership, test connection workflow with success, warning, and failure results, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 35.2: SSO Sign-In Enforcement And Account Linking
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SSO/SAML And SCIM
+> - User story: As a tenant admin, I want to enforce SSO sign-in for selected users or the whole tenant so that authentication policy is consistent.
+> - Acceptance criteria:
+> - Tenant admin can set SSO enforcement mode with required confirmation and permission checks.
+> - Existing members can link to SAML identities and sign in when required attributes match.
+> - Unmapped, inactive, cross-tenant, or missing-attribute SSO attempts are denied.
+> - Break-glass access requires approval metadata, expiration, and audit trail.
+> - SSO sign-in successes, failures, enforcement changes, and break-glass use are audit logged.
+
+Implement Story 35.2, "SSO Sign-In Enforcement And Account Linking," from `docs/development-phase-use-cases.md`. Add tenant SSO enforcement modes for optional, required_for_members, required_for_all_except_break_glass, and disabled, account linking from SAML subject and mapped email to existing tenant membership, break-glass admin account controls with expiration, reason, approval, and audit trail, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 35.3: SCIM User And Group Provisioning
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SSO/SAML And SCIM
+> - User story: As an enterprise tenant admin, I want SCIM provisioning so that users and groups are created, updated, deactivated, and mapped to roles automatically.
+> - Acceptance criteria:
+> - Authorized tenant admin can enable SCIM provisioning and rotate or revoke SCIM tokens.
+> - SCIM create, update, deactivate, reactivate, group assign, and group remove actions affect only the current tenant.
+> - Deactivated SCIM users lose application access while their audit history remains intact.
+> - Invalid group mappings, duplicate identities, and cross-tenant provisioning attempts are rejected.
+> - SCIM provisioning events and token lifecycle actions are audit logged.
+
+Implement Story 35.3, "SCIM User And Group Provisioning," from `docs/development-phase-use-cases.md`. Add tenant SCIM endpoint, bearer token lifecycle, status, last sync time, and provisioning settings, SCIM create, update, deactivate, reactivate, group assign, and group remove workflows with tenant scoping, SCIM groups to GCCS roles with validation and conflict handling, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 36. GovCloud Or Government Cloud Deployment Path
+### Story 36.1: Government Cloud Environment Configuration
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: GovCloud Or Government Cloud Deployment Path
+> - User story: As an engineering lead, I want government cloud environment configuration captured separately from commercial environments so that regulated deployments use approved infrastructure settings.
+> - Acceptance criteria:
+> - Government cloud environment records include region, boundary, network, storage, database, key, logging, and backup settings.
+> - Environment approval is blocked when required government cloud controls or review metadata are missing.
+> - Only approved environments can be selected for regulated tenant deployment.
+> - Environment records preserve status history and reviewer metadata.
+> - Environment configuration lifecycle changes are audit logged or source-control traceable.
+
+Implement Story 36.1, "Government Cloud Environment Configuration," from `docs/development-phase-use-cases.md`. Add environment records for commercial, staging, GovCloud, and government cloud variants with region, boundary, network, storage, key vault, database, logging, and backup settings, configuration validation for required government cloud controls, region allowlist, encryption settings, private networking, audit logging, and backup policy, environment readiness status for draft, under_review, approved, blocked, deployed, and retired, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 36.2: Regulated Tenant Provisioning Workflow
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: GovCloud Or Government Cloud Deployment Path
+> - User story: As an operations lead, I want a regulated tenant provisioning workflow so that GovCloud customers are created with the right controls before use.
+> - Acceptance criteria:
+> - Authorized operations user can create a regulated tenant provisioning request with required environment and control metadata.
+> - Provisioning cannot start until required approvals and checklist items are complete.
+> - Regulated tenant provisioning creates tenant records only in the approved target environment.
+> - Failed provisioning records status, reason, rollback decision, and owner.
+> - Provisioning lifecycle changes are audit logged.
+
+Implement Story 36.2, "Regulated Tenant Provisioning Workflow," from `docs/development-phase-use-cases.md`. Add provisioning request fields for tenant, customer type, deployment environment, data handling mode, CUI approval status, key policy, support model, and migration source, approval gates for security, engineering, customer success, legal/compliance, and product where applicable, provisioning checklist for tenant isolation, storage, encryption, logging, monitoring, backup, restore, access policy, and support access, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 36.3: Government Cloud Release And Operations Readiness
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: GovCloud Or Government Cloud Deployment Path
+> - User story: As an operations lead, I want release and operations readiness checks for government cloud deployments so that regulated environments are not promoted without evidence.
+> - Acceptance criteria:
+> - Government cloud releases require completed readiness checklist and approver metadata before promotion.
+> - Open critical security, migration, backup, restore, or incident response gaps block release approval.
+> - Release readiness record links to required operations evidence.
+> - Release history identifies environment, version, window, owner, approver, result, and rollback status.
+> - Government cloud release approval and deployment actions are audit logged or source-control traceable.
+
+Implement Story 36.3, "Government Cloud Release And Operations Readiness," from `docs/development-phase-use-cases.md`. Add release readiness checklist for migrations, smoke tests, security scans, dependency review, backup, restore, monitoring, incident response, support coverage, and rollback plan, environment-specific release approval records for GovCloud and government cloud deployments, operations evidence links for runbooks, alert routing, access review, vulnerability scan, backup restore, and incident drill, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 37. FedRAMP Readiness Package
+### Story 37.1: FedRAMP Control Mapping Baseline
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: FedRAMP Readiness Package
+> - User story: As a security owner, I want a FedRAMP readiness control mapping baseline so that product controls, inherited services, and evidence gaps are tracked consistently.
+> - Acceptance criteria:
+> - FedRAMP readiness controls include control ID, family, baseline, owner, implementation status, evidence or gap rationale, and source reference.
+> - Control mappings can link to existing GCCS security and operations evidence.
+> - Approval is blocked when owner, reviewer, review date, source, or evidence/gap rationale is missing.
+> - Open gaps are reportable by family, severity, owner, and target date.
+> - Control mapping lifecycle changes are audit logged or source-control traceable.
+
+Implement Story 37.1, "FedRAMP Control Mapping Baseline," from `docs/development-phase-use-cases.md`. Add fedRAMP readiness control records with control ID, family, baseline, implementation status, implementation summary, inherited provider, responsible owner, evidence links, gaps, and source references, mapping from existing GCCS security controls, audit logs, evidence storage, identity, encryption, incident response, and vulnerability management records, review states for draft, in_review, approved, gap_identified, accepted_risk, superseded, and archived, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 37.2: Trust Artifact Library
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: FedRAMP Readiness Package
+> - User story: As a customer success lead, I want a governed trust artifact library so that procurement and security review materials are accurate, current, and approved before sharing.
+> - Acceptance criteria:
+> - Trust artifacts include owner, version, status, audience, effective date, review date, expiration date, and approver metadata.
+> - Artifact publication is blocked when required review or approval metadata is missing.
+> - Expired, superseded, or draft artifacts cannot be shared externally.
+> - Sharing restrictions are enforced by audience, tenant, environment, and NDA requirement.
+> - Artifact lifecycle and sharing actions are audit logged.
+
+Implement Story 37.2, "Trust Artifact Library," from `docs/development-phase-use-cases.md`. Add artifact records for security overview, architecture diagram, shared responsibility matrix, subprocessors list, data retention policy, incident response summary, AI usage policy, access control summary, and support SLA, artifact metadata for owner, version, status, audience, effective date, review date, expiration date, approver, and source file, publication states for draft, in_review, approved, published, expired, superseded, and archived, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 37.3: FedRAMP Readiness Export Package
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: FedRAMP Readiness Package
+> - User story: As a product owner, I want to export a FedRAMP readiness package so that leadership, advisors, and prospective federal customers can review current readiness without overstating authorization status.
+> - Acceptance criteria:
+> - Authorized user can generate a FedRAMP readiness package from approved and current artifacts.
+> - Package includes generated date, version, scope, environment, reviewer metadata, gaps, accepted risks, and readiness summary.
+> - Package states readiness status without claiming FedRAMP authorization unless approved by governance.
+> - Draft, expired, superseded, restricted, prohibited, and cross-tenant records are excluded.
+> - Package generation, approval, sharing, and revocation are audit logged.
+
+Implement Story 37.3, "FedRAMP Readiness Export Package," from `docs/development-phase-use-cases.md`. Add export package generation for selected control mappings, trust artifacts, operations evidence, gap register, accepted risks, and readiness summary, generated date, package version, environment, scope, reviewer metadata, disclaimers, and authorization-status language, draft, expired, superseded, restricted, prohibited, or cross-tenant artifacts, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
+## 38. Higher-Assurance CUI Enclave And Customer-Managed Keys
+### Story 38.1: CUI Enclave Boundary Model
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Higher-Assurance CUI Enclave And Customer-Managed Keys
+> - User story: As a security owner, I want a CUI enclave boundary model so that approved tenants, storage, compute, network paths, and workflows are isolated and reviewable.
+> - Acceptance criteria:
+> - CUI enclave record includes tenant, environment, boundary, storage, compute, network, logging, backup, workflows, and support model metadata.
+> - Enclave activation is blocked unless tenant is `CuiReady` with required approvals and acknowledgements.
+> - Only approved enclave workflows can process content classified as real CUI.
+> - Suspended, retired, or revoked enclaves block new CUI processing.
+> - Enclave lifecycle actions are audit logged.
+
+Implement Story 38.1, "CUI Enclave Boundary Model," from `docs/development-phase-use-cases.md`. Add enclave records with tenant, environment, boundary description, data handling mode, approved workflows, storage location, compute boundary, network restrictions, logging destination, backup policy, and support access model, enclave approval to CUI-ready tenant approval, security review checklist, incident readiness, and shared responsibility matrix acknowledgement, status workflow for draft, under_review, approved, active, suspended, retired, and revoked, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 38.2: Customer-Managed Key Policy And Rotation
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Higher-Assurance CUI Enclave And Customer-Managed Keys
+> - User story: As a CUI-ready customer admin, I want customer-managed key policies so that encryption control, rotation, suspension, and revocation are governed.
+> - Acceptance criteria:
+> - Authorized tenant admin can register and validate a customer-managed key policy for an approved environment.
+> - Key policy activation is blocked when key availability, permissions, region, or encryption compatibility validation fails.
+> - Rotation, suspension, revocation, and revalidation preserve status history and reviewer metadata.
+> - Workflows using unavailable, revoked, or suspended keys are blocked with clear operational status.
+> - Key lifecycle and validation events are audit logged.
+
+Implement Story 38.2, "Customer-Managed Key Policy And Rotation," from `docs/development-phase-use-cases.md`. Add customer-managed key policy records with key provider, key ID, environment, tenant, status, rotation cadence, last rotation date, next rotation date, owner, approver, and emergency contact, key validation workflow for availability, permissions, region match, encryption compatibility, and backup implications, rotation, suspension, revocation, and revalidation workflows, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+### Story 38.3: Enclave Access, Export, And Support Controls
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 4 Enterprise / Regulated Deployment story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: Higher-Assurance CUI Enclave And Customer-Managed Keys
+> - User story: As a security owner, I want restricted access, export, and support controls for CUI enclave data so that customer content is protected during operations and support.
+> - Acceptance criteria:
+> - Enclave records and files are accessible only to roles with enclave-specific permissions.
+> - Just-in-time support access requires reason, scope, approver, duration, and automatic expiration.
+> - Enclave exports enforce package type, recipient, watermarking, encryption, and approval policy.
+> - Emergency access requires elevated approval, incident linkage, time limit, and post-access review.
+> - Enclave access, export, support, and emergency actions are audit logged.
+
+Implement Story 38.3, "Enclave Access, Export, And Support Controls," from `docs/development-phase-use-cases.md`. Add enclave-specific RBAC permissions for view, upload, download, export, approve, support access, and emergency access, just-in-time support access request workflow with reason, scope, approver, duration, session log, and expiration, export policy controls for allowed package types, recipient restrictions, watermarking, encryption, and approval requirements, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------

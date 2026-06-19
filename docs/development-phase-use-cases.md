@@ -2822,3 +2822,288 @@ Acceptance criteria:
 - Readiness review records tabletop date, participants, findings, and follow-up actions.
 - Open critical incident response gaps block CUI-ready approval.
 - Incident readiness approval is audit logged or source-control traceable.
+
+## Phase 4 - Enterprise / Regulated Deployment Sequential Backlog
+
+Phase 4 extends the Phase 3 advanced compliance platform into enterprise and regulated deployment readiness. These processes must be delivered in sequence after the core portal, reporting, AI, evidence, CMMC, and CUI-readiness controls are stable.
+
+### Phase 4 Delivery Sequence
+
+| Sequence | Process | Primary Outcome |
+| --- | --- | --- |
+| 35 | SSO/SAML and SCIM | Enterprise tenants can enforce federated authentication and automate user lifecycle management. |
+| 36 | GovCloud or government cloud deployment path | Regulated customers can be provisioned into an approved government cloud environment with controlled release and operations processes. |
+| 37 | FedRAMP readiness package | Direct federal sales readiness artifacts, control mappings, and evidence packages are governed and reviewable. |
+| 38 | Higher-assurance CUI enclave and customer-managed keys | Approved CUI customers can use isolated enclave controls, customer-managed key policies, and restricted workflows. |
+
+## 35. SSO/SAML And SCIM
+
+### Use Case
+
+As an enterprise tenant admin, I need federated authentication and automated identity lifecycle management so that user access follows my organization's identity provider and offboarding process.
+
+### User Stories
+
+#### Story 35.1: SAML Identity Provider Configuration
+
+As a tenant admin, I want to configure a SAML identity provider so that my users can sign in through enterprise SSO.
+
+Tasks:
+
+- Add tenant SAML configuration fields for entity ID, SSO URL, certificate, signing requirement, name ID format, attribute mappings, status, and metadata URL.
+- Add validation for required provider metadata, certificate expiration, duplicate entity IDs, and callback URL ownership.
+- Add test connection workflow with success, warning, and failure results.
+- Add tenant admin controls for draft, enabled, disabled, rotated, and archived SAML configurations.
+- Add audit logging for SAML configuration create, update, enable, disable, test, and certificate rotation actions.
+
+Acceptance criteria:
+
+- Authorized tenant admin can create and test a SAML configuration for the current tenant.
+- SAML configuration cannot be enabled with missing metadata, expired certificate, invalid callback, or failed validation.
+- Test connection results include timestamp, actor, result, and diagnostic summary without exposing secrets.
+- Disabled or archived SAML configurations cannot be used for sign-in.
+- SAML configuration lifecycle actions are audit logged.
+
+#### Story 35.2: SSO Sign-In Enforcement And Account Linking
+
+As a tenant admin, I want to enforce SSO sign-in for selected users or the whole tenant so that authentication policy is consistent.
+
+Tasks:
+
+- Add tenant SSO enforcement modes for optional, required_for_members, required_for_all_except_break_glass, and disabled.
+- Add account linking from SAML subject and mapped email to existing tenant membership.
+- Add break-glass admin account controls with expiration, reason, approval, and audit trail.
+- Add sign-in failure handling for unmapped users, inactive members, missing required attributes, and disabled tenant access.
+- Add UI messaging for SSO-required tenants without exposing provider secrets.
+
+Acceptance criteria:
+
+- Tenant admin can set SSO enforcement mode with required confirmation and permission checks.
+- Existing members can link to SAML identities and sign in when required attributes match.
+- Unmapped, inactive, cross-tenant, or missing-attribute SSO attempts are denied.
+- Break-glass access requires approval metadata, expiration, and audit trail.
+- SSO sign-in successes, failures, enforcement changes, and break-glass use are audit logged.
+
+#### Story 35.3: SCIM User And Group Provisioning
+
+As an enterprise tenant admin, I want SCIM provisioning so that users and groups are created, updated, deactivated, and mapped to roles automatically.
+
+Tasks:
+
+- Add tenant SCIM endpoint, bearer token lifecycle, status, last sync time, and provisioning settings.
+- Implement SCIM create, update, deactivate, reactivate, group assign, and group remove workflows with tenant scoping.
+- Map SCIM groups to GCCS roles with validation and conflict handling.
+- Add provisioning logs for successful, failed, skipped, and conflict events.
+- Add rate limiting, token rotation, and token revocation controls.
+
+Acceptance criteria:
+
+- Authorized tenant admin can enable SCIM provisioning and rotate or revoke SCIM tokens.
+- SCIM create, update, deactivate, reactivate, group assign, and group remove actions affect only the current tenant.
+- Deactivated SCIM users lose application access while their audit history remains intact.
+- Invalid group mappings, duplicate identities, and cross-tenant provisioning attempts are rejected.
+- SCIM provisioning events and token lifecycle actions are audit logged.
+
+## 36. GovCloud Or Government Cloud Deployment Path
+
+### Use Case
+
+As an operations lead, I need a governed GovCloud or government cloud deployment path so that regulated tenants can be provisioned and operated in an approved environment.
+
+### User Stories
+
+#### Story 36.1: Government Cloud Environment Configuration
+
+As an engineering lead, I want government cloud environment configuration captured separately from commercial environments so that regulated deployments use approved infrastructure settings.
+
+Tasks:
+
+- Define environment records for commercial, staging, GovCloud, and government cloud variants with region, boundary, network, storage, key vault, database, logging, and backup settings.
+- Add configuration validation for required government cloud controls, region allowlist, encryption settings, private networking, audit logging, and backup policy.
+- Add environment readiness status for draft, under_review, approved, blocked, deployed, and retired.
+- Link government cloud environments to release approvals and tenant deployment eligibility.
+- Add audit logging or source-control traceability for environment configuration lifecycle changes.
+
+Acceptance criteria:
+
+- Government cloud environment records include region, boundary, network, storage, database, key, logging, and backup settings.
+- Environment approval is blocked when required government cloud controls or review metadata are missing.
+- Only approved environments can be selected for regulated tenant deployment.
+- Environment records preserve status history and reviewer metadata.
+- Environment configuration lifecycle changes are audit logged or source-control traceable.
+
+#### Story 36.2: Regulated Tenant Provisioning Workflow
+
+As an operations lead, I want a regulated tenant provisioning workflow so that GovCloud customers are created with the right controls before use.
+
+Tasks:
+
+- Add provisioning request fields for tenant, customer type, deployment environment, data handling mode, CUI approval status, key policy, support model, and migration source.
+- Add approval gates for security, engineering, customer success, legal/compliance, and product where applicable.
+- Add provisioning checklist for tenant isolation, storage, encryption, logging, monitoring, backup, restore, access policy, and support access.
+- Add deployment status tracking for requested, approved, provisioning, validation, ready, failed, suspended, and retired.
+- Add rollback and failure notes for provisioning failures.
+
+Acceptance criteria:
+
+- Authorized operations user can create a regulated tenant provisioning request with required environment and control metadata.
+- Provisioning cannot start until required approvals and checklist items are complete.
+- Regulated tenant provisioning creates tenant records only in the approved target environment.
+- Failed provisioning records status, reason, rollback decision, and owner.
+- Provisioning lifecycle changes are audit logged.
+
+#### Story 36.3: Government Cloud Release And Operations Readiness
+
+As an operations lead, I want release and operations readiness checks for government cloud deployments so that regulated environments are not promoted without evidence.
+
+Tasks:
+
+- Add release readiness checklist for migrations, smoke tests, security scans, dependency review, backup, restore, monitoring, incident response, support coverage, and rollback plan.
+- Add environment-specific release approval records for GovCloud and government cloud deployments.
+- Add operations evidence links for runbooks, alert routing, access review, vulnerability scan, backup restore, and incident drill.
+- Add deployment window, release owner, approver, and customer communication metadata.
+- Add release history and readiness report export.
+
+Acceptance criteria:
+
+- Government cloud releases require completed readiness checklist and approver metadata before promotion.
+- Open critical security, migration, backup, restore, or incident response gaps block release approval.
+- Release readiness record links to required operations evidence.
+- Release history identifies environment, version, window, owner, approver, result, and rollback status.
+- Government cloud release approval and deployment actions are audit logged or source-control traceable.
+
+## 37. FedRAMP Readiness Package
+
+### Use Case
+
+As a security owner and product owner, I need FedRAMP readiness artifacts governed and exportable so that direct federal sales readiness can be assessed before making federal authorization commitments.
+
+### User Stories
+
+#### Story 37.1: FedRAMP Control Mapping Baseline
+
+As a security owner, I want a FedRAMP readiness control mapping baseline so that product controls, inherited services, and evidence gaps are tracked consistently.
+
+Tasks:
+
+- Define FedRAMP readiness control records with control ID, family, baseline, implementation status, implementation summary, inherited provider, responsible owner, evidence links, gaps, and source references.
+- Add mapping from existing GCCS security controls, audit logs, evidence storage, identity, encryption, incident response, and vulnerability management records.
+- Add review states for draft, in_review, approved, gap_identified, accepted_risk, superseded, and archived.
+- Add validation requiring owner, reviewer, review date, evidence or gap rationale, and source reference before approval.
+- Add reporting for open gaps by control family and severity.
+
+Acceptance criteria:
+
+- FedRAMP readiness controls include control ID, family, baseline, owner, implementation status, evidence or gap rationale, and source reference.
+- Control mappings can link to existing GCCS security and operations evidence.
+- Approval is blocked when owner, reviewer, review date, source, or evidence/gap rationale is missing.
+- Open gaps are reportable by family, severity, owner, and target date.
+- Control mapping lifecycle changes are audit logged or source-control traceable.
+
+#### Story 37.2: Trust Artifact Library
+
+As a customer success lead, I want a governed trust artifact library so that procurement and security review materials are accurate, current, and approved before sharing.
+
+Tasks:
+
+- Add artifact records for security overview, architecture diagram, shared responsibility matrix, subprocessors list, data retention policy, incident response summary, AI usage policy, access control summary, and support SLA.
+- Add artifact metadata for owner, version, status, audience, effective date, review date, expiration date, approver, and source file.
+- Add publication states for draft, in_review, approved, published, expired, superseded, and archived.
+- Add sharing restrictions by audience, tenant tier, environment, and NDA requirement.
+- Add notification or task generation for artifacts approaching expiration.
+
+Acceptance criteria:
+
+- Trust artifacts include owner, version, status, audience, effective date, review date, expiration date, and approver metadata.
+- Artifact publication is blocked when required review or approval metadata is missing.
+- Expired, superseded, or draft artifacts cannot be shared externally.
+- Sharing restrictions are enforced by audience, tenant, environment, and NDA requirement.
+- Artifact lifecycle and sharing actions are audit logged.
+
+#### Story 37.3: FedRAMP Readiness Export Package
+
+As a product owner, I want to export a FedRAMP readiness package so that leadership, advisors, and prospective federal customers can review current readiness without overstating authorization status.
+
+Tasks:
+
+- Add export package generation for selected control mappings, trust artifacts, operations evidence, gap register, accepted risks, and readiness summary.
+- Include generated date, package version, environment, scope, reviewer metadata, disclaimers, and authorization-status language.
+- Exclude draft, expired, superseded, restricted, prohibited, or cross-tenant artifacts.
+- Add review workflow for draft, in_review, approved, shared, superseded, and archived readiness packages.
+- Add export history, external recipient metadata, and revocation status.
+
+Acceptance criteria:
+
+- Authorized user can generate a FedRAMP readiness package from approved and current artifacts.
+- Package includes generated date, version, scope, environment, reviewer metadata, gaps, accepted risks, and readiness summary.
+- Package states readiness status without claiming FedRAMP authorization unless approved by governance.
+- Draft, expired, superseded, restricted, prohibited, and cross-tenant records are excluded.
+- Package generation, approval, sharing, and revocation are audit logged.
+
+## 38. Higher-Assurance CUI Enclave And Customer-Managed Keys
+
+### Use Case
+
+As a CUI-ready customer and security owner, I need enclave isolation and customer-managed key controls so that approved CUI workflows can operate with higher assurance and clear customer responsibility boundaries.
+
+### User Stories
+
+#### Story 38.1: CUI Enclave Boundary Model
+
+As a security owner, I want a CUI enclave boundary model so that approved tenants, storage, compute, network paths, and workflows are isolated and reviewable.
+
+Tasks:
+
+- Add enclave records with tenant, environment, boundary description, data handling mode, approved workflows, storage location, compute boundary, network restrictions, logging destination, backup policy, and support access model.
+- Link enclave approval to CUI-ready tenant approval, security review checklist, incident readiness, and shared responsibility matrix acknowledgement.
+- Add status workflow for draft, under_review, approved, active, suspended, retired, and revoked.
+- Add validation that only approved `CuiReady` tenants can activate enclave workflows.
+- Add boundary diagram or metadata export for review packages.
+
+Acceptance criteria:
+
+- CUI enclave record includes tenant, environment, boundary, storage, compute, network, logging, backup, workflows, and support model metadata.
+- Enclave activation is blocked unless tenant is `CuiReady` with required approvals and acknowledgements.
+- Only approved enclave workflows can process content classified as real CUI.
+- Suspended, retired, or revoked enclaves block new CUI processing.
+- Enclave lifecycle actions are audit logged.
+
+#### Story 38.2: Customer-Managed Key Policy And Rotation
+
+As a CUI-ready customer admin, I want customer-managed key policies so that encryption control, rotation, suspension, and revocation are governed.
+
+Tasks:
+
+- Add customer-managed key policy records with key provider, key ID, environment, tenant, status, rotation cadence, last rotation date, next rotation date, owner, approver, and emergency contact.
+- Add key validation workflow for availability, permissions, region match, encryption compatibility, and backup implications.
+- Add rotation, suspension, revocation, and revalidation workflows.
+- Add failure handling when keys are unavailable, revoked, misconfigured, or region-incompatible.
+- Add reporting for key status, rotation due, validation failures, and affected workflows.
+
+Acceptance criteria:
+
+- Authorized tenant admin can register and validate a customer-managed key policy for an approved environment.
+- Key policy activation is blocked when key availability, permissions, region, or encryption compatibility validation fails.
+- Rotation, suspension, revocation, and revalidation preserve status history and reviewer metadata.
+- Workflows using unavailable, revoked, or suspended keys are blocked with clear operational status.
+- Key lifecycle and validation events are audit logged.
+
+#### Story 38.3: Enclave Access, Export, And Support Controls
+
+As a security owner, I want restricted access, export, and support controls for CUI enclave data so that customer content is protected during operations and support.
+
+Tasks:
+
+- Add enclave-specific RBAC permissions for view, upload, download, export, approve, support access, and emergency access.
+- Add just-in-time support access request workflow with reason, scope, approver, duration, session log, and expiration.
+- Add export policy controls for allowed package types, recipient restrictions, watermarking, encryption, and approval requirements.
+- Add emergency access workflow with elevated approval, time limit, incident linkage, and post-access review.
+- Add enclave access review report for tenant admins and security reviewers.
+
+Acceptance criteria:
+
+- Enclave records and files are accessible only to roles with enclave-specific permissions.
+- Just-in-time support access requires reason, scope, approver, duration, and automatic expiration.
+- Enclave exports enforce package type, recipient, watermarking, encryption, and approval policy.
+- Emergency access requires elevated approval, incident linkage, time limit, and post-access review.
+- Enclave access, export, support, and emergency actions are audit logged.

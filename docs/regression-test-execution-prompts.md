@@ -12,6 +12,8 @@ Phase 1A CUI Readiness Gate stories use the same regression workflow as Phase 1 
 
 Phase 3 Advanced Compliance stories use the same regression workflow as Phase 1 stories. For Story `30.1` through Story `34.3`, keep source traceability, review metadata, draft-only guidance/report language, report/export permissions, AI citation/logging/review controls, external portal scope, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, and standard API/UI error behavior in scope.
 
+Phase 4 Enterprise / Regulated Deployment stories use the same regression workflow as Phase 1 stories. For Story `35.1` through Story `38.3`, keep enterprise identity controls, SSO/SAML, SCIM provisioning, government cloud environment governance, regulated tenant provisioning, release readiness, FedRAMP readiness artifacts, trust artifact sharing, CUI enclave boundaries, customer-managed keys, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, source traceability, review metadata, and standard API/UI error behavior in scope.
+
 After implementing any user story:
 
 1. Find the matching story in [development-story-test-cases.md](development-story-test-cases.md).
@@ -95,6 +97,25 @@ Please execute the regression workflow for this Phase 3 Advanced Compliance stor
 7. Report exact commands, pass/fail results, skipped checks, manual verification, and any remaining advisor/SME review, AI review, external sharing, or report/export risk.
 
 Do not treat the manifest/coverage test as the only regression. Add focused functional tests for the Phase 3 story behavior before reporting completion.
+
+## Phase 4 Regression Prompt
+
+Use this prompt after implementing any Phase 4 Enterprise / Regulated Deployment story from Story `35.1` through Story `38.3`:
+
+```text
+The implementation for Phase 4 Story <story id>: <story title> is complete.
+
+Please execute the regression workflow for this Phase 4 Enterprise / Regulated Deployment story:
+
+1. Review the matching story and test cases in `docs/development-phase-use-cases.md` and `docs/development-story-test-cases.md`.
+2. Confirm focused automated coverage exists for each `TC-*` case for this story.
+3. Keep these Phase 4 invariants in scope where relevant: enterprise identity controls, SSO/SAML, SCIM provisioning, government cloud environment governance, regulated tenant provisioning, release readiness, FedRAMP readiness artifacts, trust artifact sharing, CUI enclave boundaries, customer-managed keys, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, source traceability, review metadata, and standard API/UI error behavior.
+4. Run the narrowest relevant automated regression command plus any focused API/UI checks needed for this story.
+5. Fix story-related regressions before reporting completion.
+6. Report commands run, pass/fail results, files changed, remaining risks, and any checks that could not be automated.
+
+Do not treat the manifest/coverage test as the only regression. Add focused functional tests for the Phase 4 story behavior before reporting completion.
+```
 ```
 
 ## Test Case Deep-Dive Prompt

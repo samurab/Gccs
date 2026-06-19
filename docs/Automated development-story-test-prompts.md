@@ -1300,3 +1300,133 @@ Using the existing GCCS architecture and test patterns, create or update automat
 - **TC-34.3.4:** Generate activity report and verify access, comments, downloads, expiration, supersede, and revocation history are included.
 - **TC-34.3.5:** Expire, revoke, supersede, reissue, and archive shared packages and verify audit events.
 #-----------------------------------
+
+## Phase 4 - Enterprise / Regulated Deployment
+
+## 35. SSO/SAML And SCIM
+### Story 35.1: SAML Identity Provider Configuration
+Please perform automated test on Story 35.1: SAML Identity Provider Configuration. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-35.1.1:** As an authorized tenant admin, create a SAML configuration with required metadata and verify the test connection stores timestamp, actor, result, and diagnostic summary.
+- **TC-35.1.2:** Attempt to enable SAML with missing metadata, expired certificate, invalid callback, duplicate entity ID, and failed validation and verify each is rejected.
+- **TC-35.1.3:** Run a failed SAML test and verify diagnostics do not expose certificate private material, bearer tokens, or provider secrets.
+- **TC-35.1.4:** Disable and archive SAML configurations and verify sign-in cannot use them.
+- **TC-35.1.5:** Create, update, enable, disable, test, rotate certificate, and archive SAML configuration and verify audit events.
+#-----------------------------------
+### Story 35.2: SSO Sign-In Enforcement And Account Linking
+Please perform automated test on Story 35.2: SSO Sign-In Enforcement And Account Linking. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-35.2.1:** Set each SSO enforcement mode as an authorized tenant admin and verify confirmation, permission checks, and persisted tenant policy.
+- **TC-35.2.2:** Sign in with matching SAML subject and mapped email for an existing member and verify the account links to the current tenant membership.
+- **TC-35.2.3:** Attempt unmapped, inactive, cross-tenant, and missing-attribute SSO sign-ins and verify access is denied.
+- **TC-35.2.4:** Create and use a break-glass account with approval, reason, and expiration and verify access ends after expiration.
+- **TC-35.2.5:** Verify successful sign-in, failed sign-in, enforcement change, account linking, and break-glass use create audit events.
+#-----------------------------------
+### Story 35.3: SCIM User And Group Provisioning
+Please perform automated test on Story 35.3: SCIM User And Group Provisioning. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-35.3.1:** Enable SCIM, rotate token, revoke token, and verify old tokens fail while active tokens work.
+- **TC-35.3.2:** Create, update, deactivate, and reactivate users through SCIM and verify changes affect only the current tenant.
+- **TC-35.3.3:** Assign and remove groups mapped to GCCS roles and verify role changes persist with conflict validation.
+- **TC-35.3.4:** Attempt duplicate identities, invalid group mappings, and cross-tenant provisioning and verify rejection.
+- **TC-35.3.5:** Verify successful, failed, skipped, conflict, token rotation, and token revocation events are audit logged.
+#-----------------------------------
+
+## 36. GovCloud Or Government Cloud Deployment Path
+### Story 36.1: Government Cloud Environment Configuration
+Please perform automated test on Story 36.1: Government Cloud Environment Configuration. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-36.1.1:** Create a government cloud environment record and verify region, boundary, network, storage, database, key, logging, and backup settings persist.
+- **TC-36.1.2:** Attempt approval with missing government cloud controls, disallowed region, missing encryption, missing logging, and missing review metadata and verify validation fails.
+- **TC-36.1.3:** Attempt regulated tenant deployment to draft, blocked, retired, and approved environments and verify only approved environment selection succeeds.
+- **TC-36.1.4:** Move environment through draft, under_review, approved, blocked, deployed, and retired states and verify reviewer metadata and history.
+- **TC-36.1.5:** Verify environment create, update, approval, block, deploy, and retire actions are audit logged or source-control traceable.
+#-----------------------------------
+### Story 36.2: Regulated Tenant Provisioning Workflow
+Please perform automated test on Story 36.2: Regulated Tenant Provisioning Workflow. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-36.2.1:** Create a regulated tenant provisioning request with environment, data mode, key policy, support model, and migration source and verify persistence.
+- **TC-36.2.2:** Attempt provisioning before security, engineering, customer success, legal/compliance, and product approvals are complete and verify start is blocked.
+- **TC-36.2.3:** Provision a regulated tenant and verify tenant records are created only in the approved target environment.
+- **TC-36.2.4:** Simulate provisioning failure and verify status, reason, rollback decision, and owner are recorded.
+- **TC-36.2.5:** Move request through requested, approved, provisioning, validation, ready, failed, suspended, and retired and verify audit events.
+#-----------------------------------
+### Story 36.3: Government Cloud Release And Operations Readiness
+Please perform automated test on Story 36.3: Government Cloud Release And Operations Readiness. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-36.3.1:** Attempt government cloud promotion without completed migrations, smoke tests, scans, backup, restore, monitoring, incident response, support coverage, and rollback checks and verify it is blocked.
+- **TC-36.3.2:** Create open critical security, migration, backup, restore, and incident response gaps and verify release approval fails.
+- **TC-36.3.3:** Complete readiness record and verify runbooks, alert routing, access review, vulnerability scan, backup restore, and incident drill evidence links are present.
+- **TC-36.3.4:** Approve and deploy a government cloud release and verify environment, version, window, owner, approver, result, and rollback status are stored.
+- **TC-36.3.5:** Verify readiness approval and deployment actions are audit logged or source-control traceable.
+#-----------------------------------
+
+## 37. FedRAMP Readiness Package
+### Story 37.1: FedRAMP Control Mapping Baseline
+Please perform automated test on Story 37.1: FedRAMP Control Mapping Baseline. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-37.1.1:** Create a FedRAMP readiness control and verify control ID, family, baseline, owner, implementation status, evidence or gap rationale, and source reference persist.
+- **TC-37.1.2:** Link control mappings to GCCS security and operations evidence and verify links appear in details and reports.
+- **TC-37.1.3:** Attempt control approval without owner, reviewer, review date, source, or evidence/gap rationale and verify validation fails.
+- **TC-37.1.4:** Seed open gaps by family, severity, owner, and target date and verify reports filter correctly.
+- **TC-37.1.5:** Move mappings through draft, in_review, approved, gap_identified, accepted_risk, superseded, and archived and verify audit or source-control traceability.
+#-----------------------------------
+### Story 37.2: Trust Artifact Library
+Please perform automated test on Story 37.2: Trust Artifact Library. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-37.2.1:** Create trust artifacts and verify owner, version, status, audience, effective date, review date, expiration date, approver, and source file are stored.
+- **TC-37.2.2:** Attempt to publish artifacts with missing review or approval metadata and verify publication fails.
+- **TC-37.2.3:** Attempt external sharing of draft, expired, and superseded artifacts and verify each is blocked.
+- **TC-37.2.4:** Share artifacts across audience, tenant tier, environment, and NDA settings and verify only permitted recipients can access them.
+- **TC-37.2.5:** Create, review, approve, publish, expire, supersede, archive, and share artifacts and verify audit events.
+#-----------------------------------
+### Story 37.3: FedRAMP Readiness Export Package
+Please perform automated test on Story 37.3: FedRAMP Readiness Export Package. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-37.3.1:** Generate a package from approved controls and artifacts and verify generated date, version, scope, environment, reviewer metadata, gaps, accepted risks, and readiness summary.
+- **TC-37.3.2:** Inspect package language and verify it does not claim FedRAMP authorization unless governance-approved status permits it.
+- **TC-37.3.3:** Seed draft, expired, superseded, restricted, prohibited, and cross-tenant records and verify they are excluded from export.
+- **TC-37.3.4:** Move package through draft, in_review, approved, shared, superseded, and archived and verify allowed transitions and metadata.
+- **TC-37.3.5:** Generate, approve, share, revoke, supersede, and archive a FedRAMP readiness package and verify audit events.
+#-----------------------------------
+
+## 38. Higher-Assurance CUI Enclave And Customer-Managed Keys
+### Story 38.1: CUI Enclave Boundary Model
+Please perform automated test on Story 38.1: CUI Enclave Boundary Model. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-38.1.1:** Create enclave record and verify tenant, environment, boundary, storage, compute, network, logging, backup, workflows, and support model metadata.
+- **TC-38.1.2:** Attempt enclave activation for non-`CuiReady`, missing checklist, missing incident readiness, and missing matrix acknowledgement tenants and verify activation is blocked.
+- **TC-38.1.3:** Attempt to process real CUI through approved and unapproved workflows and verify only approved enclave workflows succeed.
+- **TC-38.1.4:** Suspend, retire, or revoke an enclave and verify new CUI processing is blocked.
+- **TC-38.1.5:** Create, review, approve, activate, suspend, retire, and revoke enclave records and verify audit events.
+#-----------------------------------
+### Story 38.2: Customer-Managed Key Policy And Rotation
+Please perform automated test on Story 38.2: Customer-Managed Key Policy And Rotation. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-38.2.1:** Register a customer-managed key policy for an approved environment and verify provider, key ID, tenant, status, cadence, owner, and approver metadata.
+- **TC-38.2.2:** Attempt activation with unavailable key, missing permissions, region mismatch, encryption incompatibility, and backup implication failure and verify validation fails.
+- **TC-38.2.3:** Rotate, suspend, revoke, and revalidate a key policy and verify status history and reviewer metadata remain visible.
+- **TC-38.2.4:** Make a key unavailable, revoked, or suspended and verify dependent workflows are blocked with clear operational status.
+- **TC-38.2.5:** Verify key validation, activation, rotation, suspension, revocation, revalidation, and failure events are audit logged.
+#-----------------------------------
+### Story 38.3: Enclave Access, Export, And Support Controls
+Please perform automated test on Story 38.3: Enclave Access, Export, And Support Controls. Please provide the results of the tests.
+Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep enterprise identity, regulated deployment, FedRAMP readiness, CUI enclave, customer-managed key, tenant isolation, server-side RBAC, audit logging, source traceability, review metadata, data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
+
+- **TC-38.3.1:** Attempt view, upload, download, export, approve, support access, and emergency access with allowed and disallowed roles and verify permissions.
+- **TC-38.3.2:** Request support access with reason, scope, approver, and duration and verify automatic expiration and session log.
+- **TC-38.3.3:** Generate enclave exports and verify package type, recipient, watermarking, encryption, and approval requirements are enforced.
+- **TC-38.3.4:** Use emergency access and verify elevated approval, incident linkage, time limit, and post-access review are required.
+- **TC-38.3.5:** Verify access, export, support, emergency, expiration, and post-access review actions are audit logged.
+#-----------------------------------

@@ -317,8 +317,9 @@ Deliverables:
 
 - SSO/SAML.
 - SCIM.
-- GovCloud option.
-- SOC 2 readiness package.
+- GovCloud or government cloud deployment path.
+- FedRAMP readiness package if selling directly to federal agencies.
+- Higher-assurance CUI enclave.
 - Advanced encryption and customer-managed key option.
 - FedRAMP readiness package if selling directly to federal agencies.
 - Data residency controls.
@@ -868,8 +869,9 @@ Acceptance criteria:
 | P3 | AI | Cited AI assistant with review workflow | Story | Phase 3 |
 | P4 | Enterprise | SSO/SAML | Story | Phase 4 |
 | P4 | Enterprise | SCIM provisioning | Story | Phase 4 |
-| P4 | Enterprise | GovCloud deployment option | Story | Phase 4 |
-| P4 | Enterprise | SOC 2 readiness controls | Story | Phase 4 |
+| P4 | Enterprise | GovCloud or government cloud deployment path | Story | Phase 4 |
+| P4 | Enterprise | FedRAMP readiness package | Story | Phase 4 |
+| P4 | Enterprise | Higher-assurance CUI enclave and customer-managed keys | Story | Phase 4 |
 
 ## 11. Suggested Sprint Plan For Phase 1
 

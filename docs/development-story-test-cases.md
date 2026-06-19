@@ -1014,3 +1014,111 @@ These test cases cover the Phase 1A readiness-gate stories appended to `/Users/d
 - **TC-1A.9.3.3 - Tabletop evidence captured:** Record a readiness tabletop and verify date, participants, findings, and follow-up actions are stored.
 - **TC-1A.9.3.4 - Critical response gaps block approval:** Create an open critical incident response gap and verify `CuiReady` approval is blocked.
 - **TC-1A.9.3.5 - Incident readiness approval traceable:** Approve incident response readiness and verify the approval is audit logged or source-control traceable.
+
+## Phase 4 - Enterprise / Regulated Deployment
+
+These test cases cover the Phase 4 enterprise and regulated deployment stories appended to `/Users/devups/Development/CodexProjects/Gccs/docs/development-phase-use-cases.md`.
+
+## 35. SSO/SAML And SCIM
+
+### Story 35.1: SAML Identity Provider Configuration
+
+- **TC-35.1.1 - SAML configuration created and tested:** As an authorized tenant admin, create a SAML configuration with required metadata and verify the test connection stores timestamp, actor, result, and diagnostic summary.
+- **TC-35.1.2 - Invalid SAML configuration blocked:** Attempt to enable SAML with missing metadata, expired certificate, invalid callback, duplicate entity ID, and failed validation and verify each is rejected.
+- **TC-35.1.3 - Test diagnostics protect secrets:** Run a failed SAML test and verify diagnostics do not expose certificate private material, bearer tokens, or provider secrets.
+- **TC-35.1.4 - Disabled and archived configs unusable:** Disable and archive SAML configurations and verify sign-in cannot use them.
+- **TC-35.1.5 - SAML lifecycle audited:** Create, update, enable, disable, test, rotate certificate, and archive SAML configuration and verify audit events.
+
+### Story 35.2: SSO Sign-In Enforcement And Account Linking
+
+- **TC-35.2.1 - SSO enforcement mode saved:** Set each SSO enforcement mode as an authorized tenant admin and verify confirmation, permission checks, and persisted tenant policy.
+- **TC-35.2.2 - SAML account linking succeeds:** Sign in with matching SAML subject and mapped email for an existing member and verify the account links to the current tenant membership.
+- **TC-35.2.3 - Invalid SSO attempts denied:** Attempt unmapped, inactive, cross-tenant, and missing-attribute SSO sign-ins and verify access is denied.
+- **TC-35.2.4 - Break-glass access controlled:** Create and use a break-glass account with approval, reason, and expiration and verify access ends after expiration.
+- **TC-35.2.5 - SSO events audited:** Verify successful sign-in, failed sign-in, enforcement change, account linking, and break-glass use create audit events.
+
+### Story 35.3: SCIM User And Group Provisioning
+
+- **TC-35.3.1 - SCIM token lifecycle works:** Enable SCIM, rotate token, revoke token, and verify old tokens fail while active tokens work.
+- **TC-35.3.2 - SCIM user lifecycle tenant scoped:** Create, update, deactivate, and reactivate users through SCIM and verify changes affect only the current tenant.
+- **TC-35.3.3 - SCIM group role mapping enforced:** Assign and remove groups mapped to GCCS roles and verify role changes persist with conflict validation.
+- **TC-35.3.4 - Invalid provisioning rejected:** Attempt duplicate identities, invalid group mappings, and cross-tenant provisioning and verify rejection.
+- **TC-35.3.5 - SCIM provisioning audited:** Verify successful, failed, skipped, conflict, token rotation, and token revocation events are audit logged.
+
+## 36. GovCloud Or Government Cloud Deployment Path
+
+### Story 36.1: Government Cloud Environment Configuration
+
+- **TC-36.1.1 - Environment metadata complete:** Create a government cloud environment record and verify region, boundary, network, storage, database, key, logging, and backup settings persist.
+- **TC-36.1.2 - Approval validation enforced:** Attempt approval with missing government cloud controls, disallowed region, missing encryption, missing logging, and missing review metadata and verify validation fails.
+- **TC-36.1.3 - Approved environment required:** Attempt regulated tenant deployment to draft, blocked, retired, and approved environments and verify only approved environment selection succeeds.
+- **TC-36.1.4 - Environment status history preserved:** Move environment through draft, under_review, approved, blocked, deployed, and retired states and verify reviewer metadata and history.
+- **TC-36.1.5 - Environment lifecycle traceable:** Verify environment create, update, approval, block, deploy, and retire actions are audit logged or source-control traceable.
+
+### Story 36.2: Regulated Tenant Provisioning Workflow
+
+- **TC-36.2.1 - Provisioning request created:** Create a regulated tenant provisioning request with environment, data mode, key policy, support model, and migration source and verify persistence.
+- **TC-36.2.2 - Approval gates block provisioning:** Attempt provisioning before security, engineering, customer success, legal/compliance, and product approvals are complete and verify start is blocked.
+- **TC-36.2.3 - Target environment enforced:** Provision a regulated tenant and verify tenant records are created only in the approved target environment.
+- **TC-36.2.4 - Failed provisioning records rollback:** Simulate provisioning failure and verify status, reason, rollback decision, and owner are recorded.
+- **TC-36.2.5 - Provisioning lifecycle audited:** Move request through requested, approved, provisioning, validation, ready, failed, suspended, and retired and verify audit events.
+
+### Story 36.3: Government Cloud Release And Operations Readiness
+
+- **TC-36.3.1 - Readiness checklist required:** Attempt government cloud promotion without completed migrations, smoke tests, scans, backup, restore, monitoring, incident response, support coverage, and rollback checks and verify it is blocked.
+- **TC-36.3.2 - Critical gaps block release:** Create open critical security, migration, backup, restore, and incident response gaps and verify release approval fails.
+- **TC-36.3.3 - Operations evidence linked:** Complete readiness record and verify runbooks, alert routing, access review, vulnerability scan, backup restore, and incident drill evidence links are present.
+- **TC-36.3.4 - Release history complete:** Approve and deploy a government cloud release and verify environment, version, window, owner, approver, result, and rollback status are stored.
+- **TC-36.3.5 - Release actions traceable:** Verify readiness approval and deployment actions are audit logged or source-control traceable.
+
+## 37. FedRAMP Readiness Package
+
+### Story 37.1: FedRAMP Control Mapping Baseline
+
+- **TC-37.1.1 - Control mapping fields complete:** Create a FedRAMP readiness control and verify control ID, family, baseline, owner, implementation status, evidence or gap rationale, and source reference persist.
+- **TC-37.1.2 - Existing evidence mapping works:** Link control mappings to GCCS security and operations evidence and verify links appear in details and reports.
+- **TC-37.1.3 - Approval metadata required:** Attempt control approval without owner, reviewer, review date, source, or evidence/gap rationale and verify validation fails.
+- **TC-37.1.4 - Gap reporting filters work:** Seed open gaps by family, severity, owner, and target date and verify reports filter correctly.
+- **TC-37.1.5 - Control lifecycle traceable:** Move mappings through draft, in_review, approved, gap_identified, accepted_risk, superseded, and archived and verify audit or source-control traceability.
+
+### Story 37.2: Trust Artifact Library
+
+- **TC-37.2.1 - Trust artifact metadata complete:** Create trust artifacts and verify owner, version, status, audience, effective date, review date, expiration date, approver, and source file are stored.
+- **TC-37.2.2 - Publication validation enforced:** Attempt to publish artifacts with missing review or approval metadata and verify publication fails.
+- **TC-37.2.3 - Unshareable artifacts blocked:** Attempt external sharing of draft, expired, and superseded artifacts and verify each is blocked.
+- **TC-37.2.4 - Sharing restrictions enforced:** Share artifacts across audience, tenant tier, environment, and NDA settings and verify only permitted recipients can access them.
+- **TC-37.2.5 - Artifact lifecycle audited:** Create, review, approve, publish, expire, supersede, archive, and share artifacts and verify audit events.
+
+### Story 37.3: FedRAMP Readiness Export Package
+
+- **TC-37.3.1 - Readiness package generated:** Generate a package from approved controls and artifacts and verify generated date, version, scope, environment, reviewer metadata, gaps, accepted risks, and readiness summary.
+- **TC-37.3.2 - Authorization language controlled:** Inspect package language and verify it does not claim FedRAMP authorization unless governance-approved status permits it.
+- **TC-37.3.3 - Unsafe records excluded:** Seed draft, expired, superseded, restricted, prohibited, and cross-tenant records and verify they are excluded from export.
+- **TC-37.3.4 - Package review workflow works:** Move package through draft, in_review, approved, shared, superseded, and archived and verify allowed transitions and metadata.
+- **TC-37.3.5 - Package actions audited:** Generate, approve, share, revoke, supersede, and archive a FedRAMP readiness package and verify audit events.
+
+## 38. Higher-Assurance CUI Enclave And Customer-Managed Keys
+
+### Story 38.1: CUI Enclave Boundary Model
+
+- **TC-38.1.1 - Enclave boundary metadata complete:** Create enclave record and verify tenant, environment, boundary, storage, compute, network, logging, backup, workflows, and support model metadata.
+- **TC-38.1.2 - CuiReady approval required:** Attempt enclave activation for non-`CuiReady`, missing checklist, missing incident readiness, and missing matrix acknowledgement tenants and verify activation is blocked.
+- **TC-38.1.3 - Approved workflows enforced:** Attempt to process real CUI through approved and unapproved workflows and verify only approved enclave workflows succeed.
+- **TC-38.1.4 - Suspended enclave blocks processing:** Suspend, retire, or revoke an enclave and verify new CUI processing is blocked.
+- **TC-38.1.5 - Enclave lifecycle audited:** Create, review, approve, activate, suspend, retire, and revoke enclave records and verify audit events.
+
+### Story 38.2: Customer-Managed Key Policy And Rotation
+
+- **TC-38.2.1 - Key policy registered and validated:** Register a customer-managed key policy for an approved environment and verify provider, key ID, tenant, status, cadence, owner, and approver metadata.
+- **TC-38.2.2 - Invalid key policy blocked:** Attempt activation with unavailable key, missing permissions, region mismatch, encryption incompatibility, and backup implication failure and verify validation fails.
+- **TC-38.2.3 - Key lifecycle history preserved:** Rotate, suspend, revoke, and revalidate a key policy and verify status history and reviewer metadata remain visible.
+- **TC-38.2.4 - Unavailable keys block workflows:** Make a key unavailable, revoked, or suspended and verify dependent workflows are blocked with clear operational status.
+- **TC-38.2.5 - Key events audited:** Verify key validation, activation, rotation, suspension, revocation, revalidation, and failure events are audit logged.
+
+### Story 38.3: Enclave Access, Export, And Support Controls
+
+- **TC-38.3.1 - Enclave RBAC enforced:** Attempt view, upload, download, export, approve, support access, and emergency access with allowed and disallowed roles and verify permissions.
+- **TC-38.3.2 - Just-in-time support expires:** Request support access with reason, scope, approver, and duration and verify automatic expiration and session log.
+- **TC-38.3.3 - Export policy enforced:** Generate enclave exports and verify package type, recipient, watermarking, encryption, and approval requirements are enforced.
+- **TC-38.3.4 - Emergency access controlled:** Use emergency access and verify elevated approval, incident linkage, time limit, and post-access review are required.
+- **TC-38.3.5 - Enclave access audited:** Verify access, export, support, emergency, expiration, and post-access review actions are audit logged.
