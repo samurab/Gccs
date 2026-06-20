@@ -7,6 +7,7 @@ namespace Gccs.Application.Compliance;
 public sealed class SspSectionService(
     ISspSectionRepository repository,
     ISspNarrativeRepository narrativeRepository,
+    ISspExportPackageRepository exportPackageRepository,
     ICurrentTenantContext tenantContext,
     IAuditEventWriter auditEventWriter)
 {
@@ -280,6 +281,79 @@ public sealed class SspSectionService(
                 ["draftOnly"] = narrative.DraftOnly.ToString()
             },
             cancellationToken);
+
+    public async Task<IReadOnlyList<SspExportPackageDto>> ListExportPackagesAsync(CancellationToken cancellationToken = default) =>
+        await exportPackageRepository.ListExportPackagesAsync(tenantContext.TenantId, cancellationToken);
+
+    public async Task<SspExportPackageDto> GenerateExportPackageAsync(CreateSspExportPackageRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
+    {
+        ValidateText(request.PackageVersion, "Package version", 80);
+        ValidateText(request.SystemBoundary, "System boundary", 500);
+        ValidateText(request.Reviewer, "Reviewer", 200);
+        if (request.ExternalShareRequested && !request.ApprovedForExternalSharing)
+        {
+            throw new SspExportPackageValidationException("External SSP package sharing requires explicit approval.");
+        }
+
+        var sections = await repository.ListAsync(tenantContext.TenantId, cancellationToken);
+        if (sections.Count == 0)
+        {
+            throw new SspExportPackageValidationException("At least one SSP section is required before export.");
+        }
+
+        var sectionExports = new List<SspExportSectionDto>();
+        foreach (var section in sections)
+        {
+            var narrative = await narrativeRepository.GetCurrentApprovedNarrativeAsync(tenantContext.TenantId, section.Id, cancellationToken);
+            sectionExports.Add(new SspExportSectionDto(
+                section.Id,
+                section.SectionType,
+                section.Title,
+                section.Status,
+                section.Owner,
+                section.Reviewer,
+                section.ReviewDate,
+                section.SourceReferences,
+                narrative?.ApprovedText,
+                narrative?.Id,
+                narrative?.ReviewDate));
+        }
+
+        var includedEvidence = request.EvidenceRecords
+            .Where(record => record.TenantId == tenantContext.TenantId &&
+                record.Status == SspExportRecordStatus.Approved &&
+                record.Classification is not SspExportRecordClassification.Unknown and not SspExportRecordClassification.Prohibited)
+            .Select(record => record with
+            {
+                RecordType = record.RecordType.Trim(),
+                RecordId = record.RecordId.Trim(),
+                Title = record.Title.Trim()
+            })
+            .ToArray();
+
+        var package = await exportPackageRepository.CreateAsync(
+            tenantContext.TenantId,
+            request,
+            sectionExports.ToArray(),
+            includedEvidence,
+            actorUserId,
+            cancellationToken);
+        await auditEventWriter.WriteAsync(
+            tenantContext.TenantId,
+            actorUserId,
+            AuditAction.Exported,
+            "SspExportPackage",
+            package.Id.ToString(),
+            "SSP review package was exported.",
+            new Dictionary<string, string>
+            {
+                ["packageVersion"] = package.PackageVersion,
+                ["includedSections"] = package.Sections.Length.ToString(),
+                ["includedEvidence"] = package.IncludedEvidence.Length.ToString()
+            },
+            cancellationToken);
+        return package;
+    }
 }
 
 public interface ISspSectionRepository
@@ -300,6 +374,12 @@ public interface ISspNarrativeRepository
     Task<SspNarrativeDto?> ApproveAsync(Guid tenantId, Guid sectionId, Guid narrativeId, ApproveSspNarrativeRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
 }
 
+public interface ISspExportPackageRepository
+{
+    Task<IReadOnlyList<SspExportPackageDto>> ListExportPackagesAsync(Guid tenantId, CancellationToken cancellationToken = default);
+    Task<SspExportPackageDto> CreateAsync(Guid tenantId, CreateSspExportPackageRequest request, SspExportSectionDto[] sections, SspExportRecordDto[] includedEvidence, Guid actorUserId, CancellationToken cancellationToken = default);
+}
+
 public sealed record CreateSspSectionRequest(SspSectionType SectionType, string Title, string Owner, SspLinkedRecordDto[] LinkedRecords, SspSourceReferenceDto[] SourceReferences);
 public sealed record UpdateSspSectionRequest(SspSectionType SectionType, string Title, string Owner, SspLinkedRecordDto[] LinkedRecords, SspSourceReferenceDto[] SourceReferences);
 public sealed record SspSectionStatusRequest(SspSectionStatus Status, string ActorName, DateOnly? ReviewDate = null, string? Reviewer = null, string? ApprovalRationale = null);
@@ -313,6 +393,11 @@ public sealed record ApproveSspNarrativeRequest(string Reviewer, DateOnly? Revie
 public sealed record SspNarrativeSourceRecordDto(string RecordType, string RecordId, Guid TenantId, string Summary, string SourceUrl, bool Approved, bool Outdated);
 public sealed record SspNarrativeDto(Guid Id, Guid TenantId, Guid SectionId, string GeneratedText, string? EditedText, string? ApprovedText, SspNarrativeStatus Status, bool AiAssisted, bool DraftOnly, string? ReviewerNotes, string? Reviewer, DateOnly? ReviewDate, SspNarrativeSourceRecordDto[] SourceRecords, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 public sealed record SspNarrativeComparisonDto(Guid SectionId, Guid? ApprovedNarrativeId, Guid DraftNarrativeId, string? CurrentApprovedText, string ProposedText, DateOnly? CurrentApprovedReviewDate, SspNarrativeSourceRecordDto[] ProposedSources, SspNarrativeSourceRecordDto[] CurrentApprovedSources);
+public sealed record CreateSspExportPackageRequest(string PackageVersion, string SystemBoundary, string Reviewer, SspExportFormat Format, bool ExternalShareRequested, bool ApprovedForExternalSharing, string[] PoamReferences, SspExportRecordDto[] EvidenceRecords);
+public sealed record SspExportRecordDto(string RecordType, string RecordId, Guid TenantId, string Title, SspExportRecordStatus Status, SspExportRecordClassification Classification);
+public sealed record SspExportSectionDto(Guid SectionId, SspSectionType SectionType, string Title, SspSectionStatus Status, string Owner, string? Reviewer, DateOnly? ReviewDate, SspSourceReferenceDto[] SourceReferences, string? ApprovedNarrativeText, Guid? ApprovedNarrativeId, DateOnly? NarrativeReviewDate);
+public sealed record SspExportHistoryDto(string PackageVersion, Guid ActorUserId, DateTimeOffset GeneratedAt, string Action);
+public sealed record SspExportPackageDto(Guid Id, Guid TenantId, DateTimeOffset GeneratedAt, string PackageVersion, string SystemBoundary, string Reviewer, SspExportFormat Format, string AuthorizationLanguage, string HumanReadableReport, SspExportSectionDto[] Sections, SspExportRecordDto[] IncludedEvidence, string[] PoamReferences, SspExportHistoryDto[] History);
 
 public enum SspSectionType
 {
@@ -332,6 +417,10 @@ public enum SspSectionType
 
 public enum SspSectionStatus { Draft, InReview, Approved, Superseded, Archived }
 public enum SspNarrativeStatus { Draft, Approved, Superseded, Archived }
+public enum SspExportFormat { HumanReadable, MachineReadable, Both }
+public enum SspExportRecordStatus { Draft, InReview, Approved, Superseded, Archived }
+public enum SspExportRecordClassification { Public, Fci, Cui, Unknown, Prohibited }
 
 public sealed class SspSectionValidationException(string message) : InvalidOperationException(message);
 public sealed class SspNarrativeValidationException(string message) : InvalidOperationException(message);
+public sealed class SspExportPackageValidationException(string message) : InvalidOperationException(message);

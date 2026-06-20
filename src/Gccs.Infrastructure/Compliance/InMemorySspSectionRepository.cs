@@ -3,10 +3,11 @@ using Gccs.Application.Compliance;
 
 namespace Gccs.Infrastructure.Compliance;
 
-public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNarrativeRepository
+public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNarrativeRepository, ISspExportPackageRepository
 {
     private readonly ConcurrentDictionary<Guid, List<SspSectionDto>> _sections = new();
     private readonly ConcurrentDictionary<Guid, List<SspNarrativeDto>> _narratives = new();
+    private readonly ConcurrentDictionary<Guid, List<SspExportPackageDto>> _exports = new();
 
     public Task<IReadOnlyList<SspSectionDto>> ListAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<SspSectionDto>>(_sections.GetOrAdd(tenantId, _ => []).OrderBy(section => section.SectionType).ThenBy(section => section.Title).ToArray());
@@ -177,4 +178,48 @@ public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNa
         records
             .Select(record => new SspNarrativeSourceRecordDto(record.RecordType.Trim(), record.RecordId.Trim(), record.TenantId, record.Summary.Trim(), record.SourceUrl.Trim(), record.Approved, record.Outdated))
             .ToArray();
+
+    public Task<IReadOnlyList<SspExportPackageDto>> ListExportPackagesAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<SspExportPackageDto>>(_exports.GetOrAdd(tenantId, _ => []).OrderByDescending(package => package.GeneratedAt).ToArray());
+
+    public Task<SspExportPackageDto> CreateAsync(Guid tenantId, CreateSspExportPackageRequest request, SspExportSectionDto[] sections, SspExportRecordDto[] includedEvidence, Guid actorUserId, CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var authorizationLanguage = "Draft SSP review package only. This export is not a certification, assessment determination, authorization decision, or government endorsement.";
+        var humanReadableReport = BuildHumanReadableReport(request, sections, includedEvidence, authorizationLanguage, now);
+        var package = new SspExportPackageDto(
+            Guid.NewGuid(),
+            tenantId,
+            now,
+            request.PackageVersion.Trim(),
+            request.SystemBoundary.Trim(),
+            request.Reviewer.Trim(),
+            request.Format,
+            authorizationLanguage,
+            humanReadableReport,
+            sections,
+            includedEvidence,
+            request.PoamReferences.Select(reference => reference.Trim()).Where(reference => reference.Length > 0).ToArray(),
+            [new SspExportHistoryDto(request.PackageVersion.Trim(), actorUserId, now, "Generated")]);
+
+        _exports.GetOrAdd(tenantId, _ => []).Add(package);
+        return Task.FromResult(package);
+    }
+
+    private static string BuildHumanReadableReport(CreateSspExportPackageRequest request, SspExportSectionDto[] sections, SspExportRecordDto[] evidence, string authorizationLanguage, DateTimeOffset generatedAt)
+    {
+        var sectionLines = sections.Select(section => $"- {section.SectionType}: {section.Title} [{section.Status}]");
+        var evidenceLines = evidence.Select(record => $"- {record.RecordType} {record.RecordId}: {record.Title}");
+        return string.Join(Environment.NewLine, [
+            $"SSP Review Package {request.PackageVersion.Trim()}",
+            $"Generated: {generatedAt:O}",
+            $"System boundary: {request.SystemBoundary.Trim()}",
+            $"Reviewer: {request.Reviewer.Trim()}",
+            authorizationLanguage,
+            "Sections:",
+            .. sectionLines,
+            "Included evidence:",
+            .. evidenceLines
+        ]);
+    }
 }

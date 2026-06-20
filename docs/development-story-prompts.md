@@ -5133,6 +5133,27 @@ Implement Story 29.2, "SSP Narrative Builder," from `docs/development-phase-use-
 
 #-----------------------------------------
 
+### Story 29.3: SSP Export And Review Package
+Prompt:
+You are helping me build a Government Contractor Compliance SaaS application.
+
+First, inspect the existing codebase, architecture docs, API contracts, schema/migrations, tests, and `docs/development-phase-use-cases.md`. Then summarize the current implementation state for this Phase 3 Advanced Compliance story and propose a small implementation plan before editing files.
+
+> Context:
+>
+> - Epic: SSP Builder
+> - User story: As a security owner, I want to export an SSP review package so that leadership, advisors, or assessors can review the current plan with supporting references.
+> - Acceptance criteria:
+> - Authorized user can export an SSP package for the current tenant.
+> - Export includes generated date, package version, tenant, section statuses, reviewer metadata, and source references.
+> - Export excludes prohibited, unknown, unapproved, and cross-tenant records.
+> - Export contains no certification or assessor determination language.
+> - SSP export is audit logged.
+
+Implement Story 29.3, "SSP Export And Review Package," from `docs/development-phase-use-cases.md`. Add SSP export package generation for human-readable report content and machine-readable metadata, generated date, tenant, package version, system boundary, section statuses, approved narrative summaries, evidence references, POA&M references, reviewer metadata, disclaimers, package history, and export audit logging. Exclude prohibited, unknown, unapproved, and cross-tenant evidence. Enforce external-share restrictions and ensure export language does not claim certification, assessment determination, authorization, or government endorsement. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, source traceability, review metadata, draft-only language, report/export permissions, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+#-----------------------------------------
+
 ### Story 30.1: Scoring Rule Baseline
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.

@@ -1223,6 +1223,18 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-29.2.5:** Verify narrative generation, edits, and approvals are audit logged with section, status, and draft-only metadata.
 #-----------------------------------
 
+### Story 29.3: SSP Export And Review Package
+Please perform Smoke test on Story 29.3: SSP Export And Review Package. Please provide the results of the tests.
+Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
+
+- **TC-29.3.1:** Verify an authorized user can export an SSP review package for the current tenant with generated date, package version, system boundary, reviewer, section statuses, and report content.
+- **TC-29.3.2:** Verify export includes package version, reviewer metadata, section statuses, source references, POA&M references, package history, and selected machine-readable metadata.
+- **TC-29.3.3:** Verify export excludes prohibited, unknown, unapproved, and cross-tenant evidence records.
+- **TC-29.3.4:** Verify export language clearly says the package is for review only and does not claim certification, assessment determination, authorization, or government endorsement.
+- **TC-29.3.5:** Verify SSP package export is audit logged and package history can be listed for the current tenant.
+- **TC-29.3.6:** Attempt external sharing without explicit approval and verify the package export is blocked.
+#-----------------------------------
+
 ### Story 30.1: Scoring Rule Baseline
 Please perform Smoke test on Story 30.1: Scoring Rule Baseline. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.

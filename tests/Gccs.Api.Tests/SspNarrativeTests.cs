@@ -159,6 +159,7 @@ public sealed class SspNarrativeTests : IClassFixture<WebApplicationFactory<Prog
                 var repository = new InMemorySspSectionRepository();
                 services.AddSingleton<ISspSectionRepository>(repository);
                 services.AddSingleton<ISspNarrativeRepository>(repository);
+                services.AddSingleton<ISspExportPackageRepository>(repository);
                 services.AddScoped<SspSectionService>();
                 services.AddSingleton(auditWriter);
             });

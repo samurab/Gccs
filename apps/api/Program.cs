@@ -4577,6 +4577,35 @@ api.MapGet("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:gu
 .RequirePermission(Permission.ManageTenant)
 .WithName("CompareSspNarrative");
 
+api.MapGet("/compliance/ssp/export-packages", async (
+    SspSectionService service,
+    CancellationToken cancellationToken) =>
+{
+    var packages = await service.ListExportPackagesAsync(cancellationToken);
+    return Results.Ok(packages);
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ListSspExportPackages");
+
+api.MapPost("/compliance/ssp/export-packages", async (
+    CreateSspExportPackageRequest request,
+    SspSectionService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var package = await service.GenerateExportPackageAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/compliance/ssp/export-packages/{package.Id}", package);
+    }
+    catch (SspExportPackageValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspExportPackage"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("GenerateSspExportPackage");
+
 api.MapPost("/enterprise/cui/enclaves", async (
     CreateCuiEnclaveBoundaryRequest request,
     CuiEnclaveBoundaryService service,

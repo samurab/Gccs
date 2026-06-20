@@ -729,6 +729,15 @@ Common expectations for all functional stories:
 - **TC-29.2.4 - Comparison shows approved and proposed text:** Create an approved narrative, create a later draft, and verify comparison shows current approved text, proposed text, reviewer metadata, and source references.
 - **TC-29.2.5 - Narrative lifecycle audited:** Verify narrative generation, edits, and approvals are audit logged with section, status, and draft-only metadata.
 
+### Story 29.3: SSP Export And Review Package
+
+- **TC-29.3.1 - Authorized user exports tenant SSP package:** Verify an authorized user can export an SSP review package for the current tenant with generated date, package version, system boundary, reviewer, section statuses, and report content.
+- **TC-29.3.2 - Export metadata and source references included:** Verify export includes package version, reviewer metadata, section statuses, source references, POA&M references, package history, and selected machine-readable metadata.
+- **TC-29.3.3 - Unsafe evidence excluded:** Verify export excludes prohibited, unknown, unapproved, and cross-tenant evidence records.
+- **TC-29.3.4 - No certification or assessor determination language:** Verify export language clearly says the package is for review only and does not claim certification, assessment determination, authorization, or government endorsement.
+- **TC-29.3.5 - Export audit and history retained:** Verify SSP package export is audit logged and package history can be listed for the current tenant.
+- **TC-29.3.6 - External share restrictions enforced:** Attempt external sharing without explicit approval and verify the package export is blocked.
+
 ## 30. SPRS Score Calculator
 
 ### Story 30.1: Scoring Rule Baseline
