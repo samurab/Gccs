@@ -49,11 +49,13 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
         var numberResults = await SearchAsync(client, "/api/clauses?query=52.204-27", tenantId);
         var titleResults = await SearchAsync(client, "/api/clauses?query=Service%20Contract", tenantId);
         var categoryResults = await SearchAsync(client, "/api/clauses?category=DFARS", tenantId);
+        var farCategoryResults = await SearchAsync(client, "/api/clauses?category=FAR", tenantId);
 
         Assert.Equal(["52.204-27"], numberResults.Select(clause => clause.Number).ToArray());
         Assert.Equal(["Service Contract Labor Standards"], titleResults.Select(clause => clause.Title).ToArray());
         Assert.Equal(["DFARS"], categoryResults.Select(clause => clause.Category).Distinct().ToArray());
         Assert.Equal("252.204-7012", Assert.Single(categoryResults).Number);
+        Assert.Equal(["52.204-27", "52.222-41"], farCategoryResults.Select(clause => clause.Number).Order(StringComparer.Ordinal).ToArray());
     }
 
     [Fact]

@@ -184,6 +184,22 @@ type WorkspaceRoute =
 
 type LoadState = "loading" | "ready" | "error";
 
+const tenantModeUpdateTimeoutMs = 15000;
+const tenantModeHistoryTimeoutMs = 10000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
+}
+
 type AuditLogFilters = {
   actorUserId: string;
   action: string;
@@ -797,23 +813,48 @@ export function App() {
 
   async function handleTenantModeUpdate(request: UpdateTenantDataHandlingModeRequest) {
     if (!currentTenant) {
+      setTenantModeStatus("failed");
+      setTenantModeMessage("Tenant context is still loading. Refresh the workspace or confirm your account has ManageTenant permission.");
       return;
     }
 
     setTenantModeStatus("saving");
     setTenantModeMessage("");
-    const result = await updateTenantDataHandlingMode(currentTenant.id, request);
 
-    if (result.data) {
-      setCurrentTenant(result.data);
-      setTenantModeHistory(await getTenantDataHandlingModeHistory(result.data.id));
-      setTenantModeStatus("saved");
-      setTenantModeMessage("Tenant data handling mode updated.");
+    try {
+      const result = await withTimeout(
+        updateTenantDataHandlingMode(currentTenant.id, request),
+        tenantModeUpdateTimeoutMs,
+        "Tenant data handling mode update timed out. Check the API connection and try again."
+      );
+
+      if (result.data) {
+        setCurrentTenant(result.data);
+        setTenantModeStatus("saved");
+        setTenantModeMessage("Tenant data handling mode updated.");
+
+        try {
+          setTenantModeHistory(
+            await withTimeout(
+              getTenantDataHandlingModeHistory(result.data.id),
+              tenantModeHistoryTimeoutMs,
+              "Tenant mode updated, but history refresh timed out."
+            )
+          );
+        } catch {
+          setTenantModeMessage("Tenant data handling mode updated. History did not refresh; reload the page to confirm the audit trail.");
+        }
+
+        return;
+      }
+
+      setTenantModeStatus("failed");
+      setTenantModeMessage(result.error ?? "Tenant data handling mode could not be updated.");
+    } catch (error) {
+      setTenantModeStatus("failed");
+      setTenantModeMessage(error instanceof Error ? error.message : "Tenant data handling mode could not be updated.");
       return;
     }
-
-    setTenantModeStatus("failed");
-    setTenantModeMessage(result.error ?? "Tenant data handling mode could not be updated.");
   }
 
   async function handleCuiReadyChecklistCreate() {
@@ -6366,6 +6407,11 @@ function TenantModePanel({
           <span>{status === "saving" ? "Saving" : "Update mode"}</span>
         </button>
       </form>
+      {!currentTenant ? (
+        <p className="form-status form-status--error">
+          Tenant context has not loaded yet. The mode cannot be updated until the active tenant is available.
+        </p>
+      ) : null}
       {message ? (
         <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
       ) : null}

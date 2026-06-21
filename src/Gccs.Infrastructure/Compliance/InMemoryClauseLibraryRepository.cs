@@ -30,10 +30,8 @@ public sealed class InMemoryClauseLibraryRepository : IClauseLibraryRepository
                 clause.Source.Contains(request.SourceFamily, StringComparison.OrdinalIgnoreCase))
             .Where(clause => request.RequiresFlowDown is null || clause.UsuallyRequiresFlowDown == request.RequiresFlowDown)
             .Select(ToDto)
-            .Where(clause => string.IsNullOrWhiteSpace(request.Category) ||
-                string.Equals(clause.Category, request.Category, StringComparison.OrdinalIgnoreCase))
-            .Where(clause => string.IsNullOrWhiteSpace(request.ObligationArea) ||
-                string.Equals(clause.Category, request.ObligationArea, StringComparison.OrdinalIgnoreCase))
+            .Where(clause => CategoryMatches(clause, request.Category))
+            .Where(clause => CategoryMatches(clause, request.ObligationArea))
             .OrderBy(clause => clause.Source)
             .ThenBy(clause => clause.Number)
             .ToArray();
@@ -102,6 +100,23 @@ public sealed class InMemoryClauseLibraryRepository : IClauseLibraryRepository
 
     private static bool Contains(string value, string query) =>
         value.Contains(query, StringComparison.OrdinalIgnoreCase);
+
+    private static bool CategoryMatches(ClauseLibraryItemDto clause, string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return true;
+        }
+
+        var normalized = category.Trim();
+        if (string.Equals(normalized, "FAR", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(clause.Category, "FAR", StringComparison.OrdinalIgnoreCase) ||
+                clause.Source.StartsWith("FAR ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(clause.Category, normalized, StringComparison.OrdinalIgnoreCase);
+    }
 
     private static readonly ClauseEntity[] DefaultClauses =
     [

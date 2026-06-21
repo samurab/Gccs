@@ -66,6 +66,10 @@ builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSect
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHostedService<DevelopmentTenantBootstrapper>();
+}
 
 var app = builder.Build();
 

@@ -47,10 +47,8 @@ public sealed class EfClauseLibraryRepository(GccsDbContext dbContext) : IClause
 
         var results = clauses
             .Select(ToDto)
-            .Where(clause => string.IsNullOrWhiteSpace(request.Category) ||
-                string.Equals(clause.Category, request.Category, StringComparison.OrdinalIgnoreCase))
-            .Where(clause => string.IsNullOrWhiteSpace(request.ObligationArea) ||
-                string.Equals(clause.Category, request.ObligationArea, StringComparison.OrdinalIgnoreCase))
+            .Where(clause => CategoryMatches(clause, request.Category))
+            .Where(clause => CategoryMatches(clause, request.ObligationArea))
             .ToArray();
 
         return results;
@@ -146,4 +144,21 @@ public sealed class EfClauseLibraryRepository(GccsDbContext dbContext) : IClause
 
     private static bool ContainsAny(string value, params string[] needles) =>
         needles.Any(needle => value.Contains(needle, StringComparison.OrdinalIgnoreCase));
+
+    private static bool CategoryMatches(ClauseLibraryItemDto clause, string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return true;
+        }
+
+        var normalized = category.Trim();
+        if (string.Equals(normalized, "FAR", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(clause.Category, "FAR", StringComparison.OrdinalIgnoreCase) ||
+                clause.Source.StartsWith("FAR ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(clause.Category, normalized, StringComparison.OrdinalIgnoreCase);
+    }
 }
