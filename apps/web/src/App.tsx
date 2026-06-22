@@ -21,7 +21,7 @@ import {
   UserPlus,
   UsersRound
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { ModuleCard } from "@/components/ModuleCard";
 import {
   acknowledgeNoCuiNotice,
@@ -209,6 +209,8 @@ type AuditLogFilters = {
 };
 
 type CalendarFilters = {
+  from: string;
+  to: string;
   owner: string;
   status: string;
   risk: string;
@@ -397,14 +399,6 @@ const defaultAuditLogFilters: AuditLogFilters = {
   to: ""
 };
 
-const defaultCalendarFilters: CalendarFilters = {
-  owner: "",
-  status: "",
-  risk: "",
-  contractId: "",
-  module: ""
-};
-
 const defaultProfileForm: ProfileFormState = {
   legalEntityName: "",
   doingBusinessAs: "",
@@ -474,6 +468,20 @@ function defaultCalendarQuery(): CalendarEventQueryParams {
   };
 }
 
+function defaultCalendarFilters(): CalendarFilters {
+  const query = defaultCalendarQuery();
+
+  return {
+    from: query.from,
+    to: query.to ?? "",
+    owner: "",
+    status: "",
+    risk: "",
+    contractId: "",
+    module: ""
+  };
+}
+
 function emptyStringsToUndefined(filters: CalendarFilters): Omit<CalendarEventQueryParams, "from" | "to"> {
   return {
     owner: filters.owner || undefined,
@@ -525,7 +533,7 @@ export function App() {
     Array<ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | EvidencePackageReport>
   >([]);
   const [selectedEvidenceItemId, setSelectedEvidenceItemId] = useState<string | null>(null);
-  const [calendarFilters, setCalendarFilters] = useState<CalendarFilters>(defaultCalendarFilters);
+  const [calendarFilters, setCalendarFilters] = useState<CalendarFilters>(() => defaultCalendarFilters());
   const [calendarStatus, setCalendarStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [calendarMessage, setCalendarMessage] = useState("");
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
@@ -1690,7 +1698,8 @@ export function App() {
 
     try {
       const results = await getCalendarEvents({
-        ...defaultCalendarQuery(),
+        from: calendarFilters.from || defaultCalendarQuery().from,
+        to: calendarFilters.to || defaultCalendarQuery().to,
         ...emptyStringsToUndefined(calendarFilters)
       });
       setCalendarEvents(results);
@@ -2082,6 +2091,16 @@ function CalendarView({
     }),
     [events]
   );
+  const ownerOptions = useMemo(() => {
+    const values = new Set(["Contracts", "IT/security", "ComplianceManager", "Security", "reports", "Subcontractors"]);
+    events.forEach((event) => {
+      if (event.ownerFunction.trim()) {
+        values.add(event.ownerFunction);
+      }
+    });
+
+    return Array.from(values).sort((a, b) => a.localeCompare(b));
+  }, [events]);
 
   return (
     <section className="route-panel" aria-label="Compliance calendar">
@@ -2109,11 +2128,34 @@ function CalendarView({
 
       <form className="calendar-filter-form" onSubmit={onFilterSubmit}>
         <label>
-          Owner
+          From
           <input
+            type="date"
+            value={filters.from}
+            onChange={(event) => onFilterChange({ ...filters, from: event.target.value })}
+          />
+        </label>
+        <label>
+          To
+          <input
+            type="date"
+            value={filters.to}
+            onChange={(event) => onFilterChange({ ...filters, to: event.target.value })}
+          />
+        </label>
+        <label>
+          Owner
+          <select
             value={filters.owner}
             onChange={(event) => onFilterChange({ ...filters, owner: event.target.value })}
-          />
+          >
+            <option value="">Any</option>
+            {ownerOptions.map((ownerOption) => (
+              <option key={ownerOption} value={ownerOption}>
+                {formatOwnerLabel(ownerOption)}
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           Status
@@ -2191,7 +2233,7 @@ function CalendarView({
           {events.length === 0 ? (
             <EmptyState
               title="No calendar items yet"
-              body="Tasks, renewals, reports, contract deadlines, deliverables, and policy reviews will appear here."
+              body="Calendar items must have dates and fall inside the selected From and To range. Widen the date range or add due dates to obligation tasks, deliverables, renewals, reports, or policy reviews."
             />
           ) : (
             events.map((event) => (
@@ -2218,7 +2260,7 @@ function CalendarView({
                   <dl>
                     <div>
                       <dt>Owner</dt>
-                      <dd>{event.ownerFunction}</dd>
+                      <dd>{formatOwnerLabel(event.ownerFunction)}</dd>
                     </div>
                     <div>
                       <dt>Status</dt>
@@ -2274,6 +2316,12 @@ function formatCategory(category: string) {
 
 function formatStatus(status: string) {
   return formatCategory(status);
+}
+
+function formatOwnerLabel(owner: string) {
+  return owner
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^reports$/i, "Reports");
 }
 
 function DashboardView({ overview }: { overview: ComplianceOverview }) {
@@ -2569,8 +2617,22 @@ function ObligationsView({
   const [module, setModule] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [source, setSource] = useState("");
+  const [requestedDetailId, setRequestedDetailId] = useState("");
+  const detailPanelRef = useRef<HTMLElement | null>(null);
   const overdueCount = items.filter((item) => item.isOverdue).length;
   const highRiskCount = items.filter((item) => item.isHighRisk).length;
+  const selectedDetailId = detail?.id ?? requestedDetailId;
+
+  useEffect(() => {
+    if (detailStatus !== "loading" && !detail) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      detailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      detailPanelRef.current?.focus({ preventScroll: true });
+    });
+  }, [detail?.id, detailStatus, detail]);
 
   return (
     <section className="route-panel obligations-route">
@@ -2678,7 +2740,8 @@ function ObligationsView({
           {items.map((item) => (
             <article
               key={item.id}
-              className={`obligation-dashboard-item${item.isOverdue ? " obligation-dashboard-item--overdue" : ""}${
+              className={`obligation-dashboard-item${item.id === selectedDetailId ? " obligation-dashboard-item--selected" : ""}${
+                item.isOverdue ? " obligation-dashboard-item--overdue" : ""}${
                 item.isHighRisk ? " obligation-dashboard-item--high-risk" : ""
               }`}
             >
@@ -2725,8 +2788,16 @@ function ObligationsView({
                 </div>
               </dl>
               <p className="obligation-required-action">{item.requiredAction}</p>
-              <button className="secondary-action obligation-detail-button" type="button" onClick={() => void onDetailSelect(item)}>
-                View details
+              <button
+                className="secondary-action obligation-detail-button"
+                type="button"
+                aria-pressed={item.id === selectedDetailId}
+                onClick={() => {
+                  setRequestedDetailId(item.id);
+                  void onDetailSelect(item);
+                }}
+              >
+                {detailStatus === "loading" && item.id === requestedDetailId ? "Loading details" : "View details"}
               </button>
             </article>
           ))}
@@ -2741,6 +2812,7 @@ function ObligationsView({
       <ObligationDetailPanel
         canManageObligations={canManageObligations}
         detail={detail}
+        panelRef={detailPanelRef}
         members={members}
         message={detailMessage}
         status={detailStatus}
@@ -2756,6 +2828,7 @@ function ObligationsView({
 function ObligationDetailPanel({
   canManageObligations,
   detail,
+  panelRef,
   members,
   message,
   onOwnerAssign,
@@ -2764,6 +2837,7 @@ function ObligationDetailPanel({
 }: {
   canManageObligations: boolean;
   detail: ContractObligationDetail | null;
+  panelRef: RefObject<HTMLElement | null>;
   members: TenantMember[];
   message: string;
   onOwnerAssign: (kind: "user" | "role", value: string, notify: boolean) => Promise<void>;
@@ -2774,7 +2848,7 @@ function ObligationDetailPanel({
 
   if (status === "loading") {
     return (
-      <section className="obligation-detail-panel" aria-live="polite">
+      <section className="obligation-detail-panel" aria-live="polite" ref={panelRef} tabIndex={-1}>
         <h2>Loading obligation detail</h2>
         <p>Retrieving source-backed detail, linked tasks, and evidence.</p>
       </section>
@@ -2788,7 +2862,7 @@ function ObligationDetailPanel({
   }
 
   return (
-    <section className="obligation-detail-panel" aria-label="Obligation detail">
+    <section className="obligation-detail-panel" aria-label="Obligation detail" ref={panelRef} tabIndex={-1}>
       <div className="section-heading section-heading--split">
         <div>
           <p className="eyebrow">Obligation detail</p>

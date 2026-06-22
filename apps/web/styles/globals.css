@@ -1072,6 +1072,11 @@ dt {
   border-left-color: var(--red);
 }
 
+.obligation-dashboard-item--selected {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 18%, transparent);
+}
+
 .obligation-dashboard-item__main {
   display: grid;
   gap: 6px;
@@ -1234,6 +1239,12 @@ dt {
   display: grid;
   gap: 16px;
   padding: 16px;
+  scroll-margin-top: 16px;
+}
+
+.obligation-detail-panel:focus {
+  outline: 2px solid color-mix(in srgb, var(--blue) 45%, transparent);
+  outline-offset: 3px;
 }
 
 .obligation-detail-panel p,
