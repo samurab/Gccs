@@ -2496,8 +2496,10 @@ function getDevelopmentHeaders(): HeadersInit | undefined {
 async function readErrorMessage(response: Response): Promise<string> {
   try {
     const problem = await response.json();
-    const errors = problem.errors ? Object.values(problem.errors).flat().filter(Boolean).join(" ") : "";
-    return [problem.detail, errors].filter(Boolean).join(" ") || problem.title || "The upload was rejected.";
+    const errors = problem.errors ? Object.values(problem.errors).flat().filter(Boolean) : [];
+    const parts = [problem.detail, ...errors].filter(Boolean);
+    const uniqueParts = Array.from(new Set(parts));
+    return uniqueParts.join(" ") || problem.title || "The upload was rejected.";
   } catch {
     return "The upload was rejected.";
   }

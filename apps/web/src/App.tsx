@@ -1133,6 +1133,7 @@ export function App() {
 
   async function handleContractSelect(contractId: string | null) {
     setSelectedContractId(contractId);
+    setContractMessage("");
     setContractClauseMessage("");
     setDeliverableMessage("");
     setContractDocumentMessage("");
@@ -1156,6 +1157,7 @@ export function App() {
 
   async function handleContractClauseAttach(contractId: string, request: AttachContractClauseRequest) {
     setContractClauseStatus("saving");
+    setContractMessage("");
     setContractClauseMessage("");
 
     const result = await attachContractClause(contractId, request);
@@ -1790,6 +1792,7 @@ export function App() {
             <ContractsView
               canManageContracts={canManageContracts}
               canReviewClauses={canReviewClauses}
+              clauseResults={clauseResults}
               contracts={contracts}
               contractClauses={contractClauses}
               contractClauseMessage={contractClauseMessage}
@@ -3102,6 +3105,7 @@ function ClauseLibraryView({
 function ContractsView({
   canManageContracts,
   canReviewClauses,
+  clauseResults,
   contracts,
   contractClauses,
   contractClauseMessage,
@@ -3133,6 +3137,7 @@ function ContractsView({
 }: {
   canManageContracts: boolean;
   canReviewClauses: boolean;
+  clauseResults: ClauseLibraryItem[];
   contracts: ContractRecord[];
   contractClauses: ContractClause[];
   contractClauseMessage: string;
@@ -3349,11 +3354,20 @@ function ContractsView({
             <label>
               Published clause ID
               <input
+                list="published-clause-options"
                 value={clauseDraft.clauseLibraryId}
                 onChange={(event) => setClauseDraft((current) => ({ ...current, clauseLibraryId: event.target.value }))}
                 disabled={clauseDisabled}
+                placeholder="Example: far-52-204-21"
                 required
               />
+              <datalist id="published-clause-options">
+                {clauseResults.map((clause) => (
+                  <option key={clause.id} value={clause.id}>
+                    {clause.number} - {clause.title}
+                  </option>
+                ))}
+              </datalist>
             </label>
             <label>
               Attachment reason
@@ -3747,20 +3761,26 @@ function ContractEditor({
   }
 
   return (
-    <form className="contract-form" onSubmit={(event) => event.preventDefault()}>
+    <form
+      className="contract-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save();
+      }}
+    >
       <fieldset disabled={!canManageContracts || contractStatus === "saving"}>
         <div className="form-grid">
           <label>
             <span>Contract number</span>
-            <input value={form.contractNumber} onChange={(event) => updateField("contractNumber", event.target.value)} />
+            <input value={form.contractNumber} onChange={(event) => updateField("contractNumber", event.target.value)} required />
           </label>
           <label>
             <span>Title</span>
-            <input value={form.title} onChange={(event) => updateField("title", event.target.value)} />
+            <input value={form.title} onChange={(event) => updateField("title", event.target.value)} required />
           </label>
           <label>
             <span>Agency or prime</span>
-            <input value={form.agencyOrPrimeName} onChange={(event) => updateField("agencyOrPrimeName", event.target.value)} />
+            <input value={form.agencyOrPrimeName} onChange={(event) => updateField("agencyOrPrimeName", event.target.value)} required />
           </label>
           <label>
             <span>Role</span>
@@ -3799,6 +3819,7 @@ function ContractEditor({
               type="date"
               value={form.periodOfPerformanceStart}
               onChange={(event) => updateField("periodOfPerformanceStart", event.target.value)}
+              required
             />
           </label>
           <label>
@@ -3807,6 +3828,7 @@ function ContractEditor({
               type="date"
               value={form.periodOfPerformanceEnd}
               onChange={(event) => updateField("periodOfPerformanceEnd", event.target.value)}
+              required
             />
           </label>
           <label>
@@ -3822,7 +3844,7 @@ function ContractEditor({
           {realCuiModeMessage ? <p className="form-status form-status--error span-2">{realCuiModeMessage}</p> : null}
           <label className="span-2">
             <span>Place of performance</span>
-            <input value={form.placeOfPerformance} onChange={(event) => updateField("placeOfPerformance", event.target.value)} />
+            <input value={form.placeOfPerformance} onChange={(event) => updateField("placeOfPerformance", event.target.value)} required />
           </label>
           <label className="span-2">
             <span>Description</span>
@@ -3831,7 +3853,7 @@ function ContractEditor({
         </div>
       </fieldset>
       <div className="form-actions">
-        <button type="button" onClick={() => save()} disabled={!canManageContracts || contractStatus === "saving"}>
+        <button type="submit" disabled={!canManageContracts || contractStatus === "saving"}>
           {selectedContract ? "Update contract" : "Create contract"}
         </button>
       </div>

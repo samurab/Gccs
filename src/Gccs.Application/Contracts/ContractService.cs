@@ -1146,9 +1146,17 @@ public interface IContractRepository
 }
 
 public sealed class ContractValidationException(IReadOnlyDictionary<string, string[]> errors)
-    : InvalidOperationException("Contract record is missing required fields.")
+    : InvalidOperationException(Summarize(errors))
 {
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
+
+    private static string Summarize(IReadOnlyDictionary<string, string[]> errors)
+    {
+        var messages = errors.Values.SelectMany(value => value).Where(message => !string.IsNullOrWhiteSpace(message)).ToArray();
+        return messages.Length > 0
+            ? string.Join(" ", messages)
+            : "Contract request validation failed.";
+    }
 }
 
 public interface IExtractionJobQueue

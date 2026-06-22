@@ -851,7 +851,7 @@ api.MapPost("/contracts/{contractId:guid}/clauses", async (
             ? ApiProblemDetails.Create(
                 httpContext,
                 "Resource not found",
-                $"Contract '{contractId}' or clause '{request.ClauseLibraryId}' was not found.",
+                $"Contract '{contractId}' or published clause library ID '{request.ClauseLibraryId}' was not found. Use a clause library ID such as 'far-52-204-21', not a contract number.",
                 StatusCodes.Status404NotFound,
                 "resource_not_found")
             : Results.Created($"/api/contracts/{contractId}/clauses/{clause.Id}", clause);
