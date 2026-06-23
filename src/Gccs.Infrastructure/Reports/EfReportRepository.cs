@@ -20,6 +20,8 @@ public sealed class EfReportRepository(
     ICurrentTenantContext tenantContext) : IReportRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private const string MvpReportDisclaimer =
+        "GCCS MVP report for workflow tracking only. This is not legal advice, a certification decision, an assessor determination, a contracting-officer determination, or government endorsement.";
 
     public async Task<IReadOnlyList<ApprovedEvidencePackageDto>> ListApprovedEvidencePackagesAsync(
         CancellationToken cancellationToken = default)
@@ -719,6 +721,7 @@ public sealed class EfReportRepository(
         var html = new StringBuilder();
         html.Append("<!doctype html><html><head><meta charset=\"utf-8\"><title>Compliance status report</title></head><body>");
         html.Append("<h1>Compliance status report</h1>");
+        html.Append("<p>").Append(MvpReportDisclaimer).Append("</p>");
         html.Append("<p>Generated at ").Append(snapshot.GeneratedAt.ToString("O")).Append("</p>");
         html.Append("<ul>");
         html.Append("<li>Total obligations: ").Append(snapshot.TotalObligations).Append("</li>");
@@ -809,6 +812,7 @@ public sealed class EfReportRepository(
         var html = new StringBuilder();
         html.Append("<!doctype html><html><head><meta charset=\"utf-8\"><title>Evidence package</title></head><body>");
         html.Append("<h1>").Append(manifest.Title).Append("</h1>");
+        html.Append("<p>").Append(MvpReportDisclaimer).Append("</p>");
         html.Append("<p>Generated at ").Append(manifest.GeneratedAt.ToString("O")).Append("</p>");
         html.Append("<p>Evidence items: ").Append(manifest.Items.Count).Append("</p>");
         html.Append("<ul>");

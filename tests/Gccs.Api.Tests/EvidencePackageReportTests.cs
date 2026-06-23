@@ -115,6 +115,9 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
         Assert.Contains(ids.ObligationId, report.Manifest.Scope.ObligationIds);
         Assert.True(item.ManifestedAt <= DateTimeOffset.UtcNow.AddMinutes(1));
         Assert.Contains("Evidence package", report.ExportHtml, StringComparison.Ordinal);
+        Assert.Contains("not legal advice", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("a certification decision", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("government endorsement", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

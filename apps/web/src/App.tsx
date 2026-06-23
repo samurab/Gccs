@@ -635,8 +635,20 @@ export function App() {
     function handleHashChange() {
       const nextRoute = getInitialRoute();
       const nextItem = navigationItems.find((item) => item.route === nextRoute);
+      const hasLoadedAccess = access.userId !== null || access.permissions.length > 0 || access.roles.length > 0;
 
-      if (!nextItem || !hasAnyPermission(access, nextItem.permissions)) {
+      if (!nextItem) {
+        setActiveRoute("dashboard");
+        window.history.replaceState(null, "", "#/dashboard");
+        return;
+      }
+
+      if (!hasLoadedAccess) {
+        setActiveRoute(nextRoute);
+        return;
+      }
+
+      if (!hasAnyPermission(access, nextItem.permissions)) {
         setActiveRoute("dashboard");
         window.history.replaceState(null, "", "#/dashboard");
         return;
@@ -1873,6 +1885,7 @@ export function App() {
             <strong>{overview.mvpDataPosture}</strong>
           </div>
         </header>
+        <PostureNotice currentTenant={currentTenant} />
 
         <WorkspaceState state={loadState}>
           {activeRoute === "dashboard" ? (
@@ -5858,6 +5871,10 @@ function ReportsView({
         <h2>Reports and audit packages</h2>
         <p>Generate tenant-scoped reports from source-backed obligations, CMMC readiness, subcontractor state, and approved evidence.</p>
       </div>
+      <div className="form-status form-status--notice" role="note">
+        Reports are workflow guidance only. They are not legal advice, certification decisions, assessor determinations,
+        contracting-officer determinations, or government endorsements.
+      </div>
       {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
       <div className="report-action-grid">
         <section className="evidence-metadata">
@@ -6043,6 +6060,66 @@ function renderReportSummary(report: ComplianceStatusReport | CmmcReadinessRepor
   const openGaps = Array.isArray(snapshot.openGaps) ? `${snapshot.openGaps.length} CMMC gaps` : null;
   const highRisk = Array.isArray(snapshot.highRiskItems) ? `${snapshot.highRiskItems.length} high-risk items` : null;
   return [totalSubcontractors, openGaps, highRisk].filter(Boolean).join(" · ") || "Snapshot complete";
+}
+
+function PostureNotice({ currentTenant }: { currentTenant: Tenant | null }) {
+  const mode = currentTenant?.dataHandlingMode ?? "Unknown";
+  const details = getPostureDetails(mode);
+
+  return (
+    <section className={`posture-notice posture-notice--${details.tone}`} aria-label="MVP data handling posture">
+      <div>
+        <p className="eyebrow">MVP posture</p>
+        <h2>{details.title}</h2>
+        <p>{details.body}</p>
+      </div>
+      <div className="posture-notice__facts" aria-label="Current mode guardrails">
+        <span>Active tenant: {currentTenant?.displayName ?? "Not loaded"}</span>
+        <strong>Mode: {mode}</strong>
+        <span>{details.limit}</span>
+      </div>
+    </section>
+  );
+}
+
+function getPostureDetails(mode: string) {
+  if (mode === "CuiReady") {
+    return {
+      tone: "ready",
+      title: "CUI-ready workflow gate is active",
+      body:
+        "This tenant can run CUI-ready workflows only after the shared responsibility matrix and approval checklist gates are satisfied. Continue to confirm classification before evidence, report, and extraction actions.",
+      limit: "Reports remain workflow guidance, not certification or legal determinations."
+    };
+  }
+
+  if (mode === "DemoSandbox") {
+    return {
+      tone: "sandbox",
+      title: "DemoSandbox allows approved synthetic CUI examples only",
+      body:
+        "Use this tenant for UAT and training with seeded synthetic data. Do not upload real customer CUI, classified, export-controlled, payroll, tax, credential, or other prohibited sensitive data.",
+      limit: "SyntheticCui is limited to approved seeded demo records."
+    };
+  }
+
+  if (mode === "NoCui") {
+    return {
+      tone: "restricted",
+      title: "No-CUI compliance management only",
+      body:
+        "This MVP posture blocks real CUI workflows. Use FCI, unclassified, and synthetic non-sensitive records only unless the tenant is formally moved through the CUI-ready approval gate.",
+      limit: "Real CUI, classified, and export-controlled data are blocked."
+    };
+  }
+
+  return {
+    tone: "restricted",
+    title: "Tenant mode is not loaded",
+    body:
+      "Data handling controls depend on the active tenant. Avoid upload, evidence, report, and extraction actions until the tenant context is available.",
+    limit: "Refresh the app or restart the API if this state persists."
+  };
 }
 
 function NotificationPreferencesPanel({

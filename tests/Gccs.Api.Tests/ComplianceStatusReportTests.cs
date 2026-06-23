@@ -61,6 +61,9 @@ public sealed class ComplianceStatusReportTests : IClassFixture<WebApplicationFa
         Assert.Equal(2, report.Snapshot.SubcontractorGaps);
         Assert.Contains(report.Snapshot.HighRiskItems, item => item.Contains("High risk obligation", StringComparison.Ordinal));
         Assert.Contains("Compliance status report", report.ExportHtml);
+        Assert.Contains("not legal advice", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("a certification decision", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("government endorsement", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

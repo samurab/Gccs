@@ -198,6 +198,65 @@ main {
   text-align: right;
 }
 
+.posture-notice {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.36fr);
+  margin: 0 auto 18px;
+  max-width: 1180px;
+  padding: 14px 16px;
+}
+
+.posture-notice h2 {
+  font-size: 1.05rem;
+  letter-spacing: 0;
+  margin: 2px 0 4px;
+}
+
+.posture-notice p {
+  line-height: 1.48;
+  margin: 0;
+}
+
+.posture-notice__facts {
+  background: rgb(255 255 255 / 0.62);
+  border: 1px solid rgb(255 255 255 / 0.72);
+  border-radius: 6px;
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+}
+
+.posture-notice__facts span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.posture-notice__facts strong {
+  font-size: 0.94rem;
+  overflow-wrap: anywhere;
+}
+
+.posture-notice--restricted {
+  background: var(--amber-soft);
+  border-color: rgb(168 93 0 / 0.26);
+}
+
+.posture-notice--sandbox {
+  background: var(--blue-soft);
+  border-color: rgb(45 102 153 / 0.26);
+}
+
+.posture-notice--ready {
+  background: var(--teal-soft);
+  border-color: rgb(12 118 111 / 0.26);
+}
+
 .notification-center {
   position: relative;
 }
@@ -779,6 +838,11 @@ dt {
 .form-status--error {
   background: var(--red-soft);
   color: var(--red);
+}
+
+.form-status--notice {
+  background: var(--blue-soft);
+  color: var(--blue);
 }
 
 label:has(:required) > span:first-child::after {
@@ -2089,6 +2153,7 @@ textarea:required:user-invalid {
   }
 
   .workspace-hero,
+  .posture-notice,
   .work-grid,
   .evidence-metadata__workspace,
   .contract-workspace,
