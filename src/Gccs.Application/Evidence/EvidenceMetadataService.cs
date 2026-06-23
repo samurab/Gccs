@@ -27,6 +27,7 @@ public sealed class EvidenceMetadataService(
     {
         var normalized = Normalize(request);
         Validate(normalized);
+        await ValidateReferencesAsync(normalized, cancellationToken);
         await classificationPolicy.EnsureAllowedAsync(
             normalized.Classification ?? ContentClassificationPolicy.DefaultUnclassified(),
             TenantDataHandlingWorkflow.EvidenceUpload,
@@ -47,6 +48,7 @@ public sealed class EvidenceMetadataService(
     {
         var normalized = Normalize(request);
         Validate(normalized);
+        await ValidateReferencesAsync(normalized, cancellationToken);
         await classificationPolicy.EnsureAllowedAsync(
             normalized.Classification ?? ContentClassificationPolicy.DefaultUnclassified(),
             TenantDataHandlingWorkflow.EvidenceUpload,
@@ -142,6 +144,23 @@ public sealed class EvidenceMetadataService(
         {
             throw new EvidenceMetadataValidationException("Evidence tags must be 80 characters or fewer.");
         }
+    }
+
+    private async Task ValidateReferencesAsync(
+        UpsertEvidenceMetadataRequest request,
+        CancellationToken cancellationToken)
+    {
+        var missingControlIds = await repository.FindMissingControlIdsAsync(request.ControlIds, cancellationToken);
+
+        if (missingControlIds.Count == 0)
+        {
+            return;
+        }
+
+        throw new EvidenceMetadataValidationException(
+            missingControlIds.Count == 1
+                ? $"Control '{missingControlIds[0]}' was not found. Select a control from the suggestions or leave Controls blank."
+                : $"Controls '{string.Join("', '", missingControlIds)}' were not found. Select controls from the suggestions or leave Controls blank.");
     }
 }
 

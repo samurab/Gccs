@@ -2724,6 +2724,13 @@ api.MapGet("/cmmc/assessments", async (
 .RequirePermission(Permission.ViewCmmc)
 .WithName("ListCmmcAssessments");
 
+api.MapGet("/cmmc/controls", async (
+    CmmcAssessmentService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListControlLibraryAsync(cancellationToken)))
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListCmmcControlLibrary");
+
 api.MapGet("/cmmc/assessments/{assessmentId:guid}", async (
     Guid assessmentId,
     CmmcAssessmentService service,

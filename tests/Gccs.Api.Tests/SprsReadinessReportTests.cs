@@ -191,6 +191,20 @@ public sealed class SprsReadinessReportTests
         public Task<IReadOnlyList<CmmcAssessmentDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<CmmcAssessmentDto>>([Assessment]);
 
+        public Task<IReadOnlyList<CmmcControlLibraryDto>> ListControlLibraryAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<CmmcControlLibraryDto>>(
+                statuses.Select(status => new CmmcControlLibraryDto(
+                    status.ControlId,
+                    status.Title,
+                    status.Family,
+                    CmmcLevel.Level2,
+                    status.Requirement,
+                    status.AssessmentObjective,
+                    status.SourceName,
+                    status.SourceUrl,
+                    status.SourceLastReviewedAt,
+                    status.SourceConfidence)).ToArray());
+
         public Task<CmmcAssessmentDto> CreateCurrentTenantAsync(UpsertCmmcAssessmentRequest request, Guid actorUserId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 

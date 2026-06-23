@@ -124,6 +124,33 @@ public sealed class EfEvidenceMetadataRepository(
         return ToDto(entity);
     }
 
+    public async Task<IReadOnlyList<string>> FindMissingControlIdsAsync(
+        IReadOnlyList<string> controlIds,
+        CancellationToken cancellationToken = default)
+    {
+        var requested = controlIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(id => id)
+            .ToArray();
+
+        if (requested.Length == 0)
+        {
+            return [];
+        }
+
+        var existing = await dbContext.Controls
+            .Where(control => requested.Contains(control.Id))
+            .Select(control => control.Id)
+            .ToArrayAsync(cancellationToken);
+
+        return requested
+            .Except(existing, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(id => id)
+            .ToArray();
+    }
+
     public async Task<EvidenceReviewDto?> ApplyCurrentTenantReviewAsync(
         Guid evidenceItemId,
         EvidenceReviewDecision decision,

@@ -1,0 +1,267 @@
+- generic [ref=e3]:
+  - link "Skip to workspace content" [ref=e4] [cursor=pointer]:
+    - /url: "#workspace-content"
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e8]
+      - generic [ref=e11]:
+        - strong [ref=e12]: GCCS
+        - generic [ref=e13]: No-CUI workspace
+    - navigation "Primary workspace navigation" [ref=e14]:
+      - list [ref=e15]:
+        - listitem [ref=e16]:
+          - link "Dashboard Workspace overview" [ref=e17] [cursor=pointer]:
+            - /url: "#/dashboard"
+            - img [ref=e18]
+            - generic [ref=e23]:
+              - strong [ref=e24]: Dashboard
+              - generic [ref=e25]: Workspace overview
+        - listitem [ref=e43]:
+          - link "Profile Company compliance profile" [ref=e44] [cursor=pointer]:
+            - /url: "#/profile"
+            - img [ref=e45]
+            - generic [ref=e49]:
+              - strong [ref=e50]: Profile
+              - generic [ref=e51]: Company compliance profile
+        - listitem [ref=e52]:
+          - link "Contracts Contract and clause intake" [ref=e53] [cursor=pointer]:
+            - /url: "#/contracts"
+            - img [ref=e54]
+            - generic [ref=e59]:
+              - strong [ref=e60]: Contracts
+              - generic [ref=e61]: Contract and clause intake
+        - listitem [ref=e62]:
+          - link "Obligations Source-backed obligation matrix" [ref=e63] [cursor=pointer]:
+            - /url: "#/obligations"
+            - img [ref=e64]
+            - generic [ref=e68]:
+              - strong [ref=e69]: Obligations
+              - generic [ref=e70]: Source-backed obligation matrix
+        - listitem [ref=e71]:
+          - link "Calendar Tasks, renewals, and reminders" [ref=e72] [cursor=pointer]:
+            - /url: "#/calendar"
+            - img [ref=e73]
+            - generic [ref=e77]:
+              - strong [ref=e78]: Calendar
+              - generic [ref=e79]: Tasks, renewals, and reminders
+        - listitem [ref=e80]:
+          - link "Evidence No-CUI evidence vault" [active] [ref=e81] [cursor=pointer]:
+            - /url: "#/evidence"
+            - img [ref=e82]
+            - generic [ref=e85]:
+              - strong [ref=e86]: Evidence
+              - generic [ref=e87]: No-CUI evidence vault
+        - listitem [ref=e88]:
+          - link "CMMC Readiness and control tracking" [ref=e89] [cursor=pointer]:
+            - /url: "#/cmmc"
+            - img [ref=e90]
+            - generic [ref=e93]:
+              - strong [ref=e94]: CMMC
+              - generic [ref=e95]: Readiness and control tracking
+        - listitem [ref=e96]:
+          - link "Subcontractors Flow-down and supplier status" [ref=e97] [cursor=pointer]:
+            - /url: "#/subcontractors"
+            - img [ref=e98]
+            - generic [ref=e102]:
+              - strong [ref=e103]: Subcontractors
+              - generic [ref=e104]: Flow-down and supplier status
+        - listitem [ref=e105]:
+          - link "Reports Audit-ready exports" [ref=e106] [cursor=pointer]:
+            - /url: "#/reports"
+            - img [ref=e107]
+            - generic [ref=e110]:
+              - strong [ref=e111]: Reports
+              - generic [ref=e112]: Audit-ready exports
+        - listitem [ref=e113]:
+          - link "Settings Tenant access and workspace controls" [ref=e114] [cursor=pointer]:
+            - /url: "#/settings"
+            - img [ref=e115]
+            - generic [ref=e118]:
+              - strong [ref=e119]: Settings
+              - generic [ref=e120]: Tenant access and workspace controls
+  - main [ref=e26]:
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - paragraph [ref=e29]: GCCS Compliance Workspace
+        - heading "Evidence" [level=1] [ref=e352]
+      - generic "Current tenant context" [ref=e31]:
+        - group [ref=e32]:
+          - generic "Notifications" [ref=e33] [cursor=pointer]:
+            - img [ref=e34]
+        - generic [ref=e37]: developer@gccs.local
+        - strong [ref=e38]: No-CUI / compliance management only
+    - region "Evidence upload workflow" [ref=e353]:
+      - generic [ref=e354]:
+        - paragraph [ref=e355]: Evidence vault
+        - heading "No-CUI evidence management" [level=2] [ref=e356]
+        - paragraph [ref=e357]: Organize evidence by obligation, contract, control, vendor, employee, expiration, approval status, and audit history.
+      - region "Evidence metadata" [ref=e358]:
+        - generic [ref=e359]:
+          - generic [ref=e360]:
+            - heading "Evidence metadata" [level=3] [ref=e361]
+            - paragraph [ref=e362]: Create reusable proof records with tags, expiration dates, status, and source links.
+          - button "New evidence" [ref=e363]
+        - generic [ref=e364]:
+          - generic [ref=e365]:
+            - heading "Evidence list" [level=4] [ref=e366]
+            - generic "Evidence list" [ref=e367]:
+              - button "Unknown classification package test Approved · Security · 2026-02-28 Unknown" [ref=e368] [cursor=pointer]:
+                - strong [ref=e369]: Unknown classification package test
+                - generic [ref=e370]: Approved · Security · 2026-02-28
+                - generic [ref=e371]: Unknown
+              - button "Synthetic Expiring Insurance Evidence Requested · Compliance · 2026-12-31 Unclassified" [ref=e372] [cursor=pointer]:
+                - strong [ref=e373]: Synthetic Expiring Insurance Evidence
+                - generic [ref=e374]: Requested · Compliance · 2026-12-31
+                - generic [ref=e375]: Unclassified
+              - button "Vendor telecom attestation - synthetic Requested · Contracts · 2026-12-31 Fci" [ref=e376] [cursor=pointer]:
+                - strong [ref=e377]: Vendor telecom attestation - synthetic
+                - generic [ref=e378]: Requested · Contracts · 2026-12-31
+                - generic [ref=e379]: Fci
+              - button "Synthetic system boundary narrative InReview · Security · 2027-02-28 Unclassified" [ref=e380] [cursor=pointer]:
+                - strong [ref=e381]: Synthetic system boundary narrative
+                - generic [ref=e382]: InReview · Security · 2027-02-28
+                - generic [ref=e383]: Unclassified
+              - button "Unknown classification package test InReview · Security · 2027-02-28 Unknown" [ref=e384] [cursor=pointer]:
+                - strong [ref=e385]: Unknown classification package test
+                - generic [ref=e386]: InReview · Security · 2027-02-28
+                - generic [ref=e387]: Unknown
+              - button "Access control policy - synthetic InReview · Security · 2027-03-31 Fci" [ref=e388] [cursor=pointer]:
+                - strong [ref=e389]: Access control policy - synthetic
+                - generic [ref=e390]: InReview · Security · 2027-03-31
+                - generic [ref=e391]: Fci
+              - button "Synthetic Access Control Policy Requested · Security · No expiration Unclassified" [ref=e392] [cursor=pointer]:
+                - strong [ref=e393]: Synthetic Access Control Policy
+                - generic [ref=e394]: Requested · Security · No expiration
+                - generic [ref=e395]: Unclassified
+              - button "synthetic-evidence.txt InReview · Compliance · No expiration Unclassified" [ref=e396] [cursor=pointer]:
+                - strong [ref=e397]: synthetic-evidence.txt
+                - generic [ref=e398]: InReview · Compliance · No expiration
+                - generic [ref=e399]: Unclassified
+          - generic [ref=e400]:
+            - group [ref=e401]:
+              - generic [ref=e402]:
+                - generic [ref=e403]:
+                  - generic [ref=e404]: Title *
+                  - textbox "Title *" [ref=e405]: Unknown classification package test
+                - generic [ref=e406]:
+                  - generic [ref=e407]: Type
+                  - combobox "Type" [ref=e408]:
+                    - option "Policy"
+                    - option "Training record"
+                    - option "Screenshot"
+                    - option "System configuration"
+                    - option "Vendor attestation"
+                    - option "Subcontractor certification"
+                    - option "Signed flow-down"
+                    - option "Payroll record"
+                    - option "Incident record"
+                    - option "Access review"
+                    - option "Risk assessment" [selected]
+                    - option "Meeting note"
+                    - option "Corrective action plan"
+                    - option "Other"
+                - generic [ref=e409]:
+                  - generic [ref=e410]: Owner *
+                  - combobox "Owner *" [ref=e411]: Security
+                - generic [ref=e412]:
+                  - generic [ref=e413]: Status
+                  - combobox "Status" [ref=e414]:
+                    - option "Draft"
+                    - option "Requested"
+                    - option "Uploaded"
+                    - option "Submitted"
+                    - option "In review"
+                    - option "Approved" [selected]
+                    - option "Rejected"
+                    - option "Expired"
+                    - option "Archived"
+                - generic [ref=e415]:
+                  - generic [ref=e416]: Effective
+                  - textbox "Effective" [ref=e417]: 2026-08-01
+                - generic [ref=e418]:
+                  - generic [ref=e419]: Expires
+                  - textbox "Expires" [ref=e420]: 2026-02-28
+                - generic [ref=e421]:
+                  - generic [ref=e422]: Tags
+                  - textbox "Tags" [ref=e423]: boundary, CUI-ready, synthetic
+                - generic [ref=e424]:
+                  - generic [ref=e425]: Obligations (optional)
+                  - combobox "Obligations (optional)" [ref=e426]
+                - generic [ref=e427]:
+                  - generic [ref=e428]: Controls
+                  - combobox "Controls" [ref=e429]: AC.L2-3.1.3
+                - generic [ref=e430]:
+                  - generic [ref=e431]: Classification
+                  - combobox "Classification" [ref=e432]:
+                    - option "Unclassified"
+                    - option "FCI"
+                    - option "CUI"
+                    - option "Synthetic CUI"
+                    - option "Unknown" [selected]
+                    - option "Prohibited"
+                - generic [ref=e433]:
+                  - generic [ref=e434]: Classification reason
+                  - textbox "Classification reason" [ref=e435]: CUI-ready UAT classification confirmed; synthetic-safe record contains no real customer CUI.
+                - generic [ref=e436]:
+                  - generic [ref=e437]: Description
+                  - textbox "Description" [ref=e438]: Synthetic boundary narrative for UAT only.
+            - generic [ref=e439]:
+              - button "Update metadata" [ref=e440] [cursor=pointer]
+              - button "Review classification" [ref=e441] [cursor=pointer]
+      - region "Classification review queue" [ref=e442]:
+        - generic [ref=e443]:
+          - generic [ref=e444]:
+            - heading "Classification review" [level=3] [ref=e445]
+            - paragraph [ref=e446]: Unknown items are blocked from reports and extraction until reviewed; prohibited items route to escalation.
+          - strong [ref=e447]: "2"
+        - generic [ref=e448]:
+          - article [ref=e449] [cursor=pointer]:
+            - strong [ref=e450]: Unknown classification package test
+            - generic [ref=e451]: EvidenceItem · review
+            - generic [ref=e452]: Unknown
+          - article [ref=e453] [cursor=pointer]:
+            - strong [ref=e454]: Unknown classification package test
+            - generic [ref=e455]: EvidenceItem · review
+            - generic [ref=e456]: Unknown
+      - generic [ref=e457]:
+        - img [ref=e459]
+        - generic [ref=e462]:
+          - paragraph [ref=e463]: Required before upload
+          - heading "No-CUI acknowledgement" [level=3] [ref=e464]
+          - paragraph [ref=e465]: The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.
+          - generic [ref=e466]:
+            - generic [ref=e467]:
+              - term [ref=e468]: Notice version
+              - definition [ref=e469]: no-cui-mvp-v1
+            - generic [ref=e470]:
+              - term [ref=e471]: Status
+              - definition [ref=e472]: Acknowledged
+            - generic [ref=e473]:
+              - term [ref=e474]: Acknowledged
+              - definition [ref=e475]: 6/20/2026, 9:24:07 PM
+      - form "Upload area" [ref=e476]:
+        - generic [ref=e477]:
+          - paragraph [ref=e478]: Evidence files
+          - heading "Upload area" [level=3] [ref=e479]
+        - generic [ref=e480]:
+          - generic [ref=e481]: Evidence file
+          - button "Evidence file" [ref=e482]
+        - generic [ref=e483]:
+          - generic [ref=e484]: Upload classification
+          - combobox "Upload classification" [ref=e485]:
+            - option "Unclassified" [selected]
+            - option "FCI"
+            - option "CUI"
+            - option "Synthetic CUI"
+            - option "Unknown"
+            - option "Prohibited"
+        - generic [ref=e486]:
+          - generic [ref=e487]: Upload classification reason *
+          - textbox "Upload classification reason *" [ref=e488]: User confirmed upload classification.
+        - paragraph [ref=e489]: "Allowed file types: PDF, PNG, JPG, TXT, CSV, DOCX, and XLSX. Maximum size: 25 MB."
+        - button "Upload evidence" [disabled] [ref=e490]:
+          - img [ref=e491]
+          - generic [ref=e494]: Upload evidence
+      - generic [ref=e495]:
+        - heading "No evidence has been uploaded yet" [level=3] [ref=e496]
+        - paragraph [ref=e497]: Accepted uploads remain pending until the malware scan placeholder and future storage workflow are complete.

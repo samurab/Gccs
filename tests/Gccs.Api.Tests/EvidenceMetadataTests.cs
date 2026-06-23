@@ -6,6 +6,7 @@ using Gccs.Application.Audit;
 using Gccs.Application.Evidence;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Cmmc;
 using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
@@ -126,6 +127,26 @@ public sealed class EvidenceMetadataTests : IClassFixture<WebApplicationFactory<
         Assert.Contains(audits, audit => audit.Action == AuditAction.Updated && audit.MetadataJson.Contains("reviewed", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public async Task TC_12_1_5_Rejects_unknown_control_id_before_database_save()
+    {
+        var tenantId = Guid.Parse("12112111-2112-1112-1211-2111211121a5");
+        await using var factory = CreateFactory("tc-12-1-5", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            "/api/evidence-items",
+            CreateRequestBody() with { ControlIds = ["CA.L2-3.12.4"] },
+            tenantId,
+            Permission.ManageEvidence);
+
+        var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Control 'CA.L2-3.12.4' was not found", body);
+    }
+
     private async Task<EvidenceMetadataDto> CreateEvidenceAsync(
         HttpClient client,
         Guid tenantId,
@@ -233,5 +254,27 @@ public sealed class EvidenceMetadataTests : IClassFixture<WebApplicationFactory<
             DataPosture = TenantDataPosture.NoCui,
             CreatedAt = DateTimeOffset.UtcNow
         });
+
+        dbContext.Controls.AddRange(
+            CreateControl("AC.L1-3.1.1", CmmcLevel.Level1),
+            CreateControl("IA.L1-3.5.1", CmmcLevel.Level1),
+            CreateControl("AC.L2-3.1.3", CmmcLevel.Level2));
     }
+
+    private static ControlEntity CreateControl(string id, CmmcLevel level) =>
+        new()
+        {
+            Id = id,
+            Framework = ControlFramework.Cmmc,
+            CmmcLevel = level,
+            Family = id[..2],
+            Title = $"{id} synthetic control",
+            Requirement = $"{id} synthetic requirement.",
+            AssessmentObjective = $"{id} synthetic objective.",
+            EvidenceExamplesJson = "[]",
+            SourceName = "GCCS test fixture",
+            SourceUrl = "https://example.invalid/gccs/test-control",
+            SourceLastReviewedAt = new DateOnly(2026, 6, 18),
+            SourceConfidence = "synthetic-test"
+        };
 }

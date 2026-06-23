@@ -59,6 +59,7 @@ The frontend sends `X-Gccs-Dev-Auth: true` automatically in development. By defa
 | Development Auth Setting | Default Value |
 | --- | --- |
 | Tenant ID | `11111111-1111-1111-1111-111111111111` |
+| Active tenant name | `GCCS Development Tenant` |
 | User ID | `22222222-2222-2222-2222-222222222222` |
 | Email | `developer@gccs.local` |
 | Role | `Owner` |
@@ -74,8 +75,8 @@ To switch to No-CUI:
 | Field | Value |
 | --- | --- |
 | Mode | `NoCui` |
-| Reason | `UAT reset to No-CUI compliance management mode.` |
-| Approval reference | Leave blank |
+| Reason for mode change | `UAT reset to No-CUI compliance management mode.` |
+| Approval checklist ID | Leave blank |
 
 Click `Update mode`.
 
@@ -84,12 +85,12 @@ To switch to CUI-ready, you must first complete `Settings` tab -> `Approval chec
 | Field | Value |
 | --- | --- |
 | Mode | `CuiReady` |
-| Reason | `UAT CUI-ready gate validation after approved checklist.` |
-| Approval reference | Paste the approved checklist ID |
+| Reason for mode change | `UAT CUI-ready gate validation after approved checklist.` |
+| Approval checklist ID | Paste the approved checklist ID |
 
 Click `Update mode`.
 
-Expected gate behavior: `CuiReady` fails if `Approval reference` is blank, invalid, not approved, from another tenant, or older than one year.
+Expected gate behavior: `CuiReady` fails if `Approval checklist ID` is blank, invalid, not approved, from another tenant, or older than one year.
 
 ## UAT-01: Start In Settings And Confirm No-CUI Mode
 
@@ -104,8 +105,8 @@ Goal: Confirm the tenant starts in safe No-CUI mode.
 | Field | Value |
 | --- | --- |
 | Mode | `NoCui` |
-| Reason | `Initial UAT confirmation of No-CUI mode.` |
-| Approval reference | Leave blank |
+| Reason for mode change | `Initial UAT confirmation of No-CUI mode.` |
+| Approval checklist ID | Leave blank |
 
 6. Click `Update mode`.
 7. In the `Tenant data handling mode history` table, confirm a row appears with `New` = `NoCui`.
@@ -227,15 +228,18 @@ Expected result: Evidence records appear in the `Evidence list` with classificat
 
 Goal: Confirm upload intent works only after acknowledgement.
 
-1. In the `Evidence` tab, find the `Evidence file` upload control.
-2. Choose a small synthetic file, for example a TXT file named `uat-mfa-summary.txt`.
-3. Confirm the file contains only this synthetic text:
+1. In the `Evidence` tab, find `Upload area`.
+2. In `Upload area`, find the `Evidence file` upload control.
+3. Choose a small synthetic file, for example a TXT file named `uat-mfa-summary.txt`.
+4. Set `Upload classification` = `Unclassified`.
+5. Set `Upload classification reason` = `User confirmed this synthetic UAT upload contains no CUI or prohibited data.`
+6. Confirm the file contains only this synthetic text:
 
 ```text
 Synthetic UAT evidence. MFA is enabled for test users only. No real customer data, credentials, CUI, classified information, or export-controlled information.
 ```
 
-4. Click `Upload evidence`.
+7. Click `Upload evidence`.
 
 Expected result: The app creates an upload intent or shows the accepted-upload placeholder. If upload is blocked, the error should clearly explain the gate.
 
@@ -428,7 +432,7 @@ Goal: Confirm CMMC readiness setup for No-CUI / FCI-only work.
 | --- | --- |
 | Assessment name | `No-CUI Level 1 readiness workspace` |
 | Target level | `Level 1` |
-| Framework | `FCI safeguarding baseline` |
+| Framework | `FAR basic safeguarding` |
 | Status | `In progress` |
 | Started | `2026-06-15` |
 | Affirmation due | `2027-06-15` |
@@ -466,6 +470,7 @@ Goal: Confirm supplier tracking works.
 | Contact email | `rowan.ellis+uat@gccs.example` |
 | Small business | `Small, SDB` |
 | CMMC status | `Level 1 self-assessment draft` |
+| Required CMMC level from contract | `Level 1` |
 | Insurance expires | `2026-12-15` |
 | NDA status | `Signed` |
 | Workshare % | `18` |
@@ -541,14 +546,14 @@ Goal: Complete the formal gate before switching to `CuiReady`.
 1. Click the `Settings` tab.
 2. Find `Shared responsibility matrix`.
 3. Click `Acknowledge`.
-4. Confirm `Acknowledgement` changes to `Current`.
+4. In the summary cards under `Shared responsibility matrix`, confirm `Matrix acknowledgement status` shows `Current`. You may also see the message `Matrix acknowledgement status is Current.`
 5. Find `Approval checklist`.
 6. Click `New checklist`.
 7. For every checklist row, click `Mark complete`.
 8. Confirm each row shows:
-   - Status `Complete`
-   - Owner
-   - Review date
+   - `Status`: `Complete`
+   - `Owner`: `Security`, or the owner already shown for that checklist item
+   - `Review date`: today's date
 9. In `Review reason`, enter:
 
 ```text
@@ -572,8 +577,8 @@ Goal: Enable the CUI-ready gate using the approved checklist.
 | Field Name | Value |
 | --- | --- |
 | Mode | `CuiReady` |
-| Reason | `UAT CUI-ready gate validation after approved checklist.` |
-| Approval reference | Paste the approved checklist ID from UAT-17 |
+| Reason for mode change | `UAT CUI-ready gate validation after approved checklist.` |
+| Approval checklist ID | Paste the approved checklist ID from UAT-17 |
 
 4. Click `Update mode`.
 5. Confirm the status badge changes to `CuiReady`.
@@ -621,12 +626,13 @@ Positive path:
 | --- | --- |
 | Title | `Synthetic system boundary narrative` |
 | Type | `Risk assessment` |
-| Owner | `Security` |
+| Owner | `Security` (type it if the suggestion list is not open) |
 | Status | `In review` |
 | Effective | `2026-08-01` |
 | Expires | `2027-02-28` |
 | Tags | `CUI-ready, synthetic, boundary` |
-| Controls | `CA.L2-3.12.4` |
+| Obligations | Leave blank, or select an applicable obligation if one is available |
+| Controls | `AC.L2-3.1.3` |
 | Classification | `CUI` |
 | Classification reason | `CUI-ready UAT classification confirmed; synthetic-safe record contains no real customer CUI.` |
 | Description | `Synthetic boundary narrative for UAT only.` |
@@ -637,26 +643,60 @@ Negative checks:
 
 1. Create another evidence metadata record with `Classification` = `Unknown`.
 2. Confirm it appears in `Classification review queue`.
-3. Try to use it in a report package.
-4. Expected: downstream use should be blocked until reviewed.
-5. Select the unknown evidence record.
-6. Change `Classification` to `Prohibited`.
-7. Enter `Classification reason` = `Synthetic prohibited-content gate test.`
-8. Click `Review classification`.
-9. Expected: item remains blocked and should route to escalation/review behavior.
+3. Make sure the unknown evidence record has:
+
+| Field Name | Value |
+| --- | --- |
+| Status | `Approved` |
+| Controls | `AC.L2-3.1.3` |
+| Classification | `Unknown` |
+
+4. Click the `Reports` tab.
+5. In `Evidence package builder`, enter:
+
+| Field Name | Value |
+| --- | --- |
+| Package title | `Unknown classification package test` |
+| Obligation | `No obligation scope` |
+| Contract | `No contract scope` |
+| Control ID | `AC.L2-3.1.3` |
+| Subcontractor | `No subcontractor scope` |
+| Include draft/rejected evidence when authorized | Leave unchecked |
+
+6. Click `Generate package`.
+7. Expected: package generation is blocked until the evidence classification is reviewed. If the package generates successfully but does not include the unknown evidence, confirm the evidence is `Approved` and linked to `AC.L2-3.1.3`, then retry.
+8. Return to the `Evidence` tab.
+9. Select the unknown evidence record from `Evidence list`.
+10. Change `Classification` to `Prohibited`.
+11. Enter `Classification reason` = `Synthetic prohibited-content gate test.`
+12. Click `Review classification`.
+13. Expected: item remains blocked and should route to escalation/review behavior.
 
 ## UAT-21: DemoSandbox Synthetic CUI Check
 
 Goal: Confirm synthetic CUI seed data is isolated to demo tenants.
 
-1. Use a `DemoSandbox` tenant if one has been created through API/admin setup. The current UI does not provide a tenant switcher.
-2. In `Settings` -> `Data handling mode`, confirm `Mode` = `DemoSandbox`.
-3. Seed the approved synthetic dataset if your environment exposes the seed action.
-4. Confirm seeded records display:
+1. Click the `Settings` tab.
+2. Find `Data handling mode` at the top of the page.
+3. Confirm `Active tenant`, `Tenant ID`, and `Current mode` are visible.
+4. Confirm `Current mode` = `DemoSandbox`. If it does not, set `Mode` = `DemoSandbox`, enter `Reason for mode change` = `UAT validation of approved synthetic demo dataset.`, leave `Approval checklist ID` blank, and click `Update mode`.
+5. The current UI does not provide a tenant switcher. Do not look for a sign-in, tenant picker, or tenant creation form during this UAT.
+6. Find `Demo sandbox seed`.
+7. Confirm the panel shows:
+   - `Required mode`: `DemoSandbox`
+   - `Dataset version`: `2026.06.phase1a`
+   - `Classification`: `SyntheticCui`
+8. Click `Seed synthetic data`.
+9. Confirm the success message says the synthetic demo dataset was seeded and references dataset version `2026.06.phase1a`.
+10. Confirm seeded records display:
    - `Synthetic demo data`
    - `SyntheticCui`
-   - Dataset version `2026.06.phase1a`
-5. Try to upload a customer file classified as `CUI`.
+11. Click the `Evidence` tab.
+12. Find `Upload area`.
+13. Select a harmless synthetic file in `Evidence file`.
+14. Set `Upload classification` = `CUI`.
+15. Set `Upload classification reason` = `DemoSandbox negative test: user attempted customer CUI upload classification.`
+16. Click `Upload evidence`.
 
 Expected result: Approved synthetic seed content is usable in `DemoSandbox`; real CUI upload is blocked.
 
@@ -665,18 +705,29 @@ Expected result: Approved synthetic seed content is usable in `DemoSandbox`; rea
 Goal: Confirm traceability and tenant isolation.
 
 1. Click `Settings`.
-2. In `Audit log`, run these filters one at a time:
+2. Scroll to the `Audit log` section near the bottom of the page.
+3. Use the visible filter fields `Action`, `Entity`, `From`, and `To`.
+4. For this UAT, leave `From` and `To` blank unless you intentionally want to narrow the date range.
+5. `Expected Summary` is not a form field. It is the text to confirm in the `Summary` column of the results table after filtering.
+6. In `Audit log`, run these filters one at a time:
 
-| Action | Entity | Expected Events |
-| --- | --- | --- |
-| `Created` | `SharedResponsibilityMatrixAcknowledgement` | Matrix acknowledgement |
-| `Approved` | `CuiReadyApprovalChecklist` | Checklist approval |
-| `Updated` | `Tenant` | Data handling mode changes |
-| `Rejected` | `TenantDataHandlingModePolicy` | Blocked No-CUI/CUI attempts |
+| Test ID | Action filter | Entity filter | From | To | Expected row values | Prerequisite if no row appears |
+| --- | --- | --- | --- | --- | --- | --- |
+| `UAT-22-A` | `Created` | `SharedResponsibilityMatrixAcknowledgement` | Leave blank | Leave blank | `Action` = `Created`; `Entity` = `SharedResponsibilityMatrixAcknowledgement`; `Summary` contains `Shared responsibility matrix acknowledged.` | Go to `Shared responsibility matrix`, click `Acknowledge`, then rerun the filter. |
+| `UAT-22-B` | `Created` | `CuiReadyApprovalChecklist` | Leave blank | Leave blank | `Action` = `Created`; `Entity` = `CuiReadyApprovalChecklist`; `Summary` contains `CUI-ready approval checklist was created.` | Go to `Approval checklist`, click `New checklist`, then rerun the filter. |
+| `UAT-22-C` | `Approved` | `CuiReadyApprovalChecklist` | Leave blank | Leave blank | `Action` = `Approved`; `Entity` = `CuiReadyApprovalChecklist`; `Summary` contains `CUI-ready approval checklist was approved.` | Complete every checklist row, enter `Review reason`, click `Submit`, click `Approve`, then rerun the filter. |
+| `UAT-22-D` | `Updated` | `Tenant` | Leave blank | Leave blank | `Action` = `Updated`; `Entity` = `Tenant`; `Summary` contains `data handling mode changed to DemoSandbox`, `NoCui`, or `CuiReady`. | In `Data handling mode`, update `Mode` with a reason, then rerun the filter. |
+| `UAT-22-E` | `Rejected` | `TenantDataHandlingModePolicy` | Leave blank | Leave blank | `Action` = `Rejected`; `Entity` = `TenantDataHandlingModePolicy`; `Summary` contains `Tenant data handling mode blocked a restricted workflow.` | In `DemoSandbox`, go to `Evidence` -> `Upload area`, set `Upload classification` = `CUI`, and click `Upload evidence`; then rerun the filter. |
+| `UAT-22-F` | `Uploaded` | `EvidenceFileVersion` | Leave blank | Leave blank | `Action` = `Uploaded`; `Entity` = `EvidenceFileVersion`; `Summary` contains `Evidence file upload metadata was accepted and versioned.` | In an allowed mode/classification path, upload a harmless synthetic file from `Evidence` -> `Upload area`, then rerun the filter. |
+| `UAT-22-G` | `Created` | `SyntheticDemoSeed` | Leave blank | Leave blank | `Action` = `Created`; `Entity` = `SyntheticDemoSeed`; `Summary` contains `Synthetic demo dataset seed completed.` | In `Settings` -> `Demo sandbox seed`, click `Seed synthetic data`, then rerun the filter. |
+| `UAT-22-H` | `Created` | `Report` | Leave blank | Leave blank | `Action` = `Created`; `Entity` = `Report`; `Summary` contains `report was generated` or `Evidence package was generated.` | Go to `Reports`, generate a compliance, CMMC, supplier, or evidence package report, then rerun the filter. |
 
-3. Confirm audit rows show date, actor, action, entity, and summary.
-4. If you have access to `Neighbor Tenant Controls LLC`, repeat report/dashboard checks there.
-5. Confirm no records from Aegis tenants appear in the neighbor tenant.
+7. Click `Filter` after each filter combination.
+8. Confirm audit rows show `Date`, `Actor`, `Action`, `Entity`, and `Summary`.
+9. Confirm the `Actor` value is either the local development user ID or `System`.
+10. Confirm the `Summary` text matches the action you performed in the same tenant.
+11. If you have access to a second tenant, repeat report/dashboard checks there.
+12. Confirm no records from `GCCS Development Tenant` appear in the second tenant.
 
 Expected result: Audit history is traceable, and tenant data does not leak across tenants.
 
@@ -686,7 +737,7 @@ UAT passes when:
 
 - A new user can follow the tabs and forms without engineering help.
 - `NoCui` blocks all real CUI workflows.
-- `CuiReady` cannot be enabled without approved checklist and approval reference.
+- `CuiReady` cannot be enabled without an approved checklist and valid `Approval checklist ID`.
 - `CuiReady` still enforces classification and workflow approval checks.
 - `DemoSandbox` permits only approved synthetic demo CUI content.
 - Reports are tenant-scoped and avoid legal, certification, official pass/fail, or government endorsement claims.

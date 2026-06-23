@@ -90,6 +90,10 @@ public interface IEvidenceMetadataRepository
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<string>> FindMissingControlIdsAsync(
+        IReadOnlyList<string> controlIds,
+        CancellationToken cancellationToken = default);
+
     Task<EvidenceReviewDto?> ApplyCurrentTenantReviewAsync(
         Guid evidenceItemId,
         EvidenceReviewDecision decision,

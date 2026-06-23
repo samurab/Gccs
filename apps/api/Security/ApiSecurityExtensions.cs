@@ -101,6 +101,17 @@ public static class ApiSecurityExtensions
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                await context.HttpContext.Response.WriteAsJsonAsync(new
+                {
+                    title = "Too many API requests",
+                    detail = "The API rate limit was reached. Wait briefly and try again.",
+                    status = StatusCodes.Status429TooManyRequests,
+                    code = "rate_limit_exceeded"
+                }, cancellationToken);
+            };
             options.AddPolicy("api", httpContext =>
             {
                 var partitionKey =

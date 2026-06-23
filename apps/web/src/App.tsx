@@ -57,6 +57,7 @@ import {
   getApprovedEvidencePackages,
   getCompanyProfile,
   getCmmcAssessments,
+  getCmmcControlLibrary,
   getCmmcControlStatuses,
   getCmmcPoamItems,
   getSubcontractors,
@@ -92,6 +93,7 @@ import {
   searchCompanyEntity,
   searchSubcontractorEntity,
   searchClauseLibrary,
+  seedDemoTenant,
   removeContractClause,
   rejectClauseCandidate,
   startContractDocumentExtraction,
@@ -118,6 +120,7 @@ import {
   type CompanyProfile,
   type CompanyEntityLookupResult,
   type CmmcAssessment,
+  type CmmcControlLibrary,
   type CmmcControlStatus,
   type CmmcPoamItem,
   type ComplianceOverview,
@@ -391,6 +394,19 @@ const navigationItems: NavigationItem[] = [
 ];
 
 const moduleIcons = [Building2, FileSearch, ClipboardCheck, CalendarClock, Archive, ShieldCheck, GitBranch, FolderKanban];
+const ownerFunctionOptions = [
+  ["Contracts", "Contracts"],
+  ["Compliance", "Compliance"],
+  ["ComplianceManager", "Compliance manager"],
+  ["Security", "Security"],
+  ["IT/security", "IT/security"],
+  ["ProgramManagement", "Program management"],
+  ["Finance", "Finance"],
+  ["HR/payroll", "HR/payroll"],
+  ["Legal", "Legal"],
+  ["Reports", "Reports"],
+  ["Subcontractors", "Subcontractors"]
+] as const;
 const defaultAuditLogFilters: AuditLogFilters = {
   actorUserId: "",
   action: "",
@@ -468,6 +484,14 @@ function defaultCalendarQuery(): CalendarEventQueryParams {
   };
 }
 
+function ownerOptionsWith(currentValue: string) {
+  if (!currentValue || ownerFunctionOptions.some(([value]) => value === currentValue)) {
+    return ownerFunctionOptions;
+  }
+
+  return [[currentValue, formatOwnerLabel(currentValue)], ...ownerFunctionOptions] as const;
+}
+
 function defaultCalendarFilters(): CalendarFilters {
   const query = defaultCalendarQuery();
 
@@ -522,6 +546,7 @@ export function App() {
   const [evidenceItems, setEvidenceItems] = useState<EvidenceMetadata[]>([]);
   const [classificationReviewItems, setClassificationReviewItems] = useState<ContentClassificationReviewItem[]>([]);
   const [cmmcAssessments, setCmmcAssessments] = useState<CmmcAssessment[]>([]);
+  const [cmmcControlLibrary, setCmmcControlLibrary] = useState<CmmcControlLibrary[]>([]);
   const [cmmcControls, setCmmcControls] = useState<CmmcControlStatus[]>([]);
   const [cmmcPoamItems, setCmmcPoamItems] = useState<CmmcPoamItem[]>([]);
   const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
@@ -588,6 +613,8 @@ export function App() {
   const [cuiReadyChecklistMessage, setCuiReadyChecklistMessage] = useState("");
   const [matrixAcknowledgementStatus, setMatrixAcknowledgementStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [matrixAcknowledgementMessage, setMatrixAcknowledgementMessage] = useState("");
+  const [demoSeedStatus, setDemoSeedStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [demoSeedMessage, setDemoSeedMessage] = useState("");
 
   const visibleNavigation = useMemo(
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
@@ -674,7 +701,9 @@ export function App() {
         const nextContracts = canLoadContracts ? await getContracts() : [];
         const nextObligationDashboardItems = canLoadObligations ? await getContractObligations() : [];
         const nextCalendarEvents = canLoadCalendar ? await getCalendarEvents(defaultCalendarQuery()) : [];
-        const nextCmmcAssessments = canLoadCmmc ? await getCmmcAssessments() : [];
+        const [nextCmmcAssessments, nextCmmcControlLibrary] = canLoadCmmc
+          ? await Promise.all([getCmmcAssessments(), getCmmcControlLibrary()])
+          : [[], []];
         const nextCmmcControls = nextCmmcAssessments[0] ? await getCmmcControlStatuses(nextCmmcAssessments[0].id) : [];
         const nextCmmcPoamItems = nextCmmcAssessments[0] ? await getCmmcPoamItems(nextCmmcAssessments[0].id) : [];
         const nextSubcontractors = canLoadSubcontractors ? await getSubcontractors() : [];
@@ -733,6 +762,7 @@ export function App() {
           setEvidenceItems(nextEvidenceItems);
           setClassificationReviewItems(nextClassificationReviewItems);
           setCmmcAssessments(nextCmmcAssessments);
+          setCmmcControlLibrary(nextCmmcControlLibrary);
           setCmmcControls(nextCmmcControls);
           setCmmcPoamItems(nextCmmcPoamItems);
           setSubcontractors(nextSubcontractors);
@@ -863,6 +893,62 @@ export function App() {
       setTenantModeMessage(error instanceof Error ? error.message : "Tenant data handling mode could not be updated.");
       return;
     }
+  }
+
+  async function handleDemoTenantSeed() {
+    if (!currentTenant) {
+      setDemoSeedStatus("failed");
+      setDemoSeedMessage("Tenant context has not loaded yet. Demo seed cannot run until the active tenant is available.");
+      return;
+    }
+
+    setDemoSeedStatus("saving");
+    setDemoSeedMessage("");
+    const result = await seedDemoTenant();
+
+    if (!result.data) {
+      setDemoSeedStatus("failed");
+      setDemoSeedMessage(result.error ?? "Synthetic demo dataset could not be seeded.");
+      return;
+    }
+
+    const [
+      nextEvidenceItems,
+      nextClassificationReviewItems,
+      nextContracts,
+      nextObligationDashboardItems,
+      nextCmmcAssessments,
+      nextCmmcControlLibrary,
+      nextSubcontractors,
+      nextApprovedEvidencePackages
+    ] = await Promise.all([
+      getEvidenceItems(),
+      getContentClassificationReviewItems(),
+      getContracts(),
+      getContractObligations(),
+      getCmmcAssessments(),
+      getCmmcControlLibrary(),
+      getSubcontractors(),
+      getApprovedEvidencePackages()
+    ]);
+
+    const nextCmmcControls = nextCmmcAssessments[0] ? await getCmmcControlStatuses(nextCmmcAssessments[0].id) : [];
+    const nextCmmcPoamItems = nextCmmcAssessments[0] ? await getCmmcPoamItems(nextCmmcAssessments[0].id) : [];
+
+    setEvidenceItems(nextEvidenceItems);
+    setClassificationReviewItems(nextClassificationReviewItems);
+    setContracts(nextContracts);
+    setObligationDashboardItems(nextObligationDashboardItems);
+    setCmmcAssessments(nextCmmcAssessments);
+    setCmmcControlLibrary(nextCmmcControlLibrary);
+    setCmmcControls(nextCmmcControls);
+    setCmmcPoamItems(nextCmmcPoamItems);
+    setSubcontractors(nextSubcontractors);
+    setApprovedEvidencePackages(nextApprovedEvidencePackages);
+    setDemoSeedStatus("saved");
+    setDemoSeedMessage(
+      `Synthetic demo dataset ${result.data.datasetVersion} seeded. Created ${result.data.createdCount} records.`
+    );
   }
 
   async function handleCuiReadyChecklistCreate() {
@@ -1404,7 +1490,11 @@ export function App() {
     setAcknowledgementStatus("failed");
   }
 
-  async function handleEvidenceUploadIntentSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleEvidenceUploadIntentSubmit(
+    event: FormEvent<HTMLFormElement>,
+    classification: string,
+    classificationReason: string
+  ) {
     event.preventDefault();
 
     if (!selectedEvidenceFile) {
@@ -1415,12 +1505,12 @@ export function App() {
 
     setUploadStatus("creating");
     setUploadMessage("");
-    const uploadIntent = await createEvidenceUploadIntent(selectedEvidenceFile);
+    const uploadIntent = await createEvidenceUploadIntent(selectedEvidenceFile, classification, classificationReason);
 
     if (uploadIntent.data) {
       setUploadStatus("created");
       setUploadMessage(
-        `Upload intent created for ${uploadIntent.data.fileName}. Validation ${uploadIntent.data.validationStatus}; malware scan ${uploadIntent.data.malwareScanStatus}.`
+        `Upload intent created for ${uploadIntent.data.fileName}. Classification ${uploadIntent.data.classification.classification}; validation ${uploadIntent.data.validationStatus}; malware scan ${uploadIntent.data.malwareScanStatus}.`
       );
       return;
     }
@@ -1860,9 +1950,11 @@ export function App() {
               acknowledgement={noCuiAcknowledgement}
               acknowledgementStatus={acknowledgementStatus}
               canManageEvidence={canManageEvidence}
+              controls={cmmcControlLibrary}
               evidenceItems={evidenceItems}
               evidenceMetadataMessage={evidenceMetadataMessage}
               evidenceMetadataStatus={evidenceMetadataStatus}
+              obligationItems={obligationDashboardItems}
               selectedEvidenceItemId={selectedEvidenceItemId}
               selectedFile={selectedEvidenceFile}
               uploadMessage={uploadMessage}
@@ -1926,6 +2018,7 @@ export function App() {
               approvedEvidencePackages={approvedEvidencePackages}
               assessments={cmmcAssessments}
               canManageReports={canManageReports}
+              controls={cmmcControlLibrary}
               contracts={contracts}
               evidenceItems={evidenceItems}
               generatedReports={generatedReports}
@@ -1941,6 +2034,7 @@ export function App() {
           ) : activeRoute === "settings" ? (
             <SettingsView
               canManageTenant={canManageTenant}
+              canSeedDemoDataset={canManageObligations}
               canManageUsers={canManageUsers}
               canViewAuditLog={canViewAuditLog}
               auditLogFilters={auditLogFilters}
@@ -1948,6 +2042,8 @@ export function App() {
               auditLogs={auditLogs}
               currentTenant={currentTenant}
               currentUserId={access.userId}
+              demoSeedMessage={demoSeedMessage}
+              demoSeedStatus={demoSeedStatus}
               cuiReadyChecklists={cuiReadyChecklists}
               cuiReadyChecklistMessage={cuiReadyChecklistMessage}
               cuiReadyChecklistStatus={cuiReadyChecklistStatus}
@@ -1974,6 +2070,7 @@ export function App() {
               onCuiReadyChecklistCreate={handleCuiReadyChecklistCreate}
               onCuiReadyChecklistItemUpdate={handleCuiReadyChecklistItemUpdate}
               onCuiReadyChecklistReview={handleCuiReadyChecklistReview}
+              onDemoTenantSeed={handleDemoTenantSeed}
               onSharedResponsibilityMatrixAcknowledge={handleSharedResponsibilityMatrixAcknowledge}
               onInviteEmailChange={setInviteEmail}
               onInviteRoleChange={setInviteRole}
@@ -2145,27 +2242,54 @@ function CalendarView({
         </label>
         <label>
           Owner
-          <select
+          <input
+            list="calendar-owner-options"
             value={filters.owner}
             onChange={(event) => onFilterChange({ ...filters, owner: event.target.value })}
-          >
-            <option value="">Any</option>
+            placeholder="Any owner"
+          />
+          <datalist id="calendar-owner-options">
             {ownerOptions.map((ownerOption) => (
               <option key={ownerOption} value={ownerOption}>
                 {formatOwnerLabel(ownerOption)}
               </option>
             ))}
-          </select>
+          </datalist>
         </label>
         <label>
           Status
-          <select value={filters.status} onChange={(event) => onFilterChange({ ...filters, status: event.target.value })}>
-            <option value="">Any</option>
-            <option value="open">Open</option>
-            <option value="in_progress">In progress</option>
-            <option value="waiting_for_review">Waiting for review</option>
-            <option value="completed">Completed</option>
-          </select>
+          <input
+            list="calendar-status-options"
+            value={filters.status}
+            onChange={(event) => onFilterChange({ ...filters, status: event.target.value })}
+            placeholder="Any status"
+          />
+          <datalist id="calendar-status-options">
+            {[
+              "open",
+              "in_progress",
+              "waiting_for_review",
+              "completed",
+              "canceled",
+              "overdue",
+              "satisfied",
+              "NotStarted",
+              "InProgress",
+              "Submitted",
+              "Accepted",
+              "Late",
+              "Waived",
+              "Queued",
+              "Generating",
+              "Complete",
+              "Failed",
+              "Archived"
+            ].map((statusOption) => (
+              <option key={statusOption} value={statusOption}>
+                {formatEnumLabel(statusOption)}
+              </option>
+            ))}
+          </datalist>
         </label>
         <label>
           Risk
@@ -2196,10 +2320,13 @@ function CalendarView({
           <select value={filters.module} onChange={(event) => onFilterChange({ ...filters, module: event.target.value })}>
             <option value="">Any</option>
             <option value="Contract">Contract</option>
+            <option value="CMMC">CMMC</option>
+            <option value="Evidence">Evidence</option>
             <option value="Obligations">Obligations</option>
             <option value="Policy reviews">Policy reviews</option>
             <option value="Renewals">Renewals</option>
             <option value="Reports">Reports</option>
+            <option value="Subcontractors">Subcontractors</option>
             <option value="Tasks">Tasks</option>
           </select>
         </label>
@@ -2316,6 +2443,13 @@ function formatCategory(category: string) {
 
 function formatStatus(status: string) {
   return formatCategory(status);
+}
+
+function formatEnumLabel(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatOwnerLabel(owner: string) {
@@ -2689,7 +2823,20 @@ function ObligationsView({
         </label>
         <label>
           Owner
-          <input value={owner} onChange={(event) => setOwner(event.target.value)} placeholder="IT/security" disabled={status === "loading"} />
+          <input
+            list="obligation-owner-options"
+            value={owner}
+            onChange={(event) => setOwner(event.target.value)}
+            placeholder="All owners"
+            disabled={status === "loading"}
+          />
+          <datalist id="obligation-owner-options">
+            {ownerFunctionOptions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </datalist>
         </label>
         <label>
           Status
@@ -3540,11 +3687,19 @@ function ContractsView({
             <label>
               Owner
               <input
+                list="deliverable-owner-options"
                 value={deliverableDraft.ownerFunction}
                 onChange={(event) => setDeliverableDraft((current) => ({ ...current, ownerFunction: event.target.value }))}
                 disabled={deliverableDisabled}
                 required
               />
+              <datalist id="deliverable-owner-options">
+                {ownerOptionsWith(deliverableDraft.ownerFunction).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </datalist>
             </label>
             <label>
               Due date
@@ -3566,6 +3721,7 @@ function ContractsView({
                 <option value="InProgress">In progress</option>
                 <option value="Submitted">Submitted</option>
                 <option value="Accepted">Accepted</option>
+                <option value="Late">Late</option>
                 <option value="Waived">Waived</option>
               </select>
             </label>
@@ -3611,6 +3767,7 @@ function ContractsView({
                     <option value="InProgress">In progress</option>
                     <option value="Submitted">Submitted</option>
                     <option value="Accepted">Accepted</option>
+                    <option value="Late">Late</option>
                     <option value="Waived">Waived</option>
                   </select>
                 </article>
@@ -3825,6 +3982,12 @@ function ContractEditor({
   const realCuiModeMessage = isCuiReady
     ? ""
     : `${tenantDataHandlingMode} mode blocks real CUI, classified, and export-controlled contract records.`;
+  const periodEndError =
+    form.periodOfPerformanceStart &&
+    form.periodOfPerformanceEnd &&
+    form.periodOfPerformanceEnd < form.periodOfPerformanceStart
+      ? "Period of performance end must be on or after the start date."
+      : "";
 
   function updateField<TKey extends keyof ContractFormState>(field: TKey, value: ContractFormState[TKey]) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -3868,6 +4031,7 @@ function ContractEditor({
           <label>
             <span>Contract type</span>
             <select value={form.kind} onChange={(event) => updateField("kind", event.target.value)}>
+              <option value="Unknown">Unknown</option>
               <option value="FixedPrice">Fixed price</option>
               <option value="TimeAndMaterials">Time and materials</option>
               <option value="CostReimbursement">Cost reimbursement</option>
@@ -3880,7 +4044,11 @@ function ContractEditor({
             <span>Status</span>
             <select value={form.status} onChange={(event) => updateField("status", event.target.value)}>
               <option value="Draft">Draft</option>
+              <option value="Intake">Intake</option>
               <option value="Active">Active</option>
+              <option value="OptionPending">Option pending</option>
+              <option value="Closed">Closed</option>
+              <option value="Archived">Archived</option>
             </select>
           </label>
           <label>
@@ -3901,9 +4069,23 @@ function ContractEditor({
             <input
               type="date"
               value={form.periodOfPerformanceEnd}
-              onChange={(event) => updateField("periodOfPerformanceEnd", event.target.value)}
+              onChange={(event) => {
+                event.currentTarget.setCustomValidity(
+                  form.periodOfPerformanceStart && event.target.value < form.periodOfPerformanceStart
+                    ? "Period of performance end must be on or after the start date."
+                    : ""
+                );
+                updateField("periodOfPerformanceEnd", event.target.value);
+              }}
+              onBlur={(event) => {
+                event.currentTarget.setCustomValidity(periodEndError);
+                if (periodEndError) {
+                  event.currentTarget.reportValidity();
+                }
+              }}
               required
             />
+            {periodEndError ? <span className="field-error">Period of performance end must be on or after the start date.</span> : null}
           </label>
           <label>
             <span>FCI/CUI posture</span>
@@ -4441,7 +4623,7 @@ type CmmcAssessmentFormState = {
 const defaultCmmcAssessmentForm: CmmcAssessmentFormState = {
   name: "CMMC readiness workspace",
   level: "Level1",
-  framework: "FCI-Safeguarding",
+  framework: "FarBasicSafeguarding",
   status: "Planned",
   startedAt: "2026-06-15",
   affirmationDueAt: "2027-06-15",
@@ -4502,7 +4684,7 @@ function CmmcView({
       ...current,
       [field]: value,
       ...(field === "level"
-        ? { framework: value === "Level1" ? "FCI-Safeguarding" : "NIST-SP-800-171-Rev2" }
+        ? { framework: value === "Level1" ? "FarBasicSafeguarding" : "NistSp800171Revision2" }
         : {})
     }));
   }
@@ -4533,8 +4715,12 @@ function CmmcView({
 
   function submitPoam(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!poamForm.controlId) {
+      return;
+    }
+
     void onCreatePoam({
-      controlId: poamForm.controlId || controls[0]?.controlId || "",
+      controlId: poamForm.controlId,
       weakness: poamForm.weakness.trim(),
       plannedRemediation: poamForm.plannedRemediation.trim(),
       riskLevel: poamForm.riskLevel,
@@ -4561,7 +4747,7 @@ function CmmcView({
           <div className="form-grid">
             <label>
               <span>Assessment name</span>
-              <input value={form.name} onChange={(event) => updateField("name", event.target.value)} />
+              <input value={form.name} onChange={(event) => updateField("name", event.target.value)} required />
             </label>
             <label>
               <span>Target level</span>
@@ -4573,9 +4759,11 @@ function CmmcView({
             <label>
               <span>Framework</span>
               <select value={form.framework} onChange={(event) => updateField("framework", event.target.value)}>
-                <option value="FCI-Safeguarding">FCI safeguarding baseline</option>
-                <option value="NIST-SP-800-171-Rev2">NIST SP 800-171 Rev. 2</option>
-                <option value="NIST-SP-800-171-Rev3">NIST SP 800-171 Rev. 3</option>
+                <option value="FarBasicSafeguarding">FAR basic safeguarding</option>
+                <option value="NistSp800171Revision2">NIST SP 800-171 Rev. 2</option>
+                <option value="NistSp800171Revision3">NIST SP 800-171 Rev. 3</option>
+                <option value="NistSp800172">NIST SP 800-172</option>
+                <option value="Cmmc">CMMC</option>
               </select>
             </label>
             <label>
@@ -4584,11 +4772,13 @@ function CmmcView({
                 <option value="Planned">Planned</option>
                 <option value="InProgress">In progress</option>
                 <option value="Complete">Complete</option>
+                <option value="Expired">Expired</option>
+                <option value="Superseded">Superseded</option>
               </select>
             </label>
             <label>
               <span>Started</span>
-              <input type="date" value={form.startedAt} onChange={(event) => updateField("startedAt", event.target.value)} />
+              <input type="date" value={form.startedAt} onChange={(event) => updateField("startedAt", event.target.value)} required />
             </label>
             <label>
               <span>Affirmation due</span>
@@ -4596,7 +4786,19 @@ function CmmcView({
             </label>
             <label>
               <span>Owner</span>
-              <input value={form.ownerFunction} onChange={(event) => updateField("ownerFunction", event.target.value)} />
+              <input
+                list="cmmc-assessment-owner-options"
+                value={form.ownerFunction}
+                onChange={(event) => updateField("ownerFunction", event.target.value)}
+                required
+              />
+              <datalist id="cmmc-assessment-owner-options">
+                {ownerOptionsWith(form.ownerFunction).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </datalist>
             </label>
             <label>
               <span>Contract link</span>
@@ -4684,11 +4886,11 @@ function CmmcView({
           </div>
         </div>
         <form className="cmmc-create" onSubmit={submitPoam}>
-          <fieldset disabled={!canManageCmmc || poamStatus === "saving" || assessments.length === 0}>
+          <fieldset disabled={!canManageCmmc || poamStatus === "saving" || assessments.length === 0 || controls.length === 0}>
             <div className="form-grid">
               <label>
                 <span>Control</span>
-                <select value={poamForm.controlId} onChange={(event) => updatePoamField("controlId", event.target.value)}>
+                <select value={poamForm.controlId} onChange={(event) => updatePoamField("controlId", event.target.value)} required>
                   <option value="">Select control</option>
                   {controls.map((control) => (
                     <option key={control.controlId} value={control.controlId}>
@@ -4718,7 +4920,19 @@ function CmmcView({
               </label>
               <label>
                 <span>Owner</span>
-                <input value={poamForm.ownerFunction} onChange={(event) => updatePoamField("ownerFunction", event.target.value)} />
+                <input
+                  list="cmmc-poam-owner-options"
+                  value={poamForm.ownerFunction}
+                  onChange={(event) => updatePoamField("ownerFunction", event.target.value)}
+                  required
+                />
+                <datalist id="cmmc-poam-owner-options">
+                  {ownerOptionsWith(poamForm.ownerFunction).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </datalist>
               </label>
               <label>
                 <span>Due date</span>
@@ -4726,27 +4940,35 @@ function CmmcView({
                   type="date"
                   value={poamForm.targetCompletionAt}
                   onChange={(event) => updatePoamField("targetCompletionAt", event.target.value)}
+                  required
                 />
               </label>
               <label className="span-2">
                 <span>Gap</span>
-                <input value={poamForm.weakness} onChange={(event) => updatePoamField("weakness", event.target.value)} />
+                <input value={poamForm.weakness} onChange={(event) => updatePoamField("weakness", event.target.value)} required />
               </label>
               <label className="span-2">
                 <span>Remediation plan</span>
                 <textarea
                   value={poamForm.plannedRemediation}
                   onChange={(event) => updatePoamField("plannedRemediation", event.target.value)}
+                  required
                 />
               </label>
             </div>
           </fieldset>
           <div className="form-actions">
-            <button type="submit" disabled={!canManageCmmc || poamStatus === "saving" || assessments.length === 0}>
+            <button
+              type="submit"
+              disabled={!canManageCmmc || poamStatus === "saving" || assessments.length === 0 || controls.length === 0 || !poamForm.controlId}
+            >
               <ClipboardCheck size={16} aria-hidden="true" />
               <span>{poamStatus === "saving" ? "Creating" : "Create POA&M"}</span>
             </button>
           </div>
+          {assessments.length > 0 && controls.length === 0 ? (
+            <p className="form-status form-status--error">Load a CMMC control baseline before creating POA&M items.</p>
+          ) : null}
           {poamMessage ? <p className={`form-status ${poamStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>{poamMessage}</p> : null}
         </form>
         {poamItems.length > 0 ? (
@@ -4781,11 +5003,14 @@ type SubcontractorFormState = {
   name: string;
   contactName: string;
   contactEmail: string;
+  status: string;
   roleDescription: string;
   smallBusinessStatus: string;
   cmmcStatus: string;
+  requiredCmmcLevel: string;
   insuranceExpiresAt: string;
   ndaStatus: string;
+  ownerFunction: string;
   worksharePercentage: string;
   contractId: string;
   hasCuiAccess: boolean;
@@ -4796,16 +5021,75 @@ const defaultSubcontractorForm: SubcontractorFormState = {
   name: "Mission Supplier LLC",
   contactName: "Jane Contracts",
   contactEmail: "jane@example.com",
+  status: "Prospective",
   roleDescription: "CUI helpdesk support",
   smallBusinessStatus: "Small",
-  cmmcStatus: "Level 1 complete",
+  cmmcStatus: "Level 1 self-assessment draft",
+  requiredCmmcLevel: "Level1",
   insuranceExpiresAt: "2027-01-31",
   ndaStatus: "Executed",
+  ownerFunction: "Contracts",
   worksharePercentage: "35.5",
   contractId: "",
   hasCuiAccess: true,
   hasExportControlledAccess: true
 };
+
+const subcontractorStatusOptions = [
+  ["Prospective", "Prospective"],
+  ["Active", "Active"],
+  ["Suspended", "Suspended"],
+  ["Completed", "Completed"],
+  ["Archived", "Archived"]
+] as const;
+
+const smallBusinessStatusOptions = [
+  ["Unknown", "Unknown"],
+  ["Small", "Small business"],
+  ["Small, SDB", "Small, SDB"],
+  ["OtherThanSmall", "Other than small"],
+  ["SDB", "Small disadvantaged business"],
+  ["WOSB", "WOSB"],
+  ["EDWOSB", "EDWOSB"],
+  ["HUBZone", "HUBZone"],
+  ["SDVOSB", "SDVOSB"],
+  ["8a", "8(a)"]
+] as const;
+
+const cmmcStatusOptions = [
+  ["Unknown", "Unknown"],
+  ["NotStarted", "Not started"],
+  ["InProgress", "In progress"],
+  ["Level 1 self-assessment draft", "Level 1 self-assessment draft"],
+  ["Level 1 self-assessment complete", "Level 1 self-assessment complete"],
+  ["Level 2 self-assessment draft", "Level 2 self-assessment draft"],
+  ["Level 2 self-assessment complete", "Level 2 self-assessment complete"],
+  ["Level 2 assessment scheduled", "Level 2 assessment scheduled"],
+  ["Level 2 certified", "Level 2 certified"],
+  ["Not required", "Not required"],
+  ["NotApplicable", "Not applicable"]
+] as const;
+
+const requiredCmmcLevelOptions = [
+  ["Unknown", "Unknown"],
+  ["NotRequired", "Not required"],
+  ["Level1", "Level 1"],
+  ["Level2", "Level 2"],
+  ["Level3", "Level 3"]
+] as const;
+
+const ndaStatusOptions = [
+  ["Unknown", "Unknown"],
+  ["NotOnFile", "Not on file"],
+  ["Requested", "Requested"],
+  ["Unsigned", "Unsigned"],
+  ["Signed", "Signed"],
+  ["Executed", "Executed"],
+  ["OnFile", "On file"],
+  ["NotRequired", "Not required"],
+  ["Expired", "Expired"],
+  ["Waived", "Waived"]
+] as const;
 
 function SubcontractorsView({
   canManageSubcontractors,
@@ -4868,7 +5152,7 @@ function SubcontractorsView({
       name: form.name.trim(),
       uei: null,
       cageCode: null,
-      status: "Prospective",
+      status: form.status,
       roleDescription: form.roleDescription.trim(),
       smallBusinessStatus: form.smallBusinessStatus.trim(),
       cmmcStatus: form.cmmcStatus.trim(),
@@ -4879,12 +5163,13 @@ function SubcontractorsView({
       hasFciAccess: true,
       hasCuiAccess: form.hasCuiAccess,
       hasExportControlledAccess: form.hasExportControlledAccess,
-      requiredCmmcLevel: form.cmmcStatus.trim(),
+      requiredCmmcLevel: form.requiredCmmcLevel === "Unknown" ? null : form.requiredCmmcLevel,
       contactName: form.contactName.trim(),
       contactEmail: form.contactEmail.trim(),
       contactPhone: null,
       contactTitle: "Contracts Manager",
-      contractIds: form.contractId ? [form.contractId] : []
+      contractIds: form.contractId ? [form.contractId] : [],
+      ownerFunction: form.ownerFunction
     });
   }
 
@@ -4944,7 +5229,7 @@ function SubcontractorsView({
           <div className="form-grid">
             <label>
               <span>Legal name</span>
-              <input value={form.name} onChange={(event) => updateField("name", event.target.value)} />
+              <input value={form.name} onChange={(event) => updateField("name", event.target.value)} required />
             </label>
             <label>
               <span>Point of contact</span>
@@ -4955,12 +5240,44 @@ function SubcontractorsView({
               <input value={form.contactEmail} onChange={(event) => updateField("contactEmail", event.target.value)} />
             </label>
             <label>
+              <span>Status</span>
+              <select value={form.status} onChange={(event) => updateField("status", event.target.value)}>
+                {subcontractorStatusOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
               <span>Small business</span>
-              <input value={form.smallBusinessStatus} onChange={(event) => updateField("smallBusinessStatus", event.target.value)} />
+              <select value={form.smallBusinessStatus} onChange={(event) => updateField("smallBusinessStatus", event.target.value)}>
+                {smallBusinessStatusOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               <span>CMMC status</span>
-              <input value={form.cmmcStatus} onChange={(event) => updateField("cmmcStatus", event.target.value)} />
+              <select value={form.cmmcStatus} onChange={(event) => updateField("cmmcStatus", event.target.value)}>
+                {cmmcStatusOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Required CMMC level from contract</span>
+              <select value={form.requiredCmmcLevel} onChange={(event) => updateField("requiredCmmcLevel", event.target.value)}>
+                {requiredCmmcLevelOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               <span>Insurance expires</span>
@@ -4968,11 +5285,40 @@ function SubcontractorsView({
             </label>
             <label>
               <span>NDA status</span>
-              <input value={form.ndaStatus} onChange={(event) => updateField("ndaStatus", event.target.value)} />
+              <select value={form.ndaStatus} onChange={(event) => updateField("ndaStatus", event.target.value)}>
+                {ndaStatusOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Owner</span>
+              <input
+                list="subcontractor-owner-options"
+                value={form.ownerFunction}
+                onChange={(event) => updateField("ownerFunction", event.target.value)}
+                required
+              />
+              <datalist id="subcontractor-owner-options">
+                {ownerOptionsWith(form.ownerFunction).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </datalist>
             </label>
             <label>
               <span>Workshare %</span>
-              <input value={form.worksharePercentage} onChange={(event) => updateField("worksharePercentage", event.target.value)} />
+              <input
+                max="100"
+                min="0"
+                step="0.1"
+                type="number"
+                value={form.worksharePercentage}
+                onChange={(event) => updateField("worksharePercentage", event.target.value)}
+              />
             </label>
             <label>
               <span>Contract link</span>
@@ -5146,9 +5492,9 @@ function SubcontractorDetailPanel({
     signedEvidenceItemId: ""
   });
   const [evidenceRequestForm, setEvidenceRequestForm] = useState({
-    requestedItem: "",
+    requestedItem: "Signed FAR 52.204-21 flow-down acknowledgement",
     evidenceType: "SignedFlowDown",
-    dueDate: "",
+    dueDate: "2026-07-31",
     status: "Sent",
     recipientName: "",
     recipientEmail: "",
@@ -5188,6 +5534,10 @@ function SubcontractorDetailPanel({
       return;
     }
 
+    if (!evidenceRequestForm.requestedItem.trim() || !evidenceRequestForm.dueDate) {
+      return;
+    }
+
     void onCreateEvidenceRequest(subcontractor.id, {
       requestedItem: evidenceRequestForm.requestedItem.trim(),
       requestedEvidenceTypes: [evidenceRequestForm.evidenceType],
@@ -5197,7 +5547,8 @@ function SubcontractorDetailPanel({
       recipientEmail: evidenceRequestForm.recipientEmail.trim() || null,
       obligationId: evidenceRequestForm.obligationId || null,
       relatedFlowDownClauseId: evidenceRequestForm.relatedFlowDownClauseId || null,
-      receivedEvidenceItemId: evidenceRequestForm.receivedEvidenceItemId || null
+      receivedEvidenceItemId: evidenceRequestForm.receivedEvidenceItemId || null,
+      ownerFunction: subcontractor.ownerFunction || "Contracts"
     });
   }
 
@@ -5256,11 +5607,12 @@ function SubcontractorDetailPanel({
                 </select>
               </label>
               <label>
-                <span>Clause number</span>
-                <input
-                  value={flowDownForm.clauseNumber}
-                  onChange={(event) => setFlowDownForm((current) => ({ ...current, clauseNumber: event.target.value }))}
-                />
+              <span>Clause number</span>
+              <input
+                value={flowDownForm.clauseNumber}
+                onChange={(event) => setFlowDownForm((current) => ({ ...current, clauseNumber: event.target.value }))}
+                required
+              />
               </label>
               <label>
                 <span>Status</span>
@@ -5270,14 +5622,18 @@ function SubcontractorDetailPanel({
                 >
                   {["Required", "Sent", "Acknowledged", "Signed", "Waived", "NotApplicable"].map((statusOption) => (
                     <option key={statusOption} value={statusOption}>
-                      {statusOption}
+                      {formatEnumLabel(statusOption)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="span-2">
                 <span>Title</span>
-                <input value={flowDownForm.title} onChange={(event) => setFlowDownForm((current) => ({ ...current, title: event.target.value }))} />
+                <input
+                  value={flowDownForm.title}
+                  onChange={(event) => setFlowDownForm((current) => ({ ...current, title: event.target.value }))}
+                  required
+                />
               </label>
               <label className="span-2">
                 <span>Signed evidence</span>
@@ -5311,6 +5667,7 @@ function SubcontractorDetailPanel({
                 <input
                   value={evidenceRequestForm.requestedItem}
                   onChange={(event) => setEvidenceRequestForm((current) => ({ ...current, requestedItem: event.target.value }))}
+                  required
                 />
               </label>
               <label>
@@ -5321,7 +5678,7 @@ function SubcontractorDetailPanel({
                 >
                   {["SignedFlowDown", "VendorAttestation", "SubcontractorCertification", "Policy", "Other"].map((type) => (
                     <option key={type} value={type}>
-                      {type}
+                      {formatEnumLabel(type)}
                     </option>
                   ))}
                 </select>
@@ -5332,6 +5689,7 @@ function SubcontractorDetailPanel({
                   type="date"
                   value={evidenceRequestForm.dueDate}
                   onChange={(event) => setEvidenceRequestForm((current) => ({ ...current, dueDate: event.target.value }))}
+                  required
                 />
               </label>
               <label>
@@ -5368,9 +5726,9 @@ function SubcontractorDetailPanel({
                   value={evidenceRequestForm.status}
                   onChange={(event) => setEvidenceRequestForm((current) => ({ ...current, status: event.target.value }))}
                 >
-                  {["Draft", "Sent", "Submitted", "Satisfied", "Overdue", "Cancelled"].map((statusOption) => (
+                  {["Draft", "Sent", "Submitted", "Satisfied", "Cancelled"].map((statusOption) => (
                     <option key={statusOption} value={statusOption}>
-                      {statusOption}
+                      {formatEnumLabel(statusOption)}
                     </option>
                   ))}
                 </select>
@@ -5378,7 +5736,15 @@ function SubcontractorDetailPanel({
             </div>
           </fieldset>
           <div className="form-actions">
-            <button type="submit" disabled={!canManageSubcontractors || detailStatus === "saving"}>
+            <button
+              type="submit"
+              disabled={
+                !canManageSubcontractors ||
+                detailStatus === "saving" ||
+                !evidenceRequestForm.requestedItem.trim() ||
+                !evidenceRequestForm.dueDate
+              }
+            >
               <Send size={16} aria-hidden="true" />
               <span>Create request</span>
             </button>
@@ -5433,6 +5799,7 @@ function ReportsView({
   approvedEvidencePackages,
   assessments,
   canManageReports,
+  controls,
   contracts,
   evidenceItems,
   generatedReports,
@@ -5448,6 +5815,7 @@ function ReportsView({
   approvedEvidencePackages: ApprovedEvidencePackage[];
   assessments: CmmcAssessment[];
   canManageReports: boolean;
+  controls: CmmcControlLibrary[];
   contracts: ContractRecord[];
   evidenceItems: EvidenceMetadata[];
   generatedReports: Array<ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | EvidencePackageReport>;
@@ -5580,10 +5948,17 @@ function ReportsView({
           </label>
           <label>
             <span>Control ID</span>
-            <input
+            <select
               value={packageScope.controlId}
               onChange={(event) => setPackageScope((current) => ({ ...current, controlId: event.target.value }))}
-            />
+            >
+              <option value="">No control scope</option>
+              {controls.map((control) => (
+                <option key={control.controlId} value={control.controlId}>
+                  {control.controlId} · {control.title}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             <span>Subcontractor</span>
@@ -5784,9 +6159,11 @@ function EvidenceView({
   acknowledgementStatus,
   canManageEvidence,
   classificationReviewItems,
+  controls,
   evidenceItems,
   evidenceMetadataMessage,
   evidenceMetadataStatus,
+  obligationItems,
   onAcknowledge,
   onFileSelected,
   onMetadataSave,
@@ -5802,15 +6179,17 @@ function EvidenceView({
   acknowledgementStatus: "idle" | "saving" | "saved" | "failed";
   canManageEvidence: boolean;
   classificationReviewItems: ContentClassificationReviewItem[];
+  controls: CmmcControlLibrary[];
   evidenceItems: EvidenceMetadata[];
   evidenceMetadataMessage: string;
   evidenceMetadataStatus: "idle" | "saving" | "saved" | "failed";
+  obligationItems: ContractObligationDashboardItem[];
   onAcknowledge: () => void;
   onFileSelected: (file: File | null) => void;
   onMetadataSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
   onReclassifyEvidence: (evidenceItemId: string, request: ReclassifyContentRequest) => Promise<void>;
   onSelectEvidence: (evidenceItemId: string | null) => void;
-  onUploadIntentSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onUploadIntentSubmit: (event: FormEvent<HTMLFormElement>, classification: string, classificationReason: string) => void;
   selectedEvidenceItemId: string | null;
   selectedFile: File | null;
   uploadMessage: string;
@@ -5818,6 +6197,8 @@ function EvidenceView({
 }) {
   const uploadDisabled = !canManageEvidence || !acknowledgement.isAcknowledged;
   const selectedEvidence = evidenceItems.find((item) => item.id === selectedEvidenceItemId) ?? null;
+  const [uploadClassification, setUploadClassification] = useState("Unclassified");
+  const [uploadClassificationReason, setUploadClassificationReason] = useState("User confirmed upload classification.");
 
   return (
     <section className="route-panel" aria-label="Evidence upload workflow">
@@ -5830,8 +6211,10 @@ function EvidenceView({
       <EvidenceMetadataPanel
         key={selectedEvidence?.id ?? "new-evidence"}
         canManageEvidence={canManageEvidence}
+        controls={controls}
         evidenceItems={evidenceItems}
         message={evidenceMetadataMessage}
+        obligationItems={obligationItems}
         onSave={onMetadataSave}
         onReclassifyEvidence={onReclassifyEvidence}
         onSelectEvidence={onSelectEvidence}
@@ -5905,7 +6288,15 @@ function EvidenceView({
         </div>
       </div>
 
-      <form className="upload-panel" onSubmit={onUploadIntentSubmit}>
+      <form
+        className="upload-panel"
+        aria-label="Upload area"
+        onSubmit={(event) => onUploadIntentSubmit(event, uploadClassification, uploadClassificationReason)}
+      >
+        <div>
+          <p className="eyebrow">Evidence files</p>
+          <h3>Upload area</h3>
+        </div>
         <label>
           <span>Evidence file</span>
           <input
@@ -5913,6 +6304,33 @@ function EvidenceView({
             disabled={uploadDisabled}
             accept=".csv,.docx,.jpg,.jpeg,.pdf,.png,.txt,.xlsx"
             onChange={(event) => onFileSelected(event.target.files?.[0] ?? null)}
+          />
+        </label>
+        <label>
+          <span>Upload classification</span>
+          <select
+            value={uploadClassification}
+            onChange={(event) => {
+              setUploadClassification(event.target.value);
+              setUploadClassificationReason(`User selected ${event.target.value} upload classification.`);
+            }}
+            disabled={uploadDisabled}
+          >
+            <option value="Unclassified">Unclassified</option>
+            <option value="Fci">FCI</option>
+            <option value="Cui">CUI</option>
+            <option value="SyntheticCui">Synthetic CUI</option>
+            <option value="Unknown">Unknown</option>
+            <option value="Prohibited">Prohibited</option>
+          </select>
+        </label>
+        <label>
+          <span>Upload classification reason</span>
+          <input
+            value={uploadClassificationReason}
+            onChange={(event) => setUploadClassificationReason(event.target.value)}
+            disabled={uploadDisabled}
+            required
           />
         </label>
         <p className="form-status">
@@ -5973,8 +6391,10 @@ const defaultEvidenceMetadataForm: EvidenceMetadataFormState = {
 
 function EvidenceMetadataPanel({
   canManageEvidence,
+  controls,
   evidenceItems,
   message,
+  obligationItems,
   onSave,
   onReclassifyEvidence,
   onSelectEvidence,
@@ -5982,8 +6402,10 @@ function EvidenceMetadataPanel({
   status
 }: {
   canManageEvidence: boolean;
+  controls: CmmcControlLibrary[];
   evidenceItems: EvidenceMetadata[];
   message: string;
+  obligationItems: ContractObligationDashboardItem[];
   onSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
   onReclassifyEvidence: (evidenceItemId: string, request: ReclassifyContentRequest) => Promise<void>;
   onSelectEvidence: (evidenceItemId: string | null) => void;
@@ -5991,6 +6413,10 @@ function EvidenceMetadataPanel({
   status: "idle" | "saving" | "saved" | "failed";
 }) {
   const [form, setForm] = useState<EvidenceMetadataFormState>(() => evidenceToMetadataForm(selectedEvidence));
+
+  useEffect(() => {
+    setForm(evidenceToMetadataForm(selectedEvidence));
+  }, [selectedEvidence]);
 
   function updateField<TKey extends keyof EvidenceMetadataFormState>(field: TKey, value: EvidenceMetadataFormState[TKey]) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -6030,30 +6456,39 @@ function EvidenceMetadataPanel({
         </button>
       </div>
       <div className="evidence-metadata__workspace">
-        <div className="evidence-list" aria-label="Evidence list">
-          {evidenceItems.length > 0 ? (
-            evidenceItems.map((item) => (
-              <button
-                className={`evidence-list__item${selectedEvidence?.id === item.id ? " evidence-list__item--active" : ""}`}
-                key={item.id}
-                type="button"
-                onClick={() => onSelectEvidence(item.id)}
-              >
-                <strong>{item.title}</strong>
-                <span>{item.status} · {item.ownerFunction} · {item.expiresAt ?? "No expiration"}</span>
-                <ClassificationBadge classification={item.classification.classification} />
-              </button>
-            ))
-          ) : (
-            <EmptyState title="No evidence metadata yet" body="Create a reusable evidence record before uploading files." />
-          )}
+        <div>
+          <h4>Evidence list</h4>
+          <div className="evidence-list" aria-label="Evidence list">
+            {evidenceItems.length > 0 ? (
+              evidenceItems.map((item) => (
+                <button
+                  className={`evidence-list__item${selectedEvidence?.id === item.id ? " evidence-list__item--active" : ""}`}
+                  key={item.id}
+                  type="button"
+                  onClick={() => onSelectEvidence(item.id)}
+                >
+                  <strong>{item.title}</strong>
+                  <span>{item.status} · {item.ownerFunction} · {item.expiresAt ?? "No expiration"}</span>
+                  <ClassificationBadge classification={item.classification.classification} />
+                </button>
+              ))
+            ) : (
+              <EmptyState title="No evidence in the evidence list yet" body="Create a reusable evidence record before uploading files." />
+            )}
+          </div>
         </div>
-        <form className="evidence-metadata-form" onSubmit={(event) => event.preventDefault()}>
+        <form
+          className="evidence-metadata-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            save();
+          }}
+        >
           <fieldset disabled={!canManageEvidence || status === "saving"}>
             <div className="form-grid">
               <label>
                 <span>Title</span>
-                <input value={form.title} onChange={(event) => updateField("title", event.target.value)} />
+                <input value={form.title} onChange={(event) => updateField("title", event.target.value)} required />
               </label>
               <label>
                 <span>Type</span>
@@ -6064,20 +6499,39 @@ function EvidenceMetadataPanel({
                   <option value="SystemConfiguration">System configuration</option>
                   <option value="VendorAttestation">Vendor attestation</option>
                   <option value="SubcontractorCertification">Subcontractor certification</option>
+                  <option value="SignedFlowDown">Signed flow-down</option>
+                  <option value="PayrollRecord">Payroll record</option>
+                  <option value="IncidentRecord">Incident record</option>
                   <option value="AccessReview">Access review</option>
                   <option value="RiskAssessment">Risk assessment</option>
+                  <option value="MeetingNote">Meeting note</option>
+                  <option value="CorrectiveActionPlan">Corrective action plan</option>
                   <option value="Other">Other</option>
                 </select>
               </label>
               <label>
                 <span>Owner</span>
-                <input value={form.ownerFunction} onChange={(event) => updateField("ownerFunction", event.target.value)} />
+                <input
+                  list="evidence-owner-options"
+                  value={form.ownerFunction}
+                  onChange={(event) => updateField("ownerFunction", event.target.value)}
+                  required
+                />
+                <datalist id="evidence-owner-options">
+                  {ownerOptionsWith(form.ownerFunction).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </datalist>
               </label>
               <label>
                 <span>Status</span>
                 <select value={form.status} onChange={(event) => updateField("status", event.target.value)}>
+                  <option value="Draft">Draft</option>
                   <option value="Requested">Requested</option>
                   <option value="Uploaded">Uploaded</option>
+                  <option value="Submitted">Submitted</option>
                   <option value="InReview">In review</option>
                   <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>
@@ -6098,12 +6552,36 @@ function EvidenceMetadataPanel({
                 <input value={form.tags} onChange={(event) => updateField("tags", event.target.value)} />
               </label>
               <label>
-                <span>Obligations</span>
-                <input value={form.obligationIds} onChange={(event) => updateField("obligationIds", event.target.value)} />
+                <span>Obligations (optional)</span>
+                <input
+                  list="evidence-obligation-options"
+                  value={form.obligationIds}
+                  onChange={(event) => updateField("obligationIds", event.target.value)}
+                  placeholder="Leave blank or enter an obligation ID"
+                />
+                <datalist id="evidence-obligation-options">
+                  {obligationItems.map((item) => (
+                    <option key={`${item.contractClauseId}-${item.obligationId}`} value={item.obligationId}>
+                      {item.clauseNumber} · {item.title}
+                    </option>
+                  ))}
+                </datalist>
               </label>
               <label>
                 <span>Controls</span>
-                <input value={form.controlIds} onChange={(event) => updateField("controlIds", event.target.value)} />
+                <input
+                  list="evidence-control-options"
+                  value={form.controlIds}
+                  onChange={(event) => updateField("controlIds", event.target.value)}
+                  placeholder="Select from suggestions or leave blank"
+                />
+                <datalist id="evidence-control-options">
+                  {controls.map((control) => (
+                    <option key={control.controlId} value={control.controlId}>
+                      {control.controlId} · {control.title}
+                    </option>
+                  ))}
+                </datalist>
               </label>
               <label>
                 <span>Classification</span>
@@ -6127,7 +6605,7 @@ function EvidenceMetadataPanel({
             </div>
           </fieldset>
           <div className="form-actions">
-            <button type="button" onClick={save} disabled={!canManageEvidence || status === "saving"}>
+            <button type="submit" disabled={!canManageEvidence || status === "saving"}>
               {selectedEvidence ? "Update metadata" : "Create metadata"}
             </button>
             <button type="button" onClick={reclassify} disabled={!selectedEvidence || !canManageEvidence || status === "saving"}>
@@ -6274,7 +6752,9 @@ function CuiReadyChecklistPanel({
               <article className="evidence-list__item" key={item.id}>
                 <strong>{item.section}</strong>
                 <span>{item.description}</span>
-                <span>{item.status} · {item.owner ?? "No owner"} · {item.reviewedAt ?? "No review date"}</span>
+                <span>
+                  Status: {item.status} · Owner: {item.owner ?? "No owner"} · Review date: {item.reviewedAt ?? "No review date"}
+                </span>
                 <button type="button" onClick={() => completeItem(latest.id, item)} disabled={status === "saving"}>
                   Mark complete
                 </button>
@@ -6335,7 +6815,7 @@ function SharedResponsibilityMatrixPanel({
     <section className="members-section" aria-label="Shared responsibility matrix">
       <div className="section-heading section-heading--split">
         <div>
-          <p className="eyebrow">CUI-ready baseline</p>
+          <p className="eyebrow">Shared responsibility baseline</p>
           <h2>Shared responsibility matrix</h2>
           <p className="section-summary">
             Published ownership baseline for platform controls, customer decisions, support obligations, and third-party dependencies.
@@ -6360,23 +6840,23 @@ function SharedResponsibilityMatrixPanel({
         <>
           <div className="metric-grid">
             <div className="metric-card">
-              <span>Version</span>
+              <span>Version: </span>
               <strong>{matrix.version}</strong>
             </div>
             <div className="metric-card">
-              <span>Effective</span>
+              <span>Effective: </span>
               <strong>{matrix.effectiveAt}</strong>
             </div>
             <div className="metric-card">
-              <span>Review owner</span>
+              <span>Review owner: </span>
               <strong>{matrix.reviewOwner}</strong>
             </div>
             <div className="metric-card">
-              <span>Acknowledgement</span>
+              <span>Matrix acknowledgement status: </span>
               <strong>{currentAcknowledgement ? "Current" : "Required"}</strong>
             </div>
             <div className="metric-card">
-              <span>Rows</span>
+              <span>Rows: </span>
               <strong>{matrix.rows.length}</strong>
             </div>
           </div>
@@ -6416,6 +6896,9 @@ function SharedResponsibilityMatrixPanel({
           ) : (
             <p className="form-status form-status--error">Current matrix acknowledgement is required before CUI-ready approval.</p>
           )}
+          {currentAcknowledgement ? (
+            <p className="form-status form-status--ok">Matrix acknowledgement status is Current.</p>
+          ) : null}
         </>
       ) : (
         <EmptyState title="No published matrix" body="Publish a governed shared responsibility matrix before CUI-ready approval review." />
@@ -6454,19 +6937,16 @@ function TenantModePanel({
     event.preventDefault();
     await onUpdate({
       dataHandlingMode: mode,
-      reason,
+      reason: reason.trim(),
       approvalRecordReference: approvalRecordReference.trim() || null
     });
-    setSelectedMode("");
-    setReason("");
-    setApprovalRecordReference("");
   }
 
   return (
     <section className="members-section" aria-label="Tenant data handling mode">
       <div className="section-heading section-heading--split">
         <div>
-          <p className="eyebrow">CUI readiness gate</p>
+          <p className="eyebrow">Active tenant mode</p>
           <h2>Data handling mode</h2>
           <p className="section-summary">
             The active tenant mode is the server-side source of truth for upload, evidence, report, note, and extraction controls.
@@ -6475,6 +6955,20 @@ function TenantModePanel({
         <span className={`status status--${(currentTenant?.dataHandlingMode ?? "unknown").toLowerCase()}`}>
           {currentTenant?.dataHandlingMode ?? "Unknown"}
         </span>
+      </div>
+      <div className="metric-grid">
+        <div className="metric-card">
+          <span>Active tenant: </span>
+          <strong>{currentTenant?.displayName ?? "Not loaded"}</strong>
+        </div>
+        <div className="metric-card">
+          <span>Tenant ID: </span>
+          <strong>{currentTenant?.id ?? "Not loaded"}</strong>
+        </div>
+        <div className="metric-card">
+          <span>Current mode: </span>
+          <strong>{currentTenant?.dataHandlingMode ?? "Unknown"}</strong>
+        </div>
       </div>
       <form className="invite-form" onSubmit={submit}>
         <label>
@@ -6486,15 +6980,22 @@ function TenantModePanel({
           </select>
         </label>
         <label>
-          <span>Reason</span>
-          <input value={reason} onChange={(event) => setReason(event.target.value)} required maxLength={600} />
+          <span>Reason for mode change</span>
+          <input
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            required
+            maxLength={600}
+            placeholder="Example: UAT CUI-ready gate validation after approved checklist."
+          />
         </label>
         <label>
-          <span>Approval reference</span>
+          <span>Approval checklist ID</span>
           <input
             value={approvalRecordReference}
             onChange={(event) => setApprovalRecordReference(event.target.value)}
             maxLength={160}
+            placeholder={mode === "CuiReady" ? "Paste the approved checklist ID" : "Not required unless switching to CuiReady"}
             required={mode === "CuiReady"}
           />
         </label>
@@ -6535,15 +7036,75 @@ function TenantModePanel({
   );
 }
 
+function DemoSandboxSeedPanel({
+  canSeedDemoDataset,
+  currentTenant,
+  message,
+  onSeed,
+  status
+}: {
+  canSeedDemoDataset: boolean;
+  currentTenant: Tenant | null;
+  message: string;
+  onSeed: () => Promise<void>;
+  status: "idle" | "saving" | "saved" | "failed";
+}) {
+  const isDemoSandbox = currentTenant?.dataHandlingMode === "DemoSandbox";
+
+  return (
+    <section className="members-section" aria-label="Demo sandbox seed">
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">Synthetic dataset</p>
+          <h2>Demo sandbox seed</h2>
+          <p className="section-summary">
+            Load the approved synthetic CUI demo records for UAT. This action is available only when the active tenant mode is DemoSandbox.
+          </p>
+        </div>
+        <button type="button" onClick={() => void onSeed()} disabled={!isDemoSandbox || !canSeedDemoDataset || status === "saving"}>
+          <FolderKanban size={16} />
+          <span>{status === "saving" ? "Seeding" : "Seed synthetic data"}</span>
+        </button>
+      </div>
+      <div className="metric-grid">
+        <div className="metric-card">
+          <span>Required mode: </span>
+          <strong>DemoSandbox</strong>
+        </div>
+        <div className="metric-card">
+          <span>Dataset version: </span>
+          <strong>2026.06.phase1a</strong>
+        </div>
+        <div className="metric-card">
+          <span>Classification: </span>
+          <strong>SyntheticCui</strong>
+        </div>
+      </div>
+      {!isDemoSandbox ? (
+        <p className="form-status form-status--error">Switch Data handling mode to DemoSandbox before seeding synthetic demo data.</p>
+      ) : null}
+      {isDemoSandbox && !canSeedDemoDataset ? (
+        <p className="form-status form-status--error">Seed synthetic data requires obligation-management permission.</p>
+      ) : null}
+      {message ? (
+        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+      ) : null}
+    </section>
+  );
+}
+
 function SettingsView({
   auditLogFilters,
   auditLogStatus,
   auditLogs,
   canManageTenant,
+  canSeedDemoDataset,
   canManageUsers,
   canViewAuditLog,
   currentTenant,
   currentUserId,
+  demoSeedMessage,
+  demoSeedStatus,
   cuiReadyChecklists,
   cuiReadyChecklistMessage,
   cuiReadyChecklistStatus,
@@ -6569,6 +7130,7 @@ function SettingsView({
   onCuiReadyChecklistCreate,
   onCuiReadyChecklistItemUpdate,
   onCuiReadyChecklistReview,
+  onDemoTenantSeed,
   onDueDateReminderRun,
   onInviteEmailChange,
   onInviteRoleChange,
@@ -6581,10 +7143,13 @@ function SettingsView({
   auditLogStatus: "idle" | "loading" | "ready" | "failed";
   auditLogs: PagedResult<AuditLogEntry>;
   canManageTenant: boolean;
+  canSeedDemoDataset: boolean;
   canManageUsers: boolean;
   canViewAuditLog: boolean;
   currentTenant: Tenant | null;
   currentUserId: string | null;
+  demoSeedMessage: string;
+  demoSeedStatus: "idle" | "saving" | "saved" | "failed";
   cuiReadyChecklists: CuiReadyApprovalChecklist[];
   cuiReadyChecklistMessage: string;
   cuiReadyChecklistStatus: "idle" | "saving" | "saved" | "failed";
@@ -6618,6 +7183,7 @@ function SettingsView({
     action: "submit" | "approve" | "reject" | "supersede",
     reason: string | null
   ) => Promise<void>;
+  onDemoTenantSeed: () => Promise<void>;
   onDueDateReminderRun: (leadTimeDays: number) => Promise<void>;
   onInviteEmailChange: (email: string) => void;
   onInviteRoleChange: (roleName: string) => void;
@@ -6641,6 +7207,20 @@ function SettingsView({
     <>
       {canManageTenant ? (
         <>
+          <TenantModePanel
+            currentTenant={currentTenant}
+            history={tenantModeHistory}
+            message={tenantModeMessage}
+            onUpdate={onTenantModeUpdate}
+            status={tenantModeStatus}
+          />
+          <DemoSandboxSeedPanel
+            canSeedDemoDataset={canSeedDemoDataset}
+            currentTenant={currentTenant}
+            message={demoSeedMessage}
+            onSeed={onDemoTenantSeed}
+            status={demoSeedStatus}
+          />
           <SharedResponsibilityMatrixPanel
             acknowledgements={sharedResponsibilityMatrixAcknowledgements}
             matrix={sharedResponsibilityMatrix}
@@ -6658,13 +7238,6 @@ function SettingsView({
             onItemUpdate={onCuiReadyChecklistItemUpdate}
             onReview={onCuiReadyChecklistReview}
             status={cuiReadyChecklistStatus}
-          />
-          <TenantModePanel
-            currentTenant={currentTenant}
-            history={tenantModeHistory}
-            message={tenantModeMessage}
-            onUpdate={onTenantModeUpdate}
-            status={tenantModeStatus}
           />
         </>
       ) : null}
@@ -6799,6 +7372,9 @@ function SettingsView({
             <div>
               <p className="eyebrow">Audit trail</p>
               <h2>Audit log</h2>
+              <p className="section-summary">
+                Filter by Action and Entity, then verify the expected text in the results table Summary column. From and To are optional date filters.
+              </p>
             </div>
             <form className="invite-form" onSubmit={onAuditLogFilterSubmit}>
               <label>
@@ -6816,9 +7392,19 @@ function SettingsView({
                 >
                   <option value="">Any</option>
                   <option value="Created">Created</option>
+                  <option value="Viewed">Viewed</option>
                   <option value="Updated">Updated</option>
                   <option value="Deleted">Deleted</option>
+                  <option value="Uploaded">Uploaded</option>
+                  <option value="Downloaded">Downloaded</option>
+                  <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>
+                  <option value="Archived">Archived</option>
+                  <option value="Expired">Expired</option>
+                  <option value="Exported">Exported</option>
+                  <option value="SignedIn">Signed in</option>
+                  <option value="SignedOut">Signed out</option>
+                  <option value="PermissionChanged">Permission changed</option>
                 </select>
               </label>
               <label>
@@ -6833,6 +7419,7 @@ function SettingsView({
                 <input
                   type="datetime-local"
                   value={auditLogFilters.from}
+                  title="Optional. Leave blank for UAT-22 unless you need to narrow the date range."
                   onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, from: event.target.value })}
                 />
               </label>
@@ -6841,6 +7428,7 @@ function SettingsView({
                 <input
                   type="datetime-local"
                   value={auditLogFilters.to}
+                  title="Optional. Leave blank for UAT-22 unless you need to narrow the date range."
                   onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, to: event.target.value })}
                 />
               </label>

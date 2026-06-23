@@ -31,6 +31,23 @@ public sealed class EfCmmcAssessmentRepository(
         return results;
     }
 
+    public async Task<IReadOnlyList<CmmcControlLibraryDto>> ListControlLibraryAsync(CancellationToken cancellationToken = default) =>
+        await dbContext.Controls
+            .AsNoTracking()
+            .OrderBy(control => control.Id)
+            .Select(control => new CmmcControlLibraryDto(
+                control.Id,
+                control.Title,
+                control.Family,
+                control.CmmcLevel,
+                control.Requirement,
+                control.AssessmentObjective,
+                control.SourceName,
+                control.SourceUrl,
+                control.SourceLastReviewedAt,
+                control.SourceConfidence))
+            .ToArrayAsync(cancellationToken);
+
     public async Task<CmmcAssessmentDto?> FindCurrentTenantAsync(Guid assessmentId, CancellationToken cancellationToken = default)
     {
         var assessment = await QueryCurrentTenant()

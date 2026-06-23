@@ -380,6 +380,7 @@ export type EvidenceUploadIntent = {
   message: string;
   noticeVersion: string;
   expiresAt: string;
+  classification: ContentClassification;
 };
 
 export type EvidenceMetadata = {
@@ -469,6 +470,19 @@ export type CmmcControlStatus = {
   espResponsible: boolean;
   espName: string | null;
   statusHistory: CmmcControlStatusHistory[];
+};
+
+export type CmmcControlLibrary = {
+  controlId: string;
+  title: string;
+  family: string;
+  cmmcLevel: string;
+  requirement: string;
+  assessmentObjective: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceLastReviewedAt: string;
+  sourceConfidence: string;
 };
 
 export type CmmcControlStatusHistory = {
@@ -566,6 +580,7 @@ export type Subcontractor = {
   contactEmail: string | null;
   contactPhone: string | null;
   contactTitle: string | null;
+  ownerFunction: string;
   contractIds: string[];
   createdAt: string;
   updatedAt: string | null;
@@ -1546,6 +1561,10 @@ export async function getCmmcAssessments(): Promise<CmmcAssessment[]> {
   return getJson<CmmcAssessment[]>("/api/cmmc/assessments", []);
 }
 
+export async function getCmmcControlLibrary(): Promise<CmmcControlLibrary[]> {
+  return getJson<CmmcControlLibrary[]>("/api/cmmc/controls", []);
+}
+
 export async function getCmmcControlStatuses(assessmentId: string): Promise<CmmcControlStatus[]> {
   return getJson<CmmcControlStatus[]>(`/api/cmmc/assessments/${assessmentId}/controls`, []);
 }
@@ -2205,20 +2224,24 @@ export async function resetDemoTenantSeed(): Promise<ApiMutationResult<DemoTenan
   return deleteJsonResult<DemoTenantSeedResult>("/api/demo/seed");
 }
 
-export async function createEvidenceUploadIntent(file: File): Promise<ApiMutationResult<EvidenceUploadIntent>> {
+export async function createEvidenceUploadIntent(
+  file: File,
+  classification: string,
+  classificationReason: string
+): Promise<ApiMutationResult<EvidenceUploadIntent>> {
   const placeholderEvidenceItemId = "00000000-0000-0000-0000-000000000041";
   return postJsonResult<EvidenceUploadIntent>(`/api/evidence-items/${placeholderEvidenceItemId}/upload-intents`, {
     fileName: file.name,
     contentType: file.type || "application/octet-stream",
     sizeBytes: file.size,
-    containsPotentialCui: false,
+    containsPotentialCui: classification === "Cui",
     classification: {
-      classification: "Unclassified",
+      classification,
       source: "UserSelected",
       confidence: null,
       reviewedByUserId: null,
       reviewedAt: null,
-      reason: "User confirmed non-CUI upload intent.",
+      reason: classificationReason.trim() || `User selected ${classification} upload classification.`,
       isApprovedDemoContent: false
     }
   });

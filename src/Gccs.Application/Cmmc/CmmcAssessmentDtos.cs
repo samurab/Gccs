@@ -76,6 +76,18 @@ public sealed record CmmcControlStatusDto(
     string ResponsibilityNotes,
     IReadOnlyList<CmmcControlStatusHistoryDto> StatusHistory);
 
+public sealed record CmmcControlLibraryDto(
+    string ControlId,
+    string Title,
+    string Family,
+    CmmcLevel CmmcLevel,
+    string Requirement,
+    string AssessmentObjective,
+    string SourceName,
+    string SourceUrl,
+    DateOnly SourceLastReviewedAt,
+    string SourceConfidence);
+
 public sealed record UpsertCmmcControlStatusRequest(
     ControlImplementationStatus Status,
     AssessmentResult Result,
@@ -140,6 +152,8 @@ public sealed record CreatePoamFromGapRequest(
 public interface ICmmcAssessmentRepository
 {
     Task<IReadOnlyList<CmmcAssessmentDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<CmmcControlLibraryDto>> ListControlLibraryAsync(CancellationToken cancellationToken = default);
 
     Task<CmmcAssessmentDto?> FindCurrentTenantAsync(Guid assessmentId, CancellationToken cancellationToken = default);
 

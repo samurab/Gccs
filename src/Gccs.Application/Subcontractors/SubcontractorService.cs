@@ -452,7 +452,7 @@ public sealed class SubcontractorService(
             RecipientName = TrimOptional(request.RecipientName),
             RecipientEmail = TrimOptional(request.RecipientEmail),
             ObligationId = TrimOptional(request.ObligationId),
-            OwnerFunction = TrimOptional(request.OwnerFunction)
+            OwnerFunction = TrimOptional(request.OwnerFunction) ?? "Contracts"
         };
 
     private static UpsertSupplierObligationRequest Normalize(UpsertSupplierObligationRequest request) =>

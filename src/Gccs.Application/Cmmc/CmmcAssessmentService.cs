@@ -11,6 +11,9 @@ public sealed class CmmcAssessmentService(
     public Task<IReadOnlyList<CmmcAssessmentDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
         repository.ListCurrentTenantAsync(cancellationToken);
 
+    public Task<IReadOnlyList<CmmcControlLibraryDto>> ListControlLibraryAsync(CancellationToken cancellationToken = default) =>
+        repository.ListControlLibraryAsync(cancellationToken);
+
     public Task<CmmcAssessmentDto?> FindCurrentTenantAsync(Guid assessmentId, CancellationToken cancellationToken = default) =>
         repository.FindCurrentTenantAsync(assessmentId, cancellationToken);
 
