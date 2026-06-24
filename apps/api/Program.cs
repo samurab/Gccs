@@ -90,6 +90,7 @@ app.UseGccsSecurityHeaders();
 app.UseCors("web");
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseGccsTenantMembershipAuthorization(builder.Configuration, app.Environment);
 app.UseAuthorization();
 
 app.MapGet("/health", async (LocalDependencyHealthService healthService, CancellationToken cancellationToken) =>
@@ -113,7 +114,8 @@ app.MapGet("/health", async (LocalDependencyHealthService healthService, Cancell
 
 var api = app.MapGroup("/api")
     .RequireAuthorization()
-    .RequireRateLimiting("api");
+    .RequireRateLimiting("api")
+    .RequireRouteTenantScope();
 
 api.MapGet("/me/access", (ClaimsPrincipal user, ITenantContext tenantContext) =>
 {

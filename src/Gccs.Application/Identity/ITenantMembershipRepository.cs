@@ -8,6 +8,8 @@ public interface ITenantMembershipRepository
 
     Task<bool> CurrentTenantMembershipExistsAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    Task<TenantMemberDto?> FindActiveCurrentUserMembershipAsync(CancellationToken cancellationToken = default);
+
     Task<TenantMemberDto> AddToCurrentTenantAsync(
         User user,
         TenantMembership membership,

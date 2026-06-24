@@ -208,6 +208,70 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
         Assert.Equal("Reviewed as FCI, not CUI.", history[1].Reason);
     }
 
+    [Fact]
+    public async Task Evidence_metadata_rejects_cross_tenant_contract_references()
+    {
+        var tenantA = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var tenantB = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var actorUserId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        var contractB = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = CreateFactory("evidence-cross-tenant-contract-reference", dbContext =>
+        {
+            SeedTenant(dbContext, tenantA, TenantDataPosture.NoCui);
+            SeedTenant(dbContext, tenantB, TenantDataPosture.NoCui);
+            dbContext.Contracts.Add(new ContractEntity
+            {
+                Id = contractB,
+                TenantId = tenantB,
+                ContractNumber = "CROSS-TENANT",
+                Title = "Cross tenant contract",
+                AgencyOrPrimeName = "Sample Prime",
+                Relationship = ContractorRelationship.Prime,
+                Kind = ContractKind.FixedPrice,
+                Status = ContractStatus.Active,
+                AwardedAt = new DateOnly(2026, 6, 23),
+                PeriodOfPerformanceStart = new DateOnly(2026, 7, 1),
+                PeriodOfPerformanceEnd = new DateOnly(2027, 6, 30),
+                PlaceOfPerformance = "Remote",
+                Description = "Contract owned by another tenant.",
+                DataHandlingPosture = DataHandlingPosture.FciOnly,
+                CreatedAt = DateTimeOffset.Parse("2026-06-23T12:00:00Z")
+            });
+        });
+        using var client = factory.CreateClient();
+        var body = new UpsertEvidenceMetadataRequest(
+            "Cross tenant linked evidence",
+            EvidenceType.Policy,
+            "Compliance",
+            EvidenceStatus.Draft,
+            null,
+            null,
+            ["tenant-scope"],
+            "Evidence with an invalid cross-tenant contract reference.",
+            [],
+            [],
+            [contractB],
+            [],
+            [],
+            [],
+            [],
+            Unclassified("No CUI in this metadata-only test."));
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            "/api/evidence-items",
+            body,
+            tenantA,
+            actorUserId,
+            Permission.ManageEvidence);
+
+        var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Evidence references must belong to the current tenant", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(contractB.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+    }
+
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
         _factory.WithWebHostBuilder(builder =>
         {

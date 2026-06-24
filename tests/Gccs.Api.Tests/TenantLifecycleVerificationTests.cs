@@ -160,7 +160,7 @@ public sealed class TenantLifecycleVerificationTests : IClassFixture<WebApplicat
     }
 
     [Fact]
-    public async Task TC_2_1_3_Cross_tenant_read_by_id_returns_not_found_without_data_leakage()
+    public async Task TC_2_1_3_Cross_tenant_read_by_id_rejects_route_tenant_mismatch_without_data_leakage()
     {
         var tenantAId = Guid.Parse("cccccccc-cccc-cccc-cccc-ccccccccccc1");
         var tenantBId = Guid.Parse("cccccccc-cccc-cccc-cccc-ccccccccccc2");
@@ -182,7 +182,8 @@ public sealed class TenantLifecycleVerificationTests : IClassFixture<WebApplicat
         var response = await client.SendAsync(request);
         var responseBody = await response.Content.ReadAsStringAsync();
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("tenant_scope_mismatch", responseBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(tenantBId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TC-2.1.3 Tenant B Secret Name", responseBody, StringComparison.OrdinalIgnoreCase);
     }

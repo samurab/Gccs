@@ -43,6 +43,23 @@ public sealed class EfTenantMembershipRepository(
                 membership => membership.TenantId == tenantContext.TenantId && membership.UserId == userId,
                 cancellationToken);
 
+    public async Task<TenantMemberDto?> FindActiveCurrentUserMembershipAsync(CancellationToken cancellationToken = default)
+    {
+        var membership = await dbContext.TenantMemberships
+            .AsNoTracking()
+            .Include(candidate => candidate.User)
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.TenantId == tenantContext.TenantId &&
+                    candidate.UserId == tenantContext.UserId &&
+                    candidate.Status == MembershipStatus.Active &&
+                    candidate.User != null &&
+                    candidate.User.Status == UserStatus.Active,
+                cancellationToken);
+
+        return membership is null ? null : ToDto(membership);
+    }
+
     public async Task<TenantMemberDto> AddToCurrentTenantAsync(
         User user,
         TenantMembership membership,

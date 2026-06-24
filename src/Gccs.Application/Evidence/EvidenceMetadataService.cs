@@ -151,10 +151,23 @@ public sealed class EvidenceMetadataService(
         CancellationToken cancellationToken)
     {
         var missingControlIds = await repository.FindMissingControlIdsAsync(request.ControlIds, cancellationToken);
+        var invalidTenantReferences = await repository.FindInvalidCurrentTenantReferenceIdsAsync(request, cancellationToken);
 
-        if (missingControlIds.Count == 0)
+        if (missingControlIds.Count == 0 && invalidTenantReferences.Count == 0)
         {
             return;
+        }
+
+        var errors = new List<string>();
+        foreach (var invalidReference in invalidTenantReferences.OrderBy(item => item.Key, StringComparer.Ordinal))
+        {
+            errors.Add($"{invalidReference.Key}: {string.Join(", ", invalidReference.Value)}");
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new EvidenceMetadataValidationException(
+                $"Evidence references must belong to the current tenant. Invalid references: {string.Join("; ", errors)}.");
         }
 
         throw new EvidenceMetadataValidationException(

@@ -151,6 +151,46 @@ public sealed class EfEvidenceMetadataRepository(
             .ToArray();
     }
 
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> FindInvalidCurrentTenantReferenceIdsAsync(
+        UpsertEvidenceMetadataRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var invalid = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+
+        await AddMissingGuidsAsync(
+            invalid,
+            "contractIds",
+            request.ContractIds,
+            dbContext.Contracts.AsNoTracking().Where(contract => contract.TenantId == tenantContext.TenantId).Select(contract => contract.Id),
+            cancellationToken);
+        await AddMissingGuidsAsync(
+            invalid,
+            "vendorIds",
+            request.VendorIds,
+            dbContext.Vendors.AsNoTracking().Where(vendor => vendor.TenantId == tenantContext.TenantId).Select(vendor => vendor.Id),
+            cancellationToken);
+        await AddMissingGuidsAsync(
+            invalid,
+            "subcontractorIds",
+            request.SubcontractorIds,
+            dbContext.Subcontractors.AsNoTracking().Where(subcontractor => subcontractor.TenantId == tenantContext.TenantId).Select(subcontractor => subcontractor.Id),
+            cancellationToken);
+        await AddMissingGuidsAsync(
+            invalid,
+            "employeeIds",
+            request.EmployeeIds,
+            dbContext.Employees.AsNoTracking().Where(employee => employee.TenantId == tenantContext.TenantId).Select(employee => employee.Id),
+            cancellationToken);
+        await AddMissingGuidsAsync(
+            invalid,
+            "reportIds",
+            request.ReportIds,
+            dbContext.Reports.AsNoTracking().Where(report => report.TenantId == tenantContext.TenantId).Select(report => report.Id),
+            cancellationToken);
+
+        return invalid;
+    }
+
     public async Task<EvidenceReviewDto?> ApplyCurrentTenantReviewAsync(
         Guid evidenceItemId,
         EvidenceReviewDecision decision,
@@ -266,6 +306,45 @@ public sealed class EfEvidenceMetadataRepository(
             EvidenceReviewDecision.Expire => EvidenceStatus.Expired,
             _ => EvidenceStatus.InReview
         };
+
+    private static async Task AddMissingGuidsAsync(
+        Dictionary<string, IReadOnlyList<string>> invalid,
+        string fieldName,
+        IReadOnlyList<Guid> requestedIds,
+        IQueryable<Guid> currentTenantIds,
+        CancellationToken cancellationToken)
+    {
+        var requested = requestedIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .Order()
+            .ToArray();
+        if (requested.Length == 0)
+        {
+            return;
+        }
+
+        var existing = await currentTenantIds
+            .Where(id => requested.Contains(id))
+            .ToArrayAsync(cancellationToken);
+        AddMissing(invalid, fieldName, requested.Except(existing).Select(id => id.ToString()));
+    }
+
+    private static void AddMissing(
+        Dictionary<string, IReadOnlyList<string>> invalid,
+        string fieldName,
+        IEnumerable<string> missing)
+    {
+        var values = missing
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (values.Length > 0)
+        {
+            invalid[fieldName] = values;
+        }
+    }
 
     private async Task SyncExpirationTaskAsync(
         EvidenceItemEntity entity,

@@ -94,6 +94,10 @@ public interface IEvidenceMetadataRepository
         IReadOnlyList<string> controlIds,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> FindInvalidCurrentTenantReferenceIdsAsync(
+        UpsertEvidenceMetadataRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<EvidenceReviewDto?> ApplyCurrentTenantReviewAsync(
         Guid evidenceItemId,
         EvidenceReviewDecision decision,

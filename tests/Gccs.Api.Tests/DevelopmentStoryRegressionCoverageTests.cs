@@ -250,7 +250,7 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             ["TC-1.3.4"] = ["Tc_1_3_4_dependency_and_secret_scan_findings_are_visible_in_required_pull_request_checks", "Tc_1_3_4_security_scans_have_permissions_and_commands_reviewers_can_trace"],
             ["TC-2.1.1"] = ["TC_2_1_1_Tenant_creation_persists_required_metadata"],
             ["TC-2.1.2"] = ["TC_2_1_2_Tenant_owned_sample_records_store_correct_tenant_id"],
-            ["TC-2.1.3"] = ["TC_2_1_3_Cross_tenant_read_by_id_returns_not_found_without_data_leakage"],
+            ["TC-2.1.3"] = ["TC_2_1_3_Cross_tenant_read_by_id_rejects_route_tenant_mismatch_without_data_leakage"],
             ["TC-2.1.4"] = ["TC_2_1_4_Tenant_status_change_audit_event_contains_before_and_after_status"],
             ["TC-2.2.1"] = ["TC_2_2_1_Assigned_user_is_visible_only_when_that_tenant_is_active"],
             ["TC-2.2.2"] = ["TC_2_2_2_Tenant_member_list_excludes_users_from_other_tenants"],

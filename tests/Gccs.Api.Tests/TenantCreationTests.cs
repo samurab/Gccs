@@ -104,11 +104,14 @@ public sealed class TenantCreationTests : IClassFixture<WebApplicationFactory<Pr
         var ownTenantResponse = await client.SendAsync(ownTenantRequest);
         var otherTenantResponse = await client.SendAsync(otherTenantRequest);
         var ownTenant = await ownTenantResponse.Content.ReadFromJsonAsync<TenantDto>(JsonOptions);
+        var otherTenantBody = await otherTenantResponse.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, ownTenantResponse.StatusCode);
         Assert.NotNull(ownTenant);
         Assert.Equal(tenantOneId, ownTenant.Id);
-        Assert.Equal(HttpStatusCode.NotFound, otherTenantResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, otherTenantResponse.StatusCode);
+        Assert.Contains("tenant_scope_mismatch", otherTenantBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(tenantTwoId.ToString(), otherTenantBody, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

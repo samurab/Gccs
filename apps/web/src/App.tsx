@@ -5505,7 +5505,7 @@ function SubcontractorDetailPanel({
     signedEvidenceItemId: ""
   });
   const [evidenceRequestForm, setEvidenceRequestForm] = useState({
-    requestedItem: "Signed FAR 52.204-21 flow-down acknowledgement",
+    requestedItem: "Signed flow-down acknowledgement",
     evidenceType: "SignedFlowDown",
     dueDate: "2026-07-31",
     status: "Sent",

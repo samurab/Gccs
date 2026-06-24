@@ -2,9 +2,14 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Gccs.Application.Audit;
+using Gccs.Application.Identity;
 using Gccs.Application.Tenancy;
+using Gccs.Domain.Identity;
+using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Audit;
+using Gccs.Infrastructure.Identity;
 using Gccs.Infrastructure.Persistence;
+using Gccs.Infrastructure.Persistence.Models;
 using Gccs.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -139,6 +144,75 @@ public sealed class SecurityBoundaryTests : IClassFixture<WebApplicationFactory<
     }
 
     [Fact]
+    public async Task Enforced_membership_authorization_rejects_user_without_active_membership()
+    {
+        await using var factory = CreateMembershipFactory("security-membership-missing");
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/compliance/overview");
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", Guid.Parse("33333333-3333-3333-3333-333333333333").ToString());
+        request.Headers.Add("X-Gccs-Dev-User", Guid.Parse("44444444-4444-4444-4444-444444444443").ToString());
+        request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ViewObligations.ToString());
+
+        var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("tenant_membership_required", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Enforced_membership_authorization_uses_database_role_instead_of_token_permissions()
+    {
+        var tenantId = Guid.Parse("33333333-3333-3333-3333-333333333334");
+        var userId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = CreateMembershipFactory("security-membership-role", dbContext =>
+        {
+            SeedTenantMember(dbContext, tenantId, userId, RoleCatalog.Auditor);
+        });
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/me/access");
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+        request.Headers.Add("X-Gccs-Dev-User", userId.ToString());
+        request.Headers.Add("X-Gccs-Dev-Role", RoleCatalog.Owner);
+        request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageTenant.ToString());
+
+        var response = await client.SendAsync(request);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var roles = payload.RootElement.GetProperty("roles").EnumerateArray().Select(role => role.GetString()).ToArray();
+        var permissions = payload.RootElement.GetProperty("permissions").EnumerateArray().Select(permission => permission.GetString()).ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(RoleCatalog.Auditor, roles);
+        Assert.DoesNotContain(RoleCatalog.Owner, roles);
+        Assert.Contains(Permission.AuditorReadOnly.ToString(), permissions);
+        Assert.DoesNotContain(Permission.ManageTenant.ToString(), permissions);
+    }
+
+    [Fact]
+    public async Task Route_tenant_scope_rejects_mismatched_tenant_id_before_endpoint_logic()
+    {
+        var tenantId = Guid.Parse("33333333-3333-3333-3333-333333333335");
+        var routeTenantId = Guid.Parse("33333333-3333-3333-3333-333333333336");
+        await using var factory = CreatePersistenceFactory("security-route-tenant-mismatch");
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/tenants/{routeTenantId}/data-handling-mode/history");
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+        request.Headers.Add("X-Gccs-Dev-User", Guid.Parse("44444444-4444-4444-4444-444444444445").ToString());
+        request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageTenant.ToString());
+
+        var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("tenant_scope_mismatch", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Compliance_relevant_audit_events_include_request_correlation_id()
     {
         const string correlationId = "tc-3-1-audit-correlation";
@@ -204,6 +278,60 @@ public sealed class SecurityBoundaryTests : IClassFixture<WebApplicationFactory<
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
             });
         });
+
+    private WebApplicationFactory<Program> CreateMembershipFactory(
+        string databaseName,
+        Action<GccsDbContext>? seed = null) =>
+        _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("LocalDependencies:Enabled", "false");
+            builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
+            builder.UseSetting("Security:MembershipAuthorization:Enforce", "true");
+            builder.ConfigureServices(services =>
+            {
+                services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddScoped<ITenantMembershipRepository, EfTenantMembershipRepository>();
+
+                using var provider = services.BuildServiceProvider();
+                using var scope = provider.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+                dbContext.Database.EnsureDeleted();
+                dbContext.Database.EnsureCreated();
+                seed?.Invoke(dbContext);
+                dbContext.SaveChanges();
+            });
+        });
+
+    private static void SeedTenantMember(GccsDbContext dbContext, Guid tenantId, Guid userId, string roleName)
+    {
+        dbContext.Tenants.Add(new TenantEntity
+        {
+            Id = tenantId,
+            Name = $"Security Tenant {tenantId:N}",
+            Status = TenantStatus.Active,
+            DataPosture = TenantDataPosture.NoCui,
+            CreatedAt = DateTimeOffset.Parse("2026-06-23T12:00:00Z")
+        });
+        dbContext.Users.Add(new UserEntity
+        {
+            Id = userId,
+            TenantId = tenantId,
+            Email = $"user-{userId:N}@example.com",
+            DisplayName = "Security Test User",
+            Status = UserStatus.Active,
+            MfaEnabled = true,
+            CreatedAt = DateTimeOffset.Parse("2026-06-23T12:00:00Z")
+        });
+        dbContext.TenantMemberships.Add(new TenantMembershipEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UserId = userId,
+            Status = MembershipStatus.Active,
+            RoleName = roleName,
+            CreatedAt = DateTimeOffset.Parse("2026-06-23T12:00:00Z")
+        });
+    }
 
     private sealed class CapturingLoggerProvider : ILoggerProvider
     {

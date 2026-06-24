@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Gccs.Application.Audit;
 using Gccs.Application.Common;
+using Gccs.Application.Identity;
 using Gccs.Application.Security;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Identity;
@@ -21,6 +22,7 @@ public static class ApiSecurityExtensions
     public const string PermissionClaimType = "permission";
     public const string RoleNameClaimType = "gccs_role";
     public const string TenantIdClaimType = "tenant_id";
+    private const string MembershipAuthorizationEnforcedKey = "Security:MembershipAuthorization:Enforce";
 
     public static IServiceCollection AddGccsApiSecurity(
         this IServiceCollection services,
@@ -133,6 +135,98 @@ public static class ApiSecurityExtensions
         return services;
     }
 
+    public static IApplicationBuilder UseGccsTenantMembershipAuthorization(
+        this IApplicationBuilder app,
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
+    {
+        var enforceMembership = configuration.GetValue(MembershipAuthorizationEnforcedKey, !environment.IsDevelopment());
+        if (!enforceMembership)
+        {
+            return app;
+        }
+
+        return app.Use(async (context, next) =>
+        {
+            if (!context.Request.Path.StartsWithSegments("/api") ||
+                context.User.Identity?.IsAuthenticated is not true)
+            {
+                await next();
+                return;
+            }
+
+            var endpoint = context.GetEndpoint();
+            if (endpoint?.Metadata.GetMetadata<IAllowAnonymous>() is not null)
+            {
+                await next();
+                return;
+            }
+
+            if (!TryReadGuid(context.User, TenantIdClaimType, out _) ||
+                !TryReadGuid(context.User, ClaimTypes.NameIdentifier, out _))
+            {
+                await next();
+                return;
+            }
+
+            var repository = context.RequestServices.GetService<ITenantMembershipRepository>();
+            if (repository is null)
+            {
+                await ApiProblemDetails
+                    .Create(
+                        context,
+                        "Tenant membership authorization unavailable",
+                        "Tenant membership authorization is required but the membership repository is not configured.",
+                        StatusCodes.Status500InternalServerError,
+                        "tenant_membership_authorization_unavailable")
+                    .ExecuteAsync(context);
+                return;
+            }
+
+            var membership = await repository.FindActiveCurrentUserMembershipAsync(context.RequestAborted);
+            if (membership is null)
+            {
+                await ApiProblemDetails
+                    .Create(
+                        context,
+                        "Tenant membership required",
+                        "The authenticated user is not an active member of the requested tenant.",
+                        StatusCodes.Status403Forbidden,
+                        "tenant_membership_required")
+                    .ExecuteAsync(context);
+                return;
+            }
+
+            ReplaceRoleAndPermissionClaims(context.User, membership.RoleName);
+            await next();
+        });
+    }
+
+    public static RouteGroupBuilder RequireRouteTenantScope(this RouteGroupBuilder group)
+    {
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            if (context.HttpContext.Request.RouteValues.TryGetValue("tenantId", out var routeValue) &&
+                Guid.TryParse(routeValue?.ToString(), out var routeTenantId))
+            {
+                var tenantContext = context.HttpContext.RequestServices.GetRequiredService<ITenantContext>();
+                if (routeTenantId != tenantContext.TenantId)
+                {
+                    return ApiProblemDetails.Create(
+                        context.HttpContext,
+                        "Tenant scope mismatch",
+                        "The route tenant does not match the authenticated tenant context.",
+                        StatusCodes.Status403Forbidden,
+                        "tenant_scope_mismatch");
+                }
+            }
+
+            return await next(context);
+        });
+
+        return group;
+    }
+
     public static IApplicationBuilder UseGccsSecurityHeaders(this IApplicationBuilder app)
     {
         return app.Use(async (context, next) =>
@@ -150,6 +244,31 @@ public static class ApiSecurityExtensions
 
             await next();
         });
+    }
+
+    private static bool TryReadGuid(ClaimsPrincipal principal, string claimType, out Guid value) =>
+        Guid.TryParse(principal.FindFirstValue(claimType), out value);
+
+    private static void ReplaceRoleAndPermissionClaims(ClaimsPrincipal principal, string roleName)
+    {
+        foreach (var identity in principal.Identities.Where(identity => identity.IsAuthenticated))
+        {
+            foreach (var claim in identity.Claims
+                         .Where(claim =>
+                             claim.Type == PermissionClaimType ||
+                             claim.Type == RoleNameClaimType ||
+                             claim.Type == ClaimTypes.Role)
+                         .ToArray())
+            {
+                identity.RemoveClaim(claim);
+            }
+
+            identity.AddClaim(new Claim(RoleNameClaimType, roleName));
+            foreach (var permission in RoleCatalog.GetPermissions(roleName))
+            {
+                identity.AddClaim(new Claim(PermissionClaimType, permission.ToString()));
+            }
+        }
     }
 
     public static IApplicationBuilder UseGccsCorrelationIds(this IApplicationBuilder app)
