@@ -6,7 +6,7 @@ These prompts are designed to be copied into a fresh implementation thread, one 
 
 Use these requirements for every story:
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 - Follow the existing project structure: React + Vite web app, ASP.NET Core API, application/domain/infrastructure layers, PostgreSQL persistence, and compliance content package.
 - Read the referenced story, tasks, and acceptance criteria before editing.
@@ -40,7 +40,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -69,9 +69,9 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 > - A new developer can identify where frontend, backend, domain, persistence, infrastructure, and compliance content live.
 > - The solution builds locally with documented commands.
 > - No compliance workflow logic is embedded only in the UI.
-> - Documentation points to the CUI-ready gated MVP posture.
+> - Documentation points to the No-CUI MVP posture with synthetic CUI-ready demonstration workflows.
 >
-> Implement Story 1.1, "Repository And Project Structure," from `docs/development-phase-use-cases.md`. Confirm and improve the solution organization across `apps/api`, `apps/web`, `src/Gccs.Domain`, `src/Gccs.Application`, `src/Gccs.Infrastructure`, `packages/compliance-content`, `docs`, and `infra`. Update documentation so a new developer understands ownership boundaries, local setup, build commands, and the CUI-ready gated MVP posture. Verify the solution builds cleanly and ensure compliance workflow logic is not trapped only in the UI.
+> Implement Story 1.1, "Repository And Project Structure," from `docs/development-phase-use-cases.md`. Confirm and improve the solution organization across `apps/api`, `apps/web`, `src/Gccs.Domain`, `src/Gccs.Application`, `src/Gccs.Infrastructure`, `packages/compliance-content`, `docs`, and `infra`. Update documentation so a new developer understands ownership boundaries, local setup, build commands, and the No-CUI MVP posture with synthetic CUI-ready demonstration workflows. Verify the solution builds cleanly and ensure compliance workflow logic is not trapped only in the UI.
 
 Instructions:
 
@@ -112,7 +112,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -188,7 +188,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -262,7 +262,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -335,7 +335,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -408,7 +408,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -482,7 +482,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -558,7 +558,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -631,7 +631,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -707,7 +707,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -736,9 +736,9 @@ After implementation, run the appropriate xUnit test for .NET and Vitest, paired
 > - User sees a data handling notice before first upload.
 > - User must acknowledge the notice before upload is enabled.
 > - Acknowledgement is audit logged.
-> - Notice copy states that the MVP supports CUI-ready workflows with gated CUI acceptance and that real CUI upload requires approved CUI-ready tenant status.
+> - Notice copy states that the MVP supports synthetic CUI-ready demonstration workflows and that real CUI upload requires approved future `CuiReady` tenant status.
 >
-> Implement Story 4.1, "Data Handling Acknowledgement," from `docs/development-phase-use-cases.md`. Add data handling notice content to onboarding and upload flows, require acknowledgement before upload, store acknowledgement by user/tenant/timestamp/notice version, expose acknowledgement status, and audit the acknowledgement. The copy must clearly state the MVP supports CUI-ready workflows with gated CUI acceptance and that real CUI upload requires approved CUI-ready tenant status.
+> Implement Story 4.1, "Data Handling Acknowledgement," from `docs/development-phase-use-cases.md`. Add data handling notice content to onboarding and upload flows, require acknowledgement before upload, store acknowledgement by user/tenant/timestamp/notice version, expose acknowledgement status, and audit the acknowledgement. The copy must clearly state the MVP supports synthetic CUI-ready demonstration workflows and that real CUI upload requires approved future `CuiReady` tenant status.
 
 Instructions:
 
@@ -781,7 +781,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -858,7 +858,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -932,7 +932,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1007,7 +1007,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1081,7 +1081,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1155,7 +1155,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1231,7 +1231,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1305,7 +1305,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1379,7 +1379,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1455,7 +1455,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1529,7 +1529,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1603,7 +1603,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1719,7 +1719,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1793,7 +1793,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1869,7 +1869,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -1943,7 +1943,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2017,7 +2017,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2092,7 +2092,7 @@ Important product rules:
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2166,7 +2166,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2239,7 +2239,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2315,7 +2315,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2389,7 +2389,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2463,7 +2463,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2539,7 +2539,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2613,7 +2613,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2687,7 +2687,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2761,7 +2761,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2837,7 +2837,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -2911,7 +2911,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3027,7 +3027,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3101,7 +3101,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3175,7 +3175,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3249,7 +3249,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3323,7 +3323,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3399,7 +3399,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3473,7 +3473,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3547,7 +3547,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3623,7 +3623,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3697,7 +3697,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3771,7 +3771,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3845,7 +3845,7 @@ First, read the Agile/Scrum plan, API specification, SQL schema, architecture fi
 
 - Add focused tests for tenant isolation, permissions, audit logging, and policy enforcement where relevant.
 
-- Treat the MVP as **CUI-ready by design with gated CUI acceptance**.
+- Treat the MVP as **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**.
 
 - Preserve tenant isolation, RBAC, audit logging, source traceability, and review metadata.
 
@@ -3920,7 +3920,7 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > - Starting extraction for another tenant's document is denied.
 > - Extraction job creation is audit logged.
 
-Implement Story 18.1, "Extraction Job Intake," from `docs/development-phase-use-cases.md`. Add the extraction job model, API endpoint, queue/background worker stub, contract document UI action, and audit events for job creation, completion, and failure. Preserve tenant isolation, RBAC, validation, audit logging, and the CUI-ready gated MVP posture. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+Implement Story 18.1, "Extraction Job Intake," from `docs/development-phase-use-cases.md`. Add the extraction job model, API endpoint, queue/background worker stub, contract document UI action, and audit events for job creation, completion, and failure. Preserve tenant isolation, RBAC, validation, audit logging, and the No-CUI MVP posture with synthetic CUI-ready demonstration workflows. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
 
 #-----------------------------------------
 
@@ -4708,7 +4708,7 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > - Acceptance criteria:
 > - `DemoSandbox` tenants can use seeded synthetic CUI examples but cannot upload real customer files marked as CUI.
 > - `NoCui` tenants cannot create or process records classified as real CUI.
-> - `CuiReady` tenants can use CUI workflows only when required classification and approval checks pass.
+> - `CuiReady` tenants can use CUI handling workflows only when required classification and approval checks pass.
 > - Direct API calls receive the same mode restrictions as UI actions.
 > - Mode enforcement failures return a clear error and create an audit event.
 
@@ -4792,7 +4792,7 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > Context:
 >
 > - Epic: Synthetic CUI Demo Dataset
-> - User story: As a customer success lead, I want demo tenants to be seeded with synthetic CUI workflows so that onboarding and training can show end-to-end behavior safely.
+> - User story: As a customer success lead, I want demo tenants to be seeded with synthetic CUI handling workflows so that onboarding and training can show end-to-end behavior safely.
 > - Acceptance criteria:
 > - Seed process runs only for `DemoSandbox` tenants.
 > - Re-running the seed process does not duplicate demo records.
@@ -4815,7 +4815,7 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > Context:
 >
 > - Epic: CUI-Ready Tenant Approval Checklist
-> - User story: As a platform admin, I want a CUI-ready approval checklist so that required readiness evidence is captured before enabling CUI workflows.
+> - User story: As a platform admin, I want a Future `CuiReady` approval checklist so that required readiness evidence is captured before enabling CUI handling workflows.
 > - Acceptance criteria:
 > - Checklist cannot be approved while required items are incomplete.
 > - Each completed item records owner, reviewer, review date, and supporting note or evidence link.
@@ -4823,7 +4823,7 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > - Approved checklist ID is required for a tenant mode change to `CuiReady`.
 > - Checklist changes are audit logged.
 
-Implement Story 1A.4.1, "Approval Checklist Model," from `docs/development-phase-use-cases.md`. Add the CUI-ready approval checklist model, states, item metadata, tenant linkage, API/UI workflows, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+Implement Story 1A.4.1, "Approval Checklist Model," from `docs/development-phase-use-cases.md`. Add the Future `CuiReady` approval checklist model, states, item metadata, tenant linkage, API/UI workflows, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
 
 #-----------------------------------------
 ### Story 1A.4.2: Approval Gate Enforcement
@@ -4880,10 +4880,10 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > Context:
 >
 > - Epic: Shared Responsibility Matrix Baseline
-> - User story: As a tenant admin, I want to acknowledge the shared responsibility matrix so that CUI-ready operation has a recorded customer acceptance.
+> - User story: As a tenant admin, I want to acknowledge the shared responsibility matrix so that approved future `CuiReady` operation has a recorded customer acceptance.
 > - Acceptance criteria:
 > - Tenant admin can view and acknowledge the current published matrix.
-> - CUI-ready approval is blocked if the tenant has not acknowledged the current matrix version.
+> - future `CuiReady` approval is blocked if the tenant has not acknowledged the current matrix version.
 > - Acknowledgement history records version, user, timestamp, and tenant.
 > - New matrix version marks prior acknowledgement as outdated for future approvals.
 > - Matrix acknowledgement is audit logged.
@@ -5039,7 +5039,7 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > - Acceptance criteria:
 > - Security review checklist includes every required Phase 1A review area.
 > - Each checklist item records status, reviewer, review date, and evidence or rationale.
-> - High or critical open findings block CUI-ready approval.
+> - High or critical open findings block future `CuiReady` approval.
 > - Accepted risks include approver, date, scope, expiration or review date, and mitigation note.
 > - Security review changes are audit logged.
 
@@ -5077,12 +5077,12 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > Context:
 >
 > - Epic: Security Readiness Review
-> - User story: As a security owner, I want incident response readiness checked before CUI workflows are enabled so that accidental CUI upload or data handling incidents can be handled immediately.
+> - User story: As a security owner, I want incident response readiness checked before CUI handling workflows are enabled so that accidental CUI upload or data handling incidents can be handled immediately.
 > - Acceptance criteria:
 > - Required incident playbooks exist before `CuiReady` approval.
 > - Each playbook identifies trigger, containment steps, notification path, evidence to collect, owner, and closure criteria.
 > - Readiness review records tabletop date, participants, findings, and follow-up actions.
-> - Open critical incident response gaps block CUI-ready approval.
+> - Open critical incident response gaps block future `CuiReady` approval.
 > - Incident readiness approval is audit logged or source-control traceable.
 
 Implement Story 1A.9.3, "Incident Response Readiness," from `docs/development-phase-use-cases.md`. Add incident response readiness playbooks, escalation owner records, tabletop checklist/evidence capture, approval linkage, reminders, and traceability. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
@@ -5669,7 +5669,7 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > - Suspended, retired, or revoked enclaves block new CUI processing.
 > - Enclave lifecycle actions are audit logged.
 
-Implement Story 38.1, "CUI Enclave Boundary Model," from `docs/development-phase-use-cases.md`. Add enclave records with tenant, environment, boundary description, data handling mode, approved workflows, storage location, compute boundary, network restrictions, logging destination, backup policy, and support access model, enclave approval to CUI-ready tenant approval, security review checklist, incident readiness, and shared responsibility matrix acknowledgement, status workflow for draft, under_review, approved, active, suspended, retired, and revoked, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+Implement Story 38.1, "CUI Enclave Boundary Model," from `docs/development-phase-use-cases.md`. Add enclave records with tenant, environment, boundary description, data handling mode, approved workflows, storage location, compute boundary, network restrictions, logging destination, backup policy, and support access model, enclave approval to future `CuiReady` tenant approval, security review checklist, incident readiness, and shared responsibility matrix acknowledgement, status workflow for draft, under_review, approved, active, suspended, retired, and revoked, and related workflow controls. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, enterprise identity controls, regulated-environment controls, key-management safety, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
 
 #-----------------------------------------
 ### Story 38.2: Customer-Managed Key Policy And Rotation

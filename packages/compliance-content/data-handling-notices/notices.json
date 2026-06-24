@@ -34,7 +34,7 @@
       "mode": "CuiReady",
       "workflowContexts": ["Onboarding", "EvidenceUpload", "ContractIntake", "ReportGeneration", "Support"],
       "title": "CUI-Ready Data Handling Notice",
-      "body": "CuiReady mode permits CUI handling only in approved tenant workflows after CUI-ready approval. Customers remain responsible for classification decisions, shared responsibility matrix obligations, contract-specific handling rules, and downstream export or deletion decisions.",
+      "body": "CuiReady mode permits CUI handling only in approved tenant workflows after future CuiReady approval. Customers remain responsible for classification decisions, shared responsibility matrix obligations, contract-specific handling rules, and downstream export or deletion decisions.",
       "state": "Published",
       "owner": "GCCS Product Owner",
       "reviewer": "GCCS Security Owner",

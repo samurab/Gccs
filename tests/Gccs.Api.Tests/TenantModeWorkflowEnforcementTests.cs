@@ -70,14 +70,62 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         Assert.Contains("tenant_data_handling_mode_restricted", body, StringComparison.Ordinal);
 
         var policy = CreatePolicy(TenantDataPosture.DemoSandbox, ids);
+        await Assert.ThrowsAsync<TenantDataHandlingModeRestrictedException>(() =>
+            policy.EnsureAllowedAsync(
+                new TenantDataHandlingModePolicyRequest(
+                    TenantDataHandlingWorkflow.ContractDocumentUpload,
+                    ContainsRealCui: true,
+                    ContainsSyntheticCui: true,
+                    EntityType: "ContractDocument",
+                    EntityId: "misclassified-customer-cui"),
+                ids.ActorUserId));
+
         await policy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(
                 TenantDataHandlingWorkflow.ContractDocumentUpload,
-                ContainsRealCui: true,
+                ContainsRealCui: false,
                 ContainsSyntheticCui: true,
+                ApprovalChecksPassed: true,
                 EntityType: "ContractDocument",
                 EntityId: "synthetic-demo-seed"),
             ids.ActorUserId);
+    }
+
+    [Fact]
+    public async Task TC_1A_1_2_2_NoCui_blocks_synthetic_demo_records()
+    {
+        var ids = StoryIds.ForCase("tc-1a-1-2-2-synthetic");
+        await using var factory = CreateFactory("tc-1a-1-2-2-synthetic", dbContext =>
+        {
+            SeedTenant(dbContext, ids.TenantId, TenantDataPosture.NoCui);
+            SeedContract(dbContext, ids);
+            SeedAcknowledgement(dbContext, ids);
+        });
+        using var client = factory.CreateClient();
+        using var upload = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{ids.ContractId}/documents",
+            new ContractDocumentUploadRequest(
+                ContractDocumentType.Contract,
+                "synthetic-demo-cui.pdf",
+                "application/pdf",
+                2048,
+                true,
+                new ContentClassificationRequest(
+                    ContentClassification.SyntheticCui,
+                    ContentClassificationSource.ImportedDemoSeed,
+                    Confidence: 1m,
+                    Reason: "Approved synthetic demo seed content.",
+                    IsApprovedDemoContent: true)),
+            ids.TenantId,
+            ids.ActorUserId,
+            Permission.ManageContracts);
+
+        var response = await client.SendAsync(upload);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("tenant_data_handling_mode_restricted", body, StringComparison.Ordinal);
     }
 
     [Fact]

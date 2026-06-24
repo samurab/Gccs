@@ -1,6 +1,6 @@
 # Design Flow Diagrams
 
-These diagrams translate the GCCS MVP product guidance into design flows for the authenticated SaaS workspace. The MVP is CUI-ready by design with gated CUI acceptance: users can manage compliance work, metadata, obligations, tasks, and evidence, while real customer CUI is blocked unless the tenant is approved as CUI-ready.
+These diagrams translate the GCCS MVP product guidance into design flows for the authenticated SaaS workspace. The MVP is No-CUI / compliance management only with synthetic CUI-ready demonstration workflows: users can manage compliance work, metadata, obligations, tasks, and evidence, while real customer CUI is blocked unless the tenant is approved for future `CuiReady` operation.
 
 ## 1. User Operating Loop
 

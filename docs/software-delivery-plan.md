@@ -1,6 +1,6 @@
 # Software Delivery Plan
 
-This plan turns GCCS into a practical, shippable government contractor compliance SaaS for small U.S. businesses, with CUI-ready workflows designed from day one and real CUI acceptance controlled by tenant-level approval gates. It is product and engineering guidance, not legal advice. Production obligation content must be reviewed by qualified government contracts, cybersecurity, labor, CMMC, SBA, or finance experts as applicable.
+This plan turns GCCS into a practical, shippable government contractor compliance SaaS for small U.S. businesses. The MVP launch posture is No-CUI / compliance management only, with synthetic CUI-ready demonstration workflows for sandbox validation. Real CUI acceptance remains a future `CuiReady` posture controlled by tenant-level approval gates. This is product and engineering guidance, not legal advice. Production obligation content must be reviewed by qualified government contracts, cybersecurity, labor, CMMC, SBA, or finance experts as applicable.
 
 ## 1. Delivery Objectives
 
@@ -23,9 +23,9 @@ The first release should provide a reliable compliance operating workspace for:
 
 ### MVP Posture
 
-The MVP is **CUI-ready by design with gated CUI acceptance**. Users can demo and test full CUI-aware workflows with synthetic or redacted data. Real customer CUI must remain disabled for a tenant until the CUI-ready architecture, shared responsibility matrix, customer terms, support model, operating controls, and assessment posture are approved.
+The MVP is **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**. Users can demo and test CUI-aware workflows only with synthetic or redacted data. Real customer CUI must remain disabled unless and until a future `CuiReady` posture is approved with architecture, shared responsibility matrix, customer terms, support model, operating controls, and assessment posture.
 
-Allowed default MVP data includes company profile metadata, contract metadata, clause references, non-sensitive policies, screenshots, checklists, attestations, training records, vendor documents, evidence metadata, and synthetic or redacted CUI demo artifacts. Real CUI is allowed only in approved CUI-ready tenants. Prohibited data includes classified data, ITAR/export-controlled technical data, SSNs, payroll records, protected medical or disability data, secrets, private keys, and unrestricted security logs unless a separately approved deployment posture exists.
+Allowed default MVP data includes company profile metadata, contract metadata, clause references, non-sensitive policies, screenshots, checklists, attestations, training records, vendor documents, evidence metadata, and synthetic or redacted CUI demo artifacts in sandbox contexts. Real CUI is allowed only in approved future `CuiReady` tenants. Prohibited data includes classified data, ITAR/export-controlled technical data, SSNs, payroll records, protected medical or disability data, secrets, private keys, and unrestricted security logs unless a separately approved deployment posture exists.
 
 ## 2. Team And Cadence
 
@@ -262,15 +262,15 @@ Deliverables:
 - Tenant data handling modes: `DemoSandbox`, `NoCui`, and `CuiReady`.
 - Upload, note, report, extraction, and evidence workflows enforce tenant data handling mode.
 - Synthetic CUI demo package for contracts, CUI marking guide metadata, evidence, CMMC control evidence, and reporting.
-- CUI-ready approval checklist covering tenant isolation, RBAC, audit logging, encryption, malware scanning, retention, backup, restore, admin access, support escalation, and incident response.
+- Future `CuiReady` approval checklist covering tenant isolation, RBAC, audit logging, encryption, malware scanning, retention, backup, restore, admin access, support escalation, and incident response.
 - Shared responsibility matrix baseline and customer-facing CUI data handling notice.
 - Audit events for mode changes, CUI classification, upload blocks, approvals, downloads, exports, deletions, and support escalations.
 
 Exit criteria:
 
 - Demo tenants can show complete CUI-aware workflows without real CUI.
-- Production tenants cannot upload real CUI unless explicitly approved as CUI-ready.
-- CUI-ready approval requires product, engineering, security, compliance content, and legal/compliance advisor signoff.
+- Production tenants cannot upload real CUI unless explicitly approved for future `CuiReady` operation.
+- Future `CuiReady` approval requires product, engineering, security, compliance content, and legal/compliance advisor signoff.
 
 ### Phase 2: Govcon Intelligence, 8-12 Weeks
 
@@ -309,7 +309,7 @@ Deliverables:
 
 Exit criteria:
 
-- Advanced workflows can support higher-tier pilots with synthetic, redacted, or approved CUI-ready tenant data depending on deployment posture.
+- Advanced workflows can support higher-tier pilots with synthetic, redacted, or future approved `CuiReady` tenant data depending on deployment posture.
 
 ### Phase 4: Enterprise And Regulated Deployment
 
@@ -544,7 +544,7 @@ Acceptance criteria:
 
 - User sees a data handling notice during onboarding and before file upload.
 - Acknowledgement is recorded.
-- The notice explains that demo tenants use synthetic/redacted CUI workflows and real CUI upload requires approved CUI-ready tenant status.
+- The notice explains that demo tenants use synthetic/redacted CUI handling workflows and real CUI upload requires approved future `CuiReady` tenant status.
 
 ### Epic 3: Contract And Clause Intake
 
@@ -948,4 +948,4 @@ The MVP is releasable when:
 - Reports are useful enough for owner, prime, and internal review conversations.
 - Tenant isolation, RBAC, audit logging, backup, and monitoring are verified.
 - Compliance content has source URLs, last-reviewed dates, and review status.
-- CUI-ready gated posture is visible, acknowledged, and enforced in the upload workflow.
+- No-CUI production posture with synthetic CUI-ready demonstration workflows is visible, acknowledged, and enforced in the upload workflow.

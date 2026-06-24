@@ -1,6 +1,6 @@
 # Development Database Models
 
-These artifacts turn the MVP domain model into a migration-ready PostgreSQL schema for the development phase. The schema supports CUI-ready workflows while keeping real CUI storage tenant-gated until production authorization is approved.
+These artifacts turn the MVP domain model into a migration-ready PostgreSQL schema for the development phase. The schema supports CuiReady workflows while keeping real CUI storage tenant-gated until production authorization is approved.
 
 ## Artifact Set
 

@@ -16,7 +16,7 @@ This is product and engineering guidance, not legal advice. Production complianc
 
 The current MVP is **No-CUI / compliance management only**.
 
-GCCS should help users organize compliance work without storing real customer CUI. CUI-ready workflows are planned for a later sprint and require a separate approved architecture, customer terms, support process, shared responsibility matrix, and operating controls before any real CUI can be accepted.
+GCCS should help users organize compliance work without storing real customer CUI. Synthetic CUI-ready demonstration workflows may exist for sandbox use, but real `CuiReady` workflows require a separate approved architecture, customer terms, support process, shared responsibility matrix, and operating controls before any real CUI can be accepted.
 
 The product must not store classified data, ITAR/export-controlled technical data, SSNs, payroll records, protected medical or disability data, or other highly sensitive employee records unless a separate approved deployment posture exists.
 
@@ -29,7 +29,7 @@ No-CUI positioning must appear in:
 - Terms, privacy, and data handling documentation.
 - Customer-facing sales and implementation materials.
 
-The default posture should prevent users from uploading CUI. Demo and future CUI-ready tenant behavior must remain clearly separated from the current No-CUI MVP.
+The default posture should prevent users from uploading CUI. Demo sandbox behavior and future `CuiReady` tenant behavior must remain clearly separated from the current No-CUI MVP.
 
 ## MVP Scope
 

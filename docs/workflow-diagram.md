@@ -11,7 +11,7 @@ flowchart TD
     contractIntake["Add opportunity, contract, subcontract,<br/>purchase order, SOW, wage determination,<br/>or flow-down attachment"]
 
     uploadGuard{"Does tenant mode allow this data?"}
-    noCui["Accept allowed document<br/>Synthetic/redacted CUI in demo<br/>Real CUI only in CUI-ready tenants"]
+    noCui["Accept allowed document<br/>Synthetic/redacted CUI in demo<br/>Real CUI only in future `CuiReady` tenants"]
     blockCui["Block upload and show<br/>data handling guidance"]
 
     extract["Extract or manually tag key facts<br/>Agency or prime, contract number,<br/>period of performance, contract type,<br/>place of performance, clauses,<br/>deliverables, reports, data handling,<br/>labor needs, flow-downs"]
@@ -69,7 +69,7 @@ flowchart TD
 
 ## Workflow Notes
 
-- The MVP is CUI-ready by design with gated CUI acceptance. Users should be warned and blocked from uploading real CUI unless the tenant is approved as CUI-ready with a clear shared responsibility model.
+- The MVP is No-CUI / compliance management only with synthetic CUI-ready demonstration workflows. Users should be warned and blocked from uploading real CUI unless the tenant is approved for future `CuiReady` operation with a clear shared responsibility model.
 - The obligation engine should rely on curated, source-backed compliance content instead of free-form AI determinations.
 - Expert review is required when applicability, labor standards, CMMC scope, or legal interpretation is uncertain.
 - Evidence is reusable across obligations, controls, contracts, vendors, employees, and reports.

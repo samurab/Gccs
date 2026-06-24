@@ -21,7 +21,7 @@ Company profile
 -> Reports and audit trail
 ```
 
-The MVP posture is **CUI-ready by design with gated CUI acceptance**. Demo tenants may use synthetic or redacted CUI examples, but users should not upload real customer CUI unless the tenant is explicitly approved as CUI-ready. Classified data, export-controlled technical data, payroll records, SSNs, secrets, private keys, and other prohibited sensitive information require a separately approved deployment posture.
+The MVP posture is **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**. Demo tenants may use synthetic or redacted CUI examples, but users should not upload real customer CUI unless the tenant is explicitly approved for future `CuiReady` operation. Classified data, export-controlled technical data, payroll records, SSNs, secrets, private keys, and other prohibited sensitive information require a separately approved deployment posture.
 
 ## Acronym Quick Reference
 
@@ -225,7 +225,7 @@ CMMC level focused on protecting CUI using NIST SP 800-171 control requirements.
 
 ### Controlled Unclassified Information
 
-CUI is information that is not classified but still requires safeguarding or dissemination controls under law, regulation, or government-wide policy. The MVP prohibits CUI uploads unless a separately approved CUI-ready deployment exists.
+CUI is information that is not classified but still requires safeguarding or dissemination controls under law, regulation, or government-wide policy. The MVP prohibits CUI uploads unless a separately approved future `CuiReady` deployment exists.
 
 ### Covered Defense Information
 
@@ -257,7 +257,7 @@ A security or privacy event that may require investigation, containment, notific
 
 ### ITAR And Export-Controlled Data
 
-ITAR regulates defense articles, defense services, and related technical data. Export-controlled technical data is prohibited in the CUI-ready gated MVP unless a separately approved environment and operating model exist.
+ITAR regulates defense articles, defense services, and related technical data. Export-controlled technical data is prohibited in the No-CUI MVP with synthetic CUI-ready demonstration workflows unless a separately approved environment and operating model exist.
 
 ### MFA
 
@@ -345,7 +345,7 @@ A content metadata field that tells users how reliable or mature an obligation m
 
 Documentation or artifacts that support completion of a requirement. Examples include policies, screenshots, training records, signed flow-downs, vendor attestations, access reviews, risk assessments, and meeting notes.
 
-In the CUI-ready gated MVP, evidence uploads must not include prohibited sensitive data.
+In the No-CUI MVP with synthetic CUI-ready demonstration workflows, evidence uploads must not include prohibited sensitive data.
 
 ### Evidence Vault
 
@@ -510,7 +510,7 @@ Useful public references:
 
 ## Study Path For New Team Members
 
-1. Read the product promise and CUI-ready gated posture in `docs/product-strategy.md`.
+1. Read the product promise and No-CUI production posture with synthetic CUI-ready demonstration workflows in `docs/product-strategy.md`.
 2. Learn the workflow terms in this glossary: company profile, contract, clause, obligation, evidence, report, audit log.
 3. Review `docs/compliance-content-governance.md` to understand why every customer-visible obligation needs a source URL, trigger condition, confidence label, and review state.
 4. Review `docs/mvp-execution-plan.md` to understand launch gates, data policy, support escalation, and acceptance criteria.

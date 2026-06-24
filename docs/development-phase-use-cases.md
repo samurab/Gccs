@@ -1,6 +1,6 @@
 # Development Phase Use Cases, Stories, Tasks, And Acceptance Criteria
 
-This backlog expands the Phase 1 MVP and Phase 2 Govcon Intelligence development phases into a sequential delivery plan. It assumes the MVP posture is CUI-ready by design with gated CUI acceptance and that production compliance content is reviewed by qualified subject matter experts before publication. Demo workflows may use synthetic or redacted CUI; real customer CUI requires approved CUI-ready tenant status.
+This backlog expands the Phase 1 MVP and Phase 2 Govcon Intelligence development phases into a sequential delivery plan. It assumes the MVP posture is No-CUI / compliance management only with synthetic CUI-ready demonstration workflows and that production compliance content is reviewed by qualified subject matter experts before publication. Demo workflows may use synthetic or redacted CUI; real customer CUI requires approved future `CuiReady` tenant status.
 
 ## Delivery Sequence
 
@@ -9,7 +9,7 @@ This backlog expands the Phase 1 MVP and Phase 2 Govcon Intelligence development
 | 1 | Delivery foundation | Team can build, test, review, and deploy consistently. |
 | 2 | Tenant, identity, and RBAC | Each customer works inside an isolated tenant with role-based access. |
 | 3 | Authenticated application shell | Users can navigate the SaaS workspace and call protected APIs. |
-| 4 | CUI-ready gated controls | Users are warned, guided through data classification, and blocked from uploading real CUI unless the tenant is approved as CUI-ready. |
+| 4 | No-CUI and synthetic demo controls | Users are warned, guided through data classification, and blocked from uploading real CUI unless the tenant is approved for future `CuiReady` operation. |
 | 5 | Audit logging | Sensitive actions are traceable from the beginning. |
 | 6 | Compliance content foundation | Source-backed clauses and obligations can be loaded, reviewed, and published. |
 | 7 | Company compliance profile | A contractor can enter the business facts that drive compliance workflows. |
@@ -23,7 +23,7 @@ This backlog expands the Phase 1 MVP and Phase 2 Govcon Intelligence development
 | 15 | Reports | Users can generate status, obligation, CMMC, evidence, and subcontractor reports. |
 | 16 | Notifications | Users receive reminders for deadlines, renewals, and assigned work. |
 | 17 | MVP hardening and release readiness | The pilot release is tested, secure, observable, and deployable. |
-| 18 | Automated clause extraction | Uploaded allowed contract text can be parsed into clause candidates, with real CUI processing limited to approved CUI-ready tenants. |
+| 18 | Automated clause extraction | Uploaded allowed contract text can be parsed into clause candidates, with real CUI processing limited to approved future `CuiReady` tenants. |
 | 19 | Human review workflow | Extracted clauses and AI-suggested obligations require review before use. |
 | 20 | Clause library expansion | Curated clauses become searchable, versioned, and source-backed. |
 | 21 | Applicability engine | Company, contract, clause, data, and subcontractor facts drive obligation applicability. |
@@ -76,7 +76,7 @@ Acceptance criteria:
 - A new developer can identify where frontend, backend, domain, persistence, infrastructure, and compliance content live.
 - The solution builds locally with documented commands.
 - No compliance workflow logic is embedded only in the UI.
-- Documentation points to the CUI-ready gated MVP posture.
+- Documentation points to the No-CUI MVP posture with synthetic CUI-ready demonstration workflows.
 
 #### Story 1.2: Local Development Services
 ## Done ##
@@ -266,7 +266,7 @@ Acceptance criteria:
 - User sees a data handling notice before first upload.
 - User must acknowledge the notice before upload is enabled.
 - Acknowledgement is audit logged.
-- Notice copy states that demo tenants use synthetic/redacted CUI workflows and real CUI upload requires approved CUI-ready tenant status.
+- Notice copy states that demo tenants use synthetic/redacted CUI handling workflows and real CUI upload requires approved future `CuiReady` tenant status.
 
 #### Story 4.2: Upload Guardrails
 
@@ -2364,7 +2364,7 @@ Phase 1A is a readiness gate inside Phase 1. These processes must be delivered i
 | 1A.1 | Tenant data handling modes | Every tenant has an enforced mode: `DemoSandbox`, `NoCui`, or `CuiReady`. |
 | 1A.2 | Data classification controls | Uploads, notes, reports, extraction jobs, and evidence carry required classification metadata and enforcement. |
 | 1A.3 | Synthetic CUI demo dataset | Demo workflows can show CUI-like scenarios without using real customer CUI. |
-| 1A.4 | CUI-ready tenant approval checklist | A tenant cannot enter `CuiReady` mode until required business, security, support, and approval checks are complete. |
+| 1A.4 | future `CuiReady` tenant approval checklist | A tenant cannot enter `CuiReady` mode until required business, security, support, and approval checks are complete. |
 | 1A.5 | Shared responsibility matrix baseline | Customers and internal teams can see which party owns each CUI-relevant responsibility. |
 | 1A.6 | Customer-facing data handling notices | Users see accurate CUI and non-CUI handling notices in onboarding, upload, extraction, report, and support workflows. |
 | 1A.7 | CUI support escalation path | Accidental CUI upload, suspected CUI, and prohibited data incidents follow a documented triage workflow. |
@@ -2375,7 +2375,7 @@ Phase 1A is a readiness gate inside Phase 1. These processes must be delivered i
 
 ### Use Case
 
-As a security owner, I need each tenant to have an explicit data handling mode so that the platform can enforce whether the tenant may use only synthetic data, non-CUI data, or approved CUI-ready workflows.
+As a security owner, I need each tenant to have an explicit data handling mode so that the platform can enforce whether the tenant may use only synthetic data, non-CUI data, or approved CuiReady workflows.
 
 ### User Stories
 
@@ -2415,7 +2415,7 @@ Acceptance criteria:
 
 - `DemoSandbox` tenants can use seeded synthetic CUI examples but cannot upload real customer files marked as CUI.
 - `NoCui` tenants cannot create or process records classified as real CUI.
-- `CuiReady` tenants can use CUI workflows only when required classification and approval checks pass.
+- `CuiReady` tenants can use CUI handling workflows only when required classification and approval checks pass.
 - Direct API calls receive the same mode restrictions as UI actions.
 - Mode enforcement failures return a clear error and create an audit event.
 
@@ -2497,7 +2497,7 @@ Acceptance criteria:
 
 #### Story 1A.3.2: Demo Tenant Seeding
 
-As a customer success lead, I want demo tenants to be seeded with synthetic CUI workflows so that onboarding and training can show end-to-end behavior safely.
+As a customer success lead, I want demo tenants to be seeded with synthetic CUI handling workflows so that onboarding and training can show end-to-end behavior safely.
 
 Tasks:
 
@@ -2525,7 +2525,7 @@ As a security owner, I need a formal approval checklist before a tenant enters `
 
 #### Story 1A.4.1: Approval Checklist Model
 
-As a platform admin, I want a CUI-ready approval checklist so that required readiness evidence is captured before enabling CUI workflows.
+As a platform admin, I want a Future `CuiReady` approval checklist so that required readiness evidence is captured before enabling CUI handling workflows.
 
 Tasks:
 
@@ -2593,20 +2593,20 @@ Acceptance criteria:
 
 #### Story 1A.5.2: Tenant Matrix Acknowledgement
 
-As a tenant admin, I want to acknowledge the shared responsibility matrix so that CUI-ready operation has a recorded customer acceptance.
+As a tenant admin, I want to acknowledge the shared responsibility matrix so that approved future `CuiReady` operation has a recorded customer acceptance.
 
 Tasks:
 
 - Add matrix acknowledgement workflow for tenant admins.
 - Record matrix version, user, tenant, timestamp, and acknowledgement status.
-- Require current matrix acknowledgement before CUI-ready approval.
+- Require current matrix acknowledgement before future `CuiReady` approval.
 - Notify tenant admins when a published matrix version changes.
 - Add acknowledgement history view.
 
 Acceptance criteria:
 
 - Tenant admin can view and acknowledge the current published matrix.
-- CUI-ready approval is blocked if the tenant has not acknowledged the current matrix version.
+- Future `CuiReady` approval is blocked if the tenant has not acknowledged the current matrix version.
 - Acknowledgement history records version, user, timestamp, and tenant.
 - New matrix version marks prior acknowledgement as outdated for future approvals.
 - Matrix acknowledgement is audit logged.
@@ -2694,7 +2694,7 @@ As a support lead, I want escalation status tracking so that accidental CUI and 
 Tasks:
 
 - Define statuses: submitted, triage, contained, customer action required, resolved, closed, and reopened.
-- Add resolution types: reclassified, deleted, retained under CUI-ready approval, confirmed synthetic, false alarm, or referred to legal/security.
+- Add resolution types: reclassified, deleted, retained under future `CuiReady` approval, confirmed synthetic, false alarm, or referred to legal/security.
 - Add containment actions for blocking downloads, exports, extraction jobs, report use, and evidence approval.
 - Add notification hooks for security owner, support owner, tenant admin, and legal/compliance advisor when configured.
 - Add reporting view for open and resolved escalations.
@@ -2759,7 +2759,7 @@ Acceptance criteria:
 
 ### Use Case
 
-As the engineering lead and security owner, we need a formal security readiness review before CUI-ready tenant approval so that the platform's technical and operational controls have been verified.
+As the engineering lead and security owner, we need a formal security readiness review before future `CuiReady` tenant approval so that the platform's technical and operational controls have been verified.
 
 ### User Stories
 
@@ -2771,7 +2771,7 @@ Tasks:
 
 - Define review areas for tenant isolation, evidence storage, encryption, malware scanning, retention, backup, restore, admin access, support access, logging, monitoring, and incident response.
 - Add checklist fields for control status, evidence link, reviewer, review date, finding severity, remediation owner, due date, and closure notes.
-- Link security review status to CUI-ready tenant approval.
+- Link security review status to future `CuiReady` tenant approval.
 - Add ability to record compensating controls and accepted risks.
 - Add reporting for open findings.
 
@@ -2779,7 +2779,7 @@ Acceptance criteria:
 
 - Security review checklist includes every required Phase 1A review area.
 - Each checklist item records status, reviewer, review date, and evidence or rationale.
-- High or critical open findings block CUI-ready approval.
+- High or critical open findings block future `CuiReady` approval.
 - Accepted risks include approver, date, scope, expiration or review date, and mitigation note.
 - Security review changes are audit logged.
 
@@ -2805,7 +2805,7 @@ Acceptance criteria:
 
 #### Story 1A.9.3: Incident Response Readiness
 
-As a security owner, I want incident response readiness checked before CUI workflows are enabled so that accidental CUI upload or data handling incidents can be handled immediately.
+As a security owner, I want incident response readiness checked before CUI handling workflows are enabled so that accidental CUI upload or data handling incidents can be handled immediately.
 
 Tasks:
 
@@ -2820,7 +2820,7 @@ Acceptance criteria:
 - Required incident playbooks exist before `CuiReady` approval.
 - Each playbook identifies trigger, containment steps, notification path, evidence to collect, owner, and closure criteria.
 - Readiness review records tabletop date, participants, findings, and follow-up actions.
-- Open critical incident response gaps block CUI-ready approval.
+- Open critical incident response gaps block future `CuiReady` approval.
 - Incident readiness approval is audit logged or source-control traceable.
 
 ## Phase 4 - Enterprise / Regulated Deployment Sequential Backlog
@@ -3044,7 +3044,7 @@ Acceptance criteria:
 
 ### Use Case
 
-As a CUI-ready customer and security owner, I need enclave isolation and customer-managed key controls so that approved CUI workflows can operate with higher assurance and clear customer responsibility boundaries.
+As a CUI-ready customer and security owner, I need enclave isolation and customer-managed key controls so that approved CUI handling workflows can operate with higher assurance and clear customer responsibility boundaries.
 
 ### User Stories
 
@@ -3055,7 +3055,7 @@ As a security owner, I want a CUI enclave boundary model so that approved tenant
 Tasks:
 
 - Add enclave records with tenant, environment, boundary description, data handling mode, approved workflows, storage location, compute boundary, network restrictions, logging destination, backup policy, and support access model.
-- Link enclave approval to CUI-ready tenant approval, security review checklist, incident readiness, and shared responsibility matrix acknowledgement.
+- Link enclave approval to future `CuiReady` tenant approval, security review checklist, incident readiness, and shared responsibility matrix acknowledgement.
 - Add status workflow for draft, under_review, approved, active, suspended, retired, and revoked.
 - Add validation that only approved `CuiReady` tenants can activate enclave workflows.
 - Add boundary diagram or metadata export for review packages.

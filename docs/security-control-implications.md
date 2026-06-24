@@ -1,6 +1,6 @@
 # Security Control Implications
 
-This document explains what tenant isolation, RBAC, audit logging, and CUI-ready gated data handling mean for GCCS implementation, testing, release readiness, and support. These controls are product requirements, not optional engineering preferences.
+This document explains what tenant isolation, RBAC, audit logging, and No-CUI and synthetic demo data handling mean for GCCS implementation, testing, release readiness, and support. These controls are product requirements, not optional engineering preferences.
 
 ## Control Summary
 
@@ -9,7 +9,7 @@ This document explains what tenant isolation, RBAC, audit logging, and CUI-ready
 | Tenant isolation | Every customer workspace is a hard data boundary. Users, advisors, reports, evidence, contracts, tasks, and audit events must resolve through the active tenant context. | A user from tenant A must never read, update, export, report on, or infer tenant B data through API calls, UI fallback state, background jobs, imports, exports, or search. |
 | RBAC | Roles decide what an authenticated tenant member can view, create, update, approve, export, or administer. | UI hiding is not security. Every protected action must be enforced server-side by permission policy. |
 | Audit logging | Compliance-relevant and security-relevant actions must leave a durable trail. | Create, update, delete, approval, rejection, invitation, membership, upload, export, report generation, ownership changes, and policy acknowledgement events must be audit logged. |
-| CUI-ready gated posture | The MVP supports CUI-aware workflows by design, but real CUI acceptance is disabled unless the tenant or deployment is explicitly approved as CUI-ready. | Upload, import, paste, extraction, AI, evidence, and report workflows must classify data, enforce tenant data handling mode, block prohibited content, and avoid claims of certification, authorization, or assessment success. |
+| No-CUI production posture with synthetic CUI-ready demonstration workflows | The MVP supports CUI-aware workflows only through synthetic sandbox demonstrations; real CUI acceptance is disabled unless the tenant or deployment is explicitly approved for future `CuiReady` operation. | Upload, import, paste, extraction, AI, evidence, and report workflows must classify data, enforce tenant data handling mode, block prohibited content, and avoid claims of certification, authorization, or assessment success. |
 
 ## Tenant Isolation Implications
 

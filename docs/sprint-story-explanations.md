@@ -2,7 +2,7 @@
 
 This document explains what each MVP sprint story does, how it fits into GCCS, and the value it adds to the project. It is written for product, engineering, QA, advisor, and stakeholder conversations.
 
-GCCS is a CUI-ready govcon compliance management SaaS for small U.S. federal contractors and subcontractors. Its core promise is to help customers know what applies, prove what they did, and stay ready for audits, renewals, bids, certifications, and prime contractor reviews.
+GCCS is a No-CUI govcon compliance management SaaS with synthetic CUI-ready demonstration workflows for small U.S. federal contractors and subcontractors. Its core promise is to help customers know what applies, prove what they did, and stay ready for audits, renewals, bids, certifications, and prime contractor reviews.
 
 ## Index
 
@@ -284,7 +284,7 @@ The value is usability. The first screen is the working dashboard, not marketing
 
 ## 4. CUI-Ready Gated Controls
 
-This sprint area protects the MVP's declared CUI-ready gated posture. It makes users acknowledge prohibited data rules and blocks unsafe upload behavior.
+This sprint area protects the MVP's declared No-CUI production posture with synthetic CUI-ready demonstration workflows. It makes users acknowledge prohibited data rules and blocks unsafe upload behavior.
 
 | Story | Pages, views, or docs added/changed |
 | --- | --- |
@@ -295,7 +295,7 @@ This sprint area protects the MVP's declared CUI-ready gated posture. It makes u
 
 This story displays a data handling notice before the first upload, disables upload until acknowledgement, stores the acknowledgement with tenant/user/timestamp/version, and audits the event.
 
-It fits the project because the MVP supports CUI-ready workflows with gated CUI acceptance, while real CUI upload is allowed only for approved CUI-ready tenants. Classified data, export-controlled technical data, and other prohibited sensitive records still require a separately approved deployment posture. Upload workflows are where that risk is most likely to occur.
+It fits the project because the MVP supports synthetic CUI-ready demonstration workflows, while real CUI upload is allowed only for approved future `CuiReady` tenants. Classified data, export-controlled technical data, and other prohibited sensitive records still require a separately approved deployment posture. Upload workflows are where that risk is most likely to occur.
 
 The value is risk reduction. The product creates a clear user-facing control and a record that the customer was warned before placing files into the platform.
 
@@ -558,7 +558,7 @@ The value is reusable proof. One policy, screenshot, attestation, or training re
 
 This story handles evidence file uploads with data handling acknowledgement, validation and scan gating, version history, permissions, download/delete controls, and audit events.
 
-It fits the project because customers need to attach actual artifacts, but file handling must honor the MVP CUI-ready gated posture and security controls.
+It fits the project because customers need to attach actual artifacts, but file handling must honor the MVP No-CUI production posture with synthetic CUI-ready demonstration workflows and security controls.
 
 The value is controlled document proof. Users can upload allowed evidence, replace files without losing history, and ensure unvalidated files are not treated as usable evidence.
 
@@ -798,7 +798,7 @@ The value is workflow acceleration with control. Compliance managers can start a
 
 This story extracts text from supported non-CUI contract files and detects likely FAR, DFARS, agency supplement, and local clause references. It stores candidates with raw text, normalized citation, title when available, location metadata, confidence, match method, and links to known clause library records when confidence is high.
 
-It fits the project by turning uploaded contract material into reviewable structured data. Instead of asking users to find every clause manually, GCCS can surface likely matches while still respecting the CUI-ready gated upload posture and safe failure handling for unsupported or unreadable files.
+It fits the project by turning uploaded contract material into reviewable structured data. Instead of asking users to find every clause manually, GCCS can surface likely matches while still respecting the No-CUI upload posture with synthetic CUI-ready demonstration workflows and safe failure handling for unsupported or unreadable files.
 
 The value is reduced manual effort and fewer missed clauses. Users get a starting point for clause review, and the system preserves enough metadata to support later review, audit, measurement, and improvement.
 
@@ -1463,7 +1463,7 @@ This story defines CUI enclave records with tenant, environment, boundary, data 
 
 It fits the project by making CUI handling explicit, isolated, and limited to approved workflows.
 
-The value is higher-assurance data handling. Customers and security reviewers can understand where CUI workflows are allowed and when processing is blocked.
+The value is higher-assurance data handling. Customers and security reviewers can understand where CUI handling workflows are allowed and when processing is blocked.
 
 ### Story 38.2: Customer-Managed Key Policy And Rotation
 
@@ -1477,7 +1477,7 @@ The value is customer control. Approved customers can manage key lifecycle expec
 
 This story restricts enclave access through enclave-specific RBAC, just-in-time support access, export policies, emergency access, post-access review, and tenant/admin access reporting.
 
-It fits the project by limiting operational and support exposure for high-assurance CUI workflows.
+It fits the project by limiting operational and support exposure for high-assurance CUI handling workflows.
 
 The value is accountable access. Every support, export, emergency, and review action has scope, approval, duration, and audit evidence.
 
@@ -1493,7 +1493,7 @@ This sprint area is a readiness gate inside Phase 1. It turns the product postur
 | 1A.2.2 | Classification selectors, warnings, badges, review queue, reviewer reclassification, and prohibited-data routing. |
 | 1A.3.1 | Reviewed synthetic CUI demo dataset definition, metadata, classification, labels, and import precheck. |
 | 1A.3.2 | Demo tenant seed/reset workflow with synthetic end-to-end examples, idempotency, mode restrictions, and audit logging. |
-| 1A.4.1 | CUI-ready tenant approval checklist model, item metadata, states, tenant linkage, API/UI workflows, and audit logging. |
+| 1A.4.1 | future `CuiReady` tenant approval checklist model, item metadata, states, tenant linkage, API/UI workflows, and audit logging. |
 | 1A.4.2 | Server-side `CuiReady` approval gate, final approval permissions, stale-check detection, messaging, and failed-attempt audits. |
 | 1A.5.1 | Baseline shared responsibility matrix, review/publish workflow, tenant settings visibility, checklist linkage, and traceability. |
 | 1A.5.2 | Tenant matrix acknowledgement, version history, approval gate enforcement, change notifications, and audit logging. |
@@ -1511,7 +1511,7 @@ This sprint area is a readiness gate inside Phase 1. It turns the product postur
 
 This story gives every tenant an explicit mode: `DemoSandbox`, `NoCui`, or `CuiReady`. It records mode history, approval references, reasons, and effective dates so every data-handling workflow can make decisions from one source of truth.
 
-The value is enforceable posture. GCCS can distinguish demo-only, non-CUI, and approved CUI-ready tenants without relying on informal support notes or UI copy.
+The value is enforceable posture. GCCS can distinguish demo-only, non-CUI, and approved future `CuiReady` tenants without relying on informal support notes or UI copy.
 
 ### Story 1A.1.2: Mode-Based Workflow Enforcement
 
@@ -1535,7 +1535,7 @@ The value is human-in-the-loop data handling. Users see and resolve classificati
 
 This story defines reviewed synthetic CUI examples for demos, testing, and training. Every record is labeled `SyntheticCui`, versioned, reviewed, and visibly marked so nobody mistakes it for real customer CUI.
 
-The value is safe demonstration. Sales, support, and QA can show realistic CUI workflows without exposing controlled or proprietary information.
+The value is safe demonstration. Sales, support, and QA can show realistic CUI handling workflows without exposing controlled or proprietary information.
 
 ### Story 1A.3.2: Demo Tenant Seeding
 
@@ -1545,13 +1545,13 @@ The value is repeatable onboarding. Demo and training environments can be reset 
 
 ### Story 1A.4.1: Approval Checklist Model
 
-This story creates the CUI-ready tenant approval checklist, including customer agreement, notices, responsibility matrix, security review, support escalation, backup/restore, admin access, retention, and incident response items.
+This story creates the future `CuiReady` tenant approval checklist, including customer agreement, notices, responsibility matrix, security review, support escalation, backup/restore, admin access, retention, and incident response items.
 
-The value is disciplined enablement. CUI workflows cannot be turned on without recorded evidence, review ownership, and approval state.
+The value is disciplined enablement. CUI handling workflows cannot be turned on without recorded evidence, review ownership, and approval state.
 
 ### Story 1A.4.2: Approval Gate Enforcement
 
-This story enforces the CUI-ready approval checklist before tenant mode can change to `CuiReady`. It blocks incomplete, rejected, expired, or superseded approvals and audits failed attempts.
+This story enforces the Future `CuiReady` approval checklist before tenant mode can change to `CuiReady`. It blocks incomplete, rejected, expired, or superseded approvals and audits failed attempts.
 
 The value is configuration control. A mistaken tenant setting cannot authorize real CUI handling without the required approval trail.
 
@@ -1559,11 +1559,11 @@ The value is configuration control. A mistaken tenant setting cannot authorize r
 
 This story creates the shared responsibility matrix for tenant administration, access, MFA, classification, evidence storage, encryption, malware scanning, retention, backup, export, deletion, incident reporting, support, and customer content decisions.
 
-The value is expectation clarity. Customers and internal teams can see who owns each CUI-relevant control before CUI workflows are enabled.
+The value is expectation clarity. Customers and internal teams can see who owns each CUI-relevant control before CUI handling workflows are enabled.
 
 ### Story 1A.5.2: Tenant Matrix Acknowledgement
 
-This story lets tenant admins acknowledge the current responsibility matrix and requires that acknowledgement before CUI-ready approval. New matrix versions make prior acknowledgements outdated for future approvals.
+This story lets tenant admins acknowledge the current responsibility matrix and requires that acknowledgement before future `CuiReady` approval. New matrix versions make prior acknowledgements outdated for future approvals.
 
 The value is customer acceptance. GCCS has a record that the customer saw and accepted the current shared responsibility baseline.
 
@@ -1607,7 +1607,7 @@ The value is review efficiency. Security reviewers and tenant admins can produce
 
 This story creates a formal security review checklist covering tenant isolation, storage, encryption, malware scanning, retention, backup, restore, admin/support access, logging, monitoring, and incident response.
 
-The value is release discipline. High or critical open findings block CUI-ready approval unless properly accepted with scope, mitigation, and review date.
+The value is release discipline. High or critical open findings block future `CuiReady` approval unless properly accepted with scope, mitigation, and review date.
 
 ### Story 1A.9.2: Technical Control Verification
 
@@ -1619,4 +1619,4 @@ The value is evidence-backed approval. CUI-ready status is based on tests and do
 
 This story creates playbooks and readiness checks for accidental CUI upload, suspected CUI in non-CUI tenants, prohibited data, cross-tenant exposure suspicion, malware detection, and failed deletion/export requests.
 
-The value is immediate response capability. The team has owners, triggers, containment steps, evidence collection, and closure criteria before CUI workflows are enabled.
+The value is immediate response capability. The team has owners, triggers, containment steps, evidence collection, and closure criteria before CUI handling workflows are enabled.

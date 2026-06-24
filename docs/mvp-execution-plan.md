@@ -50,7 +50,7 @@ Allowed in default MVP and demo tenants:
 - Evidence metadata and non-sensitive evidence files.
 - Synthetic or redacted CUI demo artifacts.
 
-Allowed only in approved CUI-ready tenants:
+Allowed only in approved future `CuiReady` tenants:
 
 - Real customer CUI.
 - CUI marking guides and contract packages containing CUI.
@@ -71,7 +71,7 @@ Required controls:
 - Data handling acknowledgement during onboarding and before upload.
 - Upload warning and tenant data handling status near the file picker.
 - Metadata checkbox for suspected CUI or prohibited sensitive content.
-- Block real CUI upload unless the tenant is approved as CUI-ready.
+- Block real CUI upload unless the tenant is approved for future `CuiReady` operation.
 - Block upload when the user marks content as prohibited.
 - Audit log for acknowledgement, upload, block, delete, and export events.
 - Support escalation path for accidental CUI or prohibited uploads.

@@ -47,7 +47,7 @@ Constraints:
 - Some stories are already marked done and should be treated as implementation-complete unless regression gaps are discovered.
 - External integrations such as SAM.gov/GSA lookup, SBA size automation, wage determination lookup, SPRS/CMMC status import, AI/RAG, search indexing, production object storage, production malware scanning, SSO/SAML, and GovCloud remain deferred unless a story explicitly activates them.
 - Compliance content stories are ready only if each content record preserves source metadata, review state, review owner, confidence, and whether expert review is required.
-- Any future story that expands data storage, upload, extraction, report export, search, or AI processing must be rechecked against the CUI-ready gated posture before implementation.
+- Any future story that expands data storage, upload, extraction, report export, search, or AI processing must be rechecked against the No-CUI production posture with synthetic CUI-ready demonstration workflows before implementation.
 
 ## Verification
 

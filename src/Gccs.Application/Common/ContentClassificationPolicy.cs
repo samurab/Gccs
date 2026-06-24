@@ -26,23 +26,24 @@ public sealed class ContentClassificationPolicy(TenantDataHandlingModePolicyServ
             return;
         }
 
+        if (classification.Classification is ContentClassification.SyntheticCui &&
+            (!classification.IsApprovedDemoContent || classification.Source is not ContentClassificationSource.ImportedDemoSeed))
+        {
+            throw new ContentClassificationValidationException("SyntheticCui classification is allowed only for approved imported demo seed content.");
+        }
+
         await tenantModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(
                 workflow,
                 ContainsRealCui: classification.Classification is ContentClassification.Cui,
                 ContainsSyntheticCui: classification.Classification is ContentClassification.SyntheticCui,
                 ClassificationConfirmed: classification.Classification is not ContentClassification.Unknown,
-                ApprovalChecksPassed: true,
+                ApprovalChecksPassed: classification.Classification is not ContentClassification.SyntheticCui ||
+                    (classification.IsApprovedDemoContent && classification.Source is ContentClassificationSource.ImportedDemoSeed),
                 EntityType: entityType,
                 EntityId: entityId),
             actorUserId,
             cancellationToken);
-
-        if (classification.Classification is ContentClassification.SyntheticCui &&
-            (!classification.IsApprovedDemoContent || classification.Source is not ContentClassificationSource.ImportedDemoSeed))
-        {
-            throw new ContentClassificationValidationException("SyntheticCui classification is allowed only for approved imported demo seed content.");
-        }
     }
 
     public static void EnsureProcessable(ContentClassification classification, string workflow)

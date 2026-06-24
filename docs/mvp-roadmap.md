@@ -15,7 +15,7 @@
 
 - Tenant, user, and RBAC foundation.
 - React + Vite authenticated application shell backed by the ASP.NET Core API.
-- CUI-ready data posture foundation with tenant-level CUI gating, onboarding acknowledgement, upload guardrails, and demo/sandbox support for synthetic CUI workflows.
+- No-CUI data posture foundation with tenant-level mode enforcement, onboarding acknowledgement, upload guardrails, and demo/sandbox support for synthetic CUI-ready demonstration workflows.
 - Company profile.
 - Contract upload and manual clause tagging.
 - Obligation dashboard.
@@ -35,9 +35,9 @@ This is a readiness track inside Phase 1, not a separate product phase. It must 
 - Tenant data handling modes: `DemoSandbox`, `NoCui`, and `CuiReady`.
 - Data classification controls for uploads, notes, reports, extraction jobs, and evidence.
 - Synthetic CUI demo dataset and seeded CUI workflow examples.
-- CUI-ready tenant approval checklist.
+- Future `CuiReady` tenant approval checklist.
 - Shared responsibility matrix baseline.
-- Customer-facing data handling notice for CUI-ready and non-CUI tenants.
+- Customer-facing data handling notice for future `CuiReady` and No-CUI tenants.
 - Support escalation path for accidental CUI upload, suspected CUI, and prohibited data.
 - Audit events for data handling mode changes, CUI classification, upload blocks, approvals, downloads, exports, and deletions.
 - Security review covering tenant isolation, evidence storage, encryption, malware scanning, retention, backup, restore, admin access, and incident response.
@@ -57,7 +57,7 @@ Detailed delivery backlog: `docs/development-phase-use-cases.md`, sections 18-28
 - Evidence request workflows.
 - CMMC Level 2 readiness.
 - Content test set for extraction precision and recall.
-- Extraction and AI workflows respect tenant data handling mode and must not process real CUI unless the tenant is approved for CUI-ready operation.
+- Extraction and AI workflows respect tenant data handling mode and must not process real CUI unless the tenant is approved for future `CuiReady` operation.
 
 ## Phase 3 - Advanced Compliance
 

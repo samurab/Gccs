@@ -95,12 +95,26 @@ public sealed class TenantDataHandlingModePolicyService(
             {
                 TenantDataPosture.NoCui =>
                     "NoCui tenants cannot create, upload, process, report on, export, or delete records classified as real CUI.",
-                TenantDataPosture.DemoSandbox when !request.ContainsSyntheticCui =>
+                TenantDataPosture.DemoSandbox =>
                     "DemoSandbox tenants can use seeded synthetic CUI examples but cannot use real customer CUI.",
                 TenantDataPosture.CuiReady when !request.ClassificationConfirmed =>
                     "CuiReady tenants require confirmed classification before CUI workflows can continue.",
                 TenantDataPosture.CuiReady when !request.ApprovalChecksPassed =>
                     "CuiReady tenants require completed approval checks before CUI workflows can continue.",
+                _ => null
+            };
+        }
+
+        if (request.ContainsSyntheticCui)
+        {
+            return mode switch
+            {
+                TenantDataPosture.NoCui =>
+                    "NoCui tenants cannot create, upload, process, report on, export, or delete synthetic CUI demo records.",
+                TenantDataPosture.CuiReady =>
+                    "Synthetic CUI demo records are allowed only in DemoSandbox tenants.",
+                TenantDataPosture.DemoSandbox when !request.ApprovalChecksPassed =>
+                    "DemoSandbox tenants require approved imported demo seed metadata before synthetic CUI workflows can continue.",
                 _ => null
             };
         }

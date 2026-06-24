@@ -30,14 +30,14 @@ For UAT, use the names below as role/persona labels when entering assignments, i
 | Priya Shah | priya.shah+uat@example.com | Compliance Manager | Profile, obligations, reports |
 | Devin Brooks | devin.brooks+uat@example.com | Contributor | Evidence and CMMC readiness |
 | Elena Carter | elena.carter+uat@example.com | Compliance Manager | Contracts and flow-downs |
-| Avery Quinn | avery.quinn+platform@example.com | Admin / platform security tester | CUI-ready approval |
+| Avery Quinn | avery.quinn+platform@example.com | Admin / platform security tester | future `CuiReady` approval |
 
 ## Tenant Modes
 
 | Mode | What It Means | UAT Rule |
 | --- | --- | --- |
 | `NoCui` | Compliance management only. Real CUI is blocked. | Use for normal MVP testing. |
-| `CuiReady` | CUI workflows are allowed only after approval gates. | Use only after completing the CUI-ready checklist. |
+| `CuiReady` | CUI handling workflows are allowed only after approval gates. | Use only after completing the CUI-ready checklist. |
 | `DemoSandbox` | Demo/training mode for approved synthetic CUI examples. | Use only with approved synthetic demo seed data. |
 
 The existing approved synthetic dataset is [dataset.json](/Users/devups/Development/CodexProjects/Gccs/packages/demo-content/synthetic-cui/dataset.json), version `2026.06.phase1a`.
@@ -318,7 +318,7 @@ Expected result: The document appears in the contract document list with an `FCI
 
 ## UAT-10: Prove No-CUI Blocks CUI
 
-Goal: Confirm the gate blocks real CUI workflows in `NoCui` mode.
+Goal: Confirm the gate blocks real CUI handling workflows in `NoCui` mode.
 
 1. Stay on `Contracts`.
 2. In the same `Documents` section, set `Contract document classification` to `CUI`.
@@ -736,7 +736,7 @@ Expected result: Audit history is traceable, and tenant data does not leak acros
 UAT passes when:
 
 - A new user can follow the tabs and forms without engineering help.
-- `NoCui` blocks all real CUI workflows.
+- `NoCui` blocks all real CUI handling workflows.
 - `CuiReady` cannot be enabled without an approved checklist and valid `Approval checklist ID`.
 - `CuiReady` still enforces classification and workflow approval checks.
 - `DemoSandbox` permits only approved synthetic demo CUI content.

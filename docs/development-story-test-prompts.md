@@ -22,7 +22,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-1.1.1:** Verify the docs/README describe `apps/api`, `apps/web`, `src/Gccs.Domain`, `src/Gccs.Application`, `src/Gccs.Infrastructure`, `packages/compliance-content`, `docs`, and `infra`, including clear ownership boundaries for each.
 - **TC-1.1.2:** From a clean checkout, follow the documented restore, build, and test commands, then verify backend and frontend projects build successfully.
 - **TC-1.1.3:** Inspect implemented workflows and tests to confirm compliance decisions are enforced in domain/application/API layers and are not UI-only.
-- **TC-1.1.4:** Verify developer docs and setup guidance explicitly position the MVP as CUI-ready by design with gated CUI acceptance.
+- **TC-1.1.4:** Verify developer docs and setup guidance explicitly position the MVP as No-CUI / compliance management only with synthetic CUI-ready demonstration workflows.
 
 ### Story 1.2: Local Development Services
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
@@ -100,7 +100,7 @@ Using the existing GCCS architecture and test patterns, create or update automat
 - **TC-4.1.1:** With no acknowledgement on record, open an upload workflow and verify the data handling notice is displayed before upload.
 - **TC-4.1.2:** Attempt upload before acknowledgement and verify both UI and API block the upload.
 - **TC-4.1.3:** Acknowledge the data handling notice and verify user, tenant, timestamp, and notice version are persisted.
-- **TC-4.1.4:** Verify acknowledgement creates an audit event and notice copy says the MVP supports CUI-ready workflows with gated CUI acceptance and real CUI upload requires approved CUI-ready tenant status.
+- **TC-4.1.4:** Verify acknowledgement creates an audit event and notice copy says the MVP supports synthetic CUI-ready demonstration workflows and real CUI upload requires approved future `CuiReady` tenant status.
 
 ### Story 4.2: Upload Guardrails
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
@@ -856,7 +856,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 - **TC-1A.1.2.1:** As a `DemoSandbox` tenant, attempt to upload a customer file marked `CUI` and verify it is rejected while seeded synthetic examples remain usable.
 - **TC-1A.1.2.2:** As a `NoCui` tenant, attempt to create, classify, process, report on, or export real CUI and verify each action is blocked.
-- **TC-1A.1.2.3:** As a `CuiReady` tenant, attempt CUI workflows with missing classification or missing approval checks and verify rejection; repeat with valid checks and verify success.
+- **TC-1A.1.2.3:** As a `CuiReady` tenant, attempt CUI handling workflows with missing classification or missing approval checks and verify rejection; repeat with valid checks and verify success.
 - **TC-1A.1.2.4:** Call restricted APIs directly for upload, evidence, notes, reports, and extraction and verify server-side mode checks match UI behavior.
 - **TC-1A.1.2.5:** Trigger a mode-restricted failure and verify the clear error response plus audit event with tenant, actor, workflow, mode, and result.
 #-----------------------------------
@@ -943,7 +943,7 @@ Please perform Smoke test on Story 1A.5.2: Tenant Matrix Acknowledgement. Please
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-1A.5.2.1:** As a tenant admin, view and acknowledge the current matrix and verify acknowledgement status is persisted.
-- **TC-1A.5.2.2:** Attempt CUI-ready approval without current matrix acknowledgement and verify the checklist or approval gate blocks it.
+- **TC-1A.5.2.2:** Attempt future `CuiReady` approval without current matrix acknowledgement and verify the checklist or approval gate blocks it.
 - **TC-1A.5.2.3:** Verify history records matrix version, user, tenant, timestamp, and status.
 - **TC-1A.5.2.4:** Publish a new matrix version and verify prior acknowledgement is marked outdated for future approvals.
 - **TC-1A.5.2.5:** Acknowledge the matrix and verify an audit event records tenant, actor, matrix version, timestamp, and result.
@@ -1022,7 +1022,7 @@ Using the local GCCS app, execute the following test case as a verification scri
 
 - **TC-1A.9.1.1:** Verify the security review checklist includes tenant isolation, evidence storage, encryption, malware scanning, retention, backup, restore, admin access, support access, logging, monitoring, and incident response.
 - **TC-1A.9.1.2:** Complete checklist items and verify status, reviewer, review date, and evidence link or rationale are required.
-- **TC-1A.9.1.3:** Create high and critical open findings and verify CUI-ready tenant approval is blocked.
+- **TC-1A.9.1.3:** Create high and critical open findings and verify future `CuiReady` tenant approval is blocked.
 - **TC-1A.9.1.4:** Record an accepted risk and verify approver, date, scope, expiration or review date, and mitigation note are stored.
 - **TC-1A.9.1.5:** Create, update, close, and accept risk items and verify audit events are written.
 #-----------------------------------

@@ -2,7 +2,7 @@
 
 This document identifies the MVP data fields GCCS needs, the source system or input source for each field, and the current implementation status. It is a product and engineering contract, not legal advice.
 
-The MVP is **CUI-ready by design with gated CUI acceptance**. Source documents, evidence, and notes may use synthetic or redacted CUI in demo tenants. Real customer CUI is allowed only for approved CUI-ready tenants. Classified data, export-controlled technical data, payroll records, SSNs, secrets, and other prohibited sensitive content require a separately approved deployment posture.
+The MVP is **No-CUI / compliance management only with synthetic CUI-ready demonstration workflows**. Source documents, evidence, and notes may use synthetic or redacted CUI in demo tenants. Real customer CUI is allowed only for approved future `CuiReady` tenants. Classified data, export-controlled technical data, payroll records, SSNs, secrets, and other prohibited sensitive content require a separately approved deployment posture.
 
 ## Source System Register
 
@@ -34,7 +34,7 @@ The MVP is **CUI-ready by design with gated CUI acceptance**. Source documents, 
 | NAICS size status | NAICS code, title, primary flag, size standard, qualifies-as-small status | User entry; future assist from SBA size standards | Implemented in profile workflow |
 | Certification | Type, status, issuer/reference when available, effective date, expiration date | User entry; future assist from SBA/certification records where available | Implemented in profile workflow |
 | Contract record | Contract number, title, agency or prime, contractor relationship, contract type, status, place of performance, period of performance, data handling posture | User entry from solicitation, contract, subcontract, or purchase order | Implemented |
-| Contract document metadata | Document type, file name, content type, size, data classification, prohibited-content flag, acknowledgement version | User upload metadata and upload guardrails | Implemented as metadata/guardrail workflow; CUI-ready tenant gating required |
+| Contract document metadata | Document type, file name, content type, size, data classification, prohibited-content flag, acknowledgement version | User upload metadata and upload guardrails | Implemented as metadata/guardrail workflow; future `CuiReady` tenant gating required |
 | Contract clause attachment | Published clause library ID, attachment reason, source document reference when available | User manual tagging from contract package and governed clause library | Implemented |
 | Contract deliverable | Name, owner function, due date/status when known | User entry from contract/SOW | Implemented |
 | Obligation library item | Source, title, trigger condition, required actions, evidence examples, risk, owner function, source URL, last reviewed date, confidence, review state, flow-down flag | Governed compliance content package and SME review | Implemented for seeded content and publication metadata |
@@ -42,7 +42,7 @@ The MVP is **CUI-ready by design with gated CUI acceptance**. Source documents, 
 | Compliance task | Title, owner, linked entity type, linked entity ID for linked tasks, status, due date when applicable | Obligations, renewals, deliverables, evidence expiration, manual entry | Implemented |
 | Calendar event | Source module, title, owner, status, due date/date range, risk when available | Derived from tasks, renewals, deliverables, evidence, and CMMC records | Implemented |
 | Evidence metadata | Title, evidence type, owner, approval status, tags, expiration date when applicable, linked obligation/control/contract/vendor/subcontractor IDs when applicable | User entry and approved evidence records governed by tenant data handling mode | Implemented |
-| Evidence file metadata | File name, content type, file size, data classification, validation status, malware scan placeholder status, storage URI when enabled | Upload workflow and object storage adapter | Implemented as guarded metadata; CUI-ready tenant gating and production storage maturity still pending |
+| Evidence file metadata | File name, content type, file size, data classification, validation status, malware scan placeholder status, storage URI when enabled | Upload workflow and object storage adapter | Implemented as guarded metadata; future `CuiReady` tenant gating and production storage maturity still pending |
 | Evidence approval | Decision, reviewer, reviewed timestamp, rejection/request-changes reason when applicable | Authorized reviewer action | Implemented |
 | CMMC assessment | Name, framework, Level 1 or Level 2, owner, status, assessment dates, linked company/contract scope when available | User entry; source context from CMMC/NIST/32 CFR references | Implemented |
 | CMMC control readiness | Assessment ID, control ID, status, notes, linked evidence/tasks/assets/POA&M when available | CMMC baseline content and user readiness tracking | Implemented |
@@ -72,7 +72,7 @@ The MVP is **CUI-ready by design with gated CUI acceptance**. Source documents, 
 | Automated contract/clause extraction | Manual tagging is safer for MVP validation | Extraction evaluation set, precision/recall targets, confidence labels, human review workflow |
 | Wage determination lookup | Labor compliance has high complexity and risk | DOL/source integration design, labor SME review, data retention policy |
 | SPRS/CMMC external status import | Assessment/readiness claims require careful controls | Customer authorization, source limitations, CMMC SME review, audit trail |
-| CUI category mapping from NARA registry | CUI-ready workflows need category support, but real CUI must remain tenant-gated | CUI-ready architecture decision, intake controls, support process, shared responsibility matrix |
+| CUI category mapping from NARA registry | CuiReady workflows need category support, but real CUI must remain tenant-gated | CUI-ready architecture decision, intake controls, support process, shared responsibility matrix |
 
 ## Release Checklist
 

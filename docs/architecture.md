@@ -2,7 +2,7 @@
 
 ## MVP Posture
 
-The first release is No-CUI / compliance management only. Real customer CUI must be blocked until a future approved CUI-ready posture has architecture, customer terms, shared responsibility matrix, logging, access controls, support model, and assessment posture.
+The first release is No-CUI / compliance management only. Real customer CUI must be blocked until a future approved `CuiReady` posture has architecture, customer terms, shared responsibility matrix, logging, access controls, support model, and assessment posture.
 
 Tenant isolation, RBAC, audit logging, and CUI/data-handling implications are defined in `docs/security-control-implications.md`. Architecture changes must preserve those controls across API requests, repositories, background jobs, imports, exports, reports, search, and future AI/RAG workflows.
 
@@ -109,7 +109,7 @@ flowchart TB
     audit -. records sensitive actions .-> postgres
 ```
 
-The MVP deployment keeps the product No-CUI / compliance management only. Evidence upload, document intake, AI-assisted extraction, and external integrations must preserve tenant isolation, source traceability, auditability, and data handling controls, and users must remain prevented from uploading CUI until a future approved CUI-ready posture exists.
+The MVP deployment keeps the product No-CUI / compliance management only. Evidence upload, document intake, AI-assisted extraction, and external integrations must preserve tenant isolation, source traceability, auditability, and data handling controls, and users must remain prevented from uploading CUI until a future approved `CuiReady` posture exists.
 
 ## Frontend Strategy
 

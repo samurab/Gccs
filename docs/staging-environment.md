@@ -1,6 +1,6 @@
 # Staging Environment
 
-Story 17.3 defines staging as the production-like release verification environment for the CUI-ready MVP with gated CUI acceptance. Staging must deploy from CI/CD, use synthetic-only data, expose health checks for release smoke tests, and keep production customer data and production secrets out of the environment.
+Story 17.3 defines staging as the production-like release verification environment for the No-CUI MVP with synthetic CUI-ready demonstration workflows. Staging must deploy from CI/CD, use synthetic-only data, expose health checks for release smoke tests, and keep production customer data, production CUI, and production secrets out of the environment.
 
 ## Scope
 
@@ -14,9 +14,10 @@ Story 17.3 defines staging as the production-like release verification environme
 
 ## Data Guardrails
 
-- Staging is **CUI-ready demo/sandbox only**.
+- Staging is **No-CUI / compliance management only** with synthetic CUI-ready demonstration data.
 - Staging uses synthetic-only pilot data.
 - Staging contains no production customer data.
+- Staging contains no real customer CUI.
 - Staging must not reuse production secrets, production object storage buckets, production database snapshots, production unrestricted logs, or production customer uploads.
 - Any restore into staging must be generated from sanitized fixtures or synthetic seed data.
 
@@ -35,7 +36,7 @@ The deployment environment must provide:
 Post-deployment smoke tests call `GET /health` on the staging API and require these signals:
 
 - API status is `ok`.
-- `dataPosture` is `CUI-ready demo/sandbox only`.
+- `dataPosture` is `No-CUI / compliance management only`.
 - Database dependency reports `postgresql`.
 - Cache dependency reports `redis`.
 - Storage dependency reports `object-storage`.
