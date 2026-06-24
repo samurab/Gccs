@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { ModuleCard } from "@/components/ModuleCard";
+import { Alert, DataHandlingBadge, LoadingState, PageHeader, RiskBadge, StatusPill, WorkspaceMetricStrip } from "@/components/ui";
 import {
   acknowledgeNoCuiNotice,
   acknowledgeSharedResponsibilityMatrix,
@@ -284,6 +285,7 @@ type NavigationItem = {
   route: WorkspaceRoute;
   label: string;
   description: string;
+  group: "Command" | "Operations" | "Assurance" | "Administration";
   icon: typeof LayoutDashboard;
   permissions?: string[];
 };
@@ -326,12 +328,14 @@ const navigationItems: NavigationItem[] = [
     route: "dashboard",
     label: "Dashboard",
     description: "Workspace overview",
+    group: "Command",
     icon: LayoutDashboard
   },
   {
     route: "profile",
     label: "Profile",
     description: "Company compliance profile",
+    group: "Operations",
     icon: Building2,
     permissions: ["ViewCompanyProfile", "ManageCompanyProfile"]
   },
@@ -339,6 +343,7 @@ const navigationItems: NavigationItem[] = [
     route: "contracts",
     label: "Contracts",
     description: "Contract and clause intake",
+    group: "Operations",
     icon: FileSearch,
     permissions: ["ViewContracts", "ManageContracts"]
   },
@@ -346,13 +351,15 @@ const navigationItems: NavigationItem[] = [
     route: "obligations",
     label: "Obligations",
     description: "Source-backed obligation matrix",
+    group: "Command",
     icon: ClipboardCheck,
     permissions: ["ViewObligations", "ManageObligations"]
   },
   {
     route: "calendar",
     label: "Calendar",
-    description: "Tasks, renewals, and reminders",
+    description: "Work queue, renewals, and reminders",
+    group: "Command",
     icon: CalendarClock,
     permissions: ["ViewTasks", "ManageTasks"]
   },
@@ -360,6 +367,7 @@ const navigationItems: NavigationItem[] = [
     route: "evidence",
     label: "Evidence",
     description: "No-CUI evidence vault",
+    group: "Operations",
     icon: Archive,
     permissions: ["ViewEvidence", "ManageEvidence", "ApproveEvidence"]
   },
@@ -367,6 +375,7 @@ const navigationItems: NavigationItem[] = [
     route: "cmmc",
     label: "CMMC",
     description: "Readiness and control tracking",
+    group: "Assurance",
     icon: ShieldCheck,
     permissions: ["ViewCmmc", "ManageCmmc"]
   },
@@ -374,6 +383,7 @@ const navigationItems: NavigationItem[] = [
     route: "subcontractors",
     label: "Subcontractors",
     description: "Flow-down and supplier status",
+    group: "Operations",
     icon: GitBranch,
     permissions: ["ViewSubcontractors", "ManageSubcontractors"]
   },
@@ -381,6 +391,7 @@ const navigationItems: NavigationItem[] = [
     route: "reports",
     label: "Reports",
     description: "Audit-ready exports",
+    group: "Assurance",
     icon: ScrollText,
     permissions: ["ViewReports", "ManageReports"]
   },
@@ -388,10 +399,13 @@ const navigationItems: NavigationItem[] = [
     route: "settings",
     label: "Settings",
     description: "Tenant access and workspace controls",
+    group: "Administration",
     icon: Settings,
     permissions: ["ManageTenant", "ManageUsers", "ViewAuditLog"]
   }
 ];
+
+const navigationGroups: Array<NavigationItem["group"]> = ["Command", "Operations", "Assurance", "Administration"];
 
 const moduleIcons = [Building2, FileSearch, ClipboardCheck, CalendarClock, Archive, ShieldCheck, GitBranch, FolderKanban];
 const ownerFunctionOptions = [
@@ -620,6 +634,49 @@ export function App() {
     () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
     [access]
   );
+  const visibleNavigationByGroup = useMemo(
+    () =>
+      navigationGroups
+        .map((group) => ({
+          group,
+          items: visibleNavigation.filter((item) => item.group === group)
+        }))
+        .filter((group) => group.items.length > 0),
+    [visibleNavigation]
+  );
+  const activeNavigationItem = navigationItems.find((item) => item.route === activeRoute);
+  const tenantMode = currentTenant?.dataHandlingMode ?? "NoCui";
+  const activeTenantName = currentTenant?.displayName ?? "Tenant not loaded";
+  const userDisplay = access.userEmail ?? "Development user";
+  const workspacePriorityMetrics = useMemo(
+    () => [
+      {
+        label: "Overdue",
+        value: obligationDashboardItems.filter((item) => item.isOverdue).length + calendarEvents.filter((event) => event.isOverdue).length,
+        tone: "danger" as const,
+        hint: "obligations and tasks"
+      },
+      {
+        label: "High risk",
+        value: obligationDashboardItems.filter((item) => item.isHighRisk).length,
+        tone: "warning" as const,
+        hint: "source-backed obligations"
+      },
+      {
+        label: "Evidence review",
+        value: classificationReviewItems.length,
+        tone: classificationReviewItems.length > 0 ? ("warning" as const) : ("success" as const),
+        hint: "classification queue"
+      },
+      {
+        label: "No-CUI notice",
+        value: noCuiAcknowledgement.isAcknowledged ? "Acknowledged" : "Required",
+        tone: noCuiAcknowledgement.isAcknowledged ? ("success" as const) : ("danger" as const),
+        hint: "upload guardrail"
+      }
+    ],
+    [calendarEvents, classificationReviewItems, noCuiAcknowledgement.isAcknowledged, obligationDashboardItems]
+  );
   const canManageUsers = access.permissions.includes("ManageUsers");
   const canManageEvidence = access.permissions.includes("ManageEvidence");
   const canManageCompanyProfile = access.permissions.includes("ManageCompanyProfile");
@@ -671,7 +728,15 @@ export function App() {
     Promise.all([getComplianceOverview(), getCurrentUserAccess()])
       .then(async ([nextOverview, nextAccess]) => {
         const canLoadUserManagement = nextAccess.permissions.includes("ManageUsers");
-        const canLoadTenantAdministration = nextAccess.permissions.includes("ManageTenant") && nextAccess.tenantId !== null;
+        const canUseTenantAdministrationApi = [
+          getTenant,
+          getTenantDataHandlingModeHistory,
+          getCuiReadyApprovalChecklists,
+          getPublishedSharedResponsibilityMatrix,
+          getSharedResponsibilityMatrixAcknowledgements
+        ].every((loader) => typeof loader === "function");
+        const canLoadTenantAdministration =
+          canUseTenantAdministrationApi && nextAccess.permissions.includes("ManageTenant") && nextAccess.tenantId !== null;
         const canLoadAuditLogs = nextAccess.permissions.includes("ViewAuditLog");
         const canLoadNoCuiStatus = hasAnyPermission(nextAccess, ["ViewEvidence", "ManageEvidence"]);
         const canLoadCompanyProfile = hasAnyPermission(nextAccess, ["ViewCompanyProfile", "ManageCompanyProfile"]);
@@ -1520,9 +1585,10 @@ export function App() {
     const uploadIntent = await createEvidenceUploadIntent(selectedEvidenceFile, classification, classificationReason);
 
     if (uploadIntent.data) {
+      const classificationLabel = uploadIntent.data.classification?.classification ?? classification;
       setUploadStatus("created");
       setUploadMessage(
-        `Upload intent created for ${uploadIntent.data.fileName}. Classification ${uploadIntent.data.classification.classification}; validation ${uploadIntent.data.validationStatus}; malware scan ${uploadIntent.data.malwareScanStatus}.`
+        `Upload intent created for ${uploadIntent.data.fileName}. Classification ${classificationLabel}; validation ${uploadIntent.data.validationStatus}; malware scan ${uploadIntent.data.malwareScanStatus}.`
       );
       return;
     }
@@ -1849,42 +1915,65 @@ export function App() {
             <span>No-CUI workspace</span>
           </div>
         </div>
+        <div className="sidebar-posture" aria-label="Workspace compliance posture">
+          <div>
+            <span>Tenant</span>
+            <strong>{activeTenantName}</strong>
+          </div>
+          <div>
+            <span>Data handling</span>
+            <DataHandlingBadge mode={tenantMode} />
+          </div>
+          <p>{overview.mvpDataPosture}</p>
+        </div>
         <nav aria-label="Primary workspace navigation">
-          <ul className="workspace-nav">
-            {visibleNavigation.map((item) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.route}>
-                  <a
-                    href={`#/${item.route}`}
-                    aria-current={activeRoute === item.route ? "page" : undefined}
-                    onClick={() => handleRouteClick(item.route)}
-                  >
-                    <Icon size={18} aria-hidden="true" />
-                    <span>
-                      <strong>{item.label}</strong>
-                      <small>{item.description}</small>
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
+          {visibleNavigationByGroup.map((group) => (
+            <div className="workspace-nav-group" key={group.group}>
+              <p>{group.group}</p>
+              <ul className="workspace-nav">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <li key={item.route}>
+                      <a
+                        href={`#/${item.route}`}
+                        aria-current={activeRoute === item.route ? "page" : undefined}
+                        onClick={() => handleRouteClick(item.route)}
+                      >
+                        <Icon size={18} aria-hidden="true" />
+                        <span>
+                          <strong>{item.label}</strong>
+                          <small>{item.description}</small>
+                        </span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
+        <div className="workspace-sidebar__footer" aria-label="Signed-in workspace context">
+          <span>Signed in</span>
+          <strong>{userDisplay}</strong>
+        </div>
       </aside>
 
       <main id="workspace-content" className="workspace-main" tabIndex={-1}>
-        <header className="workspace-topbar">
-          <div>
-            <p className="eyebrow">GCCS Compliance Workspace</p>
-            <h1>{activeRoute === "dashboard" ? "Dashboard" : navigationItems.find((item) => item.route === activeRoute)?.label}</h1>
-          </div>
-          <div className="tenant-context" aria-label="Current tenant context">
-            <NotificationCenter notifications={notifications} onMarkRead={handleNotificationRead} />
-            <span>{access.userEmail ?? "Development user"}</span>
-            <strong>{overview.mvpDataPosture}</strong>
-          </div>
-        </header>
+        <PageHeader
+          eyebrow={`${activeNavigationItem?.group ?? "Command"} / GCCS Compliance Workspace`}
+          title={activeRoute === "dashboard" ? "Dashboard" : activeNavigationItem?.label ?? "Dashboard"}
+          description={activeNavigationItem?.description}
+          actions={
+            <div className="tenant-context" aria-label="Current tenant context">
+              <NotificationCenter notifications={notifications} onMarkRead={handleNotificationRead} />
+              <span>{activeTenantName}</span>
+              <strong>{overview.mvpDataPosture}</strong>
+            </div>
+          }
+        >
+          <WorkspaceMetricStrip items={workspacePriorityMetrics} />
+        </PageHeader>
         <PostureNotice currentTenant={currentTenant} />
 
         <WorkspaceState state={loadState}>
@@ -2256,6 +2345,7 @@ function CalendarView({
         <label>
           Owner
           <input
+            aria-label="Owner"
             list="calendar-owner-options"
             value={filters.owner}
             onChange={(event) => onFilterChange({ ...filters, owner: event.target.value })}
@@ -2271,13 +2361,12 @@ function CalendarView({
         </label>
         <label>
           Status
-          <input
-            list="calendar-status-options"
+          <select
+            aria-label="Status"
             value={filters.status}
             onChange={(event) => onFilterChange({ ...filters, status: event.target.value })}
-            placeholder="Any status"
-          />
-          <datalist id="calendar-status-options">
+          >
+            <option value="">Any status</option>
             {[
               "open",
               "in_progress",
@@ -2302,11 +2391,11 @@ function CalendarView({
                 {formatEnumLabel(statusOption)}
               </option>
             ))}
-          </datalist>
+          </select>
         </label>
         <label>
           Risk
-          <select value={filters.risk} onChange={(event) => onFilterChange({ ...filters, risk: event.target.value })}>
+          <select aria-label="Risk" value={filters.risk} onChange={(event) => onFilterChange({ ...filters, risk: event.target.value })}>
             <option value="">Any</option>
             <option value="Low">Low</option>
             <option value="Medium">Medium</option>
@@ -2317,6 +2406,7 @@ function CalendarView({
         <label>
           Contract
           <select
+            aria-label="Contract"
             value={filters.contractId}
             onChange={(event) => onFilterChange({ ...filters, contractId: event.target.value })}
           >
@@ -2330,7 +2420,7 @@ function CalendarView({
         </label>
         <label>
           Module
-          <select value={filters.module} onChange={(event) => onFilterChange({ ...filters, module: event.target.value })}>
+          <select aria-label="Module" value={filters.module} onChange={(event) => onFilterChange({ ...filters, module: event.target.value })}>
             <option value="">Any</option>
             <option value="Contract">Contract</option>
             <option value="CMMC">CMMC</option>
@@ -2465,10 +2555,148 @@ function formatEnumLabel(value: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function formatOwnerLabel(owner: string) {
-  return owner
+function formatOwnerLabel(owner: string | null | undefined) {
+  return (owner || "Unassigned")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/^reports$/i, "Reports");
+}
+
+type UiTone = "neutral" | "success" | "warning" | "danger" | "info";
+
+function statusTone(status: string): UiTone {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("overdue") || normalized.includes("blocked") || normalized.includes("rejected") || normalized.includes("late")) {
+    return "danger";
+  }
+  if (
+    normalized.includes("review") ||
+    normalized.includes("progress") ||
+    normalized.includes("submitted") ||
+    normalized.includes("sent") ||
+    normalized.includes("draft") ||
+    normalized.includes("requested")
+  ) {
+    return "warning";
+  }
+  if (
+    normalized.includes("done") ||
+    normalized.includes("accepted") ||
+    normalized.includes("approved") ||
+    normalized.includes("satisfied") ||
+    normalized.includes("implemented") ||
+    normalized.includes("complete")
+  ) {
+    return "success";
+  }
+  return "neutral";
+}
+
+function confidenceTone(confidence: string | null | undefined): UiTone {
+  const normalized = (confidence ?? "").toLowerCase();
+  if (normalized.includes("low") || normalized.includes("unknown")) {
+    return "danger";
+  }
+  if (normalized.includes("medium") || normalized.includes("draft")) {
+    return "warning";
+  }
+  if (normalized.includes("high") || normalized.includes("reviewed")) {
+    return "success";
+  }
+  return "info";
+}
+
+function ScanMeta({
+  items
+}: {
+  items: Array<{ label: string; value: ReactNode; tone?: UiTone }>;
+}) {
+  return (
+    <dl className="scan-meta-grid">
+      {items.map((item) => (
+        <div className={item.tone ? `scan-meta-grid__item scan-meta-grid__item--${item.tone}` : "scan-meta-grid__item"} key={item.label}>
+          <dt>{item.label}</dt>
+          <dd>{item.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function EvidenceRequirementChips({ items }: { items: string[] }) {
+  if (!items.length) {
+    return <span className="muted-inline">No required evidence mapped</span>;
+  }
+
+  return (
+    <div className="evidence-requirement-chips" aria-label="Required evidence">
+      {items.slice(0, 4).map((item) => (
+        <span key={item}>{item}</span>
+      ))}
+      {items.length > 4 ? <strong>+{items.length - 4}</strong> : null}
+    </div>
+  );
+}
+
+function DataQualityWarnings({ warnings }: { warnings: string[] }) {
+  if (!warnings.length) {
+    return null;
+  }
+
+  return (
+    <div className="data-quality-warnings" role="note" aria-label="Data quality warnings">
+      <strong>Data quality</strong>
+      <ul>
+        {warnings.map((warning) => (
+          <li key={warning}>{warning}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function obligationQualityWarnings(item: ContractObligationDashboardItem) {
+  const warnings: string[] = [];
+  if (!item.dueAt) warnings.push("No due date mapped.");
+  if (!item.ownerFunction?.trim()) warnings.push("No owner function mapped.");
+  if (item.evidenceExamples.length === 0) warnings.push("No required evidence examples mapped.");
+  if (!item.confidence || confidenceTone(item.confidence) === "danger") warnings.push("Source confidence needs review.");
+  if (!item.lastReviewedAt) warnings.push("Source review date is missing.");
+  if (item.requiresExpertReview) warnings.push("Expert review is required before relying on this obligation.");
+  return warnings;
+}
+
+function evidenceQualityWarnings(item: EvidenceMetadata) {
+  const warnings: string[] = [];
+  if (!item.ownerFunction?.trim()) warnings.push("No evidence owner mapped.");
+  if (item.obligationIds.length === 0 && item.controlIds.length === 0) warnings.push("Evidence is not linked to an obligation or control.");
+  if (item.expiresAt && item.expiresAt < new Date().toISOString().slice(0, 10)) warnings.push("Evidence is expired.");
+  if (["Unknown", "Prohibited", "Cui"].includes(item.classification.classification)) warnings.push("Classification requires reviewer attention.");
+  return warnings;
+}
+
+function cmmcControlQualityWarnings(control: CmmcControlStatus) {
+  const warnings: string[] = [];
+  if (control.evidenceItemIds.length === 0) warnings.push("No evidence linked to this control.");
+  if (!control.sourceLastReviewedAt) warnings.push("Source review date is missing.");
+  if (confidenceTone(control.sourceConfidence) === "danger") warnings.push("Source confidence needs review.");
+  if (control.poamItemIds.length > 0 && control.taskIds.length === 0) warnings.push("POA&M exists without a linked task.");
+  return warnings;
+}
+
+function subcontractorQualityWarnings(subcontractor: Subcontractor, flowDowns: SubcontractorFlowDown[], evidenceRequests: SubcontractorEvidenceRequest[]) {
+  const warnings: string[] = [];
+  if ((subcontractor.hasCuiAccess || subcontractor.hasExportControlledAccess) && !subcontractor.requiredCmmcLevel) {
+    warnings.push("Sensitive access is enabled without a required CMMC level.");
+  }
+  if (subcontractor.insuranceExpiresAt && subcontractor.insuranceExpiresAt < new Date().toISOString().slice(0, 10)) {
+    warnings.push("Insurance is expired.");
+  }
+  if (subcontractor.ndaStatus === "Unknown" || subcontractor.ndaStatus === "NotOnFile" || subcontractor.ndaStatus === "Expired") {
+    warnings.push("NDA status needs review.");
+  }
+  if (flowDowns.length === 0) warnings.push("No flow-down clauses assigned.");
+  if (evidenceRequests.some((request) => request.isOverdue)) warnings.push("One or more evidence requests are overdue.");
+  return warnings;
 }
 
 function DashboardView({ overview }: { overview: ComplianceOverview }) {
@@ -2546,7 +2774,7 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
                   <dl>
                     <div>
                       <dt>Owner</dt>
-                      <dd>{obligation.ownerFunction}</dd>
+                      <dd>{formatOwnerLabel(obligation.ownerFunction)}</dd>
                     </div>
                     <div>
                       <dt>Reviewed</dt>
@@ -2776,7 +3004,9 @@ function ObligationsView({
     }
 
     window.requestAnimationFrame(() => {
-      detailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (typeof detailPanelRef.current?.scrollIntoView === "function") {
+        detailPanelRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
       detailPanelRef.current?.focus({ preventScroll: true });
     });
   }, [detail?.id, detailStatus, detail]);
@@ -2837,6 +3067,7 @@ function ObligationsView({
         <label>
           Owner
           <input
+            aria-label="Owner"
             list="obligation-owner-options"
             value={owner}
             onChange={(event) => setOwner(event.target.value)}
@@ -2891,11 +3122,17 @@ function ObligationsView({
         </button>
       </form>
 
-      {message ? (
-        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+      {status === "failed" ? (
+        <Alert title="Obligations did not load" tone="danger">
+          {message || "Refresh the workspace or adjust filters before relying on the obligation queue."}
+        </Alert>
+      ) : message ? (
+        <p className="form-status form-status--ok">{message}</p>
       ) : null}
 
-      {items.length > 0 ? (
+      {status === "loading" && items.length === 0 ? (
+        <LoadingState label="Loading obligation work queue" />
+      ) : items.length > 0 ? (
         <div className="obligation-dashboard-list" aria-label="Tenant obligation work queue">
           {items.map((item) => (
             <article
@@ -2907,8 +3144,8 @@ function ObligationsView({
             >
               <div className="obligation-dashboard-item__main">
                 <div className="obligation-dashboard-item__badges">
-                  <span className={`risk risk--${item.riskLevel.toLowerCase()}`} aria-label={`${item.riskLevel} risk obligation`}>
-                    {item.riskLevel}
+                  <span aria-label={`${item.riskLevel} risk obligation`}>
+                    <RiskBadge level={item.riskLevel} />
                   </span>
                   {item.isOverdue ? (
                     <span className="status status--overdue" aria-label="Overdue obligation">
@@ -2916,38 +3153,34 @@ function ObligationsView({
                       Overdue
                     </span>
                   ) : null}
-                  <span className="status status--active">{item.status}</span>
+                  <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
+                  <StatusPill label={`${formatEnumLabel(item.confidence)} confidence`} tone={confidenceTone(item.confidence)} />
                 </div>
                 <h3>{item.title}</h3>
                 <p>{item.plainEnglishSummary}</p>
               </div>
-              <dl>
-                <div>
-                  <dt>Contract</dt>
-                  <dd>{item.contractNumber}</dd>
-                </div>
-                <div>
-                  <dt>Owner</dt>
-                  <dd>{item.ownerFunction}</dd>
-                </div>
-                <div>
-                  <dt>Due</dt>
-                  <dd>{item.dueAt ?? "No date"}</dd>
-                </div>
-                <div>
-                  <dt>Module</dt>
-                  <dd>{item.module}</dd>
-                </div>
-                <div>
-                  <dt>Source</dt>
-                  <dd>
-                    <a href={item.sourceUrl} target="_blank" rel="noreferrer">
-                      {item.source}
-                    </a>
-                  </dd>
-                </div>
-              </dl>
+              <ScanMeta
+                items={[
+                  { label: "Contract", value: item.contractNumber },
+                  { label: "Owner", value: formatOwnerLabel(item.ownerFunction) },
+                  { label: "Due", value: item.dueAt ?? "No date", tone: item.isOverdue ? "danger" : "neutral" },
+                  { label: "Module", value: item.module },
+                  {
+                    label: "Source",
+                    value: (
+                      <a href={item.sourceUrl} target="_blank" rel="noreferrer">
+                        {item.source}
+                      </a>
+                    )
+                  },
+                  { label: "Reviewed", value: item.lastReviewedAt },
+                  { label: "Evidence", value: `${item.evidenceExamples.length} required` },
+                  { label: "Review gate", value: item.requiresExpertReview ? "Expert review" : "Workflow guidance" }
+                ]}
+              />
               <p className="obligation-required-action">{item.requiredAction}</p>
+              <EvidenceRequirementChips items={item.evidenceExamples} />
+              <DataQualityWarnings warnings={obligationQualityWarnings(item)} />
               <button
                 className="secondary-action obligation-detail-button"
                 type="button"
@@ -3009,8 +3242,7 @@ function ObligationDetailPanel({
   if (status === "loading") {
     return (
       <section className="obligation-detail-panel" aria-live="polite" ref={panelRef} tabIndex={-1}>
-        <h2>Loading obligation detail</h2>
-        <p>Retrieving source-backed detail, linked tasks, and evidence.</p>
+        <LoadingState label="Loading source-backed obligation detail" />
       </section>
     );
   }
@@ -3028,12 +3260,34 @@ function ObligationDetailPanel({
           <p className="eyebrow">Obligation detail</p>
           <h2>{detail.title}</h2>
         </div>
-        <span className="status status--active">{detail.status}</span>
+        <div className="obligation-dashboard-item__badges">
+          <RiskBadge level={detail.riskLevel} />
+          <StatusPill label={formatEnumLabel(detail.status)} tone={statusTone(detail.status)} />
+          <StatusPill label={`${formatEnumLabel(detail.confidence)} confidence`} tone={confidenceTone(detail.confidence)} />
+        </div>
       </div>
 
-      {message ? (
-        <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+      {status === "failed" ? (
+        <Alert title="Obligation update failed" tone="danger">
+          {message || "The selected obligation could not be updated."}
+        </Alert>
+      ) : message ? (
+        <p className="form-status form-status--ok">{message}</p>
       ) : null}
+
+      <ScanMeta
+        items={[
+          { label: "Contract", value: detail.contractNumber },
+          { label: "Owner", value: formatOwnerLabel(detail.ownerFunction) },
+          { label: "Due", value: detail.dueAt ?? "No date", tone: detail.isOverdue ? "danger" : "neutral" },
+          { label: "Source", value: detail.source },
+          { label: "Reviewed", value: detail.lastReviewedAt },
+          { label: "Flow-down", value: detail.flowDownRequired ? "Required" : "Not required" },
+          { label: "Tasks", value: detail.linkedTasks.length },
+          { label: "Evidence", value: detail.linkedEvidence.length }
+        ]}
+      />
+      <DataQualityWarnings warnings={obligationQualityWarnings(detail)} />
 
       <div className="obligation-detail-grid">
         <div>
@@ -3046,7 +3300,7 @@ function ObligationDetailPanel({
         </div>
         <div>
           <h3>Owner</h3>
-          <p>{detail.ownerFunction}</p>
+          <p>{formatOwnerLabel(detail.ownerFunction)}</p>
         </div>
         <div>
           <h3>Assignment</h3>
@@ -3432,6 +3686,7 @@ function ContractsView({
     !canManageContracts || !selectedContract || !noCuiAcknowledgement.isAcknowledged || contractDocumentStatus === "saving";
   const clauseDisabled = !canManageContracts || !selectedContract || contractClauseStatus === "saving";
   const deliverableDisabled = !canManageContracts || !selectedContract || deliverableStatus === "saving";
+  const overdueDeliverableCount = contractDeliverables.filter((deliverable) => deliverable.isOverdue).length;
 
   async function attachClause() {
     if (!selectedContract) {
@@ -3515,10 +3770,12 @@ function ContractsView({
         </button>
       </div>
 
-      {contractMessage ? (
-        <p className={`form-status ${contractStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
-          {contractMessage}
-        </p>
+      {contractStatus === "failed" ? (
+        <Alert title="Contract save failed" tone="danger">
+          {contractMessage || "The contract record was not saved."}
+        </Alert>
+      ) : contractMessage ? (
+        <p className="form-status form-status--ok">{contractMessage}</p>
       ) : null}
 
       <div className="contract-workspace">
@@ -3533,7 +3790,10 @@ function ContractsView({
               >
                 <strong>{contract.contractNumber}</strong>
                 <span>{contract.title}</span>
-                <small>{contract.status} · {contract.relationship}</small>
+                <small>{contract.relationship} · {contract.dataHandlingPosture}</small>
+                <div className="scan-pill-row">
+                  <StatusPill label={formatEnumLabel(contract.status)} tone={statusTone(contract.status)} />
+                </div>
               </button>
             ))
           ) : (
@@ -3552,22 +3812,22 @@ function ContractsView({
 
         {selectedContract ? (
           <section className="contract-detail" aria-label="Contract detail">
-            <div>
-              <span>Period</span>
-              <strong>{selectedContract.periodOfPerformanceStart} to {selectedContract.periodOfPerformanceEnd}</strong>
-            </div>
-            <div>
-              <span>Role</span>
-              <strong>{selectedContract.relationship}</strong>
-            </div>
-            <div>
-              <span>Agency or prime</span>
-              <strong>{selectedContract.agencyOrPrimeName}</strong>
-            </div>
-            <div>
-              <span>Data posture</span>
-              <strong>{selectedContract.dataHandlingPosture}</strong>
-            </div>
+            <ScanMeta
+              items={[
+                { label: "Status", value: <StatusPill label={formatEnumLabel(selectedContract.status)} tone={statusTone(selectedContract.status)} /> },
+                {
+                  label: "Period",
+                  value: `${selectedContract.periodOfPerformanceStart} to ${selectedContract.periodOfPerformanceEnd}`
+                },
+                { label: "Role", value: selectedContract.relationship },
+                { label: "Agency or prime", value: selectedContract.agencyOrPrimeName },
+                { label: "Data posture", value: selectedContract.dataHandlingPosture },
+                { label: "Clauses", value: contractClauses.length },
+                { label: "Deliverables", value: contractDeliverables.length },
+                { label: "Overdue", value: overdueDeliverableCount, tone: overdueDeliverableCount > 0 ? "danger" : "success" },
+                { label: "Documents", value: contractDocuments.length }
+              ]}
+            />
           </section>
         ) : null}
 
@@ -3624,10 +3884,12 @@ function ContractsView({
               Attach clause
             </button>
           </form>
-          {contractClauseMessage ? (
-            <p className={`form-status ${contractClauseStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
-              {contractClauseMessage}
-            </p>
+          {contractClauseStatus === "failed" ? (
+            <Alert title="Clause action failed" tone="danger">
+              {contractClauseMessage || "The clause register was not updated."}
+            </Alert>
+          ) : contractClauseMessage ? (
+            <p className="form-status form-status--ok">{contractClauseMessage}</p>
           ) : null}
           <div className="contract-clause-list">
             {contractClauses.length > 0 ? (
@@ -3636,9 +3898,14 @@ function ContractsView({
                   <div>
                     <strong>{clause.clauseNumber}</strong>
                     <span>{clause.title}</span>
-                    <small>
-                      Reviewed {clause.lastReviewedAt} · {clause.attachmentReason}
-                    </small>
+                    <ScanMeta
+                      items={[
+                        { label: "Source", value: clause.source },
+                        { label: "Reviewed", value: clause.lastReviewedAt },
+                        { label: "Attached", value: clause.attachedAt },
+                        { label: "Reason", value: clause.attachmentReason }
+                      ]}
+                    />
                     <a href={clause.sourceUrl} target="_blank" rel="noreferrer">
                       {clause.sourceUrl}
                     </a>
@@ -3700,6 +3967,7 @@ function ContractsView({
             <label>
               Owner
               <input
+                aria-label="Owner"
                 list="deliverable-owner-options"
                 value={deliverableDraft.ownerFunction}
                 onChange={(event) => setDeliverableDraft((current) => ({ ...current, ownerFunction: event.target.value }))}
@@ -3750,10 +4018,12 @@ function ContractsView({
               Add deliverable
             </button>
           </form>
-          {deliverableMessage ? (
-            <p className={`form-status ${deliverableStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
-              {deliverableMessage}
-            </p>
+          {deliverableStatus === "failed" ? (
+            <Alert title="Deliverable action failed" tone="danger">
+              {deliverableMessage || "The deliverable register was not updated."}
+            </Alert>
+          ) : deliverableMessage ? (
+            <p className="form-status form-status--ok">{deliverableMessage}</p>
           ) : null}
           <div className="deliverable-list">
             {contractDeliverables.length > 0 ? (
@@ -3764,8 +4034,18 @@ function ContractsView({
                 >
                   <div>
                     <strong>{deliverable.name}</strong>
-                    <span>
-                      {deliverable.ownerFunction} · {deliverable.dueAt ?? "No due date"}
+                    <div className="scan-pill-row">
+                      <StatusPill label={formatEnumLabel(deliverable.status)} tone={statusTone(deliverable.status)} />
+                      {deliverable.isOverdue ? <StatusPill label="Overdue" tone="danger" /> : null}
+                    </div>
+                    <ScanMeta
+                      items={[
+                        { label: "Owner", value: formatOwnerLabel(deliverable.ownerFunction) },
+                        { label: "Due", value: deliverable.dueAt ?? "No due date", tone: deliverable.isOverdue ? "danger" : "neutral" }
+                      ]}
+                    />
+                    <span className="legacy-summary">
+                      {formatOwnerLabel(deliverable.ownerFunction)} · {deliverable.dueAt ?? "No due date"}
                       {deliverable.isOverdue ? " · Overdue" : ""}
                     </span>
                     {deliverable.description ? <p>{deliverable.description}</p> : null}
@@ -3857,10 +4137,12 @@ function ContractsView({
           {!noCuiAcknowledgement.isAcknowledged ? (
             <p className="form-status form-status--error">No-CUI acknowledgement is required before contract document upload.</p>
           ) : null}
-          {contractDocumentMessage ? (
-            <p className={`form-status ${contractDocumentStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
-              {contractDocumentMessage}
-            </p>
+          {contractDocumentStatus === "failed" ? (
+            <Alert title="Document action failed" tone="danger">
+              {contractDocumentMessage || "The document workflow was not updated."}
+            </Alert>
+          ) : contractDocumentMessage ? (
+            <p className="form-status form-status--ok">{contractDocumentMessage}</p>
           ) : null}
           <div className="contract-document-list">
             {contractDocuments.length > 0 ? (
@@ -4691,6 +4973,9 @@ function CmmcView({
 }) {
   const [form, setForm] = useState<CmmcAssessmentFormState>(defaultCmmcAssessmentForm);
   const [poamForm, setPoamForm] = useState<CmmcPoamFormState>(defaultCmmcPoamForm);
+  const controlsNeedingReview = controls.filter((control) => control.status === "NeedsReview" || control.result === "NotMet").length;
+  const linkedEvidenceCount = controls.reduce((total, control) => total + control.evidenceItemIds.length, 0);
+  const overduePoamCount = poamItems.filter((item) => item.isOverdue).length;
 
   function updateField<TKey extends keyof CmmcAssessmentFormState>(field: TKey, value: CmmcAssessmentFormState[TKey]) {
     setForm((current) => ({
@@ -4754,6 +5039,15 @@ function CmmcView({
         <h2>CMMC and NIST workspace</h2>
         <p>Create Level 1 or Level 2 readiness assessments, assign an owner, track dates, and watch completion progress.</p>
       </div>
+
+      <WorkspaceMetricStrip
+        items={[
+          { label: "Assessments", value: assessments.length, tone: assessments.length > 0 ? "info" : "warning" },
+          { label: "Controls needing review", value: controlsNeedingReview, tone: controlsNeedingReview > 0 ? "warning" : "success" },
+          { label: "Linked evidence", value: linkedEvidenceCount, tone: linkedEvidenceCount > 0 ? "success" : "warning" },
+          { label: "Overdue POA&M", value: overduePoamCount, tone: overduePoamCount > 0 ? "danger" : "success" }
+        ]}
+      />
 
       <form className="cmmc-create" onSubmit={submit}>
         <fieldset disabled={!canManageCmmc || status === "saving"}>
@@ -4833,7 +5127,13 @@ function CmmcView({
           </button>
         </div>
         {!canManageCmmc ? <p className="form-status">ManageCmmc permission is required to create assessments.</p> : null}
-        {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
+        {status === "failed" ? (
+          <Alert title="Assessment action failed" tone="danger">
+            {message || "The CMMC assessment was not created."}
+          </Alert>
+        ) : message ? (
+          <p className="form-status form-status--ok">{message}</p>
+        ) : null}
       </form>
 
       <section className="cmmc-assessments" aria-label="CMMC readiness assessments">
@@ -4848,14 +5148,21 @@ function CmmcView({
             {assessments.map((assessment) => (
               <article className="evidence-list__item" key={assessment.id}>
                 <strong>{assessment.name}</strong>
-                <span>
-                  {formatCmmcLevel(assessment.level)} · {assessment.status} · {assessment.ownerFunction}
-                </span>
-                <span>
-                  {assessment.controlSummary.completionPercentage}% complete · {assessment.controlSummary.implemented}/
-                  {assessment.controlSummary.total} implemented · affirmation {assessment.affirmationDueAt ?? "not scheduled"}
-                </span>
-                <span>
+                <div className="scan-pill-row">
+                  <StatusPill label={formatCmmcLevel(assessment.level)} tone="info" />
+                  <StatusPill label={formatEnumLabel(assessment.status)} tone={statusTone(assessment.status)} />
+                  {assessment.overduePoamItemCount > 0 ? <StatusPill label={`${assessment.overduePoamItemCount} overdue POA&M`} tone="danger" /> : null}
+                </div>
+                <ScanMeta
+                  items={[
+                    { label: "Owner", value: formatOwnerLabel(assessment.ownerFunction) },
+                    { label: "Complete", value: `${assessment.controlSummary.completionPercentage}%` },
+                    { label: "Implemented", value: `${assessment.controlSummary.implemented}/${assessment.controlSummary.total}` },
+                    { label: "Affirmation due", value: assessment.affirmationDueAt ?? "Not scheduled" },
+                    { label: "Open POA&M", value: assessment.openPoamItemCount, tone: assessment.openPoamItemCount > 0 ? "warning" : "success" }
+                  ]}
+                />
+                <span className="legacy-summary">
                   POA&M {assessment.openPoamItemCount} open · {assessment.overduePoamItemCount} overdue
                 </span>
               </article>
@@ -4878,11 +5185,30 @@ function CmmcView({
             {controls.map((control) => (
               <article className="evidence-list__item" key={control.controlId}>
                 <strong>{control.controlId} · {control.title}</strong>
-                <span>{control.status} · {control.result} · {control.sourceName} reviewed {control.sourceLastReviewedAt}</span>
+                <div className="scan-pill-row">
+                  <StatusPill label={formatEnumLabel(control.status)} tone={statusTone(control.status)} />
+                  <StatusPill label={formatEnumLabel(control.result)} tone={statusTone(control.result)} />
+                  <StatusPill label={`${formatEnumLabel(control.sourceConfidence)} confidence`} tone={confidenceTone(control.sourceConfidence)} />
+                </div>
+                <ScanMeta
+                  items={[
+                    { label: "Family", value: control.family },
+                    { label: "Source", value: control.sourceName },
+                    { label: "Reviewed", value: control.sourceLastReviewedAt },
+                    { label: "Evidence", value: control.evidenceItemIds.length, tone: control.evidenceItemIds.length > 0 ? "success" : "warning" },
+                    { label: "Tasks", value: control.taskIds.length },
+                    { label: "Assets", value: control.assetIds.length },
+                    { label: "POA&M", value: control.poamItemIds.length, tone: control.poamItemIds.length > 0 ? "warning" : "neutral" }
+                  ]}
+                />
+                <span className="legacy-summary">
+                  {control.status} · {control.result} · {control.sourceName} reviewed {control.sourceLastReviewedAt}
+                </span>
                 <span>{control.requirement}</span>
-                <span>
+                <span className="legacy-summary">
                   Evidence {control.evidenceItemIds.length} · Tasks {control.taskIds.length} · Assets {control.assetIds.length} · POA&M {control.poamItemIds.length}
                 </span>
+                <DataQualityWarnings warnings={cmmcControlQualityWarnings(control)} />
               </article>
             ))}
           </div>
@@ -4982,18 +5308,34 @@ function CmmcView({
           {assessments.length > 0 && controls.length === 0 ? (
             <p className="form-status form-status--error">Load a CMMC control baseline before creating POA&M items.</p>
           ) : null}
-          {poamMessage ? <p className={`form-status ${poamStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>{poamMessage}</p> : null}
+          {poamStatus === "failed" ? (
+            <Alert title="POA&M action failed" tone="danger">
+              {poamMessage || "The POA&M item was not created."}
+            </Alert>
+          ) : poamMessage ? (
+            <p className="form-status form-status--ok">{poamMessage}</p>
+          ) : null}
         </form>
         {poamItems.length > 0 ? (
           <div className="evidence-list">
             {poamItems.map((item) => (
               <article className="evidence-list__item" key={item.id}>
                 <strong>{item.controlId} · {item.weakness}</strong>
-                <span>
-                  {item.status} · {item.riskLevel} · owner {item.ownerFunction} · due {item.targetCompletionAt}
-                </span>
+                <div className="scan-pill-row">
+                  <RiskBadge level={item.riskLevel} />
+                  <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
+                  {item.isOverdue ? <StatusPill label="Overdue" tone="danger" /> : null}
+                </div>
+                <ScanMeta
+                  items={[
+                    { label: "Owner", value: formatOwnerLabel(item.ownerFunction) },
+                    { label: "Due", value: item.targetCompletionAt, tone: item.isOverdue ? "danger" : "neutral" },
+                    { label: "Task", value: item.remediationTaskId ? "Linked" : "Not linked" },
+                    { label: "Evidence", value: item.evidenceItemIds.length, tone: item.evidenceItemIds.length > 0 ? "success" : "warning" }
+                  ]}
+                />
                 <span>{item.plannedRemediation}</span>
-                <span>
+                <span className="legacy-summary">
                   Task {item.remediationTaskId ? "linked" : "not linked"} · Evidence {item.evidenceItemIds.length}
                   {item.isOverdue ? " · overdue" : ""}
                 </span>
@@ -5151,6 +5493,13 @@ function SubcontractorsView({
   const [lookupStatus, setLookupStatus] = useState<"idle" | "searching" | "applying" | "failed" | "applied">("idle");
   const [lookupMessage, setLookupMessage] = useState("");
   const selectedSubcontractor = subcontractors.find((subcontractor) => subcontractor.id === selectedSubcontractorId) ?? null;
+  const suppliersWithSensitiveAccess = subcontractors.filter(
+    (subcontractor) => subcontractor.hasCuiAccess || subcontractor.hasExportControlledAccess
+  ).length;
+  const activeSubcontractorCount = subcontractors.filter((subcontractor) => subcontractor.status === "Active").length;
+  const expiredInsuranceCount = subcontractors.filter(
+    (subcontractor) => subcontractor.insuranceExpiresAt && subcontractor.insuranceExpiresAt < new Date().toISOString().slice(0, 10)
+  ).length;
 
   function updateField<TKey extends keyof SubcontractorFormState>(field: TKey, value: SubcontractorFormState[TKey]) {
     setForm((current) => ({
@@ -5237,6 +5586,14 @@ function SubcontractorsView({
         <h2>Subcontractor management</h2>
         <p>Track supplier profile, contract links, CMMC posture, CUI access, export-control exposure, insurance, and NDA status.</p>
       </div>
+      <WorkspaceMetricStrip
+        items={[
+          { label: "Suppliers", value: subcontractors.length, tone: subcontractors.length > 0 ? "info" : "warning" },
+          { label: "Active", value: activeSubcontractorCount, tone: "info" },
+          { label: "Sensitive access", value: suppliersWithSensitiveAccess, tone: suppliersWithSensitiveAccess > 0 ? "warning" : "success" },
+          { label: "Expired insurance", value: expiredInsuranceCount, tone: expiredInsuranceCount > 0 ? "danger" : "success" }
+        ]}
+      />
       <form className="cmmc-create" onSubmit={submit}>
         <fieldset disabled={!canManageSubcontractors || status === "saving"}>
           <div className="form-grid">
@@ -5372,7 +5729,13 @@ function SubcontractorsView({
             <span>{status === "saving" ? "Creating" : "Create subcontractor"}</span>
           </button>
         </div>
-        {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
+        {status === "failed" ? (
+          <Alert title="Subcontractor action failed" tone="danger">
+            {message || "The subcontractor record was not created."}
+          </Alert>
+        ) : message ? (
+          <p className="form-status form-status--ok">{message}</p>
+        ) : null}
       </form>
       {selectedSubcontractor ? (
         <section className="profile-form" aria-label="Subcontractor SAM.gov lookup">
@@ -5394,8 +5757,12 @@ function SubcontractorsView({
               Search SAM.gov for selected subcontractor
             </button>
           </div>
-          {lookupMessage ? (
-            <p className={`form-status ${lookupStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>{lookupMessage}</p>
+          {lookupStatus === "failed" ? (
+            <Alert title="SAM.gov lookup failed" tone="danger">
+              {lookupMessage || "The supplier lookup did not complete."}
+            </Alert>
+          ) : lookupMessage ? (
+            <p className="form-status form-status--ok">{lookupMessage}</p>
           ) : null}
           {lookupResults.length > 0 ? (
             <div className="validation-summary">
@@ -5431,16 +5798,33 @@ function SubcontractorsView({
                 onClick={() => void onSelect(subcontractor.id)}
               >
                 <strong>{subcontractor.name}</strong>
-                <span>
-                  {subcontractor.status} · {subcontractor.smallBusinessStatus} · {subcontractor.cmmcStatus}
-                </span>
-                <span>
+                <div className="scan-pill-row">
+                  <StatusPill label={formatEnumLabel(subcontractor.status)} tone={statusTone(subcontractor.status)} />
+                  {subcontractor.hasCuiAccess ? <StatusPill label="CUI access" tone="warning" /> : null}
+                  {subcontractor.hasExportControlledAccess ? <StatusPill label="Export-control" tone="danger" /> : null}
+                </div>
+                <ScanMeta
+                  items={[
+                    { label: "Owner", value: formatOwnerLabel(subcontractor.ownerFunction) },
+                    { label: "Small business", value: subcontractor.smallBusinessStatus },
+                    { label: "CMMC", value: subcontractor.cmmcStatus },
+                    { label: "Required CMMC", value: subcontractor.requiredCmmcLevel ?? "Unknown" },
+                    {
+                      label: "Insurance",
+                      value: subcontractor.insuranceExpiresAt ?? "Not tracked",
+                      tone:
+                        subcontractor.insuranceExpiresAt && subcontractor.insuranceExpiresAt < new Date().toISOString().slice(0, 10)
+                          ? "danger"
+                          : "neutral"
+                    },
+                    { label: "NDA", value: subcontractor.ndaStatus },
+                    { label: "Contracts", value: subcontractor.contractIds.length },
+                    { label: "Workshare", value: subcontractor.worksharePercentage == null ? "Not set" : `${subcontractor.worksharePercentage}%` }
+                  ]}
+                />
+                <span className="legacy-summary">
                   CUI access {subcontractor.hasCuiAccess ? "yes" : "no"} · export-control{" "}
                   {subcontractor.hasExportControlledAccess ? "yes" : "no"} · insurance {subcontractor.insuranceExpiresAt ?? "not tracked"}
-                </span>
-                <span>
-                  NDA {subcontractor.ndaStatus} · contracts {subcontractor.contractIds.length} · workshare{" "}
-                  {subcontractor.worksharePercentage ?? "not set"}%
                 </span>
               </button>
             ))}
@@ -5516,6 +5900,14 @@ function SubcontractorDetailPanel({
     receivedEvidenceItemId: ""
   });
 
+  if (detailStatus === "loading") {
+    return (
+      <section className="subcontractor-detail" aria-live="polite">
+        <LoadingState label="Loading subcontractor flow-down detail" />
+      </section>
+    );
+  }
+
   if (!subcontractor) {
     return <EmptyState title="Select a subcontractor" body="Choose a supplier to manage flow-downs and evidence requests." />;
   }
@@ -5567,16 +5959,43 @@ function SubcontractorDetailPanel({
 
   return (
     <section className="subcontractor-detail" aria-label="Subcontractor flow-down detail">
-      <div className="section-heading">
-        <p className="eyebrow">Supplier detail</p>
-        <h3>Selected subcontractor</h3>
-        <p className="section-summary">
-          {subcontractor.roleDescription} Contact {subcontractor.contactName ?? "not set"} · {subcontractor.contactEmail ?? "no email"}
-        </p>
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">Supplier detail</p>
+          <h3>Selected subcontractor</h3>
+          <p className="section-summary">
+            {subcontractor.roleDescription} Contact {subcontractor.contactName ?? "not set"} · {subcontractor.contactEmail ?? "no email"}
+          </p>
+        </div>
+        <div className="scan-pill-row">
+          <StatusPill label={formatEnumLabel(subcontractor.status)} tone={statusTone(subcontractor.status)} />
+          {subcontractor.hasCuiAccess ? <StatusPill label="CUI access" tone="warning" /> : null}
+          {subcontractor.hasExportControlledAccess ? <StatusPill label="Export-control" tone="danger" /> : null}
+        </div>
       </div>
-      {detailMessage ? (
-        <p className={`form-status ${detailStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>{detailMessage}</p>
+      {detailStatus === "failed" ? (
+        <Alert title="Subcontractor detail action failed" tone="danger">
+          {detailMessage || "The selected supplier workflow could not be updated."}
+        </Alert>
+      ) : detailMessage ? (
+        <p className="form-status form-status--ok">{detailMessage}</p>
       ) : null}
+      <ScanMeta
+        items={[
+          { label: "Owner", value: formatOwnerLabel(subcontractor.ownerFunction) },
+          { label: "CMMC status", value: subcontractor.cmmcStatus },
+          { label: "Required CMMC", value: subcontractor.requiredCmmcLevel ?? "Unknown" },
+          { label: "Insurance", value: subcontractor.insuranceExpiresAt ?? "Not tracked" },
+          { label: "NDA", value: subcontractor.ndaStatus },
+          { label: "Flow-downs", value: flowDowns.length, tone: flowDowns.length > 0 ? "info" : "warning" },
+          {
+            label: "Evidence requests",
+            value: evidenceRequests.length,
+            tone: evidenceRequests.some((request) => request.isOverdue) ? "danger" : evidenceRequests.length > 0 ? "info" : "warning"
+          }
+        ]}
+      />
+      <DataQualityWarnings warnings={subcontractorQualityWarnings(subcontractor, flowDowns, evidenceRequests)} />
       <div className="subcontractor-detail-grid">
         <form className="evidence-metadata" onSubmit={saveFlowDown}>
           <h3>Assign flow-down</h3>
@@ -5772,10 +6191,22 @@ function SubcontractorDetailPanel({
               {flowDowns.map((flowDown) => (
                 <article className="evidence-list__item" key={flowDown.id}>
                   <strong>{flowDown.clauseNumber} · {flowDown.title}</strong>
-                  <span>
-                    {flowDown.status} · sent {flowDown.sentAt ?? "not sent"} · signed {flowDown.signedAt ?? "not signed"}
-                  </span>
-                  <span>Evidence {flowDown.signedEvidenceItemId ?? "not linked"}</span>
+                  <div className="scan-pill-row">
+                    <StatusPill label={formatEnumLabel(flowDown.status)} tone={statusTone(flowDown.status)} />
+                    {flowDown.signedEvidenceItemId ? (
+                      <StatusPill label="Evidence linked" tone="success" />
+                    ) : (
+                      <StatusPill label="Evidence missing" tone="warning" />
+                    )}
+                  </div>
+                  <ScanMeta
+                    items={[
+                      { label: "Sent", value: flowDown.sentAt ?? "Not sent", tone: flowDown.sentAt ? "success" : "warning" },
+                      { label: "Acknowledged", value: flowDown.acknowledgedAt ?? "Not acknowledged" },
+                      { label: "Signed", value: flowDown.signedAt ?? "Not signed", tone: flowDown.signedAt ? "success" : "warning" },
+                      { label: "Evidence", value: flowDown.signedEvidenceItemId ?? "Not linked" }
+                    ]}
+                  />
                 </article>
               ))}
             </div>
@@ -5790,12 +6221,24 @@ function SubcontractorDetailPanel({
               {evidenceRequests.map((request) => (
                 <article className={`evidence-list__item${request.isOverdue ? " evidence-list__item--overdue" : ""}`} key={request.id}>
                   <strong>{request.requestedItem}</strong>
-                  <span>
-                    {request.status} · due {request.dueDate} · {request.requestedEvidenceTypes.join(", ")}
-                  </span>
-                  <span>
-                    Recipient {request.recipientName ?? "not set"} · evidence {request.receivedEvidenceItemId ?? "not received"}
-                  </span>
+                  <div className="scan-pill-row">
+                    <StatusPill label={formatEnumLabel(request.status)} tone={statusTone(request.status)} />
+                    {request.isOverdue ? <StatusPill label="Overdue" tone="danger" /> : null}
+                    {request.receivedEvidenceItemId ? (
+                      <StatusPill label="Received" tone="success" />
+                    ) : (
+                      <StatusPill label="Evidence needed" tone="warning" />
+                    )}
+                  </div>
+                  <ScanMeta
+                    items={[
+                      { label: "Due", value: request.dueDate, tone: request.isOverdue ? "danger" : "neutral" },
+                      { label: "Owner", value: formatOwnerLabel(request.ownerFunction ?? subcontractor.ownerFunction) },
+                      { label: "Recipient", value: request.recipientName ?? "Not set" },
+                      { label: "Evidence", value: request.receivedEvidenceItemId ?? "Not received" }
+                    ]}
+                  />
+                  <EvidenceRequirementChips items={request.requestedEvidenceTypes} />
                 </article>
               ))}
             </div>
@@ -6276,6 +6719,9 @@ function EvidenceView({
   const selectedEvidence = evidenceItems.find((item) => item.id === selectedEvidenceItemId) ?? null;
   const [uploadClassification, setUploadClassification] = useState("Unclassified");
   const [uploadClassificationReason, setUploadClassificationReason] = useState("User confirmed upload classification.");
+  const approvedEvidenceCount = evidenceItems.filter((item) => item.status === "Approved").length;
+  const expiredEvidenceCount = evidenceItems.filter((item) => item.expiresAt && item.expiresAt < new Date().toISOString().slice(0, 10)).length;
+  const linkedEvidenceCount = evidenceItems.filter((item) => item.obligationIds.length > 0 || item.controlIds.length > 0).length;
 
   return (
     <section className="route-panel" aria-label="Evidence upload workflow">
@@ -6284,6 +6730,15 @@ function EvidenceView({
         <h2>No-CUI evidence management</h2>
         <p>Organize evidence by obligation, contract, control, vendor, employee, expiration, approval status, and audit history.</p>
       </div>
+      <WorkspaceMetricStrip
+        items={[
+          { label: "Evidence records", value: evidenceItems.length, tone: evidenceItems.length > 0 ? "info" : "warning" },
+          { label: "Approved", value: approvedEvidenceCount, tone: approvedEvidenceCount > 0 ? "success" : "warning" },
+          { label: "Linked", value: linkedEvidenceCount, tone: linkedEvidenceCount > 0 ? "success" : "warning" },
+          { label: "Expired", value: expiredEvidenceCount, tone: expiredEvidenceCount > 0 ? "danger" : "success" },
+          { label: "Review queue", value: classificationReviewItems.length, tone: classificationReviewItems.length > 0 ? "warning" : "success" }
+        ]}
+      />
 
       <EvidenceMetadataPanel
         key={selectedEvidence?.id ?? "new-evidence"}
@@ -6428,10 +6883,12 @@ function EvidenceView({
         ) : null}
       </form>
 
-      <EmptyState
-        title="No evidence has been uploaded yet"
-        body="Accepted uploads remain pending until the malware scan placeholder and future storage workflow are complete."
-      />
+      {evidenceItems.length === 0 ? (
+        <EmptyState
+          title="No evidence has been uploaded yet"
+          body="Accepted uploads remain pending until the malware scan placeholder and future storage workflow are complete."
+        />
+      ) : null}
     </section>
   );
 }
@@ -6491,10 +6948,6 @@ function EvidenceMetadataPanel({
 }) {
   const [form, setForm] = useState<EvidenceMetadataFormState>(() => evidenceToMetadataForm(selectedEvidence));
 
-  useEffect(() => {
-    setForm(evidenceToMetadataForm(selectedEvidence));
-  }, [selectedEvidence]);
-
   function updateField<TKey extends keyof EvidenceMetadataFormState>(field: TKey, value: EvidenceMetadataFormState[TKey]) {
     setForm((current) => ({ ...current, [field]: value }));
   }
@@ -6545,8 +6998,28 @@ function EvidenceMetadataPanel({
                   onClick={() => onSelectEvidence(item.id)}
                 >
                   <strong>{item.title}</strong>
-                  <span>{item.status} · {item.ownerFunction} · {item.expiresAt ?? "No expiration"}</span>
-                  <ClassificationBadge classification={item.classification.classification} />
+                  <div className="scan-pill-row">
+                    <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
+                    <ClassificationBadge classification={item.classification.classification} />
+                    {item.expiresAt && item.expiresAt < new Date().toISOString().slice(0, 10) ? (
+                      <StatusPill label="Expired" tone="danger" />
+                    ) : null}
+                  </div>
+                  <ScanMeta
+                    items={[
+                      { label: "Owner", value: formatOwnerLabel(item.ownerFunction) },
+                      {
+                        label: "Expires",
+                        value: item.expiresAt ?? "No expiration",
+                        tone: item.expiresAt && item.expiresAt < new Date().toISOString().slice(0, 10) ? "danger" : "neutral"
+                      },
+                      { label: "Obligations", value: item.obligationIds.length, tone: item.obligationIds.length > 0 ? "success" : "warning" },
+                      { label: "Controls", value: item.controlIds.length, tone: item.controlIds.length > 0 ? "success" : "neutral" },
+                      { label: "Contracts", value: item.contractIds.length },
+                      { label: "Tags", value: item.tags.length || "None" }
+                    ]}
+                  />
+                  <DataQualityWarnings warnings={evidenceQualityWarnings(item)} />
                 </button>
               ))
             ) : (
@@ -6631,6 +7104,7 @@ function EvidenceMetadataPanel({
               <label>
                 <span>Obligations (optional)</span>
                 <input
+                  aria-label="Obligations"
                   list="evidence-obligation-options"
                   value={form.obligationIds}
                   onChange={(event) => updateField("obligationIds", event.target.value)}
@@ -6689,8 +7163,12 @@ function EvidenceMetadataPanel({
               Review classification
             </button>
           </div>
-          {message ? (
-            <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
+          {status === "failed" ? (
+            <Alert title="Evidence metadata action failed" tone="danger">
+              {message || "The evidence metadata record was not saved."}
+            </Alert>
+          ) : message ? (
+            <p className="form-status form-status--ok">{message}</p>
           ) : null}
         </form>
       </div>

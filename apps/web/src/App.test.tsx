@@ -31,6 +31,7 @@ const {
   fallbackOverview,
   getCompanyProfileMock,
   getCmmcAssessmentsMock,
+  getCmmcControlLibraryMock,
   getCmmcControlStatusesMock,
   getCmmcPoamItemsMock,
   getSubcontractorsMock,
@@ -56,6 +57,8 @@ const {
   getSharedResponsibilityMatrixAcknowledgementsMock,
   getComplianceOverviewMock,
   getCurrentUserAccessMock,
+  getTenantMock,
+  getTenantDataHandlingModeHistoryMock,
   getTenantInvitationsMock,
   getTenantMembersMock,
   invitations,
@@ -95,6 +98,7 @@ const {
   updateContractMock,
   updateEvidenceMetadataMock,
   updateNotificationPreferencesMock,
+  updateTenantDataHandlingModeMock,
   updateSubcontractorFlowDownMock
 } = vi.hoisted(() => ({
   acknowledgeNoCuiNoticeMock: vi.fn(),
@@ -119,6 +123,7 @@ const {
   getAuditLogsMock: vi.fn(),
   getCalendarEventsMock: vi.fn(),
   getCmmcAssessmentsMock: vi.fn(),
+  getCmmcControlLibraryMock: vi.fn(),
   getCmmcControlStatusesMock: vi.fn(),
   getCmmcPoamItemsMock: vi.fn(),
   getSubcontractorsMock: vi.fn(),
@@ -138,6 +143,8 @@ const {
   getEvidenceItemsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
+  getTenantMock: vi.fn(),
+  getTenantDataHandlingModeHistoryMock: vi.fn(),
   getNoCuiAcknowledgementStatusMock: vi.fn(),
   getNotificationPreferencesMock: vi.fn(),
   getNotificationsMock: vi.fn(),
@@ -168,6 +175,7 @@ const {
   updateContractMock: vi.fn(),
   updateEvidenceMetadataMock: vi.fn(),
   updateNotificationPreferencesMock: vi.fn(),
+  updateTenantDataHandlingModeMock: vi.fn(),
   updateSubcontractorFlowDownMock: vi.fn(),
   allWorkflowAccess: {
     tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
@@ -693,6 +701,7 @@ vi.mock("@/lib/api", () => ({
   deleteContractDocument: deleteContractDocumentMock,
   getCalendarEvents: getCalendarEventsMock,
   getCmmcAssessments: getCmmcAssessmentsMock,
+  getCmmcControlLibrary: getCmmcControlLibraryMock,
   getCmmcControlStatuses: getCmmcControlStatusesMock,
   getCmmcPoamItems: getCmmcPoamItemsMock,
   getSubcontractors: getSubcontractorsMock,
@@ -761,6 +770,8 @@ vi.mock("@/lib/api", () => ({
   fallbackOverview,
   getComplianceOverview: getComplianceOverviewMock,
   getCurrentUserAccess: getCurrentUserAccessMock,
+  getTenant: getTenantMock,
+  getTenantDataHandlingModeHistory: getTenantDataHandlingModeHistoryMock,
   getAuditLogs: getAuditLogsMock,
   fallbackAuditLogs: {
     items: [],
@@ -772,7 +783,8 @@ vi.mock("@/lib/api", () => ({
   },
   getNoCuiAcknowledgementStatus: getNoCuiAcknowledgementStatusMock,
   getTenantInvitations: getTenantInvitationsMock,
-  getTenantMembers: getTenantMembersMock
+  getTenantMembers: getTenantMembersMock,
+  updateTenantDataHandlingMode: updateTenantDataHandlingModeMock
 }));
 
 import { App } from "@/App";
@@ -824,9 +836,12 @@ describe("App", () => {
     updateCuiReadyApprovalChecklistItemMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
+    getTenantMock.mockReset();
+    getTenantDataHandlingModeHistoryMock.mockReset();
     getAuditLogsMock.mockReset();
     getCalendarEventsMock.mockReset();
     getCmmcAssessmentsMock.mockReset();
+    getCmmcControlLibraryMock.mockReset();
     getCmmcControlStatusesMock.mockReset();
     getCmmcPoamItemsMock.mockReset();
     getSubcontractorsMock.mockReset();
@@ -840,6 +855,7 @@ describe("App", () => {
     getSharedResponsibilityMatrixAcknowledgementsMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
+    updateTenantDataHandlingModeMock.mockReset();
     getContractsMock.mockReset();
     getContentClassificationReviewItemsMock.mockReset();
     getCuiReadyApprovalChecklistsMock.mockReset();
@@ -902,6 +918,30 @@ describe("App", () => {
       error: null
     });
     getNotificationsMock.mockResolvedValue([]);
+    getTenantMock.mockResolvedValue({
+      id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      displayName: "Acme GovCon",
+      status: "Active",
+      dataPosture: "No-CUI / compliance management only",
+      dataHandlingMode: "NoCui",
+      trialEndsAt: null,
+      createdAt: "2026-06-01T00:00:00Z",
+      updatedAt: null
+    });
+    getTenantDataHandlingModeHistoryMock.mockResolvedValue([]);
+    updateTenantDataHandlingModeMock.mockResolvedValue({
+      data: {
+        id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+        displayName: "Acme GovCon",
+        status: "Active",
+        dataPosture: "No-CUI / compliance management only",
+        dataHandlingMode: "NoCui",
+        trialEndsAt: null,
+        createdAt: "2026-06-01T00:00:00Z",
+        updatedAt: "2026-06-15T14:05:00Z"
+      },
+      error: null
+    });
     getPublishedSharedResponsibilityMatrixMock.mockResolvedValue(null);
     getSharedResponsibilityMatrixAcknowledgementsMock.mockResolvedValue([]);
     markNotificationReadMock.mockImplementation((notificationId) =>
@@ -929,6 +969,7 @@ describe("App", () => {
     getCuiReadyApprovalChecklistsMock.mockResolvedValue([]);
     getEvidenceItemsMock.mockResolvedValue([]);
     getCmmcAssessmentsMock.mockResolvedValue([]);
+    getCmmcControlLibraryMock.mockResolvedValue([]);
     getCmmcControlStatusesMock.mockResolvedValue([]);
     getCmmcPoamItemsMock.mockResolvedValue([]);
     getSubcontractorsMock.mockResolvedValue([]);
@@ -2125,7 +2166,11 @@ describe("App", () => {
     await user.upload(fileInput, new File(["policy"], "policy.pdf", { type: "application/pdf" }));
     await user.click(screen.getByRole("button", { name: /upload evidence/i }));
 
-    expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(expect.objectContaining({ name: "policy.pdf", type: "application/pdf" }));
+    expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "policy.pdf", type: "application/pdf" }),
+      "Unclassified",
+      "User confirmed upload classification."
+    );
     expect(await screen.findByText(/Upload intent created for policy.pdf/i)).toBeInTheDocument();
     expect(screen.getByText(/malware scan scan-pending/i)).toBeInTheDocument();
   });
@@ -2160,7 +2205,9 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /upload evidence/i }));
 
     expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "policy.pdf", type: "application/pdf" })
+      expect.objectContaining({ name: "policy.pdf", type: "application/pdf" }),
+      "Unclassified",
+      "User confirmed upload classification."
     );
     expect(await screen.findByText("File size exceeds the No-CUI MVP upload limit.")).toBeInTheDocument();
   });
@@ -2199,7 +2246,7 @@ describe("App", () => {
       expect.objectContaining({
         name: "Level 2 workspace",
         level: "Level2",
-        framework: "NIST-SP-800-171-Rev2",
+        framework: "NistSp800171Revision2",
         ownerFunction: "Security",
         contractIds: [contract.id]
       })
@@ -2252,7 +2299,7 @@ describe("App", () => {
         contactName: "Jane Contracts",
         roleDescription: "CUI helpdesk support",
         smallBusinessStatus: "Small",
-        cmmcStatus: "Level 1 complete",
+        cmmcStatus: "Level 1 self-assessment draft",
         hasCuiAccess: true,
         hasExportControlledAccess: true,
         contractIds: [contract.id]
