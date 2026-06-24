@@ -26,11 +26,11 @@ For UAT, use the names below as role/persona labels when entering assignments, i
 
 | User | Email | Suggested Role | Use For |
 | --- | --- | --- | --- |
-| Morgan Lane | morgan.lane+uat@gccs.example | Admin | Tenant setup, mode switching, acknowledgements |
-| Priya Shah | priya.shah+uat@gccs.example | Compliance Manager | Profile, obligations, reports |
-| Devin Brooks | devin.brooks+uat@gccs.example | Contributor | Evidence and CMMC readiness |
-| Elena Carter | elena.carter+uat@gccs.example | Compliance Manager | Contracts and flow-downs |
-| Avery Quinn | avery.quinn+platform@gccs.example | Admin / platform security tester | CUI-ready approval |
+| Morgan Lane | morgan.lane+uat@example.com | Admin | Tenant setup, mode switching, acknowledgements |
+| Priya Shah | priya.shah+uat@example.com | Compliance Manager | Profile, obligations, reports |
+| Devin Brooks | devin.brooks+uat@example.com | Contributor | Evidence and CMMC readiness |
+| Elena Carter | elena.carter+uat@example.com | Compliance Manager | Contracts and flow-downs |
+| Avery Quinn | avery.quinn+platform@example.com | Admin / platform security tester | CUI-ready approval |
 
 ## Tenant Modes
 
@@ -123,9 +123,9 @@ Goal: Confirm user onboarding works.
 
 | Email Field | Role Field | Button |
 | --- | --- | --- |
-| priya.shah+uat@gccs.example | `Compliance Manager` | `Invite` |
-| devin.brooks+uat@gccs.example | `Contributor` | `Invite` |
-| elena.carter+uat@gccs.example | `Compliance Manager` | `Invite` |
+| priya.shah+uat@example.com | `Compliance Manager` | `Invite` |
+| devin.brooks+uat@example.com | `Contributor` | `Invite` |
+| elena.carter+uat@example.com | `Compliance Manager` | `Invite` |
 
 Expected result: Each invitation appears in the invitation list with role, status, and expiration date.
 
@@ -467,7 +467,7 @@ Goal: Confirm supplier tracking works.
 | --- | --- |
 | Name | `Northstar Demo Components LLC` |
 | Contact name | `Rowan Ellis` |
-| Contact email | `rowan.ellis+uat@gccs.example` |
+| Contact email | `rowan.ellis+uat@example.com` |
 | Small business | `Small, SDB` |
 | CMMC status | `Level 1 self-assessment draft` |
 | Required CMMC level from contract | `Level 1` |
@@ -501,7 +501,7 @@ Goal: Confirm supplier tracking works.
 | Evidence type | `SignedFlowDown` |
 | Due date | `2026-08-05` |
 | Recipient | `Rowan Ellis` |
-| Email | `rowan.ellis+uat@gccs.example` |
+| Email | `rowan.ellis+uat@example.com` |
 | Related flow-down | Select the saved flow-down if available |
 | Status | `Sent` |
 
