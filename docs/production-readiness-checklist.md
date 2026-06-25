@@ -15,6 +15,17 @@ Required approvals before production launch:
 - Customer success/support owner approval.
 - Legal or contracting advisor approval for customer-facing compliance claims.
 
+Required approval status:
+
+| Required approver | Current status | Launch blocker while pending |
+| --- | --- | --- |
+| Product owner | Pending | Yes |
+| Engineering lead | Pending | Yes |
+| Security owner | Pending | Yes |
+| Compliance content owner | Pending | Yes |
+| Customer success/support owner | Pending | Yes |
+| Legal or contracting advisor | Pending | Yes |
+
 | Area | Required item | Evidence | Owner | Approver | Current status |
 | --- | --- | --- | --- | --- | --- |
 | No-CUI posture | Customer-facing data handling notice is visible in onboarding, upload flows, docs, and support scripts. Real CUI upload remains prohibited until a future approved `CuiReady` posture is implemented. | `README.md`, `docs/product-strategy.md`, `docs/mvp-execution-plan.md` | Product owner | Legal or contracting advisor | Ready for approval |

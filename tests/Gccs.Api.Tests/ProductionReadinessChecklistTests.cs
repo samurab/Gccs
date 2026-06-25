@@ -6,6 +6,38 @@ namespace Gccs.Api.Tests;
 public sealed class ProductionReadinessChecklistTests
 {
     [Fact]
+    public void TC_PR_0_1_Launch_posture_decision_records_no_cui_cui_exclusion_and_required_approvals()
+    {
+        var plan = ReadText("docs", "production-readiness-plan.md");
+        var decisionLog = ReadText("docs", "decision-log.md");
+
+        foreach (var artifact in new[] { plan, decisionLog })
+        {
+            Assert.Contains("Decision: No-CUI MVP Launch Posture", artifact);
+            Assert.Contains("No-CUI / compliance management only with synthetic CUI-ready demonstration workflows", artifact);
+            Assert.Contains("Real customer CUI remains prohibited until a future `CuiReady` posture is approved", artifact);
+            Assert.Contains("Approval status:", artifact);
+            AssertRequiredPendingApproverTableRows(artifact);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_0_1_Missing_required_launch_approvals_remain_blockers()
+    {
+        var plan = ReadText("docs", "production-readiness-plan.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+
+        Assert.Contains("Launch gate status: blocked until all required items are complete and approved.", checklist);
+        Assert.Contains("Missing approval blockers remain open", plan);
+
+        foreach (var artifact in new[] { plan, checklist })
+        {
+            Assert.Contains("| Required approver | Current status | Launch blocker while pending |", artifact);
+            AssertRequiredPendingApproverTableRows(artifact);
+        }
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
@@ -88,6 +120,22 @@ public sealed class ProductionReadinessChecklistTests
     {
         Assert.True(element.TryGetProperty(propertyName, out var property), $"Missing required property '{propertyName}'.");
         Assert.False(string.IsNullOrWhiteSpace(property.GetString()), $"Property '{propertyName}' must not be blank.");
+    }
+
+    private static void AssertRequiredPendingApproverTableRows(string artifact)
+    {
+        foreach (var approver in new[]
+        {
+            "Product owner",
+            "Engineering lead",
+            "Security owner",
+            "Compliance content owner",
+            "Customer success/support owner",
+            "Legal or contracting advisor"
+        })
+        {
+            Assert.Contains($"| {approver} | Pending | Yes |", artifact);
+        }
     }
 
     private static string ReadText(params string[] pathParts) =>

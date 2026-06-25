@@ -59,6 +59,17 @@ Approver:
 
 Pending product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approval.
 
+Approval status:
+
+| Required approver | Current status | Launch blocker while pending |
+| --- | --- | --- |
+| Product owner | Pending | Yes |
+| Engineering lead | Pending | Yes |
+| Security owner | Pending | Yes |
+| Compliance content owner | Pending | Yes |
+| Customer success/support owner | Pending | Yes |
+| Legal or contracting advisor | Pending | Yes |
+
 Review date:
 
 Before MVP launch candidate tagging.

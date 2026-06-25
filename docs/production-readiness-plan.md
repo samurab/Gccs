@@ -47,6 +47,17 @@ Approver:
 
 Pending product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approval.
 
+Approval status:
+
+| Required approver | Current status | Launch blocker while pending |
+| --- | --- | --- |
+| Product owner | Pending | Yes |
+| Engineering lead | Pending | Yes |
+| Security owner | Pending | Yes |
+| Compliance content owner | Pending | Yes |
+| Customer success/support owner | Pending | Yes |
+| Legal or contracting advisor | Pending | Yes |
+
 Review date:
 
 Before MVP launch candidate tagging.
@@ -80,6 +91,7 @@ Production launch remains blocked until these items are resolved or formally acc
 - High-risk obligation records are approved or hidden from customer-facing production views.
 - Launch release notes and known-risk acceptance log are complete.
 - Required product, engineering, security, compliance content, support, and legal/contracting approvals are complete.
+- Missing approval blockers remain open for the pending product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approvals listed in the approval status table.
 
 ## Phase PR-0 - Launch Posture Freeze
 
