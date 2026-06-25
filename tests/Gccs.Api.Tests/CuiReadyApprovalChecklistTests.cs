@@ -31,6 +31,21 @@ public sealed class CuiReadyApprovalChecklistTests
     }
 
     [Fact]
+    public async Task TC_1A_4_1_6_Antitrust_procurement_integrity_item_is_required()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTenant(dbContext);
+        var service = CreateService(dbContext);
+
+        var checklist = await service.CreateAsync(TenantId, ActorUserId);
+
+        var item = Assert.Single(checklist.Items, candidate => candidate.ItemKey == "antitrust-procurement-integrity");
+        Assert.True(item.IsRequired);
+        Assert.Equal("Antitrust and procurement integrity", item.Section);
+        Assert.Contains("pricing", item.Description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task TC_1A_4_1_2_Completed_item_metadata_required_and_stored()
     {
         await using var dbContext = CreateDbContext();

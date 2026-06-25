@@ -1,5 +1,41 @@
 [
   {
+    "id": "far-part-3-antitrust-procurement-integrity",
+    "source": "FAR Part 3",
+    "title": "Antitrust and Procurement Integrity Review",
+    "trigger_condition": "Company is preparing, pricing, submitting, or administering a federal offer, contract, subcontract, teaming arrangement, or flow-down where competitor communications, bid or proposal information, source-selection information, or independent price determination controls may apply.",
+    "applies_to": ["prime", "subcontractor", "offeror", "teaming partner"],
+    "contract_types": ["federal solicitation", "federal contract", "subcontract", "teaming arrangement"],
+    "data_types": ["bid information", "proposal information", "source-selection information", "pricing information", "competitor communications"],
+    "required_actions": [
+      "Screen opportunity and contract workflows for procurement-integrity issues involving nonpublic bid, proposal, or source-selection information.",
+      "Document independent price-determination review before offer submission where FAR 52.203-2 or equivalent certification language applies.",
+      "Record competitor, teaming, subcontractor, and consultant communications that could raise antitrust or procurement-integrity concerns.",
+      "Escalate suspected antitrust patterns, procurement-integrity violations, or unclear competitor-contact issues to legal or an authorized compliance reviewer before submission or award action."
+    ],
+    "evidence_examples": [
+      "Independent price determination certification review",
+      "Competitor-contact log",
+      "Teaming or subcontractor communication review",
+      "Procurement-integrity training record",
+      "Source-selection information handling acknowledgement",
+      "Legal or compliance escalation record"
+    ],
+    "reporting_deadline": "Escalation timing depends on solicitation, contract, agency, and issue context; suspected issues should be reviewed before offer submission or award action where possible.",
+    "flow_down_requirement": "Flow down applicable conduct, information-handling, certification, and escalation expectations to subcontractors, consultants, and teaming partners when they support pricing, proposals, or performance.",
+    "risk_level": "critical",
+    "source_url": "https://www.acquisition.gov/far/part-3",
+    "effective_at": null,
+    "clause_text_version": "current as of 2026-06-25",
+    "source_hash": null,
+    "last_reviewed_at": "2026-06-25",
+    "confidence": "medium",
+    "requires_expert_review": true,
+    "review_owner": "compliance-content-owner",
+    "review_state": "needs_review",
+    "superseded_by": null
+  },
+  {
     "id": "far-52-204-21",
     "source": "FAR 52.204-21",
     "title": "Basic Safeguarding of Covered Contractor Information Systems",

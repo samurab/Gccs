@@ -22,6 +22,7 @@ public sealed class ComplianceContentImportTests
 
         var clause = await dbContext.Clauses.SingleAsync(clause => clause.Id == "far-52-204-21");
         var obligation = await dbContext.Obligations.SingleAsync(obligation => obligation.Id == "far-52-204-21");
+        var procurementIntegrityObligation = await dbContext.Obligations.SingleAsync(obligation => obligation.Id == "far-part-3-antitrust-procurement-integrity");
 
         Assert.Equal("https://www.acquisition.gov/far/52.204-21", clause.SourceUrl);
         Assert.Equal(new DateOnly(2026, 6, 3), clause.LastReviewedAt);
@@ -30,6 +31,11 @@ public sealed class ComplianceContentImportTests
         Assert.Equal(new DateOnly(2026, 6, 3), obligation.LastReviewedAt);
         Assert.Equal(ReviewState.Published, obligation.ReviewState);
         Assert.Contains("Access control policy", obligation.EvidenceExamplesJson);
+        Assert.Equal("https://www.acquisition.gov/far/part-3", procurementIntegrityObligation.SourceUrl);
+        Assert.Equal(new DateOnly(2026, 6, 25), procurementIntegrityObligation.LastReviewedAt);
+        Assert.Equal(ReviewState.InReview, procurementIntegrityObligation.ReviewState);
+        Assert.True(procurementIntegrityObligation.RequiresExpertReview);
+        Assert.Contains("Independent price determination", procurementIntegrityObligation.EvidenceExamplesJson);
     }
 
     [Fact]

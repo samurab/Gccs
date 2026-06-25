@@ -205,6 +205,7 @@ public sealed class CuiReadyApprovalChecklistService(
         new("data-handling-notice", "Data handling notice", "Customer-facing CUI data handling notice is approved.", true),
         new("shared-responsibility-matrix", "Shared responsibility matrix", "Shared responsibility matrix is reviewed and attached.", true),
         new("security-review", "Security review", "Tenant isolation, upload, audit, and access controls are reviewed.", true),
+        new("antitrust-procurement-integrity", "Antitrust and procurement integrity", "Bid, pricing, source-selection, and competitor-contact controls are reviewed with supporting evidence.", true),
         new("support-escalation", "Support escalation", "Support escalation path for CUI incidents is documented.", true),
         new("backup-restore", "Backup and restore", "Backup and restore procedure is tested or approved.", true),
         new("admin-access", "Admin access", "Least-privilege admin access and access review are complete.", true),

@@ -10,7 +10,7 @@ public sealed class SecurityReviewChecklistTests
     [Fact]
     public void TC_1A_9_1_1_Review_areas_are_complete()
     {
-        foreach (var area in new[] { "tenant-isolation", "evidence-storage", "encryption", "malware-scanning", "retention", "backup", "restore", "admin-access", "support-access", "logging", "monitoring", "incident-response" })
+        foreach (var area in new[] { "tenant-isolation", "evidence-storage", "encryption", "malware-scanning", "retention", "backup", "restore", "admin-access", "support-access", "antitrust-procurement-integrity", "logging", "monitoring", "incident-response" })
         {
             Assert.Contains(area, SecurityReviewChecklist.RequiredAreas);
         }

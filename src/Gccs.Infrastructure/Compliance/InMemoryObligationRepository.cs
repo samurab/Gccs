@@ -21,6 +21,25 @@ public sealed class InMemoryObligationRepository : IObligationRepository
     private static readonly Obligation[] DefaultObligations =
     [
         new(
+            "far-part-3-antitrust-procurement-integrity",
+            "FAR Part 3",
+            "Antitrust and Procurement Integrity Review",
+            "Review bid, pricing, source-selection, and competitor-contact workflows before federal offer or contract actions.",
+            "Company is preparing, pricing, submitting, or administering a federal offer, contract, subcontract, teaming arrangement, or flow-down where competitor communications, bid or proposal information, source-selection information, or independent price determination controls may apply.",
+            "Screen procurement-integrity issues, document independent price-determination review, log competitor or teaming communications, and escalate suspected antitrust or procurement-integrity concerns.",
+            "contracts/legal/compliance",
+            RiskLevel.Critical,
+            true,
+            "Flow down applicable conduct, information-handling, certification, and escalation expectations to subcontractors, consultants, and teaming partners when they support pricing, proposals, or performance.",
+            new ApplicabilityDimension("prime/sub/offeror", "federal solicitation", "bid/proposal/pricing information", "any", "any", "pricing or proposal participation"),
+            [
+                new("Independent price determination certification review", "Review record for FAR 52.203-2 or equivalent certification language before submission.", "contracts/legal"),
+                new("Competitor-contact log", "Record of contacts with competitors, teaming partners, subcontractors, or consultants related to the opportunity.", "contracts/compliance"),
+                new("Procurement-integrity training record", "Training or acknowledgement covering source-selection and nonpublic procurement information handling.", "compliance")
+            ],
+            new ComplianceSource("FAR Part 3", new Uri("https://www.acquisition.gov/far/part-3"), new DateOnly(2026, 6, 25), null, "medium", true),
+            NeedsReview("medium", true)),
+        new(
             "far-52-204-21",
             "FAR 52.204-21",
             "Basic Safeguarding of Covered Contractor Information Systems",
@@ -130,4 +149,7 @@ public sealed class InMemoryObligationRepository : IObligationRepository
 
     private static ReviewMetadata PublishedReview(string confidence, bool requiresExpertReview) =>
         new(new DateOnly(2026, 6, 3), null, new DateOnly(2026, 9, 3), confidence, requiresExpertReview, ReviewState.Published);
+
+    private static ReviewMetadata NeedsReview(string confidence, bool requiresExpertReview) =>
+        new(new DateOnly(2026, 6, 25), null, new DateOnly(2026, 9, 25), confidence, requiresExpertReview, ReviewState.NeedsReview);
 }

@@ -13,6 +13,7 @@ public static class SecurityReviewChecklist
         "restore",
         "admin-access",
         "support-access",
+        "antitrust-procurement-integrity",
         "logging",
         "monitoring",
         "incident-response"

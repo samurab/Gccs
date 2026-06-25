@@ -171,6 +171,7 @@ ruby -ryaml -e 'doc = YAML.load_file("docs/api/openapi.yaml"); puts doc["openapi
 - Compliance calendar
 - Evidence vault
 - CMMC Level 1 and Level 2 readiness tracker
+- Antitrust/procurement-integrity checklist with source-backed, expert-review-required content
 - Subcontractor flow-down tracker
 - Basic reports
 - Source-backed obligation library
