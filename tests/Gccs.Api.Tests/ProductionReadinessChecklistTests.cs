@@ -113,6 +113,76 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_1_1_Open_launch_stories_are_listed_in_readiness_review()
+    {
+        var review = ReadText("docs", "production-readiness-open-story-readiness-review.md");
+        var plan = ReadText("docs", "production-readiness-plan.md");
+
+        Assert.Contains("docs/production-readiness-open-story-readiness-review.md", plan);
+        Assert.Contains("Review status: Complete.", review);
+        Assert.Contains("Review owner: QA owner.", review);
+
+        foreach (var storyId in ProductionReadinessOpenStoryIds())
+        {
+            Assert.Contains($"| {storyId} |", review);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_1_1_Required_readiness_fields_are_reviewed_for_open_launch_stories()
+    {
+        var review = ReadText("docs", "production-readiness-open-story-readiness-review.md");
+        var requiredHeaders = new[]
+        {
+            "Story ID",
+            "Actor",
+            "Goal",
+            "Business value",
+            "Included scope",
+            "Excluded scope",
+            "Acceptance criteria reviewed",
+            "Dependencies",
+            "Data needs",
+            "Security implications",
+            "RBAC implications",
+            "Audit logging implications",
+            "CUI/data-handling implications",
+            "Readiness status",
+            "Launch disposition",
+            "Acceptance limitation or follow-up"
+        };
+
+        foreach (var header in requiredHeaders)
+        {
+            Assert.Contains(header, review);
+        }
+
+        foreach (var storyId in ProductionReadinessOpenStoryIds())
+        {
+            var row = review
+                .Split(Environment.NewLine)
+                .Single(line => line.StartsWith($"| {storyId} |", StringComparison.Ordinal));
+            var cells = row.Split('|', StringSplitOptions.TrimEntries);
+
+            Assert.Equal(18, cells.Length);
+            Assert.All(cells.Skip(1).Take(16), cell => Assert.False(string.IsNullOrWhiteSpace(cell)));
+        }
+    }
+
+    [Fact]
+    public void TC_PR_1_1_Incomplete_or_ambiguous_open_stories_are_not_accepted_silently()
+    {
+        var review = ReadText("docs", "production-readiness-open-story-readiness-review.md");
+
+        Assert.Contains("Rejected Or Deferred Records", review);
+        Assert.Contains("No open production-readiness launch story is rejected or deferred by this review.", review);
+        Assert.Contains("Ready with dependency", review);
+        Assert.Contains("Staging, production, approval, malware scanner, and pilot-operation stories cannot be marked done without attached execution evidence.", review);
+        Assert.DoesNotContain("Unresolved", review, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("No open No-CUI or tenant-mode ambiguity remains in accepted launch scope.", review);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
@@ -227,6 +297,35 @@ public sealed class ProductionReadinessChecklistTests
         yield return new[] { "docs", "decision-log.md" };
         yield return new[] { "docs", "production-readiness-roadmap.md" };
         yield return new[] { "docs", "production-readiness-plan.md" };
+    }
+
+    private static IEnumerable<string> ProductionReadinessOpenStoryIds()
+    {
+        yield return "PR-1.1";
+        yield return "PR-1.2";
+        yield return "PR-1.3";
+        yield return "PR-2.1";
+        yield return "PR-2.2";
+        yield return "PR-2.3";
+        yield return "PR-3.1";
+        yield return "PR-3.2";
+        yield return "PR-3.3";
+        yield return "PR-3.4";
+        yield return "PR-4.1";
+        yield return "PR-4.2";
+        yield return "PR-4.3";
+        yield return "PR-5.1";
+        yield return "PR-5.2";
+        yield return "PR-5.3";
+        yield return "PR-5.4";
+        yield return "PR-6.1";
+        yield return "PR-6.2";
+        yield return "PR-7.1";
+        yield return "PR-7.2";
+        yield return "PR-7.3";
+        yield return "PR-8.1";
+        yield return "PR-8.2";
+        yield return "PR-8.3";
     }
 
     private static string ReadText(params string[] pathParts) =>
