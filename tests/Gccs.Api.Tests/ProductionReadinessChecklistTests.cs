@@ -421,6 +421,67 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_2_3_Completion_gaps_have_launch_decisions()
+    {
+        var decisions = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        var plan = ReadText("docs", "production-readiness-plan.md");
+
+        Assert.Contains("docs/production-readiness-launch-gap-decisions.md", plan);
+        Assert.Contains("Review status: Complete.", decisions);
+
+        foreach (var gapId in new[] { "DOD-GAP-001", "DOD-GAP-002", "DOD-GAP-003" })
+        {
+            Assert.Contains($"| {gapId} |", decisions);
+        }
+
+        Assert.Contains("Launch blocker", decisions);
+        Assert.Contains("Deferred follow-up", decisions);
+    }
+
+    [Fact]
+    public void TC_PR_2_3_Gap_decisions_include_required_risk_metadata()
+    {
+        var decisions = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        foreach (var header in new[]
+        {
+            "Classification",
+            "Owner",
+            "Severity",
+            "Mitigation",
+            "Contingency",
+            "Approver",
+            "Target date",
+            "Current status"
+        })
+        {
+            Assert.Contains(header, decisions);
+        }
+
+        foreach (var gapId in new[] { "DOD-GAP-001", "DOD-GAP-002", "DOD-GAP-003" })
+        {
+            var row = decisions
+                .Split(Environment.NewLine)
+                .Single(line => line.StartsWith($"| {gapId} |", StringComparison.Ordinal));
+            var cells = row.Split('|', StringSplitOptions.TrimEntries);
+
+            Assert.Equal(13, cells.Length);
+            Assert.All(cells.Skip(1).Take(11), cell => Assert.False(string.IsNullOrWhiteSpace(cell)));
+        }
+    }
+
+    [Fact]
+    public void TC_PR_2_3_Deferred_items_preserve_no_cui_and_claim_controls()
+    {
+        var decisions = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("No deferred item in this log expands the No-CUI posture", decisions);
+        Assert.Contains("does not authorize real CUI or prohibited upload handling", decisions);
+        Assert.Contains("If no scanner or approved exception exists, keep production launch blocked", decisions);
+        Assert.Contains("No accepted risks are recorded for PR-2.3.", decisions);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
