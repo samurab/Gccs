@@ -247,6 +247,56 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_1_3_Risky_workflow_stories_are_explicitly_identified()
+    {
+        var gate = ReadText("docs", "production-readiness-risky-workflow-gate.md");
+        var plan = ReadText("docs", "production-readiness-plan.md");
+
+        Assert.Contains("docs/production-readiness-risky-workflow-gate.md", plan);
+        Assert.Contains("Review status: Complete.", gate);
+
+        foreach (var workflow in new[] { "upload", "import", "export", "search", "AI", "evidence", "report", "extraction", "background processing" })
+        {
+            Assert.Contains(workflow, gate, StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var storyId in RiskyWorkflowStoryIds())
+        {
+            Assert.Contains($"| {storyId} |", gate);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_1_3_Risky_workflow_rows_include_required_security_coverage()
+    {
+        var gate = ReadText("docs", "production-readiness-risky-workflow-gate.md");
+
+        foreach (var storyId in RiskyWorkflowStoryIds())
+        {
+            var row = gate
+                .Split(Environment.NewLine)
+                .Single(line => line.StartsWith($"| {storyId} |", StringComparison.Ordinal));
+            var cells = row.Split('|', StringSplitOptions.TrimEntries);
+
+            Assert.Equal(10, cells.Length);
+            Assert.All(cells.Skip(1).Take(8), cell => Assert.False(string.IsNullOrWhiteSpace(cell)));
+            Assert.DoesNotContain("TBD", row, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_1_3_No_unreviewed_risky_workflow_story_remains_in_launch_scope()
+    {
+        var gate = ReadText("docs", "production-readiness-risky-workflow-gate.md");
+
+        Assert.Contains("No unreviewed data ingress, data egress, or automated processing story remains in launch scope.", gate);
+        Assert.Contains("No risky workflow story is silently accepted without controls.", gate);
+        Assert.Contains("Missing coverage creates a launch task, blocker, deferred follow-up, or narrowed scope record.", gate);
+        Assert.Contains("Production data posture remains No-CUI unless a separate future `CuiReady` approval gate is approved.", gate);
+        Assert.DoesNotContain("Unreviewed", gate.Replace("No unreviewed", string.Empty, StringComparison.OrdinalIgnoreCase), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
@@ -384,6 +434,29 @@ public sealed class ProductionReadinessChecklistTests
         yield return "PR-5.4";
         yield return "PR-6.1";
         yield return "PR-6.2";
+        yield return "PR-7.1";
+        yield return "PR-7.2";
+        yield return "PR-7.3";
+        yield return "PR-8.1";
+        yield return "PR-8.2";
+        yield return "PR-8.3";
+    }
+
+    private static IEnumerable<string> RiskyWorkflowStoryIds()
+    {
+        yield return "PR-1.3";
+        yield return "PR-2.2";
+        yield return "PR-2.3";
+        yield return "PR-3.2";
+        yield return "PR-3.3";
+        yield return "PR-3.4";
+        yield return "PR-4.2";
+        yield return "PR-4.3";
+        yield return "PR-5.1";
+        yield return "PR-5.2";
+        yield return "PR-5.3";
+        yield return "PR-5.4";
+        yield return "PR-6.1";
         yield return "PR-7.1";
         yield return "PR-7.2";
         yield return "PR-7.3";
