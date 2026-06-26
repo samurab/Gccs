@@ -364,6 +364,63 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_2_2_Completed_launch_stories_have_dod_evidence()
+    {
+        var review = ReadText("docs", "production-readiness-completed-story-dod-review.md");
+        var plan = ReadText("docs", "production-readiness-plan.md");
+
+        Assert.Contains("docs/production-readiness-completed-story-dod-review.md", plan);
+        Assert.Contains("Review status: Complete.", review);
+
+        foreach (var storyId in new[] { "PR-0.1", "PR-0.2", "PR-0.3", "PR-1.1", "PR-1.2", "PR-1.3", "PR-2.1" })
+        {
+            Assert.Contains($"| {storyId} |", review);
+            Assert.Contains($"| {storyId} |", review);
+        }
+
+        Assert.Contains("Acceptance evidence", review);
+        Assert.Contains("Test evidence", review);
+        Assert.Contains("DoD disposition", review);
+    }
+
+    [Fact]
+    public void TC_PR_2_2_Protected_workflows_have_tenant_rbac_and_audit_review_evidence()
+    {
+        var review = ReadText("docs", "production-readiness-completed-story-dod-review.md");
+
+        foreach (var phrase in new[]
+        {
+            "Tenant isolation review",
+            "RBAC review",
+            "Audit logging evidence",
+            "Tenant and RBAC",
+            "Contract intake and upload",
+            "Evidence vault and reports",
+            "Tenant isolation, RBAC, and audit logging are release-blocking controls",
+            "Uploads are server-side guarded by acknowledgement, classification, tenant mode, and audit events"
+        })
+        {
+            Assert.Contains(phrase, review);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_2_2_Missing_dod_items_are_listed_for_disposition()
+    {
+        var review = ReadText("docs", "production-readiness-completed-story-dod-review.md");
+
+        Assert.Contains("## Completion Gaps For PR-2.3 Disposition", review);
+        foreach (var gapId in new[] { "DOD-GAP-001", "DOD-GAP-002", "DOD-GAP-003" })
+        {
+            Assert.Contains($"| {gapId} |", review);
+        }
+
+        Assert.Contains("validation failure, permission denial, empty state, error state, and basic accessibility", review);
+        Assert.Contains("Launch blocker until scanner is enabled or exception approved.", review);
+        Assert.Contains("PR-2.3 must convert each listed gap", review);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
