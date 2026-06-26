@@ -20,7 +20,28 @@ public sealed record CmmcPoamItemDto(
     IReadOnlyList<Guid> EvidenceItemIds,
     bool IsOverdue,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    Guid? CreatedByUserId,
+    Guid? UpdatedByUserId)
+{
+    public string Title => Weakness;
+
+    public string Description => Weakness;
+
+    public RiskLevel Severity => RiskLevel;
+
+    public DateOnly DueDate => TargetCompletionAt;
+
+    public string RemediationPlan => PlannedRemediation;
+
+    public Guid? CreatedBy => CreatedByUserId;
+
+    public DateTimeOffset CreatedUtc => CreatedAt;
+
+    public Guid? UpdatedBy => UpdatedByUserId;
+
+    public DateTimeOffset? UpdatedUtc => UpdatedAt;
+}
 
 public sealed record UpsertCmmcPoamItemRequest(
     string ControlId,
@@ -37,8 +58,15 @@ public sealed record UpsertCmmcPoamItemRequest(
 
 public interface ICmmcPoamRepository
 {
+    Task<IReadOnlyList<CmmcPoamItemDto>> ListCurrentTenantAsync(
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<CmmcPoamItemDto>?> ListCurrentTenantAsync(
         Guid assessmentId,
+        CancellationToken cancellationToken = default);
+
+    Task<CmmcPoamItemDto?> FindCurrentTenantAsync(
+        Guid poamItemId,
         CancellationToken cancellationToken = default);
 
     Task<CmmcPoamItemDto?> CreateAsync(
@@ -52,5 +80,17 @@ public interface ICmmcPoamRepository
         Guid poamItemId,
         UpsertCmmcPoamItemRequest request,
         Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<CmmcPoamItemDto?> UpdateCurrentTenantAsync(
+        Guid poamItemId,
+        UpsertCmmcPoamItemRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<CmmcPoamItemDto?> CloseCurrentTenantAsync(
+        Guid poamItemId,
+        Guid actorUserId,
+        DateOnly closedAt,
         CancellationToken cancellationToken = default);
 }

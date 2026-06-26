@@ -187,6 +187,20 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         ApplyPostgresConventions(modelBuilder);
     }
 
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        EnforceAuditLogAppendOnly();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
+    {
+        EnforceAuditLogAppendOnly();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
     private static void ConfigureCore(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<TenantEntity>(entity =>
@@ -1363,8 +1377,23 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.TenantId, x.OccurredAt });
             entity.HasIndex(x => new { x.TenantId, x.EntityType, x.EntityId });
             entity.Property(x => x.CorrelationId).HasMaxLength(120);
+            entity.Property(x => x.OldValue).HasColumnType("text");
+            entity.Property(x => x.NewValue).HasColumnType("text");
             entity.Property(x => x.MetadataJson).HasColumnType("jsonb");
         });
+    }
+
+    private void EnforceAuditLogAppendOnly()
+    {
+        var invalidAuditLogMutations = ChangeTracker
+            .Entries<AuditLogEntryEntity>()
+            .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
+            .ToArray();
+
+        if (invalidAuditLogMutations.Length > 0)
+        {
+            throw new InvalidOperationException("Audit log entries are append-only and cannot be updated or deleted.");
+        }
     }
 
     private static void ConfigureAuditColumns<T>(EntityTypeBuilder<T> entity)

@@ -159,7 +159,16 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         Assert.Equal(TenantInvitationStatus.Pending, invitation.Status);
         Assert.Null(invitation.RevokedAt);
         Assert.Null(invitation.UpdatedAt);
-        Assert.Empty(await dbContext.AuditLogEntries.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        var auditEvents = await dbContext.AuditLogEntries
+            .Where(candidate => candidate.TenantId == tenantId)
+            .ToListAsync();
+        Assert.All(auditEvents, audit =>
+        {
+            Assert.Equal("Authorization", audit.EntityType);
+            Assert.Equal(AuditAction.Rejected, audit.Action);
+            Assert.Equal(actorUserId, audit.ActorUserId);
+        });
+        Assert.DoesNotContain(auditEvents, audit => audit.EntityType == "TenantInvitation");
     }
 
     [Fact]

@@ -5,6 +5,8 @@ namespace Gccs.Application.NoCui;
 public static class NoCuiNotice
 {
     public const string CurrentVersion = "no-cui-mvp-v1";
+    public const string RequiredUploadAttestationText =
+        "I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information.";
     public const string Copy =
         "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.";
 }
@@ -25,6 +27,7 @@ public sealed record EvidenceUploadIntentRequest(
     string FileName,
     string ContentType,
     long SizeBytes,
+    bool NoCuiAttestation = false,
     bool ContainsPotentialCui = false,
     ContentClassificationRequest? Classification = null);
 
@@ -41,6 +44,7 @@ public sealed record EvidenceUploadIntentDto(
     string MalwareScanStatus,
     string Message,
     string NoticeVersion,
+    string AttestationText,
     DateTimeOffset ExpiresAt,
     ContentClassificationDto Classification);
 

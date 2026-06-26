@@ -119,6 +119,8 @@ public sealed class CuiAuditExportTests
                 "test",
                 "correlation",
                 $"{eventType} recorded.",
+                null,
+                null,
                 new Dictionary<string, string>
                 {
                     ["eventType"] = eventType,

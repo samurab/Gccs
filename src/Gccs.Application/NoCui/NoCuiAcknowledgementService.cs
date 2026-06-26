@@ -95,13 +95,29 @@ public sealed class NoCuiAcknowledgementService(
 
         var classification = request.Classification ??
             ContentClassificationPolicy.FromLegacyCuiFlag(request.ContainsPotentialCui);
-        await classificationPolicy.EnsureAllowedAsync(
-            classification,
-            TenantDataHandlingWorkflow.EvidenceUpload,
-            actorUserId,
-            "EvidenceItem",
-            evidenceItemId.ToString(),
-            cancellationToken);
+        try
+        {
+            await classificationPolicy.EnsureAllowedAsync(
+                classification,
+                TenantDataHandlingWorkflow.EvidenceUpload,
+                actorUserId,
+                "EvidenceItem",
+                evidenceItemId.ToString(),
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is TenantDataHandlingModeRestrictedException or ContentClassificationValidationException)
+        {
+            await AuditRejectedUploadIntentAsync(
+                evidenceItemId,
+                request,
+                actorUserId,
+                new Dictionary<string, string[]>
+                {
+                    ["classification"] = [exception.Message]
+                },
+                cancellationToken);
+            throw;
+        }
 
         var uploadIntent = new EvidenceUploadIntentDto(
             Guid.NewGuid(),
@@ -116,6 +132,7 @@ public sealed class NoCuiAcknowledgementService(
             EvidenceUploadGuardrails.PendingMalwareScanStatus,
             "Upload metadata passed No-CUI guardrails. The file is not usable until future storage and malware scanning workflows complete.",
             acknowledgement.NoticeVersion,
+            NoCuiNotice.RequiredUploadAttestationText,
             DateTimeOffset.UtcNow.AddMinutes(15),
             ToClassificationDto(classification));
 
@@ -134,7 +151,8 @@ public sealed class NoCuiAcknowledgementService(
                 ["fileName"] = version.FileName,
                 ["validationStatus"] = version.ValidationStatus,
                 ["malwareScanStatus"] = version.MalwareScanStatus,
-                ["isUsable"] = version.IsUsable.ToString()
+                ["isUsable"] = version.IsUsable.ToString(),
+                ["noCuiAttestation"] = request.NoCuiAttestation.ToString()
             },
             cancellationToken);
 
@@ -213,6 +231,11 @@ public sealed class NoCuiAcknowledgementService(
             errors["fileName"] = ["A file name is required and must be 240 characters or fewer."];
         }
 
+        if (!request.NoCuiAttestation)
+        {
+            errors["noCuiAttestation"] = [NoCuiNotice.RequiredUploadAttestationText];
+        }
+
         var extension = Path.GetExtension(fileName);
         if (string.IsNullOrWhiteSpace(extension) ||
             !EvidenceUploadGuardrails.AllowedContentTypesByExtension.TryGetValue(extension, out var allowedContentTypes))
@@ -267,6 +290,7 @@ public sealed class NoCuiAcknowledgementService(
                 ["sizeBytes"] = request.SizeBytes.ToString(),
                 ["maxSizeBytes"] = EvidenceUploadGuardrails.MaxSizeBytes.ToString(),
                 ["allowedExtensions"] = string.Join(", ", EvidenceUploadGuardrails.AllowedExtensions),
+                ["noCuiAttestation"] = request.NoCuiAttestation.ToString(),
                 ["validationErrors"] = string.Join("; ", validationErrors.SelectMany(error => error.Value))
             },
             cancellationToken);

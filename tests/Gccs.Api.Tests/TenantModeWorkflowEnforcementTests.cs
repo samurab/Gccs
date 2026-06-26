@@ -152,7 +152,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         using var uploadEvidence = CreateRequest(
             HttpMethod.Post,
             $"/api/evidence-items/{ids.EvidenceItemId}/upload-intents",
-            new EvidenceUploadIntentRequest("evidence-cui.pdf", "application/pdf", 2048, ContainsPotentialCui: true),
+            new EvidenceUploadIntentRequest("evidence-cui.pdf", "application/pdf", 2048, NoCuiAttestation: true, ContainsPotentialCui: true),
             ids.TenantId,
             ids.ActorUserId,
             Permission.ManageEvidence);

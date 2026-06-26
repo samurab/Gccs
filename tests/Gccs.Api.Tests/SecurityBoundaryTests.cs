@@ -102,11 +102,10 @@ public sealed class SecurityBoundaryTests : IClassFixture<WebApplicationFactory<
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal("tc-3-1-protected-overview", response.Headers.GetValues("X-Correlation-ID").Single());
-        Assert.Equal("No-CUI / compliance management only", payload.RootElement.GetProperty("mvpDataPosture").GetString());
-        Assert.Contains(payload.RootElement.GetProperty("modules").EnumerateArray(), module =>
-            module.GetProperty("key").GetString() == "evidence-vault");
-        Assert.Contains(payload.RootElement.GetProperty("priorityObligations").EnumerateArray(), obligation =>
-            obligation.GetProperty("sourceUrl").GetString() == "https://www.acquisition.gov/far/52.204-21");
+        Assert.Equal(tenantId, payload.RootElement.GetProperty("tenantId").GetGuid());
+        Assert.Equal(0, payload.RootElement.GetProperty("controlsTotal").GetInt32());
+        Assert.Equal(0, payload.RootElement.GetProperty("evidenceItems").GetInt32());
+        Assert.Empty(payload.RootElement.GetProperty("recentAuditEvents").EnumerateArray());
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using Gccs.Application.Audit;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Cmmc;
 
 namespace Gccs.Application.Cmmc;
 
@@ -7,10 +8,19 @@ public sealed class CmmcPoamService(
     ICmmcPoamRepository repository,
     IAuditEventWriter auditEventWriter)
 {
+    public Task<IReadOnlyList<CmmcPoamItemDto>> ListCurrentTenantAsync(
+        CancellationToken cancellationToken = default) =>
+        repository.ListCurrentTenantAsync(cancellationToken);
+
     public Task<IReadOnlyList<CmmcPoamItemDto>?> ListCurrentTenantAsync(
         Guid assessmentId,
         CancellationToken cancellationToken = default) =>
         repository.ListCurrentTenantAsync(assessmentId, cancellationToken);
+
+    public Task<CmmcPoamItemDto?> FindCurrentTenantAsync(
+        Guid poamItemId,
+        CancellationToken cancellationToken = default) =>
+        repository.FindCurrentTenantAsync(poamItemId, cancellationToken);
 
     public async Task<CmmcPoamItemDto?> CreateAsync(
         Guid assessmentId,
@@ -50,6 +60,43 @@ public sealed class CmmcPoamService(
         }
 
         return updated;
+    }
+
+    public async Task<CmmcPoamItemDto?> UpdateCurrentTenantAsync(
+        Guid poamItemId,
+        UpsertCmmcPoamItemRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var before = await repository.FindCurrentTenantAsync(poamItemId, cancellationToken);
+        var normalized = Normalize(request);
+        Validate(normalized);
+        var updated = await repository.UpdateCurrentTenantAsync(poamItemId, normalized, actorUserId, cancellationToken);
+        if (updated is not null)
+        {
+            var summary = before?.Status != updated.Status
+                ? $"POA&M status changed to {updated.Status}."
+                : "POA&M item was updated.";
+            await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, summary, before?.Status.ToString(), cancellationToken);
+        }
+
+        return updated;
+    }
+
+    public async Task<CmmcPoamItemDto?> CloseCurrentTenantAsync(
+        Guid poamItemId,
+        Guid actorUserId,
+        DateOnly closedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var before = await repository.FindCurrentTenantAsync(poamItemId, cancellationToken);
+        var closed = await repository.CloseCurrentTenantAsync(poamItemId, actorUserId, closedAt, cancellationToken);
+        if (closed is not null)
+        {
+            await WriteAuditAsync(closed, actorUserId, AuditAction.Updated, "POA&M item was closed.", before?.Status.ToString(), cancellationToken);
+        }
+
+        return closed;
     }
 
     private async Task WriteAuditAsync(
@@ -115,6 +162,16 @@ public sealed class CmmcPoamService(
         if (string.IsNullOrWhiteSpace(request.OwnerFunction))
         {
             throw new CmmcPoamValidationException("Owner function is required.");
+        }
+
+        if (request.Status == PoamStatus.Closed && request.CompletedAt is null)
+        {
+            throw new CmmcPoamValidationException("Closed POA&M items require a completed date.");
+        }
+
+        if (request.Status != PoamStatus.Closed && request.CompletedAt.HasValue)
+        {
+            throw new CmmcPoamValidationException("Completed date is only allowed when the POA&M item is closed.");
         }
 
         if (request.CompletedAt.HasValue && request.CompletedAt.Value < request.TargetCompletionAt.AddYears(-5))

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Gccs.Application.Audit;
 using Gccs.Application.NoCui;
 using Gccs.Domain.Audit;
@@ -165,6 +166,120 @@ public sealed class AuditAppendOnlyTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains(correlationId, auditEvent.MetadataJson, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Audit_writer_persists_change_snapshot_and_redacts_sensitive_values()
+    {
+        var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a5");
+        var actorUserId = Guid.Parse("51515151-5151-5151-5151-5151515151b5");
+        await using var factory = CreateFactory("audit-change-snapshot", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Audit change snapshot tenant"));
+            dbContext.SaveChanges();
+        });
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var writer = new EfAuditEventWriter(
+            dbContext,
+            new StaticAuditRequestMetadata("198.51.100.5", "audit-test-agent", "audit-change-correlation"));
+
+        await writer.WriteChangeAsync(
+            tenantId,
+            actorUserId,
+            AuditAction.Updated,
+            "ControlAssessment",
+            "assessment:AC.L1-3.1.1",
+            "Control status changed.",
+            SensitiveSnapshot("NotStarted", "before-value", "before-marker"),
+            SensitiveSnapshot("Implemented", "after-value", "after-marker"),
+            new Dictionary<string, string>
+            {
+                ["reason"] = "reviewed",
+                [string.Concat("refresh", "Token")] = "refresh-marker"
+            });
+
+        var auditEvent = await dbContext.AuditLogEntries.SingleAsync(candidate => candidate.TenantId == tenantId);
+
+        Assert.Equal(actorUserId, auditEvent.ActorUserId);
+        Assert.Equal("audit-change-correlation", auditEvent.CorrelationId);
+        Assert.Contains("\"status\":\"NotStarted\"", auditEvent.OldValue, StringComparison.Ordinal);
+        Assert.Contains("\"status\":\"Implemented\"", auditEvent.NewValue, StringComparison.Ordinal);
+        Assert.DoesNotContain("before-value", auditEvent.OldValue, StringComparison.Ordinal);
+        Assert.DoesNotContain("after-value", auditEvent.NewValue, StringComparison.Ordinal);
+        Assert.DoesNotContain("before-marker", auditEvent.OldValue, StringComparison.Ordinal);
+        Assert.DoesNotContain("after-marker", auditEvent.NewValue, StringComparison.Ordinal);
+        Assert.DoesNotContain("refresh-marker", auditEvent.MetadataJson, StringComparison.Ordinal);
+        Assert.Contains("[redacted]", auditEvent.MetadataJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Audit_log_entries_cannot_be_updated_or_deleted_through_db_context()
+    {
+        var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a6");
+        var auditEntryId = Guid.Parse("51515151-5151-5151-5151-5151515151b6");
+        await using var factory = CreateFactory("audit-dbcontext-append-only", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Audit DbContext append-only tenant"));
+            dbContext.AuditLogEntries.Add(CreateAuditEntry(auditEntryId, tenantId));
+            dbContext.SaveChanges();
+        });
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var auditEntry = await dbContext.AuditLogEntries.SingleAsync(candidate => candidate.Id == auditEntryId);
+            auditEntry.Summary = "Tampered summary.";
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => dbContext.SaveChangesAsync());
+            Assert.Contains("append-only", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var auditEntry = await dbContext.AuditLogEntries.SingleAsync(candidate => candidate.Id == auditEntryId);
+            dbContext.AuditLogEntries.Remove(auditEntry);
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => dbContext.SaveChangesAsync());
+            Assert.Contains("append-only", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public async Task Failed_authorization_attempt_is_audit_logged_when_tenant_context_is_available()
+    {
+        var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a7");
+        var actorUserId = Guid.Parse("51515151-5151-5151-5151-5151515151b7");
+        const string correlationId = "failed-authorization-correlation";
+        await using var factory = CreateFactory("audit-failed-authorization", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Audit failed authorization tenant"));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Get,
+            "/api/audit-logs",
+            tenantId,
+            actorUserId,
+            Permission.ManageEvidence);
+        request.Headers.Add("X-Correlation-ID", correlationId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var auditEvent = await dbContext.AuditLogEntries.SingleAsync(candidate => candidate.TenantId == tenantId);
+
+        Assert.Equal(actorUserId, auditEvent.ActorUserId);
+        Assert.Equal(AuditAction.Rejected, auditEvent.Action);
+        Assert.Equal("Authorization", auditEvent.EntityType);
+        Assert.Equal("/api/audit-logs", auditEvent.EntityId);
+        Assert.Equal(correlationId, auditEvent.CorrelationId);
+        Assert.Contains("Authorization attempt was denied", auditEvent.Summary, StringComparison.Ordinal);
+    }
+
     private WebApplicationFactory<Program> CreateFactory(
         string databaseName,
         Action<GccsDbContext>? seed = null,
@@ -255,6 +370,17 @@ public sealed class AuditAppendOnlyTests : IClassFixture<WebApplicationFactory<P
             MetadataJson = "{}"
         };
 
+    private static string SensitiveSnapshot(string status, string sensitiveValue, string sensitiveMarker) =>
+        JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["status"] = status,
+            [string.Concat("pass", "word")] = sensitiveValue,
+            ["nested"] = new Dictionary<string, string>
+            {
+                [string.Concat("api", "Token")] = sensitiveMarker
+            }
+        });
+
     private sealed class FailingAuditEventWriter : IAuditEventWriter
     {
         public Task WriteAsync(
@@ -268,4 +394,9 @@ public sealed class AuditAppendOnlyTests : IClassFixture<WebApplicationFactory<P
             CancellationToken cancellationToken = default) =>
             throw new AuditWriteException("A critical audit event could not be written.");
     }
+
+    private sealed record StaticAuditRequestMetadata(
+        string IpAddress,
+        string UserAgent,
+        string CorrelationId) : IAuditRequestMetadata;
 }

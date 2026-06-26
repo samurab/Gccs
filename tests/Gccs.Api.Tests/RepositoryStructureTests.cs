@@ -169,8 +169,8 @@ public sealed class RepositoryStructureTests
         Assert.Contains("RequireClaim(PermissionClaimType, permission.ToString())", apiSecurity);
         Assert.Contains("TenantIdClaimType", apiSecurity);
 
-        Assert.Contains("No-CUI / compliance management only", overviewService);
-        Assert.Contains("obligation.SourceReference.Url", overviewService);
+        Assert.Contains("IComplianceOverviewRepository", overviewService);
+        Assert.Contains("tenantContext.TenantId", overviewService);
         Assert.Contains("https://www.acquisition.gov/far/52.204-21", obligationRepository);
         Assert.Contains("https://www.ecfr.gov/current/title-32/subtitle-A/chapter-I/subchapter-G/part-170", obligationRepository);
         Assert.Contains("LastReviewedAt", sourceReference);

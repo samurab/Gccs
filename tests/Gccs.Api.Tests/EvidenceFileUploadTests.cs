@@ -193,7 +193,7 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         });
 
     private static EvidenceUploadIntentRequest CreateUploadRequest(string fileName) =>
-        new(fileName, "application/pdf", 1024);
+        new(fileName, "application/pdf", 1024, NoCuiAttestation: true);
 
     private static HttpRequestMessage CreateRequest<TContent>(
         HttpMethod method,

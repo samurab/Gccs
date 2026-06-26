@@ -223,6 +223,7 @@ public static class DependencyInjection
             services.AddScoped<IObligationApplicabilityRepository, EfObligationApplicabilityRepository>();
             services.AddScoped<IObligationDashboardRepository, EfObligationDashboardRepository>();
             services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
+            services.AddScoped<IComplianceOverviewRepository, EfComplianceOverviewRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
             services.AddScoped<IComplianceTaskRepository, EfComplianceTaskRepository>();
             services.AddScoped<IRenewalTaskRepository, EfRenewalTaskRepository>();
@@ -310,6 +311,7 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Obligation applicability persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IObligationDetailRepository>(_ =>
                 throw new InvalidOperationException("Obligation detail persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IComplianceOverviewRepository, EmptyComplianceOverviewRepository>();
             services.AddScoped<IComplianceTaskRepository>(_ =>
                 throw new InvalidOperationException("Task persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IRenewalTaskRepository>(_ =>

@@ -379,6 +379,7 @@ export type EvidenceUploadIntent = {
   malwareScanStatus: string;
   message: string;
   noticeVersion: string;
+  attestationText: string;
   expiresAt: string;
   classification: ContentClassification;
 };
@@ -2227,13 +2228,15 @@ export async function resetDemoTenantSeed(): Promise<ApiMutationResult<DemoTenan
 export async function createEvidenceUploadIntent(
   file: File,
   classification: string,
-  classificationReason: string
+  classificationReason: string,
+  noCuiAttestation: boolean
 ): Promise<ApiMutationResult<EvidenceUploadIntent>> {
   const placeholderEvidenceItemId = "00000000-0000-0000-0000-000000000041";
   return postJsonResult<EvidenceUploadIntent>(`/api/evidence-items/${placeholderEvidenceItemId}/upload-intents`, {
     fileName: file.name,
     contentType: file.type || "application/octet-stream",
     sizeBytes: file.size,
+    noCuiAttestation,
     containsPotentialCui: classification === "Cui",
     classification: {
       classification,

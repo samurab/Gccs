@@ -209,7 +209,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         using var uploadRequest = CreateRequest(
             HttpMethod.Post,
             $"/api/evidence-items/{evidenceItemId}/upload-intents",
-            new EvidenceUploadIntentRequest("installer.exe", "application/x-msdownload", 1024),
+            new EvidenceUploadIntentRequest("installer.exe", "application/x-msdownload", 1024, NoCuiAttestation: true),
             tenantId,
             userId,
             Permission.ManageEvidence);
@@ -247,7 +247,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         using var uploadRequest = CreateRequest(
             HttpMethod.Post,
             $"/api/evidence-items/{Guid.NewGuid()}/upload-intents",
-            new EvidenceUploadIntentRequest("large-policy.pdf", "application/pdf", EvidenceUploadGuardrails.MaxSizeBytes + 1),
+            new EvidenceUploadIntentRequest("large-policy.pdf", "application/pdf", EvidenceUploadGuardrails.MaxSizeBytes + 1, NoCuiAttestation: true),
             tenantId,
             userId,
             Permission.ManageEvidence);
@@ -261,6 +261,48 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.Empty(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+    }
+
+    [Fact]
+    public async Task TC_4_2_2A_Upload_without_per_file_no_cui_attestation_is_rejected_and_audit_logged()
+    {
+        var tenantId = Guid.Parse("42424242-4242-4242-4242-4242424242d2");
+        var userId = Guid.Parse("42424242-4242-4242-4242-4242424242e2");
+        var evidenceItemId = Guid.Parse("42424242-4242-4242-4242-4242424242f2");
+        await using var factory = CreateFactory("tc-4-2-2a", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.2.2A Tenant"));
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var uploadRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/evidence-items/{evidenceItemId}/upload-intents",
+            new EvidenceUploadIntentRequest("policy.pdf", "application/pdf", 1024),
+            tenantId,
+            userId,
+            Permission.ManageEvidence);
+
+        var response = await client.SendAsync(uploadRequest);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("noCuiAttestation", body, StringComparison.Ordinal);
+        Assert.Contains("does not contain CUI", body, StringComparison.OrdinalIgnoreCase);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        var auditEvent = await dbContext.AuditLogEntries.SingleAsync(candidate =>
+            candidate.TenantId == tenantId &&
+            candidate.ActorUserId == userId &&
+            candidate.Action == AuditAction.Rejected &&
+            candidate.EntityType == "EvidenceUploadIntent" &&
+            candidate.EntityId == evidenceItemId.ToString());
+        Assert.Contains("noCuiAttestation", auditEvent.MetadataJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("fileContent", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("contentBytes", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -279,7 +321,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         using var uploadRequest = CreateRequest(
             HttpMethod.Post,
             $"/api/evidence-items/{evidenceItemId}/upload-intents",
-            new EvidenceUploadIntentRequest("policy.pdf", "application/pdf", 2048),
+            new EvidenceUploadIntentRequest("policy.pdf", "application/pdf", 2048, NoCuiAttestation: true),
             tenantId,
             userId,
             Permission.ManageEvidence);
@@ -310,6 +352,15 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         Assert.Equal(Gccs.Domain.Evidence.EvidenceStatus.InReview, evidenceItem.Status);
         Assert.Null(evidenceItem.StorageUri);
         Assert.Null(evidenceItem.FileHash);
+        var auditEvent = await dbContext.AuditLogEntries.SingleAsync(candidate =>
+            candidate.TenantId == tenantId &&
+            candidate.ActorUserId == userId &&
+            candidate.Action == AuditAction.Uploaded &&
+            candidate.EntityType == "EvidenceFileVersion" &&
+            candidate.EntityId == uploadIntent.Id.ToString());
+        Assert.Contains("noCuiAttestation", auditEvent.MetadataJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("fileContent", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("contentBytes", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -328,7 +379,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         using var uploadRequest = CreateRequest(
             HttpMethod.Post,
             $"/api/evidence-items/{evidenceItemId}/upload-intents",
-            new EvidenceUploadIntentRequest("policy.pdf", "image/png", 1024),
+            new EvidenceUploadIntentRequest("policy.pdf", "image/png", 1024, NoCuiAttestation: true),
             tenantId,
             userId,
             Permission.ManageEvidence);

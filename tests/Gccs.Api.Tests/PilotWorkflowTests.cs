@@ -112,7 +112,7 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
         var uploadIntent = await PostAsync<EvidenceUploadIntentRequest, EvidenceUploadIntentDto>(
             client,
             $"/api/evidence-items/{evidence.Id}/upload-intents",
-            new EvidenceUploadIntentRequest("access-control-policy.pdf", "application/pdf", 42_000),
+            new EvidenceUploadIntentRequest("access-control-policy.pdf", "application/pdf", 42_000, NoCuiAttestation: true),
             ids,
             ids.ContributorUserId,
             RoleCatalog.Contributor,

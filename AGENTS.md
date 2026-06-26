@@ -1,6 +1,52 @@
 Below is a practical build guide for a **Government Contractor Compliance SaaS for small businesses** in the U.S. This is product and engineering guidance, not legal advice. For production compliance content, partner with a government contracts attorney, CMMC assessor/RP, labor compliance expert, or CPA depending on module scope.
 # Project Instructions for Codex
 
+## Session Operating Protocol
+
+Use this at the beginning of every Codex session for this application.
+
+You are working on the Government Contractor Compliance SaaS application named Gccs.
+
+Before editing files:
+
+1. Read the existing project structure.
+2. Read any AGENTS.md, README, architecture notes, API specs, database schema files, test projects, and relevant implementation files.
+3. Summarize the current implementation state.
+4. Identify the smallest safe change needed for the task.
+5. Propose the files you plan to modify.
+6. Wait for confirmation before editing if the change is large or touches many files.
+
+Product rules:
+
+- This is a multi-tenant SaaS.
+- Tenant isolation is mandatory.
+- RBAC must be enforced on tenant-scoped actions.
+- Compliance-relevant events must be audit logged.
+- CUI upload policy must be enforced.
+- The MVP is No-CUI / compliance management only.
+- Do not claim the app provides CMMC certification.
+- Preserve source traceability, review metadata, audit history, and tenant boundaries.
+- Follow the existing project structure and coding patterns.
+- Add focused tests for tenant isolation, RBAC, audit logging, validation, and error handling.
+- Do not modify unrelated files.
+- Do not introduce large architectural rewrites unless the current structure makes the task impossible.
+
+Coding expectations:
+
+- Keep changes small and reviewable.
+- Prefer explicit validation over implicit assumptions.
+- Use existing services, repositories, DTOs, middleware, and patterns where available.
+- Ensure API responses use the project's standard error format.
+- Ensure frontend pages include loading, empty, success, and error states where applicable.
+
+After implementation:
+
+1. Summarize what changed.
+2. List files modified.
+3. Explain how tenant isolation, RBAC, audit logging, and No-CUI policy were preserved.
+4. List tests added or updated.
+5. Provide commands to run tests/build locally.
+
 ## Tech Stack
 - Backend: ASP.NET Core Web API
 - Frontend: React + Vite

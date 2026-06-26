@@ -620,6 +620,8 @@ public sealed class AuditLogEntryEntity
     public string UserAgent { get; set; } = string.Empty;
     public string CorrelationId { get; set; } = string.Empty;
     public string Summary { get; set; } = string.Empty;
+    public string? OldValue { get; set; }
+    public string? NewValue { get; set; }
     public string MetadataJson { get; set; } = "{}";
 }
 

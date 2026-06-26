@@ -1570,7 +1570,8 @@ export function App() {
   async function handleEvidenceUploadIntentSubmit(
     event: FormEvent<HTMLFormElement>,
     classification: string,
-    classificationReason: string
+    classificationReason: string,
+    noCuiAttestation: boolean
   ) {
     event.preventDefault();
 
@@ -1580,9 +1581,15 @@ export function App() {
       return;
     }
 
+    if (!noCuiAttestation) {
+      setUploadStatus("blocked");
+      setUploadMessage("Confirm the required No-CUI attestation before upload.");
+      return;
+    }
+
     setUploadStatus("creating");
     setUploadMessage("");
-    const uploadIntent = await createEvidenceUploadIntent(selectedEvidenceFile, classification, classificationReason);
+    const uploadIntent = await createEvidenceUploadIntent(selectedEvidenceFile, classification, classificationReason, noCuiAttestation);
 
     if (uploadIntent.data) {
       const classificationLabel = uploadIntent.data.classification?.classification ?? classification;
@@ -6709,7 +6716,12 @@ function EvidenceView({
   onMetadataSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
   onReclassifyEvidence: (evidenceItemId: string, request: ReclassifyContentRequest) => Promise<void>;
   onSelectEvidence: (evidenceItemId: string | null) => void;
-  onUploadIntentSubmit: (event: FormEvent<HTMLFormElement>, classification: string, classificationReason: string) => void;
+  onUploadIntentSubmit: (
+    event: FormEvent<HTMLFormElement>,
+    classification: string,
+    classificationReason: string,
+    noCuiAttestation: boolean
+  ) => void;
   selectedEvidenceItemId: string | null;
   selectedFile: File | null;
   uploadMessage: string;
@@ -6719,6 +6731,7 @@ function EvidenceView({
   const selectedEvidence = evidenceItems.find((item) => item.id === selectedEvidenceItemId) ?? null;
   const [uploadClassification, setUploadClassification] = useState("Unclassified");
   const [uploadClassificationReason, setUploadClassificationReason] = useState("User confirmed upload classification.");
+  const [noCuiAttestation, setNoCuiAttestation] = useState(false);
   const approvedEvidenceCount = evidenceItems.filter((item) => item.status === "Approved").length;
   const expiredEvidenceCount = evidenceItems.filter((item) => item.expiresAt && item.expiresAt < new Date().toISOString().slice(0, 10)).length;
   const linkedEvidenceCount = evidenceItems.filter((item) => item.obligationIds.length > 0 || item.controlIds.length > 0).length;
@@ -6823,7 +6836,7 @@ function EvidenceView({
       <form
         className="upload-panel"
         aria-label="Upload area"
-        onSubmit={(event) => onUploadIntentSubmit(event, uploadClassification, uploadClassificationReason)}
+        onSubmit={(event) => onUploadIntentSubmit(event, uploadClassification, uploadClassificationReason, noCuiAttestation)}
       >
         <div>
           <p className="eyebrow">Evidence files</p>
@@ -6868,7 +6881,19 @@ function EvidenceView({
         <p className="form-status">
           Allowed file types: PDF, PNG, JPG, TXT, CSV, DOCX, and XLSX. Maximum size: 25 MB.
         </p>
-        <button type="submit" disabled={uploadDisabled || !selectedFile || uploadStatus === "creating"}>
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={noCuiAttestation}
+            onChange={(event) => setNoCuiAttestation(event.target.checked)}
+            disabled={uploadDisabled}
+            required
+          />
+          <span>
+            I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information.
+          </span>
+        </label>
+        <button type="submit" disabled={uploadDisabled || !selectedFile || !noCuiAttestation || uploadStatus === "creating"}>
           <UploadCloud size={16} aria-hidden="true" />
           <span>{uploadStatus === "creating" ? "Creating upload intent" : "Upload evidence"}</span>
         </button>

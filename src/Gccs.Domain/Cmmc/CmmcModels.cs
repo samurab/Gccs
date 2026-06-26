@@ -159,6 +159,8 @@ public enum PoamStatus
 {
     Open,
     InProgress,
+    Blocked,
+    ReadyForReview,
     WaitingForValidation,
     Closed,
     AcceptedRisk

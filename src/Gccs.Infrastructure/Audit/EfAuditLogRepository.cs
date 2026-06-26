@@ -74,6 +74,8 @@ public sealed class EfAuditLogRepository(
             entry.UserAgent,
             entry.CorrelationId,
             entry.Summary,
+            entry.OldValue,
+            entry.NewValue,
             ParseMetadata(entry.MetadataJson));
 
     private static IReadOnlyDictionary<string, string> ParseMetadata(string metadataJson)

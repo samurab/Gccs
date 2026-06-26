@@ -320,7 +320,16 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.False(await dbContext.TenantInvitations.AnyAsync(candidate => candidate.TenantId == tenantAId));
         Assert.False(await dbContext.TenantMemberships.AnyAsync(candidate => candidate.TenantId == tenantAId));
-        Assert.Empty(await dbContext.AuditLogEntries.Where(candidate => candidate.TenantId == tenantAId).ToListAsync());
+        var auditEvents = await dbContext.AuditLogEntries
+            .Where(candidate => candidate.TenantId == tenantAId)
+            .ToListAsync();
+        Assert.All(auditEvents, audit =>
+        {
+            Assert.Equal("Authorization", audit.EntityType);
+            Assert.Equal(AuditAction.Rejected, audit.Action);
+            Assert.Equal(auditorUserId, audit.ActorUserId);
+        });
+        Assert.DoesNotContain(auditEvents, audit => audit.EntityType is "TenantInvitation" or "TenantMembership");
     }
 
     [Fact]

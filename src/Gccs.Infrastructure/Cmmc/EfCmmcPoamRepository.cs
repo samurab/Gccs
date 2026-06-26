@@ -15,6 +15,16 @@ public sealed class EfCmmcPoamRepository(
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    public async Task<IReadOnlyList<CmmcPoamItemDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var items = await QueryCurrentTenantPoamItems()
+            .OrderBy(item => item.TargetCompletionAt)
+            .ThenByDescending(item => item.CreatedAt)
+            .ToArrayAsync(cancellationToken);
+        return items.Select(item => ToDto(item, today)).ToArray();
+    }
+
     public async Task<IReadOnlyList<CmmcPoamItemDto>?> ListCurrentTenantAsync(
         Guid assessmentId,
         CancellationToken cancellationToken = default)
@@ -35,6 +45,16 @@ public sealed class EfCmmcPoamRepository(
             .ThenByDescending(item => item.CreatedAt)
             .ToArrayAsync(cancellationToken);
         return items.Select(item => ToDto(item, today)).ToArray();
+    }
+
+    public async Task<CmmcPoamItemDto?> FindCurrentTenantAsync(
+        Guid poamItemId,
+        CancellationToken cancellationToken = default)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var item = await QueryCurrentTenantPoamItems()
+            .SingleOrDefaultAsync(candidate => candidate.Id == poamItemId, cancellationToken);
+        return item is null ? null : ToDto(item, today);
     }
 
     public async Task<CmmcPoamItemDto?> CreateAsync(
@@ -83,6 +103,53 @@ public sealed class EfCmmcPoamRepository(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return await FindPoamDtoAsync(assessmentId, item.Id, cancellationToken);
+    }
+
+    public async Task<CmmcPoamItemDto?> UpdateCurrentTenantAsync(
+        Guid poamItemId,
+        UpsertCmmcPoamItemRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var existing = await QueryCurrentTenantPoamItems()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == poamItemId, cancellationToken);
+        if (existing is null)
+        {
+            return null;
+        }
+
+        return await UpdateAsync(existing.AssessmentId, poamItemId, request, actorUserId, cancellationToken);
+    }
+
+    public async Task<CmmcPoamItemDto?> CloseCurrentTenantAsync(
+        Guid poamItemId,
+        Guid actorUserId,
+        DateOnly closedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var item = await QueryCurrentTenantPoamItems()
+            .SingleOrDefaultAsync(candidate => candidate.Id == poamItemId, cancellationToken);
+        if (item is null)
+        {
+            return null;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        item.Status = PoamStatus.Closed;
+        item.CompletedAt = closedAt;
+        item.UpdatedAt = now;
+        item.UpdatedByUserId = actorUserId;
+
+        var task = await CreateOrUpdateTaskAsync(item, item.RemediationTaskId, actorUserId, now, cancellationToken);
+        if (task is null)
+        {
+            return null;
+        }
+
+        item.RemediationTaskId = task.Id;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return await FindPoamDtoAsync(item.AssessmentId, item.Id, cancellationToken);
     }
 
     public async Task<CmmcPoamItemDto?> UpdateAsync(
@@ -286,13 +353,16 @@ public sealed class EfCmmcPoamRepository(
             entity.EvidenceItems.Select(link => link.EvidenceItemId).OrderBy(id => id).ToArray(),
             entity.TargetCompletionAt < today && entity.Status is not PoamStatus.Closed and not PoamStatus.AcceptedRisk,
             entity.CreatedAt,
-            entity.UpdatedAt);
+            entity.UpdatedAt,
+            entity.CreatedByUserId,
+            entity.UpdatedByUserId);
 
     private static ComplianceTaskStatus ToTaskStatus(PoamStatus status) =>
         status switch
         {
             PoamStatus.InProgress => ComplianceTaskStatus.InProgress,
-            PoamStatus.WaitingForValidation => ComplianceTaskStatus.WaitingForReview,
+            PoamStatus.Blocked => ComplianceTaskStatus.Blocked,
+            PoamStatus.ReadyForReview or PoamStatus.WaitingForValidation => ComplianceTaskStatus.WaitingForReview,
             PoamStatus.Closed or PoamStatus.AcceptedRisk => ComplianceTaskStatus.Done,
             _ => ComplianceTaskStatus.Open
         };
@@ -317,4 +387,9 @@ public sealed class EfCmmcPoamRepository(
 
     private static string Limit(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..maxLength];
+
+    private IQueryable<PoamItemEntity> QueryCurrentTenantPoamItems() =>
+        dbContext.PoamItems
+            .Include(item => item.EvidenceItems)
+            .Where(item => item.TenantId == tenantContext.TenantId);
 }

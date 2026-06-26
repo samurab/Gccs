@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using Gccs.Application.Audit;
 using Gccs.Application.Common;
@@ -374,6 +375,16 @@ public static class ApiSecurityExtensions
                         "Content classification invalid",
                         classification.Message,
                         "content_classification_invalid"),
+                    BadHttpRequestException when exception.InnerException is JsonException => (
+                        StatusCodes.Status400BadRequest,
+                        "Invalid request body",
+                        "The request body could not be parsed or contains an unsupported value.",
+                        "invalid_request_body"),
+                    JsonException => (
+                        StatusCodes.Status400BadRequest,
+                        "Invalid request body",
+                        "The request body could not be parsed or contains an unsupported value.",
+                        "invalid_request_body"),
                     _ => (
                         StatusCodes.Status500InternalServerError,
                         "API request failed",

@@ -32,6 +32,8 @@ public sealed record AuditLogEntryDto(
     string UserAgent,
     string CorrelationId,
     string Summary,
+    string? OldValue,
+    string? NewValue,
     IReadOnlyDictionary<string, string> Metadata);
 
 public sealed record PagedResultDto<T>(

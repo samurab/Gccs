@@ -214,8 +214,40 @@ api.MapPost("/notifications/{notificationId:guid}/read", async (
 })
 .WithName("MarkNotificationRead");
 
-api.MapGet("/compliance/overview", async (ComplianceOverviewService service, CancellationToken cancellationToken) =>
-    Results.Ok(await service.GetOverviewAsync(cancellationToken)))
+api.MapGet("/compliance/overview", async (
+    ComplianceOverviewService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    ILogger<Program> logger,
+    CancellationToken cancellationToken) =>
+{
+    var correlationId = ApiCorrelation.Get(httpContext);
+    try
+    {
+        var overview = await service.GetOverviewAsync(cancellationToken);
+        logger.LogInformation(
+            "Compliance overview returned for tenant {TenantId}. TraceId: {TraceId}. CorrelationId: {CorrelationId}.",
+            tenantContext.TenantId,
+            httpContext.TraceIdentifier,
+            correlationId);
+        return Results.Ok(overview);
+    }
+    catch (Exception exception) when (exception is not OperationCanceledException)
+    {
+        logger.LogError(
+            exception,
+            "Compliance overview failed for tenant {TenantId}. TraceId: {TraceId}. CorrelationId: {CorrelationId}.",
+            tenantContext.TenantId,
+            httpContext.TraceIdentifier,
+            correlationId);
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Compliance overview unavailable",
+            "The compliance overview could not be loaded. Try again later or contact support with the correlation id.",
+            StatusCodes.Status500InternalServerError,
+            "compliance_overview_unavailable");
+    }
+})
 .RequirePermission(Permission.ViewObligations)
 .WithName("GetComplianceOverview");
 
@@ -2976,6 +3008,90 @@ api.MapPost("/cmmc/assessments/{assessmentId:guid}/gaps/{controlId}/poam-item", 
 })
 .RequirePermission(Permission.ManageCmmc)
 .WithName("CreateCmmcPoamItemFromGap");
+
+api.MapGet("/cmmc/poam-items", async (
+    CmmcPoamService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListCurrentTenantCmmcPoamItems");
+
+api.MapGet("/cmmc/poam-items/{poamItemId:guid}", async (
+    Guid poamItemId,
+    CmmcPoamService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var item = await service.FindCurrentTenantAsync(poamItemId, cancellationToken);
+    return item is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"CMMC POA&M item '{poamItemId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(item);
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("GetCurrentTenantCmmcPoamItem");
+
+api.MapPatch("/cmmc/poam-items/{poamItemId:guid}", async (
+    Guid poamItemId,
+    UpsertCmmcPoamItemRequest request,
+    CmmcPoamService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateCurrentTenantAsync(poamItemId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC POA&M item '{poamItemId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (CmmcPoamValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["cmmcPoamItem"] = [exception.Message]
+        },
+        title: "CMMC POA&M item invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("UpdateCurrentTenantCmmcPoamItem");
+
+api.MapPost("/cmmc/poam-items/{poamItemId:guid}/close", async (
+    Guid poamItemId,
+    CmmcPoamService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var closed = await service.CloseCurrentTenantAsync(
+        poamItemId,
+        tenantContext.UserId,
+        DateOnly.FromDateTime(DateTime.UtcNow),
+        cancellationToken);
+    return closed is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"CMMC POA&M item '{poamItemId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(closed);
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("CloseCurrentTenantCmmcPoamItem");
 
 api.MapGet("/cmmc/assessments/{assessmentId:guid}/poam-items", async (
     Guid assessmentId,

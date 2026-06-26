@@ -11,6 +11,8 @@ public sealed record AuditLogEntry(
     string IpAddress,
     string UserAgent,
     string Summary,
+    string? OldValue,
+    string? NewValue,
     IReadOnlyDictionary<string, string> Metadata);
 
 public enum AuditAction
