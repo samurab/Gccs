@@ -115,7 +115,7 @@ Exit criteria:
 - Approve high-risk records or hide them from customer-facing production views.
 - Confirm all published obligation records include source URL, trigger condition, required actions, evidence examples, confidence, review owner, review state, and last-reviewed date.
 - Review all customer-facing claims.
-- Remove language implying legal advice, certification, CMMC approval, government endorsement, official assessment success, or permission to store real CUI.
+- Remove language implying legal advice, certification, CMMC approval, government endorsement, official assessment success, or real-CUI storage authorization.
 - Finalize support runbooks for prohibited upload, suspected CUI, tenant exposure, access issue, evidence failure, report failure, content correction, security incident, backup restore, and rollback.
 - Finalize pilot onboarding materials with No-CUI limits, prohibited data examples, support paths, known limitations, and synthetic demo explanation.
 - Prepare launch release notes with posture, scope, exclusions, known risks, support paths, staging smoke results, rollback plan, and content scope.

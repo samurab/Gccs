@@ -67,7 +67,7 @@ The product must not claim that it:
 
 - Provides legal advice.
 - Certifies compliance.
-- Guarantees CMMC readiness or assessment success.
+- Makes CMMC readiness guarantees or assessment-success claims.
 - Replaces a CMMC assessor, attorney, CPA, labor expert, or contracting officer.
 - Has government approval, endorsement, or authorization unless that is formally true and reviewed.
 

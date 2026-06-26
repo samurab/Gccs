@@ -82,6 +82,34 @@ Before MVP launch candidate tagging.
 - `docs/decision-log.md`
 - `docs/production-readiness-roadmap.md`
 
+## PR-0.2 Posture Language Review
+
+Review status: completed for referenced launch documents on 2026-06-26.
+
+Review owner: Product owner.
+
+Review scope: this plan and every document listed in the Reference Documents section.
+
+Review method:
+
+- Searched referenced launch documents for language implying production CUI readiness, certification, official approval, legal advice, government endorsement, CMMC assessment success, or permission to upload or store real CUI.
+- Treated accurate No-CUI disclaimers, negative claim controls, source-backed product limitations, and synthetic or redacted demonstration workflow references as acceptable.
+- Treated any affirmative claim that the MVP is production CUI-capable, legally determinative, endorsed by the government, approved as official, certified for CMMC, or authorized to accept real CUI as a launch-blocking conflict.
+
+Result:
+
+No unresolved posture-language conflicts were found. Customer-facing launch text remains aligned to the server-side tenant posture: `NoCui` production tenants must not accept real CUI, `DemoSandbox` may use only synthetic or redacted demonstration data, and future `CuiReady` capability remains excluded until separately approved.
+
+Conflict disposition:
+
+| Conflict category | Severity if found | Owner | Mitigation | Launch disposition |
+| --- | --- | --- | --- | --- |
+| MVP described as production CUI-capable | Critical | Product owner | Remove the claim and replace it with No-CUI / compliance management only language. | No open conflict found. |
+| Future `CuiReady` described as currently available | Critical | Engineering lead | Mark `CuiReady` as future, excluded, and separately approved before real CUI acceptance. | No open conflict found. |
+| Customer-facing legal, certification, government endorsement, CMMC success, or official approval claim | High | Legal or contracting advisor | Remove unsupported claim or route through formal claim approval before release. | No open conflict found. |
+| Permission to upload or store real customer CUI | Critical | Security owner | Replace with prohibited-upload guidance and tenant-mode enforcement requirements. | No open conflict found. |
+| Synthetic or redacted demo workflow described without DemoSandbox boundary | Medium | Product owner | Add DemoSandbox boundary and prohibit production real CUI acceptance. | No open conflict found. |
+
 ## Launch Blockers
 
 Production launch remains blocked until these items are resolved or formally accepted by the accountable approvers:
@@ -181,7 +209,7 @@ Exit criteria:
 - Approve high-risk records or hide them from customer-facing production views.
 - Confirm all published obligation records include source URL, trigger condition, required actions, evidence examples, confidence, review owner, review state, and last-reviewed date.
 - Review all customer-facing claims.
-- Remove language implying legal advice, certification, CMMC approval, government endorsement, official assessment success, or permission to store real CUI.
+- Remove language implying legal advice, certification, CMMC approval, government endorsement, official assessment success, or real-CUI storage authorization.
 - Finalize support runbooks for prohibited upload, suspected CUI, tenant exposure, access issue, evidence failure, report failure, content correction, security incident, backup restore, and rollback.
 - Finalize pilot onboarding materials with No-CUI limits, prohibited data examples, support paths, known limitations, and synthetic demo explanation.
 - Prepare launch release notes with posture, scope, exclusions, known risks, support paths, staging smoke results, rollback plan, and content scope.

@@ -38,6 +38,81 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_0_2_Posture_language_review_records_no_cui_claim_dispositions()
+    {
+        var plan = ReadText("docs", "production-readiness-plan.md");
+
+        Assert.Contains("## PR-0.2 Posture Language Review", plan);
+        Assert.Contains("Review status: completed for referenced launch documents on 2026-06-26.", plan);
+        Assert.Contains("No unresolved posture-language conflicts were found.", plan);
+        Assert.Contains("`NoCui` production tenants must not accept real CUI", plan);
+        Assert.Contains("future `CuiReady` capability remains excluded until separately approved", plan);
+
+        foreach (var category in new[]
+        {
+            "MVP described as production CUI-capable",
+            "Future `CuiReady` described as currently available",
+            "Customer-facing legal, certification, government endorsement, CMMC success, or official approval claim",
+            "Permission to upload or store real customer CUI",
+            "Synthetic or redacted demo workflow described without DemoSandbox boundary"
+        })
+        {
+            Assert.Contains(category, plan);
+        }
+
+        Assert.Contains("| Conflict category | Severity if found | Owner | Mitigation | Launch disposition |", plan);
+        Assert.Contains("| MVP described as production CUI-capable | Critical | Product owner |", plan);
+        Assert.Contains("| Future `CuiReady` described as currently available | Critical | Engineering lead |", plan);
+        Assert.Contains("| Customer-facing legal, certification, government endorsement, CMMC success, or official approval claim | High | Legal or contracting advisor |", plan);
+        Assert.Contains("| Permission to upload or store real customer CUI | Critical | Security owner |", plan);
+    }
+
+    [Fact]
+    public void TC_PR_0_2_Launch_facing_documents_do_not_make_affirmative_cui_or_certification_overclaims()
+    {
+        var forbiddenAffirmativeClaims = new[]
+        {
+            "is CUI-ready for production",
+            "production CUI capable",
+            "CUI-ready production tenant",
+            "authorized to store real CUI",
+            "authorized to upload real CUI",
+            "permission to upload real CUI",
+            "permission to store real CUI",
+            "government endorsed",
+            "officially approved",
+            "guarantees CMMC",
+            "CMMC certified",
+            "CMMC certification achieved",
+            "provides legal determinations",
+            "makes legal determinations"
+        };
+
+        foreach (var document in LaunchFacingDocuments())
+        {
+            var content = ReadText(document);
+
+            foreach (var forbiddenClaim in forbiddenAffirmativeClaims)
+            {
+                Assert.DoesNotContain(forbiddenClaim, content, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    [Fact]
+    public void TC_PR_0_2_CuiReady_references_remain_future_excluded_or_separately_gated()
+    {
+        var plan = ReadText("docs", "production-readiness-plan.md");
+        var decisionLog = ReadText("docs", "decision-log.md");
+        var executionPlan = ReadText("docs", "mvp-execution-plan.md");
+
+        Assert.Contains("Future `CuiReady` operation requires separate approval", plan);
+        Assert.Contains("future `CuiReady` capability remains excluded until separately approved", plan);
+        Assert.Contains("Future `CuiReady` operation requires separate approval", decisionLog);
+        Assert.Contains("Allowed only in approved future `CuiReady` tenants", executionPlan);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
@@ -136,6 +211,22 @@ public sealed class ProductionReadinessChecklistTests
         {
             Assert.Contains($"| {approver} | Pending | Yes |", artifact);
         }
+    }
+
+    private static IEnumerable<string[]> LaunchFacingDocuments()
+    {
+        yield return new[] { "docs", "product-readiness-note.md" };
+        yield return new[] { "docs", "production-readiness-checklist.md" };
+        yield return new[] { "docs", "software-delivery-plan.md" };
+        yield return new[] { "docs", "mvp-execution-plan.md" };
+        yield return new[] { "docs", "mvp-roadmap.md" };
+        yield return new[] { "docs", "product-strategy.md" };
+        yield return new[] { "docs", "staging-environment.md" };
+        yield return new[] { "docs", "definition-of-ready.md" };
+        yield return new[] { "docs", "security-control-implications.md" };
+        yield return new[] { "docs", "decision-log.md" };
+        yield return new[] { "docs", "production-readiness-roadmap.md" };
+        yield return new[] { "docs", "production-readiness-plan.md" };
     }
 
     private static string ReadText(params string[] pathParts) =>
