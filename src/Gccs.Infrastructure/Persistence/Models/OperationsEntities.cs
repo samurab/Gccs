@@ -245,6 +245,43 @@ public sealed class PoamEvidenceEntity
     public EvidenceItemEntity? EvidenceItem { get; set; }
 }
 
+public sealed class ComplianceChecklistInstanceEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string TemplateKey { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string ChecklistType { get; set; } = string.Empty;
+    public string ReviewStatus { get; set; } = string.Empty;
+
+    public TenantEntity? Tenant { get; set; }
+    public ICollection<ComplianceChecklistItemEntity> Items { get; set; } = [];
+}
+
+public sealed class ComplianceChecklistItemEntity
+{
+    public Guid Id { get; set; }
+    public Guid ChecklistId { get; set; }
+    public string TemplateItemKey { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public Guid? OwnerUserId { get; set; }
+    public string ReviewStatus { get; set; } = string.Empty;
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? Notes { get; set; }
+    public string? ControlId { get; set; }
+    public Guid? EvidenceItemId { get; set; }
+    public Guid? PoamItemId { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public Guid? CompletedByUserId { get; set; }
+
+    public ComplianceChecklistInstanceEntity? Checklist { get; set; }
+    public EvidenceItemEntity? EvidenceItem { get; set; }
+    public PoamItemEntity? PoamItem { get; set; }
+}
+
 public sealed class AssetEntity : AuditedEntity
 {
     public Guid Id { get; set; }

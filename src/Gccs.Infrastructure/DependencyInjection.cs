@@ -53,6 +53,7 @@ public static class DependencyInjection
     public static IServiceCollection AddGccsInfrastructure(this IServiceCollection services, IConfiguration? configuration = null)
     {
         services.AddScoped<ComplianceOverviewService>();
+        services.AddScoped<ComplianceChecklistService>();
         services.AddScoped<ComplianceContentReviewService>();
         services.AddScoped<FedRampControlMappingService>();
         services.AddScoped<TrustArtifactLibraryService>();
@@ -226,6 +227,7 @@ public static class DependencyInjection
             services.AddScoped<IObligationDashboardRepository, EfObligationDashboardRepository>();
             services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
             services.AddScoped<IComplianceOverviewRepository, EfComplianceOverviewRepository>();
+            services.AddScoped<IComplianceChecklistRepository, EfComplianceChecklistRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
             services.AddScoped<IComplianceTaskRepository, EfComplianceTaskRepository>();
             services.AddScoped<IRenewalTaskRepository, EfRenewalTaskRepository>();
@@ -316,6 +318,8 @@ public static class DependencyInjection
             services.AddScoped<IObligationDetailRepository>(_ =>
                 throw new InvalidOperationException("Obligation detail persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceOverviewRepository, EmptyComplianceOverviewRepository>();
+            services.AddScoped<IComplianceChecklistRepository>(_ =>
+                throw new InvalidOperationException("Compliance checklist persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceTaskRepository>(_ =>
                 throw new InvalidOperationException("Task persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IRenewalTaskRepository>(_ =>

@@ -75,6 +75,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<ControlAssessmentEntity> ControlAssessments => Set<ControlAssessmentEntity>();
     public DbSet<ControlAssessmentHistoryEntity> ControlAssessmentHistory => Set<ControlAssessmentHistoryEntity>();
     public DbSet<PoamItemEntity> PoamItems => Set<PoamItemEntity>();
+    public DbSet<ComplianceChecklistInstanceEntity> ComplianceChecklistInstances => Set<ComplianceChecklistInstanceEntity>();
+    public DbSet<ComplianceChecklistItemEntity> ComplianceChecklistItems => Set<ComplianceChecklistItemEntity>();
     public DbSet<AssetEntity> Assets => Set<AssetEntity>();
     public DbSet<SystemBoundaryEntity> SystemBoundaries => Set<SystemBoundaryEntity>();
     public DbSet<AnnualAffirmationEntity> AnnualAffirmations => Set<AnnualAffirmationEntity>();
@@ -1089,6 +1091,38 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => new { x.PoamItemId, x.EvidenceItemId });
             entity.HasOne(x => x.PoamItem).WithMany(x => x.EvidenceItems).HasForeignKey(x => x.PoamItemId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ComplianceChecklistInstanceEntity>(entity =>
+        {
+            entity.ToTable("compliance_checklist_instances");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.TemplateKey, x.CreatedAt });
+            entity.Property(x => x.TemplateKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.ChecklistType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ReviewStatus).HasMaxLength(64).IsRequired();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ComplianceChecklistItemEntity>(entity =>
+        {
+            entity.ToTable("compliance_checklist_items");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ChecklistId, x.TemplateItemKey }).IsUnique();
+            entity.HasIndex(x => x.EvidenceItemId);
+            entity.HasIndex(x => x.PoamItemId);
+            entity.Property(x => x.TemplateItemKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ReviewStatus).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.Property(x => x.ControlId).HasMaxLength(120);
+            entity.HasOne(x => x.Checklist).WithMany(x => x.Items).HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.PoamItem).WithMany().HasForeignKey(x => x.PoamItemId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<AssetEntity>(entity =>

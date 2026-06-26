@@ -2224,6 +2224,80 @@ api.MapGet("/tasks/{taskId:guid}", async (
 .RequirePermission(Permission.ViewTasks)
 .WithName("GetComplianceTask");
 
+api.MapGet("/compliance/checklist-templates", async (
+    ComplianceChecklistService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListTemplatesAsync(cancellationToken)))
+.RequirePermission(Permission.ViewTasks)
+.WithName("ListComplianceChecklistTemplates");
+
+api.MapGet("/compliance/checklists", async (
+    ComplianceChecklistService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
+.RequirePermission(Permission.ViewTasks)
+.WithName("ListComplianceChecklists");
+
+api.MapPost("/compliance/checklists", async (
+    CreateComplianceChecklistInstanceRequest request,
+    ComplianceChecklistService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var checklist = await service.CreateCurrentTenantAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/compliance/checklists/{checklist?.Id}", checklist);
+    }
+    catch (ComplianceChecklistValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["checklist"] = [exception.Message]
+        },
+        title: "Checklist invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageTasks)
+.WithName("CreateComplianceChecklist");
+
+api.MapPut("/compliance/checklists/{checklistId:guid}/items/{itemId:guid}", async (
+    Guid checklistId,
+    Guid itemId,
+    UpdateComplianceChecklistItemRequest request,
+    ComplianceChecklistService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var checklist = await service.UpdateItemCurrentTenantAsync(checklistId, itemId, request, tenantContext.UserId, cancellationToken);
+        return checklist is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "Checklist item was not found in the current tenant scope.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(checklist);
+    }
+    catch (ComplianceChecklistValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["checklistItem"] = [exception.Message]
+        },
+        title: "Checklist item invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageTasks)
+.WithName("UpdateComplianceChecklistItem");
+
 api.MapPost("/tasks", async (
     CreateComplianceTaskRequest request,
     ComplianceTaskService service,
