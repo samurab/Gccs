@@ -154,6 +154,7 @@ public static class DependencyInjection
         services.AddScoped<PortalPackageLifecycleService>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
+        services.AddScoped<SimpleReportExportService>();
         if (configuration is not null)
         {
             services.Configure<SamGovOptions>(options =>
@@ -203,6 +204,7 @@ public static class DependencyInjection
             services.AddScoped<IAssignmentNotificationRepository, EfAssignmentNotificationRepository>();
             services.AddScoped<AssignmentNotificationService>();
             services.AddScoped<IReportRepository, EfReportRepository>();
+            services.AddScoped<ISimpleReportExportRepository, EfSimpleReportExportRepository>();
             services.AddScoped<IContractObligationMatrixRepository, EfContractObligationMatrixRepository>();
             services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
             services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
@@ -275,6 +277,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Due-date reminder persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IReportRepository>(_ =>
                 throw new InvalidOperationException("Report persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ISimpleReportExportRepository>(_ =>
+                throw new InvalidOperationException("Simple report export persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IContractObligationMatrixRepository>(_ =>
                 throw new InvalidOperationException("Contract obligation matrix persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IAuditLogRepository>(_ =>

@@ -29,7 +29,18 @@ public sealed record ComplianceOverviewDto(
     ];
 
     public IReadOnlyList<ObligationSummaryDto> PriorityObligations { get; init; } = [];
+
+    public IReadOnlyList<ComplianceDashboardAlertDto> Alerts { get; init; } = [];
 }
+
+public sealed record ComplianceDashboardAlertDto(
+    string AlertType,
+    string Severity,
+    string Title,
+    string Message,
+    string EntityType,
+    string EntityId,
+    DateTimeOffset DetectedUtc);
 
 public sealed record RecentAuditEventDto(
     Guid Id,

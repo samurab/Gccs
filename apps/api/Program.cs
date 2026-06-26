@@ -1431,6 +1431,50 @@ api.MapGet("/reports/approved-evidence-packages", async (
 .RequirePermission(Permission.ViewReports)
 .WithName("ListApprovedEvidencePackages");
 
+api.MapGet("/reports/exports/{reportType}", async (
+    string reportType,
+    SimpleReportExportService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var requiredPermission = SimpleReportExportAuthorization.RequiredPermission(reportType);
+    if (requiredPermission is not null && !httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, requiredPermission.Value.ToString()))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Forbidden",
+            $"Exporting '{reportType}' requires {requiredPermission} permission.",
+            StatusCodes.Status403Forbidden,
+            "forbidden");
+    }
+
+    try
+    {
+        var appliedFilters = httpContext.Request.QueryString.HasValue
+            ? httpContext.Request.QueryString.Value!.TrimStart('?')
+            : "none";
+        var export = await service.ExportAsync(
+            new SimpleReportExportRequest(reportType, appliedFilters),
+            tenantContext.UserId,
+            cancellationToken);
+
+        return Results.File(export.Content, export.ContentType, export.FileName);
+    }
+    catch (SimpleReportExportValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["reportType"] = [exception.Message]
+        },
+        title: "Report export invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("ExportSimpleReportCsv");
+
 api.MapPost("/reports/evidence-packages", async (
     EvidencePackageGenerateRequest request,
     EvidencePackageReportService service,
@@ -5615,6 +5659,18 @@ if (app.Environment.IsDevelopment())
 app.Run();
 
 public partial class Program;
+
+internal static class SimpleReportExportAuthorization
+{
+    public static Permission? RequiredPermission(string reportType) =>
+        reportType.Trim().ToLowerInvariant() switch
+        {
+            "poam-list" or "poamlist" or "poam" => Permission.ViewCmmc,
+            "evidence-inventory" or "evidenceinventory" or "evidence" => Permission.ViewEvidence,
+            "audit-log" or "auditlog" or "audit" => Permission.ViewAuditLog,
+            _ => null
+        };
+}
 
 internal static class ComplianceContentPackageLocator
 {

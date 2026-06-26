@@ -15,6 +15,16 @@ export type ObligationSummary = {
   lastReviewedAt: string;
 };
 
+export type ComplianceDashboardAlert = {
+  alertType: string;
+  severity: string;
+  title: string;
+  message: string;
+  entityType: string;
+  entityId: string;
+  detectedUtc: string;
+};
+
 export type ClauseLibraryItem = {
   id: string;
   source: string;
@@ -49,6 +59,7 @@ export type ComplianceOverview = {
   mvpDataPosture: string;
   modules: ModuleStatus[];
   priorityObligations: ObligationSummary[];
+  alerts: ComplianceDashboardAlert[];
 };
 
 export type CurrentUserAccess = {
@@ -1431,7 +1442,8 @@ export const fallbackOverview: ComplianceOverview = {
     "Connect to the GCCS API to load source-backed modules, obligations, review metadata, and tenant-scoped compliance workflow state.",
   mvpDataPosture: "No-CUI / compliance management only",
   modules: [],
-  priorityObligations: []
+  priorityObligations: [],
+  alerts: []
 };
 
 export const fallbackAccess: CurrentUserAccess = {

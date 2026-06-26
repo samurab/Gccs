@@ -217,7 +217,8 @@ const {
       "Connect to the GCCS API to load source-backed modules, obligations, review metadata, and tenant-scoped compliance workflow state.",
     mvpDataPosture: "No-CUI / compliance management only",
     modules: [],
-    priorityObligations: []
+    priorityObligations: [],
+    alerts: []
   },
   invitations: [
     {
@@ -294,6 +295,17 @@ const {
         riskLevel: "High",
         sourceUrl: "https://www.acquisition.gov/far/52.204-21",
         lastReviewedAt: "2026-06-03"
+      }
+    ],
+    alerts: [
+      {
+        alertType: "overdue_poam",
+        severity: "High",
+        title: "Overdue POA&M",
+        message: "POA&M for AC.L1-3.1.1 is overdue: missing access review evidence.",
+        entityType: "PoamItem",
+        entityId: "abababab-abab-abab-abab-abababababab",
+        detectedUtc: "2026-06-20T12:00:00Z"
       }
     ]
   },
@@ -1239,6 +1251,9 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByText(overview.productPromise)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Dashboard alerts" })).toBeInTheDocument();
+    expect(screen.getByText("Overdue POA&M")).toBeInTheDocument();
+    expect(screen.getByText(/missing access review evidence/i)).toBeInTheDocument();
     expect(screen.queryByText(/marketing/i)).not.toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: /primary workspace navigation/i })).toBeInTheDocument();
   });
@@ -1914,6 +1929,7 @@ describe("App", () => {
     expect(screen.getByText("Loading workspace data")).toBeInTheDocument();
     resolveOverview(fallbackOverview);
     expect(await screen.findByText("API overview unavailable")).toBeInTheDocument();
+    expect(screen.getByText("No dashboard alerts")).toBeInTheDocument();
     expect(screen.getByText("Source data unavailable")).toBeInTheDocument();
 
     unmount();
@@ -2363,6 +2379,12 @@ describe("App", () => {
     expect(screen.getByText("Monthly status report")).toBeInTheDocument();
     expect(screen.getByText("Compliance status report")).toBeInTheDocument();
     expect(screen.getByLabelText("Overdue calendar item")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /3 total calendar agenda items/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /1 overdue calendar items/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /1 high-risk calendar items/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /2 calendar months represented/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /3 total calendar agenda items/i }));
+    expect(screen.getByRole("heading", { name: "Calendar agenda" })).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Owner"), "contracts");
     await user.selectOptions(screen.getByLabelText("Status"), "open");

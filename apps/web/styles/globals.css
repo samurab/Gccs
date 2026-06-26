@@ -1711,19 +1711,43 @@ textarea:required:user-invalid {
   justify-content: flex-end;
 }
 
+.queue-metrics button,
 .queue-metrics span {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--muted);
+  cursor: pointer;
   display: inline-flex;
+  font: inherit;
   gap: 6px;
   min-height: 34px;
   padding: 7px 10px;
+  text-decoration: none;
+}
+
+.queue-metrics button:hover,
+.queue-metrics button:focus-visible {
+  border-color: var(--blue);
+  color: var(--ink);
+  outline: none;
 }
 
 .queue-metrics strong {
   color: var(--ink);
+}
+
+.calendar-summary-metrics {
+  align-items: center;
+  justify-content: flex-end;
+  max-width: 640px;
+}
+
+.calendar-summary-metrics button {
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 34px;
+  white-space: nowrap;
 }
 
 .obligation-dashboard-list {
@@ -3007,6 +3031,11 @@ textarea:required:user-invalid {
   .section-heading--split {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .calendar-summary-metrics {
+    justify-content: flex-start;
+    max-width: none;
   }
 
   .invite-form,

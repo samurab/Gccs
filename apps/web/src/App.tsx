@@ -2288,6 +2288,10 @@ function CalendarView({
   onFilterChange: (filters: CalendarFilters) => void;
   onFilterSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const statusFilterRef = useRef<HTMLLabelElement>(null);
+  const riskFilterRef = useRef<HTMLLabelElement>(null);
+  const monthSummaryRef = useRef<HTMLDivElement>(null);
+  const agendaListRef = useRef<HTMLDivElement>(null);
   const metrics = useMemo(
     () => ({
       total: events.length,
@@ -2307,6 +2311,10 @@ function CalendarView({
 
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [events]);
+  const scrollToCalendarSection = (target: RefObject<HTMLElement | null>) => {
+    target.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    target.current?.focus?.();
+  };
 
   return (
     <section className="route-panel" aria-label="Compliance calendar">
@@ -2316,19 +2324,31 @@ function CalendarView({
           <h2>Calendar agenda</h2>
           <p>Tenant-scoped tasks, renewals, reports, contract deadlines, deliverables, and policy reviews.</p>
         </div>
-        <div className="queue-metrics" aria-label="Calendar summary">
-          <span>
-            <strong>{metrics.total}</strong> items
-          </span>
-          <span>
-            <strong>{metrics.overdue}</strong> overdue
-          </span>
-          <span>
-            <strong>{metrics.highRisk}</strong> high risk
-          </span>
-          <span>
-            <strong>{metrics.months}</strong> months
-          </span>
+        <div className="queue-metrics calendar-summary-metrics" aria-label="Calendar summary">
+          <button type="button" onClick={() => scrollToCalendarSection(agendaListRef)} aria-label={`${metrics.total} total calendar agenda items`}>
+            <strong>{metrics.total}</strong> agenda items
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToCalendarSection(statusFilterRef)}
+            aria-label={`${metrics.overdue} overdue calendar items; jump to status filter`}
+          >
+            <strong>{metrics.overdue}</strong> overdue items
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToCalendarSection(riskFilterRef)}
+            aria-label={`${metrics.highRisk} high-risk calendar items; jump to risk filter`}
+          >
+            <strong>{metrics.highRisk}</strong> high-risk items
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToCalendarSection(monthSummaryRef)}
+            aria-label={`${metrics.months} calendar months represented; jump to month summary`}
+          >
+            <strong>{metrics.months}</strong> months represented
+          </button>
         </div>
       </div>
 
@@ -2366,7 +2386,7 @@ function CalendarView({
             ))}
           </datalist>
         </label>
-        <label>
+        <label ref={statusFilterRef} id="calendar-status-filter" tabIndex={-1}>
           Status
           <select
             aria-label="Status"
@@ -2400,7 +2420,7 @@ function CalendarView({
             ))}
           </select>
         </label>
-        <label>
+        <label ref={riskFilterRef} id="calendar-risk-filter" tabIndex={-1}>
           Risk
           <select aria-label="Risk" value={filters.risk} onChange={(event) => onFilterChange({ ...filters, risk: event.target.value })}>
             <option value="">Any</option>
@@ -2453,7 +2473,7 @@ function CalendarView({
       ) : null}
 
       <div className="calendar-workspace">
-        <div className="calendar-month-strip" aria-label="Month view summary">
+        <div ref={monthSummaryRef} id="calendar-month-summary" className="calendar-month-strip" tabIndex={-1} aria-label="Month view summary">
           {events.length === 0 ? (
             <span>No calendar items yet</span>
           ) : (
@@ -2466,7 +2486,7 @@ function CalendarView({
           )}
         </div>
 
-        <div className="calendar-agenda" aria-label="Calendar list view">
+        <div ref={agendaListRef} id="calendar-agenda-list" className="calendar-agenda" tabIndex={-1} aria-label="Calendar list view">
           {events.length === 0 ? (
             <EmptyState
               title="No calendar items yet"
@@ -2709,6 +2729,7 @@ function subcontractorQualityWarnings(subcontractor: Subcontractor, flowDowns: S
 function DashboardView({ overview }: { overview: ComplianceOverview }) {
   const hasModules = overview.modules.length > 0;
   const hasPriorityObligations = overview.priorityObligations.length > 0;
+  const hasAlerts = overview.alerts.length > 0;
 
   return (
     <>
@@ -2740,6 +2761,43 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
         <div className="metric">
           <span>Source status</span>
           <strong>Seeded</strong>
+        </div>
+      </section>
+
+      <section className="work-grid" aria-label="Dashboard alerts">
+        <div>
+          <div className="section-heading">
+            <p className="eyebrow">Action queue</p>
+            <h2>Dashboard alerts</h2>
+          </div>
+          <div className="obligation-list">
+            {hasAlerts ? (
+              overview.alerts.map((alert) => (
+                <article key={`${alert.alertType}-${alert.entityType}-${alert.entityId}`} className="obligation-item">
+                  <div>
+                    <span className={`risk risk--${alert.severity.toLowerCase()}`}>{alert.severity}</span>
+                    <h3>{alert.title}</h3>
+                  </div>
+                  <p>{alert.message}</p>
+                  <dl>
+                    <div>
+                      <dt>Type</dt>
+                      <dd>{formatEnumLabel(alert.alertType)}</dd>
+                    </div>
+                    <div>
+                      <dt>Detected</dt>
+                      <dd>{alert.detectedUtc}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))
+            ) : (
+              <EmptyState
+                title="No dashboard alerts"
+                body="Tenant-scoped checks did not find overdue, rejected, missing-evidence, or access-risk items."
+              />
+            )}
+          </div>
         </div>
       </section>
 

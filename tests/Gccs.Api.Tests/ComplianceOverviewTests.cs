@@ -57,6 +57,9 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         Assert.Equal(1, overview.OverduePoams);
         Assert.Equal(2, overview.EvidenceItems);
         Assert.Equal(["Evidence uploaded"], overview.RecentAuditEvents.Select(item => item.Summary).ToArray());
+        Assert.Contains(overview.Alerts, alert => alert.AlertType == "overdue_poam");
+        Assert.Contains(overview.Alerts, alert => alert.AlertType == "control_without_evidence");
+        Assert.Contains(overview.Alerts, alert => alert.AlertType == "evidence_pending_review");
     }
 
     [Fact]
@@ -81,6 +84,7 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         Assert.Equal(0, overview.OverduePoams);
         Assert.Equal(0, overview.EvidenceItems);
         Assert.Empty(overview.RecentAuditEvents);
+        Assert.Empty(overview.Alerts);
     }
 
     [Fact]
@@ -119,6 +123,73 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         Assert.Equal(3, overview.ControlsTotal);
         Assert.Equal(2, overview.EvidenceItems);
         Assert.DoesNotContain(overview.RecentAuditEvents, item => item.Summary.Contains("B", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(overview.Alerts, item => item.Message.Contains("B", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Overdue_poam_generates_dashboard_alert()
+    {
+        var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a7");
+        await using var factory = CreatePersistenceFactory("overview-overdue-poam-alert", dbContext =>
+        {
+            SeedTenantOverviewData(dbContext, tenantId);
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateOverviewRequest(tenantId, Permission.ViewObligations);
+
+        var response = await client.SendAsync(request);
+        var overview = await response.Content.ReadFromJsonAsync<ComplianceOverviewDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(overview);
+        var alert = Assert.Single(overview.Alerts, item => item.AlertType == "overdue_poam");
+        Assert.Equal("High", alert.Severity);
+        Assert.Equal("PoamItem", alert.EntityType);
+        Assert.Contains("AC.A.2", alert.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Control_without_evidence_generates_dashboard_alert()
+    {
+        var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a8");
+        await using var factory = CreatePersistenceFactory("overview-control-without-evidence-alert", dbContext =>
+        {
+            SeedTenantOverviewData(dbContext, tenantId);
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateOverviewRequest(tenantId, Permission.ViewObligations);
+
+        var response = await client.SendAsync(request);
+        var overview = await response.Content.ReadFromJsonAsync<ComplianceOverviewDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(overview);
+        Assert.Contains(overview.Alerts, alert =>
+            alert.AlertType == "control_without_evidence" &&
+            alert.EntityType == "ControlAssessment" &&
+            alert.Message.Contains("AC.A.2", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Evidence_pending_review_generates_dashboard_alert()
+    {
+        var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a9");
+        await using var factory = CreatePersistenceFactory("overview-evidence-pending-alert", dbContext =>
+        {
+            SeedTenantOverviewData(dbContext, tenantId);
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateOverviewRequest(tenantId, Permission.ViewObligations);
+
+        var response = await client.SendAsync(request);
+        var overview = await response.Content.ReadFromJsonAsync<ComplianceOverviewDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(overview);
+        Assert.Contains(overview.Alerts, alert =>
+            alert.AlertType == "evidence_pending_review" &&
+            alert.EntityType == "EvidenceItem" &&
+            alert.Message.Contains("Screenshot A", StringComparison.Ordinal));
     }
 
     [Fact]
