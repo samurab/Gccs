@@ -482,6 +482,62 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_3_1_Staging_deployment_evidence_references_approved_pipeline_and_blocker()
+    {
+        var evidence = ReadText("docs", "production-readiness-staging-smoke-evidence.md");
+        var plan = ReadText("docs", "production-readiness-plan.md");
+
+        Assert.Contains("docs/production-readiness-staging-smoke-evidence.md", plan);
+        Assert.Contains("Story: PR-3.1 - Deploy And Smoke Test Staging.", evidence);
+        Assert.Contains("Approved deployment path: `.github/workflows/staging.yml`.", evidence);
+        Assert.Contains("Evidence status: Blocked - live staging deployment and smoke evidence not attached.", evidence);
+        Assert.Contains("STAGE-GAP-001", evidence);
+    }
+
+    [Fact]
+    public void TC_PR_3_1_Staging_smoke_requires_health_dependency_and_data_posture_signals()
+    {
+        var evidence = ReadText("docs", "production-readiness-staging-smoke-evidence.md");
+
+        foreach (var signal in new[]
+        {
+            "service = gccs-api",
+            "status = ok",
+            "dataPosture = No-CUI / compliance management only",
+            "dependency `postgresql`",
+            "dependency `redis`",
+            "dependency `object-storage`",
+            "dependency `background-jobs`"
+        })
+        {
+            Assert.Contains(signal, evidence);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_3_1_Staging_data_guardrails_and_missing_credentials_are_documented()
+    {
+        var evidence = ReadText("docs", "production-readiness-staging-smoke-evidence.md");
+
+        foreach (var guardrail in new[]
+        {
+            "No production customer data.",
+            "No real customer CUI.",
+            "No production secrets.",
+            "No production uploads.",
+            "No production unrestricted logs.",
+            "Synthetic-only staging data.",
+            "No-CUI / compliance management only posture."
+        })
+        {
+            Assert.Contains(guardrail, evidence);
+        }
+
+        Assert.Contains("No `STAGING_API_BASE_URL`, `STAGING_WEB_BASE_URL`, cloud identity, database, storage, cache, queue, or secret-store credentials were available", evidence);
+        Assert.Contains("keep production launch blocked", evidence);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
