@@ -57,6 +57,10 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = ApiProblemDetails.Customize;
+});
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -314,6 +318,7 @@ api.MapPost("/company-profile/sam-lookup/search", async (
 api.MapPost("/company-profile/sam-lookup/apply", async (
     ApplyCompanyEntityLookupRequest request,
     CompanyEntityLookupService service,
+    HttpContext httpContext,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
@@ -323,11 +328,16 @@ api.MapPost("/company-profile/sam-lookup/apply", async (
     }
     catch (CompanyEntityLookupConflictException exception)
     {
-        return Results.Conflict(new
-        {
-            title = "SAM.gov data conflicts with existing profile values.",
-            conflicts = exception.Conflicts
-        });
+        return ApiProblemDetails.Create(
+            httpContext,
+            "SAM.gov data conflict",
+            "SAM.gov data conflicts with existing profile values.",
+            StatusCodes.Status409Conflict,
+            "company_profile_sam_lookup_conflict",
+            new Dictionary<string, object?>
+            {
+                ["conflicts"] = exception.Conflicts
+            });
     }
 })
 .RequirePermission(Permission.ManageCompanyProfile)
