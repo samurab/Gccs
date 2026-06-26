@@ -3,6 +3,7 @@ using System.Text.Json;
 using Gccs.Application.Common;
 using Gccs.Application.Reports;
 using Gccs.Application.Security;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Common;
 using Gccs.Domain.Compliance;
@@ -17,7 +18,8 @@ namespace Gccs.Infrastructure.Reports;
 
 public sealed class EfReportRepository(
     GccsDbContext dbContext,
-    ICurrentTenantContext tenantContext) : IReportRepository
+    ICurrentTenantContext tenantContext,
+    TenantDataHandlingModePolicyService dataHandlingModePolicy) : IReportRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private const string MvpReportDisclaimer =
@@ -124,6 +126,7 @@ public sealed class EfReportRepository(
         var evidenceIds = evidenceItems.Select(evidence => evidence.Id).ToArray();
         foreach (var evidence in evidenceItems)
         {
+            await EnsureEvidenceAllowedForReportAsync(evidence, actorUserId, cancellationToken);
             ContentClassificationPolicy.EnsureProcessable(evidence.Classification, "Evidence package generation");
         }
 
@@ -715,6 +718,24 @@ public sealed class EfReportRepository(
             entity.GeneratedByUserId,
             snapshot,
             entity.ExportHtml);
+
+    private Task EnsureEvidenceAllowedForReportAsync(
+        EvidenceItemEntity evidence,
+        Guid actorUserId,
+        CancellationToken cancellationToken) =>
+        dataHandlingModePolicy.EnsureAllowedAsync(
+            new TenantDataHandlingModePolicyRequest(
+                TenantDataHandlingWorkflow.Report,
+                ContainsRealCui: evidence.Classification is ContentClassification.Cui,
+                ContainsSyntheticCui: evidence.Classification is ContentClassification.SyntheticCui,
+                ClassificationConfirmed: evidence.Classification is not ContentClassification.Unknown,
+                ApprovalChecksPassed: evidence.Classification is not ContentClassification.SyntheticCui ||
+                    (evidence.ClassificationIsApprovedDemoContent &&
+                     evidence.ClassificationSource is ContentClassificationSource.ImportedDemoSeed),
+                EntityType: "EvidenceItem",
+                EntityId: evidence.Id.ToString()),
+            actorUserId,
+            cancellationToken);
 
     private static string BuildHtml(ComplianceStatusReportSnapshotDto snapshot)
     {

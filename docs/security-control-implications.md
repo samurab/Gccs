@@ -66,6 +66,23 @@ Audit logs must be append-only through normal application APIs. Corrections shou
 - Customer-facing copy must not imply FedRAMP, GovCloud, CMMC certification, assessment success, legal approval, government endorsement, or authorization to store real CUI unless formally approved.
 - Support must have an escalation path for accidental prohibited uploads, suspected CUI, tenant exposure concerns, and evidence/report export issues.
 
+### PR-0.3 Tenant Mode Boundary Review
+
+Tenant mode boundaries are release controls and must be enforced by trusted server-side checks. UI notices, hidden buttons, onboarding copy, or customer acknowledgements are not sufficient enforcement.
+
+| Tenant mode | Allowed behavior | Prohibited behavior | Server-side enforcement requirement |
+| --- | --- | --- | --- |
+| `DemoSandbox` | Synthetic or redacted demonstration records approved for demo import; seeded CUI-aware workflow examples that cannot be mistaken for customer data. | Real customer CUI, unapproved synthetic CUI, production customer uploads, and customer-facing claims that demo workflows authorize real CUI handling. | Demo seeding and workflow processing must verify tenant mode and approved demo metadata before storage, extraction, reporting, or export. |
+| `NoCui` | Non-CUI customer metadata, non-sensitive files, FCI workflow tracking, source-backed obligation metadata, and compliance evidence that users classify as unclassified or non-CUI. | Real customer CUI, synthetic CUI demo records, prohibited sensitive content, CUI-marked evidence, CUI-bearing imports, CUI-bearing extraction, and CUI-bearing reports or exports. | API, repository, background job, import, extraction, evidence, report, and export paths must reject CUI-classified or synthetic-CUI-classified records even when called directly. |
+| Future `CuiReady` | Real CUI only after separate approval, confirmed classification, customer terms, shared responsibility matrix, support model, evidence controls, and required signoff. | Treating future `CuiReady` as available by default, accepting unconfirmed classification, bypassing approval checks, or mixing demo synthetic CUI with production CUI workflows. | CUI workflows must require explicit tenant mode, confirmed classification, approval checks, audit logging, and separate launch approval before processing real CUI. |
+
+Failure modes that block launch unless mitigated:
+
+- Direct API bypass: a caller posts CUI-classified contract, evidence, import, extraction, report, or export requests without using the UI.
+- Background processing bypass: a queued extraction, import, search indexing, report, export, or AI job processes a CUI-classified record after the initial upload guard was bypassed or seeded.
+- Future posture leakage: `CuiReady` code paths, demo fixtures, customer copy, or tenant defaults make real CUI appear available before the separate approval gate.
+- Legacy or direct database data: old rows, seed data, import scripts, or administrator tools introduce CUI-classified records that later report/export paths process without rechecking tenant mode.
+
 ## Implementation Checklist
 
 Before a feature is complete, answer yes to each applicable question:

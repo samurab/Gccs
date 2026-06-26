@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.Reports;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Common;
@@ -19,6 +20,7 @@ using Gccs.Infrastructure.Audit;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Gccs.Infrastructure.Reports;
+using Gccs.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -147,6 +149,41 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
             audit.MetadataJson.Contains("PrimeEvidencePackage", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task TC_PR_0_3_NoCui_evidence_package_generation_blocks_legacy_or_direct_cui_evidence()
+    {
+        var ids = StoryIds.ForCase("tc-pr-0-3-report");
+        await using var factory = CreateFactory("tc-pr-0-3-report", dbContext =>
+        {
+            SeedScenario(dbContext, ids);
+            var cuiEvidence = dbContext.EvidenceItems.Local.Single(evidence => evidence.Id == ids.ObligationEvidenceId);
+            cuiEvidence.Classification = ContentClassification.Cui;
+            cuiEvidence.ClassificationSource = ContentClassificationSource.AdminReviewed;
+            cuiEvidence.ClassificationConfidence = 1m;
+            cuiEvidence.ClassificationReviewedAt = DateTimeOffset.Parse("2026-06-26T12:00:00Z");
+            cuiEvidence.ClassificationReviewedByUserId = Guid.Parse("15415415-4154-1541-5415-415415419997");
+            cuiEvidence.ClassificationReason = "Regression fixture simulates legacy or direct database CUI evidence.";
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            "/api/reports/evidence-packages",
+            new EvidencePackageGenerateRequest
+            {
+                Title = "Blocked CUI package",
+                ObligationIds = [ids.ObligationId]
+            },
+            ids.TenantId,
+            Permission.ManageReports);
+
+        var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("tenant_data_handling_mode_restricted", body, StringComparison.Ordinal);
+        Assert.Contains("Report", body, StringComparison.Ordinal);
+    }
+
     private static EvidencePackageGenerateRequest CreateGenerateRequest(StoryIds ids, bool includeDraftOrRejected) =>
         new()
         {
@@ -182,6 +219,8 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<EvidencePackageReportService>();
                 services.AddScoped<IReportRepository, EfReportRepository>();
+                services.AddScoped<ITenantRepository, EfTenantRepository>();
+                services.AddScoped<TenantDataHandlingModePolicyService>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
                 using var provider = services.BuildServiceProvider();
@@ -313,7 +352,10 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
         Guid tenantId,
         string name,
         EvidenceType type,
-        EvidenceStatus status) =>
+        EvidenceStatus status,
+        ContentClassification classification = ContentClassification.Unclassified,
+        ContentClassificationSource classificationSource = ContentClassificationSource.UserSelected,
+        bool isApprovedDemoContent = false) =>
         new()
         {
             Id = evidenceItemId,
@@ -326,6 +368,9 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
             TagsJson = "[]",
             ApprovedAt = status == EvidenceStatus.Approved ? DateTimeOffset.Parse("2026-06-15T12:00:00Z") : null,
             ApprovedByUserId = status == EvidenceStatus.Approved ? Guid.Parse("15415415-4154-1541-5415-415415419998") : null,
+            Classification = classification,
+            ClassificationSource = classificationSource,
+            ClassificationIsApprovedDemoContent = isApprovedDemoContent,
             CreatedAt = DateTimeOffset.Parse("2026-06-15T10:00:00Z")
         };
 
