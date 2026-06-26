@@ -73,6 +73,7 @@ Before MVP launch candidate tagging.
 - `docs/production-readiness-story-test-cases.md`
 - `docs/production-readiness-story-test-prompts.md`
 - `docs/production-readiness-open-story-readiness-review.md`
+- `docs/production-readiness-open-story-test-mapping.md`
 - `docs/software-delivery-plan.md`
 - `docs/mvp-execution-plan.md`
 - `docs/mvp-roadmap.md`

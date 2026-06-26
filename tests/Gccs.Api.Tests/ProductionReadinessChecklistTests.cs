@@ -183,6 +183,70 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_1_2_Open_launch_stories_reference_test_case_mappings()
+    {
+        var mapping = ReadText("docs", "production-readiness-open-story-test-mapping.md");
+        var plan = ReadText("docs", "production-readiness-plan.md");
+
+        Assert.Contains("docs/production-readiness-open-story-test-mapping.md", plan);
+        Assert.Contains("Review status: Complete.", mapping);
+
+        foreach (var storyId in ProductionReadinessOpenStoryIds())
+        {
+            Assert.Contains($"| {storyId} |", mapping);
+            for (var caseNumber = 1; caseNumber <= 4; caseNumber++)
+            {
+                Assert.Contains($"TC-{storyId}.{caseNumber}", mapping);
+            }
+        }
+    }
+
+    [Fact]
+    public void TC_PR_1_2_Coverage_gaps_are_launch_tasks_or_blockers()
+    {
+        var mapping = ReadText("docs", "production-readiness-open-story-test-mapping.md");
+
+        Assert.Contains("## Coverage Gaps As Launch Tasks", mapping);
+        foreach (var coverageArea in new[]
+        {
+            "Unit",
+            "Integration",
+            "API",
+            "Frontend",
+            "Staging",
+            "Tenant isolation",
+            "RBAC",
+            "Upload",
+            "Report",
+            "Audit"
+        })
+        {
+            Assert.Contains($"| {coverageArea} |", mapping);
+        }
+
+        Assert.Contains("Block launch if high-risk API behavior lacks direct API tests.", mapping);
+        Assert.Contains("Manual staging evidence is a launch task and cannot be skipped.", mapping);
+        Assert.Contains("Block or defer if tenant isolation coverage is missing.", mapping);
+    }
+
+    [Fact]
+    public void TC_PR_1_2_Risky_workflow_mappings_require_tenant_mode_coverage_and_no_posture_expansion()
+    {
+        var mapping = ReadText("docs", "production-readiness-open-story-test-mapping.md");
+
+        Assert.Contains("## Risky Workflow Tenant-Mode Coverage", mapping);
+        foreach (var workflow in new[] { "Upload", "Evidence", "Report/export", "Import", "Extraction/background jobs", "Search/AI" })
+        {
+            Assert.Contains($"| {workflow} |", mapping);
+        }
+
+        Assert.Contains("No story in this mapping expands production data posture beyond No-CUI.", mapping);
+        Assert.Contains("Any future story that expands data posture beyond No-CUI is rejected unless a separate `CuiReady` approval gate exists and is approved.", mapping);
+        Assert.Contains("Reports and exports must re-check tenant mode", mapping);
+        Assert.Contains("Queued processing must carry tenant ID and block CUI-classified records for `NoCui`.", mapping);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
