@@ -6,6 +6,8 @@ using Gccs.Application.Audit;
 using Gccs.Application.Cmmc;
 using Gccs.Application.Security;
 using Gccs.Domain.Cmmc;
+using Gccs.Domain.Compliance;
+using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Audit;
@@ -62,6 +64,7 @@ public sealed class CmmcControlReadinessTests : IClassFixture<WebApplicationFact
         {
             SeedTenant(dbContext, tenantId);
             SeedControls(dbContext);
+            SeedApprovedEvidence(dbContext, tenantId, Guid.Parse("13213212-3213-1213-2132-1321321321e2"));
         });
         using var client = factory.CreateClient();
         var assessment = await CreateAssessmentAsync(client, tenantId, CmmcLevel.Level1);
@@ -76,7 +79,15 @@ public sealed class CmmcControlReadinessTests : IClassFixture<WebApplicationFact
 
         foreach (var status in statuses)
         {
-            var updated = await UpdateControlAsync(client, tenantId, assessment.Id, "AC.L1-3.1.1", status);
+            var updated = await UpdateControlAsync(
+                client,
+                tenantId,
+                assessment.Id,
+                "AC.L1-3.1.1",
+                status,
+                evidenceIds: status == ControlImplementationStatus.Implemented
+                    ? [Guid.Parse("13213212-3213-1213-2132-1321321321e2")]
+                    : []);
             Assert.Equal(status, updated.Status);
         }
     }
@@ -93,9 +104,31 @@ public sealed class CmmcControlReadinessTests : IClassFixture<WebApplicationFact
         {
             SeedTenant(dbContext, tenantId);
             SeedControls(dbContext);
+            SeedApprovedEvidence(dbContext, tenantId, evidenceId);
+            dbContext.PoamItems.Add(new PoamItemEntity
+            {
+                Id = poamId,
+                TenantId = tenantId,
+                AssessmentId = Guid.Empty,
+                ControlId = "AC.L1-3.1.1",
+                Weakness = "Traceability POA&M",
+                PlannedRemediation = "Close gap.",
+                RiskLevel = RiskLevel.Medium,
+                Status = PoamStatus.Open,
+                OwnerFunction = "Security",
+                TargetCompletionAt = new DateOnly(2026, 8, 1),
+                CreatedAt = DateTimeOffset.UtcNow
+            });
         });
         using var client = factory.CreateClient();
         var assessment = await CreateAssessmentAsync(client, tenantId, CmmcLevel.Level1);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var poam = await dbContext.PoamItems.SingleAsync(item => item.Id == poamId);
+            poam.AssessmentId = assessment.Id;
+            await dbContext.SaveChangesAsync();
+        }
 
         var updated = await UpdateControlAsync(
             client,
@@ -109,8 +142,13 @@ public sealed class CmmcControlReadinessTests : IClassFixture<WebApplicationFact
             poamItemIds: [poamId]);
         var controls = await GetControlsAsync(client, tenantId, assessment.Id);
         var listed = controls.Single(control => control.ControlId == "AC.L1-3.1.1");
+        var linkedEvidence = updated.LinkedEvidence ?? [];
+        var openPoams = updated.OpenPoamItems ?? [];
 
         Assert.Equal([evidenceId], updated.EvidenceItemIds);
+        Assert.Equal([evidenceId], linkedEvidence.Select(evidence => evidence.Id).ToArray());
+        Assert.Equal("Approved", Assert.Single(linkedEvidence).ReviewStatus);
+        Assert.Equal([poamId], openPoams.Select(poam => poam.Id).ToArray());
         Assert.Equal([taskId], listed.TaskIds);
         Assert.Equal([assetId], listed.AssetIds);
         Assert.Equal([poamId], listed.PoamItemIds);
@@ -124,11 +162,18 @@ public sealed class CmmcControlReadinessTests : IClassFixture<WebApplicationFact
         {
             SeedTenant(dbContext, tenantId);
             SeedControls(dbContext);
+            SeedApprovedEvidence(dbContext, tenantId, Guid.Parse("13213212-3213-1213-2132-1321321321e4"));
         });
         using var client = factory.CreateClient();
         var assessment = await CreateAssessmentAsync(client, tenantId, CmmcLevel.Level1);
 
-        await UpdateControlAsync(client, tenantId, assessment.Id, "AC.L1-3.1.1", ControlImplementationStatus.Implemented);
+        await UpdateControlAsync(
+            client,
+            tenantId,
+            assessment.Id,
+            "AC.L1-3.1.1",
+            ControlImplementationStatus.Implemented,
+            evidenceIds: [Guid.Parse("13213212-3213-1213-2132-1321321321e4")]);
         var controls = await GetControlsAsync(client, tenantId, assessment.Id);
         using var detailRequest = CreateRequest<object?>(HttpMethod.Get, $"/api/cmmc/assessments/{assessment.Id}", null, tenantId, Permission.ViewCmmc);
         var detailResponse = await client.SendAsync(detailRequest);
@@ -143,6 +188,78 @@ public sealed class CmmcControlReadinessTests : IClassFixture<WebApplicationFact
         Assert.Equal(2, detail.ControlSummary.Total);
         Assert.Equal(1, detail.ControlSummary.Implemented);
         Assert.Equal(50, detail.ControlSummary.CompletionPercentage);
+    }
+
+    [Fact]
+    public async Task Control_cannot_be_marked_complete_without_reviewed_evidence_and_metadata()
+    {
+        var tenantId = Guid.Parse("13213212-3213-1213-2132-1321321321a5");
+        await using var factory = CreateFactory("control-traceability-missing", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            SeedControls(dbContext);
+        });
+        using var client = factory.CreateClient();
+        var assessment = await CreateAssessmentAsync(client, tenantId, CmmcLevel.Level1);
+        using var request = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/cmmc/assessments/{assessment.Id}/controls/AC.L1-3.1.1",
+            new UpsertCmmcControlStatusRequest(
+                ControlImplementationStatus.Implemented,
+                AssessmentResult.Met,
+                [],
+                [],
+                [],
+                [],
+                null,
+                null,
+                ""),
+            tenantId,
+            Permission.ManageCmmc);
+
+        var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("linked evidence", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Control_cannot_link_cross_tenant_evidence()
+    {
+        var tenantAId = Guid.Parse("13213212-3213-1213-2132-1321321321a6");
+        var tenantBId = Guid.Parse("13213212-3213-1213-2132-1321321321b6");
+        var evidenceBId = Guid.Parse("13213212-3213-1213-2132-1321321321e6");
+        await using var factory = CreateFactory("control-traceability-cross-tenant", dbContext =>
+        {
+            SeedTenant(dbContext, tenantAId);
+            SeedTenant(dbContext, tenantBId);
+            SeedControls(dbContext);
+            SeedApprovedEvidence(dbContext, tenantBId, evidenceBId);
+        });
+        using var client = factory.CreateClient();
+        var assessment = await CreateAssessmentAsync(client, tenantAId, CmmcLevel.Level1);
+        using var request = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/cmmc/assessments/{assessment.Id}/controls/AC.L1-3.1.1",
+            new UpsertCmmcControlStatusRequest(
+                ControlImplementationStatus.PartiallyImplemented,
+                AssessmentResult.NotAssessed,
+                [evidenceBId],
+                [],
+                [],
+                [],
+                null,
+                new DateOnly(2026, 6, 15),
+                "Attempt cross-tenant evidence link."),
+            tenantAId,
+            Permission.ManageCmmc);
+
+        var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("current tenant", body, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<CmmcAssessmentDto> CreateAssessmentAsync(HttpClient client, Guid tenantId, CmmcLevel level)
@@ -201,7 +318,9 @@ public sealed class CmmcControlReadinessTests : IClassFixture<WebApplicationFact
                 taskIds ?? [],
                 assetIds ?? [],
                 poamItemIds ?? [],
-                null,
+                status == ControlImplementationStatus.Implemented
+                    ? Guid.Parse("13213212-3213-1213-2132-132132132199")
+                    : null,
                 new DateOnly(2026, 6, 15),
                 "Control readiness updated."),
             tenantId,
@@ -273,6 +392,25 @@ public sealed class CmmcControlReadinessTests : IClassFixture<WebApplicationFact
             CreateControl("AC.L1-3.1.1", CmmcLevel.Level1),
             CreateControl("IA.L1-3.5.1", CmmcLevel.Level1),
             CreateControl("AC.L2-3.1.3", CmmcLevel.Level2));
+    }
+
+    private static void SeedApprovedEvidence(GccsDbContext dbContext, Guid tenantId, Guid evidenceId)
+    {
+        var reviewerId = Guid.Parse("13213212-3213-1213-2132-132132132199");
+        dbContext.EvidenceItems.Add(new EvidenceItemEntity
+        {
+            Id = evidenceId,
+            TenantId = tenantId,
+            Name = $"Reviewed evidence {evidenceId:N}",
+            Description = "Reviewed control evidence.",
+            Type = EvidenceType.Policy,
+            OwnerFunction = "Security",
+            Status = EvidenceStatus.Approved,
+            TagsJson = "[]",
+            ApprovedByUserId = reviewerId,
+            ApprovedAt = DateTimeOffset.UtcNow,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
     }
 
     private static ControlEntity CreateControl(string id, CmmcLevel level) =>

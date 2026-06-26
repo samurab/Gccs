@@ -3,6 +3,7 @@ using Gccs.Application.Cmmc;
 using Gccs.Application.Security;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Evidence;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -132,7 +133,13 @@ public sealed class EfCmmcAssessmentRepository(
             .OrderBy(control => control.Id)
             .ToArrayAsync(cancellationToken);
         var statuses = assessment.Controls.ToDictionary(control => control.ControlId, StringComparer.OrdinalIgnoreCase);
-        return controls.Select(control => ToDto(control, statuses.GetValueOrDefault(control.Id), assessmentId)).ToArray();
+        var results = new List<CmmcControlStatusDto>();
+        foreach (var control in controls)
+        {
+            results.Add(await ToDtoAsync(control, statuses.GetValueOrDefault(control.Id), assessmentId, cancellationToken));
+        }
+
+        return results.ToArray();
     }
 
     public async Task<CmmcControlStatusDto?> UpsertControlStatusAsync(
@@ -179,6 +186,7 @@ public sealed class EfCmmcAssessmentRepository(
         control.TaskIdsJson = JsonSerializer.Serialize(request.TaskIds, JsonOptions);
         control.AssetIdsJson = JsonSerializer.Serialize(request.AssetIds, JsonOptions);
         control.PoamItemIdsJson = JsonSerializer.Serialize(request.PoamItemIds, JsonOptions);
+        await SyncEvidenceControlLinksAsync(controlId, request.EvidenceItemIds, cancellationToken);
         control.ImplementationDetails = request.ImplementationDetails ?? string.Empty;
         control.IsInherited = request.IsInherited;
         control.InheritedFrom = request.InheritedFrom;
@@ -207,7 +215,82 @@ public sealed class EfCmmcAssessmentRepository(
         assessment.UpdatedByUserId = actorUserId;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToDto(baselineControl, control, assessmentId);
+        return await ToDtoAsync(baselineControl, control, assessmentId, cancellationToken);
+    }
+
+    public async Task<CmmcControlTraceabilityValidationResult?> ValidateControlTraceabilityAsync(
+        Guid assessmentId,
+        string controlId,
+        UpsertCmmcControlStatusRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var assessment = await QueryCurrentTenant()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == assessmentId, cancellationToken);
+        if (assessment is null)
+        {
+            return null;
+        }
+
+        var baselineControlExists = await QueryControlsForLevel(assessment.Level)
+            .AnyAsync(candidate => candidate.Id == controlId, cancellationToken);
+        if (!baselineControlExists)
+        {
+            return null;
+        }
+
+        var evidenceIds = request.EvidenceItemIds.Distinct().Order().ToArray();
+        var evidenceRows = await dbContext.EvidenceItems
+            .AsNoTracking()
+            .Where(evidence => evidence.TenantId == tenantContext.TenantId && evidenceIds.Contains(evidence.Id))
+            .Select(evidence => new
+            {
+                evidence.Id,
+                evidence.Status,
+                evidence.ApprovedByUserId,
+                evidence.ApprovedAt
+            })
+            .ToArrayAsync(cancellationToken);
+        var validEvidenceIds = evidenceRows.Select(evidence => evidence.Id).ToHashSet();
+        var invalidEvidenceIds = evidenceIds.Except(validEvidenceIds).Order().ToArray();
+        var unreviewedEvidenceIds = evidenceRows
+            .Where(evidence => evidence.Status is not EvidenceStatus.Approved || evidence.ApprovedByUserId is null || evidence.ApprovedAt is null)
+            .Select(evidence => evidence.Id)
+            .Order()
+            .ToArray();
+
+        var poamItemIds = request.PoamItemIds.Distinct().Order().ToArray();
+        var poamRows = await dbContext.PoamItems
+            .AsNoTracking()
+            .Where(poam =>
+                poam.TenantId == tenantContext.TenantId &&
+                poam.AssessmentId == assessmentId &&
+                poam.ControlId == controlId &&
+                poamItemIds.Contains(poam.Id))
+            .Select(poam => new { poam.Id, poam.Status })
+            .ToArrayAsync(cancellationToken);
+        var validPoamIds = poamRows.Select(poam => poam.Id).ToHashSet();
+        var invalidPoamIds = poamItemIds.Except(validPoamIds).Order().ToArray();
+        var openLinkedPoamIds = poamRows
+            .Where(poam => poam.Status is not PoamStatus.Closed and not PoamStatus.AcceptedRisk)
+            .Select(poam => poam.Id)
+            .ToArray();
+        var existingOpenPoamIds = await dbContext.PoamItems
+            .AsNoTracking()
+            .Where(poam =>
+                poam.TenantId == tenantContext.TenantId &&
+                poam.AssessmentId == assessmentId &&
+                poam.ControlId == controlId &&
+                poam.Status != PoamStatus.Closed &&
+                poam.Status != PoamStatus.AcceptedRisk)
+            .Select(poam => poam.Id)
+            .ToArrayAsync(cancellationToken);
+
+        return new CmmcControlTraceabilityValidationResult(
+            invalidEvidenceIds,
+            unreviewedEvidenceIds,
+            invalidPoamIds,
+            openLinkedPoamIds.Concat(existingOpenPoamIds).Distinct().Order().ToArray());
     }
 
     public async Task<IReadOnlyList<CmmcResponsibilityMatrixRowDto>?> GetResponsibilityMatrixAsync(
@@ -430,11 +513,46 @@ public sealed class EfCmmcAssessmentRepository(
             entity.UpdatedAt);
     }
 
-    private static CmmcControlStatusDto ToDto(
+    private async Task<CmmcControlStatusDto> ToDtoAsync(
         ControlEntity baselineControl,
         ControlAssessmentEntity? status,
-        Guid assessmentId) =>
-        new(
+        Guid assessmentId,
+        CancellationToken cancellationToken)
+    {
+        var evidenceIds = ReadGuidArray(status?.EvidenceItemIdsJson ?? "[]");
+        var poamItemIds = ReadGuidArray(status?.PoamItemIdsJson ?? "[]");
+        var linkedEvidence = evidenceIds.Count == 0
+            ? Array.Empty<CmmcControlEvidenceTraceDto>()
+            : await dbContext.EvidenceItems
+                .AsNoTracking()
+                .Where(evidence => evidence.TenantId == tenantContext.TenantId && evidenceIds.Contains(evidence.Id))
+                .OrderBy(evidence => evidence.Name)
+                .Select(evidence => new CmmcControlEvidenceTraceDto(
+                    evidence.Id,
+                    evidence.Name,
+                    evidence.Status.ToString(),
+                    evidence.ApprovedByUserId,
+                    evidence.ApprovedAt))
+                .ToArrayAsync(cancellationToken);
+        var openPoamItems = await dbContext.PoamItems
+            .AsNoTracking()
+            .Where(poam =>
+                poam.TenantId == tenantContext.TenantId &&
+                poam.AssessmentId == assessmentId &&
+                poam.ControlId == baselineControl.Id &&
+                poam.Status != PoamStatus.Closed &&
+                poam.Status != PoamStatus.AcceptedRisk)
+            .OrderByDescending(poam => poam.RiskLevel)
+            .ThenBy(poam => poam.TargetCompletionAt)
+            .Select(poam => new CmmcControlPoamTraceDto(
+                poam.Id,
+                poam.Weakness,
+                poam.RiskLevel,
+                poam.Status,
+                poam.TargetCompletionAt))
+            .ToArrayAsync(cancellationToken);
+
+        return new CmmcControlStatusDto(
             assessmentId,
             baselineControl.Id,
             baselineControl.Title,
@@ -447,10 +565,10 @@ public sealed class EfCmmcAssessmentRepository(
             baselineControl.SourceConfidence,
             status?.ImplementationStatus ?? ControlImplementationStatus.NotStarted,
             status?.Result ?? AssessmentResult.NotAssessed,
-            ReadGuidArray(status?.EvidenceItemIdsJson ?? "[]"),
+            evidenceIds,
             ReadGuidArray(status?.TaskIdsJson ?? "[]"),
             ReadGuidArray(status?.AssetIdsJson ?? "[]"),
-            ReadGuidArray(status?.PoamItemIdsJson ?? "[]"),
+            poamItemIds,
             status?.AssessedByUserId,
             status?.AssessedAt,
             status?.Notes ?? string.Empty,
@@ -472,7 +590,45 @@ public sealed class EfCmmcAssessmentRepository(
                     history.ChangedByUserId,
                     history.ChangedAt,
                     history.Notes))
-                .ToArray() ?? []);
+                .ToArray() ?? [],
+            status?.AssessedByUserId,
+            status?.AssessedAt is null
+                ? null
+                : new DateTimeOffset(status.AssessedAt.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+            status?.ImplementationStatus == ControlImplementationStatus.Implemented && status.Result == AssessmentResult.Met
+                ? "Accepted"
+                : status?.Result.ToString() ?? AssessmentResult.NotAssessed.ToString(),
+            status?.Notes ?? string.Empty,
+            linkedEvidence,
+            openPoamItems);
+    }
+
+    private async Task SyncEvidenceControlLinksAsync(
+        string controlId,
+        IReadOnlyList<Guid> evidenceItemIds,
+        CancellationToken cancellationToken)
+    {
+        var requestedIds = evidenceItemIds.Distinct().Order().ToArray();
+        var existingLinks = await dbContext.Set<EvidenceControlEntity>()
+            .Include(link => link.EvidenceItem)
+            .Where(link =>
+                link.ControlId == controlId &&
+                link.EvidenceItem != null &&
+                link.EvidenceItem.TenantId == tenantContext.TenantId)
+            .ToArrayAsync(cancellationToken);
+        var requestedSet = requestedIds.ToHashSet();
+        dbContext.Set<EvidenceControlEntity>().RemoveRange(
+            existingLinks.Where(link => !requestedSet.Contains(link.EvidenceItemId)));
+        var existingIds = existingLinks.Select(link => link.EvidenceItemId).ToHashSet();
+        dbContext.Set<EvidenceControlEntity>().AddRange(
+            requestedIds
+                .Where(id => !existingIds.Contains(id))
+                .Select(id => new EvidenceControlEntity
+                {
+                    EvidenceItemId = id,
+                    ControlId = controlId
+                }));
+    }
 
     private static string SummarizeEvidenceStatus(IReadOnlyCollection<string> statuses)
     {

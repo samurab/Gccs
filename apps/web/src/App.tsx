@@ -5189,35 +5189,54 @@ function CmmcView({
         </div>
         {controls.length > 0 ? (
           <div className="evidence-list">
-            {controls.map((control) => (
-              <article className="evidence-list__item" key={control.controlId}>
-                <strong>{control.controlId} · {control.title}</strong>
-                <div className="scan-pill-row">
-                  <StatusPill label={formatEnumLabel(control.status)} tone={statusTone(control.status)} />
-                  <StatusPill label={formatEnumLabel(control.result)} tone={statusTone(control.result)} />
-                  <StatusPill label={`${formatEnumLabel(control.sourceConfidence)} confidence`} tone={confidenceTone(control.sourceConfidence)} />
-                </div>
-                <ScanMeta
-                  items={[
-                    { label: "Family", value: control.family },
-                    { label: "Source", value: control.sourceName },
-                    { label: "Reviewed", value: control.sourceLastReviewedAt },
-                    { label: "Evidence", value: control.evidenceItemIds.length, tone: control.evidenceItemIds.length > 0 ? "success" : "warning" },
-                    { label: "Tasks", value: control.taskIds.length },
-                    { label: "Assets", value: control.assetIds.length },
-                    { label: "POA&M", value: control.poamItemIds.length, tone: control.poamItemIds.length > 0 ? "warning" : "neutral" }
-                  ]}
-                />
-                <span className="legacy-summary">
-                  {control.status} · {control.result} · {control.sourceName} reviewed {control.sourceLastReviewedAt}
-                </span>
-                <span>{control.requirement}</span>
-                <span className="legacy-summary">
-                  Evidence {control.evidenceItemIds.length} · Tasks {control.taskIds.length} · Assets {control.assetIds.length} · POA&M {control.poamItemIds.length}
-                </span>
-                <DataQualityWarnings warnings={cmmcControlQualityWarnings(control)} />
-              </article>
-            ))}
+            {controls.map((control) => {
+              const linkedEvidence = control.linkedEvidence ?? [];
+              const openPoams = control.openPoamItems ?? [];
+
+              return (
+                <article className="evidence-list__item" key={control.controlId}>
+                  <strong>{control.controlId} · {control.title}</strong>
+                  <div className="scan-pill-row">
+                    <StatusPill label={formatEnumLabel(control.status)} tone={statusTone(control.status)} />
+                    <StatusPill label={formatEnumLabel(control.result)} tone={statusTone(control.result)} />
+                    <StatusPill label={`${formatEnumLabel(control.sourceConfidence)} confidence`} tone={confidenceTone(control.sourceConfidence)} />
+                  </div>
+                  <ScanMeta
+                    items={[
+                      { label: "Family", value: control.family },
+                      { label: "Source", value: control.sourceName },
+                      { label: "Reviewed", value: control.sourceLastReviewedAt },
+                      { label: "Evidence", value: linkedEvidence.length, tone: linkedEvidence.length > 0 ? "success" : "warning" },
+                      { label: "Tasks", value: control.taskIds.length },
+                      { label: "Assets", value: control.assetIds.length },
+                      { label: "Open POA&M", value: openPoams.length, tone: openPoams.length > 0 ? "warning" : "neutral" }
+                    ]}
+                  />
+                  <span className="legacy-summary">
+                    {control.status} · {control.result} · {control.sourceName} reviewed {control.sourceLastReviewedAt}
+                  </span>
+                  <span>{control.requirement}</span>
+                  {linkedEvidence.length > 0 ? (
+                    <span className="legacy-summary">
+                      Evidence: {linkedEvidence.map((item) => `${item.title} (${formatEnumLabel(item.reviewStatus)})`).join("; ")}
+                    </span>
+                  ) : (
+                    <span className="legacy-summary">Evidence: none linked</span>
+                  )}
+                  {openPoams.length > 0 ? (
+                    <span className="legacy-summary">
+                      Open POA&M: {openPoams.map((item) => `${item.title} (${formatEnumLabel(item.status)}, due ${item.dueDate})`).join("; ")}
+                    </span>
+                  ) : (
+                    <span className="legacy-summary">Open POA&M: none</span>
+                  )}
+                  <span className="legacy-summary">
+                    Tasks {control.taskIds.length} · Assets {control.assetIds.length}
+                  </span>
+                  <DataQualityWarnings warnings={cmmcControlQualityWarnings(control)} />
+                </article>
+              );
+            })}
           </div>
         ) : (
           <EmptyState title="No controls loaded yet" body="Controls appear after a selected assessment has a Level 1 or Level 2 baseline." />

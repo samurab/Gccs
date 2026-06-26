@@ -7,6 +7,7 @@ using Gccs.Application.Cmmc;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
+using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Audit;
@@ -80,17 +81,34 @@ public sealed class CmmcAssessmentTests : IClassFixture<WebApplicationFactory<Pr
     public async Task TC_13_1_3_Control_status_updates_recalculate_completion_progress()
     {
         var tenantId = Guid.Parse("13113111-3113-1113-1311-3111311131a3");
+        var evidenceItemId = Guid.Parse("13113111-3113-1113-1311-3111311131e3");
+        var reviewerUserId = Guid.Parse("13113111-3113-1113-1311-311131113199");
         await using var factory = CreateFactory("tc-13-1-3", dbContext =>
         {
             SeedTenant(dbContext, tenantId);
             dbContext.Controls.AddRange(
                 CreateControl("AC.L1-3.1.1", CmmcLevel.Level1),
                 CreateControl("IA.L1-3.5.1", CmmcLevel.Level1));
+            dbContext.EvidenceItems.Add(new EvidenceItemEntity
+            {
+                Id = evidenceItemId,
+                TenantId = tenantId,
+                Name = "Access control policy",
+                Description = "Approved evidence for completion progress.",
+                Type = EvidenceType.Policy,
+                OwnerFunction = "Security",
+                Status = EvidenceStatus.Approved,
+                EffectiveAt = new DateOnly(2026, 6, 15),
+                TagsJson = "[]",
+                ApprovedAt = DateTimeOffset.UtcNow,
+                ApprovedByUserId = reviewerUserId,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
         });
         using var client = factory.CreateClient();
         var created = await CreateAssessmentAsync(client, tenantId, CreateRequestBody("Progress assessment", CmmcLevel.Level1));
 
-        await UpdateControlAsync(client, tenantId, created.Id, "AC.L1-3.1.1", ControlImplementationStatus.Implemented, AssessmentResult.Met);
+        await UpdateControlAsync(client, tenantId, created.Id, "AC.L1-3.1.1", ControlImplementationStatus.Implemented, AssessmentResult.Met, evidenceItemId, reviewerUserId);
         await UpdateControlAsync(client, tenantId, created.Id, "IA.L1-3.5.1", ControlImplementationStatus.PartiallyImplemented, AssessmentResult.NotMet);
         using var detailRequest = CreateRequest<object?>(HttpMethod.Get, $"/api/cmmc/assessments/{created.Id}", null, tenantId, Permission.ViewCmmc);
         var detailResponse = await client.SendAsync(detailRequest);
@@ -149,12 +167,15 @@ public sealed class CmmcAssessmentTests : IClassFixture<WebApplicationFactory<Pr
         Guid assessmentId,
         string controlId,
         ControlImplementationStatus status,
-        AssessmentResult result)
+        AssessmentResult result,
+        Guid? evidenceItemId = null,
+        Guid? reviewerUserId = null)
     {
+        IReadOnlyList<Guid> evidenceItemIds = evidenceItemId.HasValue ? [evidenceItemId.Value] : [];
         using var request = CreateRequest(
             HttpMethod.Patch,
             $"/api/cmmc/assessments/{assessmentId}/controls/{controlId}",
-            new UpsertCmmcControlStatusRequest(status, result, [], [], [], [], null, new DateOnly(2026, 6, 15), "Updated status."),
+            new UpsertCmmcControlStatusRequest(status, result, evidenceItemIds, [], [], [], reviewerUserId, new DateOnly(2026, 6, 15), "Updated status."),
             tenantId,
             Permission.ManageCmmc);
         var response = await client.SendAsync(request);

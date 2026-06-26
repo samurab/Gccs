@@ -7,6 +7,7 @@ using Gccs.Application.Cmmc;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
+using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Audit;
@@ -41,7 +42,7 @@ public sealed class CmmcControlAssessmentDetailTests : IClassFixture<WebApplicat
         await using var factory = CreateFactory("tc-27-1-1", dbContext => SeedScenario(dbContext, ids));
         using var client = factory.CreateClient();
 
-        var updated = await UpdateControlAsync(client, ids, Request());
+        var updated = await UpdateControlAsync(client, ids, Request(ids));
 
         Assert.Equal(ControlImplementationStatus.Implemented, updated.Status);
         Assert.Equal(AssessmentResult.Met, updated.Result);
@@ -60,8 +61,8 @@ public sealed class CmmcControlAssessmentDetailTests : IClassFixture<WebApplicat
         var ids = StoryIds.ForCase("tc-27-1-3");
         await using var factory = CreateFactory("tc-27-1-3", dbContext => SeedScenario(dbContext, ids));
         using var client = factory.CreateClient();
-        await UpdateControlAsync(client, ids, Request() with { Status = ControlImplementationStatus.PartiallyImplemented, Result = AssessmentResult.NotMet, Notes = "First pass" });
-        var updated = await UpdateControlAsync(client, ids, Request() with { Notes = "Second pass" });
+        await UpdateControlAsync(client, ids, Request(ids) with { Status = ControlImplementationStatus.PartiallyImplemented, Result = AssessmentResult.NotMet, Notes = "First pass" });
+        var updated = await UpdateControlAsync(client, ids, Request(ids) with { Notes = "Second pass" });
 
         Assert.True(updated.StatusHistory.Count >= 2);
         Assert.Contains(updated.StatusHistory, history => history.Status == ControlImplementationStatus.PartiallyImplemented);
@@ -75,9 +76,9 @@ public sealed class CmmcControlAssessmentDetailTests : IClassFixture<WebApplicat
         await using var factory = CreateFactory("tc-27-1-4", dbContext => SeedScenario(dbContext, ids));
         using var client = factory.CreateClient();
 
-        using var otherTenant = CreateRequest(HttpMethod.Patch, $"/api/cmmc/assessments/{ids.AssessmentId}/controls/{ids.ControlId}", Request(), ids.OtherTenantId, Permission.ManageCmmc);
+        using var otherTenant = CreateRequest(HttpMethod.Patch, $"/api/cmmc/assessments/{ids.AssessmentId}/controls/{ids.ControlId}", Request(ids), ids.OtherTenantId, Permission.ManageCmmc);
         var otherTenantResponse = await client.SendAsync(otherTenant);
-        using var invalid = CreateRequest(HttpMethod.Patch, $"/api/cmmc/assessments/{ids.AssessmentId}/controls/{ids.ControlId}", Request() with { IsInherited = true, InheritedFrom = null }, ids.TenantId, Permission.ManageCmmc);
+        using var invalid = CreateRequest(HttpMethod.Patch, $"/api/cmmc/assessments/{ids.AssessmentId}/controls/{ids.ControlId}", Request(ids) with { IsInherited = true, InheritedFrom = null }, ids.TenantId, Permission.ManageCmmc);
         var invalidResponse = await client.SendAsync(invalid);
 
         Assert.Equal(HttpStatusCode.NotFound, otherTenantResponse.StatusCode);
@@ -90,7 +91,7 @@ public sealed class CmmcControlAssessmentDetailTests : IClassFixture<WebApplicat
         var ids = StoryIds.ForCase("tc-27-1-5");
         await using var factory = CreateFactory("tc-27-1-5", dbContext => SeedScenario(dbContext, ids));
         using var client = factory.CreateClient();
-        await UpdateControlAsync(client, ids, Request());
+        await UpdateControlAsync(client, ids, Request(ids));
 
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
@@ -110,11 +111,11 @@ public sealed class CmmcControlAssessmentDetailTests : IClassFixture<WebApplicat
             throw new InvalidOperationException("Expected CMMC control status.");
     }
 
-    private static UpsertCmmcControlStatusRequest Request() =>
+    private static UpsertCmmcControlStatusRequest Request(StoryIds ids) =>
         new(
             ControlImplementationStatus.Implemented,
             AssessmentResult.Met,
-            [],
+            [ids.EvidenceItemId],
             [],
             [],
             [],
@@ -194,6 +195,20 @@ public sealed class CmmcControlAssessmentDetailTests : IClassFixture<WebApplicat
             SourceLastReviewedAt = new DateOnly(2026, 6, 17),
             SourceConfidence = "high"
         });
+        dbContext.EvidenceItems.Add(new EvidenceItemEntity
+        {
+            Id = ids.EvidenceItemId,
+            TenantId = ids.TenantId,
+            Name = "Reviewed MFA evidence",
+            Description = "Reviewed evidence for control traceability.",
+            Type = EvidenceType.Policy,
+            OwnerFunction = "Security",
+            Status = EvidenceStatus.Approved,
+            TagsJson = "[]",
+            ApprovedByUserId = ids.AssessorUserId,
+            ApprovedAt = DateTimeOffset.UtcNow,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
     }
 
     private static TenantEntity CreateTenant(Guid tenantId) =>
@@ -206,7 +221,7 @@ public sealed class CmmcControlAssessmentDetailTests : IClassFixture<WebApplicat
             CreatedAt = DateTimeOffset.UtcNow
         };
 
-    private sealed record StoryIds(Guid TenantId, Guid OtherTenantId, Guid AssessmentId, string ControlId, Guid AssessorUserId)
+    private sealed record StoryIds(Guid TenantId, Guid OtherTenantId, Guid AssessmentId, string ControlId, Guid AssessorUserId, Guid EvidenceItemId)
     {
         public static StoryIds ForCase(string caseName)
         {
@@ -216,7 +231,8 @@ public sealed class CmmcControlAssessmentDetailTests : IClassFixture<WebApplicat
                 Guid.Parse($"27127127-1271-2712-7127-12712732{suffix:D4}"),
                 Guid.Parse($"27127127-1271-2712-7127-12712733{suffix:D4}"),
                 $"AC.L2-3.1.{suffix % 100:D2}",
-                Guid.Parse("27127127-1271-2712-7127-127127127199"));
+                Guid.Parse("27127127-1271-2712-7127-127127127199"),
+                Guid.Parse($"27127127-1271-2712-7127-12712734{suffix:D4}"));
         }
     }
 }

@@ -43,7 +43,7 @@ public sealed class CmmcResponsibilityMatrixTests : IClassFixture<WebApplication
         await using var factory = CreateFactory("tc-27-2-1", dbContext => SeedScenario(dbContext, ids, EvidenceRequestStatus.Accepted));
         using var client = factory.CreateClient();
 
-        var updated = await UpdateControlAsync(client, ids, ResponsibilityRequest());
+        var updated = await UpdateControlAsync(client, ids, ResponsibilityRequest(ids));
         var matrix = await GetMatrixAsync(client, ids);
 
         Assert.Equal(ControlResponsibilityType.Shared, updated.ResponsibilityType);
@@ -70,7 +70,7 @@ public sealed class CmmcResponsibilityMatrixTests : IClassFixture<WebApplication
         using var invalid = CreateRequest(
             HttpMethod.Patch,
             $"/api/cmmc/assessments/{ids.AssessmentId}/controls/{ids.ControlId}",
-            ResponsibilityRequest() with { ResponsibilityProvider = null, ResponsibilityNotes = null },
+            ResponsibilityRequest(ids) with { ResponsibilityProvider = null, ResponsibilityNotes = null },
             ids.TenantId,
             Permission.ManageCmmc);
         var invalidResponse = await client.SendAsync(invalid);
@@ -85,7 +85,7 @@ public sealed class CmmcResponsibilityMatrixTests : IClassFixture<WebApplication
         await using var factory = CreateFactory("tc-27-2-4", dbContext => SeedScenario(dbContext, ids, EvidenceRequestStatus.Submitted));
         using var client = factory.CreateClient();
 
-        await UpdateControlAsync(client, ids, ResponsibilityRequest());
+        await UpdateControlAsync(client, ids, ResponsibilityRequest(ids));
 
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
@@ -101,7 +101,7 @@ public sealed class CmmcResponsibilityMatrixTests : IClassFixture<WebApplication
         var ids = StoryIds.ForCase("tc-27-2-5");
         await using var factory = CreateFactory("tc-27-2-5", dbContext => SeedScenario(dbContext, ids, EvidenceRequestStatus.Returned));
         using var client = factory.CreateClient();
-        await UpdateControlAsync(client, ids, ResponsibilityRequest() with { ResponsibilityType = ControlResponsibilityType.MspEsp });
+        await UpdateControlAsync(client, ids, ResponsibilityRequest(ids) with { ResponsibilityType = ControlResponsibilityType.MspEsp });
 
         using var otherTenant = CreateRequest(HttpMethod.Get, $"/api/cmmc/assessments/{ids.AssessmentId}/responsibility-matrix", (object?)null, ids.OtherTenantId, Permission.ViewCmmc);
         var otherTenantResponse = await client.SendAsync(otherTenant);
@@ -138,11 +138,11 @@ public sealed class CmmcResponsibilityMatrixTests : IClassFixture<WebApplication
             throw new InvalidOperationException("Expected CMMC responsibility matrix.");
     }
 
-    private static UpsertCmmcControlStatusRequest ResponsibilityRequest() =>
+    private static UpsertCmmcControlStatusRequest ResponsibilityRequest(StoryIds ids) =>
         new(
             ControlImplementationStatus.Implemented,
             AssessmentResult.Met,
-            [],
+            [ids.EvidenceItemId],
             [],
             [],
             [],
@@ -240,6 +240,26 @@ public sealed class CmmcResponsibilityMatrixTests : IClassFixture<WebApplication
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedByUserId = ids.AssessorUserId
         });
+        dbContext.EvidenceItems.Add(new EvidenceItemEntity
+        {
+            Id = ids.EvidenceItemId,
+            TenantId = ids.TenantId,
+            Name = "Control ownership evidence",
+            Description = "Approved evidence supporting implemented control responsibility.",
+            Type = EvidenceType.Policy,
+            OwnerFunction = "Security",
+            Status = EvidenceStatus.Approved,
+            EffectiveAt = new DateOnly(2026, 8, 1),
+            TagsJson = "[]",
+            ApprovedAt = DateTimeOffset.UtcNow,
+            ApprovedByUserId = ids.AssessorUserId,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        dbContext.Set<EvidenceControlEntity>().Add(new EvidenceControlEntity
+        {
+            EvidenceItemId = ids.EvidenceItemId,
+            ControlId = ids.ControlId
+        });
     }
 
     private static TenantEntity CreateTenant(Guid tenantId) =>
@@ -252,7 +272,7 @@ public sealed class CmmcResponsibilityMatrixTests : IClassFixture<WebApplication
             CreatedAt = DateTimeOffset.UtcNow
         };
 
-    private sealed record StoryIds(Guid TenantId, Guid OtherTenantId, Guid AssessmentId, string ControlId, Guid AssessorUserId, Guid EvidenceRequestId)
+    private sealed record StoryIds(Guid TenantId, Guid OtherTenantId, Guid AssessmentId, string ControlId, Guid AssessorUserId, Guid EvidenceRequestId, Guid EvidenceItemId)
     {
         public static StoryIds ForCase(string caseName)
         {
@@ -263,7 +283,8 @@ public sealed class CmmcResponsibilityMatrixTests : IClassFixture<WebApplication
                 Guid.Parse($"27227227-2272-2722-7227-22722733{suffix:D4}"),
                 $"AC.L2-3.1.{suffix % 100:D2}",
                 Guid.Parse("27227227-2272-2722-7227-227227227199"),
-                Guid.Parse($"27227227-2272-2722-7227-22722734{suffix:D4}"));
+                Guid.Parse($"27227227-2272-2722-7227-22722734{suffix:D4}"),
+                Guid.Parse($"27227227-2272-2722-7227-22722735{suffix:D4}"));
         }
     }
 }

@@ -117,6 +117,14 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
             ids.ContributorUserId,
             RoleCatalog.Contributor,
             HttpStatusCode.Created);
+        await PostAsync<EvidenceReviewRequest, EvidenceReviewDto>(
+            client,
+            $"/api/evidence-items/{evidence.Id}/reviews",
+            new EvidenceReviewRequest(EvidenceReviewDecision.Approve, "Pilot evidence reviewed."),
+            ids,
+            ids.ComplianceManagerUserId,
+            RoleCatalog.ComplianceManager,
+            HttpStatusCode.Created);
         var assessment = await PostAsync<UpsertCmmcAssessmentRequest, CmmcAssessmentDto>(
             client,
             "/api/cmmc/assessments",

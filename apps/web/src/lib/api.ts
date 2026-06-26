@@ -470,6 +470,24 @@ export type CmmcControlStatus = {
   inheritedFrom: string | null;
   espResponsible: boolean;
   espName: string | null;
+  reviewedBy?: string | null;
+  reviewedAtUtc?: string | null;
+  reviewStatus?: string;
+  reviewNotes?: string;
+  linkedEvidence?: Array<{
+    id: string;
+    title: string;
+    reviewStatus: string;
+    reviewedBy: string | null;
+    reviewedAtUtc: string | null;
+  }>;
+  openPoamItems?: Array<{
+    id: string;
+    title: string;
+    severity: string;
+    status: string;
+    dueDate: string;
+  }>;
   statusHistory: CmmcControlStatusHistory[];
 };
 

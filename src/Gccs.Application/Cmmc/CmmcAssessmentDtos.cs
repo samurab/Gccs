@@ -74,7 +74,27 @@ public sealed record CmmcControlStatusDto(
     string OwnerFunction,
     string? ResponsibilityProvider,
     string ResponsibilityNotes,
-    IReadOnlyList<CmmcControlStatusHistoryDto> StatusHistory);
+    IReadOnlyList<CmmcControlStatusHistoryDto> StatusHistory,
+    Guid? ReviewedBy = null,
+    DateTimeOffset? ReviewedAtUtc = null,
+    string ReviewStatus = "",
+    string ReviewNotes = "",
+    IReadOnlyList<CmmcControlEvidenceTraceDto>? LinkedEvidence = null,
+    IReadOnlyList<CmmcControlPoamTraceDto>? OpenPoamItems = null);
+
+public sealed record CmmcControlEvidenceTraceDto(
+    Guid Id,
+    string Title,
+    string ReviewStatus,
+    Guid? ReviewedBy,
+    DateTimeOffset? ReviewedAtUtc);
+
+public sealed record CmmcControlPoamTraceDto(
+    Guid Id,
+    string Title,
+    RiskLevel Severity,
+    PoamStatus Status,
+    DateOnly DueDate);
 
 public sealed record CmmcControlLibraryDto(
     string ControlId,
@@ -179,6 +199,14 @@ public interface ICmmcAssessmentRepository
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 
+    Task<CmmcControlTraceabilityValidationResult?> ValidateControlTraceabilityAsync(
+        Guid assessmentId,
+        string controlId,
+        UpsertCmmcControlStatusRequest request,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<CmmcControlTraceabilityValidationResult?>(
+            new CmmcControlTraceabilityValidationResult([], [], [], []));
+
     Task<IReadOnlyList<CmmcResponsibilityMatrixRowDto>?> GetResponsibilityMatrixAsync(
         Guid assessmentId,
         CancellationToken cancellationToken = default);
@@ -191,3 +219,9 @@ public interface ICmmcAssessmentRepository
         Guid assessmentId,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record CmmcControlTraceabilityValidationResult(
+    IReadOnlyList<Guid> InvalidEvidenceItemIds,
+    IReadOnlyList<Guid> UnreviewedEvidenceItemIds,
+    IReadOnlyList<Guid> InvalidPoamItemIds,
+    IReadOnlyList<Guid> OpenPoamItemIds);

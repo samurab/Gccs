@@ -82,6 +82,18 @@ public sealed class CmmcAssessmentService(
             return null;
         }
 
+        var traceability = await repository.ValidateControlTraceabilityAsync(
+            assessmentId,
+            controlId.Trim(),
+            normalized,
+            cancellationToken);
+        if (traceability is null)
+        {
+            return null;
+        }
+
+        ValidateTraceabilityForStatus(normalized, traceability);
+
         var controlStatus = await repository.UpsertControlStatusAsync(
             assessmentId,
             controlId.Trim(),
@@ -234,6 +246,60 @@ public sealed class CmmcAssessmentService(
             string.IsNullOrWhiteSpace(request.ResponsibilityNotes))
         {
             throw new CmmcAssessmentValidationException("External or shared responsibility controls must include a provider or responsibility notes.");
+        }
+    }
+
+    private static void ValidateTraceabilityForStatus(
+        UpsertCmmcControlStatusRequest request,
+        CmmcControlTraceabilityValidationResult traceability)
+    {
+        if (traceability.InvalidEvidenceItemIds.Count > 0)
+        {
+            throw new CmmcAssessmentValidationException(
+                $"Evidence items must belong to the current tenant. Invalid evidence item ids: {string.Join(", ", traceability.InvalidEvidenceItemIds)}.");
+        }
+
+        if (traceability.InvalidPoamItemIds.Count > 0)
+        {
+            throw new CmmcAssessmentValidationException(
+                $"POA&M items must belong to the current tenant, assessment, and control. Invalid POA&M item ids: {string.Join(", ", traceability.InvalidPoamItemIds)}.");
+        }
+
+        if (request.Status is not ControlImplementationStatus.Implemented && request.Result is not AssessmentResult.Met)
+        {
+            return;
+        }
+
+        if ((request.Status is ControlImplementationStatus.Implemented) != (request.Result is AssessmentResult.Met))
+        {
+            throw new CmmcAssessmentValidationException("Implemented controls must have a Met assessment result, and Met results must use Implemented status.");
+        }
+
+        if (request.EvidenceItemIds.Count == 0)
+        {
+            throw new CmmcAssessmentValidationException("Implemented controls require at least one linked evidence item.");
+        }
+
+        if (traceability.UnreviewedEvidenceItemIds.Count > 0)
+        {
+            throw new CmmcAssessmentValidationException(
+                $"Implemented controls require approved evidence with review metadata. Unreviewed evidence item ids: {string.Join(", ", traceability.UnreviewedEvidenceItemIds)}.");
+        }
+
+        if (request.AssessedByUserId is null || request.AssessedAt is null)
+        {
+            throw new CmmcAssessmentValidationException("Implemented controls require reviewer identity and review date metadata.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Notes))
+        {
+            throw new CmmcAssessmentValidationException("Implemented controls require review notes.");
+        }
+
+        if (traceability.OpenPoamItemIds.Count > 0)
+        {
+            throw new CmmcAssessmentValidationException(
+                $"Implemented controls cannot have open linked POA&M items. Open POA&M item ids: {string.Join(", ", traceability.OpenPoamItemIds)}.");
         }
     }
 

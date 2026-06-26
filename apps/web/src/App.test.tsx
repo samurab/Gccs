@@ -523,7 +523,29 @@ const {
     poamItemIds: ["33333333-3333-3333-3333-333333333333"],
     assessedByUserId: null,
     assessedAt: "2026-06-15",
-    notes: "Evidence reviewed."
+    notes: "Evidence reviewed.",
+    reviewedBy: "99999999-9999-9999-9999-999999999999",
+    reviewedAtUtc: "2026-06-15T12:00:00Z",
+    reviewStatus: "Accepted",
+    reviewNotes: "Evidence reviewed.",
+    linkedEvidence: [
+      {
+        id: "edededed-eded-eded-eded-edededededed",
+        title: "Access control policy",
+        reviewStatus: "Approved",
+        reviewedBy: "99999999-9999-9999-9999-999999999999",
+        reviewedAtUtc: "2026-06-15T12:00:00Z"
+      }
+    ],
+    openPoamItems: [
+      {
+        id: "33333333-3333-3333-3333-333333333333",
+        title: "MFA evidence gap",
+        severity: "High",
+        status: "Open",
+        dueDate: "2026-07-15"
+      }
+    ]
   },
   cmmcPoamItem: {
     id: "p133p133-1331-4331-9331-133133133133",
@@ -2146,6 +2168,8 @@ describe("App", () => {
         malwareScanStatus: "scan-pending",
         message: "No-CUI acknowledgement is on record.",
         noticeVersion: "no-cui-mvp-v1",
+        attestationText:
+          "I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information.",
         expiresAt: "2026-06-14T12:15:00Z"
       },
       error: null
@@ -2164,12 +2188,18 @@ describe("App", () => {
     expect(fileInput).toBeEnabled();
 
     await user.upload(fileInput, new File(["policy"], "policy.pdf", { type: "application/pdf" }));
+    await user.click(
+      screen.getByLabelText(
+        /I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information/i
+      )
+    );
     await user.click(screen.getByRole("button", { name: /upload evidence/i }));
 
     expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(
       expect.objectContaining({ name: "policy.pdf", type: "application/pdf" }),
       "Unclassified",
-      "User confirmed upload classification."
+      "User confirmed upload classification.",
+      true
     );
     expect(await screen.findByText(/Upload intent created for policy.pdf/i)).toBeInTheDocument();
     expect(screen.getByText(/malware scan scan-pending/i)).toBeInTheDocument();
@@ -2202,12 +2232,18 @@ describe("App", () => {
 
     const fileInput = screen.getByLabelText("Evidence file");
     await user.upload(fileInput, new File(["policy"], "policy.pdf", { type: "application/pdf" }));
+    await user.click(
+      screen.getByLabelText(
+        /I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information/i
+      )
+    );
     await user.click(screen.getByRole("button", { name: /upload evidence/i }));
 
     expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(
       expect.objectContaining({ name: "policy.pdf", type: "application/pdf" }),
       "Unclassified",
-      "User confirmed upload classification."
+      "User confirmed upload classification.",
+      true
     );
     expect(await screen.findByText("File size exceeds the No-CUI MVP upload limit.")).toBeInTheDocument();
   });
@@ -2234,7 +2270,8 @@ describe("App", () => {
     const controlsRegion = screen.getByRole("region", { name: /cmmc control readiness/i });
     expect(within(controlsRegion).getByText("AC.L1-3.1.1 · Authorized access control")).toBeInTheDocument();
     expect(within(controlsRegion).getByText("Implemented · Met · CMMC Level 1 baseline reviewed 2026-06-15")).toBeInTheDocument();
-    expect(within(controlsRegion).getByText("Evidence 1 · Tasks 1 · Assets 1 · POA&M 1")).toBeInTheDocument();
+    expect(within(controlsRegion).getByText("Evidence: Access control policy (Approved)")).toBeInTheDocument();
+    expect(within(controlsRegion).getByText("Open POA&M: MFA evidence gap (Open, due 2026-07-15)")).toBeInTheDocument();
     expect(screen.getByText("AC.L1-3.1.1 · MFA evidence gap")).toBeInTheDocument();
     await user.clear(screen.getByLabelText("Assessment name"));
     await user.type(screen.getByLabelText("Assessment name"), "Level 2 workspace");
