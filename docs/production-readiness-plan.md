@@ -75,6 +75,7 @@ Before MVP launch candidate tagging.
 - `docs/production-readiness-open-story-readiness-review.md`
 - `docs/production-readiness-open-story-test-mapping.md`
 - `docs/production-readiness-risky-workflow-gate.md`
+- `docs/production-readiness-frozen-launch-scope.md`
 - `docs/software-delivery-plan.md`
 - `docs/mvp-execution-plan.md`
 - `docs/mvp-roadmap.md`

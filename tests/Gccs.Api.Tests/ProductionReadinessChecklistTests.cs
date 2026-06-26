@@ -297,6 +297,73 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_2_1_Frozen_launch_scope_lists_launch_critical_modules()
+    {
+        var scope = ReadText("docs", "production-readiness-frozen-launch-scope.md");
+        var plan = ReadText("docs", "production-readiness-plan.md");
+
+        Assert.Contains("docs/production-readiness-frozen-launch-scope.md", plan);
+        Assert.Contains("Scope status: Frozen.", scope);
+        Assert.Contains("Launch posture: No-CUI / compliance management only", scope);
+
+        foreach (var module in new[]
+        {
+            "Tenant and RBAC",
+            "Company profile",
+            "Contract intake",
+            "Obligation dashboard",
+            "Compliance calendar",
+            "Evidence vault",
+            "CMMC readiness",
+            "Subcontractor tracker",
+            "Reports and exports",
+            "Source-backed obligation library",
+            "Support and launch operations"
+        })
+        {
+            Assert.Contains($"| {module} |", scope);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_2_1_Phase_2_plus_scope_is_deferred_unless_launch_blocking()
+    {
+        var scope = ReadText("docs", "production-readiness-frozen-launch-scope.md");
+
+        Assert.Contains("## Deferred Phase 2+ Scope", scope);
+        Assert.Contains("Phase 2 or later work is deferred unless the product owner and engineering lead record evidence that it removes a production blocker.", scope);
+
+        foreach (var deferredScope in new[]
+        {
+            "Automated clause extraction",
+            "AI assistant",
+            "SSP builder and SPRS score calculator",
+            "eSRS support and advanced labor compliance",
+            "Prime contractor portal and auditor portal expansion",
+            "Enterprise SSO/SAML",
+            "Production `CuiReady` real-CUI acceptance"
+        })
+        {
+            Assert.Contains(deferredScope, scope);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_2_1_Known_limitations_and_scope_addition_approval_gate_are_documented()
+    {
+        var scope = ReadText("docs", "production-readiness-frozen-launch-scope.md");
+
+        Assert.Contains("## Known Limitations For Launch Notes", scope);
+        Assert.Contains("Real customer CUI", scope);
+        Assert.Contains("Malware scanning requires either an enabled production scanner or a formally approved launch exception", scope);
+        Assert.Contains("Compliance content is workflow guidance, not legal advice", scope);
+        Assert.Contains("## Scope-Change Approval Gate", scope);
+        Assert.Contains("Product owner approval", scope);
+        Assert.Contains("Engineering lead approval", scope);
+        Assert.Contains("New scope is rejected by default until the gate evidence is complete.", scope);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
