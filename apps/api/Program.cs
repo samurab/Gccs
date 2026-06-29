@@ -1426,8 +1426,9 @@ api.MapPost("/expert-review-items/{itemId:guid}/resolve", async (
 
 api.MapGet("/reports/approved-evidence-packages", async (
     IReportRepository repository,
+    ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
-    Results.Ok(await repository.ListApprovedEvidencePackagesAsync(cancellationToken)))
+    Results.Ok(await repository.ListApprovedEvidencePackagesAsync(tenantContext.TenantId, cancellationToken)))
 .RequirePermission(Permission.ViewReports)
 .WithName("ListApprovedEvidencePackages");
 

@@ -5,6 +5,7 @@ namespace Gccs.Application.Reports;
 public interface IReportRepository
 {
     Task<IReadOnlyList<ApprovedEvidencePackageDto>> ListApprovedEvidencePackagesAsync(
+        Guid tenantId,
         CancellationToken cancellationToken = default);
 
     Task<ComplianceStatusReportDto> GenerateComplianceStatusReportAsync(

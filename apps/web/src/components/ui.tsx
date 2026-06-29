@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 
 type Tone = "neutral" | "success" | "warning" | "danger" | "info";
 type Size = "sm" | "md";
@@ -36,13 +36,33 @@ export function WorkspaceMetricStrip({ items }: { items: WorkspaceMetric[] }) {
   return (
     <section className="workspace-metric-strip" aria-label="Workspace priority summary">
       {items.map((item) => (
-        <div className={`workspace-metric workspace-metric--${item.tone ?? "neutral"}`} key={item.label}>
-          <span>{item.label}</span>
-          <strong>{item.value}</strong>
-          {item.hint ? <small>{item.hint}</small> : null}
-        </div>
+        <MetricTile className="workspace-metric" hint={item.hint} key={item.label} label={item.label} tone={item.tone} value={item.value} />
       ))}
     </section>
+  );
+}
+
+export function MetricTile({
+  className,
+  hint,
+  label,
+  tone = "neutral",
+  value
+}: {
+  className?: string;
+  hint?: string;
+  label: string;
+  tone?: Tone;
+  value: ReactNode;
+}) {
+  const classes = ["ui-metric-tile", `ui-metric-tile--${tone}`, className, className ? `${className}--${tone}` : undefined].filter(Boolean).join(" ");
+
+  return (
+    <div className={classes}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {hint ? <small>{hint}</small> : null}
+    </div>
   );
 }
 
@@ -110,6 +130,108 @@ export function RiskBadge({ level }: { level: string }) {
   const tone: Tone = normalized.includes("critical") || normalized.includes("high") ? "danger" : normalized.includes("medium") ? "warning" : "success";
 
   return <span className={`ui-risk-badge ui-risk-badge--${tone}`}>{level}</span>;
+}
+
+export function DataRow({
+  items
+}: {
+  items: Array<{ label: string; value: ReactNode; tone?: Tone }>;
+}) {
+  return (
+    <dl className="ui-data-row">
+      {items.map((item) => (
+        <div className={item.tone ? `ui-data-row__item ui-data-row__item--${item.tone}` : "ui-data-row__item"} key={item.label}>
+          <dt>{item.label}</dt>
+          <dd>{item.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+export function TaskCard({
+  actions,
+  badges,
+  children,
+  className,
+  meta,
+  summary,
+  title
+}: {
+  actions?: ReactNode;
+  badges?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+  meta?: Array<{ label: string; value: ReactNode; tone?: Tone }>;
+  summary?: ReactNode;
+  title: ReactNode;
+}) {
+  const classes = ["ui-task-card", className].filter(Boolean).join(" ");
+
+  return (
+    <article className={classes}>
+      <div className="ui-task-card__header">
+        <div>
+          {badges ? <div className="ui-task-card__badges">{badges}</div> : null}
+          <h3>{title}</h3>
+        </div>
+        {actions ? <div className="ui-task-card__actions">{actions}</div> : null}
+      </div>
+      {summary ? <p>{summary}</p> : null}
+      {meta ? <DataRow items={meta} /> : null}
+      {children}
+    </article>
+  );
+}
+
+export function WorkflowColumn({
+  ariaLabel,
+  children,
+  description,
+  title
+}: {
+  ariaLabel?: string;
+  children: ReactNode;
+  description?: string;
+  title: string;
+}) {
+  return (
+    <section aria-label={ariaLabel ?? title} className="ui-workflow-column">
+      <div className="ui-workflow-column__header">
+        <h3>{title}</h3>
+        {description ? <p>{description}</p> : null}
+      </div>
+      <div className="ui-workflow-column__body">{children}</div>
+    </section>
+  );
+}
+
+export function NavItem({
+  active,
+  children,
+  className,
+  description,
+  icon,
+  label,
+  ...props
+}: AnchorHTMLAttributes<HTMLAnchorElement> & {
+  active?: boolean;
+  description?: string;
+  icon?: ReactNode;
+  label: string;
+}) {
+  const classes = ["ui-nav-item", className].filter(Boolean).join(" ");
+
+  return (
+    <a aria-current={active ? "page" : undefined} className={classes} {...props}>
+      {icon}
+      <span>
+        <strong>{label}</strong>
+        {description ? <small>{description}</small> : null}
+        {children}
+      </span>
+    </a>
+  );
 }
 
 export function Panel({

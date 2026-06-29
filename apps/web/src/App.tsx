@@ -23,7 +23,18 @@ import {
 } from "lucide-react";
 import { type FormEvent, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { ModuleCard } from "@/components/ModuleCard";
-import { Alert, DataHandlingBadge, LoadingState, PageHeader, RiskBadge, StatusPill, WorkspaceMetricStrip } from "@/components/ui";
+import {
+  Alert,
+  DataHandlingBadge,
+  LoadingState,
+  MetricTile,
+  PageHeader,
+  RiskBadge,
+  StatusPill,
+  TaskCard,
+  WorkflowColumn,
+  WorkspaceMetricStrip
+} from "@/components/ui";
 import {
   acknowledgeNoCuiNotice,
   acknowledgeSharedResponsibilityMatrix,
@@ -876,6 +887,8 @@ export function App() {
           setContractClauses([]);
           setContractDeliverables([]);
           setContractDocuments([]);
+          setExtractionJobsByDocumentId({});
+          setExtractionResultsByDocumentId({});
           setCalendarEvents([]);
           setCalendarStatus("idle");
           setSelectedContractId(null);
@@ -883,6 +896,7 @@ export function App() {
           setAuditLogStatus("idle");
           setNoCuiAcknowledgement(fallbackNoCuiAcknowledgementStatus);
           setEvidenceItems([]);
+          setClassificationReviewItems([]);
           setCmmcAssessments([]);
           setCmmcControls([]);
           setCmmcPoamItems([]);
@@ -2746,22 +2760,10 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
       </section>
 
       <section className="metrics-grid" aria-label="Workspace metrics">
-        <div className="metric">
-          <span>Priority obligations</span>
-          <strong>{overview.priorityObligations.length}</strong>
-        </div>
-        <div className="metric">
-          <span>MVP modules</span>
-          <strong>{overview.modules.length}</strong>
-        </div>
-        <div className="metric">
-          <span>Evidence posture</span>
-          <strong>No-CUI</strong>
-        </div>
-        <div className="metric">
-          <span>Source status</span>
-          <strong>Seeded</strong>
-        </div>
+        <MetricTile className="metric" label="Priority obligations" tone="success" value={overview.priorityObligations.length} />
+        <MetricTile className="metric" label="MVP modules" tone="success" value={overview.modules.length} />
+        <MetricTile className="metric" label="Evidence posture" tone="success" value="No-CUI" />
+        <MetricTile className="metric" label="Source status" tone="success" value="Seeded" />
       </section>
 
       <section className="work-grid" aria-label="Dashboard alerts">
@@ -2773,23 +2775,19 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
           <div className="obligation-list">
             {hasAlerts ? (
               overview.alerts.map((alert) => (
-                <article key={`${alert.alertType}-${alert.entityType}-${alert.entityId}`} className="obligation-item">
-                  <div>
+                <TaskCard
+                  badges={
                     <span className={`risk risk--${alert.severity.toLowerCase()}`}>{alert.severity}</span>
-                    <h3>{alert.title}</h3>
-                  </div>
-                  <p>{alert.message}</p>
-                  <dl>
-                    <div>
-                      <dt>Type</dt>
-                      <dd>{formatEnumLabel(alert.alertType)}</dd>
-                    </div>
-                    <div>
-                      <dt>Detected</dt>
-                      <dd>{alert.detectedUtc}</dd>
-                    </div>
-                  </dl>
-                </article>
+                  }
+                  className="obligation-item"
+                  key={`${alert.alertType}-${alert.entityType}-${alert.entityId}`}
+                  meta={[
+                    { label: "Type", value: formatEnumLabel(alert.alertType) },
+                    { label: "Detected", value: alert.detectedUtc }
+                  ]}
+                  summary={alert.message}
+                  title={alert.title}
+                />
               ))
             ) : (
               <EmptyState
@@ -2830,23 +2828,19 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
           <div className="obligation-list">
             {hasPriorityObligations ? (
               overview.priorityObligations.map((obligation) => (
-                <article key={obligation.id} className="obligation-item">
-                  <div>
+                <TaskCard
+                  badges={
                     <span className={`risk risk--${obligation.riskLevel.toLowerCase()}`}>{obligation.riskLevel}</span>
-                    <h3>{obligation.source}</h3>
-                  </div>
-                  <p>{obligation.title}</p>
-                  <dl>
-                    <div>
-                      <dt>Owner</dt>
-                      <dd>{formatOwnerLabel(obligation.ownerFunction)}</dd>
-                    </div>
-                    <div>
-                      <dt>Reviewed</dt>
-                      <dd>{obligation.lastReviewedAt}</dd>
-                    </div>
-                  </dl>
-                </article>
+                  }
+                  className="obligation-item"
+                  key={obligation.id}
+                  meta={[
+                    { label: "Owner", value: formatOwnerLabel(obligation.ownerFunction) },
+                    { label: "Reviewed", value: obligation.lastReviewedAt }
+                  ]}
+                  summary={obligation.title}
+                  title={obligation.source}
+                />
               ))
             ) : (
               <EmptyState
@@ -3199,33 +3193,44 @@ function ObligationsView({
         <LoadingState label="Loading obligation work queue" />
       ) : items.length > 0 ? (
         <div className="obligation-dashboard-list" aria-label="Tenant obligation work queue">
-          {items.map((item) => (
-            <article
-              key={item.id}
-              className={`obligation-dashboard-item${item.id === selectedDetailId ? " obligation-dashboard-item--selected" : ""}${
-                item.isOverdue ? " obligation-dashboard-item--overdue" : ""}${
-                item.isHighRisk ? " obligation-dashboard-item--high-risk" : ""
-              }`}
-            >
-              <div className="obligation-dashboard-item__main">
-                <div className="obligation-dashboard-item__badges">
-                  <span aria-label={`${item.riskLevel} risk obligation`}>
-                    <RiskBadge level={item.riskLevel} />
-                  </span>
-                  {item.isOverdue ? (
-                    <span className="status status--overdue" aria-label="Overdue obligation">
-                      <AlertTriangle size={14} aria-hidden="true" />
-                      Overdue
+          {items.map((item) => {
+            const itemClasses = `obligation-dashboard-item${item.id === selectedDetailId ? " obligation-dashboard-item--selected" : ""}${
+              item.isOverdue ? " obligation-dashboard-item--overdue" : ""
+            }${item.isHighRisk ? " obligation-dashboard-item--high-risk" : ""}`;
+
+            return (
+              <TaskCard
+                actions={
+                  <button
+                    className="secondary-action obligation-detail-button"
+                    type="button"
+                    aria-pressed={item.id === selectedDetailId}
+                    onClick={() => {
+                      setRequestedDetailId(item.id);
+                      void onDetailSelect(item);
+                    }}
+                  >
+                    {detailStatus === "loading" && item.id === requestedDetailId ? "Loading details" : "View details"}
+                  </button>
+                }
+                badges={
+                  <>
+                    <span aria-label={`${item.riskLevel} risk obligation`}>
+                      <RiskBadge level={item.riskLevel} />
                     </span>
-                  ) : null}
-                  <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
-                  <StatusPill label={`${formatEnumLabel(item.confidence)} confidence`} tone={confidenceTone(item.confidence)} />
-                </div>
-                <h3>{item.title}</h3>
-                <p>{item.plainEnglishSummary}</p>
-              </div>
-              <ScanMeta
-                items={[
+                    {item.isOverdue ? (
+                      <span className="status status--overdue" aria-label="Overdue obligation">
+                        <AlertTriangle size={14} aria-hidden="true" />
+                        Overdue
+                      </span>
+                    ) : null}
+                    <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
+                    <StatusPill label={`${formatEnumLabel(item.confidence)} confidence`} tone={confidenceTone(item.confidence)} />
+                  </>
+                }
+                className={itemClasses}
+                key={item.id}
+                meta={[
                   { label: "Contract", value: item.contractNumber },
                   { label: "Owner", value: formatOwnerLabel(item.ownerFunction) },
                   { label: "Due", value: item.dueAt ?? "No date", tone: item.isOverdue ? "danger" : "neutral" },
@@ -3242,23 +3247,15 @@ function ObligationsView({
                   { label: "Evidence", value: `${item.evidenceExamples.length} required` },
                   { label: "Review gate", value: item.requiresExpertReview ? "Expert review" : "Workflow guidance" }
                 ]}
-              />
-              <p className="obligation-required-action">{item.requiredAction}</p>
-              <EvidenceRequirementChips items={item.evidenceExamples} />
-              <DataQualityWarnings warnings={obligationQualityWarnings(item)} />
-              <button
-                className="secondary-action obligation-detail-button"
-                type="button"
-                aria-pressed={item.id === selectedDetailId}
-                onClick={() => {
-                  setRequestedDetailId(item.id);
-                  void onDetailSelect(item);
-                }}
+                summary={item.plainEnglishSummary}
+                title={item.title}
               >
-                {detailStatus === "loading" && item.id === requestedDetailId ? "Loading details" : "View details"}
-              </button>
-            </article>
-          ))}
+                <p className="obligation-required-action">{item.requiredAction}</p>
+                <EvidenceRequirementChips items={item.evidenceExamples} />
+                <DataQualityWarnings warnings={obligationQualityWarnings(item)} />
+              </TaskCard>
+            );
+          })}
         </div>
       ) : (
         <EmptyState
@@ -5201,50 +5198,48 @@ function CmmcView({
         ) : null}
       </form>
 
-      <section className="cmmc-assessments" aria-label="CMMC readiness assessments">
-        <div className="section-heading--split">
-          <div>
-            <h3>Readiness assessments</h3>
-            <p>Completion progress is calculated from control statuses as the workspace fills in.</p>
-          </div>
-        </div>
+      <WorkflowColumn
+        ariaLabel="CMMC readiness assessments"
+        title="Readiness assessments"
+        description="Completion progress is calculated from control statuses as the workspace fills in."
+      >
         {assessments.length > 0 ? (
           <div className="evidence-list">
             {assessments.map((assessment) => (
-              <article className="evidence-list__item" key={assessment.id}>
-                <strong>{assessment.name}</strong>
-                <div className="scan-pill-row">
-                  <StatusPill label={formatCmmcLevel(assessment.level)} tone="info" />
-                  <StatusPill label={formatEnumLabel(assessment.status)} tone={statusTone(assessment.status)} />
-                  {assessment.overduePoamItemCount > 0 ? <StatusPill label={`${assessment.overduePoamItemCount} overdue POA&M`} tone="danger" /> : null}
-                </div>
-                <ScanMeta
-                  items={[
-                    { label: "Owner", value: formatOwnerLabel(assessment.ownerFunction) },
-                    { label: "Complete", value: `${assessment.controlSummary.completionPercentage}%` },
-                    { label: "Implemented", value: `${assessment.controlSummary.implemented}/${assessment.controlSummary.total}` },
-                    { label: "Affirmation due", value: assessment.affirmationDueAt ?? "Not scheduled" },
-                    { label: "Open POA&M", value: assessment.openPoamItemCount, tone: assessment.openPoamItemCount > 0 ? "warning" : "success" }
-                  ]}
-                />
+              <TaskCard
+                badges={
+                  <>
+                    <StatusPill label={formatCmmcLevel(assessment.level)} tone="info" />
+                    <StatusPill label={formatEnumLabel(assessment.status)} tone={statusTone(assessment.status)} />
+                    {assessment.overduePoamItemCount > 0 ? <StatusPill label={`${assessment.overduePoamItemCount} overdue POA&M`} tone="danger" /> : null}
+                  </>
+                }
+                key={assessment.id}
+                meta={[
+                  { label: "Owner", value: formatOwnerLabel(assessment.ownerFunction) },
+                  { label: "Complete", value: `${assessment.controlSummary.completionPercentage}%` },
+                  { label: "Implemented", value: `${assessment.controlSummary.implemented}/${assessment.controlSummary.total}` },
+                  { label: "Affirmation due", value: assessment.affirmationDueAt ?? "Not scheduled" },
+                  { label: "Open POA&M", value: assessment.openPoamItemCount, tone: assessment.openPoamItemCount > 0 ? "warning" : "success" }
+                ]}
+                title={assessment.name}
+              >
                 <span className="legacy-summary">
                   POA&M {assessment.openPoamItemCount} open · {assessment.overduePoamItemCount} overdue
                 </span>
-              </article>
+              </TaskCard>
             ))}
           </div>
         ) : (
           <EmptyState title="No CMMC assessment has started yet" body="Create a Level 1 or Level 2 workspace to begin tracking readiness." />
         )}
-      </section>
+      </WorkflowColumn>
 
-      <section className="cmmc-controls" aria-label="CMMC control readiness">
-        <div className="section-heading--split">
-          <div>
-            <h3>Control readiness</h3>
-            <p>Source baseline, readiness status, and linked work items for the selected assessment.</p>
-          </div>
-        </div>
+      <WorkflowColumn
+        ariaLabel="CMMC control readiness"
+        title="Control readiness"
+        description="Source baseline, readiness status, and linked work items for the selected assessment."
+      >
         {controls.length > 0 ? (
           <div className="evidence-list">
             {controls.map((control) => {
@@ -5252,24 +5247,26 @@ function CmmcView({
               const openPoams = control.openPoamItems ?? [];
 
               return (
-                <article className="evidence-list__item" key={control.controlId}>
-                  <strong>{control.controlId} · {control.title}</strong>
-                  <div className="scan-pill-row">
-                    <StatusPill label={formatEnumLabel(control.status)} tone={statusTone(control.status)} />
-                    <StatusPill label={formatEnumLabel(control.result)} tone={statusTone(control.result)} />
-                    <StatusPill label={`${formatEnumLabel(control.sourceConfidence)} confidence`} tone={confidenceTone(control.sourceConfidence)} />
-                  </div>
-                  <ScanMeta
-                    items={[
-                      { label: "Family", value: control.family },
-                      { label: "Source", value: control.sourceName },
-                      { label: "Reviewed", value: control.sourceLastReviewedAt },
-                      { label: "Evidence", value: linkedEvidence.length, tone: linkedEvidence.length > 0 ? "success" : "warning" },
-                      { label: "Tasks", value: control.taskIds.length },
-                      { label: "Assets", value: control.assetIds.length },
-                      { label: "Open POA&M", value: openPoams.length, tone: openPoams.length > 0 ? "warning" : "neutral" }
-                    ]}
-                  />
+                <TaskCard
+                  badges={
+                    <>
+                      <StatusPill label={formatEnumLabel(control.status)} tone={statusTone(control.status)} />
+                      <StatusPill label={formatEnumLabel(control.result)} tone={statusTone(control.result)} />
+                      <StatusPill label={`${formatEnumLabel(control.sourceConfidence)} confidence`} tone={confidenceTone(control.sourceConfidence)} />
+                    </>
+                  }
+                  key={control.controlId}
+                  meta={[
+                    { label: "Family", value: control.family },
+                    { label: "Source", value: control.sourceName },
+                    { label: "Reviewed", value: control.sourceLastReviewedAt },
+                    { label: "Evidence", value: linkedEvidence.length, tone: linkedEvidence.length > 0 ? "success" : "warning" },
+                    { label: "Tasks", value: control.taskIds.length },
+                    { label: "Assets", value: control.assetIds.length },
+                    { label: "Open POA&M", value: openPoams.length, tone: openPoams.length > 0 ? "warning" : "neutral" }
+                  ]}
+                  title={`${control.controlId} · ${control.title}`}
+                >
                   <span className="legacy-summary">
                     {control.status} · {control.result} · {control.sourceName} reviewed {control.sourceLastReviewedAt}
                   </span>
@@ -5292,22 +5289,20 @@ function CmmcView({
                     Tasks {control.taskIds.length} · Assets {control.assetIds.length}
                   </span>
                   <DataQualityWarnings warnings={cmmcControlQualityWarnings(control)} />
-                </article>
+                </TaskCard>
               );
             })}
           </div>
         ) : (
           <EmptyState title="No controls loaded yet" body="Controls appear after a selected assessment has a Level 1 or Level 2 baseline." />
         )}
-      </section>
+      </WorkflowColumn>
 
-      <section className="cmmc-poam" aria-label="CMMC POA&M remediation">
-        <div className="section-heading--split">
-          <div>
-            <h3>POA&M remediation</h3>
-            <p>Track control gaps, remediation owners, due dates, risk, and task-backed calendar work.</p>
-          </div>
-        </div>
+      <WorkflowColumn
+        ariaLabel="CMMC POA&M remediation"
+        title="POA&M remediation"
+        description="Track control gaps, remediation owners, due dates, risk, and task-backed calendar work."
+      >
         <form className="cmmc-create" onSubmit={submitPoam}>
           <fieldset disabled={!canManageCmmc || poamStatus === "saving" || assessments.length === 0 || controls.length === 0}>
             <div className="form-grid">
@@ -5403,33 +5398,35 @@ function CmmcView({
         {poamItems.length > 0 ? (
           <div className="evidence-list">
             {poamItems.map((item) => (
-              <article className="evidence-list__item" key={item.id}>
-                <strong>{item.controlId} · {item.weakness}</strong>
-                <div className="scan-pill-row">
-                  <RiskBadge level={item.riskLevel} />
-                  <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
-                  {item.isOverdue ? <StatusPill label="Overdue" tone="danger" /> : null}
-                </div>
-                <ScanMeta
-                  items={[
-                    { label: "Owner", value: formatOwnerLabel(item.ownerFunction) },
-                    { label: "Due", value: item.targetCompletionAt, tone: item.isOverdue ? "danger" : "neutral" },
-                    { label: "Task", value: item.remediationTaskId ? "Linked" : "Not linked" },
-                    { label: "Evidence", value: item.evidenceItemIds.length, tone: item.evidenceItemIds.length > 0 ? "success" : "warning" }
-                  ]}
-                />
+              <TaskCard
+                badges={
+                  <>
+                    <RiskBadge level={item.riskLevel} />
+                    <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
+                    {item.isOverdue ? <StatusPill label="Overdue" tone="danger" /> : null}
+                  </>
+                }
+                key={item.id}
+                meta={[
+                  { label: "Owner", value: formatOwnerLabel(item.ownerFunction) },
+                  { label: "Due", value: item.targetCompletionAt, tone: item.isOverdue ? "danger" : "neutral" },
+                  { label: "Task", value: item.remediationTaskId ? "Linked" : "Not linked" },
+                  { label: "Evidence", value: item.evidenceItemIds.length, tone: item.evidenceItemIds.length > 0 ? "success" : "warning" }
+                ]}
+                title={`${item.controlId} · ${item.weakness}`}
+              >
                 <span>{item.plannedRemediation}</span>
                 <span className="legacy-summary">
                   Task {item.remediationTaskId ? "linked" : "not linked"} · Evidence {item.evidenceItemIds.length}
                   {item.isOverdue ? " · overdue" : ""}
                 </span>
-              </article>
+              </TaskCard>
             ))}
           </div>
         ) : (
           <EmptyState title="No POA&M items yet" body="Create remediation items for control gaps that need owner-tracked follow-up." />
         )}
-      </section>
+      </WorkflowColumn>
     </section>
   );
 }
@@ -6855,11 +6852,15 @@ function EvidenceView({
         <div className="evidence-list">
           {classificationReviewItems.length > 0 ? (
             classificationReviewItems.map((item) => (
-              <article className="evidence-list__item" key={`${item.entityType}-${item.entityId}`}>
-                <strong>{item.title}</strong>
-                <span>{item.entityType} · {item.reviewRoute}</span>
-                <ClassificationBadge classification={item.classification.classification} />
-              </article>
+              <TaskCard
+                badges={<ClassificationBadge classification={item.classification.classification} />}
+                key={`${item.entityType}-${item.entityId}`}
+                meta={[
+                  { label: "Entity", value: item.entityType },
+                  { label: "Route", value: item.reviewRoute }
+                ]}
+                title={item.title}
+              />
             ))
           ) : (
             <EmptyState title="No classification reviews" body="Unknown and prohibited content will appear here for reviewer action." />
@@ -7517,38 +7518,50 @@ function SharedResponsibilityMatrixPanel({
               <strong>{matrix.rows.length}</strong>
             </div>
           </div>
-          <div className="member-table" role="table" aria-label="Shared responsibility matrix rows">
-            <div className="member-row member-row--header" role="row">
-              <span role="columnheader">Category</span>
-              <span role="columnheader">Owner</span>
-              <span role="columnheader">Notes</span>
-              <span role="columnheader">Review</span>
+          <div className="table-section">
+            <div className="table-section__header">
+              <h3>Responsibility rows</h3>
+              <p>Control ownership and review accountability for the active shared responsibility baseline.</p>
             </div>
-            {matrix.rows.map((row) => (
-              <article className="member-row" role="row" key={row.category}>
-                <span role="cell">{formatResponsibilityCategory(row.category)}</span>
-                <span role="cell">{row.responsibility}</span>
-                <span role="cell">{row.notes}</span>
-                <span role="cell">{row.reviewOwner} · {row.effectiveAt}</span>
-              </article>
-            ))}
-          </div>
-          {acknowledgements.length > 0 ? (
-            <div className="member-table" role="table" aria-label="Shared responsibility matrix acknowledgement history">
+            <div className="member-table member-table--matrix" role="table" aria-label="Shared responsibility matrix rows">
               <div className="member-row member-row--header" role="row">
-                <span role="columnheader">Version</span>
-                <span role="columnheader">Status</span>
-                <span role="columnheader">Acknowledged</span>
-                <span role="columnheader">User</span>
+                <span role="columnheader">Category</span>
+                <span role="columnheader">Owner</span>
+                <span role="columnheader">Notes</span>
+                <span role="columnheader">Review</span>
               </div>
-              {acknowledgements.map((acknowledgement) => (
-                <article className="member-row" role="row" key={acknowledgement.id}>
-                  <span role="cell">{acknowledgement.matrixVersion}</span>
-                  <span role="cell">{acknowledgement.status}</span>
-                  <span role="cell">{new Date(acknowledgement.acknowledgedAt).toLocaleString()}</span>
-                  <span role="cell">{acknowledgement.acknowledgedByUserId}</span>
+              {matrix.rows.map((row) => (
+                <article className="member-row" role="row" key={row.category}>
+                  <span role="cell">{formatResponsibilityCategory(row.category)}</span>
+                  <span role="cell">{row.responsibility}</span>
+                  <span role="cell">{row.notes}</span>
+                  <span role="cell">{row.reviewOwner} · {row.effectiveAt}</span>
                 </article>
               ))}
+            </div>
+          </div>
+          {acknowledgements.length > 0 ? (
+            <div className="table-section">
+              <div className="table-section__header">
+                <h3>Acknowledgement history</h3>
+                <p>Users who acknowledged the published matrix version for this tenant.</p>
+              </div>
+              <div className="member-table member-table--acknowledgements" role="table" aria-label="Shared responsibility matrix acknowledgement history">
+                <div className="member-row member-row--header" role="row">
+                  <span role="columnheader">Version</span>
+                  <span role="columnheader">Status</span>
+                  <span role="columnheader">Acknowledged</span>
+                  <span role="columnheader">User</span>
+                </div>
+                {acknowledgements.map((acknowledgement) => (
+                  <article className="member-row" role="row" key={acknowledgement.id}>
+                    <span role="cell">{acknowledgement.matrixVersion}</span>
+                    <span role="cell">{acknowledgement.status}</span>
+                    <span role="cell">{new Date(acknowledgement.acknowledgedAt).toLocaleString()}</span>
+                    <span role="cell">{acknowledgement.acknowledgedByUserId}</span>
+                  </article>
+                ))}
+              </div>
             </div>
           ) : (
             <p className="form-status form-status--error">Current matrix acknowledgement is required before CUI-ready approval.</p>
@@ -7670,21 +7683,27 @@ function TenantModePanel({
         <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
       ) : null}
       {history.length > 0 ? (
-        <div className="member-table" role="table" aria-label="Tenant data handling mode history">
-          <div className="member-row member-row--header" role="row">
-            <span role="columnheader">Changed</span>
-            <span role="columnheader">Previous</span>
-            <span role="columnheader">New</span>
-            <span role="columnheader">Reason</span>
+        <div className="table-section">
+          <div className="table-section__header">
+            <h3>Mode change history</h3>
+            <p>Server-recorded tenant mode changes used to verify upload and report posture changes.</p>
           </div>
-          {history.map((entry) => (
-            <article className="member-row" role="row" key={entry.id}>
-              <span role="cell">{new Date(entry.changedAt).toLocaleString()}</span>
-              <span role="cell">{entry.previousMode ?? "Initial"}</span>
-              <span role="cell">{entry.newMode}</span>
-              <span role="cell">{entry.reason}</span>
-            </article>
-          ))}
+          <div className="member-table member-table--mode-history" role="table" aria-label="Tenant data handling mode history">
+            <div className="member-row member-row--header" role="row">
+              <span role="columnheader">Changed</span>
+              <span role="columnheader">Previous</span>
+              <span role="columnheader">New</span>
+              <span role="columnheader">Reason</span>
+            </div>
+            {history.map((entry) => (
+              <article className="member-row" role="row" key={entry.id}>
+                <span role="cell">{new Date(entry.changedAt).toLocaleString()}</span>
+                <span role="cell">{entry.previousMode ?? "Initial"}</span>
+                <span role="cell">{entry.newMode}</span>
+                <span role="cell">{entry.reason}</span>
+              </article>
+            ))}
+          </div>
         </div>
       ) : (
         <EmptyState title="No mode history yet" body="Tenant mode changes will appear here after the first recorded event." />
@@ -7918,33 +7937,39 @@ function SettingsView({
               </p>
             </div>
             {members.length > 0 ? (
-              <div className="member-table" role="table" aria-label="Current tenant members">
-                <div className="member-row member-row--header" role="row">
-                  <span role="columnheader">Member</span>
-                  <span role="columnheader">Role</span>
-                  <span role="columnheader">Status</span>
-                  <span role="columnheader">MFA</span>
+              <div className="table-section">
+                <div className="table-section__header">
+                  <h3>Current members</h3>
+                  <p>People with active tenant access and their assigned role posture.</p>
                 </div>
-                {members.map((member) => (
-                  <article className="member-row" role="row" key={member.membershipId}>
-                    <span className="member-person" role="cell">
-                      <span className="icon-box icon-box--small" aria-hidden="true">
-                        <UsersRound size={17} />
+                <div className="member-table member-table--members" role="table" aria-label="Current tenant members">
+                  <div className="member-row member-row--header" role="row">
+                    <span role="columnheader">Member</span>
+                    <span role="columnheader">Role</span>
+                    <span role="columnheader">Status</span>
+                    <span role="columnheader">MFA</span>
+                  </div>
+                  {members.map((member) => (
+                    <article className="member-row" role="row" key={member.membershipId}>
+                      <span className="member-person" role="cell">
+                        <span className="icon-box icon-box--small" aria-hidden="true">
+                          <UsersRound size={17} />
+                        </span>
+                        <span>
+                          <strong>{member.displayName}</strong>
+                          <small>{member.email}</small>
+                        </span>
                       </span>
-                      <span>
-                        <strong>{member.displayName}</strong>
-                        <small>{member.email}</small>
+                      <span role="cell">{member.roleName}</span>
+                      <span role="cell">
+                        <span className={`status status--${member.membershipStatus.toLowerCase()}`}>
+                          {member.membershipStatus}
+                        </span>
                       </span>
-                    </span>
-                    <span role="cell">{member.roleName}</span>
-                    <span role="cell">
-                      <span className={`status status--${member.membershipStatus.toLowerCase()}`}>
-                        {member.membershipStatus}
-                      </span>
-                    </span>
-                    <span role="cell">{member.mfaEnabled ? "Enabled" : "Not enabled"}</span>
-                  </article>
-                ))}
+                      <span role="cell">{member.mfaEnabled ? "Enabled" : "Not enabled"}</span>
+                    </article>
+                  ))}
+                </div>
               </div>
             ) : (
               <EmptyState title="No tenant members available" body="Team membership is loaded from the active tenant context." />
@@ -8025,7 +8050,7 @@ function SettingsView({
 
       {canViewAuditLog ? (
         <section className="members-section" aria-label="Audit log viewer">
-          <div className="section-heading section-heading--split">
+          <div className="section-heading section-heading--split audit-log-heading">
             <div>
               <p className="eyebrow">Audit trail</p>
               <h2>Audit log</h2>
@@ -8033,7 +8058,7 @@ function SettingsView({
                 Filter by Action and Entity, then verify the expected text in the results table Summary column. From and To are optional date filters.
               </p>
             </div>
-            <form className="invite-form" onSubmit={onAuditLogFilterSubmit}>
+            <form className="audit-filter-form" onSubmit={onAuditLogFilterSubmit}>
               <label>
                 <span>Actor ID</span>
                 <input
@@ -8096,23 +8121,29 @@ function SettingsView({
             </form>
           </div>
           {auditLogs.items.length > 0 ? (
-            <div className="member-table" role="table" aria-label="Tenant audit logs">
-              <div className="member-row member-row--header" role="row">
-                <span role="columnheader">Date</span>
-                <span role="columnheader">Actor</span>
-                <span role="columnheader">Action</span>
-                <span role="columnheader">Entity</span>
-                <span role="columnheader">Summary</span>
+            <div className="table-section">
+              <div className="table-section__header">
+                <h3>Tenant audit events</h3>
+                <p>Filtered audit records for compliance-relevant tenant activity.</p>
               </div>
-              {auditLogs.items.map((entry) => (
-                <article className="member-row" role="row" key={entry.id}>
-                  <span role="cell">{new Date(entry.occurredAt).toLocaleString()}</span>
-                  <span role="cell">{entry.actorUserId ?? "System"}</span>
-                  <span role="cell">{entry.action}</span>
-                  <span role="cell">{entry.entityType}</span>
-                  <span role="cell">{entry.summary}</span>
-                </article>
-              ))}
+              <div className="member-table member-table--audit-log" role="table" aria-label="Tenant audit logs">
+                <div className="member-row member-row--header" role="row">
+                  <span role="columnheader">Date</span>
+                  <span role="columnheader">Actor</span>
+                  <span role="columnheader">Action</span>
+                  <span role="columnheader">Entity</span>
+                  <span role="columnheader">Summary</span>
+                </div>
+                {auditLogs.items.map((entry) => (
+                  <article className="member-row" role="row" key={entry.id}>
+                    <span role="cell">{new Date(entry.occurredAt).toLocaleString()}</span>
+                    <span role="cell">{entry.actorUserId ?? "System"}</span>
+                    <span role="cell">{entry.action}</span>
+                    <span role="cell">{entry.entityType}</span>
+                    <span role="cell">{entry.summary}</span>
+                  </article>
+                ))}
+              </div>
             </div>
           ) : (
             <EmptyState title="No audit events match" body="Audit events are tenant-scoped and filtered by the controls above." />

@@ -1475,11 +1475,11 @@ export const fallbackAuditLogs: PagedResult<AuditLogEntry> = {
 };
 
 export async function getComplianceOverview(): Promise<ComplianceOverview> {
-  return getJson<ComplianceOverview>("/api/compliance/overview", fallbackOverview);
+  return getRequiredJson<ComplianceOverview>("/api/compliance/overview");
 }
 
 export async function getCurrentUserAccess(): Promise<CurrentUserAccess> {
-  return getJson<CurrentUserAccess>("/api/me/access", fallbackAccess);
+  return getRequiredJson<CurrentUserAccess>("/api/me/access");
 }
 
 export async function getTenantMembers(): Promise<TenantMember[]> {
@@ -1572,7 +1572,7 @@ export async function getAuditLogs(params: AuditLogQueryParams = {}): Promise<Pa
     }
   }
 
-  return getJson<PagedResult<AuditLogEntry>>(`/api/audit-logs?${searchParams.toString()}`, fallbackAuditLogs);
+  return getRequiredJson<PagedResult<AuditLogEntry>>(`/api/audit-logs?${searchParams.toString()}`);
 }
 
 export async function exportCuiAuditLogs(request: CuiAuditExportRequest): Promise<ApiMutationResult<CuiAuditExport>> {
@@ -1580,7 +1580,7 @@ export async function exportCuiAuditLogs(request: CuiAuditExportRequest): Promis
 }
 
 export async function getNoCuiAcknowledgementStatus(): Promise<NoCuiAcknowledgementStatus> {
-  return getJson<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement", fallbackNoCuiAcknowledgementStatus);
+  return getRequiredJson<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement");
 }
 
 export async function getEvidenceItems(tag?: string): Promise<EvidenceMetadata[]> {
@@ -2506,22 +2506,45 @@ async function deleteJsonResult<T>(path: string): Promise<ApiMutationResult<T>> 
   }
 }
 
-async function getJson<T>(path: string, fallback: T): Promise<T> {
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly path: string,
+    readonly status?: number
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
+async function getRequiredJson<T>(path: string): Promise<T> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, { headers: getApiHeaders() });
 
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error(await readErrorMessage(response));
-      }
-
-      return fallback;
+      throw new ApiRequestError(await readErrorMessage(response), path, response.status);
     }
 
     return response.json();
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
+
+    throw new ApiRequestError("The API request could not be completed.", path);
+  }
+}
+
+async function getJson<T>(path: string, fallback: T): Promise<T> {
+  try {
+    return await getRequiredJson<T>(path);
+  } catch (error) {
+    if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+      throw error;
+    }
+
     return fallback;
   }
 }
@@ -2534,14 +2557,18 @@ async function getText(path: string, fallback: string): Promise<string> {
 
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
-        throw new Error(await readErrorMessage(response));
+        throw new ApiRequestError(await readErrorMessage(response), path, response.status);
       }
 
       return fallback;
     }
 
     return response.text();
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+      throw error;
+    }
+
     return fallback;
   }
 }

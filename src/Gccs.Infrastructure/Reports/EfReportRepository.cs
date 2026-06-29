@@ -26,12 +26,13 @@ public sealed class EfReportRepository(
         "GCCS MVP report for workflow tracking only. This is not legal advice, a certification decision, an assessor determination, a contracting-officer determination, or government endorsement.";
 
     public async Task<IReadOnlyList<ApprovedEvidencePackageDto>> ListApprovedEvidencePackagesAsync(
+        Guid tenantId,
         CancellationToken cancellationToken = default)
     {
         var reports = await dbContext.Reports
             .AsNoTracking()
             .Where(report =>
-                report.TenantId == tenantContext.TenantId &&
+                report.TenantId == tenantId &&
                 report.Type == ReportType.PrimeEvidencePackage &&
                 report.Status == ReportStatus.Complete)
             .OrderByDescending(report => report.GeneratedAt)
@@ -53,7 +54,7 @@ public sealed class EfReportRepository(
             .Where(link => reportIds.Contains(link.ReportId))
             .Join(
                 dbContext.EvidenceItems.AsNoTracking().Where(evidence =>
-                    evidence.TenantId == tenantContext.TenantId &&
+                    evidence.TenantId == tenantId &&
                     evidence.Status == EvidenceStatus.Approved),
                 link => link.EvidenceItemId,
                 evidence => evidence.Id,

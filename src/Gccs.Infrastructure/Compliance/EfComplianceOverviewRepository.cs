@@ -147,7 +147,7 @@ public sealed class EfComplianceOverviewRepository(
                 control.Assessment != null &&
                 control.Assessment.TenantId == tenantId &&
                 control.ImplementationStatus != ControlImplementationStatus.NotApplicable &&
-                (control.EvidenceItemIdsJson == "[]" || control.EvidenceItemIdsJson == string.Empty))
+                control.EvidenceItemIdsJson == "[]")
             .OrderBy(control => control.ControlId)
             .Take(MaxAlertsPerRule)
             .Select(control => new
@@ -227,23 +227,26 @@ public sealed class EfComplianceOverviewRepository(
                 audit.Action == AuditAction.Rejected &&
                 (audit.EntityType.Contains("Evidence") ||
                  audit.EntityType.Contains("Upload") ||
-                 audit.EntityType.Contains("ContractDocument")) &&
-                (audit.Summary.Contains("upload") ||
-                 audit.MetadataJson.Contains("upload")))
+                 audit.EntityType.Contains("ContractDocument")))
             .OrderByDescending(audit => audit.OccurredAt)
             .ThenByDescending(audit => audit.Id)
-            .Take(MaxAlertsPerRule)
+            .Take(MaxAlertsPerRule * 4)
             .Select(audit => new
             {
                 audit.Id,
                 audit.EntityType,
                 audit.EntityId,
                 audit.OccurredAt,
-                audit.Summary
+                audit.Summary,
+                audit.MetadataJson
             })
             .ToArrayAsync(cancellationToken);
 
         return rows
+            .Where(audit =>
+                audit.Summary.Contains("upload", StringComparison.OrdinalIgnoreCase) ||
+                audit.MetadataJson.Contains("upload", StringComparison.OrdinalIgnoreCase))
+            .Take(MaxAlertsPerRule)
             .Select(audit => Alert(
                 "failed_upload_attempt",
                 "High",
