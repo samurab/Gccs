@@ -29,11 +29,10 @@
   },
   "include": [
     "src",
-    "vite.config.ts",
-    "**/*.ts",
-    "**/*.tsx"
+    "vite.config.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "e2e"
   ]
 }
