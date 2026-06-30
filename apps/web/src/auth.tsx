@@ -7,6 +7,7 @@ import {
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 const accessTokenStorageKey = import.meta.env.VITE_GCCS_ACCESS_TOKEN_STORAGE_KEY ?? "gccs.accessToken";
+const legacyAccessTokenStorageKey = "access_token";
 const clientId = import.meta.env.VITE_MSAL_CLIENT_ID;
 const tenantId = import.meta.env.VITE_MSAL_TENANT_ID;
 const apiScope = import.meta.env.VITE_MSAL_API_SCOPE;
@@ -53,7 +54,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         const account = redirectResult?.account ?? msalInstance!.getAllAccounts()[0] ?? null;
 
         if (!account) {
-          window.localStorage.removeItem(accessTokenStorageKey);
+          clearStoredAccessToken();
           if (isMounted) {
             setState({ status: "signedOut" });
           }
@@ -62,21 +63,21 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
         msalInstance!.setActiveAccount(account);
         const tokenResult = await msalInstance!.acquireTokenSilent({ ...tokenRequest, account });
-        window.localStorage.setItem(accessTokenStorageKey, tokenResult.accessToken);
+        storeAccessToken(tokenResult.accessToken);
 
         if (isMounted) {
           setState({ status: "ready", account });
         }
       } catch (error) {
         if (error instanceof InteractionRequiredAuthError) {
-          window.localStorage.removeItem(accessTokenStorageKey);
+          clearStoredAccessToken();
           if (isMounted) {
             setState({ status: "signedOut" });
           }
           return;
         }
 
-        window.localStorage.removeItem(accessTokenStorageKey);
+        clearStoredAccessToken();
         if (isMounted) {
           setState({
             status: "failed",
@@ -127,7 +128,37 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <div className="auth-session" role="status">
+        <span>Signed in as {state.account.username}</span>
+        <button
+          type="button"
+          onClick={() => {
+            clearStoredAccessToken();
+            void msalInstance!.logoutRedirect();
+          }}
+        >
+          Sign out
+        </button>
+      </div>
+      {children}
+    </>
+  );
+}
+
+function storeAccessToken(accessToken: string) {
+  window.localStorage.setItem(accessTokenStorageKey, accessToken);
+  window.sessionStorage.setItem(accessTokenStorageKey, accessToken);
+  window.localStorage.setItem(legacyAccessTokenStorageKey, accessToken);
+  window.sessionStorage.setItem(legacyAccessTokenStorageKey, accessToken);
+}
+
+function clearStoredAccessToken() {
+  window.localStorage.removeItem(accessTokenStorageKey);
+  window.sessionStorage.removeItem(accessTokenStorageKey);
+  window.localStorage.removeItem(legacyAccessTokenStorageKey);
+  window.sessionStorage.removeItem(legacyAccessTokenStorageKey);
 }
 
 function AuthShell({

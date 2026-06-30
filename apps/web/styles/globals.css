@@ -77,6 +77,28 @@
   background: #115e59;
 }
 
+.auth-session {
+  align-items: center;
+  background: #0f172a;
+  color: #e2e8f0;
+  display: flex;
+  font-size: 0.78rem;
+  gap: 12px;
+  justify-content: flex-end;
+  min-height: 34px;
+  padding: 6px 18px;
+}
+
+.auth-session button {
+  background: transparent;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 8px;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #ffffff;
