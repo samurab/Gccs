@@ -75,7 +75,15 @@ public static class ApiSecurityExtensions
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
                         NameClaimType = ClaimTypes.Email,
-                        RoleClaimType = PermissionClaimType
+                        RoleClaimType = ClaimTypes.Role
+                    };
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnTokenValidated = context =>
+                        {
+                            NormalizeMicrosoftEntraClaims(context.Principal);
+                            return Task.CompletedTask;
+                        }
                     };
                 });
         }
@@ -249,6 +257,60 @@ public static class ApiSecurityExtensions
 
     private static bool TryReadGuid(ClaimsPrincipal principal, string claimType, out Guid value) =>
         Guid.TryParse(principal.FindFirstValue(claimType), out value);
+
+    private static void NormalizeMicrosoftEntraClaims(ClaimsPrincipal? principal)
+    {
+        if (principal is null)
+        {
+            return;
+        }
+
+        var identity = principal.Identities.FirstOrDefault(identity => identity.IsAuthenticated);
+        if (identity is null)
+        {
+            return;
+        }
+
+        AddGuidClaimIfMissingOrInvalid(identity, TenantIdClaimType, principal.FindFirstValue("tid"));
+        AddGuidClaimIfMissingOrInvalid(identity, ClaimTypes.NameIdentifier, principal.FindFirstValue("oid"));
+        AddClaimIfMissing(identity, ClaimTypes.Email, principal.FindFirstValue("preferred_username") ?? principal.FindFirstValue("upn"));
+
+        foreach (var roleClaim in principal.FindAll("roles").ToArray())
+        {
+            AddClaimIfMissing(identity, ClaimTypes.Role, roleClaim.Value);
+        }
+    }
+
+    private static void AddClaimIfMissing(ClaimsIdentity identity, string claimType, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || identity.HasClaim(claim => claim.Type == claimType))
+        {
+            return;
+        }
+
+        identity.AddClaim(new Claim(claimType, value));
+    }
+
+    private static void AddGuidClaimIfMissingOrInvalid(ClaimsIdentity identity, string claimType, string? value)
+    {
+        if (!Guid.TryParse(value, out _))
+        {
+            return;
+        }
+
+        var existingClaims = identity.FindAll(claimType).ToArray();
+        if (existingClaims.Any(claim => Guid.TryParse(claim.Value, out _)))
+        {
+            return;
+        }
+
+        foreach (var claim in existingClaims)
+        {
+            identity.RemoveClaim(claim);
+        }
+
+        identity.AddClaim(new Claim(claimType, value));
+    }
 
     private static void ReplaceRoleAndPermissionClaims(ClaimsPrincipal principal, string roleName)
     {
