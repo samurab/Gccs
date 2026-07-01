@@ -48,9 +48,16 @@ jobs:
           npm ci
 
       - name: Build staging artifacts
+        env:
+          VITE_API_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
+          VITE_MSAL_CLIENT_ID: 8df0cbe5-60ee-4356-9386-41f300e82718
+          VITE_MSAL_TENANT_ID: 8c934636-0c37-4a8f-9134-323bef993ef2
+          VITE_MSAL_API_SCOPE: api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/access_as_user
         run: |
+          test -n "$VITE_API_BASE_URL"
           dotnet publish apps/api/Gccs.Api.csproj --configuration Release --output "$RUNNER_TEMP/gccs-api-staging"
           npm run build:web
+          ! grep -R "http://localhost:5062" apps/web/dist
 
       - name: Generate idempotent migration script
         run: |
