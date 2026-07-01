@@ -23,7 +23,8 @@ public sealed class RolePermissionClaimsTransformation : IClaimsTransformation
             .Concat(principal.FindAll(ClaimTypes.Role))
             .Select(claim => claim.Value)
             .Where(roleName => !string.IsNullOrWhiteSpace(roleName))
-            .Distinct(StringComparer.OrdinalIgnoreCase);
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
         foreach (var roleName in roleNames)
         {
