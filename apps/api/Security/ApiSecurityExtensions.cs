@@ -24,6 +24,8 @@ public static class ApiSecurityExtensions
     public const string RoleNameClaimType = "gccs_role";
     public const string TenantIdClaimType = "tenant_id";
     private const string MembershipAuthorizationEnforcedKey = "Security:MembershipAuthorization:Enforce";
+    private const string MicrosoftTenantIdClaimType = "http://schemas.microsoft.com/identity/claims/tenantid";
+    private const string MicrosoftObjectIdClaimType = "http://schemas.microsoft.com/identity/claims/objectidentifier";
 
     public static IServiceCollection AddGccsApiSecurity(
         this IServiceCollection services,
@@ -288,14 +290,28 @@ public static class ApiSecurityExtensions
             return;
         }
 
-        AddGuidClaimIfMissingOrInvalid(identity, TenantIdClaimType, principal.FindFirstValue("tid"));
-        AddGuidClaimIfMissingOrInvalid(identity, ClaimTypes.NameIdentifier, principal.FindFirstValue("oid"));
+        AddGuidClaimIfMissingOrInvalid(identity, TenantIdClaimType, FirstClaimValue(principal, "tid", MicrosoftTenantIdClaimType));
+        AddGuidClaimIfMissingOrInvalid(identity, ClaimTypes.NameIdentifier, FirstClaimValue(principal, "oid", MicrosoftObjectIdClaimType));
         AddClaimIfMissing(identity, ClaimTypes.Email, principal.FindFirstValue("preferred_username") ?? principal.FindFirstValue("upn"));
 
         foreach (var roleClaim in principal.FindAll("roles").ToArray())
         {
             AddClaimIfMissing(identity, ClaimTypes.Role, roleClaim.Value);
         }
+    }
+
+    private static string? FirstClaimValue(ClaimsPrincipal principal, params string[] claimTypes)
+    {
+        foreach (var claimType in claimTypes)
+        {
+            var value = principal.FindFirstValue(claimType);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
     }
 
     private static void AddClaimIfMissing(ClaimsIdentity identity, string claimType, string? value)
