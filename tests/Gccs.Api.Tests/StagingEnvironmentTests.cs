@@ -116,10 +116,21 @@ public sealed class StagingEnvironmentTests
             Assert.Contains(guardrail, evidence);
         }
 
-        Assert.Contains("STAGE-GAP-001", evidence);
-        Assert.Contains("STAGE-GAP-002", evidence);
-        Assert.Contains("STAGE-GAP-003", evidence);
-        Assert.Contains("Current deployed API returned `dependencies = []`", evidence);
+        Assert.Contains("Evidence status: Passed", evidence);
+        Assert.Contains("GitHub Actions run", evidence);
+        Assert.Contains("staging-smoke-test-results/staging-health.json", evidence);
+        Assert.Contains("\"status\":\"ok\"", evidence);
+
+        foreach (var closedBlocker in new[]
+        {
+            "STAGE-GAP-001",
+            "STAGE-GAP-002",
+            "STAGE-GAP-003",
+            "Closed on 2026-07-01"
+        })
+        {
+            Assert.Contains(closedBlocker, evidence);
+        }
     }
 
     private static string FindRepositoryRoot()

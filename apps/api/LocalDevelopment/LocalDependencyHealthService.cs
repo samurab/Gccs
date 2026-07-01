@@ -69,14 +69,14 @@ public sealed class LocalDependencyHealthService
         {
             var canConnect = await _dbContext.Database.CanConnectAsync(cancellationToken);
             return canConnect
-                ? LocalDependencyHealthCheck.Healthy("postgresql", "Connected to local PostgreSQL.")
-                : LocalDependencyHealthCheck.Unhealthy("postgresql", "Could not connect to local PostgreSQL.");
+                ? LocalDependencyHealthCheck.Healthy("postgresql", "Connected to PostgreSQL.")
+                : LocalDependencyHealthCheck.Unhealthy("postgresql", "Could not connect to PostgreSQL.");
         }
         catch (Exception exception)
         {
             return LocalDependencyHealthCheck.Unhealthy(
                 "postgresql",
-                $"Could not connect to local PostgreSQL using ConnectionStrings:GccsDatabase ({exception.GetType().Name}).");
+                $"Could not connect to PostgreSQL using ConnectionStrings:GccsDatabase ({exception.GetType().Name}).");
         }
     }
 
