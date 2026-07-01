@@ -153,11 +153,18 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var root = document.RootElement;
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("ok", root.GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("degraded", root.GetProperty("status").GetString());
         Assert.Equal("gccs-api", root.GetProperty("service").GetString());
         Assert.Equal("No-CUI / compliance management only", root.GetProperty("dataPosture").GetString());
-        Assert.Equal(JsonValueKind.Array, root.GetProperty("dependencies").ValueKind);
+        var dependencies = root.GetProperty("dependencies")
+            .EnumerateArray()
+            .Select(dependency => dependency.GetProperty("name").GetString())
+            .ToArray();
+        Assert.Contains("postgresql", dependencies);
+        Assert.Contains("redis", dependencies);
+        Assert.Contains("object-storage", dependencies);
+        Assert.Contains("background-jobs", dependencies);
     }
 
     [Fact]

@@ -17,6 +17,7 @@ using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
 using Gccs.Application.SamGov;
 using Gccs.Application.Subcontractors;
+using Gccs.Application.Storage;
 using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
 using Gccs.Infrastructure.Audit;
@@ -37,6 +38,7 @@ using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Portals;
 using Gccs.Infrastructure.Reports;
 using Gccs.Infrastructure.SamGov;
+using Gccs.Infrastructure.Storage;
 using Gccs.Infrastructure.Subcontractors;
 using Gccs.Infrastructure.Tenancy;
 using Gccs.Infrastructure.Tasks;
@@ -156,6 +158,24 @@ public static class DependencyInjection
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         services.AddScoped<SimpleReportExportService>();
+        services.Configure<AzureBlobStorageOptions>(options =>
+        {
+            if (configuration is null)
+            {
+                return;
+            }
+
+            options.AccountName = configuration[$"{AzureBlobStorageOptions.SectionName}:AccountName"] ?? options.AccountName;
+            options.BlobServiceUri = configuration[$"{AzureBlobStorageOptions.SectionName}:BlobServiceUri"] ?? options.BlobServiceUri;
+            options.UseManagedIdentity = ReadBool(
+                configuration,
+                $"{AzureBlobStorageOptions.SectionName}:UseManagedIdentity",
+                options.UseManagedIdentity);
+            options.Containers.Evidence = configuration[$"{AzureBlobStorageOptions.SectionName}:Containers:Evidence"] ?? options.Containers.Evidence;
+            options.Containers.Exports = configuration[$"{AzureBlobStorageOptions.SectionName}:Containers:Exports"] ?? options.Containers.Exports;
+            options.Containers.Reports = configuration[$"{AzureBlobStorageOptions.SectionName}:Containers:Reports"] ?? options.Containers.Reports;
+        });
+        services.AddScoped<IObjectStorageService, AzureBlobObjectStorageService>();
         if (configuration is not null)
         {
             services.Configure<SamGovOptions>(options =>
@@ -349,4 +369,7 @@ public static class DependencyInjection
 
     private static int ReadInt(IConfiguration configuration, string key, int fallback) =>
         int.TryParse(configuration[key], out var value) ? value : fallback;
+
+    private static bool ReadBool(IConfiguration configuration, string key, bool fallback) =>
+        bool.TryParse(configuration[key], out var value) ? value : fallback;
 }

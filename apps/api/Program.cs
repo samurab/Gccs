@@ -2880,6 +2880,87 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
 .RequirePermission(Permission.ManageEvidence)
 .WithName("CreateEvidenceUploadIntent");
 
+api.MapPost("/evidence-items/{evidenceItemId:guid}/file", async (
+    Guid evidenceItemId,
+    NoCuiAcknowledgementService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        if (!httpContext.Request.HasFormContentType)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["contentType"] = ["Evidence file upload requires multipart/form-data."]
+            },
+            title: "Evidence upload rejected",
+            detail: "Evidence file upload requires multipart/form-data.",
+            statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var form = await httpContext.Request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
+        if (file is null)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["file"] = ["A file is required."]
+            },
+            title: "Evidence upload rejected",
+            detail: "A file is required.",
+            statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var noCuiAttestation = bool.TryParse(form["noCuiAttestation"], out var attestation) && attestation;
+        var containsPotentialCui = bool.TryParse(form["containsPotentialCui"], out var potentialCui) && potentialCui;
+        await using var stream = file.OpenReadStream();
+        var uploaded = await service.UploadEvidenceFileAsync(
+            evidenceItemId,
+            new EvidenceUploadFileRequest(
+                file.FileName,
+                file.ContentType,
+                file.Length,
+                stream,
+                noCuiAttestation,
+                containsPotentialCui),
+            tenantContext.UserId,
+            cancellationToken);
+
+        return Results.Created($"/api/evidence-items/{evidenceItemId}/download", uploaded);
+    }
+    catch (NoCuiAcknowledgementRequiredException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "No-CUI acknowledgement required",
+            exception.Message,
+            StatusCodes.Status428PreconditionRequired,
+            "no_cui_acknowledgement_required");
+    }
+    catch (UploadGuardrailValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Evidence upload rejected",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["upload"] = [exception.Message]
+        },
+        title: "Evidence upload rejected",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithName("UploadEvidenceFile");
+
 api.MapGet("/cmmc/assessments", async (
     CmmcAssessmentService service,
     CancellationToken cancellationToken) =>
@@ -3395,6 +3476,44 @@ api.MapGet("/evidence-items/{evidenceItemId:guid}/download", async (
 })
 .RequirePermission(Permission.ViewEvidence)
 .WithName("DownloadEvidenceFileMetadata");
+
+api.MapGet("/evidence-items/{evidenceItemId:guid}/file/content", async (
+    Guid evidenceItemId,
+    NoCuiAcknowledgementService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var file = await service.OpenLatestFileForDownloadAsync(evidenceItemId, tenantContext.UserId, cancellationToken);
+        return file is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Evidence file content for item '{evidenceItemId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.File(
+                file.StoredFile.Content,
+                file.Version.ContentType,
+                file.Version.FileName,
+                lastModified: file.StoredFile.LastModified,
+                entityTag: null,
+                enableRangeProcessing: false);
+    }
+    catch (EvidenceFileDownloadUnavailableException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Evidence file unavailable",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "evidence_file_unavailable");
+    }
+})
+.RequirePermission(Permission.ViewEvidence)
+.WithName("DownloadEvidenceFileContent");
 
 api.MapDelete("/evidence-items/{evidenceItemId:guid}/file", async (
     Guid evidenceItemId,

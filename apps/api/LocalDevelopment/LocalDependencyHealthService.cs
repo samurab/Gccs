@@ -1,7 +1,9 @@
 using System.Net.Sockets;
 using System.Text;
+using Gccs.Application.Storage;
 using Gccs.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Gccs.Api.LocalDevelopment;
@@ -9,37 +11,48 @@ namespace Gccs.Api.LocalDevelopment;
 public sealed class LocalDependencyHealthService
 {
     private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(2);
+    private static readonly Guid HealthTenantId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private readonly IConfiguration _configuration;
     private readonly GccsDbContext? _dbContext;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IObjectStorageService? _objectStorageService;
     private readonly LocalDependencyOptions _options;
 
     public LocalDependencyHealthService(
         IOptions<LocalDependencyOptions> options,
         IHttpClientFactory httpClientFactory,
+        IConfiguration configuration,
         IServiceProvider serviceProvider)
     {
         _options = options.Value;
         _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
         _dbContext = serviceProvider.GetService<GccsDbContext>();
+        _objectStorageService = HasAzureObjectStorageConfiguration()
+            ? serviceProvider.GetService<IObjectStorageService>()
+            : null;
     }
 
     public async Task<LocalDependencyHealthReport> CheckAsync(CancellationToken cancellationToken)
     {
-        if (!_options.Enabled)
+        var checks = new List<Task<LocalDependencyHealthCheck>>
         {
-            return new LocalDependencyHealthReport(true, []);
+            CheckDatabaseAsync(cancellationToken),
+            CheckObjectStorageAsync(cancellationToken),
+            CheckRedisAsync(cancellationToken),
+            CheckBackgroundJobsAsync(cancellationToken)
+        };
+
+        if (_options.Enabled)
+        {
+            checks.Add(CheckMalwareScannerAsync(cancellationToken));
         }
 
-        var checks = await Task.WhenAll(
-            CheckDatabaseAsync(cancellationToken),
-            CheckRedisAsync(cancellationToken),
-            CheckObjectStorageAsync(cancellationToken),
-            CheckMalwareScannerAsync(cancellationToken),
-            CheckBackgroundJobsAsync(cancellationToken));
+        var results = await Task.WhenAll(checks);
 
         return new LocalDependencyHealthReport(
-            checks.All(check => check.Status == "ok"),
-            checks.OrderBy(check => check.Name).ToArray());
+            results.All(check => check.Status == "ok"),
+            results.OrderBy(check => check.Name).ToArray());
     }
 
     private async Task<LocalDependencyHealthCheck> CheckDatabaseAsync(CancellationToken cancellationToken)
@@ -68,6 +81,13 @@ public sealed class LocalDependencyHealthService
 
     private async Task<LocalDependencyHealthCheck> CheckRedisAsync(CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(_options.Redis.ConnectionString))
+        {
+            return LocalDependencyHealthCheck.Unhealthy(
+                "redis",
+                "Redis cache is not configured. Set LocalDependencies:Redis:ConnectionString or the staging cache equivalent before launch smoke approval.");
+        }
+
         try
         {
             var (host, port) = ParseHostPort(_options.Redis.ConnectionString, 6379);
@@ -95,6 +115,42 @@ public sealed class LocalDependencyHealthService
 
     private async Task<LocalDependencyHealthCheck> CheckObjectStorageAsync(CancellationToken cancellationToken)
     {
+        if (!_options.Enabled && HasAzureObjectStorageConfiguration())
+        {
+            if (_objectStorageService is null)
+            {
+                return LocalDependencyHealthCheck.Unhealthy(
+                    "object-storage",
+                    "Object storage service is not registered.");
+            }
+
+            try
+            {
+                await _objectStorageService.ExistsAsync(
+                    new ObjectStorageReadRequest(
+                        HealthTenantId,
+                        ObjectStorageContainer.Evidence,
+                        "health/probe.txt"),
+                    cancellationToken);
+                return LocalDependencyHealthCheck.Healthy(
+                    "object-storage",
+                    "Azure object storage endpoint is reachable.");
+            }
+            catch (Exception exception)
+            {
+                return LocalDependencyHealthCheck.Unhealthy(
+                    "object-storage",
+                    $"Could not connect to Azure object storage ({exception.GetType().Name}).");
+            }
+        }
+
+        if (!_options.Enabled)
+        {
+            return LocalDependencyHealthCheck.Unhealthy(
+                "object-storage",
+                "Object storage is not configured.");
+        }
+
         try
         {
             var endpoint = _options.ObjectStorage.Endpoint.TrimEnd('/');
@@ -142,6 +198,13 @@ public sealed class LocalDependencyHealthService
 
     private async Task<LocalDependencyHealthCheck> CheckBackgroundJobsAsync(CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(_options.Redis.ConnectionString))
+        {
+            return LocalDependencyHealthCheck.Unhealthy(
+                "background-jobs",
+                "Background job queue coordination is not configured. Configure Redis or the approved staging queue dependency before launch smoke approval.");
+        }
+
         try
         {
             var (host, port) = ParseHostPort(_options.Redis.ConnectionString, 6379);
@@ -195,6 +258,10 @@ public sealed class LocalDependencyHealthService
 
         return (endpoint, defaultPort);
     }
+
+    private bool HasAzureObjectStorageConfiguration() =>
+        !string.IsNullOrWhiteSpace(_configuration["Storage:BlobServiceUri"]) ||
+        !string.IsNullOrWhiteSpace(_configuration["Storage:AccountName"]);
 }
 
 public sealed record LocalDependencyHealthReport(bool IsHealthy, IReadOnlyCollection<LocalDependencyHealthCheck> Dependencies);

@@ -1609,13 +1609,13 @@ export function App() {
       const classificationLabel = uploadIntent.data.classification?.classification ?? classification;
       setUploadStatus("created");
       setUploadMessage(
-        `Upload intent created for ${uploadIntent.data.fileName}. Classification ${classificationLabel}; validation ${uploadIntent.data.validationStatus}; malware scan ${uploadIntent.data.malwareScanStatus}.`
+        `Uploaded ${uploadIntent.data.fileName}. Classification ${classificationLabel}; validation ${uploadIntent.data.validationStatus}; malware scan ${uploadIntent.data.malwareScanStatus}.`
       );
       return;
     }
 
     setUploadStatus("blocked");
-    setUploadMessage(uploadIntent.error ?? "The API blocked the upload intent.");
+    setUploadMessage(uploadIntent.error ?? "The API blocked the upload.");
   }
 
   async function handleEvidenceMetadataSave(evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) {
@@ -6973,7 +6973,7 @@ function EvidenceView({
         </label>
         <button type="submit" disabled={uploadDisabled || !selectedFile || !noCuiAttestation || uploadStatus === "creating"}>
           <UploadCloud size={16} aria-hidden="true" />
-          <span>{uploadStatus === "creating" ? "Creating upload intent" : "Upload evidence"}</span>
+          <span>{uploadStatus === "creating" ? "Uploading evidence" : "Upload evidence"}</span>
         </button>
         {!acknowledgement.isAcknowledged ? (
           <p className="form-status form-status--error">Upload is disabled until the No-CUI notice is acknowledged.</p>
@@ -6982,14 +6982,14 @@ function EvidenceView({
           <p className="form-status form-status--ok">{uploadMessage}</p>
         ) : null}
         {uploadStatus === "blocked" ? (
-          <p className="form-status form-status--error">{uploadMessage || "The API blocked the upload intent. Confirm acknowledgement and permissions."}</p>
+          <p className="form-status form-status--error">{uploadMessage || "The API blocked the upload. Confirm acknowledgement and permissions."}</p>
         ) : null}
       </form>
 
       {evidenceItems.length === 0 ? (
         <EmptyState
           title="No evidence has been uploaded yet"
-          body="Accepted uploads remain pending until the malware scan placeholder and future storage workflow are complete."
+          body="Accepted uploads remain pending until validation and malware scan workflow allow download."
         />
       ) : null}
     </section>

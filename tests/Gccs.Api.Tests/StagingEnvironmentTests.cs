@@ -86,6 +86,42 @@ public sealed class StagingEnvironmentTests
         Assert.Contains("success or failure is visible in CI/CD", runbook);
     }
 
+    [Fact]
+    public void TC_PR_3_1_Staging_smoke_evidence_records_pipeline_guardrails_health_and_blockers()
+    {
+        var root = FindRepositoryRoot();
+        var evidence = File.ReadAllText(Path.Combine(root, "docs", "production-readiness-staging-smoke-evidence.md"));
+
+        Assert.Contains("Story: PR-3.1 - Deploy And Smoke Test Staging.", evidence);
+        Assert.Contains("Evidence date: 2026-07-01.", evidence);
+        Assert.Contains("Approved deployment path: `.github/workflows/staging.yml`.", evidence);
+        Assert.Contains("Resource group: `gccs-staging-rg`.", evidence);
+        Assert.Contains("No-CUI / compliance management only", evidence);
+
+        foreach (var requiredSignal in new[] { "postgresql", "redis", "object-storage", "background-jobs" })
+        {
+            Assert.Contains(requiredSignal, evidence);
+        }
+
+        foreach (var guardrail in new[]
+        {
+            "No production customer data.",
+            "No real customer CUI.",
+            "No production secrets.",
+            "No production uploads.",
+            "No production unrestricted logs.",
+            "Synthetic-only staging data."
+        })
+        {
+            Assert.Contains(guardrail, evidence);
+        }
+
+        Assert.Contains("STAGE-GAP-001", evidence);
+        Assert.Contains("STAGE-GAP-002", evidence);
+        Assert.Contains("STAGE-GAP-003", evidence);
+        Assert.Contains("Current deployed API returned `dependencies = []`", evidence);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(Directory.GetCurrentDirectory());

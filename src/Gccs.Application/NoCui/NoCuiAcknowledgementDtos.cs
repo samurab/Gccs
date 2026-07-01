@@ -31,6 +31,15 @@ public sealed record EvidenceUploadIntentRequest(
     bool ContainsPotentialCui = false,
     ContentClassificationRequest? Classification = null);
 
+public sealed record EvidenceUploadFileRequest(
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    Stream Content,
+    bool NoCuiAttestation = false,
+    bool ContainsPotentialCui = false,
+    ContentClassificationRequest? Classification = null);
+
 public sealed record EvidenceUploadIntentDto(
     Guid Id,
     Guid EvidenceItemId,
@@ -46,7 +55,8 @@ public sealed record EvidenceUploadIntentDto(
     string NoticeVersion,
     string AttestationText,
     DateTimeOffset ExpiresAt,
-    ContentClassificationDto Classification);
+    ContentClassificationDto Classification,
+    string? StorageObjectName = null);
 
 public sealed record EvidenceFileVersionDto(
     Guid Id,
@@ -59,6 +69,7 @@ public sealed record EvidenceFileVersionDto(
     string MalwareScanStatus,
     bool IsUsable,
     ContentClassificationDto Classification,
+    string? StorageObjectName,
     DateTimeOffset UploadedAt,
     DateTimeOffset? DeletedAt);
 
@@ -74,6 +85,13 @@ public sealed record EvidenceFileAccessDto(
     bool IsUsable,
     ContentClassificationDto Classification,
     string Message);
+
+public sealed record EvidenceFileDownloadDto(
+    EvidenceFileVersionDto Version,
+    Gccs.Application.Storage.ObjectStorageReadResult StoredFile) : IAsyncDisposable
+{
+    public ValueTask DisposeAsync() => StoredFile.DisposeAsync();
+}
 
 public static class EvidenceUploadGuardrails
 {

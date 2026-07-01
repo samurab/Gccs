@@ -1,6 +1,7 @@
 using Gccs.Application.Audit;
 using Gccs.Application.Common;
 using Gccs.Application.Security;
+using Gccs.Application.Storage;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 
@@ -10,7 +11,8 @@ public sealed class NoCuiAcknowledgementService(
     INoCuiAcknowledgementRepository repository,
     ICurrentTenantContext tenantContext,
     IAuditEventWriter auditEventWriter,
-    ContentClassificationPolicy classificationPolicy)
+    ContentClassificationPolicy classificationPolicy,
+    IObjectStorageService objectStorageService)
 {
     public async Task<NoCuiAcknowledgementStatusDto> GetCurrentStatusAsync(
         CancellationToken cancellationToken = default)
@@ -76,6 +78,99 @@ public sealed class NoCuiAcknowledgementService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        var uploadIntent = await ValidateAndBuildUploadIntentAsync(evidenceItemId, request, actorUserId, cancellationToken);
+        var version = await repository.RecordAcceptedEvidenceUploadIntentAsync(uploadIntent, cancellationToken);
+        await auditEventWriter.WriteAsync(
+            tenantContext.TenantId,
+            actorUserId,
+            AuditAction.Uploaded,
+            "EvidenceFileVersion",
+            version.Id.ToString(),
+            "Evidence file upload metadata was accepted and versioned.",
+            new Dictionary<string, string>
+            {
+                ["evidenceItemId"] = evidenceItemId.ToString(),
+                ["versionNumber"] = version.VersionNumber.ToString(),
+                ["fileName"] = version.FileName,
+                ["validationStatus"] = version.ValidationStatus,
+                ["malwareScanStatus"] = version.MalwareScanStatus,
+                ["isUsable"] = version.IsUsable.ToString(),
+                ["noCuiAttestation"] = request.NoCuiAttestation.ToString()
+            },
+            cancellationToken);
+
+        return uploadIntent;
+    }
+
+    public async Task<EvidenceFileAccessDto> UploadEvidenceFileAsync(
+        Guid evidenceItemId,
+        EvidenceUploadFileRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request.Content);
+
+        var uploadIntent = await ValidateAndBuildUploadIntentAsync(
+            evidenceItemId,
+            new EvidenceUploadIntentRequest(
+                request.FileName,
+                request.ContentType,
+                request.SizeBytes,
+                request.NoCuiAttestation,
+                request.ContainsPotentialCui,
+                request.Classification),
+            actorUserId,
+            cancellationToken);
+
+        var objectName = BuildEvidenceObjectName(evidenceItemId, uploadIntent.Id, uploadIntent.FileName);
+        await objectStorageService.UploadAsync(
+            new ObjectStorageWriteRequest(
+                tenantContext.TenantId,
+                ObjectStorageContainer.Evidence,
+                objectName,
+                request.Content,
+                uploadIntent.ContentType,
+                new Dictionary<string, string>
+                {
+                    ["evidenceItemId"] = evidenceItemId.ToString("D"),
+                    ["evidenceFileVersionId"] = uploadIntent.Id.ToString("D"),
+                    ["uploadedByUserId"] = actorUserId.ToString("D"),
+                    ["classification"] = uploadIntent.Classification.Classification.ToString()
+                }),
+            cancellationToken);
+
+        EvidenceFileVersionDto version;
+        var storedIntent = uploadIntent with { StorageObjectName = objectName };
+        try
+        {
+            version = await repository.RecordAcceptedEvidenceUploadIntentAsync(storedIntent, cancellationToken);
+        }
+        catch
+        {
+            await objectStorageService.DeleteAsync(
+                new ObjectStorageReadRequest(tenantContext.TenantId, ObjectStorageContainer.Evidence, objectName),
+                cancellationToken);
+            throw;
+        }
+        await auditEventWriter.WriteAsync(
+            tenantContext.TenantId,
+            actorUserId,
+            AuditAction.Uploaded,
+            "EvidenceFileVersion",
+            version.Id.ToString(),
+            "Evidence file bytes were uploaded to object storage and versioned.",
+            ToAuditMetadata(version),
+            cancellationToken);
+
+        return ToAccessDto(version, "Evidence file was uploaded to private object storage.");
+    }
+
+    private async Task<EvidenceUploadIntentDto> ValidateAndBuildUploadIntentAsync(
+        Guid evidenceItemId,
+        EvidenceUploadIntentRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
         var acknowledgement = await repository.FindCurrentUserAcknowledgementAsync(
             NoCuiNotice.CurrentVersion,
             cancellationToken);
@@ -119,7 +214,7 @@ public sealed class NoCuiAcknowledgementService(
             throw;
         }
 
-        var uploadIntent = new EvidenceUploadIntentDto(
+        return new EvidenceUploadIntentDto(
             Guid.NewGuid(),
             evidenceItemId,
             tenantContext.TenantId,
@@ -130,33 +225,11 @@ public sealed class NoCuiAcknowledgementService(
             "upload-pending",
             EvidenceUploadGuardrails.AcceptedValidationStatus,
             EvidenceUploadGuardrails.PendingMalwareScanStatus,
-            "Upload metadata passed No-CUI guardrails. The file is not usable until future storage and malware scanning workflows complete.",
+            "Upload metadata passed No-CUI guardrails. The file is not usable until future malware scanning workflows complete.",
             acknowledgement.NoticeVersion,
             NoCuiNotice.RequiredUploadAttestationText,
             DateTimeOffset.UtcNow.AddMinutes(15),
             ToClassificationDto(classification));
-
-        var version = await repository.RecordAcceptedEvidenceUploadIntentAsync(uploadIntent, cancellationToken);
-        await auditEventWriter.WriteAsync(
-            tenantContext.TenantId,
-            actorUserId,
-            AuditAction.Uploaded,
-            "EvidenceFileVersion",
-            version.Id.ToString(),
-            "Evidence file upload metadata was accepted and versioned.",
-            new Dictionary<string, string>
-            {
-                ["evidenceItemId"] = evidenceItemId.ToString(),
-                ["versionNumber"] = version.VersionNumber.ToString(),
-                ["fileName"] = version.FileName,
-                ["validationStatus"] = version.ValidationStatus,
-                ["malwareScanStatus"] = version.MalwareScanStatus,
-                ["isUsable"] = version.IsUsable.ToString(),
-                ["noCuiAttestation"] = request.NoCuiAttestation.ToString()
-            },
-            cancellationToken);
-
-        return uploadIntent;
     }
 
     public async Task<EvidenceFileAccessDto?> GetLatestFileForDownloadAsync(
@@ -183,11 +256,69 @@ public sealed class NoCuiAcknowledgementService(
         return ToAccessDto(version, "File storage is represented as metadata in the No-CUI MVP.");
     }
 
+    public async Task<EvidenceFileDownloadDto?> OpenLatestFileForDownloadAsync(
+        Guid evidenceItemId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var version = await repository.FindLatestCurrentTenantFileVersionAsync(evidenceItemId, cancellationToken);
+        if (version is null || string.IsNullOrWhiteSpace(version.StorageObjectName))
+        {
+            return null;
+        }
+
+        if (!version.IsUsable)
+        {
+            throw new EvidenceFileDownloadUnavailableException(
+                "Evidence file content is not available until validation and malware scanning allow it.");
+        }
+
+        var storedFile = await objectStorageService.OpenReadAsync(
+            new ObjectStorageReadRequest(
+                tenantContext.TenantId,
+                ObjectStorageContainer.Evidence,
+                version.StorageObjectName),
+            cancellationToken);
+
+        if (storedFile is null)
+        {
+            return null;
+        }
+
+        await auditEventWriter.WriteAsync(
+            tenantContext.TenantId,
+            actorUserId,
+            AuditAction.Downloaded,
+            "EvidenceFileVersion",
+            version.Id.ToString(),
+            "Evidence file bytes were streamed from object storage.",
+            ToAuditMetadata(version),
+            cancellationToken);
+
+        return new EvidenceFileDownloadDto(version, storedFile);
+    }
+
     public async Task<EvidenceFileAccessDto?> DeleteLatestFileAsync(
         Guid evidenceItemId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        var existing = await repository.FindLatestCurrentTenantFileVersionAsync(evidenceItemId, cancellationToken);
+        if (existing is null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(existing.StorageObjectName))
+        {
+            await objectStorageService.DeleteAsync(
+                new ObjectStorageReadRequest(
+                    tenantContext.TenantId,
+                    ObjectStorageContainer.Evidence,
+                    existing.StorageObjectName),
+                cancellationToken);
+        }
+
         var version = await repository.MarkLatestCurrentTenantFileVersionDeletedAsync(evidenceItemId, actorUserId, cancellationToken);
         if (version is null)
         {
@@ -205,6 +336,17 @@ public sealed class NoCuiAcknowledgementService(
             cancellationToken);
 
         return ToAccessDto(version, "Evidence file version was deleted.");
+    }
+
+    private static string BuildEvidenceObjectName(Guid evidenceItemId, Guid versionId, string fileName)
+    {
+        var safeFileName = Path.GetFileName(fileName.Trim());
+        if (string.IsNullOrWhiteSpace(safeFileName))
+        {
+            safeFileName = "evidence-file";
+        }
+
+        return $"evidence/{evidenceItemId:D}/{versionId:D}/{safeFileName}";
     }
 
     private static void ValidateAcknowledgement(AcknowledgeNoCuiRequest request)
@@ -339,3 +481,5 @@ public sealed class UploadGuardrailValidationException(IReadOnlyDictionary<strin
 {
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
 }
+
+public sealed class EvidenceFileDownloadUnavailableException(string message) : InvalidOperationException(message);

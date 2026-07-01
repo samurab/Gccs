@@ -100,7 +100,7 @@ public sealed class EfNoCuiAcknowledgementRepository(
         evidenceItem.SizeBytes = uploadIntent.SizeBytes;
         evidenceItem.UploadValidationStatus = uploadIntent.ValidationStatus;
         evidenceItem.MalwareScanStatus = uploadIntent.MalwareScanStatus;
-        evidenceItem.StorageUri = null;
+        evidenceItem.StorageUri = uploadIntent.StorageObjectName;
         evidenceItem.FileHash = null;
         evidenceItem.Classification = uploadIntent.Classification.Classification;
         evidenceItem.ClassificationSource = uploadIntent.Classification.Source;
@@ -124,7 +124,7 @@ public sealed class EfNoCuiAcknowledgementRepository(
             SizeBytes = uploadIntent.SizeBytes,
             ValidationStatus = uploadIntent.ValidationStatus,
             MalwareScanStatus = uploadIntent.MalwareScanStatus,
-            StorageUri = null,
+            StorageUri = uploadIntent.StorageObjectName,
             FileHash = null,
             UploadedAt = now,
             UploadedByUserId = uploadIntent.CreatedByUserId,
@@ -212,6 +212,7 @@ public sealed class EfNoCuiAcknowledgementRepository(
                 version.ClassificationReviewedAt,
                 version.ClassificationReason,
                 version.ClassificationIsApprovedDemoContent),
+            version.StorageUri,
             version.UploadedAt,
             version.DeletedAt);
 

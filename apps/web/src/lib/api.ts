@@ -395,6 +395,20 @@ export type EvidenceUploadIntent = {
   classification: ContentClassification;
 };
 
+export type EvidenceFileAccess = {
+  evidenceItemId: string;
+  versionId: string;
+  versionNumber: number;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  validationStatus: string;
+  malwareScanStatus: string;
+  isUsable: boolean;
+  classification: ContentClassification;
+  message: string;
+};
+
 export type EvidenceMetadata = {
   id: string;
   tenantId: string;
@@ -2260,24 +2274,15 @@ export async function createEvidenceUploadIntent(
   classification: string,
   classificationReason: string,
   noCuiAttestation: boolean
-): Promise<ApiMutationResult<EvidenceUploadIntent>> {
+): Promise<ApiMutationResult<EvidenceFileAccess>> {
   const placeholderEvidenceItemId = "00000000-0000-0000-0000-000000000041";
-  return postJsonResult<EvidenceUploadIntent>(`/api/evidence-items/${placeholderEvidenceItemId}/upload-intents`, {
-    fileName: file.name,
-    contentType: file.type || "application/octet-stream",
-    sizeBytes: file.size,
-    noCuiAttestation,
-    containsPotentialCui: classification === "Cui",
-    classification: {
-      classification,
-      source: "UserSelected",
-      confidence: null,
-      reviewedByUserId: null,
-      reviewedAt: null,
-      reason: classificationReason.trim() || `User selected ${classification} upload classification.`,
-      isApprovedDemoContent: false
-    }
-  });
+  const form = new FormData();
+  form.set("file", file);
+  form.set("noCuiAttestation", String(noCuiAttestation));
+  form.set("containsPotentialCui", String(classification === "Cui"));
+  form.set("classification", classification);
+  form.set("classificationReason", classificationReason.trim() || `User selected ${classification} upload classification.`);
+  return postFormResult<EvidenceFileAccess>(`/api/evidence-items/${placeholderEvidenceItemId}/file`, form);
 }
 
 export async function createTenantInvitation(request: CreateTenantInvitationRequest): Promise<TenantInvitation | null> {
@@ -2438,6 +2443,26 @@ async function postJsonResult<T>(path: string, body: unknown): Promise<ApiMutati
     return { data: await response.json(), error: null };
   } catch {
     return { data: null, error: "The API could not be reached." };
+  }
+}
+
+async function postFormResult<T>(path: string, body: FormData): Promise<ApiMutationResult<T>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "POST",
+      headers: getApiHeaders(),
+      body
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The API request could not be completed." };
   }
 }
 

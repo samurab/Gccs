@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.NoCui;
 using Gccs.Application.Security;
+using Gccs.Application.Storage;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
@@ -129,6 +131,70 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             audit.Action == AuditAction.Deleted && audit.EntityType == "EvidenceFileVersion");
     }
 
+    [Fact]
+    public async Task Uploaded_file_bytes_are_stored_and_streamed_through_the_api()
+    {
+        var tenantId = Guid.Parse("12212212-2122-1221-2212-2122122122a5");
+        var userId = Guid.Parse("12212212-2122-1221-2212-2122122122b5");
+        var evidenceItemId = Guid.Parse("12212212-2122-1221-2212-2122122122e5");
+        await using var factory = CreateFactory("tc-12-2-5", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        await AcknowledgeAsync(client, tenantId, userId);
+
+        using var uploadRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/evidence-items/{evidenceItemId}/file");
+        uploadRequest.Headers.Add("X-Gccs-Dev-Auth", "true");
+        uploadRequest.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+        uploadRequest.Headers.Add("X-Gccs-Dev-User", userId.ToString());
+        uploadRequest.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageEvidence.ToString());
+        using var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("policy evidence"));
+        fileContent.Headers.ContentType = new("text/plain");
+        using var content = new MultipartFormDataContent
+        {
+            { new StringContent("true"), "noCuiAttestation" },
+            { fileContent, "file", "policy.txt" }
+        };
+        uploadRequest.Content = content;
+        var uploadResponse = await client.SendAsync(uploadRequest);
+        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
+
+        using var downloadRequest = CreateRequest<object?>(
+            HttpMethod.Get,
+            $"/api/evidence-items/{evidenceItemId}/file/content",
+            null,
+            tenantId,
+            userId,
+            Permission.ViewEvidence);
+        var blockedDownloadResponse = await client.SendAsync(downloadRequest);
+        Assert.Equal(HttpStatusCode.Conflict, blockedDownloadResponse.StatusCode);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var version = await dbContext.EvidenceFileVersions
+                .Include(fileVersion => fileVersion.EvidenceItem)
+                .SingleAsync(fileVersion =>
+                    fileVersion.EvidenceItemId == evidenceItemId &&
+                    fileVersion.EvidenceItem != null &&
+                    fileVersion.EvidenceItem.TenantId == tenantId);
+            version.MalwareScanStatus = "clean";
+            version.EvidenceItem!.MalwareScanStatus = "clean";
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var cleanDownloadRequest = CreateRequest<object?>(
+            HttpMethod.Get,
+            $"/api/evidence-items/{evidenceItemId}/file/content",
+            null,
+            tenantId,
+            userId,
+            Permission.ViewEvidence);
+        var downloadResponse = await client.SendAsync(cleanDownloadRequest);
+
+        Assert.Equal(HttpStatusCode.OK, downloadResponse.StatusCode);
+        Assert.Equal("policy evidence", await downloadResponse.Content.ReadAsStringAsync());
+        Assert.Equal("text/plain", downloadResponse.Content.Headers.ContentType?.MediaType);
+    }
+
     private async Task AcknowledgeAsync(HttpClient client, Guid tenantId, Guid userId)
     {
         using var request = CreateRequest(
@@ -181,6 +247,7 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
                 services.AddScoped<NoCuiAcknowledgementService>();
                 services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.AddSingleton<IObjectStorageService, InMemoryObjectStorageService>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
@@ -226,5 +293,65 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             DataPosture = TenantDataPosture.NoCui,
             CreatedAt = DateTimeOffset.UtcNow
         });
+    }
+
+    private sealed class InMemoryObjectStorageService : IObjectStorageService
+    {
+        private readonly Dictionary<string, StoredObject> _objects = new(StringComparer.Ordinal);
+
+        public Task<ObjectStorageWriteResult> UploadAsync(
+            ObjectStorageWriteRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var blobName = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
+            using var buffer = new MemoryStream();
+            request.Content.CopyTo(buffer);
+            _objects[blobName] = new StoredObject(buffer.ToArray(), request.ContentType, DateTimeOffset.UtcNow);
+
+            return Task.FromResult(new ObjectStorageWriteResult(
+                request.Container,
+                blobName,
+                new Uri($"https://storage.test/{blobName}"),
+                "\"test\"",
+                _objects[blobName].LastModified));
+        }
+
+        public Task<ObjectStorageReadResult?> OpenReadAsync(
+            ObjectStorageReadRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var blobName = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
+            if (!_objects.TryGetValue(blobName, out var storedObject))
+            {
+                return Task.FromResult<ObjectStorageReadResult?>(null);
+            }
+
+            return Task.FromResult<ObjectStorageReadResult?>(new ObjectStorageReadResult(
+                request.Container,
+                blobName,
+                new MemoryStream(storedObject.Content, writable: false),
+                storedObject.ContentType,
+                storedObject.Content.Length,
+                "\"test\"",
+                storedObject.LastModified));
+        }
+
+        public Task<bool> ExistsAsync(
+            ObjectStorageReadRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var blobName = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
+            return Task.FromResult(_objects.ContainsKey(blobName));
+        }
+
+        public Task<bool> DeleteAsync(
+            ObjectStorageReadRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var blobName = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
+            return Task.FromResult(_objects.Remove(blobName));
+        }
+
+        private sealed record StoredObject(byte[] Content, string ContentType, DateTimeOffset LastModified);
     }
 }
