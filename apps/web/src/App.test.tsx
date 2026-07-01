@@ -2217,7 +2217,7 @@ describe("App", () => {
       "User confirmed upload classification.",
       true
     );
-    expect(await screen.findByText(/Upload intent created for policy.pdf/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Uploaded policy.pdf/i)).toBeInTheDocument();
     expect(screen.getByText(/malware scan scan-pending/i)).toBeInTheDocument();
   });
 
