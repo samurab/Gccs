@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Gccs.Api.Security;
@@ -82,6 +83,30 @@ public static class ApiSecurityExtensions
                     };
                     options.Events = new JwtBearerEvents
                     {
+                        OnMessageReceived = context =>
+                        {
+                            var logger = context.HttpContext.RequestServices
+                                .GetRequiredService<ILoggerFactory>()
+                                .CreateLogger("Gccs.Api.Security.JwtBearer");
+                            logger.LogDebug(
+                                "JWT bearer request received. Path={Path} AuthorizationHeaderPresent={AuthorizationHeaderPresent}",
+                                context.HttpContext.Request.Path,
+                                context.Request.Headers.ContainsKey("Authorization"));
+                            return Task.CompletedTask;
+                        },
+                        OnAuthenticationFailed = context =>
+                        {
+                            var logger = context.HttpContext.RequestServices
+                                .GetRequiredService<ILoggerFactory>()
+                                .CreateLogger("Gccs.Api.Security.JwtBearer");
+                            logger.LogWarning(
+                                context.Exception,
+                                "JWT bearer authentication failed. Path={Path} ExceptionType={ExceptionType} Message={Message}",
+                                context.HttpContext.Request.Path,
+                                context.Exception.GetType().Name,
+                                context.Exception.Message);
+                            return Task.CompletedTask;
+                        },
                         OnTokenValidated = context =>
                         {
                             NormalizeMicrosoftEntraClaims(context.Principal);
