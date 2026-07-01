@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.NoCui;
+using Gccs.Application.Storage;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
@@ -417,6 +418,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
                 services.AddScoped<NoCuiAcknowledgementService>();
                 services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.AddSingleton<IObjectStorageService, TestObjectStorageService>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();

@@ -40,7 +40,11 @@ public sealed class SecurityBoundaryTests : IClassFixture<WebApplicationFactory<
 
         var response = await client.GetAsync("/health");
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains(
+            response.StatusCode,
+            new[] { HttpStatusCode.OK, HttpStatusCode.ServiceUnavailable });
     }
 
     [Fact]

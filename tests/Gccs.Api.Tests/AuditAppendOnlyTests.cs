@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Gccs.Application.Audit;
 using Gccs.Application.NoCui;
+using Gccs.Application.Storage;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
@@ -294,6 +295,7 @@ public sealed class AuditAppendOnlyTests : IClassFixture<WebApplicationFactory<P
                 services.AddScoped<NoCuiAcknowledgementService>();
                 services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.AddSingleton<IObjectStorageService, TestObjectStorageService>();
 
                 if (failAuditWrites)
                 {

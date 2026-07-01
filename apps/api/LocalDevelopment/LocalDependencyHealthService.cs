@@ -308,13 +308,13 @@ public sealed class LocalDependencyHealthService
             }
         }
 
-        var password = values.TryGetValue("password", out var configuredPassword)
+        var redisCredential = values.TryGetValue("password", out var configuredPassword)
             ? configuredPassword
             : string.Empty;
         var useSsl = parsedPort == 6380 ||
             (values.TryGetValue("ssl", out var ssl) && bool.TryParse(ssl, out var parsedSsl) && parsedSsl);
 
-        return new RedisConnectionSettings(host, parsedPort, useSsl, password);
+        return new RedisConnectionSettings(host, parsedPort, useSsl, redisCredential);
     }
 
     private bool HasAzureObjectStorageConfiguration() =>
