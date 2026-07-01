@@ -83,11 +83,15 @@ jobs:
           echo "Staging database, object storage, cache, queue, and secrets are provisioned outside this repository workflow."
           echo "API and web artifacts are deployed by the following workflow steps."
 
+      - name: Login to Azure staging subscription
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_STAGING }}
+
       - name: Deploy staging API App Service
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.STAGING_API_APP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_GCCS_API_STAGING }}
           package: ${{ runner.temp }}/gccs-api-staging
 
       - name: Deploy staging Static Web App
