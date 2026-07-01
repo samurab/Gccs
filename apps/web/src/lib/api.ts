@@ -2607,7 +2607,7 @@ function getAccessToken(): string | null {
   ].filter((key): key is string => Boolean(key));
 
   for (const key of storageKeys) {
-    const value = window.localStorage.getItem(key) ?? window.sessionStorage.getItem(key);
+    const value = window.sessionStorage.getItem(key) ?? window.localStorage.getItem(key);
     if (value && value.trim()) {
       return value.trim();
     }

@@ -160,6 +160,14 @@ function clearStoredAccessToken() {
   window.sessionStorage.removeItem(accessTokenStorageKey);
   window.localStorage.removeItem(legacyAccessTokenStorageKey);
   window.sessionStorage.removeItem(legacyAccessTokenStorageKey);
+
+  for (const storage of [window.localStorage, window.sessionStorage]) {
+    for (const key of Object.keys(storage)) {
+      if (key.startsWith("msal.")) {
+        storage.removeItem(key);
+      }
+    }
+  }
 }
 
 function AuthShell({

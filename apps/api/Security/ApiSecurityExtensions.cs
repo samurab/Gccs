@@ -74,6 +74,7 @@ public static class ApiSecurityExtensions
                         ValidateAudience = true,
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
+                        ValidAudiences = BuildValidAudiences(audience),
                         NameClaimType = ClaimTypes.Email,
                         RoleClaimType = ClaimTypes.Role
                     };
@@ -142,6 +143,22 @@ public static class ApiSecurityExtensions
         });
 
         return services;
+    }
+
+    private static string[] BuildValidAudiences(string audience)
+    {
+        var audiences = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            audience
+        };
+
+        const string applicationIdUriPrefix = "api://";
+        if (audience.StartsWith(applicationIdUriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            audiences.Add(audience[applicationIdUriPrefix.Length..]);
+        }
+
+        return audiences.ToArray();
     }
 
     public static IApplicationBuilder UseGccsTenantMembershipAuthorization(
