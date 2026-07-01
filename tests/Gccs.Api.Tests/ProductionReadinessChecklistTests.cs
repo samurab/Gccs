@@ -542,6 +542,76 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_3_2_Staging_workflow_evidence_artifact_is_linked_and_blocked_until_authenticated_run()
+    {
+        var evidence = ReadText("docs", "production-readiness-staging-workflow-evidence.md");
+        var plan = ReadText("docs", "production-readiness-plan.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+
+        Assert.Contains("docs/production-readiness-staging-workflow-evidence.md", plan);
+        Assert.Contains("docs/production-readiness-staging-workflow-evidence.md", checklist);
+        Assert.Contains("Story: PR-3.2 - Execute End-To-End MVP Workflow In Staging.", evidence);
+        Assert.Contains("Evidence status: Blocked", evidence);
+        Assert.Contains("Staging resource group: `gccs-staging-rg`.", evidence);
+        Assert.Contains("Data handling posture: No-CUI / compliance management only.", evidence);
+        Assert.Contains("STAGE-WF-001", evidence);
+        Assert.Contains("| STAGE-WF-001 |", evidence);
+        Assert.Contains("| QA owner | High |", evidence);
+        Assert.Contains("| Open |", evidence);
+        Assert.Contains("Blocked pending authenticated staging evidence", checklist);
+    }
+
+    [Fact]
+    public void TC_PR_3_2_Required_workflow_steps_are_captured_for_manual_staging_run()
+    {
+        var evidence = ReadText("docs", "production-readiness-staging-workflow-evidence.md");
+
+        foreach (var workflowStep in new[]
+        {
+            "Tenant creation or verification",
+            "User invite",
+            "Role assignment",
+            "Company profile",
+            "Contract creation",
+            "Allowed upload",
+            "Blocked CUI/prohibited upload",
+            "Blocked upload audit",
+            "Manual clause tagging",
+            "Obligation generation",
+            "Task creation",
+            "Evidence upload",
+            "Report generation",
+            "Audit log export"
+        })
+        {
+            Assert.Contains(workflowStep, evidence);
+        }
+
+        Assert.Contains("Complete this table with synthetic-only data before PR-3.2 can be closed.", evidence);
+        Assert.DoesNotContain("production customer data is allowed", evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("real customer CUI is allowed", evidence, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_3_2_Automated_coverage_and_smoke_results_are_mapped_to_test_cases()
+    {
+        var evidence = ReadText("docs", "production-readiness-staging-workflow-evidence.md");
+        var pilotWorkflowTests = ReadText("tests", "Gccs.Api.Tests", "PilotWorkflowTests.cs");
+        var noCuiTests = ReadText("tests", "Gccs.Api.Tests", "NoCuiAcknowledgementTests.cs");
+
+        foreach (var testCase in new[] { "TC-PR-3.2.1", "TC-PR-3.2.2", "TC-PR-3.2.3", "TC-PR-3.2.4" })
+        {
+            Assert.Contains(testCase, evidence);
+        }
+
+        Assert.Contains("TC_17_1_1_Non_cui_pilot_tenant_completes_core_mvp_workflow", pilotWorkflowTests);
+        Assert.Contains("TC_17_1_3_Pilot_reports_reflect_workflow_data", pilotWorkflowTests);
+        Assert.Contains("TC_4_2_2A_Upload_without_per_file_no_cui_attestation_is_rejected_and_audit_logged", noCuiTests);
+        Assert.Contains("TC_4_2_4_Failed_upload_validation_is_audit_logged_and_not_usable", noCuiTests);
+        Assert.Contains("Automated tests reduce regression risk but do not replace authenticated staging evidence.", evidence);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
@@ -554,7 +624,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Customer success/support owner approval.", checklist);
         Assert.Contains("Legal or contracting advisor approval", checklist);
 
-        foreach (var requiredItem in new[] { "No-CUI posture", "Terms and claims", "Support path", "Backups and restore", "Logs and alerts", "Rollback plan", "Malware scanning", "Expert-reviewed content", "Release notes" })
+        foreach (var requiredItem in new[] { "No-CUI posture", "Terms and claims", "Support path", "Prohibited uploads", "Staging MVP workflow", "Backups and restore", "Logs and alerts", "Rollback plan", "Malware scanning", "Expert-reviewed content", "Release notes" })
         {
             Assert.Contains(requiredItem, checklist);
         }

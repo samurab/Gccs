@@ -79,6 +79,7 @@ Before MVP launch candidate tagging.
 - `docs/production-readiness-completed-story-dod-review.md`
 - `docs/production-readiness-launch-gap-decisions.md`
 - `docs/production-readiness-staging-smoke-evidence.md`
+- `docs/production-readiness-staging-workflow-evidence.md`
 - `docs/software-delivery-plan.md`
 - `docs/mvp-execution-plan.md`
 - `docs/mvp-roadmap.md`
