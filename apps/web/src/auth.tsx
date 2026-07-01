@@ -12,6 +12,7 @@ const clientId = import.meta.env.VITE_MSAL_CLIENT_ID;
 const tenantId = import.meta.env.VITE_MSAL_TENANT_ID;
 const apiScope = import.meta.env.VITE_MSAL_API_SCOPE;
 const authority = tenantId ? `https://login.microsoftonline.com/${tenantId}` : "";
+const apiTokenRequest = { scopes: apiScope ? [apiScope] : [] };
 
 const isMsalConfigured = Boolean(clientId && tenantId && apiScope);
 
@@ -38,7 +39,7 @@ type AuthState =
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: isMsalConfigured ? "initializing" : "disabled" });
-  const tokenRequest = useMemo(() => ({ scopes: apiScope ? [apiScope] : [] }), []);
+  const tokenRequest = useMemo(() => apiTokenRequest, []);
 
   useEffect(() => {
     if (!msalInstance) {
@@ -148,6 +149,36 @@ export function AuthGate({ children }: { children: ReactNode }) {
   );
 }
 
+export async function getFreshAccessToken(): Promise<string | null> {
+  if (!msalInstance) {
+    return getStoredAccessToken();
+  }
+
+  await msalInstance.initialize();
+
+  const account = msalInstance.getActiveAccount() ?? msalInstance.getAllAccounts()[0] ?? null;
+  if (!account) {
+    clearStoredAccessToken();
+    return null;
+  }
+
+  msalInstance.setActiveAccount(account);
+
+  try {
+    const tokenResult = await msalInstance.acquireTokenSilent({ ...apiTokenRequest, account });
+    storeAccessToken(tokenResult.accessToken);
+    return tokenResult.accessToken;
+  } catch (error) {
+    if (error instanceof InteractionRequiredAuthError) {
+      clearStoredAccessToken();
+      await msalInstance.acquireTokenRedirect({ ...apiTokenRequest, account });
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 function storeAccessToken(accessToken: string) {
   window.localStorage.setItem(accessTokenStorageKey, accessToken);
   window.sessionStorage.setItem(accessTokenStorageKey, accessToken);
@@ -168,6 +199,28 @@ function clearStoredAccessToken() {
       }
     }
   }
+}
+
+function getStoredAccessToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const configuredKey = import.meta.env.VITE_GCCS_ACCESS_TOKEN_STORAGE_KEY;
+  const storageKeys = [
+    configuredKey,
+    accessTokenStorageKey,
+    legacyAccessTokenStorageKey
+  ].filter((key): key is string => Boolean(key));
+
+  for (const key of storageKeys) {
+    const value = window.sessionStorage.getItem(key) ?? window.localStorage.getItem(key);
+    if (value && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
 }
 
 function AuthShell({

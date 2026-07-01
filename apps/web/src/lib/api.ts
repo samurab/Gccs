@@ -1,3 +1,5 @@
+import { getFreshAccessToken } from "../auth";
+
 export type ModuleStatus = {
   key: string;
   name: string;
@@ -1820,7 +1822,7 @@ export async function getCompanyProfile(): Promise<CompanyProfile | null> {
 
   try {
     const response = await fetch(`${apiBaseUrl}/api/company-profile`, {
-      headers: getApiHeaders()
+      headers: await getApiHeaders()
     });
 
     if (response.status === 204) {
@@ -1898,12 +1900,13 @@ export async function updateContractObligationStatus(
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
+    const apiHeaders = await getApiHeaders();
     const response = await fetch(
       `${apiBaseUrl}/api/contract-obligations/${contractClauseId}/${encodeURIComponent(obligationId)}/status`,
       {
         method: "PATCH",
         headers: {
-          ...(getApiHeaders() ?? {}),
+          ...(apiHeaders ?? {}),
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ status })
@@ -1928,12 +1931,13 @@ export async function assignContractObligationOwner(
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
+    const apiHeaders = await getApiHeaders();
     const response = await fetch(
       `${apiBaseUrl}/api/contract-obligations/${contractClauseId}/${encodeURIComponent(obligationId)}/owner`,
       {
         method: "PATCH",
         headers: {
-          ...(getApiHeaders() ?? {}),
+          ...(apiHeaders ?? {}),
           "Content-Type": "application/json"
         },
         body: JSON.stringify(request)
@@ -1986,7 +1990,7 @@ export async function getContract(contractId: string): Promise<ContractRecord | 
 
   try {
     const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}`, {
-      headers: getApiHeaders()
+      headers: await getApiHeaders()
     });
 
     if (!response.ok) {
@@ -2120,7 +2124,7 @@ export async function deleteContractDocument(contractId: string, documentId: str
   try {
     const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}/documents/${documentId}`, {
       method: "DELETE",
-      headers: getApiHeaders()
+      headers: await getApiHeaders()
     });
 
     if (!response.ok) {
@@ -2163,11 +2167,12 @@ export async function removeContractClause(
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
+    const apiHeaders = await getApiHeaders();
     const response = await fetch(`${apiBaseUrl}/api/contracts/${contractId}/clauses/${contractClauseId}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
-        ...(getApiHeaders() ?? {})
+        ...(apiHeaders ?? {})
       },
       body: JSON.stringify(request)
     });
@@ -2419,10 +2424,11 @@ async function postJson<T>(path: string, body: unknown): Promise<T | null> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
+    const apiHeaders = await getApiHeaders();
     const response = await fetch(`${apiBaseUrl}${path}`, {
       method: "POST",
       headers: {
-        ...(getApiHeaders() ?? {}),
+        ...(apiHeaders ?? {}),
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
@@ -2442,10 +2448,11 @@ async function postJsonResult<T>(path: string, body: unknown): Promise<ApiMutati
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
+    const apiHeaders = await getApiHeaders();
     const response = await fetch(`${apiBaseUrl}${path}`, {
       method: "POST",
       headers: {
-        ...(getApiHeaders() ?? {}),
+        ...(apiHeaders ?? {}),
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
@@ -2467,7 +2474,7 @@ async function postFormResult<T>(path: string, body: FormData): Promise<ApiMutat
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
       method: "POST",
-      headers: getApiHeaders(),
+      headers: await getApiHeaders(),
       body
     });
 
@@ -2485,10 +2492,11 @@ async function putJsonResult<T>(path: string, body: unknown): Promise<ApiMutatio
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
+    const apiHeaders = await getApiHeaders();
     const response = await fetch(`${apiBaseUrl}${path}`, {
       method: "PUT",
       headers: {
-        ...(getApiHeaders() ?? {}),
+        ...(apiHeaders ?? {}),
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
@@ -2508,10 +2516,11 @@ async function patchJsonResult<T>(path: string, body: unknown): Promise<ApiMutat
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
+    const apiHeaders = await getApiHeaders();
     const response = await fetch(`${apiBaseUrl}${path}`, {
       method: "PATCH",
       headers: {
-        ...(getApiHeaders() ?? {}),
+        ...(apiHeaders ?? {}),
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
@@ -2533,7 +2542,7 @@ async function deleteJsonResult<T>(path: string): Promise<ApiMutationResult<T>> 
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
       method: "DELETE",
-      headers: getApiHeaders()
+      headers: await getApiHeaders()
     });
 
     if (!response.ok) {
@@ -2561,7 +2570,7 @@ async function getRequiredJson<T>(path: string): Promise<T> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
-    const response = await fetch(`${apiBaseUrl}${path}`, { headers: getApiHeaders() });
+    const response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
 
     if (!response.ok) {
       throw new ApiRequestError(await readErrorMessage(response), path, response.status);
@@ -2593,7 +2602,7 @@ async function getText(path: string, fallback: string): Promise<string> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
-    const response = await fetch(`${apiBaseUrl}${path}`, { headers: getApiHeaders() });
+    const response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
 
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
@@ -2624,36 +2633,14 @@ function getDevelopmentHeaders(): HeadersInit | undefined {
     : undefined;
 }
 
-function getApiHeaders(): HeadersInit | undefined {
+async function getApiHeaders(): Promise<HeadersInit | undefined> {
   const headers = getDevelopmentHeaders();
   if (headers) {
     return headers;
   }
 
-  const token = getAccessToken();
+  const token = await getFreshAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : undefined;
-}
-
-function getAccessToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const configuredKey = import.meta.env.VITE_GCCS_ACCESS_TOKEN_STORAGE_KEY;
-  const storageKeys = [
-    configuredKey,
-    "gccs.accessToken",
-    "access_token"
-  ].filter((key): key is string => Boolean(key));
-
-  for (const key of storageKeys) {
-    const value = window.sessionStorage.getItem(key) ?? window.localStorage.getItem(key);
-    if (value && value.trim()) {
-      return value.trim();
-    }
-  }
-
-  return null;
 }
 
 async function readErrorMessage(response: Response): Promise<string> {
