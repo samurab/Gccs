@@ -42,6 +42,7 @@ PR-3.2 verifies that the deployed staging application supports the full MVP work
 | --- | --- | --- |
 | Staging deployment exists | Passed | `docs/production-readiness-staging-smoke-evidence.md` records successful deployment and `/health` smoke evidence for `gccs-staging-rg`. |
 | Staging dependency health | Passed | Staging `/health` reports `postgresql`, `redis`, `object-storage`, and `background-jobs` with `status = ok`. |
+| Staging dev-auth disabled | Passed | `GET /api/me/access` with `X-Gccs-Dev-Auth` headers returned `401 authentication_required` on 2026-07-01, proving PR-3.2 cannot use local development authentication as staging evidence. |
 | Synthetic-only staging requirement documented | Passed | This artifact and `docs/production-readiness-staging-smoke-evidence.md` prohibit production customer data and real CUI. |
 | Automated core workflow regression coverage exists | Passed | `tests/Gccs.Api.Tests/PilotWorkflowTests.cs` covers company profile, contract, clause tagging, obligation retrieval, task creation, evidence metadata/upload intent, reports, notifications, and role-constrained access using synthetic data. |
 | Automated allowed upload coverage exists | Passed | `tests/Gccs.Api.Tests/PilotWorkflowTests.cs` and `tests/Gccs.Api.Tests/NoCuiAcknowledgementTests.cs` cover allowed non-sensitive upload intent creation after No-CUI acknowledgement and per-file attestation. |
@@ -50,6 +51,25 @@ PR-3.2 verifies that the deployed staging application supports the full MVP work
 | Authenticated staging UI/API user journey attached | Blocked | No complete PR-3.2 run record, screenshots, authenticated API transcript, or QA sign-off is attached yet. |
 | Real-CUI or prohibited upload blocked in staging and audit logged | Blocked | Automated tests cover the behavior, but a staging execution record is not yet attached. |
 | Report generation and audit log export verified in staging | Blocked | Automated tests cover the behavior, but a staging execution record is not yet attached. |
+
+## Authenticated Staging Attempt - 2026-07-01
+
+| Step | Result | Evidence |
+| --- | --- | --- |
+| Confirm staging health before workflow | Passed | `GET https://gccs-api-staging-19984.azurewebsites.net/health` returned `status = ok` with `postgresql`, `redis`, `object-storage`, and `background-jobs` all `ok`. |
+| Probe local development auth headers against staging | Passed | `GET /api/me/access` with `X-Gccs-Dev-Auth` headers returned HTTP `401` with `errorCode = authentication_required`. |
+| Identify staging JWT configuration | Passed | API App Service non-secret settings show authority `https://login.microsoftonline.com/8c934636-0c37-4a8f-9134-323bef993ef2/v2.0` and audience `api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426`. |
+| Acquire Azure CLI token for staging API audience | Blocked | `az account get-access-token --resource api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426` returned `AADSTS65001`, requiring interactive user or administrator consent for Azure CLI to request the GCCS API audience. |
+| Complete scoped device-code login | Blocked | `az login --tenant 8c934636-0c37-4a8f-9134-323bef993ef2 --scope api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/.default --use-device-code --allow-no-subscriptions` was started, but the device-code sign-in did not complete during the run window. |
+
+Resume command after consent is available:
+
+```bash
+az login --tenant 8c934636-0c37-4a8f-9134-323bef993ef2 \
+  --scope api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/.default \
+  --use-device-code \
+  --allow-no-subscriptions
+```
 
 ## Required Manual Staging Run Record
 
