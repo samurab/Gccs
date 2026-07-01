@@ -136,7 +136,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
           type="button"
           onClick={() => {
             clearStoredAccessToken();
-            void msalInstance!.logoutRedirect();
+            msalInstance!.setActiveAccount(null);
+            setState({ status: "signedOut" });
           }}
         >
           Sign out
