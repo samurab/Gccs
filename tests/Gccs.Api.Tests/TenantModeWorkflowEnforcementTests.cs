@@ -8,6 +8,7 @@ using Gccs.Application.Contracts;
 using Gccs.Application.Evidence;
 using Gccs.Application.NoCui;
 using Gccs.Application.Security;
+using Gccs.Application.Storage;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
@@ -307,6 +308,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                 services.AddScoped<EvidenceRequestService>();
                 services.AddScoped<IEvidenceRequestRepository, EfEvidenceRequestRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.AddSingleton<IObjectStorageService, TestObjectStorageService>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();

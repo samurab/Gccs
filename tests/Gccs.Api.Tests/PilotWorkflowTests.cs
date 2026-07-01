@@ -13,6 +13,7 @@ using Gccs.Application.NoCui;
 using Gccs.Application.Notifications;
 using Gccs.Application.Reports;
 using Gccs.Application.Repositories;
+using Gccs.Application.Storage;
 using Gccs.Application.Subcontractors;
 using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
@@ -374,6 +375,7 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
                 services.AddScoped<IReportRepository, EfReportRepository>();
                 services.AddScoped<ITenantRepository, EfTenantRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.AddSingleton<IObjectStorageService, TestObjectStorageService>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();

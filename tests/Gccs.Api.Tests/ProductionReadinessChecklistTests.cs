@@ -482,7 +482,7 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_3_1_Staging_deployment_evidence_references_approved_pipeline_and_blocker()
+    public void TC_PR_3_1_Staging_deployment_evidence_references_approved_pipeline_and_result()
     {
         var evidence = ReadText("docs", "production-readiness-staging-smoke-evidence.md");
         var plan = ReadText("docs", "production-readiness-plan.md");
@@ -490,8 +490,11 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("docs/production-readiness-staging-smoke-evidence.md", plan);
         Assert.Contains("Story: PR-3.1 - Deploy And Smoke Test Staging.", evidence);
         Assert.Contains("Approved deployment path: `.github/workflows/staging.yml`.", evidence);
-        Assert.Contains("Evidence status: Blocked - live staging deployment and smoke evidence not attached.", evidence);
+        Assert.Contains("Evidence status: Passed", evidence);
+        Assert.Contains("Run conclusion | `success`", evidence);
+        Assert.Contains("staging-smoke-test-results/staging-health.json", evidence);
         Assert.Contains("STAGE-GAP-001", evidence);
+        Assert.Contains("Closed on 2026-07-01", evidence);
     }
 
     [Fact]
@@ -515,7 +518,7 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_3_1_Staging_data_guardrails_and_missing_credentials_are_documented()
+    public void TC_PR_3_1_Staging_data_guardrails_and_staging_credentials_are_documented()
     {
         var evidence = ReadText("docs", "production-readiness-staging-smoke-evidence.md");
 
@@ -533,8 +536,9 @@ public sealed class ProductionReadinessChecklistTests
             Assert.Contains(guardrail, evidence);
         }
 
-        Assert.Contains("No `STAGING_API_BASE_URL`, `STAGING_WEB_BASE_URL`, cloud identity, database, storage, cache, queue, or secret-store credentials were available", evidence);
-        Assert.Contains("keep production launch blocked", evidence);
+        Assert.Contains("GitHub staging variables configured", evidence);
+        Assert.Contains("GitHub staging Azure credentials configured", evidence);
+        Assert.Contains("No secret value is recorded in this evidence file.", evidence);
     }
 
     [Fact]
