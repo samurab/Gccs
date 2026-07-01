@@ -5749,28 +5749,26 @@ internal static class SimpleReportExportAuthorization
 
 internal static class ComplianceContentPackageLocator
 {
-    public static string FindPackageRoot(string contentRootPath)
-    {
-        var current = new DirectoryInfo(contentRootPath);
-        while (current is not null && !File.Exists(Path.Combine(current.FullName, "Gccs.slnx")))
-        {
-            current = current.Parent;
-        }
-
-        if (current is null)
-        {
-            throw new DirectoryNotFoundException(
-                $"Could not locate repository root from content root '{contentRootPath}'.");
-        }
-
-        return Path.Combine(current.FullName, "packages", "compliance-content");
-    }
+    public static string FindPackageRoot(string contentRootPath) =>
+        PackageLocator.FindPackageRoot(contentRootPath, "compliance-content");
 }
 
 internal static class DemoContentPackageLocator
 {
-    public static string FindPackageRoot(string contentRootPath)
+    public static string FindPackageRoot(string contentRootPath) =>
+        PackageLocator.FindPackageRoot(contentRootPath, "demo-content");
+}
+
+internal static class PackageLocator
+{
+    public static string FindPackageRoot(string contentRootPath, string packageName)
     {
+        var publishedPackagePath = Path.Combine(contentRootPath, "packages", packageName);
+        if (Directory.Exists(publishedPackagePath))
+        {
+            return publishedPackagePath;
+        }
+
         var current = new DirectoryInfo(contentRootPath);
         while (current is not null && !File.Exists(Path.Combine(current.FullName, "Gccs.slnx")))
         {
@@ -5780,9 +5778,9 @@ internal static class DemoContentPackageLocator
         if (current is null)
         {
             throw new DirectoryNotFoundException(
-                $"Could not locate repository root from content root '{contentRootPath}'.");
+                $"Could not locate package '{packageName}' from content root '{contentRootPath}'.");
         }
 
-        return Path.Combine(current.FullName, "packages", "demo-content");
+        return Path.Combine(current.FullName, "packages", packageName);
     }
 }
