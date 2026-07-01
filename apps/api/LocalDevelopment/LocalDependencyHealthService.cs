@@ -1,3 +1,4 @@
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
 using Gccs.Application.Storage;
@@ -90,18 +91,8 @@ public sealed class LocalDependencyHealthService
 
         try
         {
-            var (host, port) = ParseHostPort(_options.Redis.ConnectionString, 6379);
-            using var client = await OpenTcpClientAsync(host, port, cancellationToken);
-            await using var stream = client.GetStream();
-
-            var ping = Encoding.ASCII.GetBytes("*1\r\n$4\r\nPING\r\n");
-            await stream.WriteAsync(ping, cancellationToken);
-
-            var buffer = new byte[64];
-            var bytesRead = await stream.ReadAsync(buffer, cancellationToken).AsTask().WaitAsync(CheckTimeout, cancellationToken);
-            var response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-
-            return response.StartsWith("+PONG", StringComparison.OrdinalIgnoreCase)
+            var response = await PingRedisAsync(_options.Redis.ConnectionString, cancellationToken);
+            return response.Contains("PONG", StringComparison.OrdinalIgnoreCase)
                 ? LocalDependencyHealthCheck.Healthy("redis", "Redis responded to PING.")
                 : LocalDependencyHealthCheck.Unhealthy("redis", "Redis did not return PONG.");
         }
@@ -207,18 +198,8 @@ public sealed class LocalDependencyHealthService
 
         try
         {
-            var (host, port) = ParseHostPort(_options.Redis.ConnectionString, 6379);
-            using var client = await OpenTcpClientAsync(host, port, cancellationToken);
-            await using var stream = client.GetStream();
-
-            var ping = Encoding.ASCII.GetBytes("*1\r\n$4\r\nPING\r\n");
-            await stream.WriteAsync(ping, cancellationToken);
-
-            var buffer = new byte[64];
-            var bytesRead = await stream.ReadAsync(buffer, cancellationToken).AsTask().WaitAsync(CheckTimeout, cancellationToken);
-            var response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-
-            return response.StartsWith("+PONG", StringComparison.OrdinalIgnoreCase)
+            var response = await PingRedisAsync(_options.Redis.ConnectionString, cancellationToken);
+            return response.Contains("PONG", StringComparison.OrdinalIgnoreCase)
                 ? LocalDependencyHealthCheck.Healthy("background-jobs", "Background job queue coordination is reachable through Redis.")
                 : LocalDependencyHealthCheck.Unhealthy("background-jobs", "Background job queue coordination did not return PONG.");
         }
@@ -259,10 +240,89 @@ public sealed class LocalDependencyHealthService
         return (endpoint, defaultPort);
     }
 
+    private static async Task<string> PingRedisAsync(string connectionString, CancellationToken cancellationToken)
+    {
+        var settings = ParseRedisConnectionString(connectionString);
+        using var client = await OpenTcpClientAsync(settings.Host, settings.Port, cancellationToken);
+        await using var networkStream = client.GetStream();
+        Stream stream = networkStream;
+
+        if (settings.UseSsl)
+        {
+            var sslStream = new SslStream(networkStream, leaveInnerStreamOpen: false);
+            await sslStream.AuthenticateAsClientAsync(settings.Host).WaitAsync(CheckTimeout, cancellationToken);
+            stream = sslStream;
+        }
+
+        await using (stream)
+        {
+            if (!string.IsNullOrWhiteSpace(settings.Password))
+            {
+                await WriteRedisCommandAsync(stream, ["AUTH", settings.Password], cancellationToken);
+                var authResponse = await ReadRedisResponseAsync(stream, cancellationToken);
+                if (authResponse.StartsWith("-ERR", StringComparison.OrdinalIgnoreCase))
+                {
+                    return authResponse;
+                }
+            }
+
+            await WriteRedisCommandAsync(stream, ["PING"], cancellationToken);
+            return await ReadRedisResponseAsync(stream, cancellationToken);
+        }
+    }
+
+    private static async Task WriteRedisCommandAsync(Stream stream, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    {
+        var builder = new StringBuilder();
+        builder.Append('*').Append(arguments.Count).Append("\r\n");
+        foreach (var argument in arguments)
+        {
+            builder.Append('$').Append(Encoding.UTF8.GetByteCount(argument)).Append("\r\n");
+            builder.Append(argument).Append("\r\n");
+        }
+
+        var command = Encoding.UTF8.GetBytes(builder.ToString());
+        await stream.WriteAsync(command, cancellationToken).AsTask().WaitAsync(CheckTimeout, cancellationToken);
+    }
+
+    private static async Task<string> ReadRedisResponseAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[256];
+        var bytesRead = await stream.ReadAsync(buffer, cancellationToken).AsTask().WaitAsync(CheckTimeout, cancellationToken);
+        return Encoding.UTF8.GetString(buffer, 0, bytesRead);
+    }
+
+    private static RedisConnectionSettings ParseRedisConnectionString(string connectionString)
+    {
+        var parts = connectionString.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var endpoint = parts.FirstOrDefault() ?? string.Empty;
+        var (host, parsedPort) = ParseHostPort(endpoint, 6379);
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var part in parts.Skip(1))
+        {
+            var pair = part.Split('=', 2, StringSplitOptions.TrimEntries);
+            if (pair.Length == 2)
+            {
+                values[pair[0]] = pair[1];
+            }
+        }
+
+        var password = values.TryGetValue("password", out var configuredPassword)
+            ? configuredPassword
+            : string.Empty;
+        var useSsl = parsedPort == 6380 ||
+            (values.TryGetValue("ssl", out var ssl) && bool.TryParse(ssl, out var parsedSsl) && parsedSsl);
+
+        return new RedisConnectionSettings(host, parsedPort, useSsl, password);
+    }
+
     private bool HasAzureObjectStorageConfiguration() =>
         !string.IsNullOrWhiteSpace(_configuration["Storage:BlobServiceUri"]) ||
         !string.IsNullOrWhiteSpace(_configuration["Storage:AccountName"]);
 }
+
+public sealed record RedisConnectionSettings(string Host, int Port, bool UseSsl, string Password);
 
 public sealed record LocalDependencyHealthReport(bool IsHealthy, IReadOnlyCollection<LocalDependencyHealthCheck> Dependencies);
 

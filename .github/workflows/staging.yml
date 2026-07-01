@@ -23,6 +23,7 @@ jobs:
       DOTNET_ENVIRONMENT: Staging
       ASPNETCORE_ENVIRONMENT: Staging
       Gccs__DataPosture: No-CUI / compliance management only
+      STAGING_API_APP_NAME: gccs-api-staging-19984
       STAGING_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
       STAGING_WEB_BASE_URL: ${{ vars.STAGING_WEB_BASE_URL }}
       STAGING_CUSTOMER_DATA_MODE: synthetic-only
@@ -79,10 +80,37 @@ jobs:
 
       - name: Deploy staging API, web, data, storage, cache, queue, and secrets
         run: |
+          echo "Staging database, object storage, cache, queue, and secrets are provisioned outside this repository workflow."
+          echo "API and web artifacts are deployed by the following workflow steps."
+
+      - name: Deploy staging API App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.STAGING_API_APP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_GCCS_API_STAGING }}
+          package: ${{ runner.temp }}/gccs-api-staging
+
+      - name: Deploy staging Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        env:
+          VITE_API_BASE_URL: ${{ env.STAGING_API_BASE_URL }}
+          VITE_MSAL_CLIENT_ID: 8df0cbe5-60ee-4356-9386-41f300e82718
+          VITE_MSAL_TENANT_ID: 8c934636-0c37-4a8f-9134-323bef993ef2
+          VITE_MSAL_API_SCOPE: api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/access_as_user
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_ROCK_016FF040F }}
+          action: upload
+          app_location: apps/web
+          api_location: ""
+          output_location: dist
+          skip_app_build: true
+
+      - name: Record staging deployment inputs
+        run: |
           echo "Deploy API artifact from $RUNNER_TEMP/gccs-api-staging"
           echo "Deploy web artifact from apps/web/dist"
           echo "Apply staging migrations from $RUNNER_TEMP/gccs-staging-migrations.sql"
-          echo "Provision/update staging database, object storage, cache, queue, and secrets through the staging environment."
+          echo "Provisioned staging database, object storage, cache, queue, and secrets through Azure resource group gccs-staging-rg."
 
       - name: Run staging smoke tests
         run: |
