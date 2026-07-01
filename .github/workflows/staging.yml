@@ -119,7 +119,17 @@ jobs:
       - name: Run staging smoke tests
         run: |
           test -n "$STAGING_API_BASE_URL"
-          curl --fail --show-error --silent "$STAGING_API_BASE_URL/health" | tee "$RUNNER_TEMP/staging-health.json"
+          for attempt in {1..12}; do
+            if curl --fail --show-error --silent "$STAGING_API_BASE_URL/health" | tee "$RUNNER_TEMP/staging-health.json"; then
+              break
+            fi
+
+            if [ "$attempt" -eq 12 ]; then
+              exit 1
+            fi
+
+            sleep 10
+          done
           grep '"service":"gccs-api"' "$RUNNER_TEMP/staging-health.json"
           grep '"dataPosture":"No-CUI / compliance management only"' "$RUNNER_TEMP/staging-health.json"
           grep '"name":"postgresql"' "$RUNNER_TEMP/staging-health.json"
