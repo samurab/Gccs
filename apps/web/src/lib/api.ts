@@ -1493,7 +1493,22 @@ export async function getComplianceOverview(): Promise<ComplianceOverview> {
 }
 
 export async function getCurrentUserAccess(): Promise<CurrentUserAccess> {
-  return getRequiredJson<CurrentUserAccess>("/api/me/access");
+  return normalizeCurrentUserAccess(await getRequiredJson<CurrentUserAccess>("/api/me/access"));
+}
+
+function normalizeCurrentUserAccess(access: CurrentUserAccess): CurrentUserAccess {
+  const explicitPermissions = Array.isArray(access.permissions) ? access.permissions : [];
+  const rolePermissionMatrix = access.rolePermissionMatrix ?? {};
+  const derivedPermissions = access.roles.flatMap((role) => rolePermissionMatrix[role] ?? []);
+  const permissions = [...new Set([...explicitPermissions, ...derivedPermissions])].sort((left, right) =>
+    left.localeCompare(right)
+  );
+
+  return {
+    ...access,
+    permissions,
+    rolePermissionMatrix
+  };
 }
 
 export async function getTenantMembers(): Promise<TenantMember[]> {
