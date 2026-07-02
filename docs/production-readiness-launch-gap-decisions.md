@@ -20,6 +20,7 @@ No deferred item in this log expands the No-CUI posture, weakens tenant isolatio
 | DOD-GAP-004 | Staging restore rehearsal has not been executed. | Launch blocker | Engineering lead | High | Execute the PR-4.1 restore runbook in `docs/production-readiness-launch-closure-evidence.md`, attach restore output, reviewer, and teardown evidence. | If restore evidence is missing at PR-6.1, block launch candidate approvals and do not tag PR-6.2. | Engineering lead and security owner | Before PR-6.1 launch approvals | Restore execution pending | Does not expand No-CUI posture; restored data must remain synthetic-only. |
 | DOD-GAP-005 | Five high-risk compliance content records remain `needs_review`. | Launch blocker | Compliance content owner | High | Approve the high-risk records or withhold them from customer-facing production views; record reviewer, date, scope, and limitations. | If approval or withholding is incomplete, block production launch or remove affected content from launch scope. | Compliance content owner and legal or contracting advisor | Before PR-6.1 launch approvals | Expert approval or withholding pending | Blocks unsupported compliance content claims; does not authorize legal advice or government endorsement. |
 | DOD-GAP-006 | Required final launch approvals are not recorded. | Launch blocker | Product owner | Critical | Collect PR-6.1 approval records for product, engineering, security, compliance content, support, and legal or contracting advisor with evidence links and exceptions. | If any approval is missing, do not tag the launch candidate. | Product owner | Before PR-6.2 launch candidate tag | Approvals pending | Prevents informal production launch without accountable signoff. |
+| DOD-GAP-007 | PR-3.3 authenticated staging tenant isolation and RBAC checks are not executed. | Launch blocker | Security owner | High | Provide a staging-only token or smoke identity for owner, admin, compliance manager, contributor, auditor, and advisor role contexts; run direct API cross-tenant and role-denial checks; attach sanitized outputs in `docs/production-readiness-staging-security-evidence.md`. | If authenticated staging authorization evidence is missing, do not proceed to PR-3.4 or later launch evidence stories. | Security owner and engineering lead | Before PR-3.4 execution | Staging smoke credential pending | Does not expand No-CUI posture; staging checks must use synthetic-only tenants and data. |
 
 ## Accepted Risks
 
@@ -31,6 +32,7 @@ No accepted risks are recorded for PR-2.3. All identified gaps are either deferr
 - `DOD-GAP-004`: Staging restore rehearsal remains unexecuted until PR-4.1 restore evidence is attached.
 - `DOD-GAP-005`: High-risk expert content remains pending until approved or withheld from customer-facing production.
 - `DOD-GAP-006`: Required launch approvals remain pending until PR-6.1 records accountable signoff.
+- `DOD-GAP-007`: PR-3.3 authenticated staging tenant isolation and RBAC evidence remains missing until a scoped staging API smoke credential is provided and direct API checks pass.
 
 ## Deferred Follow-Ups
 
@@ -40,6 +42,7 @@ No accepted risks are recorded for PR-2.3. All identified gaps are either deferr
 ## Required Follow-Up
 
 - PR-4.3 must update this log or the future known-risk acceptance log with the malware scanning decision.
+- PR-3.3 must attach authenticated staging tenant isolation and RBAC evidence before PR-3.4 or PR-4.1 work continues.
 - PR-4.1 must attach restore rehearsal evidence before launch approval.
 - PR-5.1 must attach expert content approval or withholding evidence before launch approval.
 - PR-6.1 must verify no launch blocker remains open before approvals are treated as complete.

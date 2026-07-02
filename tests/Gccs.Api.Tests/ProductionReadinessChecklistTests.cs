@@ -641,6 +641,28 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_3_3_Staging_security_evidence_records_automated_coverage_and_blocks_on_missing_smoke_credential()
+    {
+        var evidence = ReadText("docs", "production-readiness-staging-security-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("Story: PR-3.3 - Verify Tenant Isolation And RBAC In Staging.", evidence);
+        Assert.Contains("Evidence status: Blocked for live authenticated staging API execution; automated backend/API coverage passed.", evidence);
+        Assert.Contains("dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --configuration Release --no-restore --filter", evidence);
+        Assert.Contains("Ten tests passed with zero failures.", evidence);
+        Assert.Contains("No `GCCS_STAGING_ACCESS_TOKEN`, scoped smoke-test token, or equivalent authenticated staging API credential", evidence);
+        Assert.Contains("PR33-STAGE-001", evidence);
+        Assert.Contains("Do not proceed to PR-3.4, PR-4.1, or later production readiness stories", evidence);
+
+        Assert.Contains("Staging tenant isolation and RBAC", checklist);
+        Assert.Contains("Blocked pending staging API smoke credential", checklist);
+        Assert.Contains("docs/production-readiness-staging-security-evidence.md", closure);
+        Assert.Contains("DOD-GAP-007", gapLog);
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
