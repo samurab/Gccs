@@ -724,6 +724,44 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_3_4_Upload_and_report_staging_evidence_records_local_coverage_and_auth_blocker()
+    {
+        var evidence = ReadText("docs", "production-readiness-staging-upload-report-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        using var health = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.4", "staging-health.json"));
+        using var authBlocker = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.4", "authentication-blocker.json"));
+
+        Assert.Contains("Story: PR-3.4 - Verify Upload Guardrails And Report Controls In Staging.", evidence);
+        Assert.Contains("Evidence status: Blocked for live authenticated staging execution.", evidence);
+        Assert.Contains("No-CUI acknowledgement", evidence);
+        Assert.Contains("rejected upload audit logging", evidence);
+        Assert.Contains("source references and last-reviewed dates", evidence);
+        Assert.Contains("prohibited claim disclaimers", evidence);
+        Assert.Contains("PR34-STAGE-001", evidence);
+        Assert.Contains("PR-3.4 is blocked.", evidence);
+
+        Assert.Contains("Staging upload guardrails and report controls", checklist);
+        Assert.Contains("Blocked pending authenticated staging smoke credential", checklist);
+        Assert.Contains("docs/production-readiness-staging-upload-report-evidence.md", closure);
+        Assert.Contains("DOD-GAP-009", gapLog);
+        Assert.Contains("PR-3.4 must close `DOD-GAP-009` before the production readiness sequence continues to PR-4.1.", gapLog);
+
+        Assert.Equal("PR-3.4", health.RootElement.GetProperty("story").GetString());
+        Assert.Equal(200, health.RootElement.GetProperty("status").GetInt32());
+        Assert.False(health.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(health.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(health.RootElement.GetProperty("containsCui").GetBoolean());
+
+        Assert.Equal("blocked", authBlocker.RootElement.GetProperty("result").GetString());
+        Assert.Equal("PR34-STAGE-001", authBlocker.RootElement.GetProperty("blockerId").GetString());
+        Assert.False(authBlocker.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(authBlocker.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(authBlocker.RootElement.GetProperty("containsCui").GetBoolean());
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");

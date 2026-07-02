@@ -22,6 +22,7 @@ No deferred item in this log expands the No-CUI posture, weakens tenant isolatio
 | DOD-GAP-006 | Required final launch approvals are not recorded. | Launch blocker | Product owner | Critical | Collect PR-6.1 approval records for product, engineering, security, compliance content, support, and legal or contracting advisor with evidence links and exceptions. | If any approval is missing, do not tag the launch candidate. | Product owner | Before PR-6.2 launch candidate tag | Approvals pending | Prevents informal production launch without accountable signoff. |
 | DOD-GAP-007 | PR-3.3 authenticated staging tenant isolation and RBAC checks are not executed for the full role matrix. | Launch blocker | Security owner | High | Provide staging-only tokens or smoke identities for Admin, Compliance Manager, Contributor, Auditor, and Advisor role contexts; run direct API cross-tenant and role-denial checks; attach sanitized outputs in `docs/production-readiness-staging-security-evidence.md`. | If full authenticated staging authorization evidence is missing, do not proceed to PR-3.4 or later launch evidence stories. | Security owner and engineering lead | Before PR-3.4 execution | Closed on 2026-07-02; role-matrix staging evidence passed for Owner, Admin, Compliance Manager, Contributor, Auditor, and Advisor. | Does not expand No-CUI posture; staging checks used synthetic-only tenants and data. |
 | DOD-GAP-008 | Unintended orphan staging tenant `PR-3.3 blocked admin tenant` was created during an invalid Admin-cycle probe. | Launch blocker | Engineering lead | Medium | Use database or Azure/admin access to locate and archive the orphan tenant; attach cleanup evidence. | If cleanup cannot be confirmed before PR-3.3 completion, keep PR-3.3 blocked and do not proceed to PR-3.4. | Engineering lead and security owner | Before PR-3.3 completion | Closed on 2026-07-02; tenant archived, audit entry inserted, and temporary firewall rule removed. | Does not expand No-CUI posture; tenant was staging-only, archived with zero memberships, and cleanup evidence is attached. |
+| DOD-GAP-009 | PR-3.4 authenticated staging upload guardrail and report-control checks cannot execute without a signed-in staging session or approved smoke credential. | Launch blocker | QA owner | High | Provide a staging-only smoke identity, signed-in browser session, or approved API token; run synthetic-only upload acknowledgement, blocked upload, report generation, report RBAC, source metadata, and prohibited-claim checks; attach sanitized outputs in `docs/production-readiness-staging-upload-report-evidence.md`. | If PR-3.4 authenticated staging evidence is missing, do not proceed to PR-4.1 or later launch evidence stories unless accountable approvers remove PR-3.4 from launch scope. | Security owner and engineering lead | Before PR-4.1 execution | Open on 2026-07-02; staging health passed, local automated coverage exists, but authenticated smoke execution is blocked by missing auth. | Does not expand No-CUI posture; future evidence must use synthetic-only files and must not store real CUI or customer data. |
 
 ## Accepted Risks
 
@@ -33,6 +34,7 @@ No accepted risks are recorded for PR-2.3. All identified gaps are either deferr
 - `DOD-GAP-004`: Staging restore rehearsal remains unexecuted until PR-4.1 restore evidence is attached.
 - `DOD-GAP-005`: High-risk expert content remains pending until approved or withheld from customer-facing production.
 - `DOD-GAP-006`: Required launch approvals remain pending until PR-6.1 records accountable signoff.
+- `DOD-GAP-009`: PR-3.4 authenticated staging upload/report evidence remains missing until staging auth is provided and synthetic-only checks pass.
 
 ## Closed Gaps
 
@@ -46,6 +48,7 @@ No accepted risks are recorded for PR-2.3. All identified gaps are either deferr
 
 ## Required Follow-Up
 
+- PR-3.4 must close `DOD-GAP-009` before the production readiness sequence continues to PR-4.1.
 - PR-4.3 must update this log or the future known-risk acceptance log with the malware scanning decision.
 - PR-4.1 must attach restore rehearsal evidence before launch approval.
 - PR-5.1 must attach expert content approval or withholding evidence before launch approval.
