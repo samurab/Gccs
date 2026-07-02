@@ -1,0 +1,270 @@
+{
+  "story": "PR-3.4",
+  "checkedAt": "2026-07-02T19:45:37.353Z",
+  "api": "https://gccs-api-staging-19984.azurewebsites.net",
+  "appUrl": "https://mango-rock-016ff040f.7.azurestaticapps.net",
+  "correlations": [
+    "pr-3.4-auth-smoke-20260702194312",
+    "pr-3.4-upload-retry2-20260702194526",
+    "pr-3.4-audit-probe2"
+  ],
+  "result": "passed",
+  "tokenCapturedInArtifact": false,
+  "containsCustomerData": false,
+  "containsCui": false,
+  "signedIn": {
+    "accessStatus": 200,
+    "permissionChecks": {
+      "manageEvidence": true,
+      "viewAuditLog": true,
+      "viewReports": true
+    },
+    "roles": [
+      "Owner"
+    ],
+    "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+    "userEmail": "dumbuyab@gmail.com"
+  },
+  "noCuiAcknowledgement": {
+    "isAcknowledged": true,
+    "status": 200,
+    "version": "no-cui-mvp-v1",
+    "warningIncludesNotReadyToStoreCui": true
+  },
+  "uploadGuardrails": {
+    "allowedUpload": {
+      "isUsable": false,
+      "malwareScanStatus": "scan-pending",
+      "status": 201,
+      "validationStatus": "accepted",
+      "versionId": "124ac6de-771d-4b2d-9b0c-11caa88afa53"
+    },
+    "createError": null,
+    "createStatus": 201,
+    "disallowedFileType": {
+      "detail": "Evidence upload metadata did not pass No-CUI upload guardrails.",
+      "errorCode": "validation_failed",
+      "errorKeys": [
+        "fileType"
+      ],
+      "status": 400,
+      "title": "Evidence upload rejected"
+    },
+    "evidenceItemId": "10833b0d-3335-4600-ac6f-baba6e5df4f1",
+    "missingAttestation": {
+      "detail": "Evidence upload metadata did not pass No-CUI upload guardrails.",
+      "errorCode": "validation_failed",
+      "errorKeys": [
+        "noCuiAttestation"
+      ],
+      "status": 400,
+      "title": "Evidence upload rejected"
+    },
+    "oversizedUpload": {
+      "detail": "Evidence upload metadata did not pass No-CUI upload guardrails.",
+      "errorCode": "validation_failed",
+      "errorKeys": [
+        "sizeBytes"
+      ],
+      "status": 400,
+      "title": "Evidence upload rejected"
+    },
+    "prohibitedClassification": {
+      "detail": "Admin-reviewed classification requires reviewer and review date metadata.",
+      "errorCode": "content_classification_invalid",
+      "errorKeys": [],
+      "status": 400,
+      "title": "Content classification invalid"
+    },
+    "realCuiBlocked": {
+      "detail": "NoCui tenants cannot create, upload, process, report on, export, or delete records classified as real CUI.",
+      "errorCode": "tenant_data_handling_mode_restricted",
+      "errorKeys": [],
+      "status": 403,
+      "title": "Tenant data handling mode restricted"
+    }
+  },
+  "audit": {
+    "status": 200,
+    "uploadedAuditCount": 3,
+    "rejectedAuditCount": 12,
+    "sampledActions": [
+      {
+        "action": "Rejected",
+        "entityType": "EvidenceUploadIntent",
+        "entityId": "10833b0d-3335-4600-ac6f-baba6e5df4f1",
+        "summary": "Evidence upload metadata was rejected by No-CUI upload guardrails.",
+        "occurredAt": "2026-07-02T19:45:37.018419+00:00"
+      },
+      {
+        "action": "Rejected",
+        "entityType": "TenantDataHandlingModePolicy",
+        "entityId": "10833b0d-3335-4600-ac6f-baba6e5df4f1",
+        "summary": "Tenant data handling mode blocked a restricted workflow.",
+        "occurredAt": "2026-07-02T19:45:37.009808+00:00"
+      },
+      {
+        "action": "Rejected",
+        "entityType": "EvidenceUploadIntent",
+        "entityId": "10833b0d-3335-4600-ac6f-baba6e5df4f1",
+        "summary": "Evidence upload metadata was rejected by No-CUI upload guardrails.",
+        "occurredAt": "2026-07-02T19:45:36.623636+00:00"
+      },
+      {
+        "action": "Rejected",
+        "entityType": "EvidenceUploadIntent",
+        "entityId": "10833b0d-3335-4600-ac6f-baba6e5df4f1",
+        "summary": "Evidence upload metadata was rejected by No-CUI upload guardrails.",
+        "occurredAt": "2026-07-02T19:45:27.580056+00:00"
+      },
+      {
+        "action": "Rejected",
+        "entityType": "EvidenceUploadIntent",
+        "entityId": "10833b0d-3335-4600-ac6f-baba6e5df4f1",
+        "summary": "Evidence upload metadata was rejected by No-CUI upload guardrails.",
+        "occurredAt": "2026-07-02T19:45:27.491483+00:00"
+      },
+      {
+        "action": "Uploaded",
+        "entityType": "EvidenceFileVersion",
+        "entityId": "124ac6de-771d-4b2d-9b0c-11caa88afa53",
+        "summary": "Evidence file bytes were uploaded to object storage and versioned.",
+        "occurredAt": "2026-07-02T19:45:27.42319+00:00"
+      },
+      {
+        "action": "Created",
+        "entityType": "EvidenceItem",
+        "entityId": "10833b0d-3335-4600-ac6f-baba6e5df4f1",
+        "summary": "Evidence metadata was created.",
+        "occurredAt": "2026-07-02T19:45:27.193521+00:00"
+      }
+    ]
+  },
+  "reports": {
+    "cmmcReadiness": {
+      "affirmativeProhibitedClaimsAbsent": true,
+      "assessmentId": "0a459f99-be83-49e5-9136-4fcd8acd3a6d",
+      "hasDraftReadinessLanguage": true,
+      "note": "Staging CMMC assessment data did not include control-library source references; obligation source metadata was verified through the contract obligation matrix report/export.",
+      "reportId": "3005ee8b-89f3-4668-ab0e-1a3f492f4b02",
+      "sourceReferenceCount": 0,
+      "status": 201
+    },
+    "complianceStatus": {
+      "affirmativeProhibitedClaimsAbsent": true,
+      "hasDisclaimers": true,
+      "reportId": "70030998-177f-49c2-b86f-72d612158bbd",
+      "status": 201,
+      "tenantMatches": true
+    },
+    "obligationMatrix": {
+      "contractId": "93fb5b6b-45f9-46e0-8a84-72d41ca2b316",
+      "contractNumber": "SYN-PR32-RERUN-20260702015144",
+      "csvHeadersIncludeSourceMetadata": true,
+      "exportRowCount": 1,
+      "exportStatus": 200,
+      "rowCount": 1,
+      "rowsWithClauseLastReviewedAt": 1,
+      "rowsWithClauseSourceUrl": 1,
+      "rowsWithObligationLastReviewedAt": 1,
+      "rowsWithObligationSourceUrl": 1,
+      "sampleRows": [
+        {
+          "clauseLastReviewedAt": "2026-06-03",
+          "clauseNumber": "52.204-21",
+          "hasClauseSourceUrl": true,
+          "hasObligationSourceUrl": true,
+          "obligationId": "far-52-204-21",
+          "obligationLastReviewedAt": "2026-06-03",
+          "requiresFlowDown": true
+        }
+      ],
+      "status": 200
+    },
+    "unauthenticatedComplianceStatus": {
+      "errorCode": "authentication_required",
+      "errorKeys": [],
+      "status": 401,
+      "title": "Authentication required"
+    }
+  },
+  "checks": [
+    {
+      "name": "signed-in staging owner session available",
+      "passed": true
+    },
+    {
+      "name": "tenant is No-CUI and notice acknowledged",
+      "passed": true
+    },
+    {
+      "name": "unauthenticated report generation denied",
+      "passed": true
+    },
+    {
+      "name": "synthetic evidence metadata created",
+      "passed": true
+    },
+    {
+      "name": "allowed No-CUI upload accepted with scan pending/non-usable state",
+      "passed": true
+    },
+    {
+      "name": "missing per-file No-CUI attestation blocked",
+      "passed": true
+    },
+    {
+      "name": "disallowed file type blocked",
+      "passed": true
+    },
+    {
+      "name": "oversized upload blocked",
+      "passed": true
+    },
+    {
+      "name": "potential/real CUI upload blocked for No-CUI tenant",
+      "passed": true
+    },
+    {
+      "name": "prohibited classification blocked",
+      "passed": true
+    },
+    {
+      "name": "upload accepted audit entry visible",
+      "passed": true
+    },
+    {
+      "name": "blocked upload audit entries visible",
+      "passed": true
+    },
+    {
+      "name": "compliance report generated tenant-scoped",
+      "passed": true
+    },
+    {
+      "name": "compliance report avoids affirmative prohibited claims",
+      "passed": true
+    },
+    {
+      "name": "contract obligation matrix contains source links and review dates",
+      "passed": true
+    },
+    {
+      "name": "contract obligation matrix export mirrors source metadata",
+      "passed": true
+    },
+    {
+      "name": "CMMC readiness report generated with draft/readiness language",
+      "passed": true
+    },
+    {
+      "name": "CMMC readiness report avoids affirmative prohibited claims",
+      "passed": true
+    }
+  ],
+  "hiddenRisks": [
+    "CMMC readiness source reference count is zero in current staging data because the assessment has no populated control statuses; obligation source metadata was verified through the contract obligation matrix report/export instead.",
+    "Audit log entries for accepted uploads are keyed to EvidenceFileVersion rather than EvidenceItem; audit verification must include related entity types.",
+    "The smoke creates synthetic staging records and object-storage versions; cleanup is not performed by PR-3.4 evidence because audit history is append-only."
+  ]
+}

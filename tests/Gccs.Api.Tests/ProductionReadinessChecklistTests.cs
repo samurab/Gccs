@@ -724,35 +724,54 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_3_4_Upload_and_report_staging_evidence_records_local_coverage_and_auth_blocker()
+    public void TC_PR_3_4_Upload_and_report_staging_evidence_records_authenticated_pass()
     {
         var evidence = ReadText("docs", "production-readiness-staging-upload-report-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
         using var health = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.4", "staging-health.json"));
+        using var authenticatedSmoke = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.4", "authenticated-upload-report-smoke.json"));
         using var authBlocker = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.4", "authentication-blocker.json"));
 
         Assert.Contains("Story: PR-3.4 - Verify Upload Guardrails And Report Controls In Staging.", evidence);
-        Assert.Contains("Evidence status: Blocked for live authenticated staging execution.", evidence);
+        Assert.Contains("Evidence status: Complete.", evidence);
         Assert.Contains("No-CUI acknowledgement", evidence);
-        Assert.Contains("rejected upload audit logging", evidence);
-        Assert.Contains("source references and last-reviewed dates", evidence);
-        Assert.Contains("prohibited claim disclaimers", evidence);
+        Assert.Contains("Accepted upload and blocked upload attempts were visible in tenant audit logs.", evidence);
+        Assert.Contains("Contract obligation matrix report and export included source metadata", evidence);
+        Assert.Contains("no affirmative prohibited claims", evidence);
         Assert.Contains("PR34-STAGE-001", evidence);
-        Assert.Contains("PR-3.4 is blocked.", evidence);
+        Assert.Contains("Closed on 2026-07-02", evidence);
+        Assert.Contains("PR-3.4 is complete. The production readiness sequence can proceed to PR-4.1 next", evidence);
 
         Assert.Contains("Staging upload guardrails and report controls", checklist);
-        Assert.Contains("Blocked pending authenticated staging smoke credential", checklist);
+        Assert.Contains("Ready for approval", checklist);
         Assert.Contains("docs/production-readiness-staging-upload-report-evidence.md", closure);
+        Assert.Contains("authenticated-upload-report-smoke.json", closure);
         Assert.Contains("DOD-GAP-009", gapLog);
-        Assert.Contains("PR-3.4 must close `DOD-GAP-009` before the production readiness sequence continues to PR-4.1.", gapLog);
+        Assert.Contains("PR-3.4 closed `DOD-GAP-009`; the production readiness sequence can continue to PR-4.1.", gapLog);
 
         Assert.Equal("PR-3.4", health.RootElement.GetProperty("story").GetString());
         Assert.Equal(200, health.RootElement.GetProperty("status").GetInt32());
         Assert.False(health.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
         Assert.False(health.RootElement.GetProperty("containsCustomerData").GetBoolean());
         Assert.False(health.RootElement.GetProperty("containsCui").GetBoolean());
+
+        Assert.Equal("passed", authenticatedSmoke.RootElement.GetProperty("result").GetString());
+        Assert.False(authenticatedSmoke.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(authenticatedSmoke.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(authenticatedSmoke.RootElement.GetProperty("containsCui").GetBoolean());
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("noCuiAcknowledgement").GetProperty("isAcknowledged").GetBoolean());
+        Assert.Equal(201, authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("allowedUpload").GetProperty("status").GetInt32());
+        Assert.Equal(403, authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("realCuiBlocked").GetProperty("status").GetInt32());
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("audit").GetProperty("uploadedAuditCount").GetInt32() >= 1);
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("audit").GetProperty("rejectedAuditCount").GetInt32() >= 1);
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("reports").GetProperty("complianceStatus").GetProperty("tenantMatches").GetBoolean());
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("reports").GetProperty("obligationMatrix").GetProperty("csvHeadersIncludeSourceMetadata").GetBoolean());
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("reports").GetProperty("cmmcReadiness").GetProperty("hasDraftReadinessLanguage").GetBoolean());
+        Assert.All(
+            authenticatedSmoke.RootElement.GetProperty("checks").EnumerateArray(),
+            check => Assert.True(check.GetProperty("passed").GetBoolean(), check.GetProperty("name").GetString()));
 
         Assert.Equal("blocked", authBlocker.RootElement.GetProperty("result").GetString());
         Assert.Equal("PR34-STAGE-001", authBlocker.RootElement.GetProperty("blockerId").GetString());
