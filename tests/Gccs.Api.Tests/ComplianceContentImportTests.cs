@@ -18,15 +18,20 @@ public sealed class ComplianceContentImportTests
 
         Assert.True(report.Succeeded, string.Join(Environment.NewLine, report.Errors.Select(error => error.Message)));
         Assert.True(report.ClausesCreated > 0);
+        Assert.True(report.ClauseObligationMappingsCreated > 0);
         Assert.True(report.ObligationsCreated > 0);
 
         var clause = await dbContext.Clauses.SingleAsync(clause => clause.Id == "far-52-204-21");
+        var mapping = await dbContext.ClauseObligationMappings.SingleAsync(mapping => mapping.ClauseId == "far-52-204-21");
         var obligation = await dbContext.Obligations.SingleAsync(obligation => obligation.Id == "far-52-204-21");
         var procurementIntegrityObligation = await dbContext.Obligations.SingleAsync(obligation => obligation.Id == "far-part-3-antitrust-procurement-integrity");
 
         Assert.Equal("https://www.acquisition.gov/far/52.204-21", clause.SourceUrl);
         Assert.Equal(new DateOnly(2026, 6, 3), clause.LastReviewedAt);
         Assert.Equal(ReviewState.Published, clause.ReviewState);
+        Assert.Null(mapping.TenantId);
+        Assert.Equal("far-52-204-21", mapping.ObligationId);
+        Assert.Equal(ReviewState.Published, mapping.ReviewState);
         Assert.Equal("https://www.acquisition.gov/far/52.204-21", obligation.SourceUrl);
         Assert.Equal(new DateOnly(2026, 6, 3), obligation.LastReviewedAt);
         Assert.Equal(ReviewState.Published, obligation.ReviewState);
@@ -88,10 +93,13 @@ public sealed class ComplianceContentImportTests
         Assert.True(firstReport.Succeeded);
         Assert.True(secondReport.Succeeded);
         Assert.Equal(0, secondReport.ClausesCreated);
+        Assert.Equal(0, secondReport.ClauseObligationMappingsCreated);
         Assert.Equal(0, secondReport.ObligationsCreated);
         Assert.True(secondReport.ClausesUpdated > 0);
+        Assert.True(secondReport.ClauseObligationMappingsUpdated > 0);
         Assert.True(secondReport.ObligationsUpdated > 0);
         Assert.Equal(await dbContext.Clauses.Select(clause => clause.Id).Distinct().CountAsync(), await dbContext.Clauses.CountAsync());
+        Assert.Equal(await dbContext.ClauseObligationMappings.Select(mapping => mapping.Id).Distinct().CountAsync(), await dbContext.ClauseObligationMappings.CountAsync());
         Assert.Equal(await dbContext.Obligations.Select(obligation => obligation.Id).Distinct().CountAsync(), await dbContext.Obligations.CountAsync());
     }
 

@@ -1,0 +1,915 @@
+{
+  "status": "partial",
+  "runId": "20260702015144",
+  "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+  "syntheticOnly": true,
+  "user": "dumbuyab@gmail.com",
+  "results": [
+    {
+      "name": "Current user access",
+      "method": "GET",
+      "path": "/api/me/access",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "userId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+        "userEmail": "dumbuyab@gmail.com",
+        "roles": [
+          "Owner"
+        ],
+        "permissions": [
+          "ApproveEnclave",
+          "ApproveEvidence",
+          "AuditorReadOnly",
+          "DownloadEnclave",
+          "EmergencyEnclave",
+          "ExportEnclave",
+          "ManageCmmc",
+          "ManageCompanyProfile",
+          "ManageContracts",
+          "ManageEvidence",
+          "ManageObligations",
+          "ManageReports",
+          "ManageSubcontractors",
+          "ManageTasks",
+          "ManageTenant",
+          "ManageUsers",
+          "ReviewClauses",
+          "SupportEnclave",
+          "UploadEnclave",
+          "ViewAuditLog",
+          "ViewCmmc",
+          "ViewCompanyProfile",
+          "ViewContracts",
+          "ViewEnclave",
+          "ViewEvidence",
+          "ViewObligations",
+          "ViewReports",
+          "ViewSubcontractors",
+          "ViewTasks"
+        ],
+        "rolePermissionMatrix": {
+          "Owner": [
+            "ApproveEnclave",
+            "ApproveEvidence",
+            "AuditorReadOnly",
+            "DownloadEnclave",
+            "EmergencyEnclave",
+            "ExportEnclave",
+            "ManageCmmc",
+            "ManageCompanyProfile",
+            "ManageContracts",
+            "ManageEvidence",
+            "ManageObligations",
+            "ManageReports",
+            "ManageSubcontractors",
+            "ManageTasks",
+            "ManageTenant",
+            "ManageUsers",
+            "ReviewClauses",
+            "SupportEnclave",
+            "UploadEnclave",
+            "ViewAuditLog",
+            "ViewCmmc",
+            "ViewCompanyProfile",
+            "ViewContracts",
+            "ViewEnclave",
+            "ViewEvidence",
+            "ViewObligations",
+            "ViewReports",
+            "ViewSubcontractors",
+            "ViewTasks"
+          ],
+          "Admin": [
+            "ApproveEnclave",
+            "ApproveEvidence",
+            "AuditorReadOnly",
+            "DownloadEnclave",
+            "EmergencyEnclave",
+            "ExportEnclave",
+            "ManageCmmc",
+            "ManageCompanyProfile",
+            "ManageContracts",
+            "ManageEvidence",
+            "ManageObligations",
+            "ManageReports",
+            "ManageSubcontractors",
+            "ManageTasks",
+            "ManageUsers",
+            "ReviewClauses",
+            "SupportEnclave",
+            "UploadEnclave",
+            "ViewAuditLog",
+            "ViewCmmc",
+            "ViewCompanyProfile",
+            "ViewContracts",
+            "ViewEnclave",
+            "ViewEvidence",
+            "ViewObligations",
+            "ViewReports",
+            "ViewSubcontractors",
+            "ViewTasks"
+          ],
+          "Compliance Manager": [
+            "ApproveEvidence",
+            "AuditorReadOnly",
+            "ManageCmmc",
+            "ManageCompanyProfile",
+            "ManageContracts",
+            "ManageEvidence",
+            "ManageObligations",
+            "ManageReports",
+            "ManageSubcontractors",
+            "ManageTasks",
+            "ReviewClauses",
+            "ViewCmmc",
+            "ViewCompanyProfile",
+            "ViewContracts",
+            "ViewEvidence",
+            "ViewObligations",
+            "ViewReports",
+            "ViewSubcontractors",
+            "ViewTasks"
+          ],
+          "Contributor": [
+            "ManageEvidence",
+            "ManageTasks",
+            "ViewCmmc",
+            "ViewCompanyProfile",
+            "ViewContracts",
+            "ViewEvidence",
+            "ViewObligations",
+            "ViewReports",
+            "ViewSubcontractors",
+            "ViewTasks"
+          ],
+          "Auditor": [
+            "AuditorReadOnly",
+            "ViewCmmc",
+            "ViewCompanyProfile",
+            "ViewContracts",
+            "ViewEvidence",
+            "ViewObligations",
+            "ViewReports",
+            "ViewSubcontractors",
+            "ViewTasks"
+          ],
+          "Advisor": [
+            "ApproveEvidence",
+            "AuditorReadOnly",
+            "ManageCmmc",
+            "ManageContracts",
+            "ManageEvidence",
+            "ManageObligations",
+            "ManageReports",
+            "ManageSubcontractors",
+            "ManageTasks",
+            "ReviewClauses",
+            "ViewAuditLog",
+            "ViewCmmc",
+            "ViewCompanyProfile",
+            "ViewContracts",
+            "ViewEvidence",
+            "ViewObligations",
+            "ViewReports",
+            "ViewSubcontractors",
+            "ViewTasks"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Clause library search after staging import",
+      "method": "GET",
+      "path": "/api/clauses?query=52.204-21&includeDrafts=true",
+      "status": 200,
+      "ok": true,
+      "response": [
+        {
+          "id": "far-52-204-21",
+          "source": "FAR 52.204-21",
+          "number": "52.204-21",
+          "title": "Basic Safeguarding of Covered Contractor Information Systems",
+          "category": "FAR",
+          "plainEnglishSummary": "Contract involves Federal Contract Information.",
+          "sourceUrl": "https://www.acquisition.gov/far/52.204-21",
+          "lastReviewedAt": "2026-06-03",
+          "reviewedByUserId": null,
+          "reviewState": "Published",
+          "clauseTextVersion": "current as of 2026-06-10",
+          "clauseEffectiveAt": null,
+          "supersededByClauseId": null,
+          "supersededAt": null,
+          "confidence": "high",
+          "requiresFlowDown": true,
+          "isMappable": true
+        }
+      ]
+    },
+    {
+      "name": "No-CUI acknowledgement save",
+      "method": "POST",
+      "path": "/api/no-cui-acknowledgement",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "isAcknowledged": true,
+        "noticeVersion": "no-cui-mvp-v1",
+        "noticeCopy": "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "acknowledgedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+        "acknowledgedAt": "2026-07-02T01:00:27.907412+00:00"
+      }
+    },
+    {
+      "name": "Contract creation for clause rerun",
+      "method": "POST",
+      "path": "/api/contracts",
+      "status": 201,
+      "ok": true,
+      "response": {
+        "id": "93fb5b6b-45f9-46e0-8a84-72d41ca2b316",
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "contractNumber": "SYN-PR32-RERUN-20260702015144",
+        "title": "PR-3.2 Clause Rerun Contract 20260702015144",
+        "agencyOrPrimeName": "Synthetic Agency",
+        "relationship": "Prime",
+        "kind": "FixedPrice",
+        "status": "Active",
+        "awardedAt": "2026-07-02",
+        "periodOfPerformanceStart": "2026-07-02",
+        "periodOfPerformanceEnd": "2027-07-02",
+        "placeOfPerformance": "Remote synthetic staging only",
+        "description": "Synthetic No-CUI staging contract for PR-3.2 clause tagging rerun.",
+        "dataHandlingPosture": "NoFciOrCui",
+        "createdAt": "2026-07-02T01:51:44.8107137+00:00",
+        "updatedAt": null
+      }
+    },
+    {
+      "name": "Manual clause tagging attach far-52-204-21",
+      "method": "POST",
+      "path": "/api/contracts/93fb5b6b-45f9-46e0-8a84-72d41ca2b316/clauses",
+      "status": 201,
+      "ok": true,
+      "response": {
+        "id": "10542263-1b2a-405a-ba5e-2266f0a6d49a",
+        "contractId": "93fb5b6b-45f9-46e0-8a84-72d41ca2b316",
+        "clauseLibraryId": "far-52-204-21",
+        "clauseNumber": "52.204-21",
+        "title": "Basic Safeguarding of Covered Contractor Information Systems",
+        "source": "Far",
+        "sourceUrl": "https://www.acquisition.gov/far/52.204-21",
+        "lastReviewedAt": "2026-06-03",
+        "attachmentReason": "PR-3.2 synthetic rerun after staging compliance content import.",
+        "sourceDocumentReference": "Synthetic staging evidence transcript",
+        "attachedAt": "2026-07-02T01:51:45.4320931+00:00",
+        "attachedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9"
+      }
+    },
+    {
+      "name": "Obligation generation from attached clause",
+      "method": "POST",
+      "path": "/api/contracts/93fb5b6b-45f9-46e0-8a84-72d41ca2b316/clauses/10542263-1b2a-405a-ba5e-2266f0a6d49a/obligations/generate",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "contractClauseId": "10542263-1b2a-405a-ba5e-2266f0a6d49a",
+        "obligationIds": [
+          "far-52-204-21"
+        ],
+        "tasksCreated": 0
+      }
+    },
+    {
+      "name": "Contract clauses after obligation generation",
+      "method": "GET",
+      "path": "/api/contracts/93fb5b6b-45f9-46e0-8a84-72d41ca2b316/clauses",
+      "status": 200,
+      "ok": true,
+      "response": [
+        {
+          "id": "10542263-1b2a-405a-ba5e-2266f0a6d49a",
+          "contractId": "93fb5b6b-45f9-46e0-8a84-72d41ca2b316",
+          "clauseLibraryId": "far-52-204-21",
+          "clauseNumber": "52.204-21",
+          "title": "Basic Safeguarding of Covered Contractor Information Systems",
+          "source": "Far",
+          "sourceUrl": "https://www.acquisition.gov/far/52.204-21",
+          "lastReviewedAt": "2026-06-03",
+          "attachmentReason": "PR-3.2 synthetic rerun after staging compliance content import.",
+          "sourceDocumentReference": "Synthetic staging evidence transcript",
+          "attachedAt": "2026-07-02T01:51:45.432093+00:00",
+          "attachedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9"
+        }
+      ]
+    },
+    {
+      "name": "Obligation dashboard after generation",
+      "method": "GET",
+      "path": "/api/obligations",
+      "status": 200,
+      "ok": true,
+      "response": [
+        {
+          "id": "far-52-204-21",
+          "source": "FAR 52.204-21",
+          "title": "Basic Safeguarding of Covered Contractor Information Systems",
+          "plainEnglishSummary": "Basic Safeguarding of Covered Contractor Information Systems",
+          "triggerCondition": "Contract involves Federal Contract Information.",
+          "requiredAction": "Apply baseline safeguarding controls. Maintain evidence for covered information systems. Flow down the substance of the clause where applicable.",
+          "ownerFunction": "IT/security",
+          "riskLevel": "High",
+          "requiresFlowDown": true,
+          "flowDownRequirement": "Include the substance of the clause in subcontracts where the subcontractor may have Federal Contract Information.",
+          "applicability": {
+            "entityRole": "prime, subcontractor",
+            "contractType": "federal contract, subcontract",
+            "dataType": "FCI",
+            "agency": "any",
+            "placeOfPerformance": "any",
+            "subcontractorRole": "Contract involves Federal Contract Information."
+          },
+          "evidenceExamples": [
+            {
+              "name": "Access control policy",
+              "description": "Evidence supporting FAR 52.204-21.",
+              "owner": "IT/security"
+            },
+            {
+              "name": "MFA configuration",
+              "description": "Evidence supporting FAR 52.204-21.",
+              "owner": "IT/security"
+            },
+            {
+              "name": "Media disposal record",
+              "description": "Evidence supporting FAR 52.204-21.",
+              "owner": "IT/security"
+            },
+            {
+              "name": "Antivirus logs",
+              "description": "Evidence supporting FAR 52.204-21.",
+              "owner": "IT/security"
+            },
+            {
+              "name": "Boundary protection records",
+              "description": "Evidence supporting FAR 52.204-21.",
+              "owner": "IT/security"
+            }
+          ],
+          "sourceReference": {
+            "name": "FAR 52.204-21",
+            "url": "https://www.acquisition.gov/far/52.204-21",
+            "lastReviewedAt": "2026-06-03",
+            "effectiveAt": null,
+            "confidence": "high",
+            "requiresExpertReview": false
+          },
+          "review": {
+            "lastReviewedAt": "2026-06-03",
+            "reviewedByUserId": null,
+            "nextReviewDueAt": null,
+            "confidence": "high",
+            "requiresExpertReview": false,
+            "state": "Published"
+          }
+        },
+        {
+          "id": "far-52-204-25",
+          "source": "FAR 52.204-25",
+          "title": "Prohibition on Certain Telecommunications and Video Surveillance Services or Equipment",
+          "plainEnglishSummary": "Prohibition on Certain Telecommunications and Video Surveillance Services or Equipment",
+          "triggerCondition": "Clause appears in a solicitation, contract, subcontract, or purchase order.",
+          "requiredAction": "Screen internal technology and supplier technology for covered restrictions. Collect supplier attestations where appropriate. Retain inventory and procurement review evidence.",
+          "ownerFunction": "Contracts",
+          "riskLevel": "High",
+          "requiresFlowDown": true,
+          "flowDownRequirement": "Flow down as required by the clause and prime contract instructions.",
+          "applicability": {
+            "entityRole": "prime, subcontractor",
+            "contractType": "federal contract, subcontract",
+            "dataType": "contractor IT, supplier technology",
+            "agency": "any",
+            "placeOfPerformance": "any",
+            "subcontractorRole": "Clause appears in a solicitation, contract, subcontract, or purchase order."
+          },
+          "evidenceExamples": [
+            {
+              "name": "Supplier attestation",
+              "description": "Evidence supporting FAR 52.204-25.",
+              "owner": "Contracts"
+            },
+            {
+              "name": "Technology inventory review",
+              "description": "Evidence supporting FAR 52.204-25.",
+              "owner": "Contracts"
+            },
+            {
+              "name": "Procurement checklist",
+              "description": "Evidence supporting FAR 52.204-25.",
+              "owner": "Contracts"
+            }
+          ],
+          "sourceReference": {
+            "name": "FAR 52.204-25",
+            "url": "https://www.acquisition.gov/far/52.204-25",
+            "lastReviewedAt": "2026-06-03",
+            "effectiveAt": null,
+            "confidence": "high",
+            "requiresExpertReview": false
+          },
+          "review": {
+            "lastReviewedAt": "2026-06-03",
+            "reviewedByUserId": null,
+            "nextReviewDueAt": null,
+            "confidence": "high",
+            "requiresExpertReview": false,
+            "state": "Published"
+          }
+        },
+        {
+          "id": "far-52-204-27",
+          "source": "FAR 52.204-27",
+          "title": "Prohibition on a ByteDance Covered Application",
+          "plainEnglishSummary": "Prohibition on a ByteDance Covered Application",
+          "triggerCondition": "Contract includes the covered application prohibition.",
+          "requiredAction": "Block prohibited covered applications on covered IT. Maintain device inventory or MDM evidence. Update acceptable use policy and user attestations.",
+          "ownerFunction": "Contracts",
+          "riskLevel": "Medium",
+          "requiresFlowDown": true,
+          "flowDownRequirement": "Flow down according to contract and clause instructions.",
+          "applicability": {
+            "entityRole": "prime, subcontractor",
+            "contractType": "federal contract, subcontract",
+            "dataType": "covered contractor IT",
+            "agency": "any",
+            "placeOfPerformance": "any",
+            "subcontractorRole": "Contract includes the covered application prohibition."
+          },
+          "evidenceExamples": [
+            {
+              "name": "MDM application inventory",
+              "description": "Evidence supporting FAR 52.204-27.",
+              "owner": "Contracts"
+            },
+            {
+              "name": "Acceptable use policy",
+              "description": "Evidence supporting FAR 52.204-27.",
+              "owner": "Contracts"
+            },
+            {
+              "name": "Employee attestation",
+              "description": "Evidence supporting FAR 52.204-27.",
+              "owner": "Contracts"
+            }
+          ],
+          "sourceReference": {
+            "name": "FAR 52.204-27",
+            "url": "https://www.acquisition.gov/far/52.204-27",
+            "lastReviewedAt": "2026-06-03",
+            "effectiveAt": null,
+            "confidence": "high",
+            "requiresExpertReview": false
+          },
+          "review": {
+            "lastReviewedAt": "2026-06-03",
+            "reviewedByUserId": null,
+            "nextReviewDueAt": null,
+            "confidence": "high",
+            "requiresExpertReview": false,
+            "state": "Published"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Evidence metadata for upload-intent audit",
+      "method": "POST",
+      "path": "/api/evidence-items",
+      "status": 500,
+      "ok": false,
+      "response": {
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+        "title": "API request failed",
+        "status": 500,
+        "detail": "The API request could not be completed.",
+        "errorCode": "api_request_failed",
+        "traceId": "00-0300a4f4e9e9f2d4000d4df80195ccd9-a6dcf243002a4ddb-00",
+        "correlationId": "b6d7025103ff4857a6596362ffe11f29"
+      }
+    },
+    {
+      "name": "Audit export after clause and upload-intent rerun",
+      "method": "POST",
+      "path": "/api/audit-logs/cui-export",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "generatedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+        "generatedAt": "2026-07-02T01:51:46.3552134+00:00",
+        "filters": {
+          "eventType": null,
+          "classification": null,
+          "mode": null,
+          "actorUserId": null,
+          "entityType": null,
+          "from": "2026-07-02T00:00:00+00:00",
+          "to": "2026-07-02T01:51:46.233+00:00",
+          "result": null
+        },
+        "events": [
+          {
+            "id": "06af5e73-80ea-4059-b4d0-75eaa0cd31c7",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Updated",
+            "entityType": "ContractClause",
+            "entityId": "10542263-1b2a-405a-ba5e-2266f0a6d49a",
+            "occurredAt": "2026-07-02T01:51:45.919613+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "ee9c780c1cca4435986cb29f3ee4a47a",
+            "summary": "Generated 1 obligation mappings for contract clause.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "contractId": "93fb5b6b-45f9-46e0-8a84-72d41ca2b316",
+              "tasksCreated": "0",
+              "correlationId": "ee9c780c1cca4435986cb29f3ee4a47a",
+              "obligationIds": "far-52-204-21"
+            }
+          },
+          {
+            "id": "b5c1398b-6375-4baf-bdde-f4d69659f163",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "ContractClause",
+            "entityId": "10542263-1b2a-405a-ba5e-2266f0a6d49a",
+            "occurredAt": "2026-07-02T01:51:45.729161+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "44f295a06d914dfdbfa2a76eee98a394",
+            "summary": "Clause '52.204-21' was attached to contract 'SYN-PR32-RERUN-20260702015144'.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "reason": "PR-3.2 synthetic rerun after staging compliance content import.",
+              "contractId": "93fb5b6b-45f9-46e0-8a84-72d41ca2b316",
+              "clauseNumber": "52.204-21",
+              "correlationId": "44f295a06d914dfdbfa2a76eee98a394",
+              "contractNumber": "SYN-PR32-RERUN-20260702015144",
+              "clauseLibraryId": "far-52-204-21",
+              "sourceDocumentReference": "Synthetic staging evidence transcript"
+            }
+          },
+          {
+            "id": "a2c54ac3-0358-4121-aee8-be345cba8f13",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "Contract",
+            "entityId": "93fb5b6b-45f9-46e0-8a84-72d41ca2b316",
+            "occurredAt": "2026-07-02T01:51:44.958066+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "7735356bd97e4e55ae63823d6fe8dc76",
+            "summary": "Contract 'SYN-PR32-RERUN-20260702015144' was created.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "kind": "FixedPrice",
+              "status": "Active",
+              "relationship": "Prime",
+              "correlationId": "7735356bd97e4e55ae63823d6fe8dc76",
+              "contractNumber": "SYN-PR32-RERUN-20260702015144",
+              "dataHandlingPosture": "NoFciOrCui"
+            }
+          },
+          {
+            "id": "d1c86fbf-7885-41bf-820c-3709713daecb",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "Report",
+            "entityId": "eb281136-a554-463a-86b4-35cb39fc1ba4",
+            "occurredAt": "2026-07-02T01:09:15.621304+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "5396721b5c624d85bfc9f08a0b8d2ff1",
+            "summary": "Evidence package was generated.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "reportType": "PrimeEvidencePackage",
+              "correlationId": "5396721b5c624d85bfc9f08a0b8d2ff1",
+              "evidenceItems": "0",
+              "controlScopeCount": "0",
+              "contractScopeCount": "1",
+              "obligationScopeCount": "0",
+              "subcontractorScopeCount": "0",
+              "includeDraftOrRejectedEvidence": "False"
+            }
+          },
+          {
+            "id": "6ea09beb-46b3-4458-99e8-820941091067",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "Report",
+            "entityId": "0d5a55a7-ecab-4f5d-8463-91381f9ce01b",
+            "occurredAt": "2026-07-02T01:08:35.962902+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "d3a0e6088dc141f484fcde22c76676f9",
+            "summary": "Compliance status report was generated.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "status": "Complete",
+              "reportType": "ComplianceStatus",
+              "generatedAt": "2026-07-02T01:08:35.8960301+00:00",
+              "overdueTasks": "0",
+              "correlationId": "d3a0e6088dc141f484fcde22c76676f9",
+              "highRiskItems": "0"
+            }
+          },
+          {
+            "id": "f876d9a9-f943-453c-8037-dfa0b4094fd5",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "TenantInvitation",
+            "entityId": "9dad36b1-4ade-4beb-8179-bcd7ab2764b5",
+            "occurredAt": "2026-07-02T01:08:35.798194+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "8b12e079c3cd4d95b872aad3ebc4eca5",
+            "summary": "Invitation for 'pr32.synthetic.20260702010834@example.invalid' was created with role Auditor.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "email": "pr32.synthetic.20260702010834@example.invalid",
+              "status": "Pending",
+              "roleName": "Auditor",
+              "expiresAt": "2026-07-09T01:08:35.7555817+00:00",
+              "correlationId": "8b12e079c3cd4d95b872aad3ebc4eca5",
+              "notificationPlaceholder": "Local invitation notification queued for pr32.synthetic.20260702010834@example.invalid with token [REDACTED]."
+            }
+          },
+          {
+            "id": "e13af7d7-91e3-4d8a-980a-8a6dd2af579a",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "ComplianceTask",
+            "entityId": "98ad6f0e-9350-4704-9575-6d7b903d59f5",
+            "occurredAt": "2026-07-02T01:08:35.644718+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "7d210b2d3dd14163b00a179b33f32c49",
+            "summary": "Task was created.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "status": "open",
+              "priority": "Medium",
+              "correlationId": "7d210b2d3dd14163b00a179b33f32c49",
+              "linkedEntityId": "d05dc633-6724-4ed6-af9f-4d03f2ef0090",
+              "linkedEntityType": "contract"
+            }
+          },
+          {
+            "id": "5a890a64-0452-4e94-8510-9b75a5b141e9",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "ComplianceTask",
+            "entityId": "e1e61ebf-e756-49b4-862f-0474a2115a6b",
+            "occurredAt": "2026-07-02T01:08:35.565257+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "4b4add32fc124f85a25c3ad1320cea6a",
+            "summary": "Task was created.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "status": "open",
+              "priority": "Medium",
+              "correlationId": "4b4add32fc124f85a25c3ad1320cea6a",
+              "linkedEntityId": "",
+              "linkedEntityType": "general"
+            }
+          },
+          {
+            "id": "b7da15b1-2b49-46d2-88f1-7f032f9becc0",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "Contract",
+            "entityId": "d05dc633-6724-4ed6-af9f-4d03f2ef0090",
+            "occurredAt": "2026-07-02T01:08:35.330481+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "9772bcc7cad24f25a088fcc8ea851e1c",
+            "summary": "Contract 'SYN-PR32-20260702010834' was created.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "kind": "FixedPrice",
+              "status": "Active",
+              "relationship": "Prime",
+              "correlationId": "9772bcc7cad24f25a088fcc8ea851e1c",
+              "contractNumber": "SYN-PR32-20260702010834",
+              "dataHandlingPosture": "NoFciOrCui"
+            }
+          },
+          {
+            "id": "d255bd98-3e21-42b3-9bfc-1664df14f7b8",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Updated",
+            "entityType": "CompanyCertification",
+            "entityId": "b50c6073-b796-42c2-9859-425c264243eb",
+            "occurredAt": "2026-07-02T01:08:35.133785+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "15452aad34ce4920befcff47300f05cb",
+            "summary": "Company profile certifications for 'GCCS Synthetic Staging LLC 20260702010834' were updated.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "correlationId": "15452aad34ce4920befcff47300f05cb",
+              "certificationCount": "0",
+              "certificationTypes": ""
+            }
+          },
+          {
+            "id": "c635db3c-cfc4-450b-8eb7-bfd8d920a642",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "CompanyProfile",
+            "entityId": "b50c6073-b796-42c2-9859-425c264243eb",
+            "occurredAt": "2026-07-02T01:08:35.122689+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "15452aad34ce4920befcff47300f05cb",
+            "summary": "Company profile 'GCCS Synthetic Staging LLC 20260702010834' was created.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "isComplete": "True",
+              "correlationId": "15452aad34ce4920befcff47300f05cb",
+              "legalEntityName": "GCCS Synthetic Staging LLC 20260702010834",
+              "dataHandlingPosture": "NoFciOrCui",
+              "completionPercentage": "100"
+            }
+          },
+          {
+            "id": "7be4d243-d434-430a-acaf-2bb40cc56105",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Exported",
+            "entityType": "CuiAuditExport",
+            "entityId": "8c934636-0c37-4a8f-9134-323bef993ef2:2026-07-02T01:00:29.6602722+00:00",
+            "occurredAt": "2026-07-02T01:00:29.660672+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "3550351871eb45989fa5b82bb8014385",
+            "summary": "CUI audit export generated.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "mode": "",
+              "result": "succeeded",
+              "eventType": "",
+              "entityType": "EvidenceItem",
+              "correlationId": "3550351871eb45989fa5b82bb8014385",
+              "exportedCount": "1",
+              "classification": ""
+            }
+          },
+          {
+            "id": "da25e241-5206-4b06-a387-62bfcafc34ad",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "Report",
+            "entityId": "9dd86d03-3add-4e50-a286-5690b93202f4",
+            "occurredAt": "2026-07-02T01:00:29.342748+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "aec3ab3391a245be8b2ba36d73b012cd",
+            "summary": "Compliance status report was generated.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "status": "Complete",
+              "reportType": "ComplianceStatus",
+              "generatedAt": "2026-07-02T01:00:29.1832258+00:00",
+              "overdueTasks": "0",
+              "correlationId": "aec3ab3391a245be8b2ba36d73b012cd",
+              "highRiskItems": "0"
+            }
+          },
+          {
+            "id": "7e8eb400-1c8f-41dd-854c-1bad702a9e2e",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Rejected",
+            "entityType": "EvidenceUploadIntent",
+            "entityId": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+            "occurredAt": "2026-07-02T01:00:28.987371+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "396921a8a208496ca724b93a08d23c8a",
+            "summary": "Evidence upload metadata was rejected by No-CUI upload guardrails.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "fileName": "pr-3.2-synthetic-blocked.exe",
+              "sizeBytes": "46",
+              "contentType": "application/octet-stream",
+              "maxSizeBytes": "26214400",
+              "correlationId": "396921a8a208496ca724b93a08d23c8a",
+              "noCuiAttestation": "True",
+              "validationErrors": "File type '.exe' is not allowed. Allowed extensions: .csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx.",
+              "allowedExtensions": ".csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx"
+            }
+          },
+          {
+            "id": "1eb77fcc-2bec-4c50-aee5-89c9746b9eff",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Uploaded",
+            "entityType": "EvidenceFileVersion",
+            "entityId": "5272172d-bb2b-4f4f-9673-0c7064b9c96f",
+            "occurredAt": "2026-07-02T01:00:28.918392+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "920efed057a14ddd8b26a2a9e3c48794",
+            "summary": "Evidence file bytes were uploaded to object storage and versioned.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "fileName": "pr-3.2-synthetic-evidence.txt",
+              "isUsable": "False",
+              "correlationId": "920efed057a14ddd8b26a2a9e3c48794",
+              "versionNumber": "1",
+              "evidenceItemId": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+              "validationStatus": "accepted",
+              "malwareScanStatus": "scan-pending"
+            }
+          },
+          {
+            "id": "f5dbe4e2-2185-48b0-b1ab-337f205c2481",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "EvidenceItem",
+            "entityId": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+            "occurredAt": "2026-07-02T01:00:28.584526+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "858d598f1aaf4763a2b1e5604ccf6939",
+            "summary": "Evidence metadata was created.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "tags": "pr-3.2,synthetic-only",
+              "status": "Draft",
+              "tagCount": "2",
+              "expiresAt": "2027-07-01",
+              "correlationId": "858d598f1aaf4763a2b1e5604ccf6939",
+              "ownerFunction": "Compliance"
+            }
+          },
+          {
+            "id": "10c78d45-e093-48b7-8d2e-04124995186a",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "NoCuiAcknowledgement",
+            "entityId": "8c934636-0c37-4a8f-9134-323bef993ef2:09e188fa-befc-4b99-822b-d641767cb7b9:no-cui-mvp-v1",
+            "occurredAt": "2026-07-02T01:00:28.013067+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "dc140a6784cf46b4aca2575a51884a09",
+            "summary": "No-CUI notice was acknowledged before upload access was enabled.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "noticeCopy": "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+              "correlationId": "dc140a6784cf46b4aca2575a51884a09",
+              "noticeVersion": "no-cui-mvp-v1",
+              "acknowledgedAt": "2026-07-02T01:00:27.9074127+00:00"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

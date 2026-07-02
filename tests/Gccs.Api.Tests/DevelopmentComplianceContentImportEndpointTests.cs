@@ -60,6 +60,8 @@ public sealed class DevelopmentComplianceContentImportEndpointTests : IClassFixt
                 1,
                 0,
                 1,
+                0,
+                1,
                 [],
                 ["Imported test content."]));
         }

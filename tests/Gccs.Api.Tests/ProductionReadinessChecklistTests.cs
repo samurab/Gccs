@@ -542,7 +542,7 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_3_2_Staging_workflow_evidence_artifact_is_linked_and_blocked_until_complete_run()
+    public void TC_PR_3_2_Staging_workflow_evidence_artifact_is_linked_and_passed_after_final_rerun()
     {
         var evidence = ReadText("docs", "production-readiness-staging-workflow-evidence.md");
         var plan = ReadText("docs", "production-readiness-plan.md");
@@ -551,18 +551,22 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("docs/production-readiness-staging-workflow-evidence.md", plan);
         Assert.Contains("docs/production-readiness-staging-workflow-evidence.md", checklist);
         Assert.Contains("Story: PR-3.2 - Execute End-To-End MVP Workflow In Staging.", evidence);
-        Assert.Contains("Evidence status: Partial", evidence);
+        Assert.Contains("Evidence status: Passed", evidence);
         Assert.Contains("Staging resource group: `gccs-staging-rg`.", evidence);
         Assert.Contains("Data handling posture: No-CUI / compliance management only.", evidence);
         Assert.Contains("Authenticated Staging Run - 2026-07-02", evidence);
+        Assert.Contains("Staging Content Import And Final Rerun - 2026-07-02", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.2/staging-content-import-summary.txt", evidence);
         Assert.Contains("output/playwright/production-readiness/pr-3.2/authenticated-api-transcript.json", evidence);
         Assert.Contains("output/playwright/production-readiness/pr-3.2/authenticated-corrective-api-transcript.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.2/authenticated-final-rerun.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.2/authenticated-upload-intent-audit.json", evidence);
         Assert.Contains("output/playwright/production-readiness/pr-3.2/evidence-package-corrected.json", evidence);
         Assert.Contains("STAGE-WF-001", evidence);
         Assert.Contains("| STAGE-WF-001 |", evidence);
         Assert.Contains("| QA owner | High |", evidence);
-        Assert.Contains("Open - authenticated partial run attached", evidence);
-        Assert.Contains("Partial authenticated evidence attached; blocked pending clause content", checklist);
+        Assert.Contains("Closed for PR-3.2", evidence);
+        Assert.Contains("Ready for approval", checklist);
     }
 
     [Fact]
@@ -591,7 +595,7 @@ public sealed class ProductionReadinessChecklistTests
             Assert.Contains(workflowStep, evidence);
         }
 
-        Assert.Contains("Complete this table with synthetic-only data before PR-3.2 can be closed.", evidence);
+        Assert.Contains("This table records the synthetic-only staging execution used to close PR-3.2.", evidence);
         Assert.DoesNotContain("production customer data is allowed", evidence, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("real customer CUI is allowed", evidence, StringComparison.OrdinalIgnoreCase);
     }
@@ -612,8 +616,28 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("TC_17_1_3_Pilot_reports_reflect_workflow_data", pilotWorkflowTests);
         Assert.Contains("TC_4_2_2A_Upload_without_per_file_no_cui_attestation_is_rejected_and_audit_logged", noCuiTests);
         Assert.Contains("TC_4_2_4_Failed_upload_validation_is_audit_logged_and_not_usable", noCuiTests);
-        Assert.Contains("Authenticated staging evidence now exists, but partial evidence does not replace a complete end-to-end run.", evidence);
-        Assert.Contains("Empty staging compliance content can make the application appear functional while blocking clause tagging and obligation generation.", evidence);
+        Assert.Contains("Authenticated staging evidence proves the PR-3.2 workflow, but production launch still depends on other readiness checklist items.", evidence);
+        Assert.Contains("Empty staging compliance content previously blocked clause tagging and obligation generation; rerun the import after any staging database rebuild.", evidence);
+        Assert.Contains("TC-PR-3.2.1 | Passed", evidence);
+        Assert.Contains("TC-PR-3.2.3 | Passed", evidence);
+    }
+
+    [Fact]
+    public void TC_PR_3_2_Staging_compliance_content_import_runbook_is_staging_safe()
+    {
+        var staging = ReadText("docs", "staging-environment.md");
+        var solution = ReadText("Gccs.slnx");
+        var importer = ReadText("tools", "Gccs.ContentImport", "Program.cs");
+
+        Assert.Contains("## Compliance Content Import", staging);
+        Assert.Contains("Do not enable the Development tenant bootstrapper in Azure", staging);
+        Assert.Contains("tools/Gccs.ContentImport/Gccs.ContentImport.csproj", staging);
+        Assert.Contains("--confirm-staging true", staging);
+        Assert.Contains("packages/compliance-content", staging);
+        Assert.Contains("far-52-204-21", staging);
+        Assert.Contains("tools/Gccs.ContentImport/Gccs.ContentImport.csproj", solution);
+        Assert.Contains("Refusing to import without --confirm-staging true", importer);
+        Assert.DoesNotContain("ASPNETCORE_ENVIRONMENT=Development", staging, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

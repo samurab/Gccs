@@ -44,6 +44,58 @@ Post-deployment smoke tests call `GET /health` on the staging API and require th
 
 The staging workflow uploads `staging-smoke-test-results` so success or failure is visible in CI/CD.
 
+## Compliance Content Import
+
+Staging must have source-backed compliance content before PR-3.2 can prove manual clause tagging and obligation generation. Do not enable the Development tenant bootstrapper in Azure to seed staging. Use the dedicated import tool so the import is explicit, idempotent, and scoped to the staging database.
+
+Prerequisites:
+
+- Use only `packages/compliance-content` from the reviewed repository checkout.
+- Use the staging PostgreSQL connection string only.
+- Do not import production customer data, customer documents, CUI, secrets, or ad hoc content files.
+- Run the tool from a trusted operator workstation or an approved CI job with staging-only secret access.
+
+Local operator command:
+
+```bash
+ConnectionStrings__GccsDatabase="$GCCS_STAGING_DATABASE_CONNECTION_STRING" \
+dotnet run --project tools/Gccs.ContentImport/Gccs.ContentImport.csproj -- \
+  --package-root "$PWD/packages/compliance-content" \
+  --confirm-staging true
+```
+
+Azure App Service operator command:
+
+```bash
+CONNECTION_STRING="$(az webapp config appsettings list \
+  --resource-group gccs-staging-rg \
+  --name gccs-api-staging-19984 \
+  --query \"[?name=='ConnectionStrings__GccsDatabase'].value | [0]\" \
+  --output tsv)"
+
+ConnectionStrings__GccsDatabase="$CONNECTION_STRING" \
+dotnet run --project tools/Gccs.ContentImport/Gccs.ContentImport.csproj -- \
+  --package-root "$PWD/packages/compliance-content" \
+  --confirm-staging true
+```
+
+Expected successful output includes nonzero published content import counts on the first run and zero created counts with nonzero updated counts on later runs:
+
+- `Clauses created/updated`
+- `Mappings created/updated`
+- `Obligations created/updated`
+- `Compliance content import completed successfully.`
+
+Post-import verification:
+
+```bash
+curl --fail --show-error --silent \
+  "https://gccs-api-staging-19984.azurewebsites.net/api/clauses?query=52.204-21" \
+  -H "Authorization: Bearer $GCCS_STAGING_ACCESS_TOKEN"
+```
+
+The response must include `far-52-204-21` before rerunning PR-3.2 clause tagging and obligation generation evidence.
+
 ## Logs And Alerts
 
 Staging observability must include:

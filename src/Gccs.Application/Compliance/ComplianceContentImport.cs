@@ -12,6 +12,8 @@ public sealed record ComplianceContentImportReport(
     int FilesProcessed,
     int ClausesCreated,
     int ClausesUpdated,
+    int ClauseObligationMappingsCreated,
+    int ClauseObligationMappingsUpdated,
     int ObligationsCreated,
     int ObligationsUpdated,
     IReadOnlyList<ComplianceContentImportError> Errors,
@@ -26,5 +28,7 @@ public sealed record ComplianceContentImportError(
 public sealed record ComplianceContentImportCounts(
     int ClausesCreated,
     int ClausesUpdated,
+    int ClauseObligationMappingsCreated,
+    int ClauseObligationMappingsUpdated,
     int ObligationsCreated,
     int ObligationsUpdated);

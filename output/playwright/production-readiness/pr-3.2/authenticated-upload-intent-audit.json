@@ -1,0 +1,212 @@
+{
+  "status": "passed",
+  "runId": "20260702015259",
+  "contractId": "93fb5b6b-45f9-46e0-8a84-72d41ca2b316",
+  "syntheticOnly": true,
+  "results": [
+    {
+      "name": "Evidence metadata for upload-intent audit corrected",
+      "method": "POST",
+      "path": "/api/evidence-items",
+      "status": 201,
+      "ok": true,
+      "response": {
+        "id": "97feefe2-4e11-42e0-9b46-3e5674519e9d",
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "title": "PR-3.2 Upload Intent Audit 20260702015259",
+        "type": "Policy",
+        "ownerFunction": "QA",
+        "status": "Draft",
+        "effectiveAt": "2026-07-02",
+        "expiresAt": null,
+        "tags": [
+          "pr-3.2",
+          "synthetic-only",
+          "upload-intent-audit"
+        ],
+        "description": "Synthetic evidence metadata for rejected upload-intent audit verification. No CUI.",
+        "obligationIds": [],
+        "controlIds": [],
+        "contractIds": [
+          "93fb5b6b-45f9-46e0-8a84-72d41ca2b316"
+        ],
+        "vendorIds": [],
+        "subcontractorIds": [],
+        "employeeIds": [],
+        "reportIds": [],
+        "classification": {
+          "classification": "Unclassified",
+          "source": "UserSelected",
+          "confidence": 1,
+          "reviewedByUserId": null,
+          "reviewedAt": null,
+          "reason": "Synthetic No-CUI staging evidence metadata.",
+          "isApprovedDemoContent": false
+        },
+        "createdAt": "2026-07-02T01:52:59.8999231+00:00",
+        "updatedAt": null
+      }
+    },
+    {
+      "name": "Blocked prohibited upload intent audited path",
+      "method": "POST",
+      "path": "/api/evidence-items/97feefe2-4e11-42e0-9b46-3e5674519e9d/upload-intents",
+      "status": 400,
+      "ok": true,
+      "response": {
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+        "title": "Evidence upload rejected",
+        "status": 400,
+        "detail": "Evidence upload metadata did not pass No-CUI upload guardrails.",
+        "errors": {
+          "fileType": [
+            "File type '.exe' is not allowed. Allowed extensions: .csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx."
+          ]
+        },
+        "traceId": "00-05a3b773acb70fa8de4458b8c2d962a9-edeffc4fc4196d40-00",
+        "errorCode": "validation_failed",
+        "correlationId": "5ca863c3586e4ad9bc8df71ef331c14e"
+      }
+    },
+    {
+      "name": "Audit log query rejected upload intent",
+      "method": "GET",
+      "path": "/api/audit-logs?page=1&pageSize=25&entityType=EvidenceUploadIntent&action=Rejected",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "items": [
+          {
+            "id": "f41ba01e-08d3-45bd-81ba-9f95194a5b13",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Rejected",
+            "entityType": "EvidenceUploadIntent",
+            "entityId": "97feefe2-4e11-42e0-9b46-3e5674519e9d",
+            "occurredAt": "2026-07-02T01:53:00.246199+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "5ca863c3586e4ad9bc8df71ef331c14e",
+            "summary": "Evidence upload metadata was rejected by No-CUI upload guardrails.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "fileName": "pr-3.2-prohibited-20260702015259.exe",
+              "sizeBytes": "1024",
+              "contentType": "application/x-msdownload",
+              "maxSizeBytes": "26214400",
+              "correlationId": "5ca863c3586e4ad9bc8df71ef331c14e",
+              "noCuiAttestation": "True",
+              "validationErrors": "File type '.exe' is not allowed. Allowed extensions: .csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx.",
+              "allowedExtensions": ".csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx"
+            }
+          },
+          {
+            "id": "7e8eb400-1c8f-41dd-854c-1bad702a9e2e",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Rejected",
+            "entityType": "EvidenceUploadIntent",
+            "entityId": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+            "occurredAt": "2026-07-02T01:00:28.987371+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "396921a8a208496ca724b93a08d23c8a",
+            "summary": "Evidence upload metadata was rejected by No-CUI upload guardrails.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "fileName": "pr-3.2-synthetic-blocked.exe",
+              "sizeBytes": "46",
+              "contentType": "application/octet-stream",
+              "maxSizeBytes": "26214400",
+              "correlationId": "396921a8a208496ca724b93a08d23c8a",
+              "noCuiAttestation": "True",
+              "validationErrors": "File type '.exe' is not allowed. Allowed extensions: .csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx.",
+              "allowedExtensions": ".csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx"
+            }
+          }
+        ],
+        "page": 1,
+        "pageSize": 25,
+        "totalCount": 2,
+        "hasNextPage": false,
+        "hasPreviousPage": false
+      }
+    },
+    {
+      "name": "Audit export after rejected upload intent",
+      "method": "POST",
+      "path": "/api/audit-logs/cui-export",
+      "status": 200,
+      "ok": true,
+      "response": {
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "generatedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+        "generatedAt": "2026-07-02T01:53:00.4741779+00:00",
+        "filters": {
+          "eventType": null,
+          "classification": null,
+          "mode": null,
+          "actorUserId": null,
+          "entityType": "EvidenceUploadIntent",
+          "from": "2026-07-02T00:00:00+00:00",
+          "to": "2026-07-02T01:53:00.359+00:00",
+          "result": null
+        },
+        "events": [
+          {
+            "id": "f41ba01e-08d3-45bd-81ba-9f95194a5b13",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Rejected",
+            "entityType": "EvidenceUploadIntent",
+            "entityId": "97feefe2-4e11-42e0-9b46-3e5674519e9d",
+            "occurredAt": "2026-07-02T01:53:00.246199+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "5ca863c3586e4ad9bc8df71ef331c14e",
+            "summary": "Evidence upload metadata was rejected by No-CUI upload guardrails.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "fileName": "pr-3.2-prohibited-20260702015259.exe",
+              "sizeBytes": "1024",
+              "contentType": "application/x-msdownload",
+              "maxSizeBytes": "26214400",
+              "correlationId": "5ca863c3586e4ad9bc8df71ef331c14e",
+              "noCuiAttestation": "True",
+              "validationErrors": "File type '.exe' is not allowed. Allowed extensions: .csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx.",
+              "allowedExtensions": ".csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx"
+            }
+          },
+          {
+            "id": "7e8eb400-1c8f-41dd-854c-1bad702a9e2e",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Rejected",
+            "entityType": "EvidenceUploadIntent",
+            "entityId": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+            "occurredAt": "2026-07-02T01:00:28.987371+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "396921a8a208496ca724b93a08d23c8a",
+            "summary": "Evidence upload metadata was rejected by No-CUI upload guardrails.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "fileName": "pr-3.2-synthetic-blocked.exe",
+              "sizeBytes": "46",
+              "contentType": "application/octet-stream",
+              "maxSizeBytes": "26214400",
+              "correlationId": "396921a8a208496ca724b93a08d23c8a",
+              "noCuiAttestation": "True",
+              "validationErrors": "File type '.exe' is not allowed. Allowed extensions: .csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx.",
+              "allowedExtensions": ".csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+Compliance content import completed successfully.
+Files processed: 1
+Clauses created/updated: 10/0
+Mappings created/updated: 10/0
+Obligations created/updated: 10/0
+Package: packages/compliance-content/obligations/mvp.json
+Environment: gccs-staging-rg / gccs-api-staging-19984
+Data posture: synthetic/source-backed compliance content only; no customer data and no CUI.

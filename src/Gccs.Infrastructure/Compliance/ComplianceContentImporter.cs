@@ -94,12 +94,14 @@ public sealed class ComplianceContentImporter(GccsDbContext dbContext) : ICompli
                 var counts = await UpsertAsync(item, cancellationToken);
                 builder.ClausesCreated += counts.ClausesCreated;
                 builder.ClausesUpdated += counts.ClausesUpdated;
+                builder.ClauseObligationMappingsCreated += counts.ClauseObligationMappingsCreated;
+                builder.ClauseObligationMappingsUpdated += counts.ClauseObligationMappingsUpdated;
                 builder.ObligationsCreated += counts.ObligationsCreated;
                 builder.ObligationsUpdated += counts.ObligationsUpdated;
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
-            builder.Logs.Add($"Imported {filePath}: clauses +{builder.ClausesCreated}/~{builder.ClausesUpdated}, obligations +{builder.ObligationsCreated}/~{builder.ObligationsUpdated}.");
+            builder.Logs.Add($"Imported {filePath}: clauses +{builder.ClausesCreated}/~{builder.ClausesUpdated}, mappings +{builder.ClauseObligationMappingsCreated}/~{builder.ClauseObligationMappingsUpdated}, obligations +{builder.ObligationsCreated}/~{builder.ObligationsUpdated}.");
         }
 
         return builder.Build();
@@ -185,11 +187,47 @@ public sealed class ComplianceContentImporter(GccsDbContext dbContext) : ICompli
             dbContext.Obligations.Add(obligation);
         }
 
+        var mappingId = StableMappingId(item.Id);
+        var mapping = await dbContext.ClauseObligationMappings.FindAsync([mappingId], cancellationToken);
+        var mappingCreated = mapping is null;
+        mapping ??= new ClauseObligationMappingEntity
+        {
+            Id = mappingId,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        mapping.TenantId = null;
+        mapping.ClauseId = clause.Id;
+        mapping.ObligationId = obligation.Id;
+        mapping.TriggerCondition = item.TriggerCondition;
+        mapping.RequiredAction = string.Join(" ", item.RequiredActions);
+        mapping.SourceUrl = item.SourceUrl.ToString();
+        mapping.Confidence = item.Confidence;
+        mapping.RequiresExpertReview = item.RequiresExpertReview;
+        mapping.ReviewState = item.ReviewState;
+        mapping.LastReviewedAt = item.LastReviewedAt;
+
+        if (mappingCreated)
+        {
+            dbContext.ClauseObligationMappings.Add(mapping);
+        }
+
         return new ComplianceContentImportCounts(
             clauseCreated ? 1 : 0,
             clauseCreated ? 0 : 1,
+            mappingCreated ? 1 : 0,
+            mappingCreated ? 0 : 1,
             obligationCreated ? 1 : 0,
             obligationCreated ? 0 : 1);
+    }
+
+    private static Guid StableMappingId(string contentId)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"gccs-content-mapping:{contentId}"), bytes);
+        bytes[6] = (byte)((bytes[6] & 0x0F) | 0x30);
+        bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
+        return new Guid(bytes);
     }
 
     private static bool TryReadObligation(
@@ -432,13 +470,15 @@ public sealed class ComplianceContentImporter(GccsDbContext dbContext) : ICompli
     }
 
     private static ComplianceContentImportReport FailedReport(ComplianceContentImportError error) =>
-        new(false, 0, 0, 0, 0, 0, [error], [$"Import failed: {error.Message}"]);
+        new(false, 0, 0, 0, 0, 0, 0, 0, [error], [$"Import failed: {error.Message}"]);
 
     private sealed class ImportReportBuilder
     {
         public int FilesProcessed { get; set; }
         public int ClausesCreated { get; set; }
         public int ClausesUpdated { get; set; }
+        public int ClauseObligationMappingsCreated { get; set; }
+        public int ClauseObligationMappingsUpdated { get; set; }
         public int ObligationsCreated { get; set; }
         public int ObligationsUpdated { get; set; }
         public List<ComplianceContentImportError> Errors { get; } = [];
@@ -449,6 +489,8 @@ public sealed class ComplianceContentImporter(GccsDbContext dbContext) : ICompli
             FilesProcessed += report.FilesProcessed;
             ClausesCreated += report.ClausesCreated;
             ClausesUpdated += report.ClausesUpdated;
+            ClauseObligationMappingsCreated += report.ClauseObligationMappingsCreated;
+            ClauseObligationMappingsUpdated += report.ClauseObligationMappingsUpdated;
             ObligationsCreated += report.ObligationsCreated;
             ObligationsUpdated += report.ObligationsUpdated;
             Errors.AddRange(report.Errors);
@@ -461,6 +503,8 @@ public sealed class ComplianceContentImporter(GccsDbContext dbContext) : ICompli
                 FilesProcessed,
                 ClausesCreated,
                 ClausesUpdated,
+                ClauseObligationMappingsCreated,
+                ClauseObligationMappingsUpdated,
                 ObligationsCreated,
                 ObligationsUpdated,
                 Errors,
