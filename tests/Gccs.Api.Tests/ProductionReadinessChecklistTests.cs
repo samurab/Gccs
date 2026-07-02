@@ -1006,16 +1006,74 @@ public sealed class ProductionReadinessChecklistTests
     [Fact]
     public void TC_PR_4_3_Malware_scanning_launch_path_requires_scanner_evidence_or_signed_exception()
     {
+        var decision = ReadText("docs", "production-readiness-malware-scanning-decision.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
 
+        Assert.Contains("Story: PR-4.3 - Decide Malware Scanning Launch Path.", decision);
+        Assert.Contains("Production malware scanner not enabled; launch exception drafted but not approved.", decision);
+        Assert.Contains("Local scanner placeholder", decision);
+        Assert.Contains("TC-PR-4.3.1 | Blocked", decision);
         Assert.Contains("Production malware scanning is not complete.", closure);
         Assert.Contains("File content download remains unavailable until validation and malware scanning allow it.", closure);
         Assert.Contains("| Enable scanner | Scanner configuration", closure);
         Assert.Contains("| Launch exception | Exception scope", closure);
         Assert.Contains("Security owner and product owner", closure);
-        Assert.Contains("Owner approval pending", gapLog);
+        Assert.Contains("docs/production-readiness-malware-scanning-decision.md", closure);
+        Assert.Contains("PR-4.3 documented draft exception `PR43-MALWARE-001`; owner approval pending", gapLog);
         Assert.Contains("disable production file upload paths if necessary", gapLog);
+    }
+
+    [Fact]
+    public void TC_PR_4_3_Draft_exception_records_controls_workflows_owner_expiration_and_approvers()
+    {
+        var decision = ReadText("docs", "production-readiness-malware-scanning-decision.md");
+
+        foreach (var requiredField in new[]
+        {
+            "Exception ID",
+            "Scope",
+            "Affected workflows",
+            "Owner",
+            "Required approvers",
+            "Expiration date",
+            "Compensating controls",
+            "Rollback or disable plan",
+            "Support path",
+            "Known-risk log",
+            "Current status"
+        })
+        {
+            Assert.Contains(requiredField, decision);
+            Assert.Contains($"| {requiredField} |", decision);
+        }
+
+        Assert.Contains("PR43-MALWARE-001", decision);
+        Assert.Contains("Evidence file upload", decision);
+        Assert.Contains("contract document upload", decision);
+        Assert.Contains("Product owner and security owner", decision);
+        Assert.Contains("Before production customer launch, or 30 days after exception approval", decision);
+        Assert.Contains("No-CUI posture", decision);
+        Assert.Contains("blocked content download until scan is clean", decision);
+        Assert.Contains("TC-PR-4.3.2 | Blocked", decision);
+    }
+
+    [Fact]
+    public void TC_PR_4_3_Known_risk_log_keeps_upload_launch_readiness_blocked_without_approval()
+    {
+        var decision = ReadText("docs", "production-readiness-malware-scanning-decision.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("PR43-MALWARE-001", gapLog);
+        Assert.Contains("Known-Risk Acceptance Log", gapLog);
+        Assert.Contains("Approval pending", gapLog);
+        Assert.Contains("Production launch and launch candidate tagging remain blocked.", gapLog);
+        Assert.Contains("Scanner or approved exception pending; production launch blocked", checklist);
+        Assert.Contains("TC-PR-4.3.3 | Passed", decision);
+        Assert.Contains("TC-PR-4.3.4 | Passed", decision);
+        Assert.DoesNotContain("| Current status | Approved |", decision, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Production malware scanner enabled", decision, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

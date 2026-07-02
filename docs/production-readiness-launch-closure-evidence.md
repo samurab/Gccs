@@ -17,7 +17,7 @@ This artifact does not approve production launch. It records the remaining non-P
 | Staging deployment, migration, and rollback | PR-4.2 | Deployment and smoke evidence are attached; idempotent migration script generation is validated; application rollback simulation is documented with database rollback limits. | `docs/production-readiness-deployment-migration-rollback-evidence.md`, `docs/production-readiness-staging-smoke-evidence.md`, `docs/production-readiness-staging-workflow-evidence.md`, `output/production-readiness/deployment-migration-rollback/gccs-staging-migrations.sql` | No, except any future destructive forward migration must be separately accepted before launch candidate tagging |
 | Staging tenant isolation and RBAC | PR-3.3 | Complete. Automated backend/API tests passed, staging deployment run `28612906388` passed health smoke, and live role-matrix direct API checks passed for Owner, Admin, Compliance Manager, Contributor, Auditor, and Advisor using synthetic-only staging data. | `docs/production-readiness-staging-security-evidence.md`, `output/playwright/production-readiness/pr-3.3/role-matrix-owner.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-admin.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-compliance-manager.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-contributor.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-auditor.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-advisor.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-no-mutation-summary.json` | No |
 | Staging upload guardrails and report controls | PR-3.4 | Complete. Staging health passed and authenticated live staging upload/report smoke checks passed with synthetic-only data through the signed-in in-app browser session. | `docs/production-readiness-staging-upload-report-evidence.md`, `output/playwright/production-readiness/pr-3.4/staging-health.json`, `output/playwright/production-readiness/pr-3.4/authenticated-upload-report-smoke.json`, `output/playwright/production-readiness/pr-3.4/authentication-blocker.json` | No |
-| Malware scanning launch path | PR-4.3 | Scanner integration is not enabled for production. Current upload flow records files as `scan-pending` and blocks content download until validation and malware scan state allows use. | `src/Gccs.Application/NoCui/NoCuiAcknowledgementService.cs`, `tests/Gccs.Api.Tests/EvidenceFileUploadTests.cs` | Yes, until scanner is enabled or exception is approved |
+| Malware scanning launch path | PR-4.3 | Scanner integration is not enabled for production. Current upload flow records files as `scan-pending` and blocks content download until validation and malware scan state allows use. Draft exception `PR43-MALWARE-001` is recorded but not approved. | `docs/production-readiness-malware-scanning-decision.md`, `src/Gccs.Application/NoCui/NoCuiAcknowledgementService.cs`, `tests/Gccs.Api.Tests/EvidenceFileUploadTests.cs` | Yes, until scanner is enabled or exception is approved |
 | Expert content approval | PR-5.1 | Published/approved launch content is source-backed. Five high-risk records remain `needs_review` and must be approved or withheld from customer-facing production views. | `output/production-readiness/expert-content/staging-content-review-summary.json` | Yes, for unreviewed high-risk records |
 | Final launch approvals | PR-6.1 | All required launch approvers remain pending. | Approval table in this artifact and `docs/production-readiness-checklist.md` | Yes |
 
@@ -93,7 +93,7 @@ Current disposition:
 
 ## Malware Scanning Decision
 
-Production malware scanning is not complete. The current MVP code records upload state and prevents content download while a file is not usable, but a real scanner decision is not attached.
+Production malware scanning is not complete. The current MVP code records upload state and prevents content download while a file is not usable, but a real scanner decision is not attached. Detailed PR-4.3 decision evidence is recorded in `docs/production-readiness-malware-scanning-decision.md`.
 
 Current compensating controls:
 
@@ -119,6 +119,7 @@ Draft exception scope if the scanner is deferred:
 - Expiration: before production customer launch, or 30 days after exception approval, whichever comes first.
 - Required operational control: production file upload paths must remain disabled if neither scanner evidence nor approved exception exists.
 - Required approval: security owner and product owner.
+- Current status: `PR43-MALWARE-001` owner approval pending; production launch remains blocked.
 
 ## Expert Content Approval
 
