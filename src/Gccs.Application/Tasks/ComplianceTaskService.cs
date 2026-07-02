@@ -37,6 +37,11 @@ public sealed class ComplianceTaskService(
         CancellationToken cancellationToken = default)
     {
         var before = (await repository.ListCurrentTenantAsync(cancellationToken)).FirstOrDefault(task => task.Id == taskId);
+        if (before is null)
+        {
+            return null;
+        }
+
         var normalized = Normalize(request);
         ValidatePatch(normalized);
         ComplianceTaskStatus? parsedStatus = normalized.Status is null ? null : ParseStatus(normalized.Status);

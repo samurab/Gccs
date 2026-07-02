@@ -75,6 +75,8 @@ public sealed class SecurityIsolationVerificationTests : IClassFixture<WebApplic
         await AssertOtherTenantRecordDeniedAsync(client, ids, $"/api/evidence-items/{ids.TenantAEvidenceId}");
         await AssertOtherTenantRecordDeniedAsync(client, ids, $"/api/cmmc/assessments/{ids.TenantAAssessmentId}");
         await AssertOtherTenantRecordDeniedAsync(client, ids, $"/api/subcontractors/{ids.TenantASubcontractorId}");
+        await AssertOtherTenantContractUpdateDeniedBeforeValidationAsync(client, ids);
+        await AssertOtherTenantTaskUpdateDeniedBeforeValidationAsync(client, ids);
         await AssertOtherTenantEvidenceUpdateDeniedWithoutMutationAsync(client, ids);
 
         var tenantBProfile = await GetAsync<CompanyProfileDto>(client, "/api/company-profile", ids.TenantBId, ids.TenantBUserId, RoleCatalog.Owner, HttpStatusCode.OK);
@@ -233,6 +235,72 @@ public sealed class SecurityIsolationVerificationTests : IClassFixture<WebApplic
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.DoesNotContain("Tenant A", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TENANT-A-001", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task AssertOtherTenantContractUpdateDeniedBeforeValidationAsync(HttpClient client, SecurityIds ids)
+    {
+        using var updateRequest = CreateRequest(
+            HttpMethod.Put,
+            $"/api/contracts/{ids.TenantAContractId}",
+            CreateContractRequest("BLOCKED-CROSS-TENANT") with { Title = string.Empty },
+            ids.TenantBId,
+            ids.TenantBUserId,
+            RoleCatalog.Owner);
+
+        var updateResponse = await client.SendAsync(updateRequest);
+        var updateBody = await updateResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, updateResponse.StatusCode);
+        Assert.DoesNotContain("Title is required", updateBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Tenant A", updateBody, StringComparison.OrdinalIgnoreCase);
+
+        var tenantAContract = await GetAsync<ContractDto>(
+            client,
+            $"/api/contracts/{ids.TenantAContractId}",
+            ids.TenantAId,
+            ids.TenantAUserId,
+            RoleCatalog.Owner,
+            HttpStatusCode.OK);
+
+        Assert.Equal("Tenant A contract", tenantAContract.Title);
+    }
+
+    private static async Task AssertOtherTenantTaskUpdateDeniedBeforeValidationAsync(HttpClient client, SecurityIds ids)
+    {
+        using var updateRequest = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/tasks/{ids.TenantATaskId}",
+            new UpdateComplianceTaskRequest(
+                "Blocked cross-tenant task update",
+                "Synthetic No-CUI denied mutation probe.",
+                "invalid-cross-tenant-status",
+                RiskLevel.Low,
+                null,
+                "Security",
+                new DateOnly(2026, 8, 15),
+                "general",
+                null),
+            ids.TenantBId,
+            ids.TenantBUserId,
+            RoleCatalog.Owner);
+
+        var updateResponse = await client.SendAsync(updateRequest);
+        var updateBody = await updateResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, updateResponse.StatusCode);
+        Assert.DoesNotContain("Task status is not supported", updateBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Blocked cross-tenant task update", updateBody, StringComparison.OrdinalIgnoreCase);
+
+        var tenantATask = await GetAsync<ComplianceTaskDto>(
+            client,
+            $"/api/tasks/{ids.TenantATaskId}",
+            ids.TenantAId,
+            ids.TenantAUserId,
+            RoleCatalog.Owner,
+            HttpStatusCode.OK);
+
+        Assert.Equal("Tenant A security task", tenantATask.Title);
+        Assert.Equal("open", tenantATask.Status);
     }
 
     private static async Task AssertOtherTenantEvidenceUpdateDeniedWithoutMutationAsync(HttpClient client, SecurityIds ids)

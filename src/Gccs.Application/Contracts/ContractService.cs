@@ -59,6 +59,11 @@ public sealed partial class ContractService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        if (!await repository.ExistsCurrentTenantAsync(contractId, cancellationToken))
+        {
+            return null;
+        }
+
         var normalized = Normalize(request);
         Validate(normalized);
         await EnsureContractModeAllowedAsync(normalized, actorUserId, contractId, cancellationToken);
@@ -992,6 +997,8 @@ public interface IContractRepository
     Task<IReadOnlyList<ContractDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default);
 
     Task<ContractDto?> FindCurrentTenantAsync(Guid contractId, CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsCurrentTenantAsync(Guid contractId, CancellationToken cancellationToken = default);
 
     Task<ContractDto> CreateCurrentTenantAsync(
         UpsertContractRequest request,

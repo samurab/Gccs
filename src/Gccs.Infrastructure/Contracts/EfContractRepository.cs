@@ -33,6 +33,13 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         return entity is null ? null : ToDto(entity);
     }
 
+    public Task<bool> ExistsCurrentTenantAsync(Guid contractId, CancellationToken cancellationToken = default) =>
+        dbContext.Contracts
+            .AsNoTracking()
+            .AnyAsync(
+                contract => contract.TenantId == tenantContext.TenantId && contract.Id == contractId,
+                cancellationToken);
+
     public async Task<IReadOnlyList<ContractDocumentDto>?> ListDocumentsAsync(
         Guid contractId,
         CancellationToken cancellationToken = default)
