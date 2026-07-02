@@ -1,0 +1,41 @@
+{
+  "command": "archive",
+  "checkedAt": "2026-07-02T17:56:05.386767+00:00",
+  "database": "gccs",
+  "schemaVerified": true,
+  "tenantName": "PR-3.3 blocked admin tenant",
+  "matchCount": 1,
+  "archived": true,
+  "statusUpdated": true,
+  "auditInserted": true,
+  "auditAlreadyExisted": false,
+  "tenant": {
+    "Id": "b2a3d355-9d01-4435-af30-6e8551b704eb",
+    "Name": "PR-3.3 blocked admin tenant",
+    "Status": "Archived",
+    "DataPosture": "NoCui",
+    "CreatedAt": "2026-07-02T16:05:49.386123+00:00",
+    "CreatedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+    "UpdatedAt": "2026-07-02T17:56:05.143915+00:00",
+    "UpdatedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+    "MembershipCount": 0
+  },
+  "auditRows": [
+    {
+      "TenantId": "b2a3d355-9d01-4435-af30-6e8551b704eb",
+      "ActorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+      "Action": "Archived",
+      "EntityType": "Tenant",
+      "EntityId": "b2a3d355-9d01-4435-af30-6e8551b704eb",
+      "OccurredAt": "2026-07-02T17:56:05.143915+00:00",
+      "CorrelationId": "pr-3.3-orphan-tenant-cleanup",
+      "Summary": "Archived unintended orphan staging tenant created during invalid PR-3.3 Admin-cycle probe.",
+      "Metadata": {
+        "story": "PR-3.3",
+        "reason": "orphan tenant cleanup",
+        "environment": "staging",
+        "noCuiDataUsed": true
+      }
+    }
+  ]
+}

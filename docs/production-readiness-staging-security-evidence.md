@@ -73,19 +73,23 @@ Cleanup completed:
 - The temporary SCIM token was revoked.
 - The separate SCIM-created smoke member was deactivated.
 - The original signed-in user remained active as `Owner`.
+- The unintended orphan tenant named `PR-3.3 blocked admin tenant` was located in staging PostgreSQL with exactly one matching row, zero memberships, and `NoCui` posture.
+- The orphan tenant was archived through staging database maintenance, and a sanitized `Archived` audit entry was inserted with correlation id `pr-3.3-orphan-tenant-cleanup`.
+- A temporary PostgreSQL firewall rule for the current operator IP was removed after cleanup; verification returned zero remaining rules with that name.
 
-Cleanup still required:
+Sanitized evidence is attached at:
 
-- Locate and archive the unintended orphan tenant named `PR-3.3 blocked admin tenant` using database or Azure/admin access. The current API does not expose tenant listing, and route tenant scope prevents patching another tenant from the original tenant context.
-
-Sanitized evidence is attached at `output/playwright/production-readiness/pr-3.3/admin-cycle-and-cleanup.json`.
+- `output/playwright/production-readiness/pr-3.3/admin-cycle-and-cleanup.json`
+- `output/playwright/production-readiness/pr-3.3/orphan-tenant-verify.json`
+- `output/playwright/production-readiness/pr-3.3/orphan-tenant-cleanup.json`
+- `output/playwright/production-readiness/pr-3.3/orphan-tenant-firewall-cleanup.json`
 
 ## Blocker
 
 | Blocker ID | Summary | Owner | Severity | Required resolution | Current status |
 | --- | --- | --- | --- | --- | --- |
 | PR33-STAGE-001 | Authenticated staging PR-3.3 tenant isolation and RBAC checks cannot run for the full role matrix with only the current Owner browser session. | Security owner | High | Provide staging-only tokens or smoke identities for Admin, Compliance Manager, Contributor, Auditor, and Advisor role contexts; run direct API cross-tenant and role-denial checks; attach sanitized outputs. | Open |
-| PR33-STAGE-002 | An unintended orphan staging tenant was created during an invalid Admin-cycle probe. | Engineering lead | Medium | Use database or Azure/admin access to locate and archive tenant `PR-3.3 blocked admin tenant`; attach cleanup evidence. | Open |
+| PR33-STAGE-002 | An unintended orphan staging tenant was created during an invalid Admin-cycle probe. | Engineering lead | Medium | Use database or Azure/admin access to locate and archive tenant `PR-3.3 blocked admin tenant`; attach cleanup evidence. | Closed on 2026-07-02; tenant archived, audit entry inserted, and temporary firewall rule removed. |
 
 ## Launch Disposition
 

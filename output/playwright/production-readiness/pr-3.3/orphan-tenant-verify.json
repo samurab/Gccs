@@ -1,0 +1,21 @@
+{
+  "command": "verify",
+  "checkedAt": "2026-07-02T17:55:57.687066+00:00",
+  "database": "gccs",
+  "schemaVerified": true,
+  "tenantName": "PR-3.3 blocked admin tenant",
+  "matchCount": 1,
+  "tenants": [
+    {
+      "Id": "b2a3d355-9d01-4435-af30-6e8551b704eb",
+      "Name": "PR-3.3 blocked admin tenant",
+      "Status": "Active",
+      "DataPosture": "NoCui",
+      "CreatedAt": "2026-07-02T16:05:49.386123+00:00",
+      "CreatedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+      "UpdatedAt": null,
+      "UpdatedByUserId": null,
+      "MembershipCount": 0
+    }
+  ]
+}
