@@ -641,25 +641,34 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_3_3_Staging_security_evidence_records_automated_coverage_and_blocks_on_missing_smoke_credential()
+    public void TC_PR_3_3_Staging_security_evidence_records_automated_and_owner_staging_coverage_and_blocks_on_missing_role_matrix()
     {
         var evidence = ReadText("docs", "production-readiness-staging-security-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        using var ownerProbes = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "owner-session-probes.json"));
 
         Assert.Contains("Story: PR-3.3 - Verify Tenant Isolation And RBAC In Staging.", evidence);
-        Assert.Contains("Evidence status: Blocked for live authenticated staging API execution; automated backend/API coverage passed.", evidence);
+        Assert.Contains("Evidence status: Blocked for full role-matrix staging execution; automated backend/API coverage passed and live Owner-role staging probes passed.", evidence);
         Assert.Contains("dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --configuration Release --no-restore --filter", evidence);
         Assert.Contains("Ten tests passed with zero failures.", evidence);
-        Assert.Contains("No `GCCS_STAGING_ACCESS_TOKEN`, scoped smoke-test token, or equivalent authenticated staging API credential", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/owner-session-probes.json", evidence);
+        Assert.Contains("Admin, Compliance Manager, Contributor, Auditor, or Advisor direct API denials", evidence);
         Assert.Contains("PR33-STAGE-001", evidence);
         Assert.Contains("Do not proceed to PR-3.4, PR-4.1, or later production readiness stories", evidence);
 
         Assert.Contains("Staging tenant isolation and RBAC", checklist);
-        Assert.Contains("Blocked pending staging API smoke credential", checklist);
+        Assert.Contains("Owner staging probes passed; non-Owner smoke identities pending", checklist);
         Assert.Contains("docs/production-readiness-staging-security-evidence.md", closure);
         Assert.Contains("DOD-GAP-007", gapLog);
+        Assert.Equal("Owner", ownerProbes.RootElement.GetProperty("roleContext").GetString());
+        Assert.False(ownerProbes.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.Contains(ownerProbes.RootElement.GetProperty("calls").EnumerateArray(), call =>
+            call.GetProperty("name").GetString() == "current access" &&
+            call.GetProperty("status").GetInt32() == 200);
+        Assert.Contains(ownerProbes.RootElement.GetProperty("limitations").EnumerateArray(), limitation =>
+            limitation.GetString() == "Admin, Compliance Manager, Contributor, Auditor, and Advisor direct API role contexts remain untested in live staging.");
     }
 
     [Fact]

@@ -2,7 +2,7 @@
 
 Story: PR-3.3 - Verify Tenant Isolation And RBAC In Staging.
 
-Evidence status: Blocked for live authenticated staging API execution; automated backend/API coverage passed.
+Evidence status: Blocked for full role-matrix staging execution; automated backend/API coverage passed and live Owner-role staging probes passed.
 
 Review date: 2026-07-02.
 
@@ -10,7 +10,7 @@ Staging API: `https://gccs-api-staging-19984.azurewebsites.net`.
 
 Staging health result: passed. `GET /health` returned `status: ok`, `dataPosture: No-CUI / compliance management only`, and dependency signals for `background-jobs`, `object-storage`, `postgresql`, and `redis`.
 
-This artifact does not close PR-3.3. It records the current evidence, the failed prerequisite for authenticated staging authorization checks, and the exact work required before the production readiness sequence can proceed to PR-3.4.
+This artifact does not close PR-3.3. It records the current evidence, the failed prerequisite for complete authenticated staging authorization checks, and the exact work required before the production readiness sequence can proceed to PR-3.4.
 
 ## Required PR-3.3 Scope
 
@@ -52,17 +52,22 @@ env | rg '^GCCS_STAGING|^STAGING|AZURE|ConnectionStrings__GccsDatabase'
 Result:
 
 - Health check passed against the live staging API.
-- No `GCCS_STAGING_ACCESS_TOKEN`, scoped smoke-test token, or equivalent authenticated staging API credential was present in the shell environment.
-- Azure CLI management-plane calls for app settings did not return within the run window, so a non-interactive smoke credential could not be discovered safely.
+- The in-app browser was signed in to the GCCS Staging workspace as the current Owner user.
+- Browser-contained API calls used the active session token without printing or storing the token.
+- Owner-context calls to `/api/me/access`, `/api/tenant-members`, missing direct resource IDs for contracts, evidence, tasks, and evidence-package reports, and `/api/reports/exports/audit-log` completed with expected status codes and no stack-trace leakage.
+- Sanitized Owner-session output is attached at `output/playwright/production-readiness/pr-3.3/owner-session-probes.json`.
+- Azure CLI management-plane calls for app settings did not return within the run window, so a non-interactive smoke credential or staging database connection could not be discovered safely.
+
+Owner-session live staging evidence is useful but insufficient for PR-3.3 closure. It does not prove Admin, Compliance Manager, Contributor, Auditor, or Advisor direct API denials, and the random missing-ID checks do not prove denial against known records owned by a different tenant.
 
 ## Blocker
 
 | Blocker ID | Summary | Owner | Severity | Required resolution | Current status |
 | --- | --- | --- | --- | --- | --- |
-| PR33-STAGE-001 | Authenticated staging PR-3.3 tenant isolation and RBAC checks cannot run without a scoped staging API token or approved smoke-test identity. | Security owner | High | Provide a staging-only token or smoke identity for owner, admin, compliance manager, contributor, auditor, and advisor role contexts; run direct API cross-tenant and role-denial checks; attach sanitized outputs. | Open |
+| PR33-STAGE-001 | Authenticated staging PR-3.3 tenant isolation and RBAC checks cannot run for the full role matrix with only the current Owner browser session. | Security owner | High | Provide staging-only tokens or smoke identities for Admin, Compliance Manager, Contributor, Auditor, and Advisor role contexts; run direct API cross-tenant and role-denial checks; attach sanitized outputs. | Open |
 
 ## Launch Disposition
 
-PR-3.3 remains blocked. Do not proceed to PR-3.4, PR-4.1, or later production readiness stories until authenticated staging tenant isolation and RBAC evidence is attached.
+PR-3.3 remains blocked. Do not proceed to PR-3.4, PR-4.1, or later production readiness stories until full authenticated staging tenant isolation and RBAC evidence is attached.
 
 The blocker does not expand the No-CUI posture and does not authorize real CUI handling. All future staging execution must use synthetic or non-sensitive data only.
