@@ -14,6 +14,7 @@ This artifact does not approve production launch. It records the remaining non-P
 | --- | --- | --- | --- | --- |
 | Staging database backup configuration | PR-4.1 | Captured from Azure PostgreSQL Flexible Server. Automated backups are enabled with 7-day retention. | `docs/production-readiness-backup-restore-evidence.md`, `output/production-readiness/backup-restore/staging-postgres-backup-config.json` | No |
 | Staging restore rehearsal | PR-4.1 | Not executed. A point-in-time restore creates a new paid PostgreSQL Flexible Server and requires explicit restore-window approval, reviewer assignment, and teardown. | `docs/production-readiness-backup-restore-evidence.md`, restore runbook in this artifact | Yes |
+| Staging deployment, migration, and rollback | PR-4.2 | Deployment and smoke evidence are attached; idempotent migration script generation is validated; application rollback simulation is documented with database rollback limits. | `docs/production-readiness-deployment-migration-rollback-evidence.md`, `docs/production-readiness-staging-smoke-evidence.md`, `docs/production-readiness-staging-workflow-evidence.md`, `output/production-readiness/deployment-migration-rollback/gccs-staging-migrations.sql` | No, except any future destructive forward migration must be separately accepted before launch candidate tagging |
 | Staging tenant isolation and RBAC | PR-3.3 | Complete. Automated backend/API tests passed, staging deployment run `28612906388` passed health smoke, and live role-matrix direct API checks passed for Owner, Admin, Compliance Manager, Contributor, Auditor, and Advisor using synthetic-only staging data. | `docs/production-readiness-staging-security-evidence.md`, `output/playwright/production-readiness/pr-3.3/role-matrix-owner.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-admin.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-compliance-manager.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-contributor.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-auditor.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-advisor.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-no-mutation-summary.json` | No |
 | Staging upload guardrails and report controls | PR-3.4 | Complete. Staging health passed and authenticated live staging upload/report smoke checks passed with synthetic-only data through the signed-in in-app browser session. | `docs/production-readiness-staging-upload-report-evidence.md`, `output/playwright/production-readiness/pr-3.4/staging-health.json`, `output/playwright/production-readiness/pr-3.4/authenticated-upload-report-smoke.json`, `output/playwright/production-readiness/pr-3.4/authentication-blocker.json` | No |
 | Malware scanning launch path | PR-4.3 | Scanner integration is not enabled for production. Current upload flow records files as `scan-pending` and blocks content download until validation and malware scan state allows use. | `src/Gccs.Application/NoCui/NoCuiAcknowledgementService.cs`, `tests/Gccs.Api.Tests/EvidenceFileUploadTests.cs` | Yes, until scanner is enabled or exception is approved |
@@ -77,6 +78,18 @@ az postgres flexible-server delete \
   --name "$RESTORE_SERVER" \
   --yes
 ```
+
+## Deployment, Migration, And Rollback Evidence
+
+Detailed PR-4.2 evidence is recorded in `docs/production-readiness-deployment-migration-rollback-evidence.md`.
+
+Current disposition:
+
+- Staging workflow and smoke evidence are attached.
+- EF Core idempotent migration script generation passed for `GccsDbContext`.
+- Generated script evidence is attached at `output/production-readiness/deployment-migration-rollback/gccs-staging-migrations.sql`.
+- Application rollback simulation notes are attached in `docs/production-readiness-checklist.md`.
+- Database rollback is not treated as automatic; destructive or irreversible forward migration risk must be accepted by the product owner and engineering lead before launch candidate tagging.
 
 ## Malware Scanning Decision
 

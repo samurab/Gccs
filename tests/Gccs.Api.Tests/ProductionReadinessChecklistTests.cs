@@ -927,6 +927,83 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_4_2_Deployment_migration_and_rollback_evidence_is_attached()
+    {
+        var evidence = ReadText("docs", "production-readiness-deployment-migration-rollback-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+
+        Assert.Contains("Story: PR-4.2 - Attach Deployment, Migration, And Rollback Evidence.", evidence);
+        Assert.Contains("docs/production-readiness-staging-smoke-evidence.md", evidence);
+        Assert.Contains("docs/production-readiness-staging-workflow-evidence.md", evidence);
+        Assert.Contains("GitHub Actions run `28534289128`", evidence);
+        Assert.Contains("staging-smoke-test-results/staging-health.json", evidence);
+        Assert.Contains("docs/production-readiness-deployment-migration-rollback-evidence.md", checklist);
+        Assert.Contains("docs/production-readiness-deployment-migration-rollback-evidence.md", closure);
+        Assert.Contains("output/production-readiness/deployment-migration-rollback/gccs-staging-migrations.sql", checklist);
+        Assert.Contains("Application rollback simulation is documented", evidence);
+        Assert.Contains("TC-PR-4.2.1 | Passed", evidence);
+        Assert.Contains("TC-PR-4.2.3 | Passed with limitation", evidence);
+    }
+
+    [Fact]
+    public void TC_PR_4_2_Migration_evidence_identifies_script_environment_result_reviewer_and_failure_handling()
+    {
+        var evidence = ReadText("docs", "production-readiness-deployment-migration-rollback-evidence.md");
+        var migrationScript = ReadText("output", "production-readiness", "deployment-migration-rollback", "gccs-staging-migrations.sql");
+
+        foreach (var requiredField in new[]
+        {
+            "Script source",
+            "Script generation command",
+            "Generated script path",
+            "Environment",
+            "Result",
+            "Reviewer",
+            "Failure handling"
+        })
+        {
+            Assert.Contains(requiredField, evidence);
+            Assert.Contains($"| {requiredField} |", evidence);
+        }
+
+        Assert.Contains("5931c70b457735687b5d5e7e21ceb4e843ce2fb6cb9ef083577d7c77f69a9b62", evidence);
+        Assert.Contains("dotnet tool run dotnet-ef migrations script --idempotent", evidence);
+        Assert.Contains("CREATE TABLE IF NOT EXISTS", migrationScript);
+        Assert.Contains("20260626194212_AddReusableComplianceChecklists", migrationScript);
+        Assert.DoesNotContain("DROP TABLE", migrationScript, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DROP COLUMN", migrationScript, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("TRUNCATE", migrationScript, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DELETE FROM", migrationScript, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_4_2_Irreversible_migration_risk_has_owner_mitigation_contingency_and_approver()
+    {
+        var evidence = ReadText("docs", "production-readiness-deployment-migration-rollback-evidence.md");
+
+        foreach (var requiredField in new[]
+        {
+            "Risk ID",
+            "Owner",
+            "Mitigation",
+            "Contingency",
+            "Approver",
+            "Current status"
+        })
+        {
+            Assert.Contains(requiredField, evidence);
+        }
+
+        Assert.Contains("PR42-MIGRATION-001", evidence);
+        Assert.Contains("Engineering lead", evidence);
+        Assert.Contains("Product owner and engineering lead", evidence);
+        Assert.Contains("Database rollback is not automatic", evidence);
+        Assert.Contains("Do not run EF `Down()` paths automatically in production", evidence);
+        Assert.Contains("TC-PR-4.2.4 | Passed", evidence);
+    }
+
+    [Fact]
     public void TC_PR_4_3_Malware_scanning_launch_path_requires_scanner_evidence_or_signed_exception()
     {
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
