@@ -1,0 +1,30 @@
+{
+  "runId": "20260702010915",
+  "contractId": "d05dc633-6724-4ed6-af9f-4d03f2ef0090",
+  "status": 201,
+  "ok": true,
+  "response": {
+    "id": "eb281136-a554-463a-86b4-35cb39fc1ba4",
+    "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+    "type": "PrimeEvidencePackage",
+    "status": "Complete",
+    "title": "PR-3.2 Synthetic Evidence Package Corrected 20260702010915",
+    "generatedAt": "2026-07-02T01:09:15.52577+00:00",
+    "generatedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+    "manifest": {
+      "title": "PR-3.2 Synthetic Evidence Package Corrected 20260702010915",
+      "generatedAt": "2026-07-02T01:09:15.52577+00:00",
+      "scope": {
+        "obligationIds": [],
+        "contractIds": [
+          "d05dc633-6724-4ed6-af9f-4d03f2ef0090"
+        ],
+        "controlIds": [],
+        "subcontractorIds": [],
+        "includesDraftOrRejectedEvidence": false
+      },
+      "items": []
+    },
+    "exportHtml": "[REDACTED]"
+  }
+}

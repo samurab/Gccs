@@ -1,0 +1,712 @@
+{
+  "startedAt": "2026-07-02T01:00:26.687Z",
+  "completedAt": "2026-07-02T01:00:29.683Z",
+  "runId": "20260702010026",
+  "status": "partial",
+  "failedCount": 7,
+  "syntheticOnly": true,
+  "noCuiPosture": true,
+  "results": [
+    {
+      "step": "Health dependency posture",
+      "method": "GET",
+      "path": "/health",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "status": "ok",
+        "dataPosture": "No-CUI / compliance management only"
+      },
+      "response": {
+        "status": "ok",
+        "service": "gccs-api",
+        "dataPosture": "No-CUI / compliance management only",
+        "checkedAt": "2026-07-02T01:00:26.9840223+00:00",
+        "dependencies": [
+          {
+            "name": "background-jobs",
+            "status": "ok",
+            "detail": "Background job queue coordination is reachable through Redis."
+          },
+          {
+            "name": "object-storage",
+            "status": "ok",
+            "detail": "Azure object storage endpoint is reachable."
+          },
+          {
+            "name": "postgresql",
+            "status": "ok",
+            "detail": "Connected to PostgreSQL."
+          }
+        ]
+      }
+    },
+    {
+      "step": "Current user access and tenant verification",
+      "method": "GET",
+      "path": "/api/me/access",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "userId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+        "userEmail": "dumbuyab@gmail.com",
+        "roles": [
+          "Owner"
+        ],
+        "permissionCount": 29
+      },
+      "response": {
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "userId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+        "userEmail": "dumbuyab@gmail.com",
+        "roles": [
+          "Owner"
+        ],
+        "permissions": [
+          "ApproveEnclave",
+          "ApproveEvidence",
+          "AuditorReadOnly"
+        ],
+        "rolePermissionMatrix": {
+          "Owner": [
+            "ApproveEnclave",
+            "ApproveEvidence",
+            "AuditorReadOnly"
+          ],
+          "Admin": [
+            "ApproveEnclave",
+            "ApproveEvidence",
+            "AuditorReadOnly"
+          ],
+          "Compliance Manager": [
+            "ApproveEvidence",
+            "AuditorReadOnly",
+            "ManageCmmc"
+          ],
+          "Contributor": [
+            "ManageEvidence",
+            "ManageTasks",
+            "ViewCmmc"
+          ],
+          "Auditor": [
+            "AuditorReadOnly",
+            "ViewCmmc",
+            "ViewCompanyProfile"
+          ],
+          "Advisor": [
+            "ApproveEvidence",
+            "AuditorReadOnly",
+            "ManageCmmc"
+          ]
+        }
+      }
+    },
+    {
+      "step": "Tenant record verification",
+      "method": "GET",
+      "path": "/api/tenants/8c934636-0c37-4a8f-9134-323bef993ef2",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "id": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "status": "Active",
+        "dataPosture": "NoCui",
+        "dataHandlingMode": "NoCui"
+      },
+      "response": {
+        "id": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "displayName": "GCCS Staging",
+        "status": "Active",
+        "dataPosture": "NoCui",
+        "dataHandlingMode": "NoCui",
+        "trialEndsAt": null,
+        "createdAt": "2026-06-30T02:53:54.87914+00:00",
+        "updatedAt": null
+      }
+    },
+    {
+      "step": "Tenant members and role assignment verification",
+      "method": "GET",
+      "path": "/api/tenant-members",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "count": 1,
+        "first": {
+          "membershipId": "3c6136cc-4f69-4e32-b99c-c9746042a9f5",
+          "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+          "userId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+          "email": "dumbuyab_gmail.com#EXT#@dumbuyabgmail191.onmicrosoft.com",
+          "displayName": "Bai Dumbuya",
+          "userStatus": "Active",
+          "membershipStatus": "Active",
+          "roleName": "Owner",
+          "mfaEnabled": false,
+          "lastSignedInAt": null,
+          "lastAccessedAt": null,
+          "createdAt": "2026-06-30T02:53:55.008913+00:00",
+          "updatedAt": null
+        }
+      },
+      "response": [
+        {
+          "membershipId": "3c6136cc-4f69-4e32-b99c-c9746042a9f5",
+          "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+          "userId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+          "email": "dumbuyab_gmail.com#EXT#@dumbuyabgmail191.onmicrosoft.com",
+          "displayName": "Bai Dumbuya",
+          "userStatus": "Active",
+          "membershipStatus": "Active",
+          "roleName": "Owner",
+          "mfaEnabled": false,
+          "lastSignedInAt": null,
+          "lastAccessedAt": null,
+          "createdAt": "2026-06-30T02:53:55.008913+00:00",
+          "updatedAt": null
+        }
+      ]
+    },
+    {
+      "step": "Tenant invitations verification",
+      "method": "GET",
+      "path": "/api/tenant-invitations",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "count": 0,
+        "first": null
+      },
+      "response": []
+    },
+    {
+      "step": "Company profile synthetic upsert",
+      "method": "PUT",
+      "path": "/api/company-profile",
+      "status": 400,
+      "expected": [
+        200
+      ],
+      "ok": false,
+      "summary": null,
+      "response": null
+    },
+    {
+      "step": "Contract creation synthetic non-CUI",
+      "method": "POST",
+      "path": "/api/contracts",
+      "status": 400,
+      "expected": [
+        201
+      ],
+      "ok": false,
+      "summary": null,
+      "response": null
+    },
+    {
+      "step": "Clause library query for manual tagging source",
+      "method": "GET",
+      "path": "/api/clauses?query=52.204-21&includeDrafts=false",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "count": 0,
+        "first": null
+      },
+      "response": []
+    },
+    {
+      "step": "Manual clause tagging attach source-backed clause",
+      "method": "POST",
+      "path": "/api/contracts/{id}/clauses",
+      "status": "not-run",
+      "expected": [
+        201
+      ],
+      "ok": false,
+      "summary": {
+        "reason": "Missing contract or source clause"
+      }
+    },
+    {
+      "step": "Task creation synthetic workflow task",
+      "method": "POST",
+      "path": "/api/tasks",
+      "status": 500,
+      "expected": [
+        201
+      ],
+      "ok": false,
+      "summary": {
+        "title": "API request failed",
+        "status": 500,
+        "errorCode": "api_request_failed",
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1"
+      },
+      "response": {
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+        "title": "API request failed",
+        "status": 500,
+        "detail": "The API request could not be completed.",
+        "errorCode": "api_request_failed",
+        "traceId": "00-4c6d65ab0aeedaacd7b0e9692ead2d3c-a3000506b8f58f97-00",
+        "correlationId": "be5465e2412249489350b5e6449f96c6"
+      }
+    },
+    {
+      "step": "No-CUI acknowledgement status before upload",
+      "method": "GET",
+      "path": "/api/no-cui-acknowledgement",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "noticeVersion": "no-cui-mvp-v1"
+      },
+      "response": {
+        "isAcknowledged": false,
+        "noticeVersion": "no-cui-mvp-v1",
+        "noticeCopy": "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other...",
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "acknowledgedByUserId": null,
+        "acknowledgedAt": null
+      }
+    },
+    {
+      "step": "No-CUI acknowledgement save",
+      "method": "POST",
+      "path": "/api/no-cui-acknowledgement",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "noticeVersion": "no-cui-mvp-v1"
+      },
+      "response": {
+        "isAcknowledged": true,
+        "noticeVersion": "no-cui-mvp-v1",
+        "noticeCopy": "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other...",
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "acknowledgedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+        "acknowledgedAt": "2026-07-02T01:00:27.9074127+00:00"
+      }
+    },
+    {
+      "step": "Evidence metadata creation synthetic",
+      "method": "POST",
+      "path": "/api/evidence-items",
+      "status": 201,
+      "expected": [
+        201
+      ],
+      "ok": true,
+      "summary": {
+        "id": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "title": "PR-3.2 Synthetic Evidence 20260702010026",
+        "status": "Draft",
+        "type": "Policy"
+      },
+      "response": {
+        "id": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "title": "PR-3.2 Synthetic Evidence 20260702010026",
+        "type": "Policy",
+        "ownerFunction": "Compliance",
+        "status": "Draft",
+        "effectiveAt": "2026-07-01",
+        "expiresAt": "2027-07-01",
+        "tags": [
+          "pr-3.2",
+          "synthetic-only"
+        ],
+        "description": "Synthetic non-sensitive evidence metadata for PR-3.2 staging workflow.",
+        "obligationIds": [],
+        "controlIds": [],
+        "contractIds": [],
+        "vendorIds": [],
+        "subcontractorIds": [],
+        "employeeIds": [],
+        "reportIds": [],
+        "classification": {
+          "classification": "Unclassified",
+          "source": "UserSelected",
+          "confidence": 1,
+          "reviewedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+          "reviewedAt": "2026-07-02T01:00:28.048+00:00",
+          "reason": "Synthetic No-CUI staging evidence.",
+          "isApprovedDemoContent": false
+        },
+        "createdAt": "2026-07-02T01:00:28.166965+00:00",
+        "updatedAt": null
+      }
+    },
+    {
+      "step": "Allowed non-sensitive file upload",
+      "method": "POST",
+      "path": "/api/evidence-items/6c84a26e-2f81-4172-bd25-af91788e11b7/file",
+      "status": 201,
+      "expected": [
+        200
+      ],
+      "ok": false,
+      "summary": {
+        "validationStatus": "accepted",
+        "malwareScanStatus": "scan-pending",
+        "isUsable": false,
+        "message": "Evidence file was uploaded to private object storage."
+      },
+      "response": {
+        "evidenceItemId": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+        "versionId": "5272172d-bb2b-4f4f-9673-0c7064b9c96f",
+        "versionNumber": 1,
+        "fileName": "pr-3.2-synthetic-evidence.txt",
+        "contentType": "text/plain",
+        "sizeBytes": 33,
+        "validationStatus": "accepted",
+        "malwareScanStatus": "scan-pending",
+        "isUsable": false,
+        "classification": {
+          "classification": "Unclassified",
+          "source": "UserSelected",
+          "confidence": null,
+          "reviewedByUserId": null,
+          "reviewedAt": null,
+          "reason": null,
+          "isApprovedDemoContent": false
+        },
+        "message": "Evidence file was uploaded to private object storage."
+      }
+    },
+    {
+      "step": "Blocked prohibited upload attempt",
+      "method": "POST",
+      "path": "/api/evidence-items/6c84a26e-2f81-4172-bd25-af91788e11b7/file",
+      "status": 400,
+      "expected": [
+        400
+      ],
+      "ok": true,
+      "summary": {
+        "title": "Evidence upload rejected",
+        "status": 400,
+        "errorCode": "validation_failed",
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1"
+      },
+      "response": {
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+        "title": "Evidence upload rejected",
+        "status": 400,
+        "detail": "Evidence upload metadata did not pass No-CUI upload guardrails.",
+        "errors": {
+          "fileType": [
+            "File type '.exe' is not allowed. Allowed extensions: .csv, .docx, .jpeg, .jpg, .pdf, .png, .txt, .xlsx."
+          ]
+        },
+        "traceId": "00-783c8fce51a9b0fb541cc4246bfb83fe-191effc59d048698-00",
+        "errorCode": "validation_failed",
+        "correlationId": "396921a8a208496ca724b93a08d23c8a"
+      }
+    },
+    {
+      "step": "Evidence list after upload checks",
+      "method": "GET",
+      "path": "/api/evidence-items?tag=pr-3.2",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "count": 1,
+        "first": {
+          "id": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+          "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+          "title": "PR-3.2 Synthetic Evidence 20260702010026",
+          "type": "Policy",
+          "ownerFunction": "Compliance",
+          "status": "Draft",
+          "effectiveAt": "2026-07-01",
+          "expiresAt": "2027-07-01",
+          "tags": [
+            "pr-3.2",
+            "synthetic-only"
+          ],
+          "description": "Synthetic non-sensitive evidence metadata for PR-3.2 staging workflow.",
+          "obligationIds": [],
+          "controlIds": [],
+          "contractIds": [],
+          "vendorIds": [],
+          "subcontractorIds": [],
+          "employeeIds": [],
+          "reportIds": [],
+          "classification": {
+            "classification": "Unclassified",
+            "source": "UserSelected",
+            "confidence": null,
+            "reviewedByUserId": null,
+            "reviewedAt": null,
+            "reason": null,
+            "isApprovedDemoContent": false
+          },
+          "createdAt": "2026-07-02T01:00:28.166965+00:00",
+          "updatedAt": "2026-07-02T01:00:28.82696+00:00"
+        }
+      },
+      "response": [
+        {
+          "id": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+          "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+          "title": "PR-3.2 Synthetic Evidence 20260702010026",
+          "type": "Policy",
+          "ownerFunction": "Compliance",
+          "status": "Draft",
+          "effectiveAt": "2026-07-01",
+          "expiresAt": "2027-07-01",
+          "tags": [
+            "pr-3.2",
+            "synthetic-only"
+          ],
+          "description": "Synthetic non-sensitive evidence metadata for PR-3.2 staging workflow.",
+          "obligationIds": [],
+          "controlIds": [],
+          "contractIds": [],
+          "vendorIds": [],
+          "subcontractorIds": [],
+          "employeeIds": [],
+          "reportIds": [],
+          "classification": {
+            "classification": "Unclassified",
+            "source": "UserSelected",
+            "confidence": null,
+            "reviewedByUserId": null,
+            "reviewedAt": null,
+            "reason": null,
+            "isApprovedDemoContent": false
+          },
+          "createdAt": "2026-07-02T01:00:28.166965+00:00",
+          "updatedAt": "2026-07-02T01:00:28.82696+00:00"
+        }
+      ]
+    },
+    {
+      "step": "Compliance report generation",
+      "method": "POST",
+      "path": "/api/reports/compliance-status",
+      "status": 201,
+      "expected": [
+        200
+      ],
+      "ok": false,
+      "summary": {
+        "id": "9dd86d03-3add-4e50-a286-5690b93202f4",
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "title": "Compliance status report",
+        "status": "Complete",
+        "type": "ComplianceStatus"
+      },
+      "response": {
+        "id": "9dd86d03-3add-4e50-a286-5690b93202f4",
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "type": "ComplianceStatus",
+        "status": "Complete",
+        "title": "Compliance status report",
+        "generatedAt": "2026-07-02T01:00:29.1832258+00:00",
+        "generatedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+        "snapshot": {
+          "generatedAt": "2026-07-02T01:00:29.1832258+00:00",
+          "totalObligations": 0,
+          "highRiskObligations": 0,
+          "overdueTasks": 0,
+          "obligationStatusCounts": {},
+          "evidenceStatusCounts": {
+            "Draft": 1
+          },
+          "cmmcAssessments": 0,
+          "cmmcControlsImplemented": 0,
+          "cmmcControlsTotal": 0,
+          "subcontractorGaps": 0,
+          "highRiskItems": []
+        },
+        "exportHtml": "[redacted]"
+      }
+    },
+    {
+      "step": "Evidence package report generation",
+      "method": "POST",
+      "path": "/api/reports/evidence-packages",
+      "status": 400,
+      "expected": [
+        200
+      ],
+      "ok": false,
+      "summary": {
+        "title": "One or more validation errors occurred.",
+        "status": 400,
+        "errorCode": "validation_failed",
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1"
+      },
+      "response": {
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+        "title": "One or more validation errors occurred.",
+        "status": 400,
+        "detail": "The request did not pass validation.",
+        "errors": {
+          "scope": [
+            "Evidence package scope must include at least one obligation, contract, CMMC control, or subcontractor."
+          ]
+        },
+        "traceId": "00-7431b1e946056be00d67394205934ac2-ff792c29e656e1ac-00",
+        "errorCode": "validation_failed",
+        "correlationId": "84a13b4768d144b0bb1baaeb2cc4a0d5"
+      }
+    },
+    {
+      "step": "Audit log query for upload events",
+      "method": "GET",
+      "path": "/api/audit-logs?page=1&pageSize=10&entityType=EvidenceItem",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "count": 1,
+        "totalCount": 1,
+        "page": 1,
+        "first": {
+          "id": "f5dbe4e2-2185-48b0-b1ab-337f205c2481",
+          "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+          "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+          "action": "Created",
+          "entityType": "EvidenceItem",
+          "entityId": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+          "occurredAt": "2026-07-02T01:00:28.584526+00:00",
+          "ipAddress": "75.194.237.202",
+          "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+          "correlationId": "858d598f1aaf4763a2b1e5604ccf6939",
+          "summary": "Evidence metadata was created.",
+          "oldValue": null,
+          "newValue": null,
+          "metadata": {
+            "tags": "pr-3.2,synthetic-only",
+            "status": "Draft",
+            "tagCount": "2",
+            "expiresAt": "2027-07-01",
+            "correlationId": "858d598f1aaf4763a2b1e5604ccf6939",
+            "ownerFunction": "Compliance"
+          }
+        }
+      },
+      "response": {
+        "items": [
+          {
+            "id": "f5dbe4e2-2185-48b0-b1ab-337f205c2481",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "EvidenceItem",
+            "entityId": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+            "occurredAt": "2026-07-02T01:00:28.584526+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "858d598f1aaf4763a2b1e5604ccf6939",
+            "summary": "Evidence metadata was created.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "tags": "pr-3.2,synthetic-only",
+              "status": "Draft",
+              "tagCount": "2",
+              "expiresAt": "2027-07-01",
+              "correlationId": "858d598f1aaf4763a2b1e5604ccf6939",
+              "ownerFunction": "Compliance"
+            }
+          }
+        ],
+        "page": 1,
+        "pageSize": 10,
+        "totalCount": 1,
+        "hasNextPage": false,
+        "hasPreviousPage": false
+      }
+    },
+    {
+      "step": "Tenant-scoped audit export",
+      "method": "POST",
+      "path": "/api/audit-logs/cui-export",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "ok": true,
+      "summary": {
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2"
+      },
+      "response": {
+        "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+        "generatedByUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+        "generatedAt": "2026-07-02T01:00:29.6602722+00:00",
+        "filters": {
+          "eventType": null,
+          "classification": null,
+          "mode": null,
+          "actorUserId": null,
+          "entityType": "EvidenceItem",
+          "from": "2026-07-01T00:00:00+00:00",
+          "to": "2026-07-02T01:00:29.539+00:00",
+          "result": null
+        },
+        "events": [
+          {
+            "id": "f5dbe4e2-2185-48b0-b1ab-337f205c2481",
+            "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+            "actorUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+            "action": "Created",
+            "entityType": "EvidenceItem",
+            "entityId": "6c84a26e-2f81-4172-bd25-af91788e11b7",
+            "occurredAt": "2026-07-02T01:00:28.584526+00:00",
+            "ipAddress": "75.194.237.202",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "correlationId": "858d598f1aaf4763a2b1e5604ccf6939",
+            "summary": "Evidence metadata was created.",
+            "oldValue": null,
+            "newValue": null,
+            "metadata": {
+              "tags": "pr-3.2,synthetic-only",
+              "status": "Draft",
+              "tagCount": "2",
+              "expiresAt": "2027-07-01",
+              "correlationId": "858d598f1aaf4763a2b1e5604ccf6939",
+              "ownerFunction": "Compliance"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

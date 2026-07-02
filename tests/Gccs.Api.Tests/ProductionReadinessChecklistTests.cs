@@ -542,7 +542,7 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_3_2_Staging_workflow_evidence_artifact_is_linked_and_blocked_until_authenticated_run()
+    public void TC_PR_3_2_Staging_workflow_evidence_artifact_is_linked_and_blocked_until_complete_run()
     {
         var evidence = ReadText("docs", "production-readiness-staging-workflow-evidence.md");
         var plan = ReadText("docs", "production-readiness-plan.md");
@@ -551,14 +551,18 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("docs/production-readiness-staging-workflow-evidence.md", plan);
         Assert.Contains("docs/production-readiness-staging-workflow-evidence.md", checklist);
         Assert.Contains("Story: PR-3.2 - Execute End-To-End MVP Workflow In Staging.", evidence);
-        Assert.Contains("Evidence status: Blocked", evidence);
+        Assert.Contains("Evidence status: Partial", evidence);
         Assert.Contains("Staging resource group: `gccs-staging-rg`.", evidence);
         Assert.Contains("Data handling posture: No-CUI / compliance management only.", evidence);
+        Assert.Contains("Authenticated Staging Run - 2026-07-02", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.2/authenticated-api-transcript.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.2/authenticated-corrective-api-transcript.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.2/evidence-package-corrected.json", evidence);
         Assert.Contains("STAGE-WF-001", evidence);
         Assert.Contains("| STAGE-WF-001 |", evidence);
         Assert.Contains("| QA owner | High |", evidence);
-        Assert.Contains("| Open |", evidence);
-        Assert.Contains("Blocked pending authenticated staging evidence", checklist);
+        Assert.Contains("Open - authenticated partial run attached", evidence);
+        Assert.Contains("Partial authenticated evidence attached; blocked pending clause content", checklist);
     }
 
     [Fact]
@@ -608,7 +612,8 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("TC_17_1_3_Pilot_reports_reflect_workflow_data", pilotWorkflowTests);
         Assert.Contains("TC_4_2_2A_Upload_without_per_file_no_cui_attestation_is_rejected_and_audit_logged", noCuiTests);
         Assert.Contains("TC_4_2_4_Failed_upload_validation_is_audit_logged_and_not_usable", noCuiTests);
-        Assert.Contains("Automated tests reduce regression risk but do not replace authenticated staging evidence.", evidence);
+        Assert.Contains("Authenticated staging evidence now exists, but partial evidence does not replace a complete end-to-end run.", evidence);
+        Assert.Contains("Empty staging compliance content can make the application appear functional while blocking clause tagging and obligation generation.", evidence);
     }
 
     [Fact]
