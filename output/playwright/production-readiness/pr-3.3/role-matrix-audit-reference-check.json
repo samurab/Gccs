@@ -1,0 +1,12 @@
+{
+  "command": "audit-fixture-reference-check",
+  "checkedAt": "2026-07-02T18:35:56.591456+00:00",
+  "database": "gccs",
+  "currentTenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+  "fixtureTenantId": "33333333-3333-4333-8333-333333330033",
+  "counts": {
+    "CurrentTenantRowsWithFixtureReferences": 2,
+    "FixtureTenantRows": 1,
+    "FixtureTenantRowsWithCurrentTenantReferences": 0
+  }
+}

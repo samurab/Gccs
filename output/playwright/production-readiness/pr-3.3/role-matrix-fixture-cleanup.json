@@ -1,0 +1,13 @@
+{
+  "command": "archive-fixture",
+  "checkedAt": "2026-07-02T18:37:39.239589+00:00",
+  "database": "gccs",
+  "fixtureTenantId": "33333333-3333-4333-8333-333333330033",
+  "fixtureStatus": {
+    "TenantStatus": "Archived",
+    "ContractTitle": "PR-3.3 synthetic cross-tenant contract",
+    "TaskTitle": "PR-3.3 synthetic cross-tenant task",
+    "EvidenceName": "PR-3.3 synthetic cross-tenant evidence",
+    "ReportTitle": "PR-3.3 synthetic cross-tenant evidence package"
+  }
+}

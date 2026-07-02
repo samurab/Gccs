@@ -641,7 +641,7 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_3_3_Staging_security_evidence_records_automated_and_owner_staging_coverage_and_blocks_on_missing_role_matrix()
+    public void TC_PR_3_3_Staging_security_evidence_records_automated_and_full_role_matrix_coverage()
     {
         var evidence = ReadText("docs", "production-readiness-staging-security-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
@@ -651,25 +651,42 @@ public sealed class ProductionReadinessChecklistTests
         using var adminCycle = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "admin-cycle-and-cleanup.json"));
         using var orphanCleanup = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "orphan-tenant-cleanup.json"));
         using var firewallCleanup = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "orphan-tenant-firewall-cleanup.json"));
+        using var ownerMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-owner.json"));
+        using var adminMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-admin.json"));
+        using var complianceManagerMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-compliance-manager.json"));
+        using var contributorMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-contributor.json"));
+        using var auditorMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-auditor.json"));
+        using var advisorMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-advisor.json"));
+        using var noMutation = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-no-mutation-summary.json"));
+        using var fixtureCleanup = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-fixture-cleanup.json"));
+        using var roleMatrixFirewallCleanup = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-firewall-cleanup.json"));
+        using var localSecretCleanup = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-local-secret-cleanup.json"));
 
         Assert.Contains("Story: PR-3.3 - Verify Tenant Isolation And RBAC In Staging.", evidence);
-        Assert.Contains("Evidence status: Blocked for full role-matrix staging execution; automated backend/API coverage passed and live Owner-role staging probes passed.", evidence);
+        Assert.Contains("Evidence status: Passed.", evidence);
         Assert.Contains("dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --configuration Release --no-restore --filter", evidence);
         Assert.Contains("Ten tests passed with zero failures.", evidence);
-        Assert.Contains("output/playwright/production-readiness/pr-3.3/owner-session-probes.json", evidence);
-        Assert.Contains("output/playwright/production-readiness/pr-3.3/admin-cycle-and-cleanup.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-owner.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-admin.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-compliance-manager.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-contributor.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-auditor.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-advisor.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-no-mutation-summary.json", evidence);
         Assert.Contains("output/playwright/production-readiness/pr-3.3/orphan-tenant-cleanup.json", evidence);
-        Assert.Contains("Admin, Compliance Manager, Contributor, Auditor, or Advisor direct API denials", evidence);
+        Assert.Contains("All six role artifacts have `passed: true`.", evidence);
         Assert.Contains("PR33-STAGE-001", evidence);
         Assert.Contains("PR33-STAGE-002", evidence);
-        Assert.Contains("Do not proceed to PR-3.4, PR-4.1, or later production readiness stories", evidence);
+        Assert.Contains("PR-3.3 is complete. The production readiness sequence can proceed to PR-3.4 next", evidence);
 
         Assert.Contains("Staging tenant isolation and RBAC", checklist);
-        Assert.Contains("Owner staging probes passed; orphan tenant archived; non-Owner smoke identities pending", checklist);
+        Assert.Contains("Ready for approval", checklist);
         Assert.Contains("docs/production-readiness-staging-security-evidence.md", closure);
+        Assert.Contains("role-matrix-owner.json", closure);
         Assert.Contains("DOD-GAP-007", gapLog);
         Assert.Contains("DOD-GAP-008", gapLog);
         Assert.Contains("Closed Gaps", gapLog);
+        Assert.DoesNotContain("DOD-GAP-007`: PR-3.3 authenticated staging tenant isolation and RBAC evidence remains incomplete", gapLog);
         Assert.Equal("Owner", ownerProbes.RootElement.GetProperty("roleContext").GetString());
         Assert.False(ownerProbes.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
         Assert.Contains(ownerProbes.RootElement.GetProperty("calls").EnumerateArray(), call =>
@@ -690,6 +707,20 @@ public sealed class ProductionReadinessChecklistTests
             audit.GetProperty("CorrelationId").GetString() == "pr-3.3-orphan-tenant-cleanup" &&
             audit.GetProperty("Action").GetString() == "Archived");
         Assert.Empty(firewallCleanup.RootElement.EnumerateArray());
+        foreach (var matrix in new[] { ownerMatrix, adminMatrix, complianceManagerMatrix, contributorMatrix, auditorMatrix, advisorMatrix })
+        {
+            Assert.True(matrix.RootElement.GetProperty("passed").GetBoolean());
+            Assert.False(matrix.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+            Assert.Contains(matrix.RootElement.GetProperty("calls").EnumerateArray(), call =>
+                call.GetProperty("name").GetString() == "cross-tenant evidence update" &&
+                (call.GetProperty("status").GetInt32() == 404 || call.GetProperty("status").GetInt32() == 403));
+        }
+
+        Assert.True(noMutation.RootElement.GetProperty("noMutationObserved").GetBoolean());
+        Assert.Equal("Archived", fixtureCleanup.RootElement.GetProperty("fixtureStatus").GetProperty("TenantStatus").GetString());
+        Assert.Empty(roleMatrixFirewallCleanup.RootElement.EnumerateArray());
+        Assert.True(localSecretCleanup.RootElement.GetProperty("localSecretRemoved").GetBoolean());
+        Assert.True(localSecretCleanup.RootElement.GetProperty("temporaryHelperRemoved").GetBoolean());
     }
 
     [Fact]
