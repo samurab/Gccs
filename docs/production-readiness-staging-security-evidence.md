@@ -60,11 +60,32 @@ Result:
 
 Owner-session live staging evidence is useful but insufficient for PR-3.3 closure. It does not prove Admin, Compliance Manager, Contributor, Auditor, or Advisor direct API denials, and the random missing-ID checks do not prove denial against known records owned by a different tenant.
 
+## Admin Cycle Attempt
+
+An attempted controlled Admin-role cycle used SCIM provisioning to map a temporary smoke group to `Admin` and then restore `Owner`.
+
+Result: not valid PR-3.3 role evidence.
+
+Reason: SCIM provisioning created a separate provisioned user instead of changing the signed-in user's active membership. The signed-in browser session remained `Owner`, so the intended Admin-denial probe was executed as Owner and created an unintended staging tenant named `PR-3.3 blocked admin tenant`.
+
+Cleanup completed:
+
+- The temporary SCIM token was revoked.
+- The separate SCIM-created smoke member was deactivated.
+- The original signed-in user remained active as `Owner`.
+
+Cleanup still required:
+
+- Locate and archive the unintended orphan tenant named `PR-3.3 blocked admin tenant` using database or Azure/admin access. The current API does not expose tenant listing, and route tenant scope prevents patching another tenant from the original tenant context.
+
+Sanitized evidence is attached at `output/playwright/production-readiness/pr-3.3/admin-cycle-and-cleanup.json`.
+
 ## Blocker
 
 | Blocker ID | Summary | Owner | Severity | Required resolution | Current status |
 | --- | --- | --- | --- | --- | --- |
 | PR33-STAGE-001 | Authenticated staging PR-3.3 tenant isolation and RBAC checks cannot run for the full role matrix with only the current Owner browser session. | Security owner | High | Provide staging-only tokens or smoke identities for Admin, Compliance Manager, Contributor, Auditor, and Advisor role contexts; run direct API cross-tenant and role-denial checks; attach sanitized outputs. | Open |
+| PR33-STAGE-002 | An unintended orphan staging tenant was created during an invalid Admin-cycle probe. | Engineering lead | Medium | Use database or Azure/admin access to locate and archive tenant `PR-3.3 blocked admin tenant`; attach cleanup evidence. | Open |
 
 ## Launch Disposition
 

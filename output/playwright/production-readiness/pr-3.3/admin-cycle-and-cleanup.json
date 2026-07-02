@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2026-07-02T16:06:35.080Z",
+  "stagingApi": "https://gccs-api-staging-19984.azurewebsites.net/api",
+  "tokenCapturedInArtifact": false,
+  "purpose": "Attempt a controlled Admin-role PR-3.3 smoke cycle using the signed-in Owner session and SCIM provisioning.",
+  "result": "Not valid PR-3.3 role evidence.",
+  "reason": "SCIM provisioning created a separate provisioned user instead of changing the signed-in user's membership. The active browser session remained Owner.",
+  "adminCycle": {
+    "startingRole": "Owner",
+    "subjectUserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+    "temporaryScimTokenCreated": true,
+    "temporaryScimTokenRevoked": true,
+    "adminRoleObservedOnSignedInSession": false,
+    "ownerRoleVerifiedAfterCycle": true,
+    "unexpectedSideEffects": [
+      {
+        "type": "Tenant",
+        "summary": "The intended Admin-denial probe POST /api/tenants returned 201 because the signed-in session remained Owner.",
+        "name": "PR-3.3 blocked admin tenant",
+        "cleanupStatus": "Cleanup requires database or Azure/admin access because the API does not expose tenant listing and route tenant scope prevents patching an orphan tenant from the original tenant context."
+      },
+      {
+        "type": "TenantMembership",
+        "summary": "SCIM created a separate provisioned user instead of changing the signed-in member role.",
+        "userId": "c2e41df1-109d-4849-be1c-5bfeed39cd82",
+        "membershipId": "541d4c0d-3c4a-4661-a3cd-75d430100a7c",
+        "roleName": "Owner",
+        "cleanupStatus": "Deactivated on 2026-07-02T16:06:35Z."
+      }
+    ]
+  },
+  "cleanup": {
+    "smokeMemberBeforeCleanup": {
+      "membershipId": "541d4c0d-3c4a-4661-a3cd-75d430100a7c",
+      "userId": "c2e41df1-109d-4849-be1c-5bfeed39cd82",
+      "displayName": "PR-3.3 Current Session Smoke",
+      "roleName": "Owner",
+      "membershipStatus": "Active"
+    },
+    "smokeMemberAfterCleanup": {
+      "membershipId": "541d4c0d-3c4a-4661-a3cd-75d430100a7c",
+      "userId": "c2e41df1-109d-4849-be1c-5bfeed39cd82",
+      "roleName": "Owner",
+      "membershipStatus": "Deactivated"
+    },
+    "scimConfigurationAfterCleanup": {
+      "enabled": true,
+      "tokenRevokedAt": "2026-07-02T16:05:49.953861+00:00"
+    },
+    "auditLogSearch": {
+      "currentTenantMembershipCleanupVisible": true,
+      "orphanTenantIdVisibleFromCurrentTenantAuditLog": false
+    }
+  },
+  "remainingBlockers": [
+    "Provide real staging smoke identities or tokens for Admin, Compliance Manager, Contributor, Auditor, and Advisor.",
+    "Provide database or Azure/admin access to locate and archive the accidental orphan tenant named PR-3.3 blocked admin tenant.",
+    "Do not use SCIM to rotate the only active Owner session into lower-privilege roles without an out-of-band restore path."
+  ]
+}

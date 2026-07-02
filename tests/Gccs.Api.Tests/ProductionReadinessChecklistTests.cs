@@ -648,20 +648,24 @@ public sealed class ProductionReadinessChecklistTests
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
         using var ownerProbes = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "owner-session-probes.json"));
+        using var adminCycle = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "admin-cycle-and-cleanup.json"));
 
         Assert.Contains("Story: PR-3.3 - Verify Tenant Isolation And RBAC In Staging.", evidence);
         Assert.Contains("Evidence status: Blocked for full role-matrix staging execution; automated backend/API coverage passed and live Owner-role staging probes passed.", evidence);
         Assert.Contains("dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --configuration Release --no-restore --filter", evidence);
         Assert.Contains("Ten tests passed with zero failures.", evidence);
         Assert.Contains("output/playwright/production-readiness/pr-3.3/owner-session-probes.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/admin-cycle-and-cleanup.json", evidence);
         Assert.Contains("Admin, Compliance Manager, Contributor, Auditor, or Advisor direct API denials", evidence);
         Assert.Contains("PR33-STAGE-001", evidence);
+        Assert.Contains("PR33-STAGE-002", evidence);
         Assert.Contains("Do not proceed to PR-3.4, PR-4.1, or later production readiness stories", evidence);
 
         Assert.Contains("Staging tenant isolation and RBAC", checklist);
-        Assert.Contains("Owner staging probes passed; non-Owner smoke identities pending", checklist);
+        Assert.Contains("Owner staging probes passed; non-Owner smoke identities and orphan tenant cleanup pending", checklist);
         Assert.Contains("docs/production-readiness-staging-security-evidence.md", closure);
         Assert.Contains("DOD-GAP-007", gapLog);
+        Assert.Contains("DOD-GAP-008", gapLog);
         Assert.Equal("Owner", ownerProbes.RootElement.GetProperty("roleContext").GetString());
         Assert.False(ownerProbes.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
         Assert.Contains(ownerProbes.RootElement.GetProperty("calls").EnumerateArray(), call =>
@@ -669,6 +673,10 @@ public sealed class ProductionReadinessChecklistTests
             call.GetProperty("status").GetInt32() == 200);
         Assert.Contains(ownerProbes.RootElement.GetProperty("limitations").EnumerateArray(), limitation =>
             limitation.GetString() == "Admin, Compliance Manager, Contributor, Auditor, and Advisor direct API role contexts remain untested in live staging.");
+        Assert.Equal("Not valid PR-3.3 role evidence.", adminCycle.RootElement.GetProperty("result").GetString());
+        Assert.False(adminCycle.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.Contains(adminCycle.RootElement.GetProperty("remainingBlockers").EnumerateArray(), blocker =>
+            blocker.GetString() == "Provide database or Azure/admin access to locate and archive the accidental orphan tenant named PR-3.3 blocked admin tenant.");
     }
 
     [Fact]
