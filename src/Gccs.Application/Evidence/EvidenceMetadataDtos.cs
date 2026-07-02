@@ -79,6 +79,10 @@ public interface IEvidenceMetadataRepository
         Guid evidenceItemId,
         CancellationToken cancellationToken = default);
 
+    Task<bool> ExistsCurrentTenantAsync(
+        Guid evidenceItemId,
+        CancellationToken cancellationToken = default);
+
     Task<EvidenceMetadataDto> CreateCurrentTenantAsync(
         UpsertEvidenceMetadataRequest request,
         Guid actorUserId,

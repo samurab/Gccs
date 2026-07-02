@@ -75,6 +75,7 @@ public sealed class SecurityIsolationVerificationTests : IClassFixture<WebApplic
         await AssertOtherTenantRecordDeniedAsync(client, ids, $"/api/evidence-items/{ids.TenantAEvidenceId}");
         await AssertOtherTenantRecordDeniedAsync(client, ids, $"/api/cmmc/assessments/{ids.TenantAAssessmentId}");
         await AssertOtherTenantRecordDeniedAsync(client, ids, $"/api/subcontractors/{ids.TenantASubcontractorId}");
+        await AssertOtherTenantEvidenceUpdateDeniedWithoutMutationAsync(client, ids);
 
         var tenantBProfile = await GetAsync<CompanyProfileDto>(client, "/api/company-profile", ids.TenantBId, ids.TenantBUserId, RoleCatalog.Owner, HttpStatusCode.OK);
         var tenantBContracts = await GetAsync<ContractDto[]>(client, "/api/contracts", ids.TenantBId, ids.TenantBUserId, RoleCatalog.Owner, HttpStatusCode.OK);
@@ -234,6 +235,40 @@ public sealed class SecurityIsolationVerificationTests : IClassFixture<WebApplic
         Assert.DoesNotContain("TENANT-A-001", body, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static async Task AssertOtherTenantEvidenceUpdateDeniedWithoutMutationAsync(HttpClient client, SecurityIds ids)
+    {
+        using var updateRequest = CreateRequest(
+            HttpMethod.Put,
+            $"/api/evidence-items/{ids.TenantAEvidenceId}",
+            CreateEvidenceRequest("Blocked cross-tenant evidence update") with
+            {
+                ContractIds = [ids.TenantAContractId],
+                ReportIds = [ids.TenantAReportId]
+            },
+            ids.TenantBId,
+            ids.TenantBUserId,
+            RoleCatalog.Owner);
+
+        var updateResponse = await client.SendAsync(updateRequest);
+        var updateBody = await updateResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, updateResponse.StatusCode);
+        Assert.DoesNotContain("Tenant A", updateBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Blocked cross-tenant evidence update", updateBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(ids.TenantAContractId.ToString(), updateBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(ids.TenantAReportId.ToString(), updateBody, StringComparison.OrdinalIgnoreCase);
+
+        var tenantAEvidence = await GetAsync<EvidenceMetadataDto>(
+            client,
+            $"/api/evidence-items/{ids.TenantAEvidenceId}",
+            ids.TenantAId,
+            ids.TenantAUserId,
+            RoleCatalog.Owner,
+            HttpStatusCode.OK);
+
+        Assert.Equal("Tenant A access policy", tenantAEvidence.Title);
+    }
+
     private static async Task<TResponse> GetAsync<TResponse>(
         HttpClient client,
         string requestUri,
@@ -301,6 +336,24 @@ public sealed class SecurityIsolationVerificationTests : IClassFixture<WebApplic
             new ItEnvironmentSummaryDto("No-CUI test environment.", false, null, ["M365"]),
             DataHandlingPosture.FciOnly,
             true);
+
+    private static UpsertEvidenceMetadataRequest CreateEvidenceRequest(string title) =>
+        new(
+            title,
+            EvidenceType.Screenshot,
+            "Security",
+            EvidenceStatus.Draft,
+            new DateOnly(2026, 7, 1),
+            null,
+            ["pr-3.3", "synthetic", "no-cui"],
+            "Synthetic No-CUI denied mutation probe.",
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []);
 
     private static UpsertContractRequest CreateContractRequest(string contractNumber) =>
         new(
