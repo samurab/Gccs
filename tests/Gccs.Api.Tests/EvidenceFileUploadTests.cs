@@ -165,34 +165,71 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             userId,
             Permission.ViewEvidence);
         var blockedDownloadResponse = await client.SendAsync(downloadRequest);
-        Assert.Equal(HttpStatusCode.Conflict, blockedDownloadResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, blockedDownloadResponse.StatusCode);
+        Assert.Equal("policy evidence", await blockedDownloadResponse.Content.ReadAsStringAsync());
+        Assert.Equal("text/plain", blockedDownloadResponse.Content.Headers.ContentType?.MediaType);
 
-        using (var scope = factory.Services.CreateScope())
-        {
-            var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-            var version = await dbContext.EvidenceFileVersions
-                .Include(fileVersion => fileVersion.EvidenceItem)
-                .SingleAsync(fileVersion =>
-                    fileVersion.EvidenceItemId == evidenceItemId &&
-                    fileVersion.EvidenceItem != null &&
-                    fileVersion.EvidenceItem.TenantId == tenantId);
-            version.MalwareScanStatus = "clean";
-            version.EvidenceItem!.MalwareScanStatus = "clean";
-            await dbContext.SaveChangesAsync();
-        }
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var version = await dbContext.EvidenceFileVersions
+            .Include(fileVersion => fileVersion.EvidenceItem)
+            .SingleAsync(fileVersion =>
+                fileVersion.EvidenceItemId == evidenceItemId &&
+                fileVersion.EvidenceItem != null &&
+                fileVersion.EvidenceItem.TenantId == tenantId);
+        Assert.Equal("clean", version.MalwareScanStatus);
+        Assert.Equal("clean", version.EvidenceItem!.MalwareScanStatus);
+    }
 
-        using var cleanDownloadRequest = CreateRequest<object?>(
-            HttpMethod.Get,
-            $"/api/evidence-items/{evidenceItemId}/file/content",
-            null,
-            tenantId,
-            userId,
-            Permission.ViewEvidence);
-        var downloadResponse = await client.SendAsync(cleanDownloadRequest);
+    [Fact]
+    public async Task Malware_detected_upload_is_rejected_before_file_version_is_persisted()
+    {
+        var tenantId = Guid.Parse("12212212-2122-1221-2212-2122122122a6");
+        var userId = Guid.Parse("12212212-2122-1221-2212-2122122122b6");
+        var evidenceItemId = Guid.Parse("12212212-2122-1221-2212-2122122122e6");
+        await using var factory = CreateFactory(
+            "tc-12-2-6",
+            dbContext => SeedTenant(dbContext, tenantId),
+            new TestMalwareScanner(MalwareScanResult.Malicious("test-scanner", "EICAR-Test-Signature FOUND")));
+        using var client = factory.CreateClient();
+        await AcknowledgeAsync(client, tenantId, userId);
 
-        Assert.Equal(HttpStatusCode.OK, downloadResponse.StatusCode);
-        Assert.Equal("policy evidence", await downloadResponse.Content.ReadAsStringAsync());
-        Assert.Equal("text/plain", downloadResponse.Content.Headers.ContentType?.MediaType);
+        var response = await UploadFileBytesAsync(client, tenantId, userId, evidenceItemId, "unsafe evidence");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.EvidenceFileVersions.Where(version => version.EvidenceItemId == evidenceItemId).ToArrayAsync());
+        Assert.Contains(await dbContext.AuditLogEntries.Where(audit => audit.TenantId == tenantId).ToArrayAsync(), audit =>
+            audit.Action == AuditAction.Rejected &&
+            audit.EntityType == "EvidenceUploadIntent" &&
+            audit.Summary.Contains("malware", StringComparison.OrdinalIgnoreCase) &&
+            audit.MetadataJson.Contains("malware-detected", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Scanner_unavailable_blocks_upload_without_persisting_file_version()
+    {
+        var tenantId = Guid.Parse("12212212-2122-1221-2212-2122122122a7");
+        var userId = Guid.Parse("12212212-2122-1221-2212-2122122122b7");
+        var evidenceItemId = Guid.Parse("12212212-2122-1221-2212-2122122122e7");
+        await using var factory = CreateFactory(
+            "tc-12-2-7",
+            dbContext => SeedTenant(dbContext, tenantId),
+            new TestMalwareScanner(MalwareScanResult.Unavailable("test-scanner", "scanner timeout")));
+        using var client = factory.CreateClient();
+        await AcknowledgeAsync(client, tenantId, userId);
+
+        var response = await UploadFileBytesAsync(client, tenantId, userId, evidenceItemId, "policy evidence");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.EvidenceFileVersions.Where(version => version.EvidenceItemId == evidenceItemId).ToArrayAsync());
+        Assert.Contains(await dbContext.AuditLogEntries.Where(audit => audit.TenantId == tenantId).ToArrayAsync(), audit =>
+            audit.Action == AuditAction.Rejected &&
+            audit.EntityType == "EvidenceUploadIntent" &&
+            audit.MetadataJson.Contains("scan-unavailable", StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task AcknowledgeAsync(HttpClient client, Guid tenantId, Guid userId)
@@ -236,7 +273,33 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             throw new InvalidOperationException("Expected evidence file access response.");
     }
 
-    private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
+    private async Task<HttpResponseMessage> UploadFileBytesAsync(
+        HttpClient client,
+        Guid tenantId,
+        Guid userId,
+        Guid evidenceItemId,
+        string contentText)
+    {
+        using var uploadRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/evidence-items/{evidenceItemId}/file");
+        uploadRequest.Headers.Add("X-Gccs-Dev-Auth", "true");
+        uploadRequest.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+        uploadRequest.Headers.Add("X-Gccs-Dev-User", userId.ToString());
+        uploadRequest.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageEvidence.ToString());
+        using var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(contentText));
+        fileContent.Headers.ContentType = new("text/plain");
+        using var content = new MultipartFormDataContent
+        {
+            { new StringContent("true"), "noCuiAttestation" },
+            { fileContent, "file", "policy.txt" }
+        };
+        uploadRequest.Content = content;
+        return await client.SendAsync(uploadRequest);
+    }
+
+    private WebApplicationFactory<Program> CreateFactory(
+        string databaseName,
+        Action<GccsDbContext>? seed = null,
+        IMalwareScanner? malwareScanner = null) =>
         _factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("LocalDependencies:Enabled", "false");
@@ -248,6 +311,7 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
                 services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
                 services.AddSingleton<IObjectStorageService, InMemoryObjectStorageService>();
+                services.AddSingleton(malwareScanner ?? new TestMalwareScanner(MalwareScanResult.Clean("test-scanner", "clean")));
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
@@ -353,5 +417,13 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         }
 
         private sealed record StoredObject(byte[] Content, string ContentType, DateTimeOffset LastModified);
+    }
+
+    private sealed class TestMalwareScanner(MalwareScanResult result) : IMalwareScanner
+    {
+        public Task<MalwareScanResult> ScanAsync(
+            MalwareScanRequest request,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(result);
     }
 }

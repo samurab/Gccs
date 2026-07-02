@@ -2947,6 +2947,26 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/file", async (
             detail: exception.Message,
             statusCode: StatusCodes.Status400BadRequest);
     }
+    catch (MalwareScanRejectedException exception)
+    {
+        return Results.ValidationProblem(
+            new Dictionary<string, string[]>
+            {
+                ["malwareScan"] = [exception.Message]
+            },
+            title: "Evidence upload rejected",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (MalwareScanUnavailableException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Malware scanner unavailable",
+            exception.Message,
+            StatusCodes.Status503ServiceUnavailable,
+            "malware_scanner_unavailable");
+    }
     catch (ArgumentException exception)
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
