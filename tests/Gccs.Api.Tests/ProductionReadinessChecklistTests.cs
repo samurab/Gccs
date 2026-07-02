@@ -862,11 +862,17 @@ public sealed class ProductionReadinessChecklistTests
     [Fact]
     public void TC_PR_4_1_Backup_configuration_is_evidenced_and_restore_rehearsal_remains_blocked_until_executed()
     {
+        var evidence = ReadText("docs", "production-readiness-backup-restore-evidence.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         using var backupConfig = JsonDocument.Parse(ReadText("output", "production-readiness", "backup-restore", "staging-postgres-backup-config.json"));
 
+        Assert.Contains("Story: PR-4.1 - Attach Backup And Restore Evidence.", evidence);
+        Assert.Contains("Backup evidence captured; restore rehearsal blocked pending explicit execution approval.", evidence);
+        Assert.Contains("output/production-readiness/backup-restore/staging-postgres-backup-config.json", evidence);
         Assert.Contains("Backup evidence captured; restore rehearsal pending approval", checklist);
+        Assert.Contains("docs/production-readiness-backup-restore-evidence.md", checklist);
+        Assert.Contains("docs/production-readiness-backup-restore-evidence.md", closure);
         Assert.Contains("Restore rehearsal is still required before PR-6.1 can be approved.", closure);
         Assert.Contains("az postgres flexible-server restore", closure);
         Assert.Contains("az postgres flexible-server delete", closure);
@@ -874,6 +880,50 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Equal("Ready", backupConfig.RootElement.GetProperty("state").GetString());
         Assert.Equal(7, backupConfig.RootElement.GetProperty("backup").GetProperty("backupRetentionDays").GetInt32());
         Assert.False(string.IsNullOrWhiteSpace(backupConfig.RootElement.GetProperty("backup").GetProperty("earliestRestoreDate").GetString()));
+    }
+
+    [Fact]
+    public void TC_PR_4_1_Restore_evidence_requires_execution_metadata_not_backup_assertions()
+    {
+        var evidence = ReadText("docs", "production-readiness-backup-restore-evidence.md");
+
+        foreach (var requiredField in new[]
+        {
+            "Restore date",
+            "Environment",
+            "Data set",
+            "Command or pipeline reference",
+            "Result",
+            "Reviewer",
+            "Evidence location"
+        })
+        {
+            Assert.Contains(requiredField, evidence);
+            Assert.Contains($"| {requiredField} |", evidence);
+        }
+
+        Assert.Contains("Backup configuration is not recovery evidence.", evidence);
+        Assert.Contains("Backup creation alone is rejected as restore proof.", evidence);
+        Assert.Contains("Current status: Not executed.", evidence);
+        Assert.Contains("No executed point-in-time restore transcript exists.", evidence);
+        Assert.Contains("TC-PR-4.1.2 | Blocked", evidence);
+        Assert.Contains("TC-PR-4.1.3 | Blocked", evidence);
+    }
+
+    [Fact]
+    public void TC_PR_4_1_Missing_restore_rehearsal_keeps_production_launch_blocked()
+    {
+        var evidence = ReadText("docs", "production-readiness-backup-restore-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+
+        Assert.Contains("PR41-RESTORE-001", evidence);
+        Assert.Contains("Production launch remains blocked", evidence);
+        Assert.Contains("do not create the launch candidate tag", evidence);
+        Assert.Contains("point-in-time restore rehearsal evidence remains a production launch blocker", checklist);
+        Assert.Contains("keeps production launch blocked until an actual restored server is created", closure);
+        Assert.Contains("TC-PR-4.1.4 | Passed", evidence);
+        Assert.DoesNotContain("restore rehearsal passed", evidence, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

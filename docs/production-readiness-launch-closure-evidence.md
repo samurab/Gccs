@@ -12,8 +12,8 @@ This artifact does not approve production launch. It records the remaining non-P
 
 | Item | Story | Current disposition | Evidence | Launch blocker |
 | --- | --- | --- | --- | --- |
-| Staging database backup configuration | PR-4.1 | Captured from Azure PostgreSQL Flexible Server. Automated backups are enabled with 7-day retention. | `output/production-readiness/backup-restore/staging-postgres-backup-config.json` | No |
-| Staging restore rehearsal | PR-4.1 | Not executed. A point-in-time restore creates a new paid PostgreSQL Flexible Server and requires explicit restore-window approval, reviewer assignment, and teardown. | Restore runbook in this artifact | Yes |
+| Staging database backup configuration | PR-4.1 | Captured from Azure PostgreSQL Flexible Server. Automated backups are enabled with 7-day retention. | `docs/production-readiness-backup-restore-evidence.md`, `output/production-readiness/backup-restore/staging-postgres-backup-config.json` | No |
+| Staging restore rehearsal | PR-4.1 | Not executed. A point-in-time restore creates a new paid PostgreSQL Flexible Server and requires explicit restore-window approval, reviewer assignment, and teardown. | `docs/production-readiness-backup-restore-evidence.md`, restore runbook in this artifact | Yes |
 | Staging tenant isolation and RBAC | PR-3.3 | Complete. Automated backend/API tests passed, staging deployment run `28612906388` passed health smoke, and live role-matrix direct API checks passed for Owner, Admin, Compliance Manager, Contributor, Auditor, and Advisor using synthetic-only staging data. | `docs/production-readiness-staging-security-evidence.md`, `output/playwright/production-readiness/pr-3.3/role-matrix-owner.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-admin.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-compliance-manager.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-contributor.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-auditor.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-advisor.json`, `output/playwright/production-readiness/pr-3.3/role-matrix-no-mutation-summary.json` | No |
 | Staging upload guardrails and report controls | PR-3.4 | Complete. Staging health passed and authenticated live staging upload/report smoke checks passed with synthetic-only data through the signed-in in-app browser session. | `docs/production-readiness-staging-upload-report-evidence.md`, `output/playwright/production-readiness/pr-3.4/staging-health.json`, `output/playwright/production-readiness/pr-3.4/authenticated-upload-report-smoke.json`, `output/playwright/production-readiness/pr-3.4/authentication-blocker.json` | No |
 | Malware scanning launch path | PR-4.3 | Scanner integration is not enabled for production. Current upload flow records files as `scan-pending` and blocks content download until validation and malware scan state allows use. | `src/Gccs.Application/NoCui/NoCuiAcknowledgementService.cs`, `tests/Gccs.Api.Tests/EvidenceFileUploadTests.cs` | Yes, until scanner is enabled or exception is approved |
@@ -21,6 +21,8 @@ This artifact does not approve production launch. It records the remaining non-P
 | Final launch approvals | PR-6.1 | All required launch approvers remain pending. | Approval table in this artifact and `docs/production-readiness-checklist.md` | Yes |
 
 ## Backup And Restore Evidence
+
+Detailed PR-4.1 evidence is recorded in `docs/production-readiness-backup-restore-evidence.md`. That artifact rejects backup configuration as restore proof and keeps production launch blocked until an actual restored server is created, smoke-checked, reviewed, and torn down.
 
 Backup configuration check:
 

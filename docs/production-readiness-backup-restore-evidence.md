@@ -1,0 +1,140 @@
+# Production Readiness Backup And Restore Evidence
+
+Story: PR-4.1 - Attach Backup And Restore Evidence.
+
+Evidence date: 2026-07-02.
+
+Review status: Backup evidence captured; restore rehearsal blocked pending explicit execution approval.
+
+Launch disposition: Production launch remains blocked until restore evidence proves a successful point-in-time restore from the staging launch-candidate backup.
+
+## Architectural Assessment
+
+Backup configuration is not recovery evidence. The launch gate fails if it treats an enabled backup policy, retention setting, or earliest restore timestamp as proof that GCCS can recover tenant data.
+
+Three scale and correctness failures in that approach:
+
+- Backup retention can be enabled while restore permissions, networking, firewall rules, extension compatibility, or migration state make the restored database unusable.
+- A backup artifact can age out before launch approval; a seven-day retention window requires restore evidence to reference a recoverable point in time inside the retention window.
+- A restore can succeed at the cloud-provider control plane while application-level smoke checks fail because connection strings, migrations, seed content, tenant data, or health dependencies are inconsistent.
+
+The correct pattern is a two-part release gate:
+
+- Backup evidence proves the staging launch candidate has recoverable backup configuration.
+- Restore evidence proves a short-lived restored server was created from that backup, checked with synthetic-only data, reviewed, and deleted.
+
+## Backup Evidence
+
+| Field | Evidence |
+| --- | --- |
+| Source environment | Staging |
+| Resource group | `gccs-staging-rg` |
+| Source server | `gccs-pg-staging-19984` |
+| Source provider | Azure PostgreSQL Flexible Server |
+| Captured at | `2026-07-01T00:00:00-04:00` |
+| Server state | `Ready` |
+| PostgreSQL version | `17` |
+| Location | `East US 2` |
+| Backup retention | `7` days |
+| Earliest restore date | `2026-06-27T18:41:38.308382+00:00` |
+| Geo-redundant backup | `Disabled` |
+| Evidence location | `output/production-readiness/backup-restore/staging-postgres-backup-config.json` |
+| Result | Passed for backup configuration evidence only |
+| Reviewer | Engineering lead |
+
+Backup verification command:
+
+```bash
+az postgres flexible-server show \
+  --resource-group gccs-staging-rg \
+  --name gccs-pg-staging-19984 \
+  --query "{name:name,resourceGroup:resourceGroup,location:location,state:state,version:version,sku:sku.name,tier:sku.tier,backup:backup,storage:storage,fullyQualifiedDomainName:fullyQualifiedDomainName}" \
+  --output json
+```
+
+## Restore Evidence
+
+Current status: Not executed.
+
+Blocker: A point-in-time restore creates a new paid PostgreSQL Flexible Server and requires explicit restore-window approval, reviewer assignment, temporary network access, and teardown confirmation.
+
+Missing required restore evidence:
+
+| Required field | Current value | Launch blocker |
+| --- | --- | --- |
+| Restore date | Missing because restore was not executed | Yes |
+| Environment | Missing restored staging environment name | Yes |
+| Data set | Missing synthetic-only data set confirmation from restored server | Yes |
+| Command or pipeline reference | Missing executed restore command or pipeline run | Yes |
+| Result | Missing successful restore and smoke verification result | Yes |
+| Reviewer | Missing reviewer signoff on restored-server evidence | Yes |
+| Evidence location | Missing restore transcript, smoke output, and teardown output | Yes |
+
+Restore rehearsal command template:
+
+```bash
+RESTORE_SERVER="gccs-pg-staging-restore-$(date +%Y%m%d%H%M)"
+
+az postgres flexible-server restore \
+  --resource-group gccs-staging-rg \
+  --name "$RESTORE_SERVER" \
+  --source-server gccs-pg-staging-19984 \
+  --restore-time "REPLACE_WITH_UTC_RESTORE_TIME"
+```
+
+Required restore verification after server creation:
+
+```bash
+ConnectionStrings__GccsDatabase="$RESTORED_STAGING_DATABASE_CONNECTION_STRING" \
+dotnet run --project tools/Gccs.ContentImport/Gccs.ContentImport.csproj -- \
+  --package-root "$PWD/packages/compliance-content" \
+  --confirm-staging true
+
+curl --fail --show-error --silent "$RESTORED_STAGING_API_BASE_URL/health"
+```
+
+Teardown command:
+
+```bash
+az postgres flexible-server delete \
+  --resource-group gccs-staging-rg \
+  --name "$RESTORE_SERVER" \
+  --yes
+```
+
+## Smoke Test Results
+
+| Test case | Result | Evidence | Defect or blocker disposition |
+| --- | --- | --- | --- |
+| TC-PR-4.1.1 | Passed | Backup configuration artifact exists for the staging launch candidate. | None for backup configuration evidence. |
+| TC-PR-4.1.2 | Blocked | No executed point-in-time restore transcript exists. Backup creation alone is rejected as restore proof. | `PR41-RESTORE-001`: production launch blocker until restore rehearsal passes. |
+| TC-PR-4.1.3 | Blocked | Restore date, environment, data set, command or pipeline reference, result, reviewer, and evidence location are missing because restore was not executed. | `PR41-RESTORE-001`: required fields must be completed from an actual restored server. |
+| TC-PR-4.1.4 | Passed | Launch checklist and launch closure evidence keep restore rehearsal as a production blocker. | None; blocker remains open by design. |
+
+## Automated Test Coverage
+
+Automated document validation is in `tests/Gccs.Api.Tests/ProductionReadinessChecklistTests.cs`:
+
+- `TC_PR_4_1_Backup_configuration_is_evidenced_and_restore_rehearsal_remains_blocked_until_executed`
+- `TC_PR_4_1_Restore_evidence_requires_execution_metadata_not_backup_assertions`
+- `TC_PR_4_1_Missing_restore_rehearsal_keeps_production_launch_blocked`
+
+Targeted verification command:
+
+```bash
+dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --configuration Release --no-restore --filter "FullyQualifiedName~ProductionReadinessChecklistTests"
+```
+
+## Open Blocker
+
+| Blocker ID | Owner | Severity | Required action | Mitigation until closed | Target date | Current status |
+| --- | --- | --- | --- | --- | --- | --- |
+| PR41-RESTORE-001 | Engineering lead | Launch blocker | Obtain restore-window approval, create a short-lived restored PostgreSQL server from the staging launch-candidate backup, run synthetic-only smoke checks, save the command output, assign reviewer signoff, and delete the restored server. | Do not approve PR-6.1, do not create the launch candidate tag, and do not allow production launch approval. | Before launch candidate tagging | Open |
+
+## Hidden Risks And Dependencies
+
+- The seven-day backup retention window can invalidate this backup evidence if launch approval waits beyond the recoverable point-in-time range.
+- Geo-redundant backup is disabled, so this evidence does not prove regional disaster recovery.
+- A restored database smoke check must use synthetic-only staging data and must not import production customer data, real CUI, production secrets, unrestricted logs, or customer uploads.
+- The restore rehearsal depends on Azure permissions, resource quota, paid server creation approval, temporary network access, and teardown confirmation.
+- This artifact does not approve production launch; it preserves the blocker until successful restore evidence is attached.
