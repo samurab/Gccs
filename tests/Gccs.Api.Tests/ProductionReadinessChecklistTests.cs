@@ -719,6 +719,64 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Production launch gate: remains blocked", checklist);
     }
 
+    [Fact]
+    public void TC_PR_4_1_Backup_configuration_is_evidenced_and_restore_rehearsal_remains_blocked_until_executed()
+    {
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        using var backupConfig = JsonDocument.Parse(ReadText("output", "production-readiness", "backup-restore", "staging-postgres-backup-config.json"));
+
+        Assert.Contains("Backup evidence captured; restore rehearsal pending approval", checklist);
+        Assert.Contains("Restore rehearsal is still required before PR-6.1 can be approved.", closure);
+        Assert.Contains("az postgres flexible-server restore", closure);
+        Assert.Contains("az postgres flexible-server delete", closure);
+        Assert.Equal("gccs-pg-staging-19984", backupConfig.RootElement.GetProperty("name").GetString());
+        Assert.Equal("Ready", backupConfig.RootElement.GetProperty("state").GetString());
+        Assert.Equal(7, backupConfig.RootElement.GetProperty("backup").GetProperty("backupRetentionDays").GetInt32());
+        Assert.False(string.IsNullOrWhiteSpace(backupConfig.RootElement.GetProperty("backup").GetProperty("earliestRestoreDate").GetString()));
+    }
+
+    [Fact]
+    public void TC_PR_4_3_Malware_scanning_launch_path_requires_scanner_evidence_or_signed_exception()
+    {
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("Production malware scanning is not complete.", closure);
+        Assert.Contains("File content download remains unavailable until validation and malware scanning allow it.", closure);
+        Assert.Contains("| Enable scanner | Scanner configuration", closure);
+        Assert.Contains("| Launch exception | Exception scope", closure);
+        Assert.Contains("Security owner and product owner", closure);
+        Assert.Contains("Owner approval pending", gapLog);
+        Assert.Contains("disable production file upload paths if necessary", gapLog);
+    }
+
+    [Fact]
+    public void TC_PR_5_1_Expert_content_approval_artifact_identifies_pending_high_risk_records()
+    {
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        using var summary = JsonDocument.Parse(ReadText("output", "production-readiness", "expert-content", "staging-content-review-summary.json"));
+
+        Assert.Contains("Five high-risk records pending approval or withholding", ReadText("docs", "production-readiness-checklist.md"));
+        Assert.Contains("must be approved by the compliance content owner and legal or contracting advisor, or withheld", closure);
+        Assert.Equal(10, summary.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(5, summary.RootElement.GetProperty("pendingExpertReviewCount").GetInt32());
+        Assert.Contains("dfars-252-204-7012", closure);
+        Assert.Contains("far-part-3-antitrust-procurement-integrity", closure);
+    }
+
+    [Fact]
+    public void TC_PR_6_1_Final_launch_approvals_remain_pending_until_accountable_approvers_sign()
+    {
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+
+        Assert.Contains("Launch candidate tagging remains blocked until every required approval is recorded", closure);
+        AssertRequiredPendingApproverTableRows(closure);
+        AssertRequiredPendingApproverTableRows(checklist);
+        Assert.Contains("PR-6.1 cannot be marked complete", closure);
+    }
+
     private static void AssertRequiredString(JsonElement element, string propertyName)
     {
         Assert.True(element.TryGetProperty(propertyName, out var property), $"Missing required property '{propertyName}'.");

@@ -1,0 +1,24 @@
+{
+  "backup": {
+    "backupRetentionDays": 7,
+    "earliestRestoreDate": "2026-06-27T18:41:38.308382+00:00",
+    "geoRedundantBackup": "Disabled"
+  },
+  "capturedAt": "2026-07-01T00:00:00-04:00",
+  "fullyQualifiedDomainName": "gccs-pg-staging-19984.postgres.database.azure.com",
+  "location": "East US 2",
+  "name": "gccs-pg-staging-19984",
+  "resourceGroup": "gccs-staging-rg",
+  "sku": "Standard_B1ms",
+  "state": "Ready",
+  "storage": {
+    "autoGrow": "Disabled",
+    "iops": 120,
+    "storageSizeGb": 32,
+    "throughput": null,
+    "tier": "P4",
+    "type": "Premium_LRS"
+  },
+  "tier": "Burstable",
+  "version": "17"
+}

@@ -1,0 +1,52 @@
+{
+  "capturedAt": "2026-07-01T00:00:00-04:00",
+  "package": "packages/compliance-content/obligations/mvp.json",
+  "total": 10,
+  "reviewStates": {
+    "needs_review": 5,
+    "published": 3,
+    "approved": 2
+  },
+  "publishedCount": 3,
+  "requiresExpertReviewCount": 7,
+  "approvedOrPublishedExpertReviewCount": 2,
+  "pendingExpertReviewCount": 5,
+  "pendingExpertReviewIds": [
+    {
+      "id": "far-part-3-antitrust-procurement-integrity",
+      "review_state": "needs_review",
+      "review_owner": "compliance-content-owner",
+      "last_reviewed_at": "2026-06-25",
+      "source_url": "https://www.acquisition.gov/far/part-3"
+    },
+    {
+      "id": "dfars-252-204-7012",
+      "review_state": "needs_review",
+      "review_owner": "compliance-content-owner",
+      "last_reviewed_at": "2026-06-10",
+      "source_url": "https://www.acquisition.gov/dfars/252.204-7012-safeguarding-covered-defense-information-and-cyber-incident-reporting"
+    },
+    {
+      "id": "dfars-252-204-7019",
+      "review_state": "needs_review",
+      "review_owner": "compliance-content-owner",
+      "last_reviewed_at": "2026-06-10",
+      "source_url": "https://www.acquisition.gov/dfars/252.204-7019-notice-nistsp-800-171-dod-assessment-requirements"
+    },
+    {
+      "id": "dfars-252-204-7020",
+      "review_state": "needs_review",
+      "review_owner": "compliance-content-owner",
+      "last_reviewed_at": "2026-06-10",
+      "source_url": "https://www.acquisition.gov/dfars/252.204-7020-nist-sp-800-171dod-assessment-requirements"
+    },
+    {
+      "id": "dfars-252-204-7021",
+      "review_state": "needs_review",
+      "review_owner": "compliance-content-owner",
+      "last_reviewed_at": "2026-06-10",
+      "source_url": "https://www.acquisition.gov/dfars/252.204-7021-contractor-compliance-cybersecurity-maturity-model-certification-level-requirements"
+    }
+  ],
+  "launchDisposition": "Published/approved source-backed items can be used for staging evidence; pending expert-review records remain withheld from production launch until approved or hidden from customer-facing production views."
+}
