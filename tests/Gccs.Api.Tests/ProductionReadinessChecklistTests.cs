@@ -1420,6 +1420,39 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("TC-PR-6.2.4 | Passed", tagRecord);
     }
 
+    [Fact]
+    public void TC_PR_7_1_Production_deployment_is_blocked_without_approved_ci_cd_and_environment()
+    {
+        var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("Deployment status: blocked.", deployment);
+        Assert.Contains("Approved launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", deployment);
+        Assert.Contains("Approved production CI/CD path | Blocked", deployment);
+        Assert.Contains("Production environment configuration | Blocked", deployment);
+        Assert.Contains("Production secrets source | Blocked", deployment);
+        Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
+        Assert.Contains("Blocked; production workflow, production environment contract, and production secrets are not present", checklist);
+        Assert.Contains("docs/production-readiness-production-deployment-evidence.md", closure);
+        Assert.Contains("PR71-PROD-DEPLOY-001", riskLog);
+    }
+
+    [Fact]
+    public void TC_PR_7_1_Deployment_record_preserves_no_cui_and_blocks_manual_production_deploy()
+    {
+        var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");
+
+        Assert.Contains("No-CUI / compliance management only", deployment);
+        Assert.Contains("do not deploy production manually", deployment, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Do not deploy production manually or through staging workflow.", deployment);
+        Assert.Contains("TC-PR-7.1.1 | Passed", deployment);
+        Assert.Contains("TC-PR-7.1.2 | Blocked", deployment);
+        Assert.Contains("TC-PR-7.1.3 | Blocked", deployment);
+        Assert.Contains("TC-PR-7.1.4 | Blocked", deployment);
+    }
+
     private static void AssertRequiredString(JsonElement element, string propertyName)
     {
         Assert.True(element.TryGetProperty(propertyName, out var property), $"Missing required property '{propertyName}'.");

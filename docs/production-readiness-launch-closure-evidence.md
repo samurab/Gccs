@@ -28,6 +28,7 @@ This artifact records the remaining non-PR-3.2 launch items, the evidence alread
 | Pilot onboarding, release notes, and known risks | PR-5.4 | Pilot onboarding, release notes, and the known-risk acceptance log are launch-ready drafts with No-CUI limits, prohibited-data examples, support paths, staging smoke links, rollback limits, content scope, and owner-review status. Final owner approvals are recorded in PR-6.1. | `docs/production-readiness-pilot-onboarding.md`, `docs/production-readiness-release-notes.md`, `docs/production-readiness-launch-gap-decisions.md`, `docs/production-readiness-launch-approval-record.md` | No |
 | Final launch approvals | PR-6.1 | All required launch approvers are recorded with date, approver, scope, limitations, unresolved exceptions, and evidence reviewed. | Approval table in this artifact, `docs/production-readiness-checklist.md`, and `docs/production-readiness-launch-approval-record.md` | No |
 | Launch candidate tag | PR-6.2 | Launch candidate tag `gccs-no-cui-mvp-lc-2026-07-03` points to commit `6c8927ec9cf79de977d76cb2594b87dd48f973bd` and links build, deployment, smoke, release, rollback, support, content, approval, and known-risk evidence. | `docs/production-readiness-launch-candidate-tag.md` | No |
+| Production deployment | PR-7.1 | Blocked. Approved launch candidate exists, but production workflow, production environment contract, and production secrets are not present. | `docs/production-readiness-production-deployment-evidence.md` | Yes |
 
 ## Backup And Restore Evidence
 
