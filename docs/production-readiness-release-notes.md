@@ -4,6 +4,10 @@ Story: PR-5.4 - Prepare Pilot Onboarding, Release Notes, And Known-Risk Log.
 
 Release note status: launch-ready draft; final product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approval remain required before tagging.
 
+Launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.
+
+Launch candidate tag record: `docs/production-readiness-launch-candidate-tag.md`.
+
 ## Launch Posture
 
 This launch candidate is No-CUI / compliance management only. Real customer CUI, classified information, ITAR/export-controlled technical data, sensitive government-furnished information, credentials, payroll, SSNs, health or disability data, unrestricted security logs, sensitive incident details, and other prohibited sensitive content are excluded.

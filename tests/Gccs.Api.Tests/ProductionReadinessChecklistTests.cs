@@ -1368,6 +1368,58 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("PR-6.1 and PR-6.2 may proceed for launch-candidate tagging", riskLog);
     }
 
+    [Fact]
+    public void TC_PR_6_2_Launch_candidate_tag_preconditions_are_complete()
+    {
+        var tagRecord = ReadText("docs", "production-readiness-launch-candidate-tag.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("Tag status: created.", tagRecord);
+        Assert.Contains("Launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", tagRecord);
+        Assert.Contains("Tagged commit: `6c8927ec9cf79de977d76cb2594b87dd48f973bd`.", tagRecord);
+        Assert.Contains("GitHub Actions staging workflow run `28635229630` completed successfully", tagRecord);
+        Assert.Contains("Required launch approvals complete | Passed", tagRecord);
+        Assert.Contains("Evidence package gathered | Passed", tagRecord);
+        Assert.Contains("Approved build and deployment path passed | Passed", tagRecord);
+        Assert.Contains("Created as `gccs-no-cui-mvp-lc-2026-07-03`", checklist);
+        Assert.Contains("docs/production-readiness-launch-candidate-tag.md", closure);
+        Assert.Contains("DOD-GAP-002", riskLog);
+        Assert.Contains("Closed on 2026-07-03 by `docs/production-readiness-launch-candidate-tag.md`", riskLog);
+    }
+
+    [Fact]
+    public void TC_PR_6_2_Tag_record_links_release_artifacts_and_missing_evidence_block_rule()
+    {
+        var tagRecord = ReadText("docs", "production-readiness-launch-candidate-tag.md");
+
+        foreach (var requiredLink in new[]
+        {
+            "docs/production-readiness-release-notes.md",
+            "docs/production-readiness-launch-gap-decisions.md",
+            "docs/production-readiness-support-runbooks.md",
+            "docs/production-readiness-staging-smoke-evidence.md",
+            "docs/production-readiness-staging-workflow-evidence.md",
+            "docs/production-readiness-staging-security-evidence.md",
+            "docs/production-readiness-staging-upload-report-evidence.md",
+            "docs/production-readiness-deployment-migration-rollback-evidence.md",
+            "packages/compliance-content/obligations/mvp.json"
+        })
+        {
+            Assert.Contains(requiredLink, tagRecord);
+        }
+
+        Assert.Contains("Build artifact source", tagRecord);
+        Assert.Contains("API deployment artifact", tagRecord);
+        Assert.Contains("Web deployment artifact", tagRecord);
+        Assert.Contains("Migration artifact", tagRecord);
+        Assert.Contains("Smoke artifact", tagRecord);
+        Assert.Contains("Missing-evidence tag block rule retained | Passed", tagRecord);
+        Assert.Contains("no tag may be created or retained if required links are removed", tagRecord);
+        Assert.Contains("TC-PR-6.2.4 | Passed", tagRecord);
+    }
+
     private static void AssertRequiredString(JsonElement element, string propertyName)
     {
         Assert.True(element.TryGetProperty(propertyName, out var property), $"Missing required property '{propertyName}'.");

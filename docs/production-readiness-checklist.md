@@ -4,6 +4,8 @@ Story 17.4 defines the launch gate for the No-CUI / compliance management only M
 
 PR-6.1 launch approval record: `docs/production-readiness-launch-approval-record.md`.
 
+PR-6.2 launch candidate tag record: `docs/production-readiness-launch-candidate-tag.md`.
+
 ## Launch Gate
 
 Launch gate status: blocked until all required items are complete and approved.
@@ -44,6 +46,7 @@ Required approval status:
 | Expert-reviewed content | Customer-facing launch content has source URL, last reviewed date, confidence, review owner, and review state. | `packages/compliance-content/obligations/mvp.json`, `docs/production-readiness-launch-closure-evidence.md`, `output/production-readiness/expert-content/staging-content-review-summary.json`, `output/production-readiness/expert-content/high-risk-obligation-review.json` | Compliance content owner | Legal or contracting advisor | High-risk review decisions recorded; seven high-risk or expert-review records remain withheld from customer-facing production views until publication approval |
 | Release notes | Release notes call out tenant data handling posture, known limitations, source-backed content scope, support path, rollback plan, and staging smoke results. | `docs/production-readiness-release-notes.md`, `docs/production-readiness-pilot-onboarding.md`, `docs/production-readiness-launch-gap-decisions.md` | Product owner | Customer success/support owner | Launch-ready draft; final owner approvals recorded in PR-6.1 approval record |
 | Final launch approvals | Required product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approvals are recorded with date, approver, scope, limitations, unresolved exceptions, and evidence reviewed. | `docs/production-readiness-launch-approval-record.md`, `docs/production-readiness-launch-closure-evidence.md`, `docs/production-readiness-launch-gap-decisions.md` | Product owner | All required launch approvers | Approved for launch-candidate tagging with accepted restore-rehearsal limitation |
+| Launch candidate tag | Launch candidate tag maps to a specific commit, approved build/deployment artifact, release notes, known limitations, support paths, staging evidence, rollback plan, and content scope. | `docs/production-readiness-launch-candidate-tag.md`, `docs/production-readiness-launch-approval-record.md`, `docs/production-readiness-release-notes.md`, `docs/production-readiness-launch-gap-decisions.md` | Engineering lead | Product owner | Created as `gccs-no-cui-mvp-lc-2026-07-03` |
 
 ## Known Limitations
 
