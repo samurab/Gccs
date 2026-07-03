@@ -1,0 +1,123 @@
+{
+  "story": "PR-5.2",
+  "title": "Review Customer-Facing Claims",
+  "reviewDate": "2026-07-02",
+  "reviewOwner": "product-owner",
+  "requiredReviewer": "legal-or-contracting-advisor",
+  "reviewStatus": "completed-with-launch-approval-pending",
+  "launchApprovalBlocker": true,
+  "customerFacingSurfaces": [
+    {
+      "surface": "product_copy",
+      "evidence": [
+        "README.md",
+        "docs/product-readiness-note.md",
+        "apps/web/src/App.tsx"
+      ],
+      "noCuiLimitPresent": true,
+      "prohibitedDataExamplesPresent": true,
+      "draftOnlyCmmcLanguagePresent": true,
+      "claimDisposition": "No affirmative legal, certification, CMMC approval, government endorsement, official assessment success, or real-CUI storage claim found."
+    },
+    {
+      "surface": "onboarding",
+      "evidence": [
+        "apps/web/src/lib/api.ts",
+        "apps/web/src/App.tsx",
+        "packages/compliance-content/data-handling-notices/notices.json"
+      ],
+      "noCuiLimitPresent": true,
+      "prohibitedDataExamplesPresent": true,
+      "draftOnlyCmmcLanguagePresent": true,
+      "claimDisposition": "No-CUI acknowledgement copy states the MVP is not ready to store CUI and lists prohibited data classes."
+    },
+    {
+      "surface": "upload_flows",
+      "evidence": [
+        "apps/web/src/App.tsx",
+        "src/Gccs.Application/NoCui/NoCuiAcknowledgementDtos.cs",
+        "docs/production-readiness-staging-upload-report-evidence.md"
+      ],
+      "noCuiLimitPresent": true,
+      "prohibitedDataExamplesPresent": true,
+      "draftOnlyCmmcLanguagePresent": true,
+      "claimDisposition": "Upload copy and staging evidence preserve No-CUI attestation and blocked real-CUI/prohibited-data handling."
+    },
+    {
+      "surface": "reports",
+      "evidence": [
+        "apps/web/src/App.tsx",
+        "tests/Gccs.Api.Tests/ComplianceStatusReportTests.cs",
+        "tests/Gccs.Api.Tests/CmmcReadinessReportTests.cs",
+        "tests/Gccs.Api.Tests/EvidencePackageReportTests.cs"
+      ],
+      "noCuiLimitPresent": true,
+      "prohibitedDataExamplesPresent": true,
+      "draftOnlyCmmcLanguagePresent": true,
+      "claimDisposition": "Report language is workflow guidance only and avoids pass/fail, certification, legal-advice, government-endorsement, and assessor-determination claims."
+    },
+    {
+      "surface": "support_materials",
+      "evidence": [
+        "docs/product-readiness-note.md",
+        "docs/production-readiness-checklist.md",
+        "docs/production-readiness-launch-closure-evidence.md"
+      ],
+      "noCuiLimitPresent": true,
+      "prohibitedDataExamplesPresent": true,
+      "draftOnlyCmmcLanguagePresent": true,
+      "claimDisposition": "Support readiness materials route suspected CUI, prohibited upload, access, evidence/report failure, and content-correction cases without expanding launch claims."
+    },
+    {
+      "surface": "release_notes",
+      "evidence": [
+        "docs/product-readiness-note.md",
+        "docs/production-readiness-checklist.md",
+        "docs/production-readiness-launch-closure-evidence.md"
+      ],
+      "noCuiLimitPresent": true,
+      "prohibitedDataExamplesPresent": true,
+      "draftOnlyCmmcLanguagePresent": true,
+      "claimDisposition": "Release-note requirements include posture, limitations, support paths, known risks, staging smoke results, rollback plan, and content scope."
+    },
+    {
+      "surface": "pilot_onboarding",
+      "evidence": [
+        "docs/product-readiness-note.md",
+        "docs/production-readiness-plan.md",
+        "apps/web/src/App.tsx"
+      ],
+      "noCuiLimitPresent": true,
+      "prohibitedDataExamplesPresent": true,
+      "draftOnlyCmmcLanguagePresent": true,
+      "claimDisposition": "Pilot onboarding requirements keep customers under No-CUI limits with prohibited-data examples and support paths."
+    }
+  ],
+  "forbiddenAffirmativeClaimsChecked": [
+    "legal advice",
+    "certification decision",
+    "CMMC approval",
+    "CMMC pass/fail",
+    "official assessment success",
+    "government endorsement",
+    "permission to store real CUI",
+    "permission to upload real CUI"
+  ],
+  "acceptedClaimRisks": [
+    {
+      "id": "PR52-CLAIM-001",
+      "owner": "legal-or-contracting-advisor",
+      "targetDate": "2026-07-15",
+      "risk": "Final launch materials and release notes can drift after this review.",
+      "mitigation": "Require legal or contracting advisor approval of the launch candidate package before PR-6.1 approval."
+    }
+  ],
+  "blockers": [
+    {
+      "id": "PR52-CLAIM-APPROVAL-001",
+      "owner": "legal-or-contracting-advisor",
+      "targetDate": "2026-07-15",
+      "mitigation": "Do not approve the launch candidate until advisor signoff covers product copy, onboarding, upload warnings, reports, support materials, release notes, and pilot onboarding."
+    }
+  ]
+}

@@ -113,6 +113,87 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_5_2_1_Customer_facing_claim_review_records_search_scope_and_no_affirmative_overclaims()
+    {
+        using var review = JsonDocument.Parse(ReadText("output", "production-readiness", "customer-claims-review.json"));
+
+        Assert.Equal("PR-5.2", review.RootElement.GetProperty("story").GetString());
+        Assert.Equal("completed-with-launch-approval-pending", review.RootElement.GetProperty("reviewStatus").GetString());
+        Assert.True(review.RootElement.GetProperty("launchApprovalBlocker").GetBoolean());
+
+        var surfaces = review.RootElement
+            .GetProperty("customerFacingSurfaces")
+            .EnumerateArray()
+            .Select(surface => surface.GetProperty("surface").GetString()!)
+            .ToArray();
+
+        Assert.Equal(
+            ["product_copy", "onboarding", "upload_flows", "reports", "support_materials", "release_notes", "pilot_onboarding"],
+            surfaces);
+
+        foreach (var document in ClaimReviewDocuments())
+        {
+            var content = ReadText(document);
+            foreach (var forbiddenClaim in ForbiddenAffirmativeCustomerClaims())
+            {
+                Assert.DoesNotContain(forbiddenClaim, content, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    [Fact]
+    public void TC_PR_5_2_2_No_cui_launch_limits_are_present_in_onboarding_upload_support_and_release_materials()
+    {
+        var onboarding = ReadText("apps", "web", "src", "lib", "api.ts");
+        var uploadFlow = ReadText("apps", "web", "src", "App.tsx");
+        var supportAndRelease = ReadText("docs", "product-readiness-note.md") + Environment.NewLine +
+            ReadText("docs", "production-readiness-checklist.md") + Environment.NewLine +
+            ReadText("docs", "production-readiness-customer-claims-review.md");
+
+        foreach (var content in new[] { onboarding, uploadFlow, supportAndRelease })
+        {
+            Assert.Contains("No-CUI", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("CUI", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("classified", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("export-controlled", content, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.Contains("not ready to store CUI", onboarding, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("I confirm this file does not contain CUI", uploadFlow, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Release notes", supportAndRelease, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("support paths", supportAndRelease, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_5_2_3_Cmmc_guidance_and_reports_preserve_draft_only_or_workflow_guidance_language()
+    {
+        var app = ReadText("apps", "web", "src", "App.tsx");
+        var productReadiness = ReadText("docs", "product-readiness-note.md");
+        var stagingEvidence = ReadText("docs", "production-readiness-staging-upload-report-evidence.md");
+
+        Assert.Contains("Reports are workflow guidance only", app);
+        Assert.Contains("not legal advice, certification decisions, assessor determinations", app);
+        Assert.Contains("draft-only guidance", productReadiness, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CMMC reports must avoid pass/fail or certification language", productReadiness, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CMMC readiness report generated with draft/readiness language", stagingEvidence, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_5_2_4_Customer_facing_claim_review_status_is_recorded_before_launch_approval()
+    {
+        using var review = JsonDocument.Parse(ReadText("output", "production-readiness", "customer-claims-review.json"));
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+
+        Assert.Equal("legal-or-contracting-advisor", review.RootElement.GetProperty("requiredReviewer").GetString());
+        Assert.NotEmpty(review.RootElement.GetProperty("acceptedClaimRisks").EnumerateArray());
+        Assert.NotEmpty(review.RootElement.GetProperty("blockers").EnumerateArray());
+        Assert.Contains("Claim review recorded; final launch advisor approval pending", checklist);
+        Assert.Contains("Customer-facing claims", closure);
+        Assert.Contains("final launch advisor approval", closure, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void TC_PR_1_1_Open_launch_stories_are_listed_in_readiness_review()
     {
         var review = ReadText("docs", "production-readiness-open-story-readiness-review.md");
@@ -1082,12 +1163,14 @@ public sealed class ProductionReadinessChecklistTests
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         using var summary = JsonDocument.Parse(ReadText("output", "production-readiness", "expert-content", "staging-content-review-summary.json"));
 
-        Assert.Contains("Five high-risk records pending approval or withholding", ReadText("docs", "production-readiness-checklist.md"));
-        Assert.Contains("must be approved by the compliance content owner and legal or contracting advisor, or withheld", closure);
+        Assert.Contains("High-risk review decisions recorded", ReadText("docs", "production-readiness-checklist.md"));
+        Assert.Contains("Only `published` obligations are customer-facing", closure);
         Assert.Equal(10, summary.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(9, summary.RootElement.GetProperty("highRiskOrExpertReviewRequiredCount").GetInt32());
         Assert.Equal(5, summary.RootElement.GetProperty("pendingExpertReviewCount").GetInt32());
-        Assert.Contains("dfars-252-204-7012", closure);
-        Assert.Contains("far-part-3-antitrust-procurement-integrity", closure);
+        Assert.Equal(
+            "output/production-readiness/expert-content/high-risk-obligation-review.json",
+            summary.RootElement.GetProperty("highRiskReviewEvidence").GetString());
     }
 
     [Fact]
@@ -1138,6 +1221,39 @@ public sealed class ProductionReadinessChecklistTests
         yield return new[] { "docs", "decision-log.md" };
         yield return new[] { "docs", "production-readiness-roadmap.md" };
         yield return new[] { "docs", "production-readiness-plan.md" };
+    }
+
+    private static IEnumerable<string[]> ClaimReviewDocuments()
+    {
+        foreach (var document in LaunchFacingDocuments())
+        {
+            yield return document;
+        }
+
+        yield return new[] { "docs", "production-readiness-customer-claims-review.md" };
+        yield return new[] { "docs", "production-readiness-launch-closure-evidence.md" };
+        yield return new[] { "apps", "web", "src", "App.tsx" };
+        yield return new[] { "apps", "web", "src", "lib", "api.ts" };
+        yield return new[] { "packages", "compliance-content", "data-handling-notices", "notices.json" };
+    }
+
+    private static IEnumerable<string> ForbiddenAffirmativeCustomerClaims()
+    {
+        yield return "GCCS provides legal advice";
+        yield return "makes legal determinations";
+        yield return "guarantees CMMC";
+        yield return "CMMC certified";
+        yield return "CMMC certification achieved";
+        yield return "CMMC approval granted";
+        yield return "official assessment success achieved";
+        yield return "government endorsed";
+        yield return "government endorsement granted";
+        yield return "officially approved by the government";
+        yield return "authorized to store real CUI";
+        yield return "authorized to upload real CUI";
+        yield return "permission to store real CUI";
+        yield return "permission to upload real CUI";
+        yield return "real customer CUI is allowed";
     }
 
     private static IEnumerable<string> ProductionReadinessOpenStoryIds()
