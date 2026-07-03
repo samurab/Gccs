@@ -164,7 +164,7 @@
       "response": {
         "invitationId": "9dad36b1-4ade-4beb-8179-bcd7ab2764b5",
         "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
-        "email": "pr32.synthetic.20260702010834@example.invalid",
+        "email": "pr32.synthetic.20260702010834@example.com",
         "roleName": "Auditor",
         "invitationToken": "[REDACTED]",
         "status": "Pending",
@@ -174,7 +174,7 @@
         "revokedAt": null,
         "revokedByUserId": null,
         "notificationSentAt": "2026-07-02T01:08:35.7555817+00:00",
-        "notificationPlaceholder": "Local invitation notification queued for pr32.synthetic.20260702010834@example.invalid with token [REDACTED].",
+        "notificationPlaceholder": "Local invitation notification queued for pr32.synthetic.20260702010834@example.com with token [REDACTED].",
         "createdAt": "2026-07-02T01:08:35.7555817+00:00",
         "updatedAt": null
       }
@@ -274,16 +274,16 @@
             "ipAddress": "75.194.237.202",
             "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
             "correlationId": "8b12e079c3cd4d95b872aad3ebc4eca5",
-            "summary": "Invitation for 'pr32.synthetic.20260702010834@example.invalid' was created with role Auditor.",
+            "summary": "Invitation for 'pr32.synthetic.20260702010834@example.com' was created with role Auditor.",
             "oldValue": null,
             "newValue": null,
             "metadata": {
-              "email": "pr32.synthetic.20260702010834@example.invalid",
+              "email": "pr32.synthetic.20260702010834@example.com",
               "status": "Pending",
               "roleName": "Auditor",
               "expiresAt": "2026-07-09T01:08:35.7555817+00:00",
               "correlationId": "8b12e079c3cd4d95b872aad3ebc4eca5",
-              "notificationPlaceholder": "Local invitation notification queued for pr32.synthetic.20260702010834@example.invalid with token [REDACTED]."
+              "notificationPlaceholder": "Local invitation notification queued for pr32.synthetic.20260702010834@example.com with token [REDACTED]."
             }
           },
           {
