@@ -1500,6 +1500,54 @@ public sealed class ProductionReadinessChecklistTests
         }
     }
 
+    [Fact]
+    public void TC_PR_7_2_Production_smoke_evidence_blocks_pilot_until_real_smoke_passes()
+    {
+        var smoke = ReadText("docs", "production-readiness-production-smoke-evidence.md");
+        var onboarding = ReadText("docs", "production-readiness-pilot-onboarding.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("Smoke status: blocked; production deployment has not executed", smoke);
+        Assert.Contains("Current gate result: blocked.", smoke);
+        Assert.Contains("Pilot onboarding must not start while any row in the smoke test matrix is `Blocked`, `Failed`, `Missing`, or `Unreviewed`.", smoke);
+        Assert.Contains("TC-PR-7.2.1 | Blocked", smoke);
+        Assert.Contains("TC-PR-7.2.2 | Blocked", smoke);
+        Assert.Contains("TC-PR-7.2.3 | Blocked", smoke);
+        Assert.Contains("TC-PR-7.2.4 | Passed as gate", smoke);
+        Assert.Contains("Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass.", onboarding);
+        Assert.Contains("Blocked until actual production deployment runs and sanitized PR-7.2 smoke evidence is attached; pilot onboarding remains blocked", checklist);
+        Assert.Contains("Production smoke tests | PR-7.2 | Blocked.", closure);
+        Assert.Contains("PR72-PROD-SMOKE-001", riskLog);
+        Assert.Contains("PR-7.3 pilot onboarding and PR-8 post-launch control blocked", riskLog);
+    }
+
+    [Fact]
+    public void TC_PR_7_2_Smoke_gate_requires_no_cui_synthetic_data_and_operational_signals()
+    {
+        var smoke = ReadText("docs", "production-readiness-production-smoke-evidence.md");
+        var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");
+
+        foreach (var requiredText in new[]
+        {
+            "Synthetic or non-sensitive tenant, user, upload, evidence, report, and audit data only.",
+            "login, tenant access, RBAC denial, upload warning and blocking behavior, evidence upload, report generation, audit logging, logs, alerts, and `/health`",
+            "Production workflow run URL",
+            "Synthetic smoke tenant ID",
+            "Health output location",
+            "Audit event references",
+            "Log/alert evidence location",
+            "Do not include secrets, customer data, real CUI, raw file contents, unrestricted logs, or sensitive incident details.",
+            "no real CUI, classified data, export-controlled data, credentials, sensitive personal data, or unrestricted logs are authorized for smoke testing"
+        })
+        {
+            Assert.Contains(requiredText, smoke);
+        }
+
+        Assert.Contains("PR-7.2 smoke gate and required evidence fields are recorded in `docs/production-readiness-production-smoke-evidence.md`.", deployment);
+    }
+
     private static void AssertRequiredString(JsonElement element, string propertyName)
     {
         Assert.True(element.TryGetProperty(propertyName, out var property), $"Missing required property '{propertyName}'.");

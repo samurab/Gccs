@@ -84,5 +84,6 @@ Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path b
 
 - PR-7.1 repository implementation is resolved: the approved production CI/CD path, production environment contract, No-CUI guardrails, migration path, health checks, and evidence capture are present.
 - PR-7.2 remains dependent on a real successful production workflow run and smoke testing with synthetic or non-sensitive data only.
+- PR-7.2 smoke gate and required evidence fields are recorded in `docs/production-readiness-production-smoke-evidence.md`.
 - PR-7.3 and PR-8 remain blocked until PR-7.2 production smoke tests pass.
 - The No-CUI posture remains unchanged; no production real-CUI capability is authorized.

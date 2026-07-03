@@ -29,6 +29,7 @@ This artifact records the remaining non-PR-3.2 launch items, the evidence alread
 | Final launch approvals | PR-6.1 | All required launch approvers are recorded with date, approver, scope, limitations, unresolved exceptions, and evidence reviewed. | Approval table in this artifact, `docs/production-readiness-checklist.md`, and `docs/production-readiness-launch-approval-record.md` | No |
 | Launch candidate tag | PR-6.2 | Launch candidate tag `gccs-no-cui-mvp-lc-2026-07-03` points to commit `6c8927ec9cf79de977d76cb2594b87dd48f973bd` and links build, deployment, smoke, release, rollback, support, content, approval, and known-risk evidence. | `docs/production-readiness-launch-candidate-tag.md` | No |
 | Production deployment | PR-7.1 | Approved CI/CD path created. Production deployment must run through `.github/workflows/production.yml` using the approved launch candidate tag and protected `production` environment before PR-7.2 smoke testing. | `docs/production-readiness-production-deployment-evidence.md`, `.github/workflows/production.yml`, `infra/terraform/environments/production/main.tf` | No for CI/CD path; yes for PR-7.2 smoke until an actual production run succeeds |
+| Production smoke tests | PR-7.2 | Blocked. Production smoke tests cannot pass until a real production deployment run exists and sanitized smoke evidence is attached. | `docs/production-readiness-production-smoke-evidence.md`, `docs/production-readiness-pilot-onboarding.md` | Yes for PR-7.3 pilot onboarding and PR-8 post-launch control |
 
 ## Backup And Restore Evidence
 
