@@ -194,6 +194,62 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_5_3_1_Required_support_runbooks_exist()
+    {
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+
+        foreach (var topic in SupportRunbookTopics())
+        {
+            Assert.Contains($"## Runbook: {topic}", runbooks);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_5_3_2_Each_support_runbook_has_owner_triage_escalation_severity_and_evidence()
+    {
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+
+        foreach (var topic in SupportRunbookTopics())
+        {
+            var section = ExtractRunbookSection(runbooks, topic);
+            Assert.Contains("Owner:", section);
+            Assert.Contains("Triage steps:", section);
+            Assert.Contains("Escalation path:", section);
+            Assert.Contains("Severity guidance:", section);
+            Assert.Contains("Evidence to capture:", section);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_5_3_3_Prohibited_upload_and_suspected_cui_runbooks_preserve_no_cui_containment()
+    {
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+
+        foreach (var topic in new[] { "Prohibited Upload", "Suspected CUI" })
+        {
+            var section = ExtractRunbookSection(runbooks, topic);
+            Assert.Contains("No-CUI containment:", section);
+            Assert.Contains("block", section, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("escalation", section, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("No-CUI posture", section, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("do not", section, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_5_3_4_Support_routing_is_linked_from_launch_materials()
+    {
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+
+        Assert.Contains("## Support Routing", runbooks);
+        Assert.Contains("docs/production-readiness-support-runbooks.md", checklist);
+        Assert.Contains("Support runbooks", closure);
+        Assert.Contains("prohibited upload, suspected CUI, tenant exposure", closure, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void TC_PR_1_1_Open_launch_stories_are_listed_in_readiness_review()
     {
         var review = ReadText("docs", "production-readiness-open-story-readiness-review.md");
@@ -1254,6 +1310,30 @@ public sealed class ProductionReadinessChecklistTests
         yield return "permission to store real CUI";
         yield return "permission to upload real CUI";
         yield return "real customer CUI is allowed";
+    }
+
+    private static IEnumerable<string> SupportRunbookTopics()
+    {
+        yield return "Prohibited Upload";
+        yield return "Suspected CUI";
+        yield return "Tenant Exposure";
+        yield return "Access Issue";
+        yield return "Evidence Failure";
+        yield return "Report Failure";
+        yield return "Content Correction";
+        yield return "Security Incident";
+        yield return "Backup Restore";
+        yield return "Rollback";
+    }
+
+    private static string ExtractRunbookSection(string runbooks, string topic)
+    {
+        var marker = $"## Runbook: {topic}";
+        var start = runbooks.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"Missing runbook section for {topic}.");
+
+        var next = runbooks.IndexOf("## Runbook:", start + marker.Length, StringComparison.Ordinal);
+        return next < 0 ? runbooks[start..] : runbooks[start..next];
     }
 
     private static IEnumerable<string> ProductionReadinessOpenStoryIds()
