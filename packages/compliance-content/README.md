@@ -28,4 +28,4 @@ Regulation / Clause
 
 The MVP package must include DFARS cyber clauses as first-class sources for DoD workflows: DFARS 252.204-7012, 252.204-7019, 252.204-7020, and 252.204-7021.
 
-Review states are `draft`, `needs_review`, `approved`, `rejected`, `customer_disputed`, `published`, and `retired`. Customer-facing publication must be blocked for draft, rejected, and retired content.
+Review states are `draft`, `needs_review`, `approved`, `rejected`, `customer_disputed`, `published`, and `retired`. Customer-facing production views must use only `published` obligation records. Draft, needs-review, approved-but-unpublished, rejected, customer-disputed unless explicitly handled, and retired records remain hidden until a separate publication decision is recorded.
