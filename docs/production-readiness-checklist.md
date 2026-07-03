@@ -2,6 +2,8 @@
 
 Story 17.4 defines the launch gate for the No-CUI / compliance management only MVP. This checklist must be reviewed before any production launch. It is a release-control artifact, not a claim that production is approved.
 
+PR-6.1 launch approval record: `docs/production-readiness-launch-approval-record.md`.
+
 ## Launch Gate
 
 Launch gate status: blocked until all required items are complete and approved.
@@ -41,6 +43,7 @@ Required approval status:
 | Malware scanning | MVP limitation is documented when scanner is placeholder-only; production launch requires an enabled malware scanning path or explicit launch exception. | `README.md`, `docs/software-delivery-plan.md`, `docs/mvp-execution-plan.md`, `docs/production-readiness-malware-scanning-decision.md`, `docs/production-readiness-launch-closure-evidence.md`, `tests/Gccs.Api.Tests/EvidenceFileUploadTests.cs` | Security owner | Product owner | Exception approved on 2026-07-02; scanner control path enabled with external scanner evidence required before exception expiration |
 | Expert-reviewed content | Customer-facing launch content has source URL, last reviewed date, confidence, review owner, and review state. | `packages/compliance-content/obligations/mvp.json`, `docs/production-readiness-launch-closure-evidence.md`, `output/production-readiness/expert-content/staging-content-review-summary.json`, `output/production-readiness/expert-content/high-risk-obligation-review.json` | Compliance content owner | Legal or contracting advisor | High-risk review decisions recorded; seven high-risk or expert-review records remain withheld from customer-facing production views until publication approval |
 | Release notes | Release notes call out tenant data handling posture, known limitations, source-backed content scope, support path, rollback plan, and staging smoke results. | `docs/production-readiness-release-notes.md`, `docs/production-readiness-pilot-onboarding.md`, `docs/production-readiness-launch-gap-decisions.md` | Product owner | Customer success/support owner | Launch-ready draft; final owner approvals pending |
+| Final launch approvals | Required product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approvals are recorded with date, approver, scope, limitations, unresolved exceptions, and evidence reviewed. | `docs/production-readiness-launch-approval-record.md`, `docs/production-readiness-launch-closure-evidence.md`, `docs/production-readiness-launch-gap-decisions.md` | Product owner | All required launch approvers | Blocked; all required PR-6.1 approval records remain pending |
 
 ## Known Limitations
 

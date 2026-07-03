@@ -1314,11 +1314,57 @@ public sealed class ProductionReadinessChecklistTests
     {
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var approvalRecord = ReadText("docs", "production-readiness-launch-approval-record.md");
 
         Assert.Contains("Launch candidate tagging remains blocked until every required approval is recorded", closure);
         AssertRequiredPendingApproverTableRows(closure);
         AssertRequiredPendingApproverTableRows(checklist);
+        AssertRequiredPendingApproverApprovalRows(approvalRecord);
         Assert.Contains("PR-6.1 cannot be marked complete", closure);
+        Assert.Contains("PR-6.2 launch candidate tagging decision: blocked.", approvalRecord);
+        Assert.Contains("Missing, pending, or incomplete approval metadata blocks PR-6.2 launch candidate tagging.", approvalRecord);
+        Assert.Contains("docs/production-readiness-launch-approval-record.md", checklist);
+        Assert.Contains("docs/production-readiness-launch-approval-record.md", closure);
+        Assert.Contains("TC-PR-6.1.1 | Passed", approvalRecord);
+        Assert.Contains("TC-PR-6.1.2 | Passed", approvalRecord);
+        Assert.Contains("TC-PR-6.1.3 | Passed", approvalRecord);
+        Assert.Contains("TC-PR-6.1.4 | Passed", approvalRecord);
+    }
+
+    [Fact]
+    public void TC_PR_6_1_Approval_record_links_required_evidence_and_exception_log()
+    {
+        var approvalRecord = ReadText("docs", "production-readiness-launch-approval-record.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        foreach (var path in new[]
+        {
+            "docs/production-readiness-plan.md",
+            "docs/production-readiness-checklist.md",
+            "docs/production-readiness-launch-closure-evidence.md",
+            "docs/production-readiness-staging-workflow-evidence.md",
+            "docs/production-readiness-staging-security-evidence.md",
+            "docs/production-readiness-staging-upload-report-evidence.md",
+            "docs/production-readiness-backup-restore-evidence.md",
+            "docs/production-readiness-deployment-migration-rollback-evidence.md",
+            "docs/production-readiness-malware-scanning-decision.md",
+            "docs/production-readiness-customer-claims-review.md",
+            "docs/production-readiness-support-runbooks.md",
+            "docs/production-readiness-pilot-onboarding.md",
+            "docs/production-readiness-release-notes.md",
+            "docs/production-readiness-launch-gap-decisions.md",
+            "output/production-readiness/customer-claims-review.json",
+            "output/production-readiness/expert-content/high-risk-obligation-review.json"
+        })
+        {
+            Assert.Contains(path, approvalRecord);
+        }
+
+        Assert.Contains("DOD-GAP-006", approvalRecord);
+        Assert.Contains("PR52-CLAIM-001", approvalRecord);
+        Assert.Contains("PR53-SUPPORT-001", approvalRecord);
+        Assert.Contains("PR43-MALWARE-001", approvalRecord);
+        Assert.Contains("docs/production-readiness-launch-approval-record.md", riskLog);
     }
 
     private static void AssertRequiredString(JsonElement element, string propertyName)
@@ -1340,6 +1386,37 @@ public sealed class ProductionReadinessChecklistTests
         })
         {
             Assert.Contains($"| {approver} | Pending | Yes |", artifact);
+        }
+    }
+
+    private static void AssertRequiredPendingApproverApprovalRows(string artifact)
+    {
+        Assert.Contains("| Required approver | Approval status | Approval date | Approver | Scope | Limitations | Unresolved exceptions | Evidence reviewed | Launch blocker while pending |", artifact);
+
+        foreach (var approver in new[]
+        {
+            "Product owner",
+            "Engineering lead",
+            "Security owner",
+            "Compliance content owner",
+            "Customer success/support owner",
+            "Legal or contracting advisor"
+        })
+        {
+            Assert.Contains($"| {approver} | Pending | Not recorded | Not recorded |", artifact);
+        }
+
+        foreach (var field in new[]
+        {
+            "Approval date",
+            "Approver",
+            "Scope",
+            "Limitations",
+            "Unresolved exceptions",
+            "Evidence reviewed"
+        })
+        {
+            Assert.Contains(field, artifact);
         }
     }
 

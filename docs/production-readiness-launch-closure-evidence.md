@@ -2,6 +2,8 @@
 
 Review status: Engineering evidence captured; accountable owner approvals pending.
 
+PR-6.1 launch approval record: `docs/production-readiness-launch-approval-record.md`.
+
 Review date: 2026-07-01.
 
 Resource group: `gccs-staging-rg`.
@@ -22,7 +24,7 @@ This artifact does not approve production launch. It records the remaining non-P
 | Customer-facing claims | PR-5.2 | Claim review is recorded for product copy, onboarding, upload warnings, reports, support materials, release-note requirements, and pilot onboarding. Final legal or contracting advisor approval remains required before launch candidate approval. | `docs/production-readiness-customer-claims-review.md`, `output/production-readiness/customer-claims-review.json` | Yes, until final launch advisor approval is recorded |
 | Support runbooks | PR-5.3 | Launch support routing is documented for prohibited upload, suspected CUI, tenant exposure, access issue, evidence failure, report failure, content correction, security incident, backup restore, and rollback. | `docs/production-readiness-support-runbooks.md` | Yes, until customer success/support owner approval is recorded |
 | Pilot onboarding, release notes, and known risks | PR-5.4 | Pilot onboarding, release notes, and the known-risk acceptance log are launch-ready drafts with No-CUI limits, prohibited-data examples, support paths, staging smoke links, rollback limits, content scope, and owner-review status. | `docs/production-readiness-pilot-onboarding.md`, `docs/production-readiness-release-notes.md`, `docs/production-readiness-launch-gap-decisions.md` | Yes, until final owner approvals are recorded |
-| Final launch approvals | PR-6.1 | All required launch approvers remain pending. | Approval table in this artifact and `docs/production-readiness-checklist.md` | Yes |
+| Final launch approvals | PR-6.1 | All required launch approvers remain pending. | Approval table in this artifact, `docs/production-readiness-checklist.md`, and `docs/production-readiness-launch-approval-record.md` | Yes |
 
 ## Backup And Restore Evidence
 
@@ -150,7 +152,7 @@ Production launch must not present pending high-risk records as approved, legall
 
 ## Final Launch Approvals
 
-Launch candidate tagging remains blocked until every required approval is recorded with date, approver, scope, limitations, and unresolved exceptions.
+Launch candidate tagging remains blocked until every required approval is recorded with date, approver, scope, limitations, unresolved exceptions, and evidence reviewed. The controlling PR-6.1 approval record is `docs/production-readiness-launch-approval-record.md`.
 
 | Required approver | Current status | Launch blocker while pending |
 | --- | --- | --- |
@@ -161,4 +163,4 @@ Launch candidate tagging remains blocked until every required approval is record
 | Customer success/support owner | Pending | Yes |
 | Legal or contracting advisor | Pending | Yes |
 
-PR-6.1 cannot be marked complete until the approval record links this artifact, the PR-3.2 staging evidence, restore rehearsal evidence, malware scanner evidence or approved exception, expert content approval or withholding record, release notes, pilot onboarding, support runbooks, and known-risk acceptance log.
+PR-6.1 cannot be marked complete until `docs/production-readiness-launch-approval-record.md` records every required approval and links this artifact, the PR-3.2 staging evidence, restore rehearsal evidence, malware scanner evidence or approved exception, expert content approval or withholding record, release notes, pilot onboarding, support runbooks, and known-risk acceptance log.
