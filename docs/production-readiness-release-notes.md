@@ -33,8 +33,8 @@ Included MVP workflows:
 Known risks and launch blockers are tracked in `docs/production-readiness-launch-gap-decisions.md`.
 
 - `PR43-MALWARE-001`: external production scanner endpoint evidence is not attached yet; accepted only for the No-CUI MVP launch candidate with compensating controls and expiration.
-- `DOD-GAP-004`: staging restore rehearsal remains pending and blocks launch approval.
-- `DOD-GAP-006`: final launch approvals remain pending.
+- `PR41-RESTORE-001`: staging restore rehearsal remains unexecuted and is accepted for launch-candidate tagging only; production customer launch remains blocked until restore evidence is attached or separately dispositioned.
+- `DOD-GAP-006`: final launch approvals are recorded in `docs/production-readiness-launch-approval-record.md`.
 - `PR52-CLAIM-001`: final release notes or pilot materials can drift after claim review; advisor approval is required before launch.
 - `PR53-SUPPORT-001`: support runbooks are finalized, but customer success/support owner approval is still required before launch approval.
 

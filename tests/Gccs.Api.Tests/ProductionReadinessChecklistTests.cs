@@ -22,19 +22,18 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_0_1_Missing_required_launch_approvals_remain_blockers()
+    public void TC_PR_0_1_Required_launch_approval_gate_tracks_current_state()
     {
         var plan = ReadText("docs", "production-readiness-plan.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
 
         Assert.Contains("Launch gate status: blocked until all required items are complete and approved.", checklist);
-        Assert.Contains("Missing approval blockers remain open", plan);
+        Assert.Contains("Required product, engineering, security, compliance content, support, and legal/contracting approvals are complete", plan);
 
-        foreach (var artifact in new[] { plan, checklist })
-        {
-            Assert.Contains("| Required approver | Current status | Launch blocker while pending |", artifact);
-            AssertRequiredPendingApproverTableRows(artifact);
-        }
+        Assert.Contains("| Required approver | Current status | Launch blocker while pending |", plan);
+        AssertRequiredPendingApproverTableRows(plan);
+        Assert.Contains("| Required approver | Current status | Launch blocker while pending |", checklist);
+        AssertRequiredApprovedApproverTableRows(checklist);
     }
 
     [Fact]
@@ -188,9 +187,9 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Equal("legal-or-contracting-advisor", review.RootElement.GetProperty("requiredReviewer").GetString());
         Assert.NotEmpty(review.RootElement.GetProperty("acceptedClaimRisks").EnumerateArray());
         Assert.NotEmpty(review.RootElement.GetProperty("blockers").EnumerateArray());
-        Assert.Contains("Claim review recorded; final launch advisor approval pending", checklist);
+        Assert.Contains("Claim review recorded; launch advisor approval recorded in PR-6.1 approval record", checklist);
         Assert.Contains("Customer-facing claims", closure);
-        Assert.Contains("final launch advisor approval", closure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Legal or contracting advisor approval is recorded in PR-6.1", closure);
     }
 
     [Fact]
@@ -1085,12 +1084,12 @@ public sealed class ProductionReadinessChecklistTests
         using var backupConfig = JsonDocument.Parse(ReadText("output", "production-readiness", "backup-restore", "staging-postgres-backup-config.json"));
 
         Assert.Contains("Story: PR-4.1 - Attach Backup And Restore Evidence.", evidence);
-        Assert.Contains("Backup evidence captured; restore rehearsal blocked pending explicit execution approval.", evidence);
+        Assert.Contains("Backup evidence captured; restore rehearsal accepted as a launch-candidate risk", evidence);
         Assert.Contains("output/production-readiness/backup-restore/staging-postgres-backup-config.json", evidence);
-        Assert.Contains("Backup evidence captured; restore rehearsal pending approval", checklist);
+        Assert.Contains("Backup evidence captured; restore rehearsal accepted as launch-candidate risk `PR41-RESTORE-001`", checklist);
         Assert.Contains("docs/production-readiness-backup-restore-evidence.md", checklist);
         Assert.Contains("docs/production-readiness-backup-restore-evidence.md", closure);
-        Assert.Contains("Restore rehearsal is still required before PR-6.1 can be approved.", closure);
+        Assert.Contains("Restore rehearsal remains unexecuted and is accepted as launch-candidate risk `PR41-RESTORE-001`.", closure);
         Assert.Contains("az postgres flexible-server restore", closure);
         Assert.Contains("az postgres flexible-server delete", closure);
         Assert.Equal("gccs-pg-staging-19984", backupConfig.RootElement.GetProperty("name").GetString());
@@ -1121,10 +1120,10 @@ public sealed class ProductionReadinessChecklistTests
 
         Assert.Contains("Backup configuration is not recovery evidence.", evidence);
         Assert.Contains("Backup creation alone is rejected as restore proof.", evidence);
-        Assert.Contains("Current status: Not executed.", evidence);
+        Assert.Contains("Current status: Not executed; accepted as a launch-candidate limitation", evidence);
         Assert.Contains("No executed point-in-time restore transcript exists.", evidence);
-        Assert.Contains("TC-PR-4.1.2 | Blocked", evidence);
-        Assert.Contains("TC-PR-4.1.3 | Blocked", evidence);
+        Assert.Contains("TC-PR-4.1.2 | Dispositioned", evidence);
+        Assert.Contains("TC-PR-4.1.3 | Dispositioned", evidence);
     }
 
     [Fact]
@@ -1135,10 +1134,10 @@ public sealed class ProductionReadinessChecklistTests
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
 
         Assert.Contains("PR41-RESTORE-001", evidence);
-        Assert.Contains("Production launch remains blocked", evidence);
-        Assert.Contains("do not create the launch candidate tag", evidence);
-        Assert.Contains("point-in-time restore rehearsal evidence remains a production launch blocker", checklist);
-        Assert.Contains("keeps production launch blocked until an actual restored server is created", closure);
+        Assert.Contains("production customer launch remains blocked", evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Launch candidate tagging may proceed", evidence);
+        Assert.Contains("point-in-time restore rehearsal evidence remains required before production customer launch", checklist);
+        Assert.Contains("does not prove restore execution", closure);
         Assert.Contains("TC-PR-4.1.4 | Passed", evidence);
         Assert.DoesNotContain("restore rehearsal passed", evidence, StringComparison.OrdinalIgnoreCase);
     }
@@ -1310,18 +1309,18 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_6_1_Final_launch_approvals_remain_pending_until_accountable_approvers_sign()
+    public void TC_PR_6_1_Final_launch_approvals_are_recorded_before_launch_candidate_tagging()
     {
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         var approvalRecord = ReadText("docs", "production-readiness-launch-approval-record.md");
 
-        Assert.Contains("Launch candidate tagging remains blocked until every required approval is recorded", closure);
-        AssertRequiredPendingApproverTableRows(closure);
-        AssertRequiredPendingApproverTableRows(checklist);
-        AssertRequiredPendingApproverApprovalRows(approvalRecord);
-        Assert.Contains("PR-6.1 cannot be marked complete", closure);
-        Assert.Contains("PR-6.2 launch candidate tagging decision: blocked.", approvalRecord);
+        Assert.Contains("Launch candidate tagging is allowed because every required approval is recorded", closure);
+        AssertRequiredApprovedApproverTableRows(closure);
+        AssertRequiredApprovedApproverTableRows(checklist);
+        AssertRequiredApprovedApproverApprovalRows(approvalRecord);
+        Assert.Contains("PR-6.1 is complete for launch-candidate tagging", closure);
+        Assert.Contains("PR-6.2 launch candidate tagging decision: approved to proceed.", approvalRecord);
         Assert.Contains("Missing, pending, or incomplete approval metadata blocks PR-6.2 launch candidate tagging.", approvalRecord);
         Assert.Contains("docs/production-readiness-launch-approval-record.md", checklist);
         Assert.Contains("docs/production-readiness-launch-approval-record.md", closure);
@@ -1361,10 +1360,12 @@ public sealed class ProductionReadinessChecklistTests
         }
 
         Assert.Contains("DOD-GAP-006", approvalRecord);
-        Assert.Contains("PR52-CLAIM-001", approvalRecord);
-        Assert.Contains("PR53-SUPPORT-001", approvalRecord);
         Assert.Contains("PR43-MALWARE-001", approvalRecord);
+        Assert.Contains("PR41-RESTORE-001", approvalRecord);
+        Assert.Contains("PR52-CLAIM-001", riskLog);
+        Assert.Contains("PR53-SUPPORT-001", riskLog);
         Assert.Contains("docs/production-readiness-launch-approval-record.md", riskLog);
+        Assert.Contains("PR-6.1 and PR-6.2 may proceed for launch-candidate tagging", riskLog);
     }
 
     private static void AssertRequiredString(JsonElement element, string propertyName)
@@ -1389,21 +1390,21 @@ public sealed class ProductionReadinessChecklistTests
         }
     }
 
-    private static void AssertRequiredPendingApproverApprovalRows(string artifact)
+    private static void AssertRequiredApprovedApproverTableRows(string artifact)
+    {
+        foreach (var approver in RequiredApprovers())
+        {
+            Assert.Contains($"| {approver} | Approved on 2026-07-03 by user acting as {approver.ToLowerInvariant()} | No |", artifact);
+        }
+    }
+
+    private static void AssertRequiredApprovedApproverApprovalRows(string artifact)
     {
         Assert.Contains("| Required approver | Approval status | Approval date | Approver | Scope | Limitations | Unresolved exceptions | Evidence reviewed | Launch blocker while pending |", artifact);
 
-        foreach (var approver in new[]
+        foreach (var approver in RequiredApprovers())
         {
-            "Product owner",
-            "Engineering lead",
-            "Security owner",
-            "Compliance content owner",
-            "Customer success/support owner",
-            "Legal or contracting advisor"
-        })
-        {
-            Assert.Contains($"| {approver} | Pending | Not recorded | Not recorded |", artifact);
+            Assert.Contains($"| {approver} | Approved | 2026-07-03 | User acting as {approver.ToLowerInvariant()} |", artifact);
         }
 
         foreach (var field in new[]
@@ -1418,6 +1419,16 @@ public sealed class ProductionReadinessChecklistTests
         {
             Assert.Contains(field, artifact);
         }
+    }
+
+    private static IEnumerable<string> RequiredApprovers()
+    {
+        yield return "Product owner";
+        yield return "Engineering lead";
+        yield return "Security owner";
+        yield return "Compliance content owner";
+        yield return "Customer success/support owner";
+        yield return "Legal or contracting advisor";
     }
 
     private static IEnumerable<string[]> LaunchFacingDocuments()

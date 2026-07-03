@@ -126,8 +126,8 @@ Production launch remains blocked until these items are resolved or formally acc
 - Malware scanning is enabled for production uploads or an explicit launch exception is approved with compensating controls.
 - High-risk obligation records are approved or hidden from customer-facing production views.
 - Launch release notes and known-risk acceptance log are complete.
-- Required product, engineering, security, compliance content, support, and legal/contracting approvals are complete.
-- Missing approval blockers remain open for the pending product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approvals listed in the approval status table and `docs/production-readiness-launch-approval-record.md`.
+- Required product, engineering, security, compliance content, support, and legal/contracting approvals are complete in `docs/production-readiness-launch-approval-record.md`.
+- Restore rehearsal remains accepted as launch-candidate risk `PR41-RESTORE-001`; production customer launch and restore-capability claims remain blocked until restore evidence is attached or separately dispositioned.
 
 ## Phase PR-0 - Launch Posture Freeze
 
