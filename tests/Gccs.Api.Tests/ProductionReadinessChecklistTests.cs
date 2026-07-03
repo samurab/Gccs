@@ -1421,36 +1421,83 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_7_1_Production_deployment_is_blocked_without_approved_ci_cd_and_environment()
+    public void TC_PR_7_1_Production_deployment_uses_approved_ci_cd_and_launch_candidate()
     {
         var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        var workflow = ReadText(".github", "workflows", "production.yml");
 
-        Assert.Contains("Deployment status: blocked.", deployment);
+        Assert.Contains("Deployment status: approved CI/CD path created", deployment);
         Assert.Contains("Approved launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", deployment);
-        Assert.Contains("Approved production CI/CD path | Blocked", deployment);
-        Assert.Contains("Production environment configuration | Blocked", deployment);
-        Assert.Contains("Production secrets source | Blocked", deployment);
+        Assert.Contains("Approved production workflow: `.github/workflows/production.yml`.", deployment);
+        Assert.Contains("Production environment contract: `infra/terraform/environments/production/main.tf`.", deployment);
+        Assert.Contains("Approved production CI/CD path | Passed", deployment);
+        Assert.Contains("Production environment configuration | Passed", deployment);
+        Assert.Contains("Production secrets source | Passed as contract", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
-        Assert.Contains("Blocked; production workflow, production environment contract, and production secrets are not present", checklist);
+        Assert.Contains("Approved CI/CD path and environment contract created", checklist);
         Assert.Contains("docs/production-readiness-production-deployment-evidence.md", closure);
+        Assert.Contains(".github/workflows/production.yml", closure);
+        Assert.Contains("Closed on 2026-07-03 by `.github/workflows/production.yml`", riskLog);
         Assert.Contains("PR71-PROD-DEPLOY-001", riskLog);
+        Assert.Contains("workflow_dispatch:", workflow);
+        Assert.Contains("launch_candidate_tag:", workflow);
+        Assert.Contains("APPROVED_LAUNCH_CANDIDATE_TAG: gccs-no-cui-mvp-lc-2026-07-03", workflow);
+        Assert.Contains("ref: ${{ github.event.inputs.launch_candidate_tag }}", workflow);
+        Assert.Contains("name: production", workflow);
     }
 
     [Fact]
-    public void TC_PR_7_1_Deployment_record_preserves_no_cui_and_blocks_manual_production_deploy()
+    public void TC_PR_7_1_Deployment_record_preserves_no_cui_and_verifies_production_controls()
     {
         var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");
+        var workflow = ReadText(".github", "workflows", "production.yml");
+        var productionContract = ReadText("infra", "terraform", "environments", "production", "main.tf");
 
         Assert.Contains("No-CUI / compliance management only", deployment);
         Assert.Contains("do not deploy production manually", deployment, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Do not deploy production manually or through staging workflow.", deployment);
+        Assert.Contains("Do not deploy production manually or through the staging workflow.", deployment);
         Assert.Contains("TC-PR-7.1.1 | Passed", deployment);
-        Assert.Contains("TC-PR-7.1.2 | Blocked", deployment);
-        Assert.Contains("TC-PR-7.1.3 | Blocked", deployment);
-        Assert.Contains("TC-PR-7.1.4 | Blocked", deployment);
+        Assert.Contains("TC-PR-7.1.2 | Passed", deployment);
+        Assert.Contains("TC-PR-7.1.3 | Passed as repository-verifiable contract", deployment);
+        Assert.Contains("TC-PR-7.1.4 | Passed as CI/CD evidence path", deployment);
+
+        foreach (var requiredText in new[]
+        {
+            "Gccs__DataPosture: No-CUI / compliance management only",
+            "PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only",
+            "AZURE_CREDENTIALS_GCCS_PRODUCTION",
+            "AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION",
+            "PRODUCTION_DATABASE_URL",
+            "Generate idempotent production migration script",
+            "Apply production migrations through approved CI/CD",
+            "Run production health checks",
+            "Record production deployment evidence",
+            "production-deployment-evidence"
+        })
+        {
+            Assert.Contains(requiredText, workflow);
+        }
+
+        foreach (var requiredText in new[]
+        {
+            "No-CUI / compliance management only",
+            "no-cui-only",
+            "database",
+            "object_storage",
+            "cache",
+            "queue",
+            "secrets",
+            "background_jobs",
+            "health_checks",
+            "logs",
+            "alerts"
+        })
+        {
+            Assert.Contains(requiredText, productionContract);
+        }
     }
 
     private static void AssertRequiredString(JsonElement element, string propertyName)
