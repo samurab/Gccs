@@ -87,7 +87,7 @@ Evidence artifacts:
 | --- | --- | --- |
 | Health and dependency posture | Passed | `/health` returned HTTP `200`, `status = ok`, and `dataPosture = No-CUI / compliance management only`. |
 | Tenant creation or verification | Passed | `/api/me/access` and `/api/tenants/8c934636-0c37-4a8f-9134-323bef993ef2` verified the authenticated staging tenant, `GCCS Staging`, with `NoCui` posture. |
-| User invite | Passed | Synthetic invitation request for `pr32.synthetic.20260702010834@example.invalid` returned HTTP `201`. |
+| User invite | Passed | Synthetic invitation request for `pr32.synthetic.20260702010834@example.com` returned HTTP `201`. |
 | Role assignment | Partial | The authenticated user was verified as `Owner` with 29 permissions. The run did not prove every launch role assignment because only the current staging membership was exercised. |
 | Company profile | Passed | Corrected synthetic company profile upsert returned HTTP `200`. |
 | Contract creation | Passed | Corrected synthetic non-CUI contract creation returned HTTP `201` for contract `d05dc633-6724-4ed6-af9f-4d03f2ef0090`. |

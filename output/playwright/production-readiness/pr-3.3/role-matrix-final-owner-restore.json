@@ -1,0 +1,17 @@
+{
+  "command": "get",
+  "checkedAt": "2026-07-02T18:37:27.897597+00:00",
+  "database": "gccs",
+  "matched": true,
+  "membership": {
+    "MembershipId": "3c6136cc-4f69-4e32-b99c-c9746042a9f5",
+    "TenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+    "UserId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+    "Email": "dumbuyab_gmail.com#EXT#@dumbuyabgmail191.onmicrosoft.com",
+    "DisplayName": "Bai Dumbuya",
+    "UserStatus": "Active",
+    "MembershipStatus": "Active",
+    "RoleName": "Owner",
+    "UpdatedAt": "2026-07-02T18:37:05.079264+00:00"
+  }
+}

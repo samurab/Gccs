@@ -12,7 +12,8 @@ public sealed class NoCuiAcknowledgementService(
     ICurrentTenantContext tenantContext,
     IAuditEventWriter auditEventWriter,
     ContentClassificationPolicy classificationPolicy,
-    IObjectStorageService objectStorageService)
+    IObjectStorageService objectStorageService,
+    IMalwareScanner malwareScanner)
 {
     public async Task<NoCuiAcknowledgementStatusDto> GetCurrentStatusAsync(
         CancellationToken cancellationToken = default)
@@ -122,25 +123,36 @@ public sealed class NoCuiAcknowledgementService(
             actorUserId,
             cancellationToken);
 
-        var objectName = BuildEvidenceObjectName(evidenceItemId, uploadIntent.Id, uploadIntent.FileName);
+        await using var content = await BufferUploadContentAsync(request.Content, cancellationToken);
+        var scanResult = await ScanUploadAsync(evidenceItemId, uploadIntent, content, actorUserId, cancellationToken);
+        var scannedIntent = uploadIntent with
+        {
+            MalwareScanStatus = EvidenceUploadGuardrails.CleanMalwareScanStatus,
+            Message = $"Upload passed configured malware scanner '{scanResult.ScannerName}' and is usable after storage persistence."
+        };
+
+        var objectName = BuildEvidenceObjectName(evidenceItemId, scannedIntent.Id, scannedIntent.FileName);
+        content.Position = 0;
         await objectStorageService.UploadAsync(
             new ObjectStorageWriteRequest(
                 tenantContext.TenantId,
                 ObjectStorageContainer.Evidence,
                 objectName,
-                request.Content,
-                uploadIntent.ContentType,
+                content,
+                scannedIntent.ContentType,
                 new Dictionary<string, string>
                 {
                     ["evidenceItemId"] = evidenceItemId.ToString("D"),
-                    ["evidenceFileVersionId"] = uploadIntent.Id.ToString("D"),
+                    ["evidenceFileVersionId"] = scannedIntent.Id.ToString("D"),
                     ["uploadedByUserId"] = actorUserId.ToString("D"),
-                    ["classification"] = uploadIntent.Classification.Classification.ToString()
+                    ["classification"] = scannedIntent.Classification.Classification.ToString(),
+                    ["malwareScanStatus"] = scannedIntent.MalwareScanStatus,
+                    ["malwareScanner"] = scanResult.ScannerName
                 }),
             cancellationToken);
 
         EvidenceFileVersionDto version;
-        var storedIntent = uploadIntent with { StorageObjectName = objectName };
+        var storedIntent = scannedIntent with { StorageObjectName = objectName };
         try
         {
             version = await repository.RecordAcceptedEvidenceUploadIntentAsync(storedIntent, cancellationToken);
@@ -163,6 +175,37 @@ public sealed class NoCuiAcknowledgementService(
             cancellationToken);
 
         return ToAccessDto(version, "Evidence file was uploaded to private object storage.");
+    }
+
+    private async Task<MalwareScanResult> ScanUploadAsync(
+        Guid evidenceItemId,
+        EvidenceUploadIntentDto uploadIntent,
+        MemoryStream content,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        content.Position = 0;
+        var scanResult = await malwareScanner.ScanAsync(
+            new MalwareScanRequest(
+                content,
+                uploadIntent.FileName,
+                uploadIntent.ContentType,
+                uploadIntent.SizeBytes),
+            cancellationToken);
+        content.Position = 0;
+
+        if (scanResult.Verdict == MalwareScanVerdict.Clean)
+        {
+            return scanResult;
+        }
+
+        await AuditRejectedMalwareScanAsync(evidenceItemId, uploadIntent, actorUserId, scanResult, cancellationToken);
+        if (scanResult.Verdict == MalwareScanVerdict.Malicious)
+        {
+            throw new MalwareScanRejectedException("Evidence upload was rejected because malware scanning detected unsafe content.");
+        }
+
+        throw new MalwareScanUnavailableException("Evidence upload is unavailable because malware scanning did not produce a clean verdict.");
     }
 
     private async Task<EvidenceUploadIntentDto> ValidateAndBuildUploadIntentAsync(
@@ -349,6 +392,16 @@ public sealed class NoCuiAcknowledgementService(
         return $"evidence/{evidenceItemId:D}/{versionId:D}/{safeFileName}";
     }
 
+    private static async Task<MemoryStream> BufferUploadContentAsync(
+        Stream content,
+        CancellationToken cancellationToken)
+    {
+        var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer, cancellationToken);
+        buffer.Position = 0;
+        return buffer;
+    }
+
     private static void ValidateAcknowledgement(AcknowledgeNoCuiRequest request)
     {
         if (!request.Acknowledged)
@@ -438,6 +491,39 @@ public sealed class NoCuiAcknowledgementService(
             cancellationToken);
     }
 
+    private async Task AuditRejectedMalwareScanAsync(
+        Guid evidenceItemId,
+        EvidenceUploadIntentDto uploadIntent,
+        Guid actorUserId,
+        MalwareScanResult scanResult,
+        CancellationToken cancellationToken)
+    {
+        var scanStatus = scanResult.Verdict == MalwareScanVerdict.Malicious
+            ? EvidenceUploadGuardrails.MalwareDetectedScanStatus
+            : EvidenceUploadGuardrails.ScannerUnavailableScanStatus;
+
+        await auditEventWriter.WriteAsync(
+            tenantContext.TenantId,
+            actorUserId,
+            AuditAction.Rejected,
+            "EvidenceUploadIntent",
+            evidenceItemId.ToString(),
+            "Evidence upload was rejected by malware scanning.",
+            new Dictionary<string, string>
+            {
+                ["fileName"] = uploadIntent.FileName,
+                ["contentType"] = uploadIntent.ContentType,
+                ["sizeBytes"] = uploadIntent.SizeBytes.ToString(),
+                ["validationStatus"] = uploadIntent.ValidationStatus,
+                ["malwareScanStatus"] = scanStatus,
+                ["malwareScanVerdict"] = scanResult.Verdict.ToString(),
+                ["malwareScanner"] = scanResult.ScannerName,
+                ["scannerDetail"] = scanResult.Detail,
+                ["noFileContentLogged"] = bool.TrueString
+            },
+            cancellationToken);
+    }
+
     private static EvidenceFileAccessDto ToAccessDto(EvidenceFileVersionDto version, string message) =>
         new(
             version.EvidenceItemId,
@@ -483,3 +569,7 @@ public sealed class UploadGuardrailValidationException(IReadOnlyDictionary<strin
 }
 
 public sealed class EvidenceFileDownloadUnavailableException(string message) : InvalidOperationException(message);
+
+public sealed class MalwareScanRejectedException(string message) : InvalidOperationException(message);
+
+public sealed class MalwareScanUnavailableException(string message) : InvalidOperationException(message);

@@ -8,6 +8,11 @@
     "approved": 2
   },
   "publishedCount": 3,
+  "highRiskOrExpertReviewRequiredCount": 9,
+  "highRiskReviewEvidence": "output/production-readiness/expert-content/high-risk-obligation-review.json",
+  "customerFacingPublishableStates": [
+    "published"
+  ],
   "requiresExpertReviewCount": 7,
   "approvedOrPublishedExpertReviewCount": 2,
   "pendingExpertReviewCount": 5,
@@ -48,5 +53,5 @@
       "source_url": "https://www.acquisition.gov/dfars/252.204-7021-contractor-compliance-cybersecurity-maturity-model-certification-level-requirements"
     }
   ],
-  "launchDisposition": "Published/approved source-backed items can be used for staging evidence; pending expert-review records remain withheld from production launch until approved or hidden from customer-facing production views."
+  "launchDisposition": "Only published source-backed obligations can be used in customer-facing production views. High-risk records in needs_review or approved states remain withheld until an explicit publication decision is recorded."
 }

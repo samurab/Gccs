@@ -46,6 +46,11 @@ public sealed class EvidenceMetadataService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        if (!await repository.ExistsCurrentTenantAsync(evidenceItemId, cancellationToken))
+        {
+            return null;
+        }
+
         var normalized = Normalize(request);
         Validate(normalized);
         await ValidateReferencesAsync(normalized, cancellationToken);

@@ -22,19 +22,18 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_0_1_Missing_required_launch_approvals_remain_blockers()
+    public void TC_PR_0_1_Required_launch_approval_gate_tracks_current_state()
     {
         var plan = ReadText("docs", "production-readiness-plan.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
 
         Assert.Contains("Launch gate status: blocked until all required items are complete and approved.", checklist);
-        Assert.Contains("Missing approval blockers remain open", plan);
+        Assert.Contains("Required product, engineering, security, compliance content, support, and legal/contracting approvals are complete", plan);
 
-        foreach (var artifact in new[] { plan, checklist })
-        {
-            Assert.Contains("| Required approver | Current status | Launch blocker while pending |", artifact);
-            AssertRequiredPendingApproverTableRows(artifact);
-        }
+        Assert.Contains("| Required approver | Current status | Launch blocker while pending |", plan);
+        AssertRequiredPendingApproverTableRows(plan);
+        Assert.Contains("| Required approver | Current status | Launch blocker while pending |", checklist);
+        AssertRequiredApprovedApproverTableRows(checklist);
     }
 
     [Fact]
@@ -110,6 +109,223 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("future `CuiReady` capability remains excluded until separately approved", plan);
         Assert.Contains("Future `CuiReady` operation requires separate approval", decisionLog);
         Assert.Contains("Allowed only in approved future `CuiReady` tenants", executionPlan);
+    }
+
+    [Fact]
+    public void TC_PR_5_2_1_Customer_facing_claim_review_records_search_scope_and_no_affirmative_overclaims()
+    {
+        using var review = JsonDocument.Parse(ReadText("output", "production-readiness", "customer-claims-review.json"));
+
+        Assert.Equal("PR-5.2", review.RootElement.GetProperty("story").GetString());
+        Assert.Equal("completed-with-launch-approval-pending", review.RootElement.GetProperty("reviewStatus").GetString());
+        Assert.True(review.RootElement.GetProperty("launchApprovalBlocker").GetBoolean());
+
+        var surfaces = review.RootElement
+            .GetProperty("customerFacingSurfaces")
+            .EnumerateArray()
+            .Select(surface => surface.GetProperty("surface").GetString()!)
+            .ToArray();
+
+        Assert.Equal(
+            ["product_copy", "onboarding", "upload_flows", "reports", "support_materials", "release_notes", "pilot_onboarding"],
+            surfaces);
+
+        foreach (var document in ClaimReviewDocuments())
+        {
+            var content = ReadText(document);
+            foreach (var forbiddenClaim in ForbiddenAffirmativeCustomerClaims())
+            {
+                Assert.DoesNotContain(forbiddenClaim, content, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    [Fact]
+    public void TC_PR_5_2_2_No_cui_launch_limits_are_present_in_onboarding_upload_support_and_release_materials()
+    {
+        var onboarding = ReadText("apps", "web", "src", "lib", "api.ts");
+        var uploadFlow = ReadText("apps", "web", "src", "App.tsx");
+        var supportAndRelease = ReadText("docs", "product-readiness-note.md") + Environment.NewLine +
+            ReadText("docs", "production-readiness-checklist.md") + Environment.NewLine +
+            ReadText("docs", "production-readiness-customer-claims-review.md");
+
+        foreach (var content in new[] { onboarding, uploadFlow, supportAndRelease })
+        {
+            Assert.Contains("No-CUI", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("CUI", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("classified", content, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("export-controlled", content, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.Contains("not ready to store CUI", onboarding, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("I confirm this file does not contain CUI", uploadFlow, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Release notes", supportAndRelease, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("support paths", supportAndRelease, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_5_2_3_Cmmc_guidance_and_reports_preserve_draft_only_or_workflow_guidance_language()
+    {
+        var app = ReadText("apps", "web", "src", "App.tsx");
+        var productReadiness = ReadText("docs", "product-readiness-note.md");
+        var stagingEvidence = ReadText("docs", "production-readiness-staging-upload-report-evidence.md");
+
+        Assert.Contains("Reports are workflow guidance only", app);
+        Assert.Contains("not legal advice, certification decisions, assessor determinations", app);
+        Assert.Contains("draft-only guidance", productReadiness, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CMMC reports must avoid pass/fail or certification language", productReadiness, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CMMC readiness report generated with draft/readiness language", stagingEvidence, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_5_2_4_Customer_facing_claim_review_status_is_recorded_before_launch_approval()
+    {
+        using var review = JsonDocument.Parse(ReadText("output", "production-readiness", "customer-claims-review.json"));
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+
+        Assert.Equal("legal-or-contracting-advisor", review.RootElement.GetProperty("requiredReviewer").GetString());
+        Assert.NotEmpty(review.RootElement.GetProperty("acceptedClaimRisks").EnumerateArray());
+        Assert.NotEmpty(review.RootElement.GetProperty("blockers").EnumerateArray());
+        Assert.Contains("Claim review recorded; launch advisor approval recorded in PR-6.1 approval record", checklist);
+        Assert.Contains("Customer-facing claims", closure);
+        Assert.Contains("Legal or contracting advisor approval is recorded in PR-6.1", closure);
+    }
+
+    [Fact]
+    public void TC_PR_5_3_1_Required_support_runbooks_exist()
+    {
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+
+        foreach (var topic in SupportRunbookTopics())
+        {
+            Assert.Contains($"## Runbook: {topic}", runbooks);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_5_3_2_Each_support_runbook_has_owner_triage_escalation_severity_and_evidence()
+    {
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+
+        foreach (var topic in SupportRunbookTopics())
+        {
+            var section = ExtractRunbookSection(runbooks, topic);
+            Assert.Contains("Owner:", section);
+            Assert.Contains("Triage steps:", section);
+            Assert.Contains("Escalation path:", section);
+            Assert.Contains("Severity guidance:", section);
+            Assert.Contains("Evidence to capture:", section);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_5_3_3_Prohibited_upload_and_suspected_cui_runbooks_preserve_no_cui_containment()
+    {
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+
+        foreach (var topic in new[] { "Prohibited Upload", "Suspected CUI" })
+        {
+            var section = ExtractRunbookSection(runbooks, topic);
+            Assert.Contains("No-CUI containment:", section);
+            Assert.Contains("block", section, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("escalation", section, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("No-CUI posture", section, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("do not", section, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_5_3_4_Support_routing_is_linked_from_launch_materials()
+    {
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+
+        Assert.Contains("## Support Routing", runbooks);
+        Assert.Contains("docs/production-readiness-support-runbooks.md", checklist);
+        Assert.Contains("Support runbooks", closure);
+        Assert.Contains("prohibited upload, suspected CUI, tenant exposure", closure, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_5_4_1_Pilot_onboarding_states_no_cui_limits_prohibited_data_support_and_synthetic_demo_scope()
+    {
+        var onboarding = ReadText("docs", "production-readiness-pilot-onboarding.md");
+
+        Assert.Contains("No-CUI / compliance management only", onboarding);
+        Assert.Contains("Real customer CUI", onboarding);
+        Assert.Contains("Classified information", onboarding);
+        Assert.Contains("ITAR or export-controlled technical data", onboarding);
+        Assert.Contains("Support Paths", onboarding);
+        Assert.Contains("Known Limitations", onboarding);
+        Assert.Contains("Synthetic demo workflows", onboarding);
+        Assert.Contains("do not authorize production storage", onboarding, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_5_4_2_Release_notes_include_required_launch_sections()
+    {
+        var releaseNotes = ReadText("docs", "production-readiness-release-notes.md");
+
+        foreach (var requiredSection in new[]
+        {
+            "Launch Posture",
+            "Scope",
+            "Exclusions",
+            "Known Risks",
+            "Support Paths",
+            "Staging Smoke Results",
+            "Rollback Plan",
+            "Content Scope"
+        })
+        {
+            Assert.Contains($"## {requiredSection}", releaseNotes);
+        }
+
+        Assert.Contains("No-CUI / compliance management only", releaseNotes);
+        Assert.Contains("docs/production-readiness-staging-smoke-evidence.md", releaseNotes);
+        Assert.Contains("docs/production-readiness-deployment-migration-rollback-evidence.md", releaseNotes);
+        Assert.Contains("Only `published` obligations are customer-facing", releaseNotes);
+    }
+
+    [Fact]
+    public void TC_PR_5_4_3_Known_risks_include_owner_mitigation_contingency_target_status_and_approver()
+    {
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        foreach (var header in new[] { "Owner", "Mitigation", "Contingency", "Target date", "Current status", "Approver" })
+        {
+            Assert.Contains(header, riskLog);
+        }
+
+        foreach (var riskId in new[] { "PR43-MALWARE-001", "PR51-HIGH-RISK-001", "PR52-CLAIM-001", "PR53-SUPPORT-001" })
+        {
+            var row = riskLog
+                .Split(Environment.NewLine)
+                .Single(line => line.StartsWith($"| {riskId} |", StringComparison.Ordinal));
+            var cells = row.Split('|', StringSplitOptions.TrimEntries);
+
+            Assert.Equal(13, cells.Length);
+            Assert.All(cells.Skip(1).Take(11), cell => Assert.False(string.IsNullOrWhiteSpace(cell)));
+        }
+    }
+
+    [Fact]
+    public void TC_PR_5_4_4_Support_onboarding_release_notes_and_known_risks_have_review_status_before_launch_approval()
+    {
+        var onboarding = ReadText("docs", "production-readiness-pilot-onboarding.md");
+        var releaseNotes = ReadText("docs", "production-readiness-release-notes.md");
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+
+        Assert.Contains("Review status: launch-ready draft", onboarding);
+        Assert.Contains("Release note status: launch-ready draft", releaseNotes);
+        Assert.Contains("Review status: support runbooks finalized", runbooks);
+        Assert.Contains("Known-Risk Acceptance Log", riskLog);
+        Assert.Contains("Pilot onboarding, release notes, and known risks", closure);
+        Assert.Contains("final owner approvals", closure, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -476,9 +692,9 @@ public sealed class ProductionReadinessChecklistTests
         var decisions = ReadText("docs", "production-readiness-launch-gap-decisions.md");
 
         Assert.Contains("No deferred item in this log expands the No-CUI posture", decisions);
-        Assert.Contains("does not authorize real CUI or prohibited upload handling", decisions);
-        Assert.Contains("If no scanner or approved exception exists, keep production launch blocked", decisions);
-        Assert.Contains("No accepted risks are recorded for PR-2.3.", decisions);
+        Assert.Contains("Does not authorize real CUI or prohibited upload handling", decisions);
+        Assert.Contains("If external scanner evidence is not attached before exception expiration", decisions);
+        Assert.Contains("`PR43-MALWARE-001` is accepted for the No-CUI MVP launch candidate only.", decisions);
     }
 
     [Fact]
@@ -641,6 +857,146 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_3_3_Staging_security_evidence_records_automated_and_full_role_matrix_coverage()
+    {
+        var evidence = ReadText("docs", "production-readiness-staging-security-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        using var ownerProbes = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "owner-session-probes.json"));
+        using var adminCycle = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "admin-cycle-and-cleanup.json"));
+        using var orphanCleanup = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "orphan-tenant-cleanup.json"));
+        using var firewallCleanup = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "orphan-tenant-firewall-cleanup.json"));
+        using var ownerMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-owner.json"));
+        using var adminMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-admin.json"));
+        using var complianceManagerMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-compliance-manager.json"));
+        using var contributorMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-contributor.json"));
+        using var auditorMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-auditor.json"));
+        using var advisorMatrix = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-advisor.json"));
+        using var noMutation = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-no-mutation-summary.json"));
+        using var fixtureCleanup = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-fixture-cleanup.json"));
+        using var roleMatrixFirewallCleanup = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-firewall-cleanup.json"));
+        using var localSecretCleanup = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.3", "role-matrix-local-secret-cleanup.json"));
+
+        Assert.Contains("Story: PR-3.3 - Verify Tenant Isolation And RBAC In Staging.", evidence);
+        Assert.Contains("Evidence status: Passed.", evidence);
+        Assert.Contains("dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --configuration Release --no-restore --filter", evidence);
+        Assert.Contains("Ten tests passed with zero failures.", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-owner.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-admin.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-compliance-manager.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-contributor.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-auditor.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-advisor.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/role-matrix-no-mutation-summary.json", evidence);
+        Assert.Contains("output/playwright/production-readiness/pr-3.3/orphan-tenant-cleanup.json", evidence);
+        Assert.Contains("All six role artifacts have `passed: true`.", evidence);
+        Assert.Contains("PR33-STAGE-001", evidence);
+        Assert.Contains("PR33-STAGE-002", evidence);
+        Assert.Contains("PR-3.3 is complete. The production readiness sequence can proceed to PR-3.4 next", evidence);
+
+        Assert.Contains("Staging tenant isolation and RBAC", checklist);
+        Assert.Contains("Ready for approval", checklist);
+        Assert.Contains("docs/production-readiness-staging-security-evidence.md", closure);
+        Assert.Contains("role-matrix-owner.json", closure);
+        Assert.Contains("DOD-GAP-007", gapLog);
+        Assert.Contains("DOD-GAP-008", gapLog);
+        Assert.Contains("Closed Gaps", gapLog);
+        Assert.DoesNotContain("DOD-GAP-007`: PR-3.3 authenticated staging tenant isolation and RBAC evidence remains incomplete", gapLog);
+        Assert.Equal("Owner", ownerProbes.RootElement.GetProperty("roleContext").GetString());
+        Assert.False(ownerProbes.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.Contains(ownerProbes.RootElement.GetProperty("calls").EnumerateArray(), call =>
+            call.GetProperty("name").GetString() == "current access" &&
+            call.GetProperty("status").GetInt32() == 200);
+        Assert.Contains(ownerProbes.RootElement.GetProperty("limitations").EnumerateArray(), limitation =>
+            limitation.GetString() == "Admin, Compliance Manager, Contributor, Auditor, and Advisor direct API role contexts remain untested in live staging.");
+        Assert.Equal("Not valid PR-3.3 role evidence.", adminCycle.RootElement.GetProperty("result").GetString());
+        Assert.False(adminCycle.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.Contains(adminCycle.RootElement.GetProperty("remainingBlockers").EnumerateArray(), blocker =>
+            blocker.GetString() == "Provide database or Azure/admin access to locate and archive the accidental orphan tenant named PR-3.3 blocked admin tenant.");
+        Assert.True(orphanCleanup.RootElement.GetProperty("archived").GetBoolean());
+        Assert.True(orphanCleanup.RootElement.GetProperty("statusUpdated").GetBoolean());
+        Assert.True(orphanCleanup.RootElement.GetProperty("auditInserted").GetBoolean());
+        Assert.Equal("Archived", orphanCleanup.RootElement.GetProperty("tenant").GetProperty("Status").GetString());
+        Assert.Equal(0, orphanCleanup.RootElement.GetProperty("tenant").GetProperty("MembershipCount").GetInt64());
+        Assert.Contains(orphanCleanup.RootElement.GetProperty("auditRows").EnumerateArray(), audit =>
+            audit.GetProperty("CorrelationId").GetString() == "pr-3.3-orphan-tenant-cleanup" &&
+            audit.GetProperty("Action").GetString() == "Archived");
+        Assert.Empty(firewallCleanup.RootElement.EnumerateArray());
+        foreach (var matrix in new[] { ownerMatrix, adminMatrix, complianceManagerMatrix, contributorMatrix, auditorMatrix, advisorMatrix })
+        {
+            Assert.True(matrix.RootElement.GetProperty("passed").GetBoolean());
+            Assert.False(matrix.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+            Assert.Contains(matrix.RootElement.GetProperty("calls").EnumerateArray(), call =>
+                call.GetProperty("name").GetString() == "cross-tenant evidence update" &&
+                (call.GetProperty("status").GetInt32() == 404 || call.GetProperty("status").GetInt32() == 403));
+        }
+
+        Assert.True(noMutation.RootElement.GetProperty("noMutationObserved").GetBoolean());
+        Assert.Equal("Archived", fixtureCleanup.RootElement.GetProperty("fixtureStatus").GetProperty("TenantStatus").GetString());
+        Assert.Empty(roleMatrixFirewallCleanup.RootElement.EnumerateArray());
+        Assert.True(localSecretCleanup.RootElement.GetProperty("localSecretRemoved").GetBoolean());
+        Assert.True(localSecretCleanup.RootElement.GetProperty("temporaryHelperRemoved").GetBoolean());
+    }
+
+    [Fact]
+    public void TC_PR_3_4_Upload_and_report_staging_evidence_records_authenticated_pass()
+    {
+        var evidence = ReadText("docs", "production-readiness-staging-upload-report-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        using var health = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.4", "staging-health.json"));
+        using var authenticatedSmoke = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.4", "authenticated-upload-report-smoke.json"));
+        using var authBlocker = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-3.4", "authentication-blocker.json"));
+
+        Assert.Contains("Story: PR-3.4 - Verify Upload Guardrails And Report Controls In Staging.", evidence);
+        Assert.Contains("Evidence status: Complete.", evidence);
+        Assert.Contains("No-CUI acknowledgement", evidence);
+        Assert.Contains("Accepted upload and blocked upload attempts were visible in tenant audit logs.", evidence);
+        Assert.Contains("Contract obligation matrix report and export included source metadata", evidence);
+        Assert.Contains("no affirmative prohibited claims", evidence);
+        Assert.Contains("PR34-STAGE-001", evidence);
+        Assert.Contains("Closed on 2026-07-02", evidence);
+        Assert.Contains("PR-3.4 is complete. The production readiness sequence can proceed to PR-4.1 next", evidence);
+
+        Assert.Contains("Staging upload guardrails and report controls", checklist);
+        Assert.Contains("Ready for approval", checklist);
+        Assert.Contains("docs/production-readiness-staging-upload-report-evidence.md", closure);
+        Assert.Contains("authenticated-upload-report-smoke.json", closure);
+        Assert.Contains("DOD-GAP-009", gapLog);
+        Assert.Contains("PR-3.4 closed `DOD-GAP-009`; the production readiness sequence can continue to PR-4.1.", gapLog);
+
+        Assert.Equal("PR-3.4", health.RootElement.GetProperty("story").GetString());
+        Assert.Equal(200, health.RootElement.GetProperty("status").GetInt32());
+        Assert.False(health.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(health.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(health.RootElement.GetProperty("containsCui").GetBoolean());
+
+        Assert.Equal("passed", authenticatedSmoke.RootElement.GetProperty("result").GetString());
+        Assert.False(authenticatedSmoke.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(authenticatedSmoke.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(authenticatedSmoke.RootElement.GetProperty("containsCui").GetBoolean());
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("noCuiAcknowledgement").GetProperty("isAcknowledged").GetBoolean());
+        Assert.Equal(201, authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("allowedUpload").GetProperty("status").GetInt32());
+        Assert.Equal(403, authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("realCuiBlocked").GetProperty("status").GetInt32());
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("audit").GetProperty("uploadedAuditCount").GetInt32() >= 1);
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("audit").GetProperty("rejectedAuditCount").GetInt32() >= 1);
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("reports").GetProperty("complianceStatus").GetProperty("tenantMatches").GetBoolean());
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("reports").GetProperty("obligationMatrix").GetProperty("csvHeadersIncludeSourceMetadata").GetBoolean());
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("reports").GetProperty("cmmcReadiness").GetProperty("hasDraftReadinessLanguage").GetBoolean());
+        Assert.All(
+            authenticatedSmoke.RootElement.GetProperty("checks").EnumerateArray(),
+            check => Assert.True(check.GetProperty("passed").GetBoolean(), check.GetProperty("name").GetString()));
+
+        Assert.Equal("blocked", authBlocker.RootElement.GetProperty("result").GetString());
+        Assert.Equal("PR34-STAGE-001", authBlocker.RootElement.GetProperty("blockerId").GetString());
+        Assert.False(authBlocker.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(authBlocker.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(authBlocker.RootElement.GetProperty("containsCui").GetBoolean());
+    }
+
+    [Fact]
     public void TC_17_4_1_Production_readiness_checklist_blocks_launch_until_required_approvals_complete()
     {
         var checklist = ReadText("docs", "production-readiness-checklist.md");
@@ -722,12 +1078,18 @@ public sealed class ProductionReadinessChecklistTests
     [Fact]
     public void TC_PR_4_1_Backup_configuration_is_evidenced_and_restore_rehearsal_remains_blocked_until_executed()
     {
+        var evidence = ReadText("docs", "production-readiness-backup-restore-evidence.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         using var backupConfig = JsonDocument.Parse(ReadText("output", "production-readiness", "backup-restore", "staging-postgres-backup-config.json"));
 
-        Assert.Contains("Backup evidence captured; restore rehearsal pending approval", checklist);
-        Assert.Contains("Restore rehearsal is still required before PR-6.1 can be approved.", closure);
+        Assert.Contains("Story: PR-4.1 - Attach Backup And Restore Evidence.", evidence);
+        Assert.Contains("Backup evidence captured; restore rehearsal accepted as a launch-candidate risk", evidence);
+        Assert.Contains("output/production-readiness/backup-restore/staging-postgres-backup-config.json", evidence);
+        Assert.Contains("Backup evidence captured; restore rehearsal accepted as launch-candidate risk `PR41-RESTORE-001`", checklist);
+        Assert.Contains("docs/production-readiness-backup-restore-evidence.md", checklist);
+        Assert.Contains("docs/production-readiness-backup-restore-evidence.md", closure);
+        Assert.Contains("Restore rehearsal remains unexecuted and is accepted as launch-candidate risk `PR41-RESTORE-001`.", closure);
         Assert.Contains("az postgres flexible-server restore", closure);
         Assert.Contains("az postgres flexible-server delete", closure);
         Assert.Equal("gccs-pg-staging-19984", backupConfig.RootElement.GetProperty("name").GetString());
@@ -737,18 +1099,197 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_4_1_Restore_evidence_requires_execution_metadata_not_backup_assertions()
+    {
+        var evidence = ReadText("docs", "production-readiness-backup-restore-evidence.md");
+
+        foreach (var requiredField in new[]
+        {
+            "Restore date",
+            "Environment",
+            "Data set",
+            "Command or pipeline reference",
+            "Result",
+            "Reviewer",
+            "Evidence location"
+        })
+        {
+            Assert.Contains(requiredField, evidence);
+            Assert.Contains($"| {requiredField} |", evidence);
+        }
+
+        Assert.Contains("Backup configuration is not recovery evidence.", evidence);
+        Assert.Contains("Backup creation alone is rejected as restore proof.", evidence);
+        Assert.Contains("Current status: Not executed; accepted as a launch-candidate limitation", evidence);
+        Assert.Contains("No executed point-in-time restore transcript exists.", evidence);
+        Assert.Contains("TC-PR-4.1.2 | Dispositioned", evidence);
+        Assert.Contains("TC-PR-4.1.3 | Dispositioned", evidence);
+    }
+
+    [Fact]
+    public void TC_PR_4_1_Missing_restore_rehearsal_keeps_production_launch_blocked()
+    {
+        var evidence = ReadText("docs", "production-readiness-backup-restore-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+
+        Assert.Contains("PR41-RESTORE-001", evidence);
+        Assert.Contains("production customer launch remains blocked", evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Launch candidate tagging may proceed", evidence);
+        Assert.Contains("point-in-time restore rehearsal evidence remains required before production customer launch", checklist);
+        Assert.Contains("does not prove restore execution", closure);
+        Assert.Contains("TC-PR-4.1.4 | Passed", evidence);
+        Assert.DoesNotContain("restore rehearsal passed", evidence, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_4_2_Deployment_migration_and_rollback_evidence_is_attached()
+    {
+        var evidence = ReadText("docs", "production-readiness-deployment-migration-rollback-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+
+        Assert.Contains("Story: PR-4.2 - Attach Deployment, Migration, And Rollback Evidence.", evidence);
+        Assert.Contains("docs/production-readiness-staging-smoke-evidence.md", evidence);
+        Assert.Contains("docs/production-readiness-staging-workflow-evidence.md", evidence);
+        Assert.Contains("GitHub Actions run `28534289128`", evidence);
+        Assert.Contains("staging-smoke-test-results/staging-health.json", evidence);
+        Assert.Contains("docs/production-readiness-deployment-migration-rollback-evidence.md", checklist);
+        Assert.Contains("docs/production-readiness-deployment-migration-rollback-evidence.md", closure);
+        Assert.Contains("output/production-readiness/deployment-migration-rollback/gccs-staging-migrations.sql", checklist);
+        Assert.Contains("Application rollback simulation is documented", evidence);
+        Assert.Contains("TC-PR-4.2.1 | Passed", evidence);
+        Assert.Contains("TC-PR-4.2.3 | Passed with limitation", evidence);
+    }
+
+    [Fact]
+    public void TC_PR_4_2_Migration_evidence_identifies_script_environment_result_reviewer_and_failure_handling()
+    {
+        var evidence = ReadText("docs", "production-readiness-deployment-migration-rollback-evidence.md");
+        var migrationScript = ReadText("output", "production-readiness", "deployment-migration-rollback", "gccs-staging-migrations.sql");
+
+        foreach (var requiredField in new[]
+        {
+            "Script source",
+            "Script generation command",
+            "Generated script path",
+            "Environment",
+            "Result",
+            "Reviewer",
+            "Failure handling"
+        })
+        {
+            Assert.Contains(requiredField, evidence);
+            Assert.Contains($"| {requiredField} |", evidence);
+        }
+
+        Assert.Contains("5931c70b457735687b5d5e7e21ceb4e843ce2fb6cb9ef083577d7c77f69a9b62", evidence);
+        Assert.Contains("dotnet tool run dotnet-ef migrations script --idempotent", evidence);
+        Assert.Contains("CREATE TABLE IF NOT EXISTS", migrationScript);
+        Assert.Contains("20260626194212_AddReusableComplianceChecklists", migrationScript);
+        Assert.DoesNotContain("DROP TABLE", migrationScript, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DROP COLUMN", migrationScript, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("TRUNCATE", migrationScript, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DELETE FROM", migrationScript, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_4_2_Irreversible_migration_risk_has_owner_mitigation_contingency_and_approver()
+    {
+        var evidence = ReadText("docs", "production-readiness-deployment-migration-rollback-evidence.md");
+
+        foreach (var requiredField in new[]
+        {
+            "Risk ID",
+            "Owner",
+            "Mitigation",
+            "Contingency",
+            "Approver",
+            "Current status"
+        })
+        {
+            Assert.Contains(requiredField, evidence);
+        }
+
+        Assert.Contains("PR42-MIGRATION-001", evidence);
+        Assert.Contains("Engineering lead", evidence);
+        Assert.Contains("Product owner and engineering lead", evidence);
+        Assert.Contains("Database rollback is not automatic", evidence);
+        Assert.Contains("Do not run EF `Down()` paths automatically in production", evidence);
+        Assert.Contains("TC-PR-4.2.4 | Passed", evidence);
+    }
+
+    [Fact]
     public void TC_PR_4_3_Malware_scanning_launch_path_requires_scanner_evidence_or_signed_exception()
     {
+        var decision = ReadText("docs", "production-readiness-malware-scanning-decision.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
 
-        Assert.Contains("Production malware scanning is not complete.", closure);
-        Assert.Contains("File content download remains unavailable until validation and malware scanning allow it.", closure);
+        Assert.Contains("Story: PR-4.3 - Decide Malware Scanning Launch Path.", decision);
+        Assert.Contains("Scanner control path enabled; launch exception approved", decision);
+        Assert.Contains("ClamAV-compatible fail-closed scanner path", decision);
+        Assert.Contains("TC-PR-4.3.1 | Passed with limitation", decision);
+        Assert.Contains("Production malware scanning control path is enabled.", closure);
+        Assert.Contains("scanner-unavailable uploads fail closed", closure);
         Assert.Contains("| Enable scanner | Scanner configuration", closure);
         Assert.Contains("| Launch exception | Exception scope", closure);
         Assert.Contains("Security owner and product owner", closure);
-        Assert.Contains("Owner approval pending", gapLog);
-        Assert.Contains("disable production file upload paths if necessary", gapLog);
+        Assert.Contains("docs/production-readiness-malware-scanning-decision.md", closure);
+        Assert.Contains("Closed on 2026-07-02 by approved exception and enabled fail-closed scanner path", gapLog);
+        Assert.Contains("disable production file upload paths", gapLog);
+    }
+
+    [Fact]
+    public void TC_PR_4_3_Draft_exception_records_controls_workflows_owner_expiration_and_approvers()
+    {
+        var decision = ReadText("docs", "production-readiness-malware-scanning-decision.md");
+
+        foreach (var requiredField in new[]
+        {
+            "Exception ID",
+            "Scope",
+            "Affected workflows",
+            "Owner",
+            "Required approvers",
+            "Expiration date",
+            "Compensating controls",
+            "Rollback or disable plan",
+            "Support path",
+            "Known-risk log",
+            "Current status"
+        })
+        {
+            Assert.Contains(requiredField, decision);
+            Assert.Contains($"| {requiredField} |", decision);
+        }
+
+        Assert.Contains("PR43-MALWARE-001", decision);
+        Assert.Contains("Evidence file upload", decision);
+        Assert.Contains("contract document upload", decision);
+        Assert.Contains("Product owner and security owner", decision);
+        Assert.Contains("Before production customer launch, or 30 days after exception approval", decision);
+        Assert.Contains("No-CUI posture", decision);
+        Assert.Contains("scanner-before-storage enforcement", ReadText("docs", "production-readiness-launch-gap-decisions.md"));
+        Assert.Contains("TC-PR-4.3.2 | Passed", decision);
+    }
+
+    [Fact]
+    public void TC_PR_4_3_Known_risk_log_records_approved_exception_and_resolves_blocker()
+    {
+        var decision = ReadText("docs", "production-readiness-malware-scanning-decision.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var gapLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("PR43-MALWARE-001", gapLog);
+        Assert.Contains("Known-Risk Acceptance Log", gapLog);
+        Assert.Contains("Approved on 2026-07-02", gapLog);
+        Assert.Contains("PR-4.3 launch blocker closed", gapLog);
+        Assert.Contains("Exception approved on 2026-07-02", checklist);
+        Assert.Contains("TC-PR-4.3.3 | Passed", decision);
+        Assert.Contains("TC-PR-4.3.4 | Passed", decision);
+        Assert.Contains("Current state has an approved exception.", decision);
+        Assert.DoesNotContain("owner approval pending", decision, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -757,24 +1298,159 @@ public sealed class ProductionReadinessChecklistTests
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         using var summary = JsonDocument.Parse(ReadText("output", "production-readiness", "expert-content", "staging-content-review-summary.json"));
 
-        Assert.Contains("Five high-risk records pending approval or withholding", ReadText("docs", "production-readiness-checklist.md"));
-        Assert.Contains("must be approved by the compliance content owner and legal or contracting advisor, or withheld", closure);
+        Assert.Contains("High-risk review decisions recorded", ReadText("docs", "production-readiness-checklist.md"));
+        Assert.Contains("Only `published` obligations are customer-facing", closure);
         Assert.Equal(10, summary.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(9, summary.RootElement.GetProperty("highRiskOrExpertReviewRequiredCount").GetInt32());
         Assert.Equal(5, summary.RootElement.GetProperty("pendingExpertReviewCount").GetInt32());
-        Assert.Contains("dfars-252-204-7012", closure);
-        Assert.Contains("far-part-3-antitrust-procurement-integrity", closure);
+        Assert.Equal(
+            "output/production-readiness/expert-content/high-risk-obligation-review.json",
+            summary.RootElement.GetProperty("highRiskReviewEvidence").GetString());
     }
 
     [Fact]
-    public void TC_PR_6_1_Final_launch_approvals_remain_pending_until_accountable_approvers_sign()
+    public void TC_PR_6_1_Final_launch_approvals_are_recorded_before_launch_candidate_tagging()
     {
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var approvalRecord = ReadText("docs", "production-readiness-launch-approval-record.md");
 
-        Assert.Contains("Launch candidate tagging remains blocked until every required approval is recorded", closure);
-        AssertRequiredPendingApproverTableRows(closure);
-        AssertRequiredPendingApproverTableRows(checklist);
-        Assert.Contains("PR-6.1 cannot be marked complete", closure);
+        Assert.Contains("Launch candidate tagging is allowed because every required approval is recorded", closure);
+        AssertRequiredApprovedApproverTableRows(closure);
+        AssertRequiredApprovedApproverTableRows(checklist);
+        AssertRequiredApprovedApproverApprovalRows(approvalRecord);
+        Assert.Contains("PR-6.1 is complete for launch-candidate tagging", closure);
+        Assert.Contains("PR-6.2 launch candidate tagging decision: approved to proceed.", approvalRecord);
+        Assert.Contains("Missing, pending, or incomplete approval metadata blocks PR-6.2 launch candidate tagging.", approvalRecord);
+        Assert.Contains("docs/production-readiness-launch-approval-record.md", checklist);
+        Assert.Contains("docs/production-readiness-launch-approval-record.md", closure);
+        Assert.Contains("TC-PR-6.1.1 | Passed", approvalRecord);
+        Assert.Contains("TC-PR-6.1.2 | Passed", approvalRecord);
+        Assert.Contains("TC-PR-6.1.3 | Passed", approvalRecord);
+        Assert.Contains("TC-PR-6.1.4 | Passed", approvalRecord);
+    }
+
+    [Fact]
+    public void TC_PR_6_1_Approval_record_links_required_evidence_and_exception_log()
+    {
+        var approvalRecord = ReadText("docs", "production-readiness-launch-approval-record.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        foreach (var path in new[]
+        {
+            "docs/production-readiness-plan.md",
+            "docs/production-readiness-checklist.md",
+            "docs/production-readiness-launch-closure-evidence.md",
+            "docs/production-readiness-staging-workflow-evidence.md",
+            "docs/production-readiness-staging-security-evidence.md",
+            "docs/production-readiness-staging-upload-report-evidence.md",
+            "docs/production-readiness-backup-restore-evidence.md",
+            "docs/production-readiness-deployment-migration-rollback-evidence.md",
+            "docs/production-readiness-malware-scanning-decision.md",
+            "docs/production-readiness-customer-claims-review.md",
+            "docs/production-readiness-support-runbooks.md",
+            "docs/production-readiness-pilot-onboarding.md",
+            "docs/production-readiness-release-notes.md",
+            "docs/production-readiness-launch-gap-decisions.md",
+            "output/production-readiness/customer-claims-review.json",
+            "output/production-readiness/expert-content/high-risk-obligation-review.json"
+        })
+        {
+            Assert.Contains(path, approvalRecord);
+        }
+
+        Assert.Contains("DOD-GAP-006", approvalRecord);
+        Assert.Contains("PR43-MALWARE-001", approvalRecord);
+        Assert.Contains("PR41-RESTORE-001", approvalRecord);
+        Assert.Contains("PR52-CLAIM-001", riskLog);
+        Assert.Contains("PR53-SUPPORT-001", riskLog);
+        Assert.Contains("docs/production-readiness-launch-approval-record.md", riskLog);
+        Assert.Contains("PR-6.1 and PR-6.2 may proceed for launch-candidate tagging", riskLog);
+    }
+
+    [Fact]
+    public void TC_PR_6_2_Launch_candidate_tag_preconditions_are_complete()
+    {
+        var tagRecord = ReadText("docs", "production-readiness-launch-candidate-tag.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("Tag status: created.", tagRecord);
+        Assert.Contains("Launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", tagRecord);
+        Assert.Contains("Tagged commit: `6c8927ec9cf79de977d76cb2594b87dd48f973bd`.", tagRecord);
+        Assert.Contains("GitHub Actions staging workflow run `28635229630` completed successfully", tagRecord);
+        Assert.Contains("Required launch approvals complete | Passed", tagRecord);
+        Assert.Contains("Evidence package gathered | Passed", tagRecord);
+        Assert.Contains("Approved build and deployment path passed | Passed", tagRecord);
+        Assert.Contains("Created as `gccs-no-cui-mvp-lc-2026-07-03`", checklist);
+        Assert.Contains("docs/production-readiness-launch-candidate-tag.md", closure);
+        Assert.Contains("DOD-GAP-002", riskLog);
+        Assert.Contains("Closed on 2026-07-03 by `docs/production-readiness-launch-candidate-tag.md`", riskLog);
+    }
+
+    [Fact]
+    public void TC_PR_6_2_Tag_record_links_release_artifacts_and_missing_evidence_block_rule()
+    {
+        var tagRecord = ReadText("docs", "production-readiness-launch-candidate-tag.md");
+
+        foreach (var requiredLink in new[]
+        {
+            "docs/production-readiness-release-notes.md",
+            "docs/production-readiness-launch-gap-decisions.md",
+            "docs/production-readiness-support-runbooks.md",
+            "docs/production-readiness-staging-smoke-evidence.md",
+            "docs/production-readiness-staging-workflow-evidence.md",
+            "docs/production-readiness-staging-security-evidence.md",
+            "docs/production-readiness-staging-upload-report-evidence.md",
+            "docs/production-readiness-deployment-migration-rollback-evidence.md",
+            "packages/compliance-content/obligations/mvp.json"
+        })
+        {
+            Assert.Contains(requiredLink, tagRecord);
+        }
+
+        Assert.Contains("Build artifact source", tagRecord);
+        Assert.Contains("API deployment artifact", tagRecord);
+        Assert.Contains("Web deployment artifact", tagRecord);
+        Assert.Contains("Migration artifact", tagRecord);
+        Assert.Contains("Smoke artifact", tagRecord);
+        Assert.Contains("Missing-evidence tag block rule retained | Passed", tagRecord);
+        Assert.Contains("no tag may be created or retained if required links are removed", tagRecord);
+        Assert.Contains("TC-PR-6.2.4 | Passed", tagRecord);
+    }
+
+    [Fact]
+    public void TC_PR_7_1_Production_deployment_is_blocked_without_approved_ci_cd_and_environment()
+    {
+        var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("Deployment status: blocked.", deployment);
+        Assert.Contains("Approved launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", deployment);
+        Assert.Contains("Approved production CI/CD path | Blocked", deployment);
+        Assert.Contains("Production environment configuration | Blocked", deployment);
+        Assert.Contains("Production secrets source | Blocked", deployment);
+        Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
+        Assert.Contains("Blocked; production workflow, production environment contract, and production secrets are not present", checklist);
+        Assert.Contains("docs/production-readiness-production-deployment-evidence.md", closure);
+        Assert.Contains("PR71-PROD-DEPLOY-001", riskLog);
+    }
+
+    [Fact]
+    public void TC_PR_7_1_Deployment_record_preserves_no_cui_and_blocks_manual_production_deploy()
+    {
+        var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");
+
+        Assert.Contains("No-CUI / compliance management only", deployment);
+        Assert.Contains("do not deploy production manually", deployment, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Do not deploy production manually or through staging workflow.", deployment);
+        Assert.Contains("TC-PR-7.1.1 | Passed", deployment);
+        Assert.Contains("TC-PR-7.1.2 | Blocked", deployment);
+        Assert.Contains("TC-PR-7.1.3 | Blocked", deployment);
+        Assert.Contains("TC-PR-7.1.4 | Blocked", deployment);
     }
 
     private static void AssertRequiredString(JsonElement element, string propertyName)
@@ -799,6 +1475,47 @@ public sealed class ProductionReadinessChecklistTests
         }
     }
 
+    private static void AssertRequiredApprovedApproverTableRows(string artifact)
+    {
+        foreach (var approver in RequiredApprovers())
+        {
+            Assert.Contains($"| {approver} | Approved on 2026-07-03 by user acting as {approver.ToLowerInvariant()} | No |", artifact);
+        }
+    }
+
+    private static void AssertRequiredApprovedApproverApprovalRows(string artifact)
+    {
+        Assert.Contains("| Required approver | Approval status | Approval date | Approver | Scope | Limitations | Unresolved exceptions | Evidence reviewed | Launch blocker while pending |", artifact);
+
+        foreach (var approver in RequiredApprovers())
+        {
+            Assert.Contains($"| {approver} | Approved | 2026-07-03 | User acting as {approver.ToLowerInvariant()} |", artifact);
+        }
+
+        foreach (var field in new[]
+        {
+            "Approval date",
+            "Approver",
+            "Scope",
+            "Limitations",
+            "Unresolved exceptions",
+            "Evidence reviewed"
+        })
+        {
+            Assert.Contains(field, artifact);
+        }
+    }
+
+    private static IEnumerable<string> RequiredApprovers()
+    {
+        yield return "Product owner";
+        yield return "Engineering lead";
+        yield return "Security owner";
+        yield return "Compliance content owner";
+        yield return "Customer success/support owner";
+        yield return "Legal or contracting advisor";
+    }
+
     private static IEnumerable<string[]> LaunchFacingDocuments()
     {
         yield return new[] { "docs", "product-readiness-note.md" };
@@ -813,6 +1530,63 @@ public sealed class ProductionReadinessChecklistTests
         yield return new[] { "docs", "decision-log.md" };
         yield return new[] { "docs", "production-readiness-roadmap.md" };
         yield return new[] { "docs", "production-readiness-plan.md" };
+    }
+
+    private static IEnumerable<string[]> ClaimReviewDocuments()
+    {
+        foreach (var document in LaunchFacingDocuments())
+        {
+            yield return document;
+        }
+
+        yield return new[] { "docs", "production-readiness-customer-claims-review.md" };
+        yield return new[] { "docs", "production-readiness-launch-closure-evidence.md" };
+        yield return new[] { "apps", "web", "src", "App.tsx" };
+        yield return new[] { "apps", "web", "src", "lib", "api.ts" };
+        yield return new[] { "packages", "compliance-content", "data-handling-notices", "notices.json" };
+    }
+
+    private static IEnumerable<string> ForbiddenAffirmativeCustomerClaims()
+    {
+        yield return "GCCS provides legal advice";
+        yield return "makes legal determinations";
+        yield return "guarantees CMMC";
+        yield return "CMMC certified";
+        yield return "CMMC certification achieved";
+        yield return "CMMC approval granted";
+        yield return "official assessment success achieved";
+        yield return "government endorsed";
+        yield return "government endorsement granted";
+        yield return "officially approved by the government";
+        yield return "authorized to store real CUI";
+        yield return "authorized to upload real CUI";
+        yield return "permission to store real CUI";
+        yield return "permission to upload real CUI";
+        yield return "real customer CUI is allowed";
+    }
+
+    private static IEnumerable<string> SupportRunbookTopics()
+    {
+        yield return "Prohibited Upload";
+        yield return "Suspected CUI";
+        yield return "Tenant Exposure";
+        yield return "Access Issue";
+        yield return "Evidence Failure";
+        yield return "Report Failure";
+        yield return "Content Correction";
+        yield return "Security Incident";
+        yield return "Backup Restore";
+        yield return "Rollback";
+    }
+
+    private static string ExtractRunbookSection(string runbooks, string topic)
+    {
+        var marker = $"## Runbook: {topic}";
+        var start = runbooks.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"Missing runbook section for {topic}.");
+
+        var next = runbooks.IndexOf("## Runbook:", start + marker.Length, StringComparison.Ordinal);
+        return next < 0 ? runbooks[start..] : runbooks[start..next];
     }
 
     private static IEnumerable<string> ProductionReadinessOpenStoryIds()

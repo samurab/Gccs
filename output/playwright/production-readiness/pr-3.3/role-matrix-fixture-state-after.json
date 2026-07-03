@@ -1,0 +1,36 @@
+{
+  "command": "fixture-state",
+  "checkedAt": "2026-07-02T18:37:27.905836+00:00",
+  "database": "gccs",
+  "fixtureTenantId": "33333333-3333-4333-8333-333333330033",
+  "fixtureContractId": "33333333-3333-4333-8333-333333330101",
+  "fixtureTaskId": "33333333-3333-4333-8333-333333330102",
+  "fixtureEvidenceId": "33333333-3333-4333-8333-333333330103",
+  "fixtureReportId": "33333333-3333-4333-8333-333333330104",
+  "fixtureState": {
+    "TenantStatus": "Active",
+    "Contract": [
+      "PR33-XTENANT-001",
+      "PR-3.3 synthetic cross-tenant contract",
+      "Active",
+      null
+    ],
+    "Task": [
+      "PR-3.3 synthetic cross-tenant task",
+      "Open",
+      null
+    ],
+    "Evidence": [
+      "PR-3.3 synthetic cross-tenant evidence",
+      "Approved",
+      null
+    ],
+    "Report": [
+      "PR-3.3 synthetic cross-tenant evidence package",
+      "Complete",
+      null
+    ],
+    "ReportEvidenceLinkCount": 1,
+    "ActiveEvidenceFileVersionCount": 0
+  }
+}

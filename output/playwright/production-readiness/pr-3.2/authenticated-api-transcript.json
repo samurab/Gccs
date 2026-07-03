@@ -56,7 +56,7 @@
       "summary": {
         "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
         "userId": "09e188fa-befc-4b99-822b-d641767cb7b9",
-        "userEmail": "dumbuyab@gmail.com",
+        "userEmail": "owner@example.com",
         "roles": [
           "Owner"
         ],
@@ -65,7 +65,7 @@
       "response": {
         "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
         "userId": "09e188fa-befc-4b99-822b-d641767cb7b9",
-        "userEmail": "dumbuyab@gmail.com",
+        "userEmail": "owner@example.com",
         "roles": [
           "Owner"
         ],

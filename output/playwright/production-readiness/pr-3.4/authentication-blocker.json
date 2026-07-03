@@ -1,0 +1,17 @@
+{
+  "story": "PR-3.4",
+  "checkedAt": "2026-07-02T18:58:44Z",
+  "api": "https://gccs-api-staging-19984.azurewebsites.net",
+  "result": "blocked",
+  "blockerId": "PR34-STAGE-001",
+  "reason": "No existing in-app browser staging session was available, no staging auth variables were present in the shell environment, and Azure CLI token acquisition for the staging API audience required interactive Microsoft Azure CLI consent.",
+  "nonInteractiveChecks": [
+    "env search for GCCS_STAGING, STAGING, AZURE, and ConnectionStrings__GccsDatabase values returned no staging smoke token variables.",
+    "In-app browser tab listing returned zero open tabs and no signed-in staging session.",
+    "az account get-access-token for api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426 failed with an interactive consent requirement."
+  ],
+  "requiredResolution": "Provide a signed-in in-app browser staging session, approved non-interactive smoke identity, or staging-only API token for synthetic PR-3.4 upload/report checks.",
+  "tokenCapturedInArtifact": false,
+  "containsCustomerData": false,
+  "containsCui": false
+}

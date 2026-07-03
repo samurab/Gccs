@@ -16,6 +16,7 @@ using Gccs.Application.Portals;
 using Gccs.Application.Repositories;
 using Gccs.Application.Reports;
 using Gccs.Application.SamGov;
+using Gccs.Application.Security;
 using Gccs.Application.Subcontractors;
 using Gccs.Application.Storage;
 using Gccs.Application.Tasks;
@@ -176,6 +177,21 @@ public static class DependencyInjection
             options.Containers.Reports = configuration[$"{AzureBlobStorageOptions.SectionName}:Containers:Reports"] ?? options.Containers.Reports;
         });
         services.AddScoped<IObjectStorageService, AzureBlobObjectStorageService>();
+        services.Configure<MalwareScanningOptions>(options =>
+        {
+            if (configuration is null)
+            {
+                return;
+            }
+
+            options.Enabled = ReadBool(configuration, $"{MalwareScanningOptions.SectionName}:Enabled", options.Enabled);
+            options.Provider = configuration[$"{MalwareScanningOptions.SectionName}:Provider"] ?? options.Provider;
+            options.Host = configuration[$"{MalwareScanningOptions.SectionName}:Host"] ?? options.Host;
+            options.Port = ReadInt(configuration, $"{MalwareScanningOptions.SectionName}:Port", options.Port);
+            options.TimeoutSeconds = ReadInt(configuration, $"{MalwareScanningOptions.SectionName}:TimeoutSeconds", options.TimeoutSeconds);
+            options.MaxChunkSizeBytes = ReadInt(configuration, $"{MalwareScanningOptions.SectionName}:MaxChunkSizeBytes", options.MaxChunkSizeBytes);
+        });
+        services.AddScoped<IMalwareScanner, ClamAvMalwareScanner>();
         if (configuration is not null)
         {
             services.Configure<SamGovOptions>(options =>

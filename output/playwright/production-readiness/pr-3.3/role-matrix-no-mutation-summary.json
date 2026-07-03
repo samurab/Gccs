@@ -1,0 +1,6 @@
+{
+  "checkedAt": "2026-07-02T18:37:38.294Z",
+  "before": "output/playwright/production-readiness/pr-3.3/role-matrix-fixture-state-before.json",
+  "after": "output/playwright/production-readiness/pr-3.3/role-matrix-fixture-state-after.json",
+  "noMutationObserved": true
+}

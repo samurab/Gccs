@@ -98,6 +98,9 @@ public static class EvidenceUploadGuardrails
     public const long MaxSizeBytes = 25L * 1024L * 1024L;
     public const string AcceptedValidationStatus = "accepted";
     public const string PendingMalwareScanStatus = "scan-pending";
+    public const string CleanMalwareScanStatus = "clean";
+    public const string MalwareDetectedScanStatus = "malware-detected";
+    public const string ScannerUnavailableScanStatus = "scan-unavailable";
 
     public static readonly IReadOnlyDictionary<string, string[]> AllowedContentTypesByExtension =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)

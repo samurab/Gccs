@@ -46,6 +46,15 @@ public sealed class EfEvidenceMetadataRepository(
         return entity is null ? null : ToDto(entity);
     }
 
+    public Task<bool> ExistsCurrentTenantAsync(
+        Guid evidenceItemId,
+        CancellationToken cancellationToken = default) =>
+        dbContext.EvidenceItems
+            .AsNoTracking()
+            .AnyAsync(
+                evidence => evidence.TenantId == tenantContext.TenantId && evidence.Id == evidenceItemId,
+                cancellationToken);
+
     public async Task<EvidenceMetadataDto> CreateCurrentTenantAsync(
         UpsertEvidenceMetadataRequest request,
         Guid actorUserId,

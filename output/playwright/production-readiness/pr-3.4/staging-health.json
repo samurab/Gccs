@@ -1,0 +1,21 @@
+{
+  "story": "PR-3.4",
+  "checkedAt": "2026-07-02T18:58:15Z",
+  "api": "https://gccs-api-staging-19984.azurewebsites.net",
+  "request": "GET /health",
+  "status": 200,
+  "result": {
+    "status": "ok",
+    "service": "gccs-api",
+    "dataPosture": "No-CUI / compliance management only",
+    "dependencies": [
+      "background-jobs: ok",
+      "object-storage: ok",
+      "postgresql: ok",
+      "redis: ok"
+    ]
+  },
+  "tokenCapturedInArtifact": false,
+  "containsCustomerData": false,
+  "containsCui": false
+}

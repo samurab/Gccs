@@ -1,0 +1,101 @@
+{
+  "generatedAt": "2026-07-02T15:49:15.122Z",
+  "stagingApi": "https://gccs-api-staging-19984.azurewebsites.net/api",
+  "stagingWeb": "https://mango-rock-016ff040f.7.azurestaticapps.net",
+  "signedIn": true,
+  "tokenPresentInBrowserSession": true,
+  "tokenCapturedInArtifact": false,
+  "roleContext": "Owner",
+  "dataPosture": "No-CUI / compliance management only",
+  "calls": [
+    {
+      "name": "current access",
+      "method": "GET",
+      "path": "/me/access",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "roles": [
+        "Owner"
+      ],
+      "permissionSample": [
+        "ApproveEnclave",
+        "ApproveEvidence",
+        "AuditorReadOnly",
+        "DownloadEnclave",
+        "EmergencyEnclave",
+        "ExportEnclave",
+        "ManageCmmc",
+        "ManageCompanyProfile"
+      ],
+      "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+      "userId": "09e188fa-befc-4b99-822b-d641767cb7b9",
+      "userEmail": "owner@example.com"
+    },
+    {
+      "name": "current tenant members",
+      "method": "GET",
+      "path": "/tenant-members",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "name": "random cross-tenant-like contract id denied",
+      "method": "GET",
+      "path": "/contracts/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "status": 404,
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "title": "Resource not found",
+      "hasCrossTenantDataString": false,
+      "hasStackTraceSignal": false
+    },
+    {
+      "name": "random cross-tenant-like evidence id denied",
+      "method": "GET",
+      "path": "/evidence-items/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "status": 404,
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "title": "Resource not found",
+      "hasCrossTenantDataString": false,
+      "hasStackTraceSignal": false
+    },
+    {
+      "name": "random cross-tenant-like task id denied",
+      "method": "GET",
+      "path": "/tasks/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "status": 404,
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "title": "Resource not found",
+      "hasCrossTenantDataString": false,
+      "hasStackTraceSignal": false
+    },
+    {
+      "name": "random cross-tenant-like evidence report id denied",
+      "method": "GET",
+      "path": "/reports/evidence-packages/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "status": 404,
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "title": "Resource not found",
+      "hasCrossTenantDataString": false,
+      "hasStackTraceSignal": false
+    },
+    {
+      "name": "audit log export owner allowed",
+      "method": "GET",
+      "path": "/reports/exports/audit-log",
+      "status": 200,
+      "contentType": "text/csv",
+      "hasCrossTenantDataString": false,
+      "hasStackTraceSignal": false
+    }
+  ],
+  "limitations": [
+    "The live staging session only exercised the Owner role.",
+    "Random missing IDs returning 404 prove non-disclosure/error shape for unknown IDs, but do not prove access to seeded records owned by another tenant.",
+    "Admin, Compliance Manager, Contributor, Auditor, and Advisor direct API role contexts remain untested in live staging.",
+    "No bearer token or credential value is stored in this artifact."
+  ]
+}

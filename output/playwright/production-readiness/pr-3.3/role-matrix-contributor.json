@@ -1,0 +1,340 @@
+{
+  "roleContext": "Contributor",
+  "checkedAt": "2026-07-02T18:36:39.481Z",
+  "apiBase": "https://gccs-api-staging-19984.azurewebsites.net",
+  "deployedRun": "https://github.com/samurab/Gccs/actions/runs/28612906388",
+  "tokenCapturedInArtifact": false,
+  "fixture": {
+    "tenantId": "33333333-3333-4333-8333-333333330033",
+    "contractId": "33333333-3333-4333-8333-333333330101",
+    "taskId": "33333333-3333-4333-8333-333333330102",
+    "evidenceId": "33333333-3333-4333-8333-333333330103",
+    "reportId": "33333333-3333-4333-8333-333333330104",
+    "labels": [
+      "PR-3.3 cross-tenant isolation fixture",
+      "PR33-XTENANT-001",
+      "PR-3.3 synthetic cross-tenant task",
+      "PR-3.3 synthetic cross-tenant evidence",
+      "PR-3.3 synthetic cross-tenant evidence package"
+    ]
+  },
+  "fixtureStateEvidence": {
+    "before": "output/playwright/production-readiness/pr-3.3/role-matrix-fixture-state-before.json",
+    "after": "output/playwright/production-readiness/pr-3.3/role-matrix-fixture-state-after.json"
+  },
+  "calls": [
+    {
+      "contentType": "application/json; charset=utf-8",
+      "errorCode": null,
+      "expected": 200,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "GET",
+      "name": "current access",
+      "path": "/api/me/access",
+      "problemTitle": null,
+      "responseKeys": [
+        "tenantId",
+        "userId",
+        "userEmail",
+        "roles",
+        "permissions",
+        "rolePermissionMatrix"
+      ],
+      "standardError": null,
+      "status": 200
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "expected": 404,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "GET",
+      "name": "cross-tenant contract read",
+      "path": "/api/contracts/33333333-3333-4333-8333-333333330101",
+      "problemTitle": "Resource not found",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 404
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "expected": 404,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "GET",
+      "name": "cross-tenant task read",
+      "path": "/api/tasks/33333333-3333-4333-8333-333333330102",
+      "problemTitle": "Resource not found",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 404
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "expected": 404,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "GET",
+      "name": "cross-tenant evidence read",
+      "path": "/api/evidence-items/33333333-3333-4333-8333-333333330103",
+      "problemTitle": "Resource not found",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 404
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "expected": 404,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "GET",
+      "name": "cross-tenant report read",
+      "path": "/api/reports/evidence-packages/33333333-3333-4333-8333-333333330104",
+      "problemTitle": "Resource not found",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 404
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "expected": 404,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "GET",
+      "name": "cross-tenant obligation export read",
+      "path": "/api/contracts/33333333-3333-4333-8333-333333330101/obligations/export",
+      "problemTitle": "Resource not found",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 404
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "forbidden",
+      "expected": 403,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "GET",
+      "name": "audit-log report export permission gate",
+      "path": "/api/reports/exports/audit-log",
+      "problemTitle": "Forbidden",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 403
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "permission_denied",
+      "expected": 403,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "PUT",
+      "name": "cross-tenant contract update",
+      "path": "/api/contracts/33333333-3333-4333-8333-333333330101",
+      "problemTitle": "Permission denied",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 403
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "expected": 404,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "PATCH",
+      "name": "cross-tenant task update",
+      "path": "/api/tasks/33333333-3333-4333-8333-333333330102",
+      "problemTitle": "Resource not found",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 404
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "expected": 404,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "PUT",
+      "name": "cross-tenant evidence update",
+      "path": "/api/evidence-items/33333333-3333-4333-8333-333333330103",
+      "problemTitle": "Resource not found",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 404
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "resource_not_found",
+      "expected": 404,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "DELETE",
+      "name": "cross-tenant evidence file delete",
+      "path": "/api/evidence-items/33333333-3333-4333-8333-333333330103/file",
+      "problemTitle": "Resource not found",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 404
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "permission_denied",
+      "expected": 403,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "DELETE",
+      "name": "cross-tenant contract document delete",
+      "path": "/api/contracts/33333333-3333-4333-8333-333333330101/documents/33333333-3333-4333-8333-333333330901",
+      "problemTitle": "Permission denied",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 403
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "permission_denied",
+      "expected": 403,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "DELETE",
+      "name": "audit-log append-only delete denied",
+      "path": "/api/audit-logs/33333333-3333-4333-8333-333333330902",
+      "problemTitle": "Permission denied",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 403
+    },
+    {
+      "contentType": "application/problem+json",
+      "errorCode": "permission_denied",
+      "expected": 403,
+      "leakedFixtureId": false,
+      "leakedFixtureLabel": false,
+      "method": "POST",
+      "name": "contributor contract create denied",
+      "path": "/api/contracts",
+      "problemTitle": "Permission denied",
+      "responseKeys": [
+        "type",
+        "title",
+        "status",
+        "detail",
+        "errorCode",
+        "traceId",
+        "correlationId"
+      ],
+      "standardError": true,
+      "status": 403
+    }
+  ],
+  "passed": true,
+  "auditExportFixtureIdEcho": {
+    "disposition": "allowed_current_tenant_audit_echo",
+    "evidence": "output/playwright/production-readiness/pr-3.3/role-matrix-audit-reference-check.json",
+    "reason": "The audit export may include fixture IDs only in current-tenant audit rows created by this denial rehearsal; fixture-tenant audit rows were not returned to the current tenant."
+  }
+}

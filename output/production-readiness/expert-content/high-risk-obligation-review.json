@@ -1,0 +1,129 @@
+{
+  "story": "PR-5.1",
+  "title": "Review High-Risk Obligation Content",
+  "reviewDate": "2026-07-02",
+  "reviewOwner": "compliance-content-owner",
+  "package": "packages/compliance-content/obligations/mvp.json",
+  "customerFacingPublishableStates": [
+    "published"
+  ],
+  "decisionRule": "High-risk or expert-review-required obligations may appear in customer-facing production views only when review_state is published and required source/review metadata is complete. Approved records that are not published remain withheld from customer-facing views until a separate publication decision is recorded.",
+  "records": [
+    {
+      "id": "far-part-3-antitrust-procurement-integrity",
+      "risk_level": "critical",
+      "requires_expert_review": true,
+      "review_state": "needs_review",
+      "decision": "withhold_pending_expert_review",
+      "decisionOwner": "compliance-content-owner",
+      "decisionDate": "2026-07-02",
+      "rationale": "Procurement-integrity and antitrust guidance can create legal-risk interpretations; source metadata is present, but expert approval is still required before publication.",
+      "customerFacingProduction": false
+    },
+    {
+      "id": "far-52-204-21",
+      "risk_level": "high",
+      "requires_expert_review": false,
+      "review_state": "published",
+      "decision": "publish_source_backed_record",
+      "decisionOwner": "compliance-content-owner",
+      "decisionDate": "2026-07-02",
+      "rationale": "Published record includes source URL, trigger condition, required actions, evidence examples, confidence, review owner, review state, and last-reviewed date.",
+      "customerFacingProduction": true
+    },
+    {
+      "id": "far-52-204-25",
+      "risk_level": "high",
+      "requires_expert_review": false,
+      "review_state": "published",
+      "decision": "publish_source_backed_record",
+      "decisionOwner": "compliance-content-owner",
+      "decisionDate": "2026-07-02",
+      "rationale": "Published record includes source URL, trigger condition, required actions, evidence examples, confidence, review owner, review state, and last-reviewed date.",
+      "customerFacingProduction": true
+    },
+    {
+      "id": "dfars-252-204-7012",
+      "risk_level": "critical",
+      "requires_expert_review": true,
+      "review_state": "needs_review",
+      "decision": "withhold_pending_expert_review",
+      "decisionOwner": "compliance-content-owner",
+      "decisionDate": "2026-07-02",
+      "rationale": "Cyber incident reporting and covered defense information obligations require SME/legal review before customer-facing publication.",
+      "customerFacingProduction": false
+    },
+    {
+      "id": "dfars-252-204-7019",
+      "risk_level": "high",
+      "requires_expert_review": true,
+      "review_state": "needs_review",
+      "decision": "withhold_pending_expert_review",
+      "decisionOwner": "compliance-content-owner",
+      "decisionDate": "2026-07-02",
+      "rationale": "NIST SP 800-171 assessment notice guidance requires SME review before customer-facing publication.",
+      "customerFacingProduction": false
+    },
+    {
+      "id": "dfars-252-204-7020",
+      "risk_level": "high",
+      "requires_expert_review": true,
+      "review_state": "needs_review",
+      "decision": "withhold_pending_expert_review",
+      "decisionOwner": "compliance-content-owner",
+      "decisionDate": "2026-07-02",
+      "rationale": "Assessment access, flow-down, and DoD assessment obligations require SME review before customer-facing publication.",
+      "customerFacingProduction": false
+    },
+    {
+      "id": "dfars-252-204-7021",
+      "risk_level": "critical",
+      "requires_expert_review": true,
+      "review_state": "needs_review",
+      "decision": "withhold_pending_expert_review",
+      "decisionOwner": "compliance-content-owner",
+      "decisionDate": "2026-07-02",
+      "rationale": "CMMC contractual requirement guidance is high-impact and must remain hidden until SME/legal review approves publication.",
+      "customerFacingProduction": false
+    },
+    {
+      "id": "cmmc-32-cfr-170",
+      "risk_level": "critical",
+      "requires_expert_review": true,
+      "review_state": "approved",
+      "decision": "withhold_until_publication_gate",
+      "decisionOwner": "compliance-content-owner",
+      "decisionDate": "2026-07-02",
+      "rationale": "Expert review approval is recorded, but the record is not in the published state and remains withheld from customer-facing production views.",
+      "customerFacingProduction": false
+    },
+    {
+      "id": "far-52-222-41",
+      "risk_level": "high",
+      "requires_expert_review": true,
+      "review_state": "approved",
+      "decision": "withhold_until_publication_gate",
+      "decisionOwner": "compliance-content-owner",
+      "decisionDate": "2026-07-02",
+      "rationale": "Expert review approval is recorded, but labor standards guidance is not in the published state and remains withheld from customer-facing production views.",
+      "customerFacingProduction": false
+    }
+  ],
+  "blockers": [
+    {
+      "id": "PR51-HIGH-RISK-001",
+      "owner": "compliance-content-owner",
+      "targetDate": "2026-07-15",
+      "mitigation": "Keep needs_review and approved-but-unpublished high-risk obligations hidden from customer-facing production views until explicit publication approval is recorded.",
+      "affectedRecords": [
+        "far-part-3-antitrust-procurement-integrity",
+        "dfars-252-204-7012",
+        "dfars-252-204-7019",
+        "dfars-252-204-7020",
+        "dfars-252-204-7021",
+        "cmmc-32-cfr-170",
+        "far-52-222-41"
+      ]
+    }
+  ]
+}
