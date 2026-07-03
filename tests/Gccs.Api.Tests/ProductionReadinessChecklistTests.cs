@@ -250,6 +250,86 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void TC_PR_5_4_1_Pilot_onboarding_states_no_cui_limits_prohibited_data_support_and_synthetic_demo_scope()
+    {
+        var onboarding = ReadText("docs", "production-readiness-pilot-onboarding.md");
+
+        Assert.Contains("No-CUI / compliance management only", onboarding);
+        Assert.Contains("Real customer CUI", onboarding);
+        Assert.Contains("Classified information", onboarding);
+        Assert.Contains("ITAR or export-controlled technical data", onboarding);
+        Assert.Contains("Support Paths", onboarding);
+        Assert.Contains("Known Limitations", onboarding);
+        Assert.Contains("Synthetic demo workflows", onboarding);
+        Assert.Contains("do not authorize production storage", onboarding, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TC_PR_5_4_2_Release_notes_include_required_launch_sections()
+    {
+        var releaseNotes = ReadText("docs", "production-readiness-release-notes.md");
+
+        foreach (var requiredSection in new[]
+        {
+            "Launch Posture",
+            "Scope",
+            "Exclusions",
+            "Known Risks",
+            "Support Paths",
+            "Staging Smoke Results",
+            "Rollback Plan",
+            "Content Scope"
+        })
+        {
+            Assert.Contains($"## {requiredSection}", releaseNotes);
+        }
+
+        Assert.Contains("No-CUI / compliance management only", releaseNotes);
+        Assert.Contains("docs/production-readiness-staging-smoke-evidence.md", releaseNotes);
+        Assert.Contains("docs/production-readiness-deployment-migration-rollback-evidence.md", releaseNotes);
+        Assert.Contains("Only `published` obligations are customer-facing", releaseNotes);
+    }
+
+    [Fact]
+    public void TC_PR_5_4_3_Known_risks_include_owner_mitigation_contingency_target_status_and_approver()
+    {
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        foreach (var header in new[] { "Owner", "Mitigation", "Contingency", "Target date", "Current status", "Approver" })
+        {
+            Assert.Contains(header, riskLog);
+        }
+
+        foreach (var riskId in new[] { "PR43-MALWARE-001", "PR51-HIGH-RISK-001", "PR52-CLAIM-001", "PR53-SUPPORT-001" })
+        {
+            var row = riskLog
+                .Split(Environment.NewLine)
+                .Single(line => line.StartsWith($"| {riskId} |", StringComparison.Ordinal));
+            var cells = row.Split('|', StringSplitOptions.TrimEntries);
+
+            Assert.Equal(13, cells.Length);
+            Assert.All(cells.Skip(1).Take(11), cell => Assert.False(string.IsNullOrWhiteSpace(cell)));
+        }
+    }
+
+    [Fact]
+    public void TC_PR_5_4_4_Support_onboarding_release_notes_and_known_risks_have_review_status_before_launch_approval()
+    {
+        var onboarding = ReadText("docs", "production-readiness-pilot-onboarding.md");
+        var releaseNotes = ReadText("docs", "production-readiness-release-notes.md");
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+
+        Assert.Contains("Review status: launch-ready draft", onboarding);
+        Assert.Contains("Release note status: launch-ready draft", releaseNotes);
+        Assert.Contains("Review status: support runbooks finalized", runbooks);
+        Assert.Contains("Known-Risk Acceptance Log", riskLog);
+        Assert.Contains("Pilot onboarding, release notes, and known risks", closure);
+        Assert.Contains("final owner approvals", closure, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void TC_PR_1_1_Open_launch_stories_are_listed_in_readiness_review()
     {
         var review = ReadText("docs", "production-readiness-open-story-readiness-review.md");
