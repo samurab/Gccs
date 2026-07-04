@@ -36,6 +36,28 @@ jobs:
         run: |
           test "${{ github.event.inputs.launch_candidate_tag }}" = "$APPROVED_LAUNCH_CANDIDATE_TAG"
 
+      - name: Checkout production deployment controls
+        uses: actions/checkout@v5
+
+      - name: Validate production CI/CD and No-CUI deployment guardrails
+        run: |
+          test "$PRODUCTION_CUSTOMER_DATA_MODE" = "no-cui-only"
+          test "$Gccs__DataPosture" = "No-CUI / compliance management only"
+          test -n "$PRODUCTION_API_APP_NAME"
+          test -n "$PRODUCTION_API_BASE_URL"
+          test -n "$PRODUCTION_WEB_BASE_URL"
+          test -f infra/terraform/environments/production/main.tf
+          grep -R "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
+          grep -R "database" infra/terraform/environments/production/main.tf
+          grep -R "object_storage" infra/terraform/environments/production/main.tf
+          grep -R "cache" infra/terraform/environments/production/main.tf
+          grep -R "queue" infra/terraform/environments/production/main.tf
+          grep -R "secrets" infra/terraform/environments/production/main.tf
+          grep -R "background_jobs" infra/terraform/environments/production/main.tf
+          grep -R "health_checks" infra/terraform/environments/production/main.tf
+          grep -R "logs" infra/terraform/environments/production/main.tf
+          grep -R "alerts" infra/terraform/environments/production/main.tf
+
       - name: Checkout approved launch candidate artifact source
         uses: actions/checkout@v5
         with:
@@ -56,25 +78,6 @@ jobs:
         run: |
           dotnet restore Gccs.slnx
           npm ci
-
-      - name: Validate production CI/CD and No-CUI deployment guardrails
-        run: |
-          test "$PRODUCTION_CUSTOMER_DATA_MODE" = "no-cui-only"
-          test "$Gccs__DataPosture" = "No-CUI / compliance management only"
-          test -n "$PRODUCTION_API_APP_NAME"
-          test -n "$PRODUCTION_API_BASE_URL"
-          test -n "$PRODUCTION_WEB_BASE_URL"
-          test -f infra/terraform/environments/production/main.tf
-          grep -R "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
-          grep -R "database" infra/terraform/environments/production/main.tf
-          grep -R "object_storage" infra/terraform/environments/production/main.tf
-          grep -R "cache" infra/terraform/environments/production/main.tf
-          grep -R "queue" infra/terraform/environments/production/main.tf
-          grep -R "secrets" infra/terraform/environments/production/main.tf
-          grep -R "background_jobs" infra/terraform/environments/production/main.tf
-          grep -R "health_checks" infra/terraform/environments/production/main.tf
-          grep -R "logs" infra/terraform/environments/production/main.tf
-          grep -R "alerts" infra/terraform/environments/production/main.tf
 
       - name: Build production artifacts
         env:
