@@ -12,6 +12,8 @@ Prerequisite deployment record: `docs/production-readiness-production-deployment
 
 Approved production workflow: `.github/workflows/production.yml`.
 
+Latest execution attempt: 2026-07-04.
+
 ## Architectural Assessment
 
 Production smoke testing cannot be replaced by local unit tests, staging smoke evidence, or a documented CI/CD contract. That approach fails structurally because it does not exercise the production identity provider, production tenant data boundary, production secrets, production storage, production logs, production alerts, or the protected production environment.
@@ -34,6 +36,28 @@ The corrected pattern is a production smoke evidence gate tied to the approved p
 | Smoke identity coverage | Owner/Admin plus at least one restricted role or approved smoke identity for RBAC denial. | Required before execution. |
 | Logs and alerts | Production log query, alert route, and health signal observation captured without secrets or raw customer documents. | Required before execution. |
 | Evidence location | Sanitized smoke transcript, health output, audit event references, alert observation, and defect/blocker table. | Required before execution. |
+
+## 2026-07-04 Dispatch Attempt
+
+Attempted command:
+
+```bash
+gh workflow run .github/workflows/production.yml \
+  --repo samurab/Gccs \
+  --ref codex/production-readiness-pr-7-2-smoke-tests \
+  -f launch_candidate_tag=gccs-no-cui-mvp-lc-2026-07-03
+```
+
+Result:
+
+- Failed before deployment.
+- GitHub API returned `HTTP 404: workflow .github/workflows/production.yml not found on the default branch`.
+- `gh workflow list --repo samurab/Gccs --all` listed `Azure Static Web Apps CI/CD`, `CI`, and `Staging deployment`; it did not list `Production deployment`.
+- `gh api repos/samurab/Gccs/environments` listed only `staging`; no `production` environment exists.
+- Repository secrets visible through the API are staging-only; no `AZURE_CREDENTIALS_GCCS_PRODUCTION`, `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION`, or `PRODUCTION_DATABASE_URL` secret is configured at the repository level.
+- Production environment variable and secret queries returned `HTTP 404` because the `production` environment does not exist.
+
+Disposition: PR-7.2 remains blocked. The production workflow must be present on the default branch, the protected GitHub `production` environment must exist, and required production variables/secrets must be configured before deployment or smoke testing can run.
 
 ## Smoke Test Matrix
 
