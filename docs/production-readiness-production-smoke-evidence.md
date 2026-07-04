@@ -81,6 +81,18 @@ Result:
 
 Disposition: PR-7.2 remains blocked until PR #2 is merged to `main` and the three required production secrets are added to the GitHub `Production` environment.
 
+## 2026-07-04 Production Deployment Runs
+
+Run `28722707082`: failed before deployment. The production workflow was present on `main`, but the workflow checked out launch candidate tag `gccs-no-cui-mvp-lc-2026-07-03` before validating the production Terraform contract. That tag predates `infra/terraform/environments/production/main.tf`, so the guardrail failed before build, migration, or deployment. No production app deployment occurred.
+
+Corrective action: PR #3 updated `.github/workflows/production.yml` to validate production deployment controls from `main` before checking out the approved launch candidate artifact source. PR #3 was merged on 2026-07-04.
+
+Run `28722957153`: passed launch-candidate input validation, production deployment control validation, tag checkout, dependency restore, production artifact build, and idempotent migration script generation. It failed at `Apply production migrations through approved CI/CD` before Azure login or app deployment.
+
+Failure detail: `psql` reported `could not translate host name "2798@gccs-postgres-production.postgres.database.azure.com" to address`. This indicates `PRODUCTION_DATABASE_URL` is malformed, most likely because the PostgreSQL password contains an unencoded `@` character before `2798`.
+
+Disposition: PR-7.2 remains blocked until `PRODUCTION_DATABASE_URL` is corrected in the GitHub `Production` environment secret and the production deployment workflow completes successfully.
+
 ## Smoke Test Matrix
 
 | Test case | Result | Evidence | Blocker disposition |

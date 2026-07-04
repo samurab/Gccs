@@ -76,6 +76,12 @@ Manual production deployment remains prohibited. Do not deploy production manual
 
 2026-07-04 follow-up verification: GitHub environment `Production` exists and required production environment variables are present, but required production secrets are still absent and PR #2 remains open. The production workflow still cannot be dispatched from `main` until PR #2 is merged.
 
+2026-07-04 production run `28722707082`: failed before deployment because the workflow validated `infra/terraform/environments/production/main.tf` after checking out launch candidate tag `gccs-no-cui-mvp-lc-2026-07-03`; that tag does not contain the production Terraform contract. No migrations or app deployment ran.
+
+2026-07-04 corrective PR #3: `.github/workflows/production.yml` now validates production deployment controls from `main` before checking out the approved launch candidate artifact source.
+
+2026-07-04 production run `28722957153`: passed guardrails, artifact checkout, restore, build, and migration-script generation, then failed applying migrations because `PRODUCTION_DATABASE_URL` is malformed. The error resolved the host as `2798@gccs-postgres-production.postgres.database.azure.com`, indicating the database password in the URL contains an unencoded `@` character. No Azure login or app deployment ran.
+
 Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path by `.github/workflows/production.yml` and `infra/terraform/environments/production/main.tf`. It is not evidence that a production workflow run has completed.
 
 ## Residual Gate
