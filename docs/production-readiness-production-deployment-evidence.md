@@ -74,6 +74,8 @@ Manual production deployment remains prohibited. Do not deploy production manual
 
 2026-07-04 dispatch attempt: `gh workflow run .github/workflows/production.yml --repo samurab/Gccs --ref codex/production-readiness-pr-7-2-smoke-tests -f launch_candidate_tag=gccs-no-cui-mvp-lc-2026-07-03` failed before deployment with `HTTP 404` because GitHub requires the workflow to exist on the default branch. Remote repository inspection also showed no GitHub `production` environment and no production variables/secrets available through the API.
 
+2026-07-04 follow-up verification: GitHub environment `Production` exists and required production environment variables are present, but required production secrets are still absent and PR #2 remains open. The production workflow still cannot be dispatched from `main` until PR #2 is merged.
+
 Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path by `.github/workflows/production.yml` and `infra/terraform/environments/production/main.tf`. It is not evidence that a production workflow run has completed.
 
 ## Residual Gate

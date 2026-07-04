@@ -53,11 +53,33 @@ Result:
 - Failed before deployment.
 - GitHub API returned `HTTP 404: workflow .github/workflows/production.yml not found on the default branch`.
 - `gh workflow list --repo samurab/Gccs --all` listed `Azure Static Web Apps CI/CD`, `CI`, and `Staging deployment`; it did not list `Production deployment`.
-- `gh api repos/samurab/Gccs/environments` listed only `staging`; no `production` environment exists.
+- `gh api repos/samurab/Gccs/environments` initially listed only `staging`; no `production` environment existed at that time.
 - Repository secrets visible through the API are staging-only; no `AZURE_CREDENTIALS_GCCS_PRODUCTION`, `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION`, or `PRODUCTION_DATABASE_URL` secret is configured at the repository level.
 - Production environment variable and secret queries returned `HTTP 404` because the `production` environment does not exist.
 
 Disposition: PR-7.2 remains blocked. The production workflow must be present on the default branch, the protected GitHub `production` environment must exist, and required production variables/secrets must be configured before deployment or smoke testing can run.
+
+## 2026-07-04 Environment Verification
+
+Verification commands:
+
+```bash
+gh api repos/samurab/Gccs/environments
+gh api repos/samurab/Gccs/environments/production/variables
+gh api repos/samurab/Gccs/environments/production/secrets
+gh workflow list --repo samurab/Gccs --all
+gh pr view 2 --repo samurab/Gccs
+```
+
+Result:
+
+- GitHub environment `Production` exists.
+- Required production environment variables are present and non-empty: `PRODUCTION_API_APP_NAME`, `PRODUCTION_API_BASE_URL`, `PRODUCTION_WEB_BASE_URL`, `PRODUCTION_MSAL_CLIENT_ID`, `PRODUCTION_MSAL_TENANT_ID`, and `PRODUCTION_MSAL_API_SCOPE`.
+- No production environment secrets are configured. Required missing secrets are `AZURE_CREDENTIALS_GCCS_PRODUCTION`, `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION`, and `PRODUCTION_DATABASE_URL`.
+- `Production deployment` is still not visible in the remote workflow list because PR #2 is open and the workflow has not been merged to `main`.
+- PR #2 is open, mergeable, and its CI checks passed; the skipped Azure Static Web Apps close job is expected for an open pull request.
+
+Disposition: PR-7.2 remains blocked until PR #2 is merged to `main` and the three required production secrets are added to the GitHub `Production` environment.
 
 ## Smoke Test Matrix
 
