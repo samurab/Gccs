@@ -1421,36 +1421,131 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_7_1_Production_deployment_is_blocked_without_approved_ci_cd_and_environment()
+    public void TC_PR_7_1_Production_deployment_uses_approved_ci_cd_and_launch_candidate()
     {
         var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        var workflow = ReadText(".github", "workflows", "production.yml");
 
-        Assert.Contains("Deployment status: blocked.", deployment);
+        Assert.Contains("Deployment status: approved CI/CD path created", deployment);
         Assert.Contains("Approved launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", deployment);
-        Assert.Contains("Approved production CI/CD path | Blocked", deployment);
-        Assert.Contains("Production environment configuration | Blocked", deployment);
-        Assert.Contains("Production secrets source | Blocked", deployment);
+        Assert.Contains("Approved production workflow: `.github/workflows/production.yml`.", deployment);
+        Assert.Contains("Production environment contract: `infra/terraform/environments/production/main.tf`.", deployment);
+        Assert.Contains("Approved production CI/CD path | Passed", deployment);
+        Assert.Contains("Production environment configuration | Passed", deployment);
+        Assert.Contains("Production secrets source | Passed as contract", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
-        Assert.Contains("Blocked; production workflow, production environment contract, and production secrets are not present", checklist);
+        Assert.Contains("Approved CI/CD path and environment contract created", checklist);
         Assert.Contains("docs/production-readiness-production-deployment-evidence.md", closure);
+        Assert.Contains(".github/workflows/production.yml", closure);
+        Assert.Contains("Closed on 2026-07-03 by `.github/workflows/production.yml`", riskLog);
         Assert.Contains("PR71-PROD-DEPLOY-001", riskLog);
+        Assert.Contains("workflow_dispatch:", workflow);
+        Assert.Contains("launch_candidate_tag:", workflow);
+        Assert.Contains("APPROVED_LAUNCH_CANDIDATE_TAG: gccs-no-cui-mvp-lc-2026-07-03", workflow);
+        Assert.Contains("ref: ${{ github.event.inputs.launch_candidate_tag }}", workflow);
+        Assert.Contains("name: production", workflow);
     }
 
     [Fact]
-    public void TC_PR_7_1_Deployment_record_preserves_no_cui_and_blocks_manual_production_deploy()
+    public void TC_PR_7_1_Deployment_record_preserves_no_cui_and_verifies_production_controls()
     {
         var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");
+        var workflow = ReadText(".github", "workflows", "production.yml");
+        var productionContract = ReadText("infra", "terraform", "environments", "production", "main.tf");
 
         Assert.Contains("No-CUI / compliance management only", deployment);
         Assert.Contains("do not deploy production manually", deployment, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Do not deploy production manually or through staging workflow.", deployment);
+        Assert.Contains("Do not deploy production manually or through the staging workflow.", deployment);
         Assert.Contains("TC-PR-7.1.1 | Passed", deployment);
-        Assert.Contains("TC-PR-7.1.2 | Blocked", deployment);
-        Assert.Contains("TC-PR-7.1.3 | Blocked", deployment);
-        Assert.Contains("TC-PR-7.1.4 | Blocked", deployment);
+        Assert.Contains("TC-PR-7.1.2 | Passed", deployment);
+        Assert.Contains("TC-PR-7.1.3 | Passed as repository-verifiable contract", deployment);
+        Assert.Contains("TC-PR-7.1.4 | Passed as CI/CD evidence path", deployment);
+
+        foreach (var requiredText in new[]
+        {
+            "Gccs__DataPosture: No-CUI / compliance management only",
+            "PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only",
+            "AZURE_CREDENTIALS_GCCS_PRODUCTION",
+            "AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION",
+            "PRODUCTION_DATABASE_URL",
+            "Generate idempotent production migration script",
+            "Apply production migrations through approved CI/CD",
+            "Run production health checks",
+            "Record production deployment evidence",
+            "production-deployment-evidence"
+        })
+        {
+            Assert.Contains(requiredText, workflow);
+        }
+
+        foreach (var requiredText in new[]
+        {
+            "No-CUI / compliance management only",
+            "no-cui-only",
+            "database",
+            "object_storage",
+            "cache",
+            "queue",
+            "secrets",
+            "background_jobs",
+            "health_checks",
+            "logs",
+            "alerts"
+        })
+        {
+            Assert.Contains(requiredText, productionContract);
+        }
+    }
+
+    [Fact]
+    public void TC_PR_7_2_Production_smoke_evidence_blocks_pilot_until_real_smoke_passes()
+    {
+        var smoke = ReadText("docs", "production-readiness-production-smoke-evidence.md");
+        var onboarding = ReadText("docs", "production-readiness-pilot-onboarding.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+
+        Assert.Contains("Smoke status: blocked; production deployment has not executed", smoke);
+        Assert.Contains("Current gate result: blocked.", smoke);
+        Assert.Contains("Pilot onboarding must not start while any row in the smoke test matrix is `Blocked`, `Failed`, `Missing`, or `Unreviewed`.", smoke);
+        Assert.Contains("TC-PR-7.2.1 | Blocked", smoke);
+        Assert.Contains("TC-PR-7.2.2 | Blocked", smoke);
+        Assert.Contains("TC-PR-7.2.3 | Blocked", smoke);
+        Assert.Contains("TC-PR-7.2.4 | Passed as gate", smoke);
+        Assert.Contains("Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass.", onboarding);
+        Assert.Contains("Blocked until actual production deployment runs and sanitized PR-7.2 smoke evidence is attached; pilot onboarding remains blocked", checklist);
+        Assert.Contains("Production smoke tests | PR-7.2 | Blocked.", closure);
+        Assert.Contains("PR72-PROD-SMOKE-001", riskLog);
+        Assert.Contains("PR-7.3 pilot onboarding and PR-8 post-launch control blocked", riskLog);
+    }
+
+    [Fact]
+    public void TC_PR_7_2_Smoke_gate_requires_no_cui_synthetic_data_and_operational_signals()
+    {
+        var smoke = ReadText("docs", "production-readiness-production-smoke-evidence.md");
+        var deployment = ReadText("docs", "production-readiness-production-deployment-evidence.md");
+
+        foreach (var requiredText in new[]
+        {
+            "Synthetic or non-sensitive tenant, user, upload, evidence, report, and audit data only.",
+            "login, tenant access, RBAC denial, upload warning and blocking behavior, evidence upload, report generation, audit logging, logs, alerts, and `/health`",
+            "Production workflow run URL",
+            "Synthetic smoke tenant ID",
+            "Health output location",
+            "Audit event references",
+            "Log/alert evidence location",
+            "Do not include secrets, customer data, real CUI, raw file contents, unrestricted logs, or sensitive incident details.",
+            "no real CUI, classified data, export-controlled data, credentials, sensitive personal data, or unrestricted logs are authorized for smoke testing"
+        })
+        {
+            Assert.Contains(requiredText, smoke);
+        }
+
+        Assert.Contains("PR-7.2 smoke gate and required evidence fields are recorded in `docs/production-readiness-production-smoke-evidence.md`.", deployment);
     }
 
     private static void AssertRequiredString(JsonElement element, string propertyName)

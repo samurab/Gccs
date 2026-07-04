@@ -1,0 +1,185 @@
+name: Production deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      launch_candidate_tag:
+        description: Approved launch candidate tag to deploy.
+        required: true
+        default: gccs-no-cui-mvp-lc-2026-07-03
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-${{ github.event.inputs.launch_candidate_tag }}
+  cancel-in-progress: false
+
+jobs:
+  production-deploy:
+    name: Deploy production
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_WEB_BASE_URL }}
+    env:
+      DOTNET_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Production
+      Gccs__DataPosture: No-CUI / compliance management only
+      PRODUCTION_API_APP_NAME: ${{ vars.PRODUCTION_API_APP_NAME }}
+      PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
+      PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
+      PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only
+      APPROVED_LAUNCH_CANDIDATE_TAG: gccs-no-cui-mvp-lc-2026-07-03
+    steps:
+      - name: Validate approved launch candidate input
+        run: |
+          test "${{ github.event.inputs.launch_candidate_tag }}" = "$APPROVED_LAUNCH_CANDIDATE_TAG"
+
+      - name: Checkout approved launch candidate artifact source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.launch_candidate_tag }}
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "25"
+          cache: npm
+
+      - name: Restore dependencies
+        run: |
+          dotnet restore Gccs.slnx
+          npm ci
+
+      - name: Validate production CI/CD and No-CUI deployment guardrails
+        run: |
+          test "$PRODUCTION_CUSTOMER_DATA_MODE" = "no-cui-only"
+          test "$Gccs__DataPosture" = "No-CUI / compliance management only"
+          test -n "$PRODUCTION_API_APP_NAME"
+          test -n "$PRODUCTION_API_BASE_URL"
+          test -n "$PRODUCTION_WEB_BASE_URL"
+          test -f infra/terraform/environments/production/main.tf
+          grep -R "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
+          grep -R "database" infra/terraform/environments/production/main.tf
+          grep -R "object_storage" infra/terraform/environments/production/main.tf
+          grep -R "cache" infra/terraform/environments/production/main.tf
+          grep -R "queue" infra/terraform/environments/production/main.tf
+          grep -R "secrets" infra/terraform/environments/production/main.tf
+          grep -R "background_jobs" infra/terraform/environments/production/main.tf
+          grep -R "health_checks" infra/terraform/environments/production/main.tf
+          grep -R "logs" infra/terraform/environments/production/main.tf
+          grep -R "alerts" infra/terraform/environments/production/main.tf
+
+      - name: Build production artifacts
+        env:
+          VITE_API_BASE_URL: ${{ env.PRODUCTION_API_BASE_URL }}
+          VITE_MSAL_CLIENT_ID: ${{ vars.PRODUCTION_MSAL_CLIENT_ID }}
+          VITE_MSAL_TENANT_ID: ${{ vars.PRODUCTION_MSAL_TENANT_ID }}
+          VITE_MSAL_API_SCOPE: ${{ vars.PRODUCTION_MSAL_API_SCOPE }}
+        run: |
+          test -n "$VITE_API_BASE_URL"
+          test -n "$VITE_MSAL_CLIENT_ID"
+          test -n "$VITE_MSAL_TENANT_ID"
+          test -n "$VITE_MSAL_API_SCOPE"
+          dotnet publish apps/api/Gccs.Api.csproj --configuration Release --output "$RUNNER_TEMP/gccs-api-production"
+          npm run build:web
+          ! grep -R "http://localhost:5062" apps/web/dist
+
+      - name: Generate idempotent production migration script
+        run: |
+          dotnet tool restore
+          dotnet tool run dotnet-ef migrations script --idempotent \
+            --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
+            --startup-project apps/api/Gccs.Api.csproj \
+            --context GccsDbContext \
+            --output "$RUNNER_TEMP/gccs-production-migrations.sql"
+
+      - name: Apply production migrations through approved CI/CD
+        env:
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          test -n "$PRODUCTION_DATABASE_URL"
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+          psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-production-migrations.sql"
+
+      - name: Login to Azure production subscription
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_PRODUCTION }}
+
+      - name: Deploy production API App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.PRODUCTION_API_APP_NAME }}
+          package: ${{ runner.temp }}/gccs-api-production
+
+      - name: Deploy production Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        env:
+          VITE_API_BASE_URL: ${{ env.PRODUCTION_API_BASE_URL }}
+          VITE_MSAL_CLIENT_ID: ${{ vars.PRODUCTION_MSAL_CLIENT_ID }}
+          VITE_MSAL_TENANT_ID: ${{ vars.PRODUCTION_MSAL_TENANT_ID }}
+          VITE_MSAL_API_SCOPE: ${{ vars.PRODUCTION_MSAL_API_SCOPE }}
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION }}
+          action: upload
+          app_location: apps/web/dist
+          api_location: ""
+          output_location: ""
+          skip_app_build: true
+
+      - name: Run production health checks
+        run: |
+          test -n "$PRODUCTION_API_BASE_URL"
+          for attempt in {1..12}; do
+            if curl --fail --show-error --silent "$PRODUCTION_API_BASE_URL/health" | tee "$RUNNER_TEMP/production-health.json"; then
+              break
+            fi
+
+            if [ "$attempt" -eq 12 ]; then
+              exit 1
+            fi
+
+            sleep 10
+          done
+          grep '"service":"gccs-api"' "$RUNNER_TEMP/production-health.json"
+          grep '"dataPosture":"No-CUI / compliance management only"' "$RUNNER_TEMP/production-health.json"
+          grep '"name":"postgresql"' "$RUNNER_TEMP/production-health.json"
+          grep '"name":"redis"' "$RUNNER_TEMP/production-health.json"
+          grep '"name":"object-storage"' "$RUNNER_TEMP/production-health.json"
+          grep '"name":"background-jobs"' "$RUNNER_TEMP/production-health.json"
+
+      - name: Record production deployment evidence
+        run: |
+          {
+            echo "deployment_time_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "artifact_tag=${{ github.event.inputs.launch_candidate_tag }}"
+            echo "artifact_sha=$(git rev-parse HEAD)"
+            echo "operator=${{ github.actor }}"
+            echo "environment=production"
+            echo "workflow=${{ github.workflow }}"
+            echo "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "api_app=$PRODUCTION_API_APP_NAME"
+            echo "api_base_url=$PRODUCTION_API_BASE_URL"
+            echo "web_base_url=$PRODUCTION_WEB_BASE_URL"
+            echo "data_posture=$Gccs__DataPosture"
+            echo "customer_data_mode=$PRODUCTION_CUSTOMER_DATA_MODE"
+            echo "result=deployment-and-health-checks-passed"
+          } | tee "$RUNNER_TEMP/production-deployment-evidence.txt"
+
+      - name: Upload production deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: production-deployment-evidence
+          path: |
+            ${{ runner.temp }}/production-deployment-evidence.txt
+            ${{ runner.temp }}/production-health.json
+            ${{ runner.temp }}/gccs-production-migrations.sql
