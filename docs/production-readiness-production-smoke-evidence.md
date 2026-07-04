@@ -93,6 +93,12 @@ Failure detail: `psql` reported `could not translate host name "2798@gccs-postgr
 
 Disposition: PR-7.2 remains blocked until `PRODUCTION_DATABASE_URL` is corrected in the GitHub `Production` environment secret and the production deployment workflow completes successfully.
 
+Run `28723353100`: passed launch-candidate input validation, production deployment control validation, tag checkout, dependency restore, production artifact build, idempotent migration script generation, and production migration application. It failed at `Login to Azure production subscription` before API or Static Web App deployment.
+
+Failure detail: `azure/login@v2` reported `SyntaxError: Unexpected non-whitespace character after JSON at position 10 (line 1 column 11)`, which means `AZURE_CREDENTIALS_GCCS_PRODUCTION` is not valid service-principal JSON for the action.
+
+Disposition: PR-7.2 remains blocked until `AZURE_CREDENTIALS_GCCS_PRODUCTION` is replaced with valid JSON output from `az ad sp create-for-rbac --sdk-auth` or an equivalent valid service principal credential for the production resource scope.
+
 ## Smoke Test Matrix
 
 | Test case | Result | Evidence | Blocker disposition |

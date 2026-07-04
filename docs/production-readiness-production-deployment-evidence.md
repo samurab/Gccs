@@ -82,6 +82,8 @@ Manual production deployment remains prohibited. Do not deploy production manual
 
 2026-07-04 production run `28722957153`: passed guardrails, artifact checkout, restore, build, and migration-script generation, then failed applying migrations because `PRODUCTION_DATABASE_URL` is malformed. The error resolved the host as `2798@gccs-postgres-production.postgres.database.azure.com`, indicating the database password in the URL contains an unencoded `@` character. No Azure login or app deployment ran.
 
+2026-07-04 production run `28723353100`: passed guardrails, artifact checkout, restore, build, migration-script generation, and production migration application, then failed Azure login. `azure/login@v2` could not parse `AZURE_CREDENTIALS_GCCS_PRODUCTION` as JSON. No API or Static Web App deployment ran.
+
 Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path by `.github/workflows/production.yml` and `infra/terraform/environments/production/main.tf`. It is not evidence that a production workflow run has completed.
 
 ## Residual Gate
