@@ -1651,6 +1651,115 @@ public sealed class ProductionReadinessChecklistTests
         }
     }
 
+    [Fact]
+    public void TC_PR_8_1_Daily_pilot_monitoring_covers_required_production_and_support_signals()
+    {
+        var monitoring = ReadText("docs", "production-readiness-pilot-monitoring.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        using var monitoringJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.1", "pilot-monitoring-evidence.json"));
+
+        foreach (var requiredSignal in new[]
+        {
+            "Audit logs",
+            "Upload blocks",
+            "Permission denials",
+            "Report failures",
+            "Support tickets",
+            "Content disputes",
+            "Health checks",
+            "Alerts",
+            "Failed jobs"
+        })
+        {
+            Assert.Contains(requiredSignal, monitoring, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(requiredSignal, checklist, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.Contains("Day-zero pilot monitoring", closure);
+        Assert.Equal("day_zero_pilot_monitoring_established", monitoringJson.RootElement.GetProperty("result").GetString());
+        Assert.False(monitoringJson.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(monitoringJson.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(monitoringJson.RootElement.GetProperty("containsCui").GetBoolean());
+        Assert.Equal(9, monitoringJson.RootElement.GetProperty("monitoringSignals").GetArrayLength());
+    }
+
+    [Fact]
+    public void TC_PR_8_1_Findings_have_ownership_and_regressions_are_tracked_in_risk_log()
+    {
+        var monitoring = ReadText("docs", "production-readiness-pilot-monitoring.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        using var monitoringJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.1", "pilot-monitoring-evidence.json"));
+
+        foreach (var header in new[] { "Severity", "Owner", "Mitigation", "Target date", "Status", "Risk or backlog link" })
+        {
+            Assert.Contains(header, monitoring);
+        }
+
+        foreach (var findingId in new[] { "PR81-MONITOR-001", "PR81-MONITOR-002" })
+        {
+            Assert.Contains(findingId, monitoring);
+            Assert.Contains(findingId, riskLog);
+        }
+
+        foreach (var finding in monitoringJson.RootElement.GetProperty("findings").EnumerateArray())
+        {
+            AssertRequiredString(finding, "id");
+            AssertRequiredString(finding, "signal");
+            AssertRequiredString(finding, "severity");
+            AssertRequiredString(finding, "owner");
+            AssertRequiredString(finding, "mitigation");
+            AssertRequiredString(finding, "targetDate");
+            AssertRequiredString(finding, "status");
+            AssertRequiredString(finding, "riskOrBacklogLink");
+        }
+    }
+
+    [Fact]
+    public void TC_PR_8_1_High_risk_pilot_signals_escalate_through_runbooks()
+    {
+        var monitoring = ReadText("docs", "production-readiness-pilot-monitoring.md");
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+        using var monitoringJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.1", "pilot-monitoring-evidence.json"));
+
+        foreach (var requiredRunbook in new[]
+        {
+            "Runbook: Prohibited Upload",
+            "Runbook: Suspected CUI",
+            "Runbook: Tenant Exposure",
+            "Runbook: Access Issue",
+            "Runbook: Evidence Failure",
+            "Runbook: Report Failure",
+            "Runbook: Content Correction",
+            "Runbook: Security Incident",
+            "Runbook: Backup Restore",
+            "Runbook: Rollback"
+        })
+        {
+            Assert.Contains(requiredRunbook, runbooks);
+        }
+
+        foreach (var escalationSignal in new[]
+        {
+            "Suspected CUI",
+            "tenant isolation",
+            "data-handling",
+            "overclaim",
+            "legal or contracting advisor"
+        })
+        {
+            Assert.Contains(escalationSignal, monitoring, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var escalationCoverage = monitoringJson.RootElement.GetProperty("escalationCoverage");
+        Assert.True(escalationCoverage.GetProperty("security").GetBoolean());
+        Assert.True(escalationCoverage.GetProperty("tenantIsolation").GetBoolean());
+        Assert.True(escalationCoverage.GetProperty("dataHandling").GetBoolean());
+        Assert.True(escalationCoverage.GetProperty("suspectedCui").GetBoolean());
+        Assert.True(escalationCoverage.GetProperty("overclaim").GetBoolean());
+        Assert.Equal(10, escalationCoverage.GetProperty("runbooks").GetArrayLength());
+    }
+
     private static void AssertRequiredString(JsonElement element, string propertyName)
     {
         Assert.True(element.TryGetProperty(propertyName, out var property), $"Missing required property '{propertyName}'.");
