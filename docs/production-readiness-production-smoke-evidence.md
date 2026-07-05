@@ -89,7 +89,7 @@ Corrective action: PR #3 updated `.github/workflows/production.yml` to validate 
 
 Run `28722957153`: passed launch-candidate input validation, production deployment control validation, tag checkout, dependency restore, production artifact build, and idempotent migration script generation. It failed at `Apply production migrations through approved CI/CD` before Azure login or app deployment.
 
-Failure detail: `psql` reported `could not translate host name "2798@gccs-postgres-production.postgres.database.azure.com" to address`. This indicates `PRODUCTION_DATABASE_URL` is malformed, most likely because the PostgreSQL password contains an unencoded `@` character before `2798`.
+Failure detail: `psql` reported that it could not translate a malformed host name derived from the database URL. This indicates `PRODUCTION_DATABASE_URL` was malformed, most likely because the PostgreSQL password contained an unencoded `@` character. The malformed host fragment is intentionally omitted from this evidence to avoid recording credential-like material.
 
 Disposition: PR-7.2 remains blocked until `PRODUCTION_DATABASE_URL` is corrected in the GitHub `Production` environment secret and the production deployment workflow completes successfully.
 

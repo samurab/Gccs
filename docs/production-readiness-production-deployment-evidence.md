@@ -80,7 +80,7 @@ Manual production deployment remains prohibited. Do not deploy production manual
 
 2026-07-04 corrective PR #3: `.github/workflows/production.yml` now validates production deployment controls from `main` before checking out the approved launch candidate artifact source.
 
-2026-07-04 production run `28722957153`: passed guardrails, artifact checkout, restore, build, and migration-script generation, then failed applying migrations because `PRODUCTION_DATABASE_URL` is malformed. The error resolved the host as `2798@gccs-postgres-production.postgres.database.azure.com`, indicating the database password in the URL contains an unencoded `@` character. No Azure login or app deployment ran.
+2026-07-04 production run `28722957153`: passed guardrails, artifact checkout, restore, build, and migration-script generation, then failed applying migrations because `PRODUCTION_DATABASE_URL` was malformed. The error resolved a credential-derived fragment as the host, indicating the database password in the URL contained an unencoded `@` character. The malformed host fragment is intentionally omitted from this evidence to avoid recording credential-like material. No Azure login or app deployment ran.
 
 2026-07-04 production run `28723353100`: passed guardrails, artifact checkout, restore, build, migration-script generation, and production migration application, then failed Azure login. `azure/login@v2` could not parse `AZURE_CREDENTIALS_GCCS_PRODUCTION` as JSON. No API or Static Web App deployment ran.
 
