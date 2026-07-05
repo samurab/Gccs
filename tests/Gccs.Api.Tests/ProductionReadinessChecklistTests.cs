@@ -1851,6 +1851,127 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("docs/production-readiness-launch-gap-decisions.md", artifactUpdates);
     }
 
+    [Fact]
+    public void TC_PR_8_3_Launch_findings_are_converted_into_definition_of_ready_backlog_items()
+    {
+        var gate = ReadText("docs", "production-readiness-phase-2-gate.md");
+        var definitionOfReady = ReadText("docs", "definition-of-ready.md");
+        using var gateJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.3", "phase-2-gate.json"));
+
+        Assert.Contains("Definition-of-Ready Backlog Items", gate);
+        Assert.Contains("clear user story", definitionOfReady, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("testable acceptance criteria", definitionOfReady, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Tenant isolation, RBAC, audit logging, and CUI/data-handling implications", definitionOfReady);
+
+        foreach (var backlogId in new[] { "PR83-BACKLOG-001", "PR83-BACKLOG-002" })
+        {
+            Assert.Contains(backlogId, gate);
+            Assert.Contains("Ready with constraints", gate);
+        }
+
+        foreach (var backlogItem in gateJson.RootElement.GetProperty("backlogItems").EnumerateArray())
+        {
+            AssertRequiredString(backlogItem, "id");
+            AssertRequiredString(backlogItem, "owner");
+            AssertRequiredString(backlogItem, "targetDate");
+            AssertRequiredString(backlogItem, "readyStatus");
+            Assert.True(backlogItem.GetProperty("definitionOfReadyFieldsPresent").GetBoolean());
+            Assert.NotEmpty(backlogItem.GetProperty("sourceFindings").EnumerateArray());
+        }
+    }
+
+    [Fact]
+    public void TC_PR_8_3_Phase_2_remains_blocked_while_critical_launch_controls_are_unstable()
+    {
+        var gate = ReadText("docs", "production-readiness-phase-2-gate.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        using var gateJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.3", "phase-2-gate.json"));
+
+        Assert.Contains("Gate status: **Blocked**.", gate);
+        Assert.Contains("Decision: Phase 2 Govcon Intelligence remains blocked.", gate);
+        Assert.Contains("PR83-PHASE2-GATE-001", riskLog);
+        Assert.Equal("phase_2_blocked", gateJson.RootElement.GetProperty("result").GetString());
+        Assert.Equal("Blocked", gateJson.RootElement.GetProperty("gateStatus").GetString());
+
+        foreach (var blockedCapability in new[]
+        {
+            "Automated clause extraction",
+            "AI-suggested obligations",
+            "Search indexing",
+            "Applicability automation",
+            "Expanded upload, import, paste, extraction, report export, search, or AI processing"
+        })
+        {
+            Assert.Contains(blockedCapability, gate, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var failedCriteria = gateJson.RootElement.GetProperty("stabilityCriteria")
+            .EnumerateArray()
+            .Where(criteria => criteria.GetProperty("passFail").GetString() == "Fail")
+            .Select(criteria => criteria.GetProperty("controlArea").GetString())
+            .ToArray();
+
+        Assert.Contains("Restore readiness", failedCriteria);
+        Assert.Contains("Alert owner receipt", failedCriteria);
+    }
+
+    [Fact]
+    public void TC_PR_8_3_Stability_criteria_identify_evidence_owner_approvers_and_status()
+    {
+        var gate = ReadText("docs", "production-readiness-phase-2-gate.md");
+        using var gateJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.3", "phase-2-gate.json"));
+
+        foreach (var controlArea in new[]
+        {
+            "Tenant isolation",
+            "RBAC",
+            "Upload controls",
+            "Reports",
+            "Audit logging",
+            "Support",
+            "Content governance",
+            "Customer claims",
+            "No-CUI posture",
+            "Restore readiness",
+            "Alert owner receipt"
+        })
+        {
+            Assert.Contains(controlArea, gate);
+        }
+
+        Assert.Contains("Required evidence", gate);
+        Assert.Contains("Required approvers", gate);
+        Assert.Contains("Pass/fail", gate);
+
+        foreach (var criteria in gateJson.RootElement.GetProperty("stabilityCriteria").EnumerateArray())
+        {
+            AssertRequiredString(criteria, "controlArea");
+            AssertRequiredString(criteria, "owner");
+            AssertRequiredString(criteria, "passFail");
+            Assert.NotEmpty(criteria.GetProperty("requiredApprovers").EnumerateArray());
+        }
+    }
+
+    [Fact]
+    public void TC_PR_8_3_Gate_status_is_recorded_before_govcon_intelligence_proceeds()
+    {
+        var gate = ReadText("docs", "production-readiness-phase-2-gate.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var roadmap = ReadText("docs", "mvp-roadmap.md");
+        using var gateJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.3", "phase-2-gate.json"));
+
+        Assert.Contains("Phase 2 - Govcon Intelligence", roadmap);
+        Assert.Contains("Phase 2 gate", checklist);
+        Assert.Contains("Phase 2 gate | PR-8.3", closure);
+        Assert.Contains("before Govcon Intelligence work proceeds", gate);
+        Assert.Contains("PR83-BACKLOG-001 and PR83-BACKLOG-002 are completed or separately dispositioned", gate);
+        Assert.Equal("Blocked", gateJson.RootElement.GetProperty("gateStatus").GetString());
+        Assert.False(gateJson.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(gateJson.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(gateJson.RootElement.GetProperty("containsCui").GetBoolean());
+    }
+
     private static void AssertRequiredString(JsonElement element, string propertyName)
     {
         Assert.True(element.TryGetProperty(propertyName, out var property), $"Missing required property '{propertyName}'.");
