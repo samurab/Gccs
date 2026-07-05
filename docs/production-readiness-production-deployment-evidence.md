@@ -2,7 +2,7 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: approved CI/CD path executes through API and web deployment, but production health checks are blocked by missing runtime dependency configuration.
+Deployment status: passed through approved CI/CD path.
 
 Evidence date: 2026-07-03.
 
@@ -88,7 +88,13 @@ Manual production deployment remains prohibited. Do not deploy production manual
 
 2026-07-05 production run `28723800683`: passed migrations, Azure login, API App Service deployment, and Static Web App deployment, then failed production health checks because the deployed API returned HTTP 503. Direct follow-up verification confirmed the API now starts after runtime settings were applied, but `/health` returns `status = degraded`.
 
-Runtime configuration finding: the GitHub secret `PRODUCTION_DATABASE_URL` configures the migration step only. The deployed App Service also requires `ConnectionStrings__GccsDatabase` for API runtime persistence. Production Redis and object storage have since been provisioned and now report `ok` in `/health`; PostgreSQL remains unhealthy because `ConnectionStrings__GccsDatabase` is missing from the App Service runtime settings.
+Runtime configuration finding: the GitHub secret `PRODUCTION_DATABASE_URL` configures the migration step only. The deployed App Service also requires `ConnectionStrings__GccsDatabase` for API runtime persistence. Production Redis, object storage, and the App Service database runtime setting have since been configured and now report `ok` in `/health`.
+
+2026-07-05 production run `28746053336`: passed launch-candidate validation, production control validation, artifact checkout, restore, build, idempotent migration script generation, production migration application, Azure login, API App Service deployment, Static Web App deployment, production health checks, deployment evidence recording, and deployment evidence upload.
+
+Evidence artifact: `production-deployment-evidence` from run `28746053336` records `artifact_tag=gccs-no-cui-mvp-lc-2026-07-03`, `artifact_sha=6c8927ec9cf79de977d76cb2594b87dd48f973bd`, `operator=samurab`, `environment=production`, API app `gccs-api-production`, API base URL `https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net`, web base URL `https://lemon-pond-093710c0f.7.azurestaticapps.net`, `data_posture=No-CUI / compliance management only`, `customer_data_mode=no-cui-only`, and `result=deployment-and-health-checks-passed`.
+
+Health artifact: `production-health.json` from run `28746053336` records `status = ok`, service `gccs-api`, data posture `No-CUI / compliance management only`, and `background-jobs`, `object-storage`, `postgresql`, and `redis` all with `status = ok`.
 
 Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path by `.github/workflows/production.yml` and `infra/terraform/environments/production/main.tf`. It is not evidence that a production workflow run has completed.
 
@@ -101,7 +107,8 @@ Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path b
 ## Consequences
 
 - PR-7.1 repository implementation is resolved: the approved production CI/CD path, production environment contract, No-CUI guardrails, migration path, health checks, and evidence capture are present.
-- PR-7.2 remains dependent on production App Service database runtime configuration and smoke testing with synthetic or non-sensitive data only.
+- PR-7.1 production execution evidence is resolved by successful workflow run `28746053336`.
+- PR-7.2 remains dependent on authenticated production smoke testing with synthetic or non-sensitive data only.
 - PR-7.2 smoke gate and required evidence fields are recorded in `docs/production-readiness-production-smoke-evidence.md`.
 - PR-7.3 and PR-8 remain blocked until PR-7.2 production smoke tests pass.
 - The No-CUI posture remains unchanged; no production real-CUI capability is authorized.

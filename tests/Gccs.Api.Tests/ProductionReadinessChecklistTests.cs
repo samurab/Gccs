@@ -1429,7 +1429,7 @@ public sealed class ProductionReadinessChecklistTests
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
         var workflow = ReadText(".github", "workflows", "production.yml");
 
-        Assert.Contains("Deployment status: approved CI/CD path executes through API and web deployment", deployment);
+        Assert.Contains("Deployment status: passed through approved CI/CD path.", deployment);
         Assert.Contains("Approved launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", deployment);
         Assert.Contains("Approved production workflow: `.github/workflows/production.yml`.", deployment);
         Assert.Contains("Production environment contract: `infra/terraform/environments/production/main.tf`.", deployment);
@@ -1437,7 +1437,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Production environment configuration | Passed", deployment);
         Assert.Contains("Production secrets source | Passed as contract", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
-        Assert.Contains("Approved CI/CD path executes through API and web deployment; production health and PR-7.2 smoke evidence remain blocked by database runtime configuration", checklist);
+        Assert.Contains("Passed in workflow run `28746053336`; deployment evidence artifact records migration, API deploy, web deploy, and `/health` pass", checklist);
         Assert.Contains("docs/production-readiness-production-deployment-evidence.md", closure);
         Assert.Contains(".github/workflows/production.yml", closure);
         Assert.Contains("Closed on 2026-07-03 by `.github/workflows/production.yml`", riskLog);
@@ -1509,18 +1509,17 @@ public sealed class ProductionReadinessChecklistTests
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
 
-        Assert.Contains("Smoke status: blocked; production deployment now reaches the deployed API health gate", smoke);
+        Assert.Contains("Smoke status: partially passed; production deployment and `/health` passed through approved CI/CD", smoke);
         Assert.Contains("Current gate result: blocked.", smoke);
         Assert.Contains("Pilot onboarding must not start while any row in the smoke test matrix is `Blocked`, `Failed`, `Missing`, or `Unreviewed`.", smoke);
         Assert.Contains("TC-PR-7.2.1 | Blocked", smoke);
         Assert.Contains("TC-PR-7.2.2 | Blocked", smoke);
-        Assert.Contains("TC-PR-7.2.3 | Blocked", smoke);
+        Assert.Contains("TC-PR-7.2.3 | Passed for health; blocked for remaining operational smoke", smoke);
         Assert.Contains("TC-PR-7.2.4 | Passed as gate", smoke);
-        Assert.Contains("run `28723800683` deployed API and web artifacts but production `/health` remains degraded for PostgreSQL runtime configuration", riskLog);
-        Assert.Contains("ConnectionStrings__GccsDatabase", riskLog);
-        Assert.Contains("Redis, background jobs, and object storage report `ok`", riskLog);
+        Assert.Contains("run `28746053336` passed approved production deployment and `/health`", riskLog);
+        Assert.Contains("login, tenant access, RBAC denial, upload warning/blocking, evidence upload, report generation, audit logging, and log/alert receipt evidence remain pending", riskLog);
         Assert.Contains("Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass.", onboarding);
-        Assert.Contains("Blocked until production App Service database runtime configuration is set and sanitized PR-7.2 smoke evidence is attached; pilot onboarding remains blocked", checklist);
+        Assert.Contains("Blocked until authenticated synthetic production smoke evidence is attached; pilot onboarding remains blocked", checklist);
         Assert.Contains("Production smoke tests | PR-7.2 | Blocked.", closure);
         Assert.Contains("PR72-PROD-SMOKE-001", riskLog);
         Assert.Contains("PR-7.3 pilot onboarding and PR-8 post-launch control blocked", riskLog);
