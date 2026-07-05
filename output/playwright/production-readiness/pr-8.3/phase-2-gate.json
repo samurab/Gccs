@@ -1,11 +1,21 @@
 {
   "story": "PR-8.3",
   "checkedAt": "2026-07-05T20:45:00.000Z",
-  "result": "phase_2_eligible_for_approval",
+  "result": "phase_2_approved_for_solo_controlled_pilot_testing",
   "tokenCapturedInArtifact": false,
   "containsCustomerData": false,
   "containsCui": false,
-  "gateStatus": "Eligible for approval",
+  "gateStatus": "Approved for solo-controlled pilot testing",
+  "approval": {
+    "approvedAt": "2026-07-05",
+    "approvalType": "solo_controlled_pilot_testing_only",
+    "approver": "Accountable solo-controlled pilot approver",
+    "approvalText": "I approve unblocking Phase 2 Govcon Intelligence for solo-controlled pilot testing and project completion only. I am acting as the accountable pilot approver for this non-production governance exercise. This approval does not replace production separation of duties, does not authorize broader customer launch, does not authorize CUI processing, and does not weaken future production approval requirements.",
+    "doesNotReplaceProductionSeparationOfDuties": true,
+    "authorizesBroaderCustomerLaunch": false,
+    "authorizesCuiProcessing": false,
+    "weakensFutureProductionApprovalRequirements": false
+  },
   "blockedCapabilities": [
     "Automated clause extraction",
     "AI-suggested obligations",

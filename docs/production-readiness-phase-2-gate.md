@@ -4,7 +4,7 @@ Story: PR-8.3 - Gate Phase 2 Until MVP Controls Are Stable.
 
 Gate date: 2026-07-05.
 
-Gate status: **Eligible for approval**.
+Gate status: **Approved for solo-controlled pilot testing**.
 
 Gate owner: Product owner.
 
@@ -20,24 +20,44 @@ Three failure modes addressed:
 - Unblocking Phase 2 before alert owner receipt exists can hide production failures in upload, report, extraction, or background-job workflows until customers report them.
 - Treating No-CUI MVP success as permission for AI/extraction features can accidentally expand processing of contract text, evidence, reports, or future CUI without a separate data-handling approval gate.
 
-The corrected pattern is a hard Phase 2 gate: launch findings become Definition-of-Ready backlog items, stability criteria define required evidence and approvers, and Govcon Intelligence remains blocked until every critical control is pass or formally dispositioned and required approvers sign off.
+The corrected pattern is a hard Phase 2 gate: launch findings become Definition-of-Ready backlog items, stability criteria define required evidence and approvers, and Govcon Intelligence remains blocked until every critical control is pass or formally dispositioned and required approvers sign off. A solo-controlled pilot approval can unblock testing and project-completion work only when it is explicitly recorded as non-production governance and does not replace future production separation of duties.
 
 ## Gate Decision
 
-Decision: Phase 2 Govcon Intelligence is eligible for approval, but work remains blocked until required approvers sign off.
+Decision: Phase 2 Govcon Intelligence is approved for solo-controlled pilot testing and project completion only.
 
-Govcon Intelligence remains blocked until required control owners and gate approvers record approval.
+This approval does not replace production separation of duties, does not authorize broader customer launch, does not authorize CUI processing, and does not weaken future production approval requirements.
 
 Rationale: Day-zero pilot monitoring and post-launch review show controlled pilot onboarding can continue under No-CUI limits. Follow-up evidence now closes `PR81-MONITOR-001`, `PR81-MONITOR-002`, `PR83-BACKLOG-001`, and `PR83-BACKLOG-002`: the API `Http5xx` alert has an approved action-group receiver with delivery receipt evidence, and the staging point-in-time restore rehearsal passed with restored API health and teardown confirmation. These controls are ready for accountable Phase 2 gate approval; they do not auto-authorize Govcon Intelligence work.
 
-Prohibited until required gate approval is recorded:
+## Solo-Controlled Pilot Approval
+
+Approval date: 2026-07-05.
+
+Approver: User acting as accountable solo-controlled pilot approver for a non-production governance exercise.
+
+Approval text:
+
+> I approve unblocking Phase 2 Govcon Intelligence for solo-controlled pilot testing and project completion only. I am acting as the accountable pilot approver for this non-production governance exercise. This approval does not replace production separation of duties, does not authorize broader customer launch, does not authorize CUI processing, and does not weaken future production approval requirements.
+
+Allowed under this approval:
+
+- Phase 2 Govcon Intelligence implementation and verification for solo-controlled pilot testing.
+- Project-completion testing under the existing No-CUI MVP posture.
+- Story-level security, tenant isolation, RBAC, audit logging, source traceability, claim-control, and regression verification.
+
+Still prohibited outside this solo-controlled pilot/testing scope:
 
 - Automated clause extraction.
 - AI-suggested obligations.
 - Search indexing over customer-entered contract or evidence text.
 - Applicability automation that changes customer-facing workflow guidance.
-- Any feature that expands upload, import, paste, extraction, report export, search, or AI processing beyond current No-CUI MVP behavior.
-- Expanded upload, import, paste, extraction, report export, search, or AI processing.
+- Any feature that expands upload, import, paste, extraction, report export, search, or AI processing beyond current No-CUI MVP behavior for broader production use.
+- Expanded upload, import, paste, extraction, report export, search, or AI processing for broader production use.
+- Broader production customer launch without production-grade separation-of-duties approval.
+- CUI, classified, ITAR/export-controlled, sensitive government-furnished information, credentials, raw customer files, or sensitive personal data processing.
+
+The listed Phase 2 capabilities are allowed only inside the solo-controlled pilot/testing scope until a separate production gate approves broader use.
 
 ## Definition-of-Ready Backlog Items
 
@@ -64,12 +84,12 @@ Prohibited until required gate approval is recorded:
 
 ## Phase 2 Unblock Requirements
 
-Phase 2 can move from `Eligible for approval` to execution only when:
+Phase 2 can move from solo-controlled pilot testing to broader production execution only when:
 
 - `PR83-BACKLOG-001` and `PR83-BACKLOG-002` are completed or separately dispositioned by required approvers.
 - PR83-BACKLOG-001 and PR83-BACKLOG-002 are completed or separately dispositioned.
 - Every stability criterion is `Pass` or has an approved exception that does not weaken tenant isolation, RBAC, audit logging, upload controls, report claims, content governance, support escalation, or No-CUI posture.
-- Product owner, engineering lead, security owner, customer success/support owner, compliance content owner, and legal or contracting advisor approve the Phase 2 gate.
+- Product owner, engineering lead, security owner, customer success/support owner, compliance content owner, and legal or contracting advisor approve the Phase 2 gate using production separation of duties.
 - Any Phase 2 story touching upload, import, paste, extraction, evidence, search, AI, report, or export workflows passes a fresh Definition-of-Ready and No-CUI impact review.
 
 ## Smoke Verification
@@ -77,13 +97,13 @@ Phase 2 can move from `Eligible for approval` to execution only when:
 | Test case | Result | Evidence |
 | --- | --- | --- |
 | TC-PR-8.3.1 | Passed | Launch findings are converted into closed backlog items `PR83-BACKLOG-001` and `PR83-BACKLOG-002` with Definition-of-Ready fields. |
-| TC-PR-8.3.2 | Passed | Phase 2 is no longer blocked by missing restore or alert evidence, but Govcon Intelligence remains blocked until required gate approval is recorded. |
+| TC-PR-8.3.2 | Passed | Phase 2 is no longer blocked by missing restore or alert evidence and is approved for solo-controlled pilot testing only. |
 | TC-PR-8.3.3 | Passed | Stability criteria identify required evidence, owner, approvers, current status, and pass/fail status. |
-| TC-PR-8.3.4 | Passed | Phase 2 gate status is recorded as `Eligible for approval` before Govcon Intelligence work proceeds. |
+| TC-PR-8.3.4 | Passed | Phase 2 gate status is recorded as `Approved for solo-controlled pilot testing` before Govcon Intelligence work proceeds. |
 
 ## Hidden Risks And Edge Cases
 
 - Passing day-zero pilot monitoring is not the same as proving stability after meaningful customer use; Phase 2 approval must consider accumulated daily monitoring evidence.
 - Restore and alert evidence can become stale if Azure resources, receivers, backup settings, migration baseline, retention policy, or operators change; reopen the gate when those dependencies change materially.
 - Phase 2 AI/extraction/search work can expand data processing even if storage posture stays No-CUI; every story needs a fresh tenant-mode and data-handling review.
-- Customer demand can pressure the team to start Govcon Intelligence work before approval is recorded; this gate rejects that path unless the required evidence and approver signoff are attached.
+- Customer demand can pressure the team to treat solo-controlled pilot approval as production approval; this gate rejects that path unless future production separation-of-duties approval is attached.

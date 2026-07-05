@@ -1894,11 +1894,16 @@ public sealed class ProductionReadinessChecklistTests
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
         using var gateJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.3", "phase-2-gate.json"));
 
-        Assert.Contains("Gate status: **Eligible for approval**.", gate);
-        Assert.Contains("Decision: Phase 2 Govcon Intelligence is eligible for approval", gate);
+        Assert.Contains("Gate status: **Approved for solo-controlled pilot testing**.", gate);
+        Assert.Contains("Decision: Phase 2 Govcon Intelligence is approved for solo-controlled pilot testing and project completion only.", gate);
         Assert.Contains("PR83-PHASE2-GATE-001", riskLog);
-        Assert.Equal("phase_2_eligible_for_approval", gateJson.RootElement.GetProperty("result").GetString());
-        Assert.Equal("Eligible for approval", gateJson.RootElement.GetProperty("gateStatus").GetString());
+        Assert.Equal("phase_2_approved_for_solo_controlled_pilot_testing", gateJson.RootElement.GetProperty("result").GetString());
+        Assert.Equal("Approved for solo-controlled pilot testing", gateJson.RootElement.GetProperty("gateStatus").GetString());
+        Assert.Equal("solo_controlled_pilot_testing_only", gateJson.RootElement.GetProperty("approval").GetProperty("approvalType").GetString());
+        Assert.True(gateJson.RootElement.GetProperty("approval").GetProperty("doesNotReplaceProductionSeparationOfDuties").GetBoolean());
+        Assert.False(gateJson.RootElement.GetProperty("approval").GetProperty("authorizesBroaderCustomerLaunch").GetBoolean());
+        Assert.False(gateJson.RootElement.GetProperty("approval").GetProperty("authorizesCuiProcessing").GetBoolean());
+        Assert.False(gateJson.RootElement.GetProperty("approval").GetProperty("weakensFutureProductionApprovalRequirements").GetBoolean());
 
         foreach (var blockedCapability in new[]
         {
@@ -1919,7 +1924,7 @@ public sealed class ProductionReadinessChecklistTests
             .ToArray();
 
         Assert.Empty(failedCriteria);
-        Assert.Contains("Govcon Intelligence remains blocked until required control", gate);
+        Assert.Contains("This approval does not replace production separation of duties", gate);
     }
 
     [Fact]
@@ -1973,7 +1978,8 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Phase 2 gate | PR-8.3", closure);
         Assert.Contains("before Govcon Intelligence work proceeds", gate);
         Assert.Contains("PR83-BACKLOG-001 and PR83-BACKLOG-002 are completed or separately dispositioned", gate);
-        Assert.Equal("Eligible for approval", gateJson.RootElement.GetProperty("gateStatus").GetString());
+        Assert.Equal("Approved for solo-controlled pilot testing", gateJson.RootElement.GetProperty("gateStatus").GetString());
+        Assert.Contains("solo-controlled pilot testing and project completion only", gate);
         Assert.False(gateJson.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
         Assert.False(gateJson.RootElement.GetProperty("containsCustomerData").GetBoolean());
         Assert.False(gateJson.RootElement.GetProperty("containsCui").GetBoolean());
