@@ -1437,7 +1437,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Production environment configuration | Passed", deployment);
         Assert.Contains("Production secrets source | Passed as contract", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
-        Assert.Contains("Approved CI/CD path executes through API and web deployment; production health and PR-7.2 smoke evidence remain blocked by runtime dependency configuration", checklist);
+        Assert.Contains("Approved CI/CD path executes through API and web deployment; production health and PR-7.2 smoke evidence remain blocked by database runtime configuration", checklist);
         Assert.Contains("docs/production-readiness-production-deployment-evidence.md", closure);
         Assert.Contains(".github/workflows/production.yml", closure);
         Assert.Contains("Closed on 2026-07-03 by `.github/workflows/production.yml`", riskLog);
@@ -1516,12 +1516,11 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("TC-PR-7.2.2 | Blocked", smoke);
         Assert.Contains("TC-PR-7.2.3 | Blocked", smoke);
         Assert.Contains("TC-PR-7.2.4 | Passed as gate", smoke);
-        Assert.Contains("run `28723800683` deployed API and web artifacts but production `/health` returned degraded dependency status", riskLog);
+        Assert.Contains("run `28723800683` deployed API and web artifacts but production `/health` remains degraded for PostgreSQL runtime configuration", riskLog);
         Assert.Contains("ConnectionStrings__GccsDatabase", riskLog);
-        Assert.Contains("production Redis", riskLog);
-        Assert.Contains("production object storage", riskLog);
+        Assert.Contains("Redis, background jobs, and object storage report `ok`", riskLog);
         Assert.Contains("Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass.", onboarding);
-        Assert.Contains("Blocked until production runtime dependencies are healthy and sanitized PR-7.2 smoke evidence is attached; pilot onboarding remains blocked", checklist);
+        Assert.Contains("Blocked until production App Service database runtime configuration is set and sanitized PR-7.2 smoke evidence is attached; pilot onboarding remains blocked", checklist);
         Assert.Contains("Production smoke tests | PR-7.2 | Blocked.", closure);
         Assert.Contains("PR72-PROD-SMOKE-001", riskLog);
         Assert.Contains("PR-7.3 pilot onboarding and PR-8 post-launch control blocked", riskLog);
