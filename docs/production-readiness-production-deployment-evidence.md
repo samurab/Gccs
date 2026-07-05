@@ -2,7 +2,7 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: approved CI/CD path created; production deployment not executed in this repository session.
+Deployment status: approved CI/CD path executes through API and web deployment, but production health checks are blocked by missing runtime dependency configuration.
 
 Evidence date: 2026-07-03.
 
@@ -84,6 +84,12 @@ Manual production deployment remains prohibited. Do not deploy production manual
 
 2026-07-04 production run `28723353100`: passed guardrails, artifact checkout, restore, build, migration-script generation, and production migration application, then failed Azure login. `azure/login@v2` could not parse `AZURE_CREDENTIALS_GCCS_PRODUCTION` as JSON. No API or Static Web App deployment ran.
 
+2026-07-05 production run `28723713555`: passed migrations, Azure login, and API App Service deployment, then failed Static Web App deployment with an unknown deployment exception. The production Static Web App deployment token was refreshed from Azure and stored in the GitHub `Production` environment secret.
+
+2026-07-05 production run `28723800683`: passed migrations, Azure login, API App Service deployment, and Static Web App deployment, then failed production health checks because the deployed API returned HTTP 503. Direct follow-up verification confirmed the API now starts after non-secret runtime settings were applied, but `/health` returns `status = degraded` with unhealthy `postgresql`, `redis`, `object-storage`, and `background-jobs` dependency signals.
+
+Runtime configuration finding: the GitHub secret `PRODUCTION_DATABASE_URL` configures the migration step only. The deployed App Service also requires `ConnectionStrings__GccsDatabase` plus production Redis and object storage settings. Azure verification found no production Redis instance and no production storage account in `gccs-production-rg`, and the App Service does not yet have a managed identity for Azure Blob Storage access.
+
 Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path by `.github/workflows/production.yml` and `infra/terraform/environments/production/main.tf`. It is not evidence that a production workflow run has completed.
 
 ## Residual Gate
@@ -95,7 +101,7 @@ Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path b
 ## Consequences
 
 - PR-7.1 repository implementation is resolved: the approved production CI/CD path, production environment contract, No-CUI guardrails, migration path, health checks, and evidence capture are present.
-- PR-7.2 remains dependent on a real successful production workflow run and smoke testing with synthetic or non-sensitive data only.
+- PR-7.2 remains dependent on healthy production runtime dependency configuration and smoke testing with synthetic or non-sensitive data only.
 - PR-7.2 smoke gate and required evidence fields are recorded in `docs/production-readiness-production-smoke-evidence.md`.
 - PR-7.3 and PR-8 remain blocked until PR-7.2 production smoke tests pass.
 - The No-CUI posture remains unchanged; no production real-CUI capability is authorized.

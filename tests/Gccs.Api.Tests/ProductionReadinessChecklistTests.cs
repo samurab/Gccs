@@ -1429,7 +1429,7 @@ public sealed class ProductionReadinessChecklistTests
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
         var workflow = ReadText(".github", "workflows", "production.yml");
 
-        Assert.Contains("Deployment status: approved CI/CD path created", deployment);
+        Assert.Contains("Deployment status: approved CI/CD path executes through API and web deployment", deployment);
         Assert.Contains("Approved launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", deployment);
         Assert.Contains("Approved production workflow: `.github/workflows/production.yml`.", deployment);
         Assert.Contains("Production environment contract: `infra/terraform/environments/production/main.tf`.", deployment);
@@ -1437,7 +1437,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Production environment configuration | Passed", deployment);
         Assert.Contains("Production secrets source | Passed as contract", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
-        Assert.Contains("Approved CI/CD path and environment contract created", checklist);
+        Assert.Contains("Approved CI/CD path executes through API and web deployment; production health and PR-7.2 smoke evidence remain blocked by runtime dependency configuration", checklist);
         Assert.Contains("docs/production-readiness-production-deployment-evidence.md", closure);
         Assert.Contains(".github/workflows/production.yml", closure);
         Assert.Contains("Closed on 2026-07-03 by `.github/workflows/production.yml`", riskLog);
@@ -1509,15 +1509,19 @@ public sealed class ProductionReadinessChecklistTests
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
 
-        Assert.Contains("Smoke status: blocked; production deployment has not executed", smoke);
+        Assert.Contains("Smoke status: blocked; production deployment now reaches the deployed API health gate", smoke);
         Assert.Contains("Current gate result: blocked.", smoke);
         Assert.Contains("Pilot onboarding must not start while any row in the smoke test matrix is `Blocked`, `Failed`, `Missing`, or `Unreviewed`.", smoke);
         Assert.Contains("TC-PR-7.2.1 | Blocked", smoke);
         Assert.Contains("TC-PR-7.2.2 | Blocked", smoke);
         Assert.Contains("TC-PR-7.2.3 | Blocked", smoke);
         Assert.Contains("TC-PR-7.2.4 | Passed as gate", smoke);
+        Assert.Contains("run `28723800683` deployed API and web artifacts but production `/health` returned degraded dependency status", riskLog);
+        Assert.Contains("ConnectionStrings__GccsDatabase", riskLog);
+        Assert.Contains("production Redis", riskLog);
+        Assert.Contains("production object storage", riskLog);
         Assert.Contains("Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass.", onboarding);
-        Assert.Contains("Blocked until actual production deployment runs and sanitized PR-7.2 smoke evidence is attached; pilot onboarding remains blocked", checklist);
+        Assert.Contains("Blocked until production runtime dependencies are healthy and sanitized PR-7.2 smoke evidence is attached; pilot onboarding remains blocked", checklist);
         Assert.Contains("Production smoke tests | PR-7.2 | Blocked.", closure);
         Assert.Contains("PR72-PROD-SMOKE-001", riskLog);
         Assert.Contains("PR-7.3 pilot onboarding and PR-8 post-launch control blocked", riskLog);

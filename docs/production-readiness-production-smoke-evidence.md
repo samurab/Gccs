@@ -2,7 +2,7 @@
 
 Story: PR-7.2 - Run Production Smoke Tests.
 
-Smoke status: blocked; production deployment has not executed, so production smoke tests cannot be truthfully marked passed.
+Smoke status: blocked; production deployment now reaches the deployed API health gate, but production runtime dependencies are not fully configured, so smoke tests cannot be truthfully marked passed.
 
 Evidence date: 2026-07-03.
 
@@ -12,7 +12,7 @@ Prerequisite deployment record: `docs/production-readiness-production-deployment
 
 Approved production workflow: `.github/workflows/production.yml`.
 
-Latest execution attempt: 2026-07-04.
+Latest execution attempt: 2026-07-05.
 
 ## Architectural Assessment
 
@@ -30,7 +30,7 @@ The corrected pattern is a production smoke evidence gate tied to the approved p
 
 | Requirement | Required evidence | Current status |
 | --- | --- | --- |
-| Production deployment completed | Successful `.github/workflows/production.yml` run for launch candidate `gccs-no-cui-mvp-lc-2026-07-03` with `production-deployment-evidence` artifact attached. | Missing; blocked by no production workflow run in this repository session. |
+| Production deployment completed | Successful `.github/workflows/production.yml` run for launch candidate `gccs-no-cui-mvp-lc-2026-07-03` with `production-deployment-evidence` artifact attached. | Blocked at production `/health`; run `28723800683` deployed API and web artifacts but health returned `degraded`. |
 | Smoke data posture | Synthetic or non-sensitive tenant, user, upload, evidence, report, and audit data only. | Required before execution. |
 | Smoke operator | Named QA or engineering operator with production smoke authorization. | Required before execution. |
 | Smoke identity coverage | Owner/Admin plus at least one restricted role or approved smoke identity for RBAC denial. | Required before execution. |
@@ -99,13 +99,27 @@ Failure detail: `azure/login@v2` reported `SyntaxError: Unexpected non-whitespac
 
 Disposition: PR-7.2 remains blocked until `AZURE_CREDENTIALS_GCCS_PRODUCTION` is replaced with valid JSON output from `az ad sp create-for-rbac --sdk-auth` or an equivalent valid service principal credential for the production resource scope.
 
+Run `28723713555`: passed launch-candidate validation, production control validation, artifact checkout, restore, build, migration generation, production migration application, Azure login, and API App Service deployment. It failed during Static Web App deployment with an unknown deployment exception. No production smoke approval or evidence artifact was produced.
+
+Corrective action: the production Static Web App deployment token was refreshed from Azure Static Web Apps and stored in the GitHub `Production` environment secret `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION`.
+
+Run `28723800683`: passed launch-candidate validation, production control validation, artifact checkout, restore, build, migration generation, production migration application, Azure login, API App Service deployment, and Static Web App deployment. It failed at `Run production health checks` because `GET /health` returned HTTP 503.
+
+Health detail after production App Service non-secret runtime settings were applied and the app restarted: the API starts and returns structured health output with `status = degraded`, `dataPosture = No-CUI / compliance management only`, and unhealthy dependency signals for `postgresql`, `redis`, `object-storage`, and `background-jobs`.
+
+Root cause: GitHub `PRODUCTION_DATABASE_URL` is sufficient for workflow migration execution only; it does not configure the deployed API. The production App Service also needs runtime settings for `ConnectionStrings__GccsDatabase`, `LocalDependencies__Redis__ConnectionString`, `Storage__AccountName` or `Storage__BlobServiceUri`, `Storage__UseManagedIdentity`, and storage container names. Azure verification also found no production Redis instance and no production storage account in `gccs-production-rg`.
+
+Corrective action completed: non-secret App Service settings were applied for `AllowedHosts`, `Cors__AllowedOrigins__0`, `Authentication__Authority`, `Authentication__Audience`, `LocalDependencies__Enabled=false`, `Security__DevelopmentAuth__Enabled=false`, and log retention. The database password, Redis endpoint/key, and storage resource configuration remain unresolved production actions and are not stored in repository evidence.
+
+Disposition: PR-7.2 remains blocked until production database, Redis, object storage, and background-job dependency health return `ok` through `/health`, then the full PR-7.2 smoke matrix is executed with synthetic or non-sensitive data only.
+
 ## Smoke Test Matrix
 
 | Test case | Result | Evidence | Blocker disposition |
 | --- | --- | --- | --- |
-| TC-PR-7.2.1 | Blocked | Production login, tenant access, and RBAC denial tests require a completed production deployment and approved smoke identities. | Blocks pilot onboarding. |
-| TC-PR-7.2.2 | Blocked | Upload warning/blocking, evidence upload, report generation, and audit logging smoke tests require production URL, production tenant, production scanner/storage path, and synthetic-only smoke files. | Blocks pilot onboarding. |
-| TC-PR-7.2.3 | Blocked | Production logs, alerts, and health checks require deployed production services and operational telemetry access. | Blocks pilot onboarding. |
+| TC-PR-7.2.1 | Blocked | Production login, tenant access, and RBAC denial tests require `GET /health` to pass first and require approved smoke identities. | Blocks pilot onboarding. |
+| TC-PR-7.2.2 | Blocked | Upload warning/blocking, evidence upload, report generation, and audit logging smoke tests require healthy production database, scanner/storage path, tenant seed, and synthetic-only smoke files. | Blocks pilot onboarding. |
+| TC-PR-7.2.3 | Blocked | Production logs and alerts are available for startup diagnosis, but health checks currently fail because PostgreSQL, Redis, object storage, and background-job coordination are not configured as healthy runtime dependencies. | Blocks pilot onboarding. |
 | TC-PR-7.2.4 | Passed as gate | Pilot onboarding remains blocked when any critical production smoke test is blocked, failed, missing, or unreviewed. | Gate enforced by this artifact and `docs/production-readiness-pilot-onboarding.md`. |
 
 ## Required Manual Smoke Transcript
@@ -114,19 +128,19 @@ Attach the completed transcript here after production deployment. Do not include
 
 | Field | Value |
 | --- | --- |
-| Production workflow run URL | Pending |
+| Production workflow run URL | `https://github.com/samurab/Gccs/actions/runs/28723800683` |
 | Launch candidate tag | `gccs-no-cui-mvp-lc-2026-07-03` |
-| Deployment artifact SHA | Pending |
+| Deployment artifact SHA | Launch candidate tag source `6c8927ec9cf79de977d76cb2594b87dd48f973bd`; deployed by workflow run `28723800683`. |
 | Smoke start time UTC | Pending |
 | Smoke operator | Pending |
-| Production API base URL | Pending sanitized URL |
-| Production web base URL | Pending sanitized URL |
+| Production API base URL | `https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net` |
+| Production web base URL | `https://lemon-pond-093710c0f.7.azurestaticapps.net` |
 | Synthetic smoke tenant ID | Pending non-sensitive identifier |
 | Synthetic smoke users/roles | Pending non-sensitive identifiers |
-| Health output location | Pending |
+| Health output location | Run `28723800683` failed health step; direct follow-up `GET /health` returned structured degraded output with unhealthy `postgresql`, `redis`, `object-storage`, and `background-jobs`. |
 | Audit event references | Pending |
 | Log/alert evidence location | Pending |
-| Defects found | Pending |
+| Defects found | Missing production App Service runtime database setting and missing production Redis/storage resources or settings. |
 | Final smoke result | Blocked |
 
 ## Pilot Onboarding Gate
