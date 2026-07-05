@@ -40,8 +40,8 @@ The corrected pattern is a daily pilot monitoring register with fixed signal cov
 
 | Finding ID | Signal | Severity | Owner | Mitigation | Target date | Status | Risk or backlog link |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| PR81-MONITOR-001 | Alert owner receipt | Medium | Engineering lead | Attach an approved Azure Monitor action group receiver to `gccs-api-production-http5xx` and capture owner receipt evidence. | Before production customer launch or alert-notification claims | Open | `PR72-ALERT-ROUTE-001` in `docs/production-readiness-launch-gap-decisions.md` |
-| PR81-MONITOR-002 | Restore readiness | High | Engineering lead | Execute restore rehearsal using the documented runbook, attach restore output, reviewer, health check, and teardown evidence. | Before production customer launch or recoverability claims | Open | `PR41-RESTORE-001` in `docs/production-readiness-launch-gap-decisions.md` |
+| PR81-MONITOR-001 | Alert owner receipt | Medium | Engineering lead | Attach an approved Azure Monitor action group receiver to `gccs-api-production-http5xx` and capture owner receipt evidence. | Before production customer launch or alert-notification claims | Closed on 2026-07-05 | `PR72-ALERT-ROUTE-001` closed by `output/production-readiness/alerts/production-alert-route-summary.json` and `output/production-readiness/alerts/production-alert-email-receipt.json` |
+| PR81-MONITOR-002 | Restore readiness | High | Engineering lead | Execute restore rehearsal using the documented runbook, attach restore output, reviewer, health check, and teardown evidence. | Before production customer launch or recoverability claims | Closed on 2026-07-05 | `PR41-RESTORE-001` closed by `output/production-readiness/backup-restore/restore-rehearsal-summary.json` |
 
 ## Day-Zero Review Result
 
@@ -50,7 +50,7 @@ The corrected pattern is a daily pilot monitoring register with fixed signal cov
 | TC-PR-8.1.1 | Passed as monitoring checklist | Daily checklist covers audit logs, upload blocks, permission denials, report failures, support tickets, content disputes, health checks, alerts, and failed jobs. |
 | TC-PR-8.1.2 | Passed | Findings register requires severity, owner, mitigation, target date, status, and risk or backlog link. |
 | TC-PR-8.1.3 | Passed | Security, tenant isolation, data-handling, suspected CUI, and overclaim signals route to the support runbooks and legal/contracting advisor path where applicable. |
-| TC-PR-8.1.4 | Passed | Active production readiness regressions are linked to `PR72-ALERT-ROUTE-001` and `PR41-RESTORE-001` in the known-risk log. |
+| TC-PR-8.1.4 | Passed | Production readiness regressions are linked to `PR72-ALERT-ROUTE-001` and `PR41-RESTORE-001` in the known-risk log and are now closed with external evidence. |
 
 ## Escalation Rules
 
@@ -63,5 +63,5 @@ The corrected pattern is a daily pilot monitoring register with fixed signal cov
 
 - A daily checklist can show green while no pilot activity has occurred; first-use monitoring from PR-7.3 must remain active so absence of events is not mistaken for stability.
 - Support tickets can contain sensitive data if intake instructions are ignored; support owners must reject raw CUI, credentials, unrestricted logs, or customer file contents in tickets.
-- Alert resources can exist without notification delivery; `PR72-ALERT-ROUTE-001` remains open until receiver evidence is attached.
+- Alert resources can exist without notification delivery; `PR72-ALERT-ROUTE-001` is closed only while the configured action-group receiver and delivery receipt remain valid.
 - Health checks can pass while tenant-specific RBAC, report, content, or upload workflows fail; daily review must cover both operational and tenant-scoped workflow signals.

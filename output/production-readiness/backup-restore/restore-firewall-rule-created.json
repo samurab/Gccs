@@ -1,0 +1,9 @@
+{
+  "endIpAddress": "operator-public-ip-redacted",
+  "id": "/subscriptions/aed211a7-3460-46db-a47f-6145e6b5e6e4/resourceGroups/gccs-staging-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/gccs-pg-staging-restore-202607020214/firewallRules/codex-restore-smoke",
+  "name": "codex-restore-smoke",
+  "resourceGroup": "gccs-staging-rg",
+  "startIpAddress": "operator-public-ip-redacted",
+  "systemData": null,
+  "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules"
+}

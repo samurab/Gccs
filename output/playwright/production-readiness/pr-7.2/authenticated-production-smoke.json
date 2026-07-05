@@ -3,7 +3,7 @@
   "checkedAt": "2026-07-05T17:46:52.437Z",
   "apiBase": "https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net",
   "webBase": "https://lemon-pond-093710c0f.7.azurestaticapps.net",
-  "result": "passed_with_residual_alert_route_dependency",
+  "result": "passed",
   "tokenCapturedInArtifact": false,
   "containsCustomerData": false,
   "containsCui": false,
@@ -203,7 +203,9 @@
     },
     "applicationAlertObserved": "High-risk role assigned",
     "scannerFailureAuditObserved": true,
-    "externalAlertRouteOwnerReceipt": "pending_action_group_receiver"
+    "externalAlertRouteOwnerReceipt": "verified_by_action_group_delivery_receipt",
+    "actionGroupEvidence": "output/production-readiness/alerts/production-alert-route-summary.json",
+    "deliveryReceiptEvidence": "output/production-readiness/alerts/production-alert-email-receipt.json"
   },
   "checks": [
     {
@@ -264,20 +266,12 @@
     },
     {
       "name": "external alert owner receipt captured",
-      "passed": false,
-      "residualDependency": "Attach a real Azure Monitor action group receiver and capture owner receipt if PR-7.3 requires notification proof before pilot use."
+      "passed": true,
+      "evidence": "output/production-readiness/alerts/production-alert-email-receipt.json"
     }
   ],
   "blocker": null,
   "residualRisks": [
-    {
-      "id": "PR72-ALERT-ROUTE-001",
-      "summary": "The API Http5xx alert is enabled, but no Azure Monitor action-group receiver is attached, so owner notification receipt is not proven.",
-      "severity": "Medium",
-      "owner": "Engineering lead",
-      "requiredAction": "Attach an approved action group receiver and capture owner receipt before production customer launch or before treating alert notification routing as complete.",
-      "pilotOnboardingImpact": "does_not_block_scanner_backed_smoke_pass"
-    },
     {
       "id": "PR72-SCANNER-HA-001",
       "summary": "The current scanner is a single private ACI ClamAV instance and is not highly available.",

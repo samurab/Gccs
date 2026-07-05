@@ -1,0 +1,22 @@
+[
+  {
+    "charset": "UTF8",
+    "collation": "en_US.utf8",
+    "name": "azure_maintenance"
+  },
+  {
+    "charset": "UTF8",
+    "collation": "en_US.utf8",
+    "name": "postgres"
+  },
+  {
+    "charset": "UTF8",
+    "collation": "en_US.utf8",
+    "name": "azure_sys"
+  },
+  {
+    "charset": "UTF8",
+    "collation": "en_US.utf8",
+    "name": "gccs"
+  }
+]

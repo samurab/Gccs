@@ -1,0 +1,15 @@
+{
+  "actionCount": 1,
+  "actionGroupIds": [
+    "/subscriptions/AED211A7-3460-46DB-A47F-6145E6B5E6E4/resourceGroups/gccs-production-rg/providers/microsoft.insights/actionGroups/gccs-production-alert-ops"
+  ],
+  "enabled": true,
+  "evaluationFrequency": "PT1M",
+  "name": "gccs-api-production-http5xx",
+  "resourceGroup": "gccs-production-rg",
+  "scopes": [
+    "/subscriptions/aed211a7-3460-46db-a47f-6145e6b5e6e4/resourceGroups/gccs-production-rg/providers/Microsoft.Web/sites/gccs-api-production"
+  ],
+  "severity": 2,
+  "windowSize": "PT5M"
+}

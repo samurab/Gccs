@@ -41,7 +41,7 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Production storage, cache, queue, and background jobs | Passed as contract | Production Terraform contract declares `database`, `object_storage`, `cache`, `queue`, `secrets`, and `background_jobs`; workflow checks these strings before deployment. |
 | Production health checks, logs, and alerts | Passed as contract | Workflow checks `/health` for API, database, Redis, object storage, and background jobs; Terraform contract declares `health_checks`, `logs`, and `alerts`. |
 | Deployment evidence capture | Passed as path | Workflow uploads `production-deployment-evidence`, containing deployment time, artifact tag/SHA, operator, environment, workflow run URL, No-CUI posture, result, health output, and migration script. |
-| Restore rehearsal production-launch dependency | Still gated | `PR41-RESTORE-001` remains accepted only for launch-candidate tagging; production customer launch remains blocked until restore evidence is attached or separately dispositioned. |
+| Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
 
@@ -102,7 +102,7 @@ Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path b
 
 | Gate ID | Owner | Severity | Required action | Mitigation until closed | Target date | Current status |
 | --- | --- | --- | --- | --- | --- | --- |
-| PR41-RESTORE-001 | Engineering lead | High | Attach actual restore rehearsal evidence or separately approve a production-launch exception. | Do not start production customer launch or make recoverability claims until restore evidence exists. | Before production customer launch | Open |
+| PR41-RESTORE-001 | Engineering lead | High | Attach actual restore rehearsal evidence or separately approve a production-launch exception. | Do not overclaim beyond the tested staging point-in-time restore path. | Before production customer launch | Closed on 2026-07-05 |
 
 ## Consequences
 
@@ -110,5 +110,5 @@ Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path b
 - PR-7.1 production execution evidence is resolved by successful workflow run `28746053336`.
 - PR-7.2 authenticated production smoke evidence is attached in `docs/production-readiness-production-smoke-evidence.md` and `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`.
 - PR-7.2 scanner-backed production smoke passed after private ClamAV scanner setup; byte-level evidence upload returned `201`, `malwareScanStatus=clean`, and `isUsable=true`.
-- PR-7.3 may begin next, subject to controlled pilot prerequisites, No-CUI restrictions, residual `PR41-RESTORE-001`, and residual alert-route dependency `PR72-ALERT-ROUTE-001`.
+- PR-7.3 may begin next, subject to controlled pilot prerequisites and No-CUI restrictions; restore evidence and alert-route external evidence `PR72-ALERT-ROUTE-001` are attached.
 - The No-CUI posture remains unchanged; no production real-CUI capability is authorized.

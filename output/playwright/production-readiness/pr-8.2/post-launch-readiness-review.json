@@ -26,7 +26,7 @@
   },
   "reviewedSignals": {
     "incidents": "no committed day-zero incident records found",
-    "defects": "no new defect record found beyond open monitoring findings",
+    "defects": "no new defect record found; monitoring findings closed by external control evidence",
     "supportTickets": "no committed day-zero support ticket records found",
     "uploadBlocks": "no new pilot upload block record found",
     "permissionDenials": "no new pilot permission-denial trend found",
@@ -41,8 +41,8 @@
       "owner": "Engineering lead",
       "mitigation": "Attach approved Azure Monitor action group receiver and capture owner receipt evidence.",
       "dueDate": "Before production customer launch or alert-notification claims",
-      "decision": "Controlled pilot may continue without claiming alert notification routing is complete. Broader production customer launch remains blocked.",
-      "followUpAction": "Keep PR72-ALERT-ROUTE-001 and PR81-MONITOR-001 open in the known-risk log."
+      "decision": "Closed; controlled pilot may continue and alert-notification routing may be claimed only for the verified action group path.",
+      "followUpAction": "Close PR72-ALERT-ROUTE-001 and PR81-MONITOR-001 in the known-risk log."
     },
     {
       "findingId": "PR81-MONITOR-002",
@@ -50,8 +50,8 @@
       "owner": "Engineering lead",
       "mitigation": "Execute restore rehearsal, attach restore output, reviewer, health check, and teardown evidence.",
       "dueDate": "Before production customer launch or recoverability claims",
-      "decision": "Controlled pilot may continue under accepted launch-candidate limitation. Broader production customer launch and recoverability claims remain blocked.",
-      "followUpAction": "Keep PR41-RESTORE-001 and PR81-MONITOR-002 open in the known-risk log."
+      "decision": "Closed for the tested staging restore path; do not claim geo-DR or production customer-data restore from this evidence.",
+      "followUpAction": "Close PR41-RESTORE-001 and PR81-MONITOR-002 in the known-risk log."
     }
   ],
   "artifactUpdates": [

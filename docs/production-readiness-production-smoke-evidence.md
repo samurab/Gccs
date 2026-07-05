@@ -2,7 +2,7 @@
 
 Story: PR-7.2 - Run Production Smoke Tests.
 
-Smoke status: passed for PR-7.2 scanner-backed production smoke; production deployment, `/health`, login, tenant access, RBAC denial, No-CUI acknowledgement, upload guardrails, byte-level evidence upload, report generation, audit visibility, logging, and API `Http5xx` alert resource checks passed with synthetic-only production data. External alert owner receipt remains a residual operational dependency because no Azure Monitor action-group receiver is attached.
+Smoke status: passed for PR-7.2 scanner-backed production smoke; production deployment, `/health`, login, tenant access, RBAC denial, No-CUI acknowledgement, upload guardrails, byte-level evidence upload, report generation, audit visibility, logging, API `Http5xx` alert resource checks, action-group receiver configuration, and Azure Monitor delivery receipt passed with synthetic-only production data.
 
 Evidence date: 2026-07-03.
 
@@ -34,7 +34,7 @@ The corrected pattern is a production smoke evidence gate tied to the approved p
 | Smoke data posture | Synthetic or non-sensitive tenant, user, upload, evidence, report, and audit data only. | Passed. Smoke tenant `GCCS Production Smoke Tenant` is `NoCui`; artifact records `containsCustomerData=false` and `containsCui=false`. |
 | Smoke operator | Named QA or engineering operator with production smoke authorization. | Engineering/QA smoke executed from signed-in production browser session for the approved production smoke account. |
 | Smoke identity coverage | Owner/Admin plus at least one restricted role or approved smoke identity for RBAC denial. | Passed. Account is restored to `Owner`; RBAC denial was verified through audited temporary `Contributor` downgrade returning `403 permission_denied`. |
-| Logs and alerts | Production log query, alert route, and health signal observation captured without secrets or raw customer documents. | Passed for PR-7.2. App Service filesystem application logs, HTTP logs, failed-request tracing, and detailed errors are enabled; API `Http5xx` metric alert `gccs-api-production-http5xx` is enabled. External owner notification receipt remains a residual dependency because no action-group receiver is attached. |
+| Logs and alerts | Production log query, alert route, and health signal observation captured without secrets or raw customer documents. | Passed for PR-7.2. App Service filesystem application logs, HTTP logs, failed-request tracing, and detailed errors are enabled; API `Http5xx` metric alert `gccs-api-production-http5xx` is enabled with approved action-group receiver and Azure Monitor delivery receipt evidence. |
 | Evidence location | Sanitized smoke transcript, health output, audit event references, alert observation, and defect/blocker table. | Attached at `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`. |
 
 ## 2026-07-04 Dispatch Attempt
@@ -158,7 +158,7 @@ Resolved failure:
 
 Residual operational dependency:
 
-- External alert owner receipt is still not proven because the Azure Monitor alert has no attached action-group receiver. This does not block PR-7.2 scanner-backed smoke completion, but it must be closed before production customer launch or before claiming alert notification routing is complete.
+- External alert owner receipt is proven by the attached Azure Monitor action-group receiver and delivery receipt evidence. Keep the evidence current if the receiver, owner, alert, or notification route changes.
 
 ## Smoke Test Matrix
 
@@ -166,7 +166,7 @@ Residual operational dependency:
 | --- | --- | --- | --- |
 | TC-PR-7.2.1 | Passed | Authenticated production browser session for the approved production smoke account loaded the synthetic No-CUI tenant; RBAC denial returned `403 permission_denied` during audited temporary `Contributor` downgrade. | None for this row. |
 | TC-PR-7.2.2 | Passed | No-CUI acknowledgement, metadata creation, upload intent, scanner-backed byte-level upload, blocked missing attestation, blocked potential CUI, compliance report generation, unauthenticated report denial, and audit visibility passed. File upload returned `201`, `malwareScanStatus=clean`, and `isUsable=true`. | `PR72-PROD-SMOKE-002` closed for byte-level evidence upload. |
-| TC-PR-7.2.3 | Passed with residual notification dependency | Production workflow run `28746053336` recorded `/health` status `ok` with PostgreSQL, Redis, object storage, and background jobs all `ok`. App Service filesystem application logs, HTTP logs, failed request tracing, detailed errors, scanner container logs, and enabled API `Http5xx` alert resource were observed. | Residual `PR72-ALERT-ROUTE-001`: attach an approved action-group receiver and capture owner receipt before production customer launch or notification-routing claims. |
+| TC-PR-7.2.3 | Passed | Production workflow run `28746053336` recorded `/health` status `ok` with PostgreSQL, Redis, object storage, and background jobs all `ok`. App Service filesystem application logs, HTTP logs, failed request tracing, detailed errors, scanner container logs, enabled API `Http5xx` alert resource, approved action-group receiver, and Azure Monitor delivery receipt were observed. | `PR72-ALERT-ROUTE-001` closed by receiver and delivery evidence. |
 | TC-PR-7.2.4 | Passed as gate | Pilot onboarding was blocked while byte-level upload failed; after scanner-backed retest passed, PR-7.3 may begin subject to PR-7.3 prerequisites and residual launch risks. | Gate enforced by this artifact and `docs/production-readiness-pilot-onboarding.md`. |
 
 ## Required Manual Smoke Transcript
@@ -186,8 +186,8 @@ Attach the completed transcript here after production deployment. Do not include
 | Synthetic smoke users/roles | Approved production smoke account / `Owner`; temporary audited `Contributor` downgrade used only for RBAC denial verification and restored to `Owner` |
 | Health output location | `production-health.json` artifact from run `28746053336`; status `ok`, service `gccs-api`, data posture `No-CUI / compliance management only`, dependencies `background-jobs`, `object-storage`, `postgresql`, and `redis` all `ok`. |
 | Audit event references | Sanitized sampled audit entries are in `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`; RBAC role-change correlation ID `PR-7.2-production-rbac-denial-smoke`; bootstrap correlation ID `PR-7.2-production-smoke-bootstrap`. |
-| Log/alert evidence location | App Service logging config observed: filesystem application logs `Information`, HTTP logs enabled, failed request tracing enabled, detailed errors enabled. API `Http5xx` metric alert `gccs-api-production-http5xx` is enabled; no action-group receiver is attached. |
-| Defects found | `PR72-PROD-SMOKE-002` closed by private ClamAV scanner setup and clean byte-level upload. Residual `PR72-ALERT-ROUTE-001`: external alert owner receipt remains pending because no action-group receiver is attached. |
+| Log/alert evidence location | App Service logging config observed: filesystem application logs `Information`, HTTP logs enabled, failed request tracing enabled, detailed errors enabled. API `Http5xx` metric alert `gccs-api-production-http5xx` is enabled with action-group receiver evidence in `output/production-readiness/alerts/production-alert-route-summary.json` and delivery receipt evidence in `output/production-readiness/alerts/production-alert-email-receipt.json`. |
+| Defects found | `PR72-PROD-SMOKE-002` closed by private ClamAV scanner setup and clean byte-level upload. `PR72-ALERT-ROUTE-001` closed by approved action-group receiver and delivery receipt evidence. |
 | Final smoke result | Passed for PR-7.2 scanner-backed smoke with residual alert-route dependency |
 
 ## Pilot Onboarding Gate
@@ -196,7 +196,7 @@ Pilot onboarding must not start while any row in the smoke test matrix is `Block
 
 Current gate result: passed for PR-7.2; PR-7.3 may begin only under the controlled pilot prerequisites, No-CUI restrictions, and residual launch risks recorded in the readiness artifacts.
 
-Required owner action: attach an approved Azure Monitor action-group receiver to `gccs-api-production-http5xx` and capture owner receipt before production customer launch or before claiming alert notification routing is complete.
+Required owner action: keep the approved Azure Monitor action-group receiver attached to `gccs-api-production-http5xx`; recapture owner receipt if receiver ownership, alert configuration, or notification route changes.
 
 ## Hidden Risks And Edge Cases
 
@@ -223,6 +223,6 @@ dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --configuration Release -
 ## Consequences
 
 - PR-7.2 scanner-backed production smoke is complete; byte-level evidence upload now passes after a clean ClamAV verdict.
-- PR-7.3 may begin next, subject to controlled pilot prerequisites, No-CUI restrictions, residual `PR41-RESTORE-001`, and residual alert-route dependency `PR72-ALERT-ROUTE-001`.
+- PR-7.3 may begin next, subject to controlled pilot prerequisites and No-CUI restrictions; `PR72-ALERT-ROUTE-001` is closed by receiver and delivery evidence.
 - PR-8 stories remain blocked until controlled pilot onboarding begins with PR-7.2 evidence attached.
 - The No-CUI posture remains unchanged; no real CUI, classified data, export-controlled data, credentials, sensitive personal data, or unrestricted logs are authorized for smoke testing.

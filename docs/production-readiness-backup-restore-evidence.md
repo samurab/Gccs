@@ -2,11 +2,11 @@
 
 Story: PR-4.1 - Attach Backup And Restore Evidence.
 
-Evidence date: 2026-07-02.
+Evidence date: 2026-07-05.
 
-Review status: Backup evidence captured; restore rehearsal accepted as a launch-candidate risk by product, engineering, and security approval on 2026-07-03.
+Review status: Backup evidence captured and restore rehearsal passed on 2026-07-05.
 
-Launch disposition: Launch-candidate tagging may proceed under accepted risk `PR41-RESTORE-001`; production customer launch and any recoverability claim remain blocked until restore evidence proves a successful point-in-time restore from the staging launch-candidate backup.
+Launch disposition: `PR41-RESTORE-001` is closed for the staging launch-candidate restore rehearsal. Production recoverability claims may reference only the tested staging point-in-time restore path and must not claim geo-disaster recovery.
 
 ## Architectural Assessment
 
@@ -54,21 +54,21 @@ az postgres flexible-server show \
 
 ## Restore Evidence
 
-Current status: Not executed; accepted as a launch-candidate limitation on 2026-07-03.
+Current status: Executed and passed on 2026-07-05.
 
-Disposition: A point-in-time restore creates a new paid PostgreSQL Flexible Server and requires explicit restore-window approval, reviewer assignment, temporary network access, and teardown confirmation. Product owner, engineering lead, and security owner approval accepts this as a launch-candidate risk only; it does not prove restore capability.
+Disposition: A short-lived restored PostgreSQL Flexible Server was verified with synthetic-only application health evidence and deleted after review. The evidence proves the tested staging point-in-time restore path only; it does not prove geo-redundant disaster recovery.
 
-Missing required restore evidence:
+Completed restore evidence:
 
 | Required field | Current value | Launch blocker |
 | --- | --- | --- |
-| Restore date | Missing because restore was not executed | Yes |
-| Environment | Missing restored staging environment name | Yes |
-| Data set | Missing synthetic-only data set confirmation from restored server | Yes |
-| Command or pipeline reference | Missing executed restore command or pipeline run | Yes |
-| Result | Missing successful restore and smoke verification result | Yes |
-| Reviewer | Missing reviewer signoff on restored-server evidence | Yes |
-| Evidence location | Missing restore transcript, smoke output, and teardown output | Yes |
+| Restore date | `2026-07-05`; restored server was originally created at `2026-07-02T02:14:45.709560+00:00` and revalidated before teardown. | No |
+| Environment | Staging restored PostgreSQL Flexible Server `gccs-pg-staging-restore-202607020214`. | No |
+| Data set | Synthetic-only staging launch-candidate data; no customer data, real CUI, credentials, raw uploads, or unrestricted logs were captured. | No |
+| Command or pipeline reference | Azure PostgreSQL restore server evidence and temporary network access evidence in `output/production-readiness/backup-restore/`. | No |
+| Result | Passed: restored database contained `gccs`; API `/health` returned `ok` with PostgreSQL, Redis, object storage, malware scanner, and background jobs `ok`. | No |
+| Reviewer | Engineering lead. | No |
+| Evidence location | `output/production-readiness/backup-restore/restore-rehearsal-summary.json`, `restore-health.json`, `restore-database-list.json`, `restore-server-before-teardown.json`, and `restore-server-after-teardown.err`. | No |
 
 Restore rehearsal command template:
 
@@ -107,17 +107,17 @@ az postgres flexible-server delete \
 | Test case | Result | Evidence | Defect or blocker disposition |
 | --- | --- | --- | --- |
 | TC-PR-4.1.1 | Passed | Backup configuration artifact exists for the staging launch candidate. | None for backup configuration evidence. |
-| TC-PR-4.1.2 | Dispositioned | No executed point-in-time restore transcript exists. Backup creation alone is rejected as restore proof. | `PR41-RESTORE-001`: accepted as launch-candidate risk; production customer launch remains blocked until restore rehearsal passes. |
-| TC-PR-4.1.3 | Dispositioned | Restore date, environment, data set, command or pipeline reference, result, reviewer, and evidence location are missing because restore was not executed. | `PR41-RESTORE-001`: required fields must be completed from an actual restored server before production customer launch. |
-| TC-PR-4.1.4 | Passed | Launch checklist and launch closure evidence keep restore rehearsal as a production-customer-launch blocker. | None; accepted risk remains active by design. |
+| TC-PR-4.1.2 | Passed | Point-in-time restore server evidence, restored `gccs` database list, and restored API health output are attached. Backup creation alone is rejected as restore proof. | `PR41-RESTORE-001` closed by executed restore rehearsal. |
+| TC-PR-4.1.3 | Passed | Restore date, environment, data set, command or pipeline reference, result, reviewer, and evidence location are recorded from the restored server. | Required restore fields are complete for the tested staging restore path. |
+| TC-PR-4.1.4 | Passed | Launch checklist and launch closure evidence no longer keep restore rehearsal as a production-customer-launch blocker. | Production launch must still pass all other gates and approvals. |
 
 ## Automated Test Coverage
 
 Automated document validation is in `tests/Gccs.Api.Tests/ProductionReadinessChecklistTests.cs`:
 
-- `TC_PR_4_1_Backup_configuration_is_evidenced_and_restore_rehearsal_remains_blocked_until_executed`
+- `TC_PR_4_1_Backup_configuration_and_restore_rehearsal_are_evidenced`
 - `TC_PR_4_1_Restore_evidence_requires_execution_metadata_not_backup_assertions`
-- `TC_PR_4_1_Missing_restore_rehearsal_keeps_production_launch_blocked`
+- `TC_PR_4_1_Restore_rehearsal_closes_production_launch_blocker`
 
 Targeted verification command:
 
@@ -129,12 +129,12 @@ dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --configuration Release -
 
 | Blocker ID | Owner | Severity | Required action | Mitigation until closed | Target date | Current status |
 | --- | --- | --- | --- | --- | --- | --- |
-| PR41-RESTORE-001 | Engineering lead | High | Obtain restore-window approval, create a short-lived restored PostgreSQL server from the staging launch-candidate backup, run synthetic-only smoke checks, save the command output, assign reviewer signoff, and delete the restored server. | Launch candidate tagging may proceed, but do not claim successful restore capability, do not treat backup configuration as restore proof, and do not start production customer launch until restore rehearsal passes or a new production-launch exception is approved. | Before production customer launch or before relying on restore capability, whichever comes first | Accepted on 2026-07-03 by product owner, engineering lead, and security owner |
+| PR41-RESTORE-001 | Engineering lead | High | Obtain restore-window approval, create a short-lived restored PostgreSQL server from the staging launch-candidate backup, run synthetic-only smoke checks, save the command output, assign reviewer signoff, and delete the restored server. | Do not overclaim beyond the tested staging point-in-time restore path; geo-redundant disaster recovery remains unproven. | Before production customer launch or before relying on restore capability, whichever comes first | Closed on 2026-07-05 by restored-server health evidence and teardown confirmation |
 
 ## Hidden Risks And Dependencies
 
 - The seven-day backup retention window can invalidate this backup evidence if launch approval waits beyond the recoverable point-in-time range.
 - Geo-redundant backup is disabled, so this evidence does not prove regional disaster recovery.
 - A restored database smoke check must use synthetic-only staging data and must not import production customer data, real CUI, production secrets, unrestricted logs, or customer uploads.
-- The restore rehearsal depends on Azure permissions, resource quota, paid server creation approval, temporary network access, and teardown confirmation.
-- This artifact does not prove restore capability; it records a launch-candidate exception and preserves the production customer launch requirement until successful restore evidence is attached.
+- The restore rehearsal depended on Azure permissions, resource quota, paid server creation approval, temporary network access, and teardown confirmation; repeat rehearsals still depend on those controls.
+- This artifact proves only the tested staging point-in-time restore path. It does not prove production customer-data restore, regional disaster recovery, long-retention backup strategy, or restore performance under incident pressure.

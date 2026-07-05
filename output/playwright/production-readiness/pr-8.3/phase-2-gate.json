@@ -1,11 +1,11 @@
 {
   "story": "PR-8.3",
   "checkedAt": "2026-07-05T20:45:00.000Z",
-  "result": "phase_2_blocked",
+  "result": "phase_2_eligible_for_approval",
   "tokenCapturedInArtifact": false,
   "containsCustomerData": false,
   "containsCui": false,
-  "gateStatus": "Blocked",
+  "gateStatus": "Eligible for approval",
   "blockedCapabilities": [
     "Automated clause extraction",
     "AI-suggested obligations",
@@ -22,7 +22,11 @@
       ],
       "owner": "Engineering lead",
       "targetDate": "Before production customer launch or alert-notification claims",
-      "readyStatus": "Ready with constraints",
+      "readyStatus": "Closed on 2026-07-05",
+      "completedEvidence": [
+        "output/production-readiness/alerts/production-alert-route-summary.json",
+        "output/production-readiness/alerts/production-alert-email-receipt.json"
+      ],
       "definitionOfReadyFieldsPresent": true
     },
     {
@@ -33,7 +37,12 @@
       ],
       "owner": "Engineering lead",
       "targetDate": "Before production customer launch or recoverability claims",
-      "readyStatus": "Ready with constraints",
+      "readyStatus": "Closed on 2026-07-05",
+      "completedEvidence": [
+        "output/production-readiness/backup-restore/restore-rehearsal-summary.json",
+        "output/production-readiness/backup-restore/restore-health.json",
+        "output/production-readiness/backup-restore/restore-server-after-teardown.err"
+      ],
       "definitionOfReadyFieldsPresent": true
     }
   ],
@@ -128,7 +137,7 @@
         "Engineering lead",
         "Security owner"
       ],
-      "passFail": "Fail"
+      "passFail": "Pass"
     },
     {
       "controlArea": "Alert owner receipt",
@@ -137,7 +146,7 @@
         "Engineering lead",
         "Security owner"
       ],
-      "passFail": "Fail"
+      "passFail": "Pass"
     }
   ],
   "testCases": {

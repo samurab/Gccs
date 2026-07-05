@@ -24,7 +24,7 @@
       "owner": "Engineering lead",
       "mitigation": "Attach an approved Azure Monitor action group receiver to gccs-api-production-http5xx and capture owner receipt evidence.",
       "targetDate": "Before production customer launch or alert-notification claims",
-      "status": "Open",
+      "status": "Closed on 2026-07-05",
       "riskOrBacklogLink": "PR72-ALERT-ROUTE-001"
     },
     {
@@ -34,7 +34,7 @@
       "owner": "Engineering lead",
       "mitigation": "Execute restore rehearsal using the documented runbook, attach restore output, reviewer, health check, and teardown evidence.",
       "targetDate": "Before production customer launch or recoverability claims",
-      "status": "Open",
+      "status": "Closed on 2026-07-05",
       "riskOrBacklogLink": "PR41-RESTORE-001"
     }
   ],

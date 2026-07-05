@@ -1076,26 +1076,32 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_4_1_Backup_configuration_is_evidenced_and_restore_rehearsal_remains_blocked_until_executed()
+    public void TC_PR_4_1_Backup_configuration_and_restore_rehearsal_are_evidenced()
     {
         var evidence = ReadText("docs", "production-readiness-backup-restore-evidence.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         using var backupConfig = JsonDocument.Parse(ReadText("output", "production-readiness", "backup-restore", "staging-postgres-backup-config.json"));
+        using var restoreSummary = JsonDocument.Parse(ReadText("output", "production-readiness", "backup-restore", "restore-rehearsal-summary.json"));
 
         Assert.Contains("Story: PR-4.1 - Attach Backup And Restore Evidence.", evidence);
-        Assert.Contains("Backup evidence captured; restore rehearsal accepted as a launch-candidate risk", evidence);
+        Assert.Contains("Backup evidence captured and restore rehearsal passed on 2026-07-05", evidence);
         Assert.Contains("output/production-readiness/backup-restore/staging-postgres-backup-config.json", evidence);
-        Assert.Contains("Backup evidence captured; restore rehearsal accepted as launch-candidate risk `PR41-RESTORE-001`", checklist);
+        Assert.Contains("Restore rehearsal passed on 2026-07-05", checklist);
         Assert.Contains("docs/production-readiness-backup-restore-evidence.md", checklist);
         Assert.Contains("docs/production-readiness-backup-restore-evidence.md", closure);
-        Assert.Contains("Restore rehearsal remains unexecuted and is accepted as launch-candidate risk `PR41-RESTORE-001`.", closure);
+        Assert.Contains("Restore rehearsal passed on 2026-07-05", closure);
         Assert.Contains("az postgres flexible-server restore", closure);
         Assert.Contains("az postgres flexible-server delete", closure);
         Assert.Equal("gccs-pg-staging-19984", backupConfig.RootElement.GetProperty("name").GetString());
         Assert.Equal("Ready", backupConfig.RootElement.GetProperty("state").GetString());
         Assert.Equal(7, backupConfig.RootElement.GetProperty("backup").GetProperty("backupRetentionDays").GetInt32());
         Assert.False(string.IsNullOrWhiteSpace(backupConfig.RootElement.GetProperty("backup").GetProperty("earliestRestoreDate").GetString()));
+        Assert.Equal("passed", restoreSummary.RootElement.GetProperty("result").GetString());
+        Assert.True(restoreSummary.RootElement.GetProperty("teardownConfirmed").GetBoolean());
+        Assert.False(restoreSummary.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(restoreSummary.RootElement.GetProperty("containsCui").GetBoolean());
+        Assert.False(restoreSummary.RootElement.GetProperty("secretsCaptured").GetBoolean());
     }
 
     [Fact]
@@ -1120,26 +1126,25 @@ public sealed class ProductionReadinessChecklistTests
 
         Assert.Contains("Backup configuration is not recovery evidence.", evidence);
         Assert.Contains("Backup creation alone is rejected as restore proof.", evidence);
-        Assert.Contains("Current status: Not executed; accepted as a launch-candidate limitation", evidence);
-        Assert.Contains("No executed point-in-time restore transcript exists.", evidence);
-        Assert.Contains("TC-PR-4.1.2 | Dispositioned", evidence);
-        Assert.Contains("TC-PR-4.1.3 | Dispositioned", evidence);
+        Assert.Contains("Current status: Executed and passed on 2026-07-05", evidence);
+        Assert.Contains("Point-in-time restore server evidence", evidence);
+        Assert.Contains("TC-PR-4.1.2 | Passed", evidence);
+        Assert.Contains("TC-PR-4.1.3 | Passed", evidence);
     }
 
     [Fact]
-    public void TC_PR_4_1_Missing_restore_rehearsal_keeps_production_launch_blocked()
+    public void TC_PR_4_1_Restore_rehearsal_closes_production_launch_blocker()
     {
         var evidence = ReadText("docs", "production-readiness-backup-restore-evidence.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
 
         Assert.Contains("PR41-RESTORE-001", evidence);
-        Assert.Contains("production customer launch remains blocked", evidence, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Launch candidate tagging may proceed", evidence);
-        Assert.Contains("point-in-time restore rehearsal evidence remains required before production customer launch", checklist);
-        Assert.Contains("does not prove restore execution", closure);
+        Assert.Contains("closed for the staging launch-candidate restore rehearsal", evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Restore rehearsal passed on 2026-07-05", checklist);
+        Assert.Contains("no longer blocked by `PR41-RESTORE-001`", closure);
         Assert.Contains("TC-PR-4.1.4 | Passed", evidence);
-        Assert.DoesNotContain("restore rehearsal passed", evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("restore rehearsal passed", evidence, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -1365,7 +1370,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("PR52-CLAIM-001", riskLog);
         Assert.Contains("PR53-SUPPORT-001", riskLog);
         Assert.Contains("docs/production-readiness-launch-approval-record.md", riskLog);
-        Assert.Contains("PR-6.1 and PR-6.2 may proceed for launch-candidate tagging", riskLog);
+        Assert.Contains("Production customer launch is no longer blocked by PR41 restore evidence", riskLog);
     }
 
     [Fact]
@@ -1516,7 +1521,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("TC-PR-7.2.1 | Passed", smoke);
         Assert.Contains("TC-PR-7.2.2 | Passed", smoke);
         Assert.Contains("File upload returned `201`, `malwareScanStatus=clean`, and `isUsable=true`", smoke);
-        Assert.Contains("TC-PR-7.2.3 | Passed with residual notification dependency", smoke);
+        Assert.Contains("TC-PR-7.2.3 | Passed", smoke);
         Assert.Contains("TC-PR-7.2.4 | Passed as gate", smoke);
         Assert.Contains("Production byte-level evidence upload failed closed with `503 malware_scanner_unavailable`", riskLog);
         Assert.Contains("PR72-PROD-SMOKE-001", riskLog);
@@ -1527,7 +1532,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Production scanner evidence is attached for PR-7.2", onboarding);
         Assert.Contains("Passed on 2026-07-05 with scanner-backed byte upload", checklist);
         Assert.Contains("Production smoke tests | PR-7.2 | Passed on 2026-07-05 with synthetic-only data after scanner setup.", closure);
-        Assert.Equal("passed_with_residual_alert_route_dependency", authenticatedSmoke.RootElement.GetProperty("result").GetString());
+        Assert.Equal("passed", authenticatedSmoke.RootElement.GetProperty("result").GetString());
         Assert.False(authenticatedSmoke.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
         Assert.False(authenticatedSmoke.RootElement.GetProperty("containsCustomerData").GetBoolean());
         Assert.False(authenticatedSmoke.RootElement.GetProperty("containsCui").GetBoolean());
@@ -1537,6 +1542,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Equal("clean", authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("fileUpload").GetProperty("malwareScanStatus").GetString());
         Assert.True(authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("fileUpload").GetProperty("isUsable").GetBoolean());
         Assert.Equal(JsonValueKind.Null, authenticatedSmoke.RootElement.GetProperty("blocker").ValueKind);
+        Assert.Equal("verified_by_action_group_delivery_receipt", authenticatedSmoke.RootElement.GetProperty("alerts").GetProperty("externalAlertRouteOwnerReceipt").GetString());
         Assert.Contains("PR-7.3 controlled pilot onboarding is authorized", riskLog);
     }
 
@@ -1559,6 +1565,7 @@ public sealed class ProductionReadinessChecklistTests
             "MalwareScanning__Host",
             "gccs-clamav-production",
             "gccs-api-production-http5xx",
+            "production-alert-email-receipt.json",
             "PR72-PROD-SMOKE-002",
             "PR72-ALERT-ROUTE-001",
             "Do not include secrets, customer data, real CUI, raw file contents, unrestricted logs, or sensitive incident details.",
@@ -1866,7 +1873,7 @@ public sealed class ProductionReadinessChecklistTests
         foreach (var backlogId in new[] { "PR83-BACKLOG-001", "PR83-BACKLOG-002" })
         {
             Assert.Contains(backlogId, gate);
-            Assert.Contains("Ready with constraints", gate);
+            Assert.Contains("Closed on 2026-07-05", gate);
         }
 
         foreach (var backlogItem in gateJson.RootElement.GetProperty("backlogItems").EnumerateArray())
@@ -1881,17 +1888,17 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_8_3_Phase_2_remains_blocked_while_critical_launch_controls_are_unstable()
+    public void TC_PR_8_3_Phase_2_is_eligible_only_after_external_control_evidence_is_closed()
     {
         var gate = ReadText("docs", "production-readiness-phase-2-gate.md");
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
         using var gateJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.3", "phase-2-gate.json"));
 
-        Assert.Contains("Gate status: **Blocked**.", gate);
-        Assert.Contains("Decision: Phase 2 Govcon Intelligence remains blocked.", gate);
+        Assert.Contains("Gate status: **Eligible for approval**.", gate);
+        Assert.Contains("Decision: Phase 2 Govcon Intelligence is eligible for approval", gate);
         Assert.Contains("PR83-PHASE2-GATE-001", riskLog);
-        Assert.Equal("phase_2_blocked", gateJson.RootElement.GetProperty("result").GetString());
-        Assert.Equal("Blocked", gateJson.RootElement.GetProperty("gateStatus").GetString());
+        Assert.Equal("phase_2_eligible_for_approval", gateJson.RootElement.GetProperty("result").GetString());
+        Assert.Equal("Eligible for approval", gateJson.RootElement.GetProperty("gateStatus").GetString());
 
         foreach (var blockedCapability in new[]
         {
@@ -1911,8 +1918,8 @@ public sealed class ProductionReadinessChecklistTests
             .Select(criteria => criteria.GetProperty("controlArea").GetString())
             .ToArray();
 
-        Assert.Contains("Restore readiness", failedCriteria);
-        Assert.Contains("Alert owner receipt", failedCriteria);
+        Assert.Empty(failedCriteria);
+        Assert.Contains("Govcon Intelligence remains blocked until required control", gate);
     }
 
     [Fact]
@@ -1966,7 +1973,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Phase 2 gate | PR-8.3", closure);
         Assert.Contains("before Govcon Intelligence work proceeds", gate);
         Assert.Contains("PR83-BACKLOG-001 and PR83-BACKLOG-002 are completed or separately dispositioned", gate);
-        Assert.Equal("Blocked", gateJson.RootElement.GetProperty("gateStatus").GetString());
+        Assert.Equal("Eligible for approval", gateJson.RootElement.GetProperty("gateStatus").GetString());
         Assert.False(gateJson.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
         Assert.False(gateJson.RootElement.GetProperty("containsCustomerData").GetBoolean());
         Assert.False(gateJson.RootElement.GetProperty("containsCui").GetBoolean());
