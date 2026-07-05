@@ -1760,11 +1760,114 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Equal(10, escalationCoverage.GetProperty("runbooks").GetArrayLength());
     }
 
+    [Fact]
+    public void TC_PR_8_2_Post_launch_readiness_review_records_date_participants_agenda_findings_and_decisions()
+    {
+        var review = ReadText("docs", "production-readiness-post-launch-review.md");
+        using var reviewJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.2", "post-launch-readiness-review.json"));
+
+        Assert.Contains("Story: PR-8.2 - Hold Post-Launch Readiness Review.", review);
+        Assert.Contains("Review date: 2026-07-05.", review);
+        Assert.Contains("## Participants", review);
+        Assert.Contains("## Agenda", review);
+        Assert.Contains("## Findings And Decisions", review);
+
+        foreach (var participant in new[]
+        {
+            "Product owner",
+            "Customer success/support owner",
+            "Engineering lead",
+            "Security owner",
+            "Compliance content owner",
+            "Legal or contracting advisor"
+        })
+        {
+            Assert.Contains(participant, review);
+        }
+
+        Assert.Equal("post_launch_readiness_review_recorded", reviewJson.RootElement.GetProperty("result").GetString());
+        Assert.Equal("2026-07-05", reviewJson.RootElement.GetProperty("review").GetProperty("date").GetString());
+        Assert.True(reviewJson.RootElement.GetProperty("review").GetProperty("participants").GetArrayLength() >= 6);
+        Assert.True(reviewJson.RootElement.GetProperty("review").GetProperty("agenda").GetArrayLength() >= 6);
+        Assert.False(reviewJson.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(reviewJson.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(reviewJson.RootElement.GetProperty("containsCui").GetBoolean());
+    }
+
+    [Fact]
+    public void TC_PR_8_2_Review_covers_pilot_signals_and_assigns_regressions()
+    {
+        var review = ReadText("docs", "production-readiness-post-launch-review.md");
+        using var reviewJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.2", "post-launch-readiness-review.json"));
+
+        foreach (var reviewedSignal in new[]
+        {
+            "incidents",
+            "defects",
+            "support tickets",
+            "upload blocks",
+            "permission denials",
+            "content disputes",
+            "report failures",
+            "customer feedback"
+        })
+        {
+            Assert.Contains(reviewedSignal, review, StringComparison.OrdinalIgnoreCase);
+            Assert.True(reviewJson.RootElement.GetProperty("reviewedSignals").TryGetProperty(ToCamelCaseKey(reviewedSignal), out _));
+        }
+
+        foreach (var decision in reviewJson.RootElement.GetProperty("decisions").EnumerateArray())
+        {
+            AssertRequiredString(decision, "findingId");
+            AssertRequiredString(decision, "severity");
+            AssertRequiredString(decision, "owner");
+            AssertRequiredString(decision, "mitigation");
+            AssertRequiredString(decision, "dueDate");
+            AssertRequiredString(decision, "decision");
+            AssertRequiredString(decision, "followUpAction");
+        }
+
+        Assert.Contains("PR81-MONITOR-001", review);
+        Assert.Contains("PR81-MONITOR-002", review);
+    }
+
+    [Fact]
+    public void TC_PR_8_2_Material_findings_update_launch_artifacts()
+    {
+        var review = ReadText("docs", "production-readiness-post-launch-review.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        using var reviewJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.2", "post-launch-readiness-review.json"));
+
+        Assert.Contains("Artifact Update Decisions", review);
+        Assert.Contains("Post-launch readiness review", checklist);
+        Assert.Contains("Post-launch readiness review | PR-8.2", closure);
+        Assert.Contains("PR-8.2 post-launch readiness review is recorded", riskLog);
+
+        var artifactUpdates = reviewJson.RootElement.GetProperty("artifactUpdates").EnumerateArray().Select(element => element.GetString()).ToArray();
+        Assert.Contains("docs/production-readiness-checklist.md", artifactUpdates);
+        Assert.Contains("docs/production-readiness-launch-closure-evidence.md", artifactUpdates);
+        Assert.Contains("docs/production-readiness-launch-gap-decisions.md", artifactUpdates);
+    }
+
     private static void AssertRequiredString(JsonElement element, string propertyName)
     {
         Assert.True(element.TryGetProperty(propertyName, out var property), $"Missing required property '{propertyName}'.");
         Assert.False(string.IsNullOrWhiteSpace(property.GetString()), $"Property '{propertyName}' must not be blank.");
     }
+
+    private static string ToCamelCaseKey(string signal) =>
+        signal switch
+        {
+            "support tickets" => "supportTickets",
+            "upload blocks" => "uploadBlocks",
+            "permission denials" => "permissionDenials",
+            "content disputes" => "contentDisputes",
+            "report failures" => "reportFailures",
+            "customer feedback" => "customerFeedback",
+            _ => signal
+        };
 
     private static void AssertRequiredPendingApproverTableRows(string artifact)
     {

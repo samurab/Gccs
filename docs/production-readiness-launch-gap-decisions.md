@@ -78,4 +78,5 @@ No deferred item in this log expands the No-CUI posture, weakens tenant isolatio
 - PR-6.2 created launch candidate tag `gccs-no-cui-mvp-lc-2026-07-03` and gathered launch evidence links in `docs/production-readiness-launch-candidate-tag.md`.
 - PR-7.1 CI/CD path and production execution are resolved by `.github/workflows/production.yml`, `infra/terraform/environments/production/main.tf`, and successful run `28746053336`; PR-7.2 scanner-backed smoke is resolved by `docs/production-readiness-production-smoke-evidence.md` and `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`.
 - PR-7.3 controlled pilot onboarding is recorded in `docs/production-readiness-pilot-onboarding-evidence.md`.
-- PR-8.1 daily pilot monitoring is recorded in `docs/production-readiness-pilot-monitoring.md`; PR-8.2 may begin next, subject to No-CUI restrictions and open monitoring findings `PR81-MONITOR-001` and `PR81-MONITOR-002`.
+- PR-8.1 daily pilot monitoring is recorded in `docs/production-readiness-pilot-monitoring.md`.
+- PR-8.2 post-launch readiness review is recorded in `docs/production-readiness-post-launch-review.md`; PR-8.3 may begin next, with Phase 2 still gated by open findings `PR81-MONITOR-001` and `PR81-MONITOR-002`.
