@@ -12,7 +12,7 @@ GCCS pilot tenants are limited to the MVP No-CUI / compliance management only po
 
 Synthetic demo workflows may show CUI-aware concepts for training, but they do not authorize production storage, upload, processing, reporting, extraction, export, or support handling of real customer CUI.
 
-Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass. Any blocked, failed, missing, or unreviewed critical smoke row for login, tenant access, RBAC denial, upload controls, evidence upload, report generation, audit logging, logs, alerts, or health checks prevents pilot onboarding.
+Pilot onboarding may begin only after `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass and PR-7.3 prerequisites are satisfied. The 2026-07-05 authenticated production smoke passed login, tenant access, RBAC denial, No-CUI acknowledgement, upload guardrails, scanner-backed byte-level evidence upload, report generation, audit visibility, logging, API `Http5xx` alert resource, and health checks using synthetic-only data. Any future blocked, failed, missing, or unreviewed critical smoke row for upload controls, evidence upload, report generation, audit logging, logs, alerts, or health checks prevents pilot onboarding.
 
 ## Prohibited Data
 
@@ -37,7 +37,8 @@ Use `docs/production-readiness-support-runbooks.md` for support routing. Require
 ## Known Limitations
 
 - Restore rehearsal evidence remains a launch approval blocker until completed or formally dispositioned.
-- Malware scanner external endpoint evidence remains due before exception expiration, although the scanner control path fails closed and PR43-MALWARE-001 is approved for the No-CUI MVP launch candidate.
+- Production scanner evidence is attached for PR-7.2 using private ClamAV container `gccs-clamav-production`; a single ACI scanner is acceptable only for controlled No-CUI pilot scope and must be hardened before broader production use.
+- Alert owner notification receipt remains pending because `gccs-api-production-http5xx` has no attached action-group receiver; do not claim alert notification routing is complete until receiver evidence is attached.
 - High-risk obligations that are not `published` remain withheld from customer-facing production views.
 - Customer-facing claims and support materials require final accountable owner approvals before PR-6.1 launch approval.
 - Reports are workflow guidance only, not legal advice, certification decisions, assessor determinations, contracting-officer determinations, or government endorsements.

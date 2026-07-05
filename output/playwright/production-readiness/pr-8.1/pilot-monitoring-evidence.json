@@ -1,0 +1,66 @@
+{
+  "story": "PR-8.1",
+  "checkedAt": "2026-07-05T19:15:00.000Z",
+  "result": "day_zero_pilot_monitoring_established",
+  "tokenCapturedInArtifact": false,
+  "containsCustomerData": false,
+  "containsCui": false,
+  "monitoringSignals": [
+    "audit logs",
+    "upload blocks",
+    "permission denials",
+    "report failures",
+    "support tickets",
+    "content disputes",
+    "health checks",
+    "alerts",
+    "failed jobs"
+  ],
+  "findings": [
+    {
+      "id": "PR81-MONITOR-001",
+      "signal": "Alert owner receipt",
+      "severity": "Medium",
+      "owner": "Engineering lead",
+      "mitigation": "Attach an approved Azure Monitor action group receiver to gccs-api-production-http5xx and capture owner receipt evidence.",
+      "targetDate": "Before production customer launch or alert-notification claims",
+      "status": "Closed on 2026-07-05",
+      "riskOrBacklogLink": "PR72-ALERT-ROUTE-001"
+    },
+    {
+      "id": "PR81-MONITOR-002",
+      "signal": "Restore readiness",
+      "severity": "High",
+      "owner": "Engineering lead",
+      "mitigation": "Execute restore rehearsal using the documented runbook, attach restore output, reviewer, health check, and teardown evidence.",
+      "targetDate": "Before production customer launch or recoverability claims",
+      "status": "Closed on 2026-07-05",
+      "riskOrBacklogLink": "PR41-RESTORE-001"
+    }
+  ],
+  "escalationCoverage": {
+    "security": true,
+    "tenantIsolation": true,
+    "dataHandling": true,
+    "suspectedCui": true,
+    "overclaim": true,
+    "runbooks": [
+      "Prohibited Upload",
+      "Suspected CUI",
+      "Tenant Exposure",
+      "Access Issue",
+      "Evidence Failure",
+      "Report Failure",
+      "Content Correction",
+      "Security Incident",
+      "Backup Restore",
+      "Rollback"
+    ]
+  },
+  "testCases": {
+    "TC-PR-8.1.1": "passed_as_monitoring_checklist",
+    "TC-PR-8.1.2": "passed",
+    "TC-PR-8.1.3": "passed",
+    "TC-PR-8.1.4": "passed"
+  }
+}

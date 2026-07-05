@@ -1,0 +1,17 @@
+{
+  "emailReceiverCount": 1,
+  "enabled": true,
+  "groupShortName": "gccsprod",
+  "id": "/subscriptions/AED211A7-3460-46DB-A47F-6145E6B5E6E4/resourceGroups/gccs-production-rg/providers/microsoft.insights/actionGroups/gccs-production-alert-ops",
+  "location": "Global",
+  "name": "gccs-production-alert-ops",
+  "receiverNames": [
+    "launch-ops-email"
+  ],
+  "resourceGroup": "gccs-production-rg",
+  "tags": {
+    "dataPosture": "no-cui-only",
+    "purpose": "production-readiness",
+    "story": "PR72-ALERT-ROUTE-001"
+  }
+}

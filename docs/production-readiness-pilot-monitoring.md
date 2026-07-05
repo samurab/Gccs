@@ -1,0 +1,67 @@
+# Production Readiness Pilot Monitoring
+
+Story: PR-8.1 - Monitor Pilot Signals Daily.
+
+Evidence date: 2026-07-05.
+
+Evidence owner: Customer success/support owner.
+
+Review status: day-zero pilot monitoring established for controlled No-CUI pilot.
+
+Sanitized evidence artifact: `output/playwright/production-readiness/pr-8.1/pilot-monitoring-evidence.json`.
+
+## Architectural Assessment
+
+Pilot monitoring cannot rely on ad hoc support awareness or dashboard checks. That approach fails because high-risk regressions can appear in different systems: audit logs, upload validation, authorization, report generation, support intake, content governance, health checks, alert resources, and background jobs.
+
+Three failure modes addressed:
+
+- Monitoring only health checks misses tenant isolation, RBAC denial, suspected CUI, overclaim, content dispute, and support-process failures.
+- Recording findings without severity, owner, mitigation, and target date creates untriaged risk that cannot gate pilot expansion or Phase 2.
+- Escalating suspected CUI, tenant exposure, report overclaim, or security signals through generic support can leak sensitive context or bypass required security/legal review.
+
+The corrected pattern is a daily pilot monitoring register with fixed signal coverage, runbook-based escalation, and a findings table that links every production readiness regression to the risk log or backlog tracker.
+
+## Daily Monitoring Checklist
+
+| Signal | Daily review source | Required review | Escalation path |
+| --- | --- | --- | --- |
+| Audit logs | Tenant audit log viewer or production audit query | Review create/update/delete, upload, report, acknowledgement, role change, authorization denial, and support-relevant events for pilot tenants. | Tenant exposure, access issue, security incident, or suspected CUI runbook |
+| Upload blocks | Evidence upload validation responses and upload audit events | Review blocked prohibited uploads, missing No-CUI attestations, scanner-unavailable responses, detected malware, and unusable evidence versions. | Prohibited upload, suspected CUI, evidence failure, or security incident runbook |
+| Permission denials | Authorization audit events, API problem responses, and support tickets | Review expected RBAC denials, repeated denied actions, unexpected `403`, and role drift. | Access issue, tenant exposure, or security incident runbook |
+| Report failures | Report generation records, API errors, and support tickets | Review failed report generation, unauthenticated report attempts, tenant-scope concerns, source metadata gaps, and prohibited claim language. | Report failure, content correction, or security incident runbook |
+| Support tickets | Approved pilot support queue | Review prohibited upload, suspected CUI, tenant exposure, access issue, evidence failure, report failure, content correction, security incident, backup restore, and rollback cases. | Matching support runbook |
+| Content disputes | Content correction intake, source-backed obligation review, and support queue | Review disputed sources, stale review dates, high-risk content, publication state, and customer-facing report impact. | Content correction or legal/contracting advisor escalation |
+| Health checks | Production `/health` and deployment evidence | Review API status and dependency status for background jobs, object storage, PostgreSQL, and Redis. | Evidence failure, rollback, or security incident runbook |
+| Alerts | Azure Monitor alert resources and owner receipt evidence | Review API `Http5xx`, scanner-unavailable `503`, health degradation, upload/storage failure, job failure, and queue backlog signals. | Security incident, evidence failure, or rollback runbook |
+| Failed jobs | Background-job status, queue/dead-letter records, and health dependency output | Review failed imports, report/export jobs, notification jobs, audit jobs, and retry backlogs. | Evidence failure, report failure, content correction, or rollback runbook |
+
+## Findings Register
+
+| Finding ID | Signal | Severity | Owner | Mitigation | Target date | Status | Risk or backlog link |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| PR81-MONITOR-001 | Alert owner receipt | Medium | Engineering lead | Attach an approved Azure Monitor action group receiver to `gccs-api-production-http5xx` and capture owner receipt evidence. | Before production customer launch or alert-notification claims | Closed on 2026-07-05 | `PR72-ALERT-ROUTE-001` closed by `output/production-readiness/alerts/production-alert-route-summary.json` and `output/production-readiness/alerts/production-alert-email-receipt.json` |
+| PR81-MONITOR-002 | Restore readiness | High | Engineering lead | Execute restore rehearsal using the documented runbook, attach restore output, reviewer, health check, and teardown evidence. | Before production customer launch or recoverability claims | Closed on 2026-07-05 | `PR41-RESTORE-001` closed by `output/production-readiness/backup-restore/restore-rehearsal-summary.json` |
+
+## Day-Zero Review Result
+
+| Test case | Result | Evidence |
+| --- | --- | --- |
+| TC-PR-8.1.1 | Passed as monitoring checklist | Daily checklist covers audit logs, upload blocks, permission denials, report failures, support tickets, content disputes, health checks, alerts, and failed jobs. |
+| TC-PR-8.1.2 | Passed | Findings register requires severity, owner, mitigation, target date, status, and risk or backlog link. |
+| TC-PR-8.1.3 | Passed | Security, tenant isolation, data-handling, suspected CUI, and overclaim signals route to the support runbooks and legal/contracting advisor path where applicable. |
+| TC-PR-8.1.4 | Passed | Production readiness regressions are linked to `PR72-ALERT-ROUTE-001` and `PR41-RESTORE-001` in the known-risk log and are now closed with external evidence. |
+
+## Escalation Rules
+
+- Suspected CUI, prohibited upload, classified data, export-controlled data, credentials, sensitive government-furnished information, or sensitive personal data must escalate to the security owner using the suspected CUI or prohibited upload runbook.
+- Tenant isolation, cross-tenant metadata exposure, unexpected authorization behavior, or role drift must escalate to the engineering lead and security owner using the tenant exposure, access issue, or security incident runbook.
+- Report overclaim, legal advice, certification, CMMC approval, government endorsement, official assessment success, or unsupported recoverability claims must escalate to the product owner and legal or contracting advisor before customer-facing use continues.
+- Scanner-unavailable, storage, export, report, health, alert, or failed-job regressions must receive severity, owner, mitigation, target date, and risk or backlog tracking before the next daily review closes.
+
+## Hidden Risks And Edge Cases
+
+- A daily checklist can show green while no pilot activity has occurred; first-use monitoring from PR-7.3 must remain active so absence of events is not mistaken for stability.
+- Support tickets can contain sensitive data if intake instructions are ignored; support owners must reject raw CUI, credentials, unrestricted logs, or customer file contents in tickets.
+- Alert resources can exist without notification delivery; `PR72-ALERT-ROUTE-001` is closed only while the configured action-group receiver and delivery receipt remain valid.
+- Health checks can pass while tenant-specific RBAC, report, content, or upload workflows fail; daily review must cover both operational and tenant-scoped workflow signals.

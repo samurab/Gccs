@@ -1,0 +1,20 @@
+{
+  "story": "PR72-ALERT-ROUTE-001 / PR81-MONITOR-001 / PR83-BACKLOG-001",
+  "checkedAt": "2026-07-05T19:35:00Z",
+  "actionGroupName": "gccs-production-alert-ops",
+  "resourceGroup": "gccs-production-rg",
+  "enabled": true,
+  "receiverNames": [
+    "launch-ops-email"
+  ],
+  "emailReceiverCount": 1,
+  "receiverEmailCaptured": false,
+  "alertName": "gccs-api-production-http5xx",
+  "alertEnabled": true,
+  "alertSeverity": 2,
+  "alertActionCount": 1,
+  "actionGroupAttached": true,
+  "containsCustomerData": false,
+  "containsCui": false,
+  "result": "receiver_attached"
+}

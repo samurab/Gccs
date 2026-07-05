@@ -1,0 +1,13 @@
+{
+  "story": "PR72-ALERT-ROUTE-001 / PR81-MONITOR-001 / PR83-BACKLOG-001",
+  "checkedAt": "2026-07-05T19:50:00.000Z",
+  "source": "Gmail search/read",
+  "from": "Microsoft Azure sender redacted",
+  "subject": "Delivery Confirmation: This is a sample static threshold metric alert from Azure Monitor Action Groups.",
+  "receivedAt": "2026-07-05T19:04:33.000Z",
+  "snippetContains": "Alert Fired at July 5, 2026 19:04 UTC",
+  "receiverEmailCaptured": false,
+  "containsCustomerData": false,
+  "containsCui": false,
+  "result": "receipt_verified"
+}

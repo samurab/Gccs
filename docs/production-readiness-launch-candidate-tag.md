@@ -18,13 +18,13 @@ Tag command:
 git tag -a gccs-no-cui-mvp-lc-2026-07-03 6c8927ec9cf79de977d76cb2594b87dd48f973bd -m "GCCS No-CUI MVP launch candidate 2026-07-03"
 ```
 
-This tag is a No-CUI MVP launch candidate marker. It is not a production deployment approval, legal advice, certification evidence, government endorsement, or authorization to accept real CUI.
+This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testing and project completion. It is not a production deployment approval, production separation-of-duties approval, legal advice, certification evidence, government endorsement, broader customer launch approval, or authorization to accept real CUI.
 
 ## Preconditions
 
 | Precondition | Status | Evidence |
 | --- | --- | --- |
-| Required launch approvals complete | Passed | `docs/production-readiness-launch-approval-record.md` records product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approvals. |
+| Required launch approvals complete | Passed for solo-controlled pilot testing | `docs/production-readiness-launch-approval-record.md` records product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approval scopes under `docs/production-readiness-approval-posture-addendum.md`. |
 | Accepted exceptions recorded | Passed | `docs/production-readiness-launch-gap-decisions.md` records `PR41-RESTORE-001`, `PR43-MALWARE-001`, `PR51-HIGH-RISK-001`, `PR52-CLAIM-001`, and `PR53-SUPPORT-001`. |
 | Evidence package gathered | Passed | This artifact links launch approval, closure evidence, staging smoke, staging workflow, staging security, upload/report controls, backup/restore disposition, rollback, content review, support runbooks, release notes, pilot onboarding, and known-risk log. |
 | Approved build and deployment path passed | Passed | GitHub Actions staging workflow run `28635229630` completed successfully on branch `codex/production-readiness-pr-6-2-launch-tag` at commit `6c8927ec9cf79de977d76cb2594b87dd48f973bd`. |
@@ -46,6 +46,7 @@ This tag is a No-CUI MVP launch candidate marker. It is not a production deploym
 | Evidence area | Link |
 | --- | --- |
 | Launch approval record | `docs/production-readiness-launch-approval-record.md` |
+| Approval posture addendum | `docs/production-readiness-approval-posture-addendum.md` |
 | Launch closure evidence | `docs/production-readiness-launch-closure-evidence.md` |
 | Release notes | `docs/production-readiness-release-notes.md` |
 | Known limitations and accepted risks | `docs/production-readiness-launch-gap-decisions.md` |
@@ -66,15 +67,15 @@ This tag is a No-CUI MVP launch candidate marker. It is not a production deploym
 
 | Test case | Result | Evidence |
 | --- | --- | --- |
-| TC-PR-6.2.1 | Passed | Evidence package and required approvals are complete before launch candidate tagging. |
+| TC-PR-6.2.1 | Passed | Evidence package and required approval scopes are complete under the solo-controlled pilot posture before launch candidate tagging. |
 | TC-PR-6.2.2 | Passed | Tag record includes tag, commit, build artifact, deployment artifact, migration artifact, smoke artifact, and evidence package location. |
 | TC-PR-6.2.3 | Passed | Release notes, known limitations, support paths, staging evidence, rollback plan, and content scope are linked. |
 | TC-PR-6.2.4 | Passed | Missing approval or missing evidence remains a blocking condition; no tag may be created or retained if required links are removed. |
 
 ## Consequences And Limitations
 
-- The same user approved all six PR-6.1 roles. This is acceptable only if the organization accepts combined-role authority; it is a segregation-of-duties risk.
+- The same user approved all six PR-6.1 role scopes for solo-controlled pilot testing and project completion only. This is not production separation-of-duties approval.
 - `PR41-RESTORE-001` means restore rehearsal was not executed. Launch-candidate tagging can proceed, but production customer launch and restore-capability claims remain blocked until actual restore evidence is attached or separately dispositioned.
 - `PR43-MALWARE-001` remains time-boxed; external scanner endpoint evidence remains due before exception expiration.
 - The tag points to the deployed PR-6.1 approval commit. This PR-6.2 record is a follow-on governance record and does not change runtime application behavior.
-- If release notes, support runbooks, claim language, content scope, or accepted risks change after this tag, the tag must be superseded or re-approved.
+- If release notes, support runbooks, claim language, content scope, or accepted risks change after this tag, the tag must be superseded or re-approved under the same solo-controlled pilot posture or under a future production separation-of-duties approval model.

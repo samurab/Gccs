@@ -1,0 +1,13 @@
+{
+  "story": "PR72-ALERT-ROUTE-001 / PR81-MONITOR-001 / PR83-BACKLOG-001",
+  "checkedAt": "2026-07-05T19:45:00Z",
+  "actionGroupName": "gccs-production-alert-ops",
+  "alertType": "metricstaticthreshold",
+  "receiverName": "launch-ops-email",
+  "receiverEmailCaptured": false,
+  "requestAcceptedNoWait": true,
+  "inboxReceiptIndependentlyVerified": false,
+  "containsCustomerData": false,
+  "containsCui": false,
+  "result": "test_notification_requested_no_wait"
+}

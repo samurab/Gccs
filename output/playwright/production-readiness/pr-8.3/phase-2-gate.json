@@ -1,0 +1,168 @@
+{
+  "story": "PR-8.3",
+  "checkedAt": "2026-07-05T20:45:00.000Z",
+  "result": "phase_2_approved_for_solo_controlled_pilot_testing",
+  "tokenCapturedInArtifact": false,
+  "containsCustomerData": false,
+  "containsCui": false,
+  "gateStatus": "Approved for solo-controlled pilot testing",
+  "approval": {
+    "approvedAt": "2026-07-05",
+    "approvalType": "solo_controlled_pilot_testing_only",
+    "approver": "Accountable solo-controlled pilot approver",
+    "approvalText": "I approve unblocking Phase 2 Govcon Intelligence for solo-controlled pilot testing and project completion only. I am acting as the accountable pilot approver for this non-production governance exercise. This approval does not replace production separation of duties, does not authorize broader customer launch, does not authorize CUI processing, and does not weaken future production approval requirements.",
+    "doesNotReplaceProductionSeparationOfDuties": true,
+    "authorizesBroaderCustomerLaunch": false,
+    "authorizesCuiProcessing": false,
+    "weakensFutureProductionApprovalRequirements": false
+  },
+  "blockedCapabilities": [
+    "Automated clause extraction",
+    "AI-suggested obligations",
+    "Search indexing over customer-entered contract or evidence text",
+    "Applicability automation that changes customer-facing workflow guidance",
+    "Expanded upload, import, paste, extraction, report export, search, or AI processing"
+  ],
+  "backlogItems": [
+    {
+      "id": "PR83-BACKLOG-001",
+      "sourceFindings": [
+        "PR81-MONITOR-001",
+        "PR72-ALERT-ROUTE-001"
+      ],
+      "owner": "Engineering lead",
+      "targetDate": "Before production customer launch or alert-notification claims",
+      "readyStatus": "Closed on 2026-07-05",
+      "completedEvidence": [
+        "output/production-readiness/alerts/production-alert-route-summary.json",
+        "output/production-readiness/alerts/production-alert-email-receipt.json"
+      ],
+      "definitionOfReadyFieldsPresent": true
+    },
+    {
+      "id": "PR83-BACKLOG-002",
+      "sourceFindings": [
+        "PR81-MONITOR-002",
+        "PR41-RESTORE-001"
+      ],
+      "owner": "Engineering lead",
+      "targetDate": "Before production customer launch or recoverability claims",
+      "readyStatus": "Closed on 2026-07-05",
+      "completedEvidence": [
+        "output/production-readiness/backup-restore/restore-rehearsal-summary.json",
+        "output/production-readiness/backup-restore/restore-health.json",
+        "output/production-readiness/backup-restore/restore-server-after-teardown.err"
+      ],
+      "definitionOfReadyFieldsPresent": true
+    }
+  ],
+  "stabilityCriteria": [
+    {
+      "controlArea": "Tenant isolation",
+      "owner": "Security owner",
+      "requiredApprovers": [
+        "Security owner",
+        "Engineering lead"
+      ],
+      "passFail": "Pass"
+    },
+    {
+      "controlArea": "RBAC",
+      "owner": "Security owner",
+      "requiredApprovers": [
+        "Security owner",
+        "Engineering lead"
+      ],
+      "passFail": "Pass"
+    },
+    {
+      "controlArea": "Upload controls",
+      "owner": "Security owner",
+      "requiredApprovers": [
+        "Security owner",
+        "Product owner"
+      ],
+      "passFail": "Pass with limitation"
+    },
+    {
+      "controlArea": "Reports",
+      "owner": "Product owner",
+      "requiredApprovers": [
+        "Product owner",
+        "Legal or contracting advisor"
+      ],
+      "passFail": "Pass"
+    },
+    {
+      "controlArea": "Audit logging",
+      "owner": "Engineering lead",
+      "requiredApprovers": [
+        "Engineering lead",
+        "Security owner"
+      ],
+      "passFail": "Pass"
+    },
+    {
+      "controlArea": "Support",
+      "owner": "Customer success/support owner",
+      "requiredApprovers": [
+        "Customer success/support owner",
+        "Security owner"
+      ],
+      "passFail": "Pass with limitation"
+    },
+    {
+      "controlArea": "Content governance",
+      "owner": "Compliance content owner",
+      "requiredApprovers": [
+        "Compliance content owner",
+        "Legal or contracting advisor"
+      ],
+      "passFail": "Pass"
+    },
+    {
+      "controlArea": "Customer claims",
+      "owner": "Product owner",
+      "requiredApprovers": [
+        "Product owner",
+        "Legal or contracting advisor"
+      ],
+      "passFail": "Pass with limitation"
+    },
+    {
+      "controlArea": "No-CUI posture",
+      "owner": "Security owner",
+      "requiredApprovers": [
+        "Product owner",
+        "Security owner",
+        "Legal or contracting advisor"
+      ],
+      "passFail": "Pass"
+    },
+    {
+      "controlArea": "Restore readiness",
+      "owner": "Engineering lead",
+      "requiredApprovers": [
+        "Product owner",
+        "Engineering lead",
+        "Security owner"
+      ],
+      "passFail": "Pass"
+    },
+    {
+      "controlArea": "Alert owner receipt",
+      "owner": "Engineering lead",
+      "requiredApprovers": [
+        "Engineering lead",
+        "Security owner"
+      ],
+      "passFail": "Pass"
+    }
+  ],
+  "testCases": {
+    "TC-PR-8.3.1": "passed",
+    "TC-PR-8.3.2": "passed",
+    "TC-PR-8.3.3": "passed",
+    "TC-PR-8.3.4": "passed"
+  }
+}

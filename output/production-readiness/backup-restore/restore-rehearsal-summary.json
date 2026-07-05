@@ -1,0 +1,44 @@
+{
+  "story": "PR-4.1 / PR83-BACKLOG-002",
+  "checkedAt": "2026-07-05T19:15:00Z",
+  "sourceServer": "gccs-pg-staging-19984",
+  "restoredServer": "gccs-pg-staging-restore-202607020214",
+  "resourceGroup": "gccs-staging-rg",
+  "createdAt": "2026-07-02T02:14:45.709560+00:00",
+  "databaseNames": [
+    "azure_maintenance",
+    "postgres",
+    "azure_sys",
+    "gccs"
+  ],
+  "healthStatus": "ok",
+  "service": "gccs-api",
+  "dataPosture": "No-CUI / compliance management only",
+  "dependencies": [
+    {
+      "name": "background-jobs",
+      "status": "ok"
+    },
+    {
+      "name": "malware-scanner",
+      "status": "ok"
+    },
+    {
+      "name": "object-storage",
+      "status": "ok"
+    },
+    {
+      "name": "postgresql",
+      "status": "ok"
+    },
+    {
+      "name": "redis",
+      "status": "ok"
+    }
+  ],
+  "teardownConfirmed": true,
+  "containsCustomerData": false,
+  "containsCui": false,
+  "secretsCaptured": false,
+  "result": "passed"
+}
