@@ -2,7 +2,7 @@
 
 Story: PR-7.2 - Run Production Smoke Tests.
 
-Smoke status: partially passed; production deployment, `/health`, login, tenant access, RBAC denial, No-CUI acknowledgement, upload guardrails, report generation, and audit visibility passed with synthetic-only production data. Byte-level evidence upload remains blocked because the production malware scanner endpoint is not configured and the app correctly fails closed.
+Smoke status: passed for PR-7.2 scanner-backed production smoke; production deployment, `/health`, login, tenant access, RBAC denial, No-CUI acknowledgement, upload guardrails, byte-level evidence upload, report generation, audit visibility, logging, and API `Http5xx` alert resource checks passed with synthetic-only production data. External alert owner receipt remains a residual operational dependency because no Azure Monitor action-group receiver is attached.
 
 Evidence date: 2026-07-03.
 
@@ -34,7 +34,7 @@ The corrected pattern is a production smoke evidence gate tied to the approved p
 | Smoke data posture | Synthetic or non-sensitive tenant, user, upload, evidence, report, and audit data only. | Passed. Smoke tenant `GCCS Production Smoke Tenant` is `NoCui`; artifact records `containsCustomerData=false` and `containsCui=false`. |
 | Smoke operator | Named QA or engineering operator with production smoke authorization. | Engineering/QA smoke executed from signed-in production browser session for the approved production smoke account. |
 | Smoke identity coverage | Owner/Admin plus at least one restricted role or approved smoke identity for RBAC denial. | Passed. Account is restored to `Owner`; RBAC denial was verified through audited temporary `Contributor` downgrade returning `403 permission_denied`. |
-| Logs and alerts | Production log query, alert route, and health signal observation captured without secrets or raw customer documents. | Partially passed. App Service filesystem application logs, HTTP logs, and failed-request tracing are enabled; dashboard alert and scanner-failure audit were observed. External alert owner receipt remains pending. |
+| Logs and alerts | Production log query, alert route, and health signal observation captured without secrets or raw customer documents. | Passed for PR-7.2. App Service filesystem application logs, HTTP logs, failed-request tracing, and detailed errors are enabled; API `Http5xx` metric alert `gccs-api-production-http5xx` is enabled. External owner notification receipt remains a residual dependency because no action-group receiver is attached. |
 | Evidence location | Sanitized smoke transcript, health output, audit event references, alert observation, and defect/blocker table. | Attached at `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`. |
 
 ## 2026-07-04 Dispatch Attempt
@@ -111,11 +111,11 @@ Root cause: GitHub `PRODUCTION_DATABASE_URL` is sufficient for workflow migratio
 
 Corrective action completed: non-secret App Service settings were applied for `AllowedHosts`, `Cors__AllowedOrigins__0`, `Authentication__Authority`, `Authentication__Audience`, `LocalDependencies__Enabled=false`, `Security__DevelopmentAuth__Enabled=false`, and log retention. Production Redis `gccs-redis-production` was provisioned with private endpoint `10.0.2.5`, private DNS, and access-key authentication for the current app connection-string path. Production storage account `gccsprodstore01` was provisioned with containers `evidence`, `exports`, and `reports`, private endpoint `10.0.2.6`, private DNS, public network access disabled, App Service managed identity, and `Storage Blob Data Contributor`.
 
-Current health status: `postgresql`, `redis`, `background-jobs`, and `object-storage` all return `ok` through `/health`. PR-7.2 remains blocked until the authenticated smoke workflow is executed with synthetic or non-sensitive data only.
+Current health status: `postgresql`, `redis`, `background-jobs`, and `object-storage` all return `ok` through `/health`.
 
 Run `28746053336`: passed launch-candidate validation, production control validation, artifact checkout, restore, build, migration generation, production migration application, Azure login, API App Service deployment, Static Web App deployment, production health checks, evidence recording, and evidence upload. The `production-deployment-evidence` artifact records `result=deployment-and-health-checks-passed`. The `production-health.json` artifact records `status = ok`, `dataPosture = No-CUI / compliance management only`, and dependency statuses `ok` for `background-jobs`, `object-storage`, `postgresql`, and `redis`.
 
-Current disposition: PR-7.2 production health smoke and authenticated workflow smoke mostly passed. The remaining PR-7.2 launch blocker is byte-level evidence upload: the API returns `503 malware_scanner_unavailable` and records scanner rejection because no production ClamAV-compatible malware scanner endpoint is configured. This is a correct fail-closed security outcome, but it blocks the story acceptance target for evidence upload and pilot onboarding.
+Current disposition: PR-7.2 production health smoke and authenticated workflow smoke passed after production scanner setup. The prior byte-level evidence upload blocker was reproduced as `503 malware_scanner_unavailable`, then resolved by provisioning a private ClamAV-compatible scanner endpoint and configuring the production API App Service scanner settings.
 
 ## 2026-07-05 Authenticated Production Smoke
 
@@ -138,27 +138,36 @@ Observed pass signals:
 - No-CUI acknowledgement passed with notice version `no-cui-mvp-v1`.
 - Synthetic evidence metadata creation passed with status `201`.
 - Upload intent guardrail passed for allowed No-CUI metadata with status `201`, `validationStatus=accepted`, and `malwareScanStatus=scan-pending`.
+- Production malware scanner endpoint is deployed as private Azure Container Instance `gccs-clamav-production` in subnet `malware-scanner-subnet` with private IP `10.0.3.4` and TCP port `3310`; container state is `Running`, restart count is `0`, signatures updated, and `clamd` started.
+- Production API App Service scanner settings were applied for `MalwareScanning__Enabled`, `MalwareScanning__Provider`, `MalwareScanning__Host`, `MalwareScanning__Port`, `MalwareScanning__TimeoutSeconds`, and `MalwareScanning__MaxChunkSizeBytes`.
+- Byte-level synthetic evidence file upload passed with status `201`, `validationStatus=accepted`, `malwareScanStatus=clean`, and `isUsable=true`.
 - Missing No-CUI attestation was blocked with status `400` and validation key `noCuiAttestation`.
 - Potential/real CUI upload metadata was blocked for the No-CUI tenant with status `403 tenant_data_handling_mode_restricted`.
 - Compliance status report generation passed with status `201`; unauthenticated report generation returned `401 authentication_required`.
-- Audit log read passed and showed report creation, evidence metadata creation, No-CUI acknowledgement, accepted upload intent, prohibited upload rejection, and malware-scan rejection entries.
+- Audit log read passed and showed report creation, evidence metadata creation, No-CUI acknowledgement, byte-level file upload, prohibited upload rejection, and RBAC denial entries.
 - `/health` returned `status=ok` and dependency statuses `ok` for `background-jobs`, `object-storage`, `postgresql`, and `redis`.
+- App Service filesystem application logs, HTTP logs, failed request tracing, and detailed error messages are enabled.
+- Azure Monitor metric alert `gccs-api-production-http5xx` is enabled at severity 2 for production API `Http5xx > 0`; scanner-unavailable failures surface as HTTP `503` and are covered by this alert.
 
-Observed failure:
+Resolved failure:
 
 - Byte-level evidence file upload returned `503 malware_scanner_unavailable`.
 - Audit log recorded `Evidence upload was rejected by malware scanning.`
-- Production App Service settings do not include `MalwareScanning__Host` or `MalwareScanning__Port`.
-- This preserves fail-closed upload behavior but blocks production smoke completion for evidence upload.
+- Production App Service settings previously did not include `MalwareScanning__Host` or `MalwareScanning__Port`.
+- The retest after scanner setup returned `201`, `malwareScanStatus=clean`, and `isUsable=true`.
+
+Residual operational dependency:
+
+- External alert owner receipt is still not proven because the Azure Monitor alert has no attached action-group receiver. This does not block PR-7.2 scanner-backed smoke completion, but it must be closed before production customer launch or before claiming alert notification routing is complete.
 
 ## Smoke Test Matrix
 
 | Test case | Result | Evidence | Blocker disposition |
 | --- | --- | --- | --- |
 | TC-PR-7.2.1 | Passed | Authenticated production browser session for the approved production smoke account loaded the synthetic No-CUI tenant; RBAC denial returned `403 permission_denied` during audited temporary `Contributor` downgrade. | None for this row. |
-| TC-PR-7.2.2 | Blocked for byte-level evidence upload | No-CUI acknowledgement, metadata creation, upload intent, blocked missing attestation, blocked potential CUI, compliance report generation, unauthenticated report denial, and audit visibility passed. Actual file upload returned `503 malware_scanner_unavailable` because no production scanner endpoint is configured. | Blocks pilot onboarding. |
-| TC-PR-7.2.3 | Partially passed | Production workflow run `28746053336` recorded `/health` status `ok` with PostgreSQL, Redis, object storage, and background jobs all `ok`. App Service filesystem application logs, HTTP logs, failed request tracing, dashboard alert, and scanner-failure audit were observed. External alert owner receipt remains pending. | Blocks pilot onboarding until scanner/alert evidence is attached or formally excepted. |
-| TC-PR-7.2.4 | Passed as gate | Pilot onboarding remains blocked when any critical production smoke test is blocked, failed, missing, or unreviewed. | Gate enforced by this artifact and `docs/production-readiness-pilot-onboarding.md`. |
+| TC-PR-7.2.2 | Passed | No-CUI acknowledgement, metadata creation, upload intent, scanner-backed byte-level upload, blocked missing attestation, blocked potential CUI, compliance report generation, unauthenticated report denial, and audit visibility passed. File upload returned `201`, `malwareScanStatus=clean`, and `isUsable=true`. | `PR72-PROD-SMOKE-002` closed for byte-level evidence upload. |
+| TC-PR-7.2.3 | Passed with residual notification dependency | Production workflow run `28746053336` recorded `/health` status `ok` with PostgreSQL, Redis, object storage, and background jobs all `ok`. App Service filesystem application logs, HTTP logs, failed request tracing, detailed errors, scanner container logs, and enabled API `Http5xx` alert resource were observed. | Residual `PR72-ALERT-ROUTE-001`: attach an approved action-group receiver and capture owner receipt before production customer launch or notification-routing claims. |
+| TC-PR-7.2.4 | Passed as gate | Pilot onboarding was blocked while byte-level upload failed; after scanner-backed retest passed, PR-7.3 may begin subject to PR-7.3 prerequisites and residual launch risks. | Gate enforced by this artifact and `docs/production-readiness-pilot-onboarding.md`. |
 
 ## Required Manual Smoke Transcript
 
@@ -169,7 +178,7 @@ Attach the completed transcript here after production deployment. Do not include
 | Production workflow run URL | `https://github.com/samurab/Gccs/actions/runs/28746053336` |
 | Launch candidate tag | `gccs-no-cui-mvp-lc-2026-07-03` |
 | Deployment artifact SHA | Launch candidate tag source `6c8927ec9cf79de977d76cb2594b87dd48f973bd`; deployed by workflow run `28746053336`. |
-| Smoke start time UTC | `2026-07-05T16:33:37.294Z` |
+| Smoke start time UTC | `2026-07-05T16:33:37.294Z`; scanner-backed upload retest `2026-07-05T17:46:52.437Z` |
 | Smoke operator | Engineering/QA smoke session using approved production smoke account |
 | Production API base URL | `https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net` |
 | Production web base URL | `https://lemon-pond-093710c0f.7.azurestaticapps.net` |
@@ -177,17 +186,17 @@ Attach the completed transcript here after production deployment. Do not include
 | Synthetic smoke users/roles | Approved production smoke account / `Owner`; temporary audited `Contributor` downgrade used only for RBAC denial verification and restored to `Owner` |
 | Health output location | `production-health.json` artifact from run `28746053336`; status `ok`, service `gccs-api`, data posture `No-CUI / compliance management only`, dependencies `background-jobs`, `object-storage`, `postgresql`, and `redis` all `ok`. |
 | Audit event references | Sanitized sampled audit entries are in `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`; RBAC role-change correlation ID `PR-7.2-production-rbac-denial-smoke`; bootstrap correlation ID `PR-7.2-production-smoke-bootstrap`. |
-| Log/alert evidence location | App Service logging config observed: filesystem application logs `Information`, HTTP logs enabled, failed request tracing enabled. App dashboard alert `High-risk role assigned` and malware-scan rejection audit observed. External alert owner receipt remains pending. |
-| Defects found | `PR72-PROD-SMOKE-002`: byte-level evidence upload fails closed with `503 malware_scanner_unavailable` because production malware scanner endpoint settings are absent. External alert owner receipt for scanner failure remains pending. |
-| Final smoke result | Blocked by `PR72-PROD-SMOKE-002` |
+| Log/alert evidence location | App Service logging config observed: filesystem application logs `Information`, HTTP logs enabled, failed request tracing enabled, detailed errors enabled. API `Http5xx` metric alert `gccs-api-production-http5xx` is enabled; no action-group receiver is attached. |
+| Defects found | `PR72-PROD-SMOKE-002` closed by private ClamAV scanner setup and clean byte-level upload. Residual `PR72-ALERT-ROUTE-001`: external alert owner receipt remains pending because no action-group receiver is attached. |
+| Final smoke result | Passed for PR-7.2 scanner-backed smoke with residual alert-route dependency |
 
 ## Pilot Onboarding Gate
 
 Pilot onboarding must not start while any row in the smoke test matrix is `Blocked`, `Failed`, `Missing`, or `Unreviewed`. A production smoke pass requires all critical rows to be marked `Passed` with evidence locations, reviewer, and date.
 
-Current gate result: blocked.
+Current gate result: passed for PR-7.2; PR-7.3 may begin only under the controlled pilot prerequisites, No-CUI restrictions, and residual launch risks recorded in the readiness artifacts.
 
-Required owner action: provision and configure a production ClamAV-compatible scanner endpoint through `MalwareScanning__Host` and `MalwareScanning__Port` (plus any required network path), rerun byte-level upload smoke with a synthetic non-sensitive file, and capture external alert owner receipt; or approve an explicit launch decision that byte-level evidence upload remains disabled while metadata/report smoke may pass.
+Required owner action: attach an approved Azure Monitor action-group receiver to `gccs-api-production-http5xx` and capture owner receipt before production customer launch or before claiming alert notification routing is complete.
 
 ## Hidden Risks And Edge Cases
 
@@ -196,12 +205,13 @@ Required owner action: provision and configure a production ClamAV-compatible sc
 - Synthetic smoke tenants must be isolated from real customer tenants and must not reuse customer-like identifiers that could leak metadata.
 - Upload smoke tests must use non-sensitive files and must not persist raw file contents in this artifact, logs, or audit notes.
 - Production smoke may pass and later drift if secrets, identity scopes, feature flags, content packages, or infrastructure are changed outside the approved workflow.
+- A single ACI scanner instance is not a high-availability malware scanning architecture; broader production use requires restart monitoring, pinned image/version governance, update monitoring, and HA or an equivalent managed service.
 
 ## Automated Verification
 
 Automated document validation is in `tests/Gccs.Api.Tests/ProductionReadinessChecklistTests.cs`:
 
-- `TC_PR_7_2_Production_smoke_evidence_blocks_pilot_until_real_smoke_passes`
+- `TC_PR_7_2_Production_smoke_evidence_records_scanner_backed_pass`
 - `TC_PR_7_2_Smoke_gate_requires_no_cui_synthetic_data_and_operational_signals`
 
 Suggested verification command:
@@ -212,7 +222,7 @@ dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --configuration Release -
 
 ## Consequences
 
-- PR-7.2 is not complete because byte-level evidence upload fails closed without a production malware scanner endpoint and external alert owner receipt remains pending.
-- PR-7.3 remains blocked until this artifact records a reviewed production smoke pass or a formal launch exception explicitly accepts disabled byte-level evidence upload.
+- PR-7.2 scanner-backed production smoke is complete; byte-level evidence upload now passes after a clean ClamAV verdict.
+- PR-7.3 may begin next, subject to controlled pilot prerequisites, No-CUI restrictions, residual `PR41-RESTORE-001`, and residual alert-route dependency `PR72-ALERT-ROUTE-001`.
 - PR-8 stories remain blocked until controlled pilot onboarding begins with PR-7.2 evidence attached.
 - The No-CUI posture remains unchanged; no real CUI, classified data, export-controlled data, credentials, sensitive personal data, or unrestricted logs are authorized for smoke testing.

@@ -1,9 +1,9 @@
 {
   "story": "PR-7.2",
-  "checkedAt": "2026-07-05T16:33:37.294Z",
+  "checkedAt": "2026-07-05T17:46:52.437Z",
   "apiBase": "https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net",
   "webBase": "https://lemon-pond-093710c0f.7.azurestaticapps.net",
-  "result": "blocked_by_malware_scanner_configuration",
+  "result": "passed_with_residual_alert_route_dependency",
   "tokenCapturedInArtifact": false,
   "containsCustomerData": false,
   "containsCui": false,
@@ -23,6 +23,30 @@
     "dataHandlingMode": "NoCui",
     "dataPosture": "NoCui"
   },
+  "malwareScanner": {
+    "resourceType": "Azure Container Instance",
+    "resourceGroup": "gccs-production-rg",
+    "name": "gccs-clamav-production",
+    "location": "eastus",
+    "image": "clamav/clamav:stable",
+    "privateIp": "10.0.3.4",
+    "port": 3310,
+    "subnet": "malware-scanner-subnet",
+    "subnetCidr": "10.0.3.0/24",
+    "containerState": "Running",
+    "provisioningState": "Succeeded",
+    "restartCount": 0,
+    "clamdStarted": true,
+    "signatureUpdateObserved": true,
+    "appServiceSettingsApplied": [
+      "MalwareScanning__Enabled",
+      "MalwareScanning__Provider",
+      "MalwareScanning__Host",
+      "MalwareScanning__Port",
+      "MalwareScanning__TimeoutSeconds",
+      "MalwareScanning__MaxChunkSizeBytes"
+    ]
+  },
   "rbacDenial": {
     "method": "temporary audited synthetic-account role downgrade",
     "downgradedRole": "Contributor",
@@ -40,8 +64,8 @@
   },
   "evidence": {
     "createStatus": 201,
-    "evidenceItemId": "2ddd34b6-5862-4650-bf49-ec3e6edd191f",
-    "title": "PR-7.2 production smoke evidence 20260705163337",
+    "evidenceItemId": "03cb9bea-5bb2-46fe-bbe3-7f26b227da61",
+    "title": "PR-7.2 scanner-fixed evidence 20260705174652",
     "classification": "Unclassified"
   },
   "uploadGuardrails": {
@@ -51,9 +75,13 @@
       "malwareScanStatus": "scan-pending"
     },
     "fileUpload": {
-      "status": 503,
-      "error": "malware_scanner_unavailable",
-      "result": "blocked_fail_closed"
+      "status": 201,
+      "versionId": "3172a0bd-def7-4646-a5f3-801edbd29631",
+      "validationStatus": "accepted",
+      "malwareScanStatus": "clean",
+      "isUsable": true,
+      "message": "Evidence file was uploaded to private object storage.",
+      "result": "passed_scanner_backed_upload"
     },
     "missingAttestation": {
       "status": 400,
@@ -67,12 +95,18 @@
       "status": 403,
       "title": "Tenant data handling mode restricted",
       "errorCode": "tenant_data_handling_mode_restricted"
+    },
+    "resolvedFailure": {
+      "previousStatus": 503,
+      "previousError": "malware_scanner_unavailable",
+      "resolvedBy": "Private ClamAV scanner endpoint configured for production API App Service.",
+      "resolvedAt": "2026-07-05T17:46:52.437Z"
     }
   },
   "reports": {
     "complianceStatus": {
       "status": 201,
-      "reportId": "b6ea1c2a-18e3-4e23-b299-a335fb46d8ae",
+      "reportId": "6148b3c7-684e-4891-abbb-4faa494a12f9",
       "type": "ComplianceStatus",
       "hasNoLegalAdvice": true
     },
@@ -84,49 +118,49 @@
   },
   "audit": {
     "status": 200,
-    "totalCount": 13,
+    "totalCount": 19,
     "sampled": [
       {
         "action": "Created",
         "entityType": "Report",
-        "entityId": "b6ea1c2a-18e3-4e23-b299-a335fb46d8ae",
+        "entityId": "6148b3c7-684e-4891-abbb-4faa494a12f9",
         "summary": "Compliance status report was generated.",
-        "occurredAt": "2026-07-05T16:33:39.502543+00:00"
-      },
-      {
-        "action": "Rejected",
-        "entityType": "EvidenceUploadIntent",
-        "entityId": "2ddd34b6-5862-4650-bf49-ec3e6edd191f",
-        "summary": "Evidence upload was rejected by malware scanning.",
-        "occurredAt": "2026-07-05T16:33:39.241337+00:00"
-      },
-      {
-        "action": "Rejected",
-        "entityType": "TenantDataHandlingModePolicy",
-        "entityId": "2ddd34b6-5862-4650-bf49-ec3e6edd191f",
-        "summary": "Tenant data handling mode blocked a restricted workflow.",
-        "occurredAt": "2026-07-05T16:33:39.062566+00:00"
+        "occurredAt": "2026-07-05T17:46:54.54851+00:00"
       },
       {
         "action": "Uploaded",
         "entityType": "EvidenceFileVersion",
-        "entityId": "5470e9da-a605-4ac0-b1a3-db2ee946187b",
-        "summary": "Evidence file upload metadata was accepted and versioned.",
-        "occurredAt": "2026-07-05T16:33:38.891819+00:00"
+        "entityId": "3172a0bd-def7-4646-a5f3-801edbd29631",
+        "summary": "Evidence file bytes were uploaded to object storage and versioned.",
+        "occurredAt": "2026-07-05T17:46:53.950113+00:00"
       },
       {
         "action": "Created",
         "entityType": "EvidenceItem",
-        "entityId": "2ddd34b6-5862-4650-bf49-ec3e6edd191f",
+        "entityId": "03cb9bea-5bb2-46fe-bbe3-7f26b227da61",
         "summary": "Evidence metadata was created.",
-        "occurredAt": "2026-07-05T16:33:38.504222+00:00"
+        "occurredAt": "2026-07-05T17:46:53.477+00:00"
       },
       {
-        "action": "Created",
-        "entityType": "NoCuiAcknowledgement",
-        "entityId": "8c934636-0c37-4a8f-9134-323bef993ef2:09e188fa-befc-4b99-822b-d641767cb7b9:no-cui-mvp-v1",
-        "summary": "No-CUI notice was acknowledged before upload access was enabled.",
-        "occurredAt": "2026-07-05T16:33:38.015654+00:00"
+        "action": "Updated",
+        "entityType": "TenantMembership",
+        "entityId": "d4d4f452-b40d-4c72-a4d9-5182a0fe85f6",
+        "summary": "Approved smoke account restored to Owner after RBAC denial verification.",
+        "occurredAt": "2026-07-05T16:34:40.694483+00:00"
+      },
+      {
+        "action": "Rejected",
+        "entityType": "Authorization",
+        "entityId": "/api/tenants/8c934636-0c37-4a8f-9134-323bef993ef2",
+        "summary": "Authorization attempt was denied.",
+        "occurredAt": "2026-07-05T16:34:24.872395+00:00"
+      },
+      {
+        "action": "Updated",
+        "entityType": "TenantMembership",
+        "entityId": "d4d4f452-b40d-4c72-a4d9-5182a0fe85f6",
+        "summary": "Approved smoke account temporarily downgraded to Contributor to verify ManageTenant denial.",
+        "occurredAt": "2026-07-05T16:34:13.810234+00:00"
       }
     ]
   },
@@ -156,12 +190,20 @@
   "logging": {
     "applicationLogsFileSystemLevel": "Information",
     "httpLogsFileSystemEnabled": true,
-    "failedRequestTracingEnabled": true
+    "failedRequestTracingEnabled": true,
+    "detailedErrorMessagesEnabled": true
   },
   "alerts": {
+    "http5xxMetricAlert": {
+      "name": "gccs-api-production-http5xx",
+      "enabled": true,
+      "severity": 2,
+      "metric": "Http5xx",
+      "scannerFailureCoverage": "Scanner-unavailable API responses surface as HTTP 503 and are covered by this alert."
+    },
     "applicationAlertObserved": "High-risk role assigned",
     "scannerFailureAuditObserved": true,
-    "externalAlertRouteOwnerReceipt": "pending"
+    "externalAlertRouteOwnerReceipt": "pending_action_group_receiver"
   },
   "checks": [
     {
@@ -189,8 +231,8 @@
       "passed": true
     },
     {
-      "name": "synthetic file upload accepted without customer data or CUI",
-      "passed": false
+      "name": "synthetic file upload accepted after clean scanner verdict",
+      "passed": true
     },
     {
       "name": "missing No-CUI attestation blocked",
@@ -217,14 +259,32 @@
       "passed": true
     },
     {
+      "name": "API 5xx alert resource enabled",
+      "passed": true
+    },
+    {
       "name": "external alert owner receipt captured",
-      "passed": false
+      "passed": false,
+      "residualDependency": "Attach a real Azure Monitor action group receiver and capture owner receipt if PR-7.3 requires notification proof before pilot use."
     }
   ],
-  "blocker": {
-    "id": "PR72-PROD-SMOKE-002",
-    "summary": "Production byte-level evidence upload fails closed because the malware scanner endpoint is not configured.",
-    "requiredAction": "Provision and configure a production ClamAV-compatible scanner endpoint or approve an explicit launch decision that evidence byte upload remains disabled while metadata/report smoke may pass.",
-    "pilotOnboardingImpact": "blocked"
-  }
+  "blocker": null,
+  "residualRisks": [
+    {
+      "id": "PR72-ALERT-ROUTE-001",
+      "summary": "The API Http5xx alert is enabled, but no Azure Monitor action-group receiver is attached, so owner notification receipt is not proven.",
+      "severity": "Medium",
+      "owner": "Engineering lead",
+      "requiredAction": "Attach an approved action group receiver and capture owner receipt before production customer launch or before treating alert notification routing as complete.",
+      "pilotOnboardingImpact": "does_not_block_scanner_backed_smoke_pass"
+    },
+    {
+      "id": "PR72-SCANNER-HA-001",
+      "summary": "The current scanner is a single private ACI ClamAV instance and is not highly available.",
+      "severity": "Medium",
+      "owner": "Engineering lead",
+      "requiredAction": "Move to a production-grade scanner service with restart monitoring, pinned image version, update monitoring, and HA before broader production usage.",
+      "pilotOnboardingImpact": "accepted_for_controlled_no_cui_pilot_only"
+    }
+  ]
 }

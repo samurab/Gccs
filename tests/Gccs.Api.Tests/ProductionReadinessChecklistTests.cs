@@ -1501,7 +1501,7 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
-    public void TC_PR_7_2_Production_smoke_evidence_blocks_pilot_until_real_smoke_passes()
+    public void TC_PR_7_2_Production_smoke_evidence_records_scanner_backed_pass()
     {
         var smoke = ReadText("docs", "production-readiness-production-smoke-evidence.md");
         using var authenticatedSmoke = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-7.2", "authenticated-production-smoke.json"));
@@ -1510,29 +1510,34 @@ public sealed class ProductionReadinessChecklistTests
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
 
-        Assert.Contains("Smoke status: partially passed; production deployment, `/health`, login, tenant access, RBAC denial", smoke);
-        Assert.Contains("Current gate result: blocked.", smoke);
+        Assert.Contains("Smoke status: passed for PR-7.2 scanner-backed production smoke", smoke);
+        Assert.Contains("Current gate result: passed for PR-7.2", smoke);
         Assert.Contains("Pilot onboarding must not start while any row in the smoke test matrix is `Blocked`, `Failed`, `Missing`, or `Unreviewed`.", smoke);
         Assert.Contains("TC-PR-7.2.1 | Passed", smoke);
-        Assert.Contains("TC-PR-7.2.2 | Blocked for byte-level evidence upload", smoke);
-        Assert.Contains("TC-PR-7.2.3 | Partially passed", smoke);
+        Assert.Contains("TC-PR-7.2.2 | Passed", smoke);
+        Assert.Contains("File upload returned `201`, `malwareScanStatus=clean`, and `isUsable=true`", smoke);
+        Assert.Contains("TC-PR-7.2.3 | Passed with residual notification dependency", smoke);
         Assert.Contains("TC-PR-7.2.4 | Passed as gate", smoke);
-        Assert.Contains("Production byte-level evidence upload fails closed with `503 malware_scanner_unavailable`", riskLog);
+        Assert.Contains("Production byte-level evidence upload failed closed with `503 malware_scanner_unavailable`", riskLog);
         Assert.Contains("PR72-PROD-SMOKE-001", riskLog);
         Assert.Contains("PR72-PROD-SMOKE-002", riskLog);
+        Assert.Contains("PR72-ALERT-ROUTE-001", riskLog);
         Assert.Contains("Closed on 2026-07-05 by signed-in production smoke session", riskLog);
-        Assert.Contains("Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass or a formal launch exception explicitly accepts disabled byte-level evidence upload.", onboarding);
-        Assert.Contains("Blocked by `PR72-PROD-SMOKE-002`: byte-level evidence upload fails closed because no production malware scanner endpoint is configured; pilot onboarding remains blocked", checklist);
-        Assert.Contains("Production smoke tests | PR-7.2 | Blocked by `PR72-PROD-SMOKE-002`.", closure);
-        Assert.Equal("blocked_by_malware_scanner_configuration", authenticatedSmoke.RootElement.GetProperty("result").GetString());
+        Assert.Contains("Pilot onboarding may begin only after `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass", onboarding);
+        Assert.Contains("Production scanner evidence is attached for PR-7.2", onboarding);
+        Assert.Contains("Passed on 2026-07-05 with scanner-backed byte upload", checklist);
+        Assert.Contains("Production smoke tests | PR-7.2 | Passed on 2026-07-05 with synthetic-only data after scanner setup.", closure);
+        Assert.Equal("passed_with_residual_alert_route_dependency", authenticatedSmoke.RootElement.GetProperty("result").GetString());
         Assert.False(authenticatedSmoke.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
         Assert.False(authenticatedSmoke.RootElement.GetProperty("containsCustomerData").GetBoolean());
         Assert.False(authenticatedSmoke.RootElement.GetProperty("containsCui").GetBoolean());
         Assert.Equal("Owner", authenticatedSmoke.RootElement.GetProperty("signedIn").GetProperty("roles")[0].GetString());
         Assert.Equal(403, authenticatedSmoke.RootElement.GetProperty("rbacDenial").GetProperty("deniedStatus").GetInt32());
-        Assert.Equal(503, authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("fileUpload").GetProperty("status").GetInt32());
-        Assert.Equal("PR72-PROD-SMOKE-002", authenticatedSmoke.RootElement.GetProperty("blocker").GetProperty("id").GetString());
-        Assert.Contains("PR-7.3 pilot onboarding and PR-8 post-launch control blocked", riskLog);
+        Assert.Equal(201, authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("fileUpload").GetProperty("status").GetInt32());
+        Assert.Equal("clean", authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("fileUpload").GetProperty("malwareScanStatus").GetString());
+        Assert.True(authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("fileUpload").GetProperty("isUsable").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, authenticatedSmoke.RootElement.GetProperty("blocker").ValueKind);
+        Assert.Contains("PR-7.3 may begin under controlled pilot prerequisites", riskLog);
     }
 
     [Fact]
@@ -1552,7 +1557,10 @@ public sealed class ProductionReadinessChecklistTests
             "Audit event references",
             "Log/alert evidence location",
             "MalwareScanning__Host",
+            "gccs-clamav-production",
+            "gccs-api-production-http5xx",
             "PR72-PROD-SMOKE-002",
+            "PR72-ALERT-ROUTE-001",
             "Do not include secrets, customer data, real CUI, raw file contents, unrestricted logs, or sensitive incident details.",
             "no real CUI, classified data, export-controlled data, credentials, sensitive personal data, or unrestricted logs are authorized for smoke testing"
         })
@@ -1561,7 +1569,8 @@ public sealed class ProductionReadinessChecklistTests
         }
 
         Assert.Contains("PR-7.2 authenticated production smoke evidence is attached", deployment);
-        Assert.Contains("PR72-PROD-SMOKE-002", deployment);
+        Assert.Contains("PR-7.2 scanner-backed production smoke passed", deployment);
+        Assert.Contains("PR72-ALERT-ROUTE-001", deployment);
     }
 
     private static void AssertRequiredString(JsonElement element, string propertyName)
