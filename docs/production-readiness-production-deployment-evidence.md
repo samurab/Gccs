@@ -108,7 +108,7 @@ Closed blocker: `PR71-PROD-DEPLOY-001` is closed for the repository CI/CD path b
 
 - PR-7.1 repository implementation is resolved: the approved production CI/CD path, production environment contract, No-CUI guardrails, migration path, health checks, and evidence capture are present.
 - PR-7.1 production execution evidence is resolved by successful workflow run `28746053336`.
-- PR-7.2 remains dependent on authenticated production smoke testing with synthetic or non-sensitive data only.
-- PR-7.2 smoke gate and required evidence fields are recorded in `docs/production-readiness-production-smoke-evidence.md`.
-- PR-7.3 and PR-8 remain blocked until PR-7.2 production smoke tests pass.
+- PR-7.2 authenticated production smoke evidence is attached in `docs/production-readiness-production-smoke-evidence.md` and `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`.
+- PR-7.2 remains blocked by `PR72-PROD-SMOKE-002`: byte-level evidence upload fails closed because no production malware scanner endpoint is configured.
+- PR-7.3 and PR-8 remain blocked until PR-7.2 production smoke tests pass or a formal launch exception explicitly accepts disabled byte-level evidence upload.
 - The No-CUI posture remains unchanged; no production real-CUI capability is authorized.

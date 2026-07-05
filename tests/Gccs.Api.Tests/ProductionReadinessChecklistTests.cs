@@ -1504,24 +1504,34 @@ public sealed class ProductionReadinessChecklistTests
     public void TC_PR_7_2_Production_smoke_evidence_blocks_pilot_until_real_smoke_passes()
     {
         var smoke = ReadText("docs", "production-readiness-production-smoke-evidence.md");
+        using var authenticatedSmoke = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-7.2", "authenticated-production-smoke.json"));
         var onboarding = ReadText("docs", "production-readiness-pilot-onboarding.md");
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
 
-        Assert.Contains("Smoke status: partially passed; production deployment and `/health` passed through approved CI/CD", smoke);
+        Assert.Contains("Smoke status: partially passed; production deployment, `/health`, login, tenant access, RBAC denial", smoke);
         Assert.Contains("Current gate result: blocked.", smoke);
         Assert.Contains("Pilot onboarding must not start while any row in the smoke test matrix is `Blocked`, `Failed`, `Missing`, or `Unreviewed`.", smoke);
-        Assert.Contains("TC-PR-7.2.1 | Blocked", smoke);
-        Assert.Contains("TC-PR-7.2.2 | Blocked", smoke);
-        Assert.Contains("TC-PR-7.2.3 | Passed for health; blocked for remaining operational smoke", smoke);
+        Assert.Contains("TC-PR-7.2.1 | Passed", smoke);
+        Assert.Contains("TC-PR-7.2.2 | Blocked for byte-level evidence upload", smoke);
+        Assert.Contains("TC-PR-7.2.3 | Partially passed", smoke);
         Assert.Contains("TC-PR-7.2.4 | Passed as gate", smoke);
-        Assert.Contains("run `28746053336` passed approved production deployment and `/health`", riskLog);
-        Assert.Contains("login, tenant access, RBAC denial, upload warning/blocking, evidence upload, report generation, audit logging, and log/alert receipt evidence remain pending", riskLog);
-        Assert.Contains("Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass.", onboarding);
-        Assert.Contains("Blocked until authenticated synthetic production smoke evidence is attached; pilot onboarding remains blocked", checklist);
-        Assert.Contains("Production smoke tests | PR-7.2 | Blocked.", closure);
+        Assert.Contains("Production byte-level evidence upload fails closed with `503 malware_scanner_unavailable`", riskLog);
         Assert.Contains("PR72-PROD-SMOKE-001", riskLog);
+        Assert.Contains("PR72-PROD-SMOKE-002", riskLog);
+        Assert.Contains("Closed on 2026-07-05 by signed-in production smoke session", riskLog);
+        Assert.Contains("Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass or a formal launch exception explicitly accepts disabled byte-level evidence upload.", onboarding);
+        Assert.Contains("Blocked by `PR72-PROD-SMOKE-002`: byte-level evidence upload fails closed because no production malware scanner endpoint is configured; pilot onboarding remains blocked", checklist);
+        Assert.Contains("Production smoke tests | PR-7.2 | Blocked by `PR72-PROD-SMOKE-002`.", closure);
+        Assert.Equal("blocked_by_malware_scanner_configuration", authenticatedSmoke.RootElement.GetProperty("result").GetString());
+        Assert.False(authenticatedSmoke.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(authenticatedSmoke.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(authenticatedSmoke.RootElement.GetProperty("containsCui").GetBoolean());
+        Assert.Equal("Owner", authenticatedSmoke.RootElement.GetProperty("signedIn").GetProperty("roles")[0].GetString());
+        Assert.Equal(403, authenticatedSmoke.RootElement.GetProperty("rbacDenial").GetProperty("deniedStatus").GetInt32());
+        Assert.Equal(503, authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("fileUpload").GetProperty("status").GetInt32());
+        Assert.Equal("PR72-PROD-SMOKE-002", authenticatedSmoke.RootElement.GetProperty("blocker").GetProperty("id").GetString());
         Assert.Contains("PR-7.3 pilot onboarding and PR-8 post-launch control blocked", riskLog);
     }
 
@@ -1536,10 +1546,13 @@ public sealed class ProductionReadinessChecklistTests
             "Synthetic or non-sensitive tenant, user, upload, evidence, report, and audit data only.",
             "login, tenant access, RBAC denial, upload warning and blocking behavior, evidence upload, report generation, audit logging, logs, alerts, and `/health`",
             "Production workflow run URL",
+            "output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json",
             "Synthetic smoke tenant ID",
             "Health output location",
             "Audit event references",
             "Log/alert evidence location",
+            "MalwareScanning__Host",
+            "PR72-PROD-SMOKE-002",
             "Do not include secrets, customer data, real CUI, raw file contents, unrestricted logs, or sensitive incident details.",
             "no real CUI, classified data, export-controlled data, credentials, sensitive personal data, or unrestricted logs are authorized for smoke testing"
         })
@@ -1547,7 +1560,8 @@ public sealed class ProductionReadinessChecklistTests
             Assert.Contains(requiredText, smoke);
         }
 
-        Assert.Contains("PR-7.2 smoke gate and required evidence fields are recorded in `docs/production-readiness-production-smoke-evidence.md`.", deployment);
+        Assert.Contains("PR-7.2 authenticated production smoke evidence is attached", deployment);
+        Assert.Contains("PR72-PROD-SMOKE-002", deployment);
     }
 
     private static void AssertRequiredString(JsonElement element, string propertyName)

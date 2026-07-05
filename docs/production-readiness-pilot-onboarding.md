@@ -12,7 +12,7 @@ GCCS pilot tenants are limited to the MVP No-CUI / compliance management only po
 
 Synthetic demo workflows may show CUI-aware concepts for training, but they do not authorize production storage, upload, processing, reporting, extraction, export, or support handling of real customer CUI.
 
-Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass. Any blocked, failed, missing, or unreviewed critical smoke row for login, tenant access, RBAC denial, upload controls, evidence upload, report generation, audit logging, logs, alerts, or health checks prevents pilot onboarding.
+Pilot onboarding is blocked until `docs/production-readiness-production-smoke-evidence.md` records a reviewed PR-7.2 production smoke pass or a formal launch exception explicitly accepts disabled byte-level evidence upload. The 2026-07-05 authenticated production smoke passed login, tenant access, RBAC denial, No-CUI acknowledgement, upload guardrails, report generation, audit visibility, and health, but byte-level evidence upload failed closed with `503 malware_scanner_unavailable` because no production malware scanner endpoint is configured. Any blocked, failed, missing, or unreviewed critical smoke row for upload controls, evidence upload, report generation, audit logging, logs, alerts, or health checks prevents pilot onboarding.
 
 ## Prohibited Data
 

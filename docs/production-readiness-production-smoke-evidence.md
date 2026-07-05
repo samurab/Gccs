@@ -2,7 +2,7 @@
 
 Story: PR-7.2 - Run Production Smoke Tests.
 
-Smoke status: partially passed; production deployment and `/health` passed through approved CI/CD, but authenticated workflow smoke tests are still blocked pending approved synthetic production smoke identities/session.
+Smoke status: partially passed; production deployment, `/health`, login, tenant access, RBAC denial, No-CUI acknowledgement, upload guardrails, report generation, and audit visibility passed with synthetic-only production data. Byte-level evidence upload remains blocked because the production malware scanner endpoint is not configured and the app correctly fails closed.
 
 Evidence date: 2026-07-03.
 
@@ -31,11 +31,11 @@ The corrected pattern is a production smoke evidence gate tied to the approved p
 | Requirement | Required evidence | Current status |
 | --- | --- | --- |
 | Production deployment completed | Successful `.github/workflows/production.yml` run for launch candidate `gccs-no-cui-mvp-lc-2026-07-03` with `production-deployment-evidence` artifact attached. | Passed in run `28746053336`; artifact records migration, API deploy, web deploy, and health checks passed. |
-| Smoke data posture | Synthetic or non-sensitive tenant, user, upload, evidence, report, and audit data only. | Required before execution. |
-| Smoke operator | Named QA or engineering operator with production smoke authorization. | Required before execution. |
-| Smoke identity coverage | Owner/Admin plus at least one restricted role or approved smoke identity for RBAC denial. | Required before execution. |
-| Logs and alerts | Production log query, alert route, and health signal observation captured without secrets or raw customer documents. | Required before execution. |
-| Evidence location | Sanitized smoke transcript, health output, audit event references, alert observation, and defect/blocker table. | Required before execution. |
+| Smoke data posture | Synthetic or non-sensitive tenant, user, upload, evidence, report, and audit data only. | Passed. Smoke tenant `GCCS Production Smoke Tenant` is `NoCui`; artifact records `containsCustomerData=false` and `containsCui=false`. |
+| Smoke operator | Named QA or engineering operator with production smoke authorization. | Engineering/QA smoke executed from signed-in production browser session for the approved production smoke account. |
+| Smoke identity coverage | Owner/Admin plus at least one restricted role or approved smoke identity for RBAC denial. | Passed. Account is restored to `Owner`; RBAC denial was verified through audited temporary `Contributor` downgrade returning `403 permission_denied`. |
+| Logs and alerts | Production log query, alert route, and health signal observation captured without secrets or raw customer documents. | Partially passed. App Service filesystem application logs, HTTP logs, and failed-request tracing are enabled; dashboard alert and scanner-failure audit were observed. External alert owner receipt remains pending. |
+| Evidence location | Sanitized smoke transcript, health output, audit event references, alert observation, and defect/blocker table. | Attached at `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`. |
 
 ## 2026-07-04 Dispatch Attempt
 
@@ -115,15 +115,49 @@ Current health status: `postgresql`, `redis`, `background-jobs`, and `object-sto
 
 Run `28746053336`: passed launch-candidate validation, production control validation, artifact checkout, restore, build, migration generation, production migration application, Azure login, API App Service deployment, Static Web App deployment, production health checks, evidence recording, and evidence upload. The `production-deployment-evidence` artifact records `result=deployment-and-health-checks-passed`. The `production-health.json` artifact records `status = ok`, `dataPosture = No-CUI / compliance management only`, and dependency statuses `ok` for `background-jobs`, `object-storage`, `postgresql`, and `redis`.
 
-Current disposition: PR-7.2 production health smoke passed. PR-7.2 authenticated workflow smoke remains blocked until approved production smoke identities or a signed-in production browser session are available to verify login, tenant access, RBAC denial, upload warning/blocking behavior, evidence upload, report generation, and audit logging with synthetic or non-sensitive data only.
+Current disposition: PR-7.2 production health smoke and authenticated workflow smoke mostly passed. The remaining PR-7.2 launch blocker is byte-level evidence upload: the API returns `503 malware_scanner_unavailable` and records scanner rejection because no production ClamAV-compatible malware scanner endpoint is configured. This is a correct fail-closed security outcome, but it blocks the story acceptance target for evidence upload and pilot onboarding.
+
+## 2026-07-05 Authenticated Production Smoke
+
+Sanitized evidence artifact: `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`.
+
+Execution notes:
+
+- The production API app registration was corrected to issue v2 access tokens by setting `requestedAccessTokenVersion = 2`; the signed-in browser then reacquired a v2 token with issuer `https://login.microsoftonline.com/8c934636-0c37-4a8f-9134-323bef993ef2/v2.0`.
+- A synthetic No-CUI smoke tenant was bootstrapped in production as `GCCS Production Smoke Tenant` with tenant ID `8c934636-0c37-4a8f-9134-323bef993ef2`.
+- The approved smoke/admin account resolved to user ID `09e188fa-befc-4b99-822b-d641767cb7b9` and was restored to `Owner` after smoke testing. The real email address is intentionally omitted from this committed artifact.
+- RBAC denial was verified by temporarily downgrading the synthetic account to `Contributor`, confirming `/api/tenants/{tenantId}` returned `403 permission_denied`, then restoring `Owner`. The role changes were audit logged with correlation ID `PR-7.2-production-rbac-denial-smoke`.
+- Smoke artifact records no token, no customer data, no CUI, and no raw file contents.
+
+Observed pass signals:
+
+- Login and API token validation passed with production MSAL and production API.
+- Tenant access passed; `/api/me/access` returned `Owner`, `ManageTenant`, tenant ID `8c934636-0c37-4a8f-9134-323bef993ef2`, and the approved smoke account identity. The real email address is intentionally omitted from this committed artifact.
+- Tenant detail passed; `/api/tenants/{tenantId}` returned `GCCS Production Smoke Tenant`, `status=Active`, `dataHandlingMode=NoCui`.
+- Production UI loaded the smoke tenant and displayed `Active tenant: GCCS Production Smoke Tenant` and `Mode: NoCui`.
+- No-CUI acknowledgement passed with notice version `no-cui-mvp-v1`.
+- Synthetic evidence metadata creation passed with status `201`.
+- Upload intent guardrail passed for allowed No-CUI metadata with status `201`, `validationStatus=accepted`, and `malwareScanStatus=scan-pending`.
+- Missing No-CUI attestation was blocked with status `400` and validation key `noCuiAttestation`.
+- Potential/real CUI upload metadata was blocked for the No-CUI tenant with status `403 tenant_data_handling_mode_restricted`.
+- Compliance status report generation passed with status `201`; unauthenticated report generation returned `401 authentication_required`.
+- Audit log read passed and showed report creation, evidence metadata creation, No-CUI acknowledgement, accepted upload intent, prohibited upload rejection, and malware-scan rejection entries.
+- `/health` returned `status=ok` and dependency statuses `ok` for `background-jobs`, `object-storage`, `postgresql`, and `redis`.
+
+Observed failure:
+
+- Byte-level evidence file upload returned `503 malware_scanner_unavailable`.
+- Audit log recorded `Evidence upload was rejected by malware scanning.`
+- Production App Service settings do not include `MalwareScanning__Host` or `MalwareScanning__Port`.
+- This preserves fail-closed upload behavior but blocks production smoke completion for evidence upload.
 
 ## Smoke Test Matrix
 
 | Test case | Result | Evidence | Blocker disposition |
 | --- | --- | --- | --- |
-| TC-PR-7.2.1 | Blocked | Production login, tenant access, and RBAC denial tests require approved production smoke identities or a signed-in production browser session. | Blocks pilot onboarding. |
-| TC-PR-7.2.2 | Blocked | Upload warning/blocking, evidence upload, report generation, and audit logging smoke tests require approved production smoke identities, production tenant seed, and synthetic-only smoke files. | Blocks pilot onboarding. |
-| TC-PR-7.2.3 | Passed for health; blocked for remaining operational smoke | Production workflow run `28746053336` recorded `/health` status `ok` with PostgreSQL, Redis, object storage, and background jobs all `ok`. Production log/alert receipt evidence and authenticated workflow evidence remain pending. | Blocks pilot onboarding until remaining smoke evidence is attached. |
+| TC-PR-7.2.1 | Passed | Authenticated production browser session for the approved production smoke account loaded the synthetic No-CUI tenant; RBAC denial returned `403 permission_denied` during audited temporary `Contributor` downgrade. | None for this row. |
+| TC-PR-7.2.2 | Blocked for byte-level evidence upload | No-CUI acknowledgement, metadata creation, upload intent, blocked missing attestation, blocked potential CUI, compliance report generation, unauthenticated report denial, and audit visibility passed. Actual file upload returned `503 malware_scanner_unavailable` because no production scanner endpoint is configured. | Blocks pilot onboarding. |
+| TC-PR-7.2.3 | Partially passed | Production workflow run `28746053336` recorded `/health` status `ok` with PostgreSQL, Redis, object storage, and background jobs all `ok`. App Service filesystem application logs, HTTP logs, failed request tracing, dashboard alert, and scanner-failure audit were observed. External alert owner receipt remains pending. | Blocks pilot onboarding until scanner/alert evidence is attached or formally excepted. |
 | TC-PR-7.2.4 | Passed as gate | Pilot onboarding remains blocked when any critical production smoke test is blocked, failed, missing, or unreviewed. | Gate enforced by this artifact and `docs/production-readiness-pilot-onboarding.md`. |
 
 ## Required Manual Smoke Transcript
@@ -135,17 +169,17 @@ Attach the completed transcript here after production deployment. Do not include
 | Production workflow run URL | `https://github.com/samurab/Gccs/actions/runs/28746053336` |
 | Launch candidate tag | `gccs-no-cui-mvp-lc-2026-07-03` |
 | Deployment artifact SHA | Launch candidate tag source `6c8927ec9cf79de977d76cb2594b87dd48f973bd`; deployed by workflow run `28746053336`. |
-| Smoke start time UTC | Pending |
-| Smoke operator | Pending |
+| Smoke start time UTC | `2026-07-05T16:33:37.294Z` |
+| Smoke operator | Engineering/QA smoke session using approved production smoke account |
 | Production API base URL | `https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net` |
 | Production web base URL | `https://lemon-pond-093710c0f.7.azurestaticapps.net` |
-| Synthetic smoke tenant ID | Pending non-sensitive identifier |
-| Synthetic smoke users/roles | Pending non-sensitive identifiers |
+| Synthetic smoke tenant ID | `8c934636-0c37-4a8f-9134-323bef993ef2` (`GCCS Production Smoke Tenant`, `NoCui`) |
+| Synthetic smoke users/roles | Approved production smoke account / `Owner`; temporary audited `Contributor` downgrade used only for RBAC denial verification and restored to `Owner` |
 | Health output location | `production-health.json` artifact from run `28746053336`; status `ok`, service `gccs-api`, data posture `No-CUI / compliance management only`, dependencies `background-jobs`, `object-storage`, `postgresql`, and `redis` all `ok`. |
-| Audit event references | Pending |
-| Log/alert evidence location | Pending |
-| Defects found | Authenticated production smoke identities/session, synthetic production tenant seed, audit references, and log/alert receipt evidence are still pending. |
-| Final smoke result | Blocked |
+| Audit event references | Sanitized sampled audit entries are in `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`; RBAC role-change correlation ID `PR-7.2-production-rbac-denial-smoke`; bootstrap correlation ID `PR-7.2-production-smoke-bootstrap`. |
+| Log/alert evidence location | App Service logging config observed: filesystem application logs `Information`, HTTP logs enabled, failed request tracing enabled. App dashboard alert `High-risk role assigned` and malware-scan rejection audit observed. External alert owner receipt remains pending. |
+| Defects found | `PR72-PROD-SMOKE-002`: byte-level evidence upload fails closed with `503 malware_scanner_unavailable` because production malware scanner endpoint settings are absent. External alert owner receipt for scanner failure remains pending. |
+| Final smoke result | Blocked by `PR72-PROD-SMOKE-002` |
 
 ## Pilot Onboarding Gate
 
@@ -153,7 +187,7 @@ Pilot onboarding must not start while any row in the smoke test matrix is `Block
 
 Current gate result: blocked.
 
-Required owner action: run the approved production deployment workflow, execute the PR-7.2 smoke matrix with synthetic or non-sensitive data only, attach sanitized evidence, then update this artifact from `Blocked` to the actual reviewed result.
+Required owner action: provision and configure a production ClamAV-compatible scanner endpoint through `MalwareScanning__Host` and `MalwareScanning__Port` (plus any required network path), rerun byte-level upload smoke with a synthetic non-sensitive file, and capture external alert owner receipt; or approve an explicit launch decision that byte-level evidence upload remains disabled while metadata/report smoke may pass.
 
 ## Hidden Risks And Edge Cases
 
@@ -178,7 +212,7 @@ dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --configuration Release -
 
 ## Consequences
 
-- PR-7.2 is not complete because production smoke execution requires external production deployment access and operational telemetry.
-- PR-7.3 remains blocked until this artifact records a reviewed production smoke pass.
+- PR-7.2 is not complete because byte-level evidence upload fails closed without a production malware scanner endpoint and external alert owner receipt remains pending.
+- PR-7.3 remains blocked until this artifact records a reviewed production smoke pass or a formal launch exception explicitly accepts disabled byte-level evidence upload.
 - PR-8 stories remain blocked until controlled pilot onboarding begins with PR-7.2 evidence attached.
 - The No-CUI posture remains unchanged; no real CUI, classified data, export-controlled data, credentials, sensitive personal data, or unrestricted logs are authorized for smoke testing.

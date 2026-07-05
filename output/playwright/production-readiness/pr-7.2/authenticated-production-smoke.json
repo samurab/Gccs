@@ -1,0 +1,230 @@
+{
+  "story": "PR-7.2",
+  "checkedAt": "2026-07-05T16:33:37.294Z",
+  "apiBase": "https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net",
+  "webBase": "https://lemon-pond-093710c0f.7.azurestaticapps.net",
+  "result": "blocked_by_malware_scanner_configuration",
+  "tokenCapturedInArtifact": false,
+  "containsCustomerData": false,
+  "containsCui": false,
+  "signedIn": {
+    "status": 200,
+    "roles": [
+      "Owner"
+    ],
+    "permissionsIncludeManageTenant": true,
+    "tenantId": "8c934636-0c37-4a8f-9134-323bef993ef2",
+    "userEmail": "approved-production-smoke-account"
+  },
+  "tenant": {
+    "status": 200,
+    "id": "8c934636-0c37-4a8f-9134-323bef993ef2",
+    "displayName": "GCCS Production Smoke Tenant",
+    "dataHandlingMode": "NoCui",
+    "dataPosture": "NoCui"
+  },
+  "rbacDenial": {
+    "method": "temporary audited synthetic-account role downgrade",
+    "downgradedRole": "Contributor",
+    "deniedEndpoint": "/api/tenants/8c934636-0c37-4a8f-9134-323bef993ef2",
+    "deniedStatus": 403,
+    "deniedErrorCode": "permission_denied",
+    "restoredRole": "Owner",
+    "auditCorrelationId": "PR-7.2-production-rbac-denial-smoke"
+  },
+  "noCuiAcknowledgement": {
+    "beforeStatus": 200,
+    "finalStatus": 200,
+    "isAcknowledged": true,
+    "noticeVersion": "no-cui-mvp-v1"
+  },
+  "evidence": {
+    "createStatus": 201,
+    "evidenceItemId": "2ddd34b6-5862-4650-bf49-ec3e6edd191f",
+    "title": "PR-7.2 production smoke evidence 20260705163337",
+    "classification": "Unclassified"
+  },
+  "uploadGuardrails": {
+    "allowedIntent": {
+      "status": 201,
+      "validationStatus": "accepted",
+      "malwareScanStatus": "scan-pending"
+    },
+    "fileUpload": {
+      "status": 503,
+      "error": "malware_scanner_unavailable",
+      "result": "blocked_fail_closed"
+    },
+    "missingAttestation": {
+      "status": 400,
+      "title": "Evidence upload rejected",
+      "errorCode": "validation_failed",
+      "errorKeys": [
+        "noCuiAttestation"
+      ]
+    },
+    "potentialCuiBlocked": {
+      "status": 403,
+      "title": "Tenant data handling mode restricted",
+      "errorCode": "tenant_data_handling_mode_restricted"
+    }
+  },
+  "reports": {
+    "complianceStatus": {
+      "status": 201,
+      "reportId": "b6ea1c2a-18e3-4e23-b299-a335fb46d8ae",
+      "type": "ComplianceStatus",
+      "hasNoLegalAdvice": true
+    },
+    "unauthenticatedComplianceStatus": {
+      "status": 401,
+      "title": "Authentication required",
+      "errorCode": "authentication_required"
+    }
+  },
+  "audit": {
+    "status": 200,
+    "totalCount": 13,
+    "sampled": [
+      {
+        "action": "Created",
+        "entityType": "Report",
+        "entityId": "b6ea1c2a-18e3-4e23-b299-a335fb46d8ae",
+        "summary": "Compliance status report was generated.",
+        "occurredAt": "2026-07-05T16:33:39.502543+00:00"
+      },
+      {
+        "action": "Rejected",
+        "entityType": "EvidenceUploadIntent",
+        "entityId": "2ddd34b6-5862-4650-bf49-ec3e6edd191f",
+        "summary": "Evidence upload was rejected by malware scanning.",
+        "occurredAt": "2026-07-05T16:33:39.241337+00:00"
+      },
+      {
+        "action": "Rejected",
+        "entityType": "TenantDataHandlingModePolicy",
+        "entityId": "2ddd34b6-5862-4650-bf49-ec3e6edd191f",
+        "summary": "Tenant data handling mode blocked a restricted workflow.",
+        "occurredAt": "2026-07-05T16:33:39.062566+00:00"
+      },
+      {
+        "action": "Uploaded",
+        "entityType": "EvidenceFileVersion",
+        "entityId": "5470e9da-a605-4ac0-b1a3-db2ee946187b",
+        "summary": "Evidence file upload metadata was accepted and versioned.",
+        "occurredAt": "2026-07-05T16:33:38.891819+00:00"
+      },
+      {
+        "action": "Created",
+        "entityType": "EvidenceItem",
+        "entityId": "2ddd34b6-5862-4650-bf49-ec3e6edd191f",
+        "summary": "Evidence metadata was created.",
+        "occurredAt": "2026-07-05T16:33:38.504222+00:00"
+      },
+      {
+        "action": "Created",
+        "entityType": "NoCuiAcknowledgement",
+        "entityId": "8c934636-0c37-4a8f-9134-323bef993ef2:09e188fa-befc-4b99-822b-d641767cb7b9:no-cui-mvp-v1",
+        "summary": "No-CUI notice was acknowledged before upload access was enabled.",
+        "occurredAt": "2026-07-05T16:33:38.015654+00:00"
+      }
+    ]
+  },
+  "health": {
+    "status": 200,
+    "serviceStatus": "ok",
+    "dataPosture": "No-CUI / compliance management only",
+    "dependencies": [
+      {
+        "name": "background-jobs",
+        "status": "ok"
+      },
+      {
+        "name": "object-storage",
+        "status": "ok"
+      },
+      {
+        "name": "postgresql",
+        "status": "ok"
+      },
+      {
+        "name": "redis",
+        "status": "ok"
+      }
+    ]
+  },
+  "logging": {
+    "applicationLogsFileSystemLevel": "Information",
+    "httpLogsFileSystemEnabled": true,
+    "failedRequestTracingEnabled": true
+  },
+  "alerts": {
+    "applicationAlertObserved": "High-risk role assigned",
+    "scannerFailureAuditObserved": true,
+    "externalAlertRouteOwnerReceipt": "pending"
+  },
+  "checks": [
+    {
+      "name": "signed-in production owner session available",
+      "passed": true
+    },
+    {
+      "name": "tenant loaded as active No-CUI smoke tenant",
+      "passed": true
+    },
+    {
+      "name": "RBAC denial returns 403 for restricted role",
+      "passed": true
+    },
+    {
+      "name": "No-CUI acknowledgement present",
+      "passed": true
+    },
+    {
+      "name": "synthetic evidence metadata created",
+      "passed": true
+    },
+    {
+      "name": "allowed upload intent accepted",
+      "passed": true
+    },
+    {
+      "name": "synthetic file upload accepted without customer data or CUI",
+      "passed": false
+    },
+    {
+      "name": "missing No-CUI attestation blocked",
+      "passed": true
+    },
+    {
+      "name": "potential CUI upload blocked for No-CUI tenant",
+      "passed": true
+    },
+    {
+      "name": "compliance status report generated",
+      "passed": true
+    },
+    {
+      "name": "unauthenticated report generation denied",
+      "passed": true
+    },
+    {
+      "name": "audit log visible after smoke actions",
+      "passed": true
+    },
+    {
+      "name": "production health ok",
+      "passed": true
+    },
+    {
+      "name": "external alert owner receipt captured",
+      "passed": false
+    }
+  ],
+  "blocker": {
+    "id": "PR72-PROD-SMOKE-002",
+    "summary": "Production byte-level evidence upload fails closed because the malware scanner endpoint is not configured.",
+    "requiredAction": "Provision and configure a production ClamAV-compatible scanner endpoint or approve an explicit launch decision that evidence byte upload remains disabled while metadata/report smoke may pass.",
+    "pilotOnboardingImpact": "blocked"
+  }
+}
