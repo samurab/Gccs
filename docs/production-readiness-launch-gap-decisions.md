@@ -47,7 +47,7 @@ No deferred item in this log expands the No-CUI posture, weakens tenant isolatio
 - No active launch-candidate-tag blockers remain after PR-6.1 approval, restore-rehearsal disposition, and PR-6.2 tag creation.
 - Production deployment CI/CD path blocker `PR71-PROD-DEPLOY-001` is closed; authenticated production smoke evidence is attached.
 - Production smoke blockers `PR72-PROD-SMOKE-001` and `PR72-PROD-SMOKE-002` are closed; PR-7.2 scanner-backed smoke passed.
-- PR-7.3 may begin under controlled pilot prerequisites after PR-7.2 evidence review; production customer launch remains blocked by `PR41-RESTORE-001` and residual alert-route dependency `PR72-ALERT-ROUTE-001` until closed or separately dispositioned.
+- PR-7.3 controlled pilot onboarding is authorized by `docs/production-readiness-pilot-onboarding-evidence.md` using pseudonymous pilot identifiers only; broader production customer launch remains blocked by `PR41-RESTORE-001` and residual alert-route dependency `PR72-ALERT-ROUTE-001` until closed or separately dispositioned.
 - Production customer launch remains blocked by `PR41-RESTORE-001` until restore rehearsal evidence is attached or separately dispositioned.
 
 ## Closed Gaps
@@ -75,4 +75,4 @@ No deferred item in this log expands the No-CUI posture, weakens tenant isolatio
 - PR-6.1 approval records are complete; accepted exceptions remain linked for PR-6.2.
 - PR-6.2 created launch candidate tag `gccs-no-cui-mvp-lc-2026-07-03` and gathered launch evidence links in `docs/production-readiness-launch-candidate-tag.md`.
 - PR-7.1 CI/CD path and production execution are resolved by `.github/workflows/production.yml`, `infra/terraform/environments/production/main.tf`, and successful run `28746053336`; PR-7.2 scanner-backed smoke is resolved by `docs/production-readiness-production-smoke-evidence.md` and `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`.
-- PR-7.3 may begin next, subject to controlled pilot prerequisites, No-CUI restrictions, `PR41-RESTORE-001`, and `PR72-ALERT-ROUTE-001`.
+- PR-7.3 controlled pilot onboarding is recorded in `docs/production-readiness-pilot-onboarding-evidence.md`; PR-8.1 may begin next subject to No-CUI restrictions, first-use monitoring, `PR41-RESTORE-001`, and `PR72-ALERT-ROUTE-001`.

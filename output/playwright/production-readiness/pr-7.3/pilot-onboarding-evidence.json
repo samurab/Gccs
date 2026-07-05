@@ -1,0 +1,96 @@
+{
+  "story": "PR-7.3",
+  "checkedAt": "2026-07-05T18:30:00.000Z",
+  "result": "controlled_pilot_onboarding_authorized",
+  "authorizationSource": "user-provided approved pilot customer identifiers/cohort and onboarding authorization on 2026-07-05",
+  "tokenCapturedInArtifact": false,
+  "containsCustomerData": false,
+  "containsCui": false,
+  "containsRealCustomerIdentifiers": false,
+  "productionSmokeGate": {
+    "status": "passed",
+    "evidence": "docs/production-readiness-production-smoke-evidence.md",
+    "requiredText": "Current gate result: passed for PR-7.2",
+    "scannerBackedUploadPassed": true
+  },
+  "pilotCohort": [
+    {
+      "pilotId": "PILOT-001",
+      "tenantMode": "NoCui",
+      "rolesVerified": [
+        "Owner",
+        "Admin",
+        "Compliance Manager",
+        "Contributor",
+        "Auditor",
+        "Advisor"
+      ],
+      "onboardingMaterialsDelivered": true,
+      "noCuiGuidanceDelivered": true,
+      "prohibitedDataExamplesDelivered": true,
+      "supportPathsDelivered": true,
+      "knownLimitationsDelivered": true,
+      "acknowledgementRequiredBeforeUpload": true,
+      "supportRouteActive": true,
+      "firstWorkflowMonitoring": {
+        "status": "active",
+        "signals": [
+          "company-profile",
+          "contract-metadata",
+          "obligation-task",
+          "allowed-evidence",
+          "report-generation",
+          "audit-log"
+        ]
+      }
+    },
+    {
+      "pilotId": "PILOT-002",
+      "tenantMode": "NoCui",
+      "rolesVerified": [
+        "Owner",
+        "Admin",
+        "Compliance Manager",
+        "Contributor",
+        "Auditor",
+        "Advisor"
+      ],
+      "onboardingMaterialsDelivered": true,
+      "noCuiGuidanceDelivered": true,
+      "prohibitedDataExamplesDelivered": true,
+      "supportPathsDelivered": true,
+      "knownLimitationsDelivered": true,
+      "acknowledgementRequiredBeforeUpload": true,
+      "supportRouteActive": true,
+      "firstWorkflowMonitoring": {
+        "status": "active",
+        "signals": [
+          "company-profile",
+          "contract-metadata",
+          "obligation-task",
+          "allowed-evidence",
+          "report-generation",
+          "audit-log"
+        ]
+      }
+    }
+  ],
+  "residualDependencies": [
+    {
+      "id": "PR41-RESTORE-001",
+      "status": "open",
+      "impact": "broader production customer launch and recoverability claims remain blocked until restore rehearsal evidence is attached or separately dispositioned"
+    },
+    {
+      "id": "PR72-ALERT-ROUTE-001",
+      "status": "open",
+      "impact": "alert notification routing claims and broader production customer launch remain blocked until action-group receiver evidence is attached or separately dispositioned"
+    }
+  ],
+  "testCases": {
+    "TC-PR-7.3.1": "passed",
+    "TC-PR-7.3.2": "passed",
+    "TC-PR-7.3.3": "passed",
+    "TC-PR-7.3.4": "passed"
+  }
+}

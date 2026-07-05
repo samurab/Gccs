@@ -1537,7 +1537,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Equal("clean", authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("fileUpload").GetProperty("malwareScanStatus").GetString());
         Assert.True(authenticatedSmoke.RootElement.GetProperty("uploadGuardrails").GetProperty("fileUpload").GetProperty("isUsable").GetBoolean());
         Assert.Equal(JsonValueKind.Null, authenticatedSmoke.RootElement.GetProperty("blocker").ValueKind);
-        Assert.Contains("PR-7.3 may begin under controlled pilot prerequisites", riskLog);
+        Assert.Contains("PR-7.3 controlled pilot onboarding is authorized", riskLog);
     }
 
     [Fact]
@@ -1571,6 +1571,84 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("PR-7.2 authenticated production smoke evidence is attached", deployment);
         Assert.Contains("PR-7.2 scanner-backed production smoke passed", deployment);
         Assert.Contains("PR72-ALERT-ROUTE-001", deployment);
+    }
+
+    [Fact]
+    public void TC_PR_7_3_Controlled_pilot_onboarding_records_smoke_gate_and_non_sensitive_cohort()
+    {
+        var evidence = ReadText("docs", "production-readiness-pilot-onboarding-evidence.md");
+        var smoke = ReadText("docs", "production-readiness-production-smoke-evidence.md");
+        var checklist = ReadText("docs", "production-readiness-checklist.md");
+        var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        using var evidenceJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-7.3", "pilot-onboarding-evidence.json"));
+
+        Assert.Contains("Story: PR-7.3 - Onboard Controlled Pilot Customers.", evidence);
+        Assert.Contains("controlled pilot onboarding authorized", evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Current gate result: passed for PR-7.2", smoke);
+        Assert.Contains("PILOT-001", evidence);
+        Assert.Contains("PILOT-002", evidence);
+        Assert.DoesNotContain("@", evidence);
+        Assert.DoesNotContain(".com", evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Controlled pilot onboarding", checklist);
+        Assert.Contains("Controlled pilot onboarding | PR-7.3", closure);
+        Assert.Contains("PR-7.3 controlled pilot onboarding is recorded", riskLog);
+        Assert.Equal("controlled_pilot_onboarding_authorized", evidenceJson.RootElement.GetProperty("result").GetString());
+        Assert.False(evidenceJson.RootElement.GetProperty("tokenCapturedInArtifact").GetBoolean());
+        Assert.False(evidenceJson.RootElement.GetProperty("containsCustomerData").GetBoolean());
+        Assert.False(evidenceJson.RootElement.GetProperty("containsCui").GetBoolean());
+        Assert.False(evidenceJson.RootElement.GetProperty("containsRealCustomerIdentifiers").GetBoolean());
+        Assert.Equal("passed", evidenceJson.RootElement.GetProperty("productionSmokeGate").GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public void TC_PR_7_3_Pilot_tenants_record_no_cui_roles_support_acknowledgement_and_first_use_monitoring()
+    {
+        var evidence = ReadText("docs", "production-readiness-pilot-onboarding-evidence.md");
+        var onboarding = ReadText("docs", "production-readiness-pilot-onboarding.md");
+        var runbooks = ReadText("docs", "production-readiness-support-runbooks.md");
+        using var evidenceJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-7.3", "pilot-onboarding-evidence.json"));
+
+        foreach (var requiredText in new[]
+        {
+            "No-CUI guidance, prohibited data examples, support paths, known limitations, synthetic demo scope",
+            "NoCui",
+            "Owner, Admin, Compliance Manager, Contributor, Auditor, Advisor",
+            "Required before evidence/document upload and per-file attestation",
+            "Monitor first company profile, contract metadata, obligation/task, allowed evidence, report, and audit-log events",
+            "TC-PR-7.3.1 | Passed",
+            "TC-PR-7.3.2 | Passed",
+            "TC-PR-7.3.3 | Passed",
+            "TC-PR-7.3.4 | Passed"
+        })
+        {
+            Assert.Contains(requiredText, evidence);
+        }
+
+        Assert.Contains("Support Paths", onboarding);
+        Assert.Contains("Known Limitations", onboarding);
+        Assert.Contains("Runbook: Prohibited Upload", runbooks);
+        Assert.Contains("Runbook: Suspected CUI", runbooks);
+        Assert.Contains("Runbook: Tenant Exposure", runbooks);
+
+        var pilotCohort = evidenceJson.RootElement.GetProperty("pilotCohort");
+        Assert.Equal(2, pilotCohort.GetArrayLength());
+
+        foreach (var pilot in pilotCohort.EnumerateArray())
+        {
+            Assert.StartsWith("PILOT-", pilot.GetProperty("pilotId").GetString(), StringComparison.Ordinal);
+            Assert.Equal("NoCui", pilot.GetProperty("tenantMode").GetString());
+            Assert.True(pilot.GetProperty("onboardingMaterialsDelivered").GetBoolean());
+            Assert.True(pilot.GetProperty("noCuiGuidanceDelivered").GetBoolean());
+            Assert.True(pilot.GetProperty("prohibitedDataExamplesDelivered").GetBoolean());
+            Assert.True(pilot.GetProperty("supportPathsDelivered").GetBoolean());
+            Assert.True(pilot.GetProperty("knownLimitationsDelivered").GetBoolean());
+            Assert.True(pilot.GetProperty("acknowledgementRequiredBeforeUpload").GetBoolean());
+            Assert.True(pilot.GetProperty("supportRouteActive").GetBoolean());
+            Assert.Equal("active", pilot.GetProperty("firstWorkflowMonitoring").GetProperty("status").GetString());
+            Assert.Contains(pilot.GetProperty("rolesVerified").EnumerateArray(), role => role.GetString() == "Owner");
+            Assert.Contains(pilot.GetProperty("rolesVerified").EnumerateArray(), role => role.GetString() == "Advisor");
+        }
     }
 
     private static void AssertRequiredString(JsonElement element, string propertyName)
