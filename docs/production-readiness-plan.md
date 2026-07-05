@@ -2,6 +2,8 @@
 
 This plan integrates the Production Readiness roadmap and launch posture decision record into one reviewable artifact. It is a planning and release-control document, not proof that production launch is approved.
 
+Approval posture addendum: `docs/production-readiness-approval-posture-addendum.md`. Past and future user approvals in this project are valid for solo-controlled pilot testing and project completion only unless a record explicitly documents production separation-of-duties approval.
+
 ## Launch Posture Decision
 
 Decision: No-CUI MVP Launch Posture

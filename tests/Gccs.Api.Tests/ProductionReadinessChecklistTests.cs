@@ -187,9 +187,9 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Equal("legal-or-contracting-advisor", review.RootElement.GetProperty("requiredReviewer").GetString());
         Assert.NotEmpty(review.RootElement.GetProperty("acceptedClaimRisks").EnumerateArray());
         Assert.NotEmpty(review.RootElement.GetProperty("blockers").EnumerateArray());
-        Assert.Contains("Claim review recorded; launch advisor approval recorded in PR-6.1 approval record", checklist);
+        Assert.Contains("solo-controlled pilot legal/contracting approval scope recorded in PR-6.1 approval record", checklist);
         Assert.Contains("Customer-facing claims", closure);
-        Assert.Contains("Legal or contracting advisor approval is recorded in PR-6.1", closure);
+        Assert.Contains("legal/contracting scope", closure);
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Review status: support runbooks finalized", runbooks);
         Assert.Contains("Known-Risk Acceptance Log", riskLog);
         Assert.Contains("Pilot onboarding, release notes, and known risks", closure);
-        Assert.Contains("final owner approvals", closure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("final solo-controlled pilot approval scopes", closure, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -1320,13 +1320,14 @@ public sealed class ProductionReadinessChecklistTests
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         var approvalRecord = ReadText("docs", "production-readiness-launch-approval-record.md");
 
-        Assert.Contains("Launch candidate tagging is allowed because every required approval is recorded", closure);
+        Assert.Contains("Launch candidate tagging is allowed for solo-controlled pilot testing and project completion", closure);
         AssertRequiredApprovedApproverTableRows(closure);
         AssertRequiredApprovedApproverTableRows(checklist);
         AssertRequiredApprovedApproverApprovalRows(approvalRecord);
-        Assert.Contains("PR-6.1 is complete for launch-candidate tagging", closure);
-        Assert.Contains("PR-6.2 launch candidate tagging decision: approved to proceed.", approvalRecord);
+        Assert.Contains("PR-6.1 is complete for solo-controlled pilot launch-candidate tagging", closure);
+        Assert.Contains("PR-6.2 launch candidate tagging decision: approved to proceed for solo-controlled pilot testing and project completion only.", approvalRecord);
         Assert.Contains("Missing, pending, or incomplete approval metadata blocks PR-6.2 launch candidate tagging.", approvalRecord);
+        Assert.Contains("docs/production-readiness-approval-posture-addendum.md", approvalRecord);
         Assert.Contains("docs/production-readiness-launch-approval-record.md", checklist);
         Assert.Contains("docs/production-readiness-launch-approval-record.md", closure);
         Assert.Contains("TC-PR-6.1.1 | Passed", approvalRecord);
@@ -1346,6 +1347,7 @@ public sealed class ProductionReadinessChecklistTests
             "docs/production-readiness-plan.md",
             "docs/production-readiness-checklist.md",
             "docs/production-readiness-launch-closure-evidence.md",
+            "docs/production-readiness-approval-posture-addendum.md",
             "docs/production-readiness-staging-workflow-evidence.md",
             "docs/production-readiness-staging-security-evidence.md",
             "docs/production-readiness-staging-upload-report-evidence.md",
@@ -1385,7 +1387,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", tagRecord);
         Assert.Contains("Tagged commit: `6c8927ec9cf79de977d76cb2594b87dd48f973bd`.", tagRecord);
         Assert.Contains("GitHub Actions staging workflow run `28635229630` completed successfully", tagRecord);
-        Assert.Contains("Required launch approvals complete | Passed", tagRecord);
+        Assert.Contains("Required launch approvals complete | Passed for solo-controlled pilot testing", tagRecord);
         Assert.Contains("Evidence package gathered | Passed", tagRecord);
         Assert.Contains("Approved build and deployment path passed | Passed", tagRecord);
         Assert.Contains("Created as `gccs-no-cui-mvp-lc-2026-07-03`", checklist);
@@ -2021,9 +2023,9 @@ public sealed class ProductionReadinessChecklistTests
 
     private static void AssertRequiredApprovedApproverTableRows(string artifact)
     {
-        foreach (var approver in RequiredApprovers())
+        foreach (var (approver, scope) in RequiredApproverScopes())
         {
-            Assert.Contains($"| {approver} | Approved on 2026-07-03 by user acting as {approver.ToLowerInvariant()} | No |", artifact);
+            Assert.Contains($"| {approver} | Approved on 2026-07-03 by accountable solo-controlled pilot approver for {scope} | No for solo-controlled pilot testing; yes for broader production launch |", artifact);
         }
     }
 
@@ -2031,10 +2033,15 @@ public sealed class ProductionReadinessChecklistTests
     {
         Assert.Contains("| Required approver | Approval status | Approval date | Approver | Scope | Limitations | Unresolved exceptions | Evidence reviewed | Launch blocker while pending |", artifact);
 
-        foreach (var approver in RequiredApprovers())
+        foreach (var (approver, scope) in RequiredApproverScopes())
         {
-            Assert.Contains($"| {approver} | Approved | 2026-07-03 | User acting as {approver.ToLowerInvariant()} |", artifact);
+            Assert.Contains($"| {approver} | Approved for solo-controlled pilot testing | 2026-07-03 | User acting as accountable solo-controlled pilot approver for {scope} |", artifact);
         }
+
+        Assert.Contains("This approval does not replace production separation of duties", artifact);
+        Assert.Contains("does not authorize broader customer launch", artifact);
+        Assert.Contains("does not authorize CUI processing", artifact);
+        Assert.Contains("does not weaken future production approval requirements", artifact);
 
         foreach (var field in new[]
         {
@@ -2058,6 +2065,16 @@ public sealed class ProductionReadinessChecklistTests
         yield return "Compliance content owner";
         yield return "Customer success/support owner";
         yield return "Legal or contracting advisor";
+    }
+
+    private static IEnumerable<(string Approver, string Scope)> RequiredApproverScopes()
+    {
+        yield return ("Product owner", "product-owner scope");
+        yield return ("Engineering lead", "engineering scope");
+        yield return ("Security owner", "security scope");
+        yield return ("Compliance content owner", "compliance-content scope");
+        yield return ("Customer success/support owner", "support scope");
+        yield return ("Legal or contracting advisor", "legal/contracting scope");
     }
 
     private static IEnumerable<string[]> LaunchFacingDocuments()

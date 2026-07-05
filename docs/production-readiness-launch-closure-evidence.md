@@ -4,6 +4,8 @@ Review status: Engineering evidence captured; accountable owner approvals record
 
 PR-6.1 launch approval record: `docs/production-readiness-launch-approval-record.md`.
 
+Approval posture addendum: `docs/production-readiness-approval-posture-addendum.md`.
+
 PR-6.2 launch candidate tag record: `docs/production-readiness-launch-candidate-tag.md`.
 
 Review date: 2026-07-01.
@@ -26,7 +28,7 @@ This artifact records the remaining non-PR-3.2 launch items, the evidence alread
 | Customer-facing claims | PR-5.2 | Claim review is recorded for product copy, onboarding, upload warnings, reports, support materials, release-note requirements, and pilot onboarding. Legal or contracting advisor approval is recorded in PR-6.1. | `docs/production-readiness-customer-claims-review.md`, `output/production-readiness/customer-claims-review.json`, `docs/production-readiness-launch-approval-record.md` | No, subject to claim-drift monitoring |
 | Support runbooks | PR-5.3 | Launch support routing is documented for prohibited upload, suspected CUI, tenant exposure, access issue, evidence failure, report failure, content correction, security incident, backup restore, and rollback. Customer success/support owner approval is recorded in PR-6.1. | `docs/production-readiness-support-runbooks.md`, `docs/production-readiness-launch-approval-record.md` | No |
 | Pilot onboarding, release notes, and known risks | PR-5.4 | Pilot onboarding, release notes, and the known-risk acceptance log are launch-ready drafts with No-CUI limits, prohibited-data examples, support paths, staging smoke links, rollback limits, content scope, and owner-review status. Final owner approvals are recorded in PR-6.1. | `docs/production-readiness-pilot-onboarding.md`, `docs/production-readiness-release-notes.md`, `docs/production-readiness-launch-gap-decisions.md`, `docs/production-readiness-launch-approval-record.md` | No |
-| Final launch approvals | PR-6.1 | All required launch approvers are recorded with date, approver, scope, limitations, unresolved exceptions, and evidence reviewed. | Approval table in this artifact, `docs/production-readiness-checklist.md`, and `docs/production-readiness-launch-approval-record.md` | No |
+| Final launch approvals | PR-6.1 | All required launch approver scopes are recorded with date, approver, scope, limitations, unresolved exceptions, evidence reviewed, and solo-controlled pilot limitation. | Approval table in this artifact, `docs/production-readiness-checklist.md`, `docs/production-readiness-launch-approval-record.md`, and `docs/production-readiness-approval-posture-addendum.md` | No for solo-controlled pilot testing; yes before broader production launch |
 | Launch candidate tag | PR-6.2 | Launch candidate tag `gccs-no-cui-mvp-lc-2026-07-03` points to commit `6c8927ec9cf79de977d76cb2594b87dd48f973bd` and links build, deployment, smoke, release, rollback, support, content, approval, and known-risk evidence. | `docs/production-readiness-launch-candidate-tag.md` | No |
 | Production deployment | PR-7.1 | Approved CI/CD path created. Production deployment must run through `.github/workflows/production.yml` using the approved launch candidate tag and protected `production` environment before PR-7.2 smoke testing. | `docs/production-readiness-production-deployment-evidence.md`, `.github/workflows/production.yml`, `infra/terraform/environments/production/main.tf` | No for CI/CD path; yes for PR-7.2 smoke until an actual production run succeeds |
 | Production smoke tests | PR-7.2 | Passed on 2026-07-05 with synthetic-only data after scanner setup. Production deployment, health, login, tenant access, RBAC denial, No-CUI acknowledgement, upload guardrails, scanner-backed byte-level evidence upload, report generation, audit visibility, logging, API `Http5xx` alert resource checks, action-group receiver configuration, and Azure Monitor delivery receipt passed. | `docs/production-readiness-production-smoke-evidence.md`, `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`, `output/production-readiness/alerts/production-alert-email-receipt.json`, `docs/production-readiness-pilot-onboarding.md` | No for PR-7.3 entry; production customer launch is no longer blocked by `PR41-RESTORE-001` or `PR72-ALERT-ROUTE-001` |
@@ -161,15 +163,17 @@ Production launch must not present pending high-risk records as approved, legall
 
 ## Final Launch Approvals
 
-Launch candidate tagging is allowed because every required approval is recorded with date, approver, scope, limitations, unresolved exceptions, and evidence reviewed. The controlling PR-6.1 approval record is `docs/production-readiness-launch-approval-record.md`.
+Launch candidate tagging is allowed for solo-controlled pilot testing and project completion because every required approval scope is recorded with date, approver, scope, limitations, unresolved exceptions, evidence reviewed, and approval posture. The controlling PR-6.1 approval record is `docs/production-readiness-launch-approval-record.md`.
 
 | Required approver | Current status | Launch blocker while pending |
 | --- | --- | --- |
-| Product owner | Approved on 2026-07-03 by user acting as product owner | No |
-| Engineering lead | Approved on 2026-07-03 by user acting as engineering lead | No |
-| Security owner | Approved on 2026-07-03 by user acting as security owner | No |
-| Compliance content owner | Approved on 2026-07-03 by user acting as compliance content owner | No |
-| Customer success/support owner | Approved on 2026-07-03 by user acting as customer success/support owner | No |
-| Legal or contracting advisor | Approved on 2026-07-03 by user acting as legal or contracting advisor | No |
+| Product owner | Approved on 2026-07-03 by accountable solo-controlled pilot approver for product-owner scope | No for solo-controlled pilot testing; yes for broader production launch |
+| Engineering lead | Approved on 2026-07-03 by accountable solo-controlled pilot approver for engineering scope | No for solo-controlled pilot testing; yes for broader production launch |
+| Security owner | Approved on 2026-07-03 by accountable solo-controlled pilot approver for security scope | No for solo-controlled pilot testing; yes for broader production launch |
+| Compliance content owner | Approved on 2026-07-03 by accountable solo-controlled pilot approver for compliance-content scope | No for solo-controlled pilot testing; yes for broader production launch |
+| Customer success/support owner | Approved on 2026-07-03 by accountable solo-controlled pilot approver for support scope | No for solo-controlled pilot testing; yes for broader production launch |
+| Legal or contracting advisor | Approved on 2026-07-03 by accountable solo-controlled pilot approver for legal/contracting scope | No for solo-controlled pilot testing; yes for broader production launch |
 
-PR-6.1 is complete for launch-candidate tagging because `docs/production-readiness-launch-approval-record.md` records every required approval and links this artifact, the PR-3.2 staging evidence, restore rehearsal disposition, malware scanner evidence or approved exception, expert content approval or withholding record, release notes, pilot onboarding, support runbooks, and known-risk acceptance log.
+PR-6.1 is complete for solo-controlled pilot launch-candidate tagging because `docs/production-readiness-launch-approval-record.md` records every required approval scope and links this artifact, the PR-3.2 staging evidence, restore rehearsal disposition, malware scanner evidence or approved exception, expert content approval or withholding record, release notes, pilot onboarding, support runbooks, known-risk acceptance log, and `docs/production-readiness-approval-posture-addendum.md`.
+
+Final solo-controlled pilot approval scopes are recorded for testing and project completion only; broader production launch still requires production separation-of-duties approval.
