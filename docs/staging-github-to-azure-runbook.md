@@ -238,7 +238,7 @@ The Azure credentials secret must be valid service principal JSON. A typical sha
 ```json
 {
   "clientId": "<app-registration-client-id>",
-  "clientSecret": "<service-principal-secret>",
+  "clientSecret": "<redacted>",
   "subscriptionId": "<azure-subscription-id>",
   "tenantId": "<azure-tenant-id>"
 }
