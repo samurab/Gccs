@@ -1491,11 +1491,20 @@ export const fallbackAuditLogs: PagedResult<AuditLogEntry> = {
 };
 
 export async function getComplianceOverview(): Promise<ComplianceOverview> {
-  return getRequiredJson<ComplianceOverview>("/api/compliance/overview");
+  return normalizeComplianceOverview(await getRequiredJson<ComplianceOverview>("/api/compliance/overview"));
 }
 
 export async function getCurrentUserAccess(): Promise<CurrentUserAccess> {
   return normalizeCurrentUserAccess(await getRequiredJson<CurrentUserAccess>("/api/me/access"));
+}
+
+function normalizeComplianceOverview(overview: ComplianceOverview): ComplianceOverview {
+  return {
+    ...overview,
+    modules: Array.isArray(overview.modules) ? overview.modules : [],
+    priorityObligations: Array.isArray(overview.priorityObligations) ? overview.priorityObligations : [],
+    alerts: Array.isArray(overview.alerts) ? overview.alerts : []
+  };
 }
 
 function normalizeCurrentUserAccess(access: CurrentUserAccess): CurrentUserAccess {

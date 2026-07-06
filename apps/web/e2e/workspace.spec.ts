@@ -48,7 +48,8 @@ const overview = {
       sourceUrl: "https://www.acquisition.gov/far/52.204-21",
       lastReviewedAt: "2026-06-03"
     }
-  ]
+  ],
+  alerts: []
 };
 
 test.beforeEach(async ({ page }) => {
