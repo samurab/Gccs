@@ -848,7 +848,7 @@ main {
 }
 
 .readiness-score-meter--empty {
-  min-width: 0;
+  opacity: 0.62;
 }
 
 .readiness-score-meter__bar {
