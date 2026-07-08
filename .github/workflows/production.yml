@@ -6,7 +6,7 @@ on:
       launch_candidate_tag:
         description: Approved launch candidate tag to deploy.
         required: true
-        default: gccs-no-cui-mvp-lc-2026-07-03
+        default: gccs-no-cui-mvp-lc-2026-07-08-2
 
 permissions:
   contents: read
@@ -30,7 +30,7 @@ jobs:
       PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
       PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
       PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only
-      APPROVED_LAUNCH_CANDIDATE_TAG: gccs-no-cui-mvp-lc-2026-07-03
+      APPROVED_LAUNCH_CANDIDATE_TAG: gccs-no-cui-mvp-lc-2026-07-08-2
     steps:
       - name: Validate approved launch candidate input
         run: |
