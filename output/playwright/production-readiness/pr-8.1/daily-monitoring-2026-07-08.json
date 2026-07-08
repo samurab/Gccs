@@ -1,7 +1,7 @@
 {
   "story": "PR-8.1",
   "reviewDate": "2026-07-08",
-  "checkedAt": "2026-07-08T07:02:26Z",
+  "checkedAt": "2026-07-08T14:58:16Z",
   "result": "passed_with_external_monitoring_limitation",
   "reviewMode": "committed_artifacts_and_monitoring_checklist",
   "liveProductionQueriesRun": false,
@@ -103,6 +103,24 @@
   "newFindings": [],
   "escalationsOpened": [],
   "riskOrBacklogUpdates": [],
+  "verificationCommands": [
+    {
+      "command": "jq -e '.story == \"PR-8.1\" and .containsCui == false and .containsCustomerData == false and .noCuiPosturePreserved == true and .tenantIsolationPosturePreserved == true and .rbacPosturePreserved == true and .auditabilityPosturePreserved == true and (.signalsReviewed | length == 9) and (([.signalsReviewed[].signal] | sort) == ([\"Alerts\",\"Audit logs\",\"Content disputes\",\"Failed jobs\",\"Health checks\",\"Permission denials\",\"Report failures\",\"Support tickets\",\"Upload blocks\"] | sort)) and (.existingFindingsReviewed | length == 2) and (.newFindings | length == 0) and (.escalationsOpened | length == 0)' output/playwright/production-readiness/pr-8.1/daily-monitoring-2026-07-08.json",
+      "result": "passed"
+    },
+    {
+      "command": "jq -e '.result == \"receiver_attached\" and .actionGroupAttached == true and .alertEnabled == true and .containsCustomerData == false and .containsCui == false' output/production-readiness/alerts/production-alert-route-summary.json",
+      "result": "passed"
+    },
+    {
+      "command": "jq -e '.result == \"receipt_verified\" and .receiverEmailCaptured == false and .containsCustomerData == false and .containsCui == false' output/production-readiness/alerts/production-alert-email-receipt.json",
+      "result": "passed"
+    },
+    {
+      "command": "jq -e '.result == \"passed\" and .healthStatus == \"ok\" and .teardownConfirmed == true and .containsCustomerData == false and .containsCui == false and .secretsCaptured == false' output/production-readiness/backup-restore/restore-rehearsal-summary.json",
+      "result": "passed"
+    }
+  ],
   "testCases": {
     "TC-PR-8.1.1": "passed_with_external_monitoring_limitation",
     "TC-PR-8.1.2": "passed_no_new_findings",
