@@ -4,7 +4,10 @@ using System.Text.Json;
 using Gccs.Application.Compliance;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
+using Gccs.Domain.Companies;
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
+using Gccs.Domain.Contracts;
 using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure.Compliance;
@@ -56,6 +59,11 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         Assert.Equal(2, overview.OpenPoams);
         Assert.Equal(1, overview.OverduePoams);
         Assert.Equal(2, overview.EvidenceItems);
+        Assert.Equal(new ReadinessScoreDto(33, 3, 1, "At risk"), overview.ReadinessScore);
+        Assert.Equal("High", overview.ContractRiskIndicator.Level);
+        Assert.Equal(1, overview.ContractRiskIndicator.ActiveContracts);
+        Assert.Equal(1, overview.ContractRiskIndicator.HighRiskObligations);
+        Assert.Equal(1, overview.ContractRiskIndicator.OverdueHighRiskTasks);
         Assert.Equal(["Evidence uploaded"], overview.RecentAuditEvents.Select(item => item.Summary).ToArray());
         Assert.Contains(overview.Alerts, alert => alert.AlertType == "overdue_poam");
         Assert.Contains(overview.Alerts, alert => alert.AlertType == "control_without_evidence");
@@ -83,6 +91,8 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         Assert.Equal(0, overview.OpenPoams);
         Assert.Equal(0, overview.OverduePoams);
         Assert.Equal(0, overview.EvidenceItems);
+        Assert.Equal(new ReadinessScoreDto(null, 0, 0, "Not started"), overview.ReadinessScore);
+        Assert.Equal(new ContractRiskIndicatorDto("Low", 0, 0, 0, 0, 0, 0, 0), overview.ContractRiskIndicator);
         Assert.Empty(overview.RecentAuditEvents);
         Assert.Empty(overview.Alerts);
     }
@@ -122,6 +132,8 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         Assert.Equal(tenantAId, overview.TenantId);
         Assert.Equal(3, overview.ControlsTotal);
         Assert.Equal(2, overview.EvidenceItems);
+        Assert.Equal(1, overview.ContractRiskIndicator.ActiveContracts);
+        Assert.Equal(1, overview.ContractRiskIndicator.HighRiskObligations);
         Assert.DoesNotContain(overview.RecentAuditEvents, item => item.Summary.Contains("B", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(overview.Alerts, item => item.Message.Contains("B", StringComparison.OrdinalIgnoreCase));
     }
@@ -268,6 +280,9 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
     private static void SeedTenantOverviewData(GccsDbContext dbContext, Guid tenantId, string suffix = "A")
     {
         var assessmentId = Guid.NewGuid();
+        var contractId = Guid.NewGuid();
+        var contractClauseId = Guid.NewGuid();
+        var obligationId = $"overview-risk-{suffix}";
         var overdueDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
         var futureDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30);
         dbContext.Assessments.Add(new AssessmentEntity
@@ -348,6 +363,75 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
                 TargetCompletionAt = overdueDate,
                 CreatedAt = DateTimeOffset.Parse("2026-06-20T12:00:00Z")
             });
+        dbContext.Contracts.Add(new ContractEntity
+        {
+            Id = contractId,
+            TenantId = tenantId,
+            ContractNumber = $"W15QKN-26-C-000{suffix}",
+            Title = $"Risk contract {suffix}",
+            AgencyOrPrimeName = "Department of Defense",
+            Relationship = ContractorRelationship.Prime,
+            Kind = ContractKind.FixedPrice,
+            Status = ContractStatus.Active,
+            PeriodOfPerformanceStart = DateOnly.Parse("2026-06-01"),
+            PeriodOfPerformanceEnd = DateOnly.Parse("2027-06-01"),
+            PlaceOfPerformance = "Arlington, VA",
+            Description = "Tenant-scoped risk seed.",
+            DataHandlingPosture = DataHandlingPosture.FciOnly,
+            CreatedAt = DateTimeOffset.Parse("2026-06-20T12:00:00Z")
+        });
+        dbContext.Set<ContractClauseEntity>().Add(new ContractClauseEntity
+        {
+            Id = contractClauseId,
+            ContractId = contractId,
+            ClauseLibraryId = $"far-risk-{suffix}",
+            ClauseNumber = $"52.204-{suffix}",
+            Title = $"Risk clause {suffix}",
+            Source = ClauseSource.Far,
+            SourceUrl = "https://www.acquisition.gov/far",
+            AttachmentReason = "Test risk mapping.",
+            RequiresFlowDown = false,
+            LastReviewedAt = DateOnly.Parse("2026-06-01"),
+            ReviewState = ReviewState.Published,
+            CreatedAt = DateTimeOffset.Parse("2026-06-20T12:00:00Z")
+        });
+        dbContext.Set<ObligationEntity>().Add(new ObligationEntity
+        {
+            Id = obligationId,
+            Source = $"FAR risk {suffix}",
+            Title = $"High risk obligation {suffix}",
+            PlainEnglishSummary = "Test obligation.",
+            TriggerCondition = "Contract includes clause.",
+            RequiredAction = "Complete high-risk action.",
+            OwnerFunction = "Security",
+            RiskLevel = RiskLevel.High,
+            RequiresFlowDown = false,
+            SourceName = "FAR",
+            SourceUrl = "https://www.acquisition.gov/far",
+            SourceLastReviewedAt = DateOnly.Parse("2026-06-01"),
+            LastReviewedAt = DateOnly.Parse("2026-06-01"),
+            ReviewState = ReviewState.Published
+        });
+        dbContext.Set<ContractClauseObligationEntity>().Add(new ContractClauseObligationEntity
+        {
+            ContractClauseId = contractClauseId,
+            ObligationId = obligationId
+        });
+        dbContext.ComplianceTasks.Add(new ComplianceTaskEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Title = $"Overdue high risk task {suffix}",
+            Description = "High-risk contract task.",
+            Type = ComplianceTaskType.ObligationAction,
+            Status = ComplianceTaskStatus.Open,
+            RiskLevel = RiskLevel.High,
+            OwnerFunction = "Security",
+            DueAt = overdueDate,
+            ContractId = contractId,
+            ObligationId = obligationId,
+            CreatedAt = DateTimeOffset.Parse("2026-06-20T12:00:00Z")
+        });
         dbContext.EvidenceItems.AddRange(
             new EvidenceItemEntity
             {

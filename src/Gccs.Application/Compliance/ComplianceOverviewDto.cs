@@ -9,6 +9,8 @@ public sealed record ComplianceOverviewDto(
     int OpenPoams,
     int OverduePoams,
     int EvidenceItems,
+    ReadinessScoreDto ReadinessScore,
+    ContractRiskIndicatorDto ContractRiskIndicator,
     IReadOnlyList<RecentAuditEventDto> RecentAuditEvents)
 {
     public string ProductPromise { get; init; } =
@@ -41,6 +43,22 @@ public sealed record ComplianceDashboardAlertDto(
     string EntityType,
     string EntityId,
     DateTimeOffset DetectedUtc);
+
+public sealed record ReadinessScoreDto(
+    int? Score,
+    int ControlsTotal,
+    int ControlsImplemented,
+    string Status);
+
+public sealed record ContractRiskIndicatorDto(
+    string Level,
+    int ActiveContracts,
+    int HighRiskObligations,
+    int OverduePoams,
+    int OpenPoams,
+    int MissingEvidenceControls,
+    int OpenHighRiskTasks,
+    int OverdueHighRiskTasks);
 
 public sealed record RecentAuditEventDto(
     Guid Id,

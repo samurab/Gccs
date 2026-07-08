@@ -2455,7 +2455,7 @@ api.MapMethods("/audit-logs/{auditLogEntryId:guid}", [HttpMethods.Put, HttpMetho
 .WithName("RejectAuditLogMutation");
 
 api.MapGet("/no-cui-acknowledgement", async (
-    NoCuiAcknowledgementService service,
+    NoCuiAcknowledgementStatusService service,
     CancellationToken cancellationToken) =>
     Results.Ok(await service.GetCurrentStatusAsync(cancellationToken)))
 .RequirePermission(Permission.ViewEvidence)

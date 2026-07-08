@@ -3,10 +3,15 @@ using Gccs.Application.Compliance;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
+using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
 using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
+using Gccs.Domain.Contracts;
 using Gccs.Infrastructure.Persistence;
+using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
+using RiskLevel = Gccs.Domain.Compliance.RiskLevel;
 
 namespace Gccs.Infrastructure.Compliance;
 
@@ -63,20 +68,104 @@ public sealed class EfComplianceOverviewRepository(
 
         var alerts = await BuildAlertsAsync(tenantId, today, cancellationToken);
         var controlCountByStatus = controlStatuses.ToDictionary(item => item.Status, item => item.Count);
+        var controlsTotal = controlStatuses.Sum(item => item.Count);
+        var controlsImplemented = controlCountByStatus.GetValueOrDefault(ControlImplementationStatus.Implemented);
+        var openPoams = poamStatuses.Where(item => item.IsOpen).Sum(item => item.Count);
+        var overduePoams = poamStatuses.Where(item => item.IsOverdue).Sum(item => item.Count);
+        var readinessScore = ComplianceOverviewScoring.BuildReadinessScore(controlsTotal, controlsImplemented);
+        var contractRiskIndicator = await BuildContractRiskIndicatorAsync(
+            tenantId,
+            today,
+            openPoams,
+            overduePoams,
+            cancellationToken);
 
         return new ComplianceOverviewDto(
             tenantId,
-            controlStatuses.Sum(item => item.Count),
-            controlCountByStatus.GetValueOrDefault(ControlImplementationStatus.Implemented),
+            controlsTotal,
+            controlsImplemented,
             controlCountByStatus.GetValueOrDefault(ControlImplementationStatus.PartiallyImplemented),
             controlCountByStatus.GetValueOrDefault(ControlImplementationStatus.NotStarted),
-            poamStatuses.Where(item => item.IsOpen).Sum(item => item.Count),
-            poamStatuses.Where(item => item.IsOverdue).Sum(item => item.Count),
+            openPoams,
+            overduePoams,
             evidenceItems,
+            readinessScore,
+            contractRiskIndicator,
             recentAuditEvents)
         {
             Alerts = alerts
         };
+    }
+
+    private async Task<ContractRiskIndicatorDto> BuildContractRiskIndicatorAsync(
+        Guid tenantId,
+        DateOnly today,
+        int openPoams,
+        int overduePoams,
+        CancellationToken cancellationToken)
+    {
+        var activeContracts = await dbContext.Contracts
+            .AsNoTracking()
+            .CountAsync(contract =>
+                contract.TenantId == tenantId &&
+                (contract.Status == ContractStatus.Active ||
+                 contract.Status == ContractStatus.OptionPending ||
+                 contract.Status == ContractStatus.Intake),
+                cancellationToken);
+
+        var highRiskObligations = await dbContext.Set<ContractClauseObligationEntity>()
+            .AsNoTracking()
+            .Where(mapping =>
+                mapping.ContractClause != null &&
+                mapping.ContractClause.Contract != null &&
+                mapping.ContractClause.Contract.TenantId == tenantId &&
+                mapping.ContractClause.RemovedAt == null &&
+                mapping.Obligation != null &&
+                mapping.Obligation.ReviewState == ReviewState.Published &&
+                (mapping.Obligation.RiskLevel == RiskLevel.High ||
+                 mapping.Obligation.RiskLevel == RiskLevel.Critical))
+            .CountAsync(cancellationToken);
+
+        var highRiskTaskCounts = await dbContext.ComplianceTasks
+            .AsNoTracking()
+            .Where(task =>
+                task.TenantId == tenantId &&
+                task.ContractId.HasValue &&
+                task.Status != ComplianceTaskStatus.Done &&
+                task.Status != ComplianceTaskStatus.Canceled &&
+                (task.RiskLevel == RiskLevel.High || task.RiskLevel == RiskLevel.Critical))
+            .GroupBy(task => new { IsOverdue = task.DueAt.HasValue && task.DueAt.Value < today })
+            .Select(group => new { group.Key.IsOverdue, Count = group.Count() })
+            .ToArrayAsync(cancellationToken);
+
+        var missingEvidenceControls = await dbContext.ControlAssessments
+            .AsNoTracking()
+            .CountAsync(control =>
+                control.Assessment != null &&
+                control.Assessment.TenantId == tenantId &&
+                control.ImplementationStatus != ControlImplementationStatus.NotApplicable &&
+                control.EvidenceItemIdsJson == "[]",
+                cancellationToken);
+
+        var openHighRiskTasks = highRiskTaskCounts.Sum(item => item.Count);
+        var overdueHighRiskTasks = highRiskTaskCounts.Where(item => item.IsOverdue).Sum(item => item.Count);
+        var level = ComplianceOverviewScoring.DetermineContractRiskLevel(
+            overduePoams,
+            overdueHighRiskTasks,
+            openHighRiskTasks,
+            highRiskObligations,
+            openPoams,
+            missingEvidenceControls);
+
+        return new ContractRiskIndicatorDto(
+            level,
+            activeContracts,
+            highRiskObligations,
+            overduePoams,
+            openPoams,
+            missingEvidenceControls,
+            openHighRiskTasks,
+            overdueHighRiskTasks);
     }
 
     private async Task<IReadOnlyList<ComplianceDashboardAlertDto>> BuildAlertsAsync(

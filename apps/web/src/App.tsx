@@ -21,7 +21,7 @@ import {
   UserPlus,
   UsersRound
 } from "lucide-react";
-import { type FormEvent, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type FormEvent, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { ModuleCard } from "@/components/ModuleCard";
 import {
   Alert,
@@ -662,6 +662,18 @@ export function App() {
   const workspacePriorityMetrics = useMemo(
     () => [
       {
+        label: "Readiness",
+        value: <ReadinessScoreMeter score={overview.readinessScore.score} />,
+        tone: readinessTone(overview.readinessScore.status),
+        hint: overview.readinessScore.status
+      },
+      {
+        label: "Contract risk",
+        value: overview.contractRiskIndicator.level,
+        tone: riskIndicatorTone(overview.contractRiskIndicator.level),
+        hint: formatHighRiskObligationHint(overview.contractRiskIndicator.highRiskObligations)
+      },
+      {
         label: "Overdue",
         value: obligationDashboardItems.filter((item) => item.isOverdue).length + calendarEvents.filter((event) => event.isOverdue).length,
         tone: "danger" as const,
@@ -686,7 +698,7 @@ export function App() {
         hint: "upload guardrail"
       }
     ],
-    [calendarEvents, classificationReviewItems, noCuiAcknowledgement.isAcknowledged, obligationDashboardItems]
+    [calendarEvents, classificationReviewItems, noCuiAcknowledgement.isAcknowledged, obligationDashboardItems, overview.contractRiskIndicator, overview.readinessScore]
   );
   const canManageUsers = access.permissions.includes("ManageUsers");
   const canManageEvidence = access.permissions.includes("ManageEvidence");
@@ -2630,6 +2642,59 @@ function statusTone(status: string): UiTone {
     return "success";
   }
   return "neutral";
+}
+
+function readinessTone(status: string): UiTone {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("ready")) {
+    return "success";
+  }
+  if (normalized.includes("attention")) {
+    return "warning";
+  }
+  if (normalized.includes("risk")) {
+    return "danger";
+  }
+  return "neutral";
+}
+
+function ReadinessScoreMeter({ score }: { score: number | null }) {
+  if (score === null) {
+    return <span className="readiness-score-meter readiness-score-meter--empty">N/A</span>;
+  }
+
+  const boundedScore = Math.min(100, Math.max(0, score));
+  const meterStyle = { "--readiness-score-position": `${boundedScore}%` } as CSSProperties;
+
+  return (
+    <span className="readiness-score-meter" style={meterStyle} aria-label={`Readiness score ${boundedScore} percent`}>
+      <span className="readiness-score-meter__bar" aria-hidden="true">
+        {Array.from({ length: 10 }, (_, index) => (
+          <span className="readiness-score-meter__segment" key={index} />
+        ))}
+        <span className="readiness-score-meter__marker" />
+      </span>
+      <span className="readiness-score-meter__value">{boundedScore}%</span>
+    </span>
+  );
+}
+
+function riskIndicatorTone(level: string): UiTone {
+  const normalized = level.toLowerCase();
+  if (normalized.includes("high") || normalized.includes("critical")) {
+    return "danger";
+  }
+  if (normalized.includes("medium")) {
+    return "warning";
+  }
+  if (normalized.includes("low")) {
+    return "success";
+  }
+  return "neutral";
+}
+
+function formatHighRiskObligationHint(count: number): string {
+  return `${count} high-risk ${count === 1 ? "obligation" : "obligations"}`;
 }
 
 function confidenceTone(confidence: string | null | undefined): UiTone {

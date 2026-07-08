@@ -27,7 +27,7 @@ export function PageHeader({ actions, children, description, eyebrow, title }: P
 
 type WorkspaceMetric = {
   label: string;
-  value: string | number;
+  value: ReactNode;
   tone?: Tone;
   hint?: string;
 };

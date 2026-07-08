@@ -27,6 +27,24 @@ export type ComplianceDashboardAlert = {
   detectedUtc: string;
 };
 
+export type ReadinessScore = {
+  score: number | null;
+  controlsTotal: number;
+  controlsImplemented: number;
+  status: string;
+};
+
+export type ContractRiskIndicator = {
+  level: string;
+  activeContracts: number;
+  highRiskObligations: number;
+  overduePoams: number;
+  openPoams: number;
+  missingEvidenceControls: number;
+  openHighRiskTasks: number;
+  overdueHighRiskTasks: number;
+};
+
 export type ClauseLibraryItem = {
   id: string;
   source: string;
@@ -59,6 +77,8 @@ export type ClauseSearchParams = {
 export type ComplianceOverview = {
   productPromise: string;
   mvpDataPosture: string;
+  readinessScore: ReadinessScore;
+  contractRiskIndicator: ContractRiskIndicator;
   modules: ModuleStatus[];
   priorityObligations: ObligationSummary[];
   alerts: ComplianceDashboardAlert[];
@@ -1457,6 +1477,22 @@ export const fallbackOverview: ComplianceOverview = {
   productPromise:
     "Connect to the GCCS API to load source-backed modules, obligations, review metadata, and tenant-scoped compliance workflow state.",
   mvpDataPosture: "No-CUI / compliance management only",
+  readinessScore: {
+    score: null,
+    controlsTotal: 0,
+    controlsImplemented: 0,
+    status: "Not started"
+  },
+  contractRiskIndicator: {
+    level: "Low",
+    activeContracts: 0,
+    highRiskObligations: 0,
+    overduePoams: 0,
+    openPoams: 0,
+    missingEvidenceControls: 0,
+    openHighRiskTasks: 0,
+    overdueHighRiskTasks: 0
+  },
   modules: [],
   priorityObligations: [],
   alerts: []
@@ -1501,6 +1537,8 @@ export async function getCurrentUserAccess(): Promise<CurrentUserAccess> {
 function normalizeComplianceOverview(overview: ComplianceOverview): ComplianceOverview {
   return {
     ...overview,
+    readinessScore: overview.readinessScore ?? fallbackOverview.readinessScore,
+    contractRiskIndicator: overview.contractRiskIndicator ?? fallbackOverview.contractRiskIndicator,
     modules: Array.isArray(overview.modules) ? overview.modules : [],
     priorityObligations: Array.isArray(overview.priorityObligations) ? overview.priorityObligations : [],
     alerts: Array.isArray(overview.alerts) ? overview.alerts : []

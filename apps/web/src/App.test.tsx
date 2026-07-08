@@ -216,6 +216,22 @@ const {
     productPromise:
       "Connect to the GCCS API to load source-backed modules, obligations, review metadata, and tenant-scoped compliance workflow state.",
     mvpDataPosture: "No-CUI / compliance management only",
+    readinessScore: {
+      score: null,
+      controlsTotal: 0,
+      controlsImplemented: 0,
+      status: "Not started"
+    },
+    contractRiskIndicator: {
+      level: "Low",
+      activeContracts: 0,
+      highRiskObligations: 0,
+      overduePoams: 0,
+      openPoams: 0,
+      missingEvidenceControls: 0,
+      openHighRiskTasks: 0,
+      overdueHighRiskTasks: 0
+    },
     modules: [],
     priorityObligations: [],
     alerts: []
@@ -272,6 +288,22 @@ const {
   overview: {
     productPromise: "Keep every govcon obligation tied to evidence and review status.",
     mvpDataPosture: "No-CUI / compliance management only",
+    readinessScore: {
+      score: 72,
+      controlsTotal: 25,
+      controlsImplemented: 18,
+      status: "Needs attention"
+    },
+    contractRiskIndicator: {
+      level: "High",
+      activeContracts: 2,
+      highRiskObligations: 4,
+      overduePoams: 1,
+      openPoams: 3,
+      missingEvidenceControls: 5,
+      openHighRiskTasks: 2,
+      overdueHighRiskTasks: 1
+    },
     modules: [
       {
         key: "company-profile",
@@ -1251,6 +1283,10 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByText(overview.productPromise)).toBeInTheDocument();
+    expect(screen.getByText("Readiness")).toBeInTheDocument();
+    expect(screen.getByText("72%")).toBeInTheDocument();
+    expect(screen.getByText("Contract risk")).toBeInTheDocument();
+    expect(screen.getByText("4 high-risk obligations")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Dashboard alerts" })).toBeInTheDocument();
     expect(screen.getByText("Overdue POA&M")).toBeInTheDocument();
     expect(screen.getByText(/missing access review evidence/i)).toBeInTheDocument();

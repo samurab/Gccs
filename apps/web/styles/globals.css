@@ -830,6 +830,109 @@ main {
   border-color: color-mix(in srgb, var(--blue) 24%, transparent);
 }
 
+.readiness-score-meter {
+  display: grid;
+  gap: 5px;
+  max-width: 140px;
+  min-width: 112px;
+}
+
+.workspace-metric.ui-metric-tile strong .readiness-score-meter,
+.workspace-metric.ui-metric-tile strong .readiness-score-meter span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
+}
+
+.readiness-score-meter--empty {
+  min-width: 0;
+}
+
+.readiness-score-meter__bar {
+  --readiness-score-position: 0%;
+  border: 1px solid rgb(31 41 55 / 0.55);
+  display: grid;
+  grid-template-columns: repeat(10, minmax(7px, 1fr));
+  height: 18px;
+  position: relative;
+  width: min(100%, 132px);
+}
+
+.readiness-score-meter__segment {
+  border-right: 1px solid rgb(31 41 55 / 0.45);
+  min-width: 0;
+}
+
+.readiness-score-meter__segment:last-of-type {
+  border-right: 0;
+}
+
+.readiness-score-meter__segment:nth-child(1) {
+  background: #f0642f;
+}
+
+.readiness-score-meter__segment:nth-child(2) {
+  background: #f28a24;
+}
+
+.readiness-score-meter__segment:nth-child(3) {
+  background: #f3ad1f;
+}
+
+.readiness-score-meter__segment:nth-child(4) {
+  background: #f1cb20;
+}
+
+.readiness-score-meter__segment:nth-child(5) {
+  background: #d8d91d;
+}
+
+.readiness-score-meter__segment:nth-child(6) {
+  background: #bfdc1d;
+}
+
+.readiness-score-meter__segment:nth-child(7) {
+  background: #a8d61c;
+}
+
+.readiness-score-meter__segment:nth-child(8) {
+  background: #91cf1f;
+}
+
+.readiness-score-meter__segment:nth-child(9) {
+  background: #7ec61e;
+}
+
+.readiness-score-meter__segment:nth-child(10) {
+  background: #63ba20;
+}
+
+.readiness-score-meter__marker {
+  border-bottom: 9px solid #74c714;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  bottom: -1px;
+  filter: drop-shadow(0 1px 1px rgb(15 23 42 / 0.32));
+  height: 0;
+  left: var(--readiness-score-position);
+  position: absolute;
+  transform: translateX(-50%);
+  width: 0;
+}
+
+.readiness-score-meter__value {
+  color: var(--ink) !important;
+  display: block;
+  font-size: 0.7rem !important;
+  font-weight: 750 !important;
+  margin-left: clamp(0px, calc(var(--readiness-score-position, 0%) - 14px), 106px);
+  min-width: 32px;
+  text-align: center;
+}
+
 .ui-data-row {
   display: grid;
   gap: 10px;

@@ -124,6 +124,7 @@ public static class DependencyInjection
         services.AddScoped<SsoSignInEnforcementService>();
         services.AddScoped<ScimProvisioningService>();
         services.AddScoped<NoCuiAcknowledgementService>();
+        services.AddScoped<NoCuiAcknowledgementStatusService>();
         services.AddScoped<NotificationPreferenceService>();
         services.AddScoped<DueDateReminderService>();
         services.AddScoped<AuditLogService>();
