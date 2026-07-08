@@ -662,7 +662,7 @@ export function App() {
   const workspacePriorityMetrics = useMemo(
     () => [
       {
-        label: "Readiness",
+        label: "Readiness score",
         value: <ReadinessScoreMeter score={overview.readinessScore.score} />,
         tone: readinessTone(overview.readinessScore.status),
         hint: overview.readinessScore.status
@@ -2659,22 +2659,20 @@ function readinessTone(status: string): UiTone {
 }
 
 function ReadinessScoreMeter({ score }: { score: number | null }) {
-  if (score === null) {
-    return <span className="readiness-score-meter readiness-score-meter--empty">N/A</span>;
-  }
-
-  const boundedScore = Math.min(100, Math.max(0, score));
+  const hasScore = score !== null;
+  const boundedScore = hasScore ? Math.min(100, Math.max(0, score)) : 0;
   const meterStyle = { "--readiness-score-position": `${boundedScore}%` } as CSSProperties;
+  const classes = ["readiness-score-meter", hasScore ? undefined : "readiness-score-meter--empty"].filter(Boolean).join(" ");
 
   return (
-    <span className="readiness-score-meter" style={meterStyle} aria-label={`Readiness score ${boundedScore} percent`}>
+    <span className={classes} style={meterStyle} aria-label={hasScore ? `Readiness score ${boundedScore} percent` : "Readiness score unavailable"}>
       <span className="readiness-score-meter__bar" aria-hidden="true">
         {Array.from({ length: 10 }, (_, index) => (
           <span className="readiness-score-meter__segment" key={index} />
         ))}
         <span className="readiness-score-meter__marker" />
       </span>
-      <span className="readiness-score-meter__value">{boundedScore}%</span>
+      <span className="readiness-score-meter__value">{hasScore ? `${boundedScore}%` : "N/A"}</span>
     </span>
   );
 }

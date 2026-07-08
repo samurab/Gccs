@@ -1283,7 +1283,7 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByText(overview.productPromise)).toBeInTheDocument();
-    expect(screen.getByText("Readiness")).toBeInTheDocument();
+    expect(screen.getByText("Readiness score")).toBeInTheDocument();
     expect(screen.getByText("72%")).toBeInTheDocument();
     expect(screen.getByText("Contract risk")).toBeInTheDocument();
     expect(screen.getByText("4 high-risk obligations")).toBeInTheDocument();
