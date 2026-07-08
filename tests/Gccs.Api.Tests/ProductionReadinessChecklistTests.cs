@@ -1384,16 +1384,16 @@ public sealed class ProductionReadinessChecklistTests
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
 
         Assert.Contains("Tag status: created.", tagRecord);
-        Assert.Contains("Launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", tagRecord);
+        Assert.Contains("Launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-08-2`.", tagRecord);
         Assert.Contains("Tagged commit: `6c8927ec9cf79de977d76cb2594b87dd48f973bd`.", tagRecord);
         Assert.Contains("GitHub Actions staging workflow run `28635229630` completed successfully", tagRecord);
         Assert.Contains("Required launch approvals complete | Passed for solo-controlled pilot testing", tagRecord);
         Assert.Contains("Evidence package gathered | Passed", tagRecord);
         Assert.Contains("Approved build and deployment path passed | Passed", tagRecord);
-        Assert.Contains("Created as `gccs-no-cui-mvp-lc-2026-07-03`", checklist);
+        Assert.Contains("Created as `gccs-no-cui-mvp-lc-2026-07-08-2`", checklist);
         Assert.Contains("docs/production-readiness-launch-candidate-tag.md", closure);
         Assert.Contains("DOD-GAP-002", riskLog);
-        Assert.Contains("Closed on 2026-07-03 by `docs/production-readiness-launch-candidate-tag.md`", riskLog);
+        Assert.Contains("Closed on 2026-07-08-2 by `docs/production-readiness-launch-candidate-tag.md`", riskLog);
     }
 
     [Fact]
@@ -1437,7 +1437,7 @@ public sealed class ProductionReadinessChecklistTests
         var workflow = ReadText(".github", "workflows", "production.yml");
 
         Assert.Contains("Deployment status: passed through approved CI/CD path.", deployment);
-        Assert.Contains("Approved launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.", deployment);
+        Assert.Contains("Approved launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-08-2`.", deployment);
         Assert.Contains("Approved production workflow: `.github/workflows/production.yml`.", deployment);
         Assert.Contains("Production environment contract: `infra/terraform/environments/production/main.tf`.", deployment);
         Assert.Contains("Approved production CI/CD path | Passed", deployment);
@@ -1451,7 +1451,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("PR71-PROD-DEPLOY-001", riskLog);
         Assert.Contains("workflow_dispatch:", workflow);
         Assert.Contains("launch_candidate_tag:", workflow);
-        Assert.Contains("APPROVED_LAUNCH_CANDIDATE_TAG: gccs-no-cui-mvp-lc-2026-07-03", workflow);
+        Assert.Contains("APPROVED_LAUNCH_CANDIDATE_TAG: gccs-no-cui-mvp-lc-2026-07-08-2", workflow);
         Assert.Contains("ref: ${{ github.event.inputs.launch_candidate_tag }}", workflow);
         Assert.Contains("name: production", workflow);
     }

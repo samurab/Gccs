@@ -35,7 +35,7 @@ Verify these values before every deployment. They reflect the production readine
 | GitHub repository | `samurab/Gccs` |
 | GitHub environment | `production` |
 | Approved workflow | `.github/workflows/production.yml` |
-| Approved launch candidate tag | `gccs-no-cui-mvp-lc-2026-07-03` |
+| Approved launch candidate tag | `gccs-no-cui-mvp-lc-2026-07-08-2` |
 | Launch candidate commit | `6c8927ec9cf79de977d76cb2594b87dd48f973bd` |
 | API App Service | `gccs-api-production` |
 | API base URL | `https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net` |
@@ -149,7 +149,7 @@ The workflow must:
 - Run only by `workflow_dispatch`.
 - Require `launch_candidate_tag`.
 - Use GitHub environment `production`.
-- Validate the input tag against `gccs-no-cui-mvp-lc-2026-07-03`.
+- Validate the input tag against `gccs-no-cui-mvp-lc-2026-07-08-2`.
 - Validate No-CUI guardrails.
 - Build API and web artifacts.
 - Generate an idempotent EF Core migration script.
@@ -375,7 +375,7 @@ Or use GitHub CLI:
 gh workflow run ".github/workflows/production.yml" \
   --repo samurab/Gccs \
   --ref main \
-  -f launch_candidate_tag=gccs-no-cui-mvp-lc-2026-07-03
+  -f launch_candidate_tag=gccs-no-cui-mvp-lc-2026-07-08-2
 ```
 
 Watch the run:

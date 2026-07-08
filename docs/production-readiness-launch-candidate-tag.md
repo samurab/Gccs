@@ -8,14 +8,14 @@ Tag date: 2026-07-03.
 
 Tag owner: Engineering lead.
 
-Launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.
+Launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-08-2`.
 
 Tagged commit: `6c8927ec9cf79de977d76cb2594b87dd48f973bd`.
 
 Tag command:
 
 ```bash
-git tag -a gccs-no-cui-mvp-lc-2026-07-03 6c8927ec9cf79de977d76cb2594b87dd48f973bd -m "GCCS No-CUI MVP launch candidate 2026-07-03"
+git tag -a gccs-no-cui-mvp-lc-2026-07-08-2 6c8927ec9cf79de977d76cb2594b87dd48f973bd -m "GCCS No-CUI MVP launch candidate 2026-07-03"
 ```
 
 This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testing and project completion. It is not a production deployment approval, production separation-of-duties approval, legal advice, certification evidence, government endorsement, broader customer launch approval, or authorization to accept real CUI.
