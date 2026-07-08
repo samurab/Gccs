@@ -35,8 +35,9 @@ Verify these values before every deployment. They reflect the production readine
 | GitHub repository | `samurab/Gccs` |
 | GitHub environment | `production` |
 | Approved workflow | `.github/workflows/production.yml` |
-| Approved launch candidate tag | `gccs-no-cui-mvp-lc-2026-07-03` |
-| Launch candidate commit | `6c8927ec9cf79de977d76cb2594b87dd48f973bd` |
+| Approved launch candidate manifest | `docs/release/approved-launch-candidate.json` |
+| Approved launch candidate tag | `launch-candidate-2026-07-08-2` |
+| Launch candidate commit | `374c8bcf203aa94a4d7522447b2fbb68e3775ae9` |
 | API App Service | `gccs-api-production` |
 | API base URL | `https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net` |
 | Web base URL | `https://lemon-pond-093710c0f.7.azurestaticapps.net` |
@@ -149,7 +150,7 @@ The workflow must:
 - Run only by `workflow_dispatch`.
 - Require `launch_candidate_tag`.
 - Use GitHub environment `production`.
-- Validate the input tag against `gccs-no-cui-mvp-lc-2026-07-03`.
+- Validate the input tag and tag commit against `docs/release/approved-launch-candidate.json`.
 - Validate No-CUI guardrails.
 - Build API and web artifacts.
 - Generate an idempotent EF Core migration script.
@@ -363,7 +364,7 @@ Use the GitHub website:
 4. Enter the approved launch candidate tag:
 
 ```text
-gccs-no-cui-mvp-lc-2026-07-03
+launch-candidate-2026-07-08-2
 ```
 
 5. Start the workflow.
@@ -375,7 +376,7 @@ Or use GitHub CLI:
 gh workflow run ".github/workflows/production.yml" \
   --repo samurab/Gccs \
   --ref main \
-  -f launch_candidate_tag=gccs-no-cui-mvp-lc-2026-07-03
+  -f launch_candidate_tag=launch-candidate-2026-07-08-2
 ```
 
 Watch the run:
@@ -432,7 +433,7 @@ cat output/production-deployment-evidence/production-health.json
 
 Required evidence values:
 
-- `artifact_tag=gccs-no-cui-mvp-lc-2026-07-03`.
+- `artifact_tag` matches `approvedLaunchCandidateTag` in `docs/release/approved-launch-candidate.json`.
 - `environment=production`.
 - `data_posture=No-CUI / compliance management only`.
 - `customer_data_mode=no-cui-only`.
@@ -624,7 +625,7 @@ Rollback must preserve tenant isolation, RBAC, audit logging, No-CUI policy, evi
 | Symptom | Likely cause | Corrective action |
 | --- | --- | --- |
 | Workflow cannot be dispatched | Workflow is not on default branch or user lacks permission. | Confirm `.github/workflows/production.yml` exists on `main` and operator can run Actions. |
-| Launch candidate validation fails | Wrong tag entered. | Use `gccs-no-cui-mvp-lc-2026-07-03` or create a new approved tag through the launch process. |
+| Launch candidate validation fails | Wrong tag entered or tag does not resolve to the manifest commit. | Use the tag in `docs/release/approved-launch-candidate.json` or create a new approved tag through the launch process and update the manifest through review. |
 | Terraform validation fails | Production contract changed or Terraform missing. | Restore the production contract or fix the invalid Terraform before deployment. |
 | `psql` cannot parse database host | Malformed `PRODUCTION_DATABASE_URL`, often unencoded special character. | URL-encode password characters and update the GitHub production secret. |
 | Azure login fails with JSON parse error | `AZURE_CREDENTIALS_GCCS_PRODUCTION` is not valid JSON. | Replace with valid service principal JSON. |

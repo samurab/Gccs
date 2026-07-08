@@ -8,7 +8,9 @@ Evidence date: 2026-07-03.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `gccs-no-cui-mvp-lc-2026-07-03`.
+Approved launch candidate tag: `launch-candidate-2026-07-08-2`.
+
+Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
 Launch candidate record: `docs/production-readiness-launch-candidate-tag.md`.
 
@@ -32,8 +34,8 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Tag `gccs-no-cui-mvp-lc-2026-07-03` points to `6c8927ec9cf79de977d76cb2594b87dd48f973bd`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Passed | `.github/workflows/production.yml` requires `workflow_dispatch`, checks the input tag against the approved launch candidate, and runs in GitHub environment `production`. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-07-08-2` at `374c8bcf203aa94a4d7522447b2fbb68e3775ae9`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved production CI/CD path | Passed | `.github/workflows/production.yml` requires `workflow_dispatch`, reads the approved launch candidate manifest, checks the input tag and tag commit against it, and runs in GitHub environment `production`. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services. |
 | Production secrets source | Passed as contract | `.github/workflows/production.yml` resolves production-only GitHub environment/repository secrets: `AZURE_CREDENTIALS_GCCS_PRODUCTION`, `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION`, and `PRODUCTION_DATABASE_URL`. Secret values are not stored in the repository. |
 | Production No-CUI posture validation | Passed | Workflow validates `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`; Terraform contract rejects non-production and non-No-CUI modes. |
@@ -61,7 +63,7 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Test case | Result | Evidence |
 | --- | --- | --- |
-| TC-PR-7.1.1 | Passed | Production workflow checks `launch_candidate_tag` equals `gccs-no-cui-mvp-lc-2026-07-03` and checks out that tag. |
+| TC-PR-7.1.1 | Passed | Production workflow checks `launch_candidate_tag` against `docs/release/approved-launch-candidate.json`, verifies the tag commit, and checks out that tag. |
 | TC-PR-7.1.2 | Passed | Production deployment path is `.github/workflows/production.yml` using GitHub environment `production`; manual ad hoc deployment remains prohibited. |
 | TC-PR-7.1.3 | Passed as repository-verifiable contract | Workflow and Terraform contract check secrets source, migrations, storage, cache, queue, background jobs, health checks, logs, alerts, and No-CUI data posture. |
 | TC-PR-7.1.4 | Passed as CI/CD evidence path | Workflow records deployment time, artifact, operator, environment, result, workflow run URL, health output, and migration script into the `production-deployment-evidence` artifact. |
