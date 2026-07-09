@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       launch_candidate_tag:
-        description: Approved launch candidate tag to deploy.
+        description: Approved launch candidate tag from docs/release/approved-launch-candidate.json.
         required: true
-        default: gccs-no-cui-mvp-lc-2026-07-03
 
 permissions:
   contents: read
@@ -30,14 +29,25 @@ jobs:
       PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
       PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
       PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only
-      APPROVED_LAUNCH_CANDIDATE_TAG: gccs-no-cui-mvp-lc-2026-07-03
+      APPROVED_LAUNCH_CANDIDATE_MANIFEST: docs/release/approved-launch-candidate.json
     steps:
-      - name: Validate approved launch candidate input
-        run: |
-          test "${{ github.event.inputs.launch_candidate_tag }}" = "$APPROVED_LAUNCH_CANDIDATE_TAG"
-
       - name: Checkout production deployment controls
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Validate approved launch candidate input
+        run: |
+          test -f "$APPROVED_LAUNCH_CANDIDATE_MANIFEST"
+          approved_tag="$(jq -r '.approvedLaunchCandidateTag' "$APPROVED_LAUNCH_CANDIDATE_MANIFEST")"
+          approved_sha="$(jq -r '.approvedCommitSha' "$APPROVED_LAUNCH_CANDIDATE_MANIFEST")"
+          test -n "$approved_tag"
+          test "$approved_tag" != "null"
+          test -n "$approved_sha"
+          test "$approved_sha" != "null"
+          test "${{ github.event.inputs.launch_candidate_tag }}" = "$approved_tag"
+          git fetch --force --tags
+          test "$(git rev-list -n 1 "$approved_tag")" = "$approved_sha"
 
       - name: Validate production CI/CD and No-CUI deployment guardrails
         run: |
