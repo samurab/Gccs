@@ -3,13 +3,21 @@ import {
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
+  DatabaseZap,
   FileCheck2,
   FileText,
   FolderSearch,
+  Gauge,
+  GitBranch,
+  Layers3,
   LockKeyhole,
+  SearchCheck,
   ShieldCheck,
+  Sparkles,
+  Target,
   UsersRound
 } from "lucide-react";
+import { useEffect } from "react";
 
 const workflowSteps = [
   {
@@ -38,6 +46,14 @@ const proofPoints = [
   "Audit history and reports"
 ];
 
+const pageTabs = [
+  { label: "Platform", href: "#platform" },
+  { label: "Workflow", href: "#workflow" },
+  { label: "Pilot", href: "#pilot" },
+  { label: "Security", href: "#security" },
+  { label: "SEO", href: "#seo" }
+];
+
 const audienceCards = [
   {
     icon: <UsersRound size={20} />,
@@ -56,7 +72,46 @@ const audienceCards = [
   }
 ];
 
+const featureTiles = [
+  {
+    icon: <SearchCheck size={20} />,
+    title: "Obligation intake",
+    body: "Capture contract context and reviewed obligation records without claiming automated legal interpretation."
+  },
+  {
+    icon: <GitBranch size={20} />,
+    title: "Evidence workflow",
+    body: "Route tasks from owner assignment to metadata review, report readiness, and audit history."
+  },
+  {
+    icon: <Gauge size={20} />,
+    title: "Readiness view",
+    body: "Show gaps, due dates, risk labels, and status trends in a pilot-friendly operating dashboard."
+  },
+  {
+    icon: <DatabaseZap size={20} />,
+    title: "Report package",
+    body: "Export readiness artifacts that preserve source references, review state, and No-CUI boundaries."
+  }
+];
+
 export function LandingPage() {
+  useEffect(() => {
+    document.title = "GCCS | GovCon Compliance Readiness Software";
+
+    const description =
+      "GCCS is a No-CUI compliance management workspace for small government contractors to track obligations, evidence metadata, readiness workflows, and reports.";
+    let metaDescription = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+
+    if (!metaDescription) {
+      metaDescription = document.createElement("meta");
+      metaDescription.name = "description";
+      document.head.append(metaDescription);
+    }
+
+    metaDescription.content = description;
+  }, []);
+
   return (
     <main className="landing-page">
       <section className="landing-hero" aria-label="GCCS landing page">
@@ -71,11 +126,20 @@ export function LandingPage() {
             </span>
           </a>
           <div className="landing-nav__links">
+            <a href="#platform">Platform</a>
             <a href="#workflow">Workflow</a>
-            <a href="#security">Data posture</a>
             <a href="#pilot">Pilot</a>
+            <a href="#security">Data posture</a>
           </div>
         </div>
+
+        <nav className="landing-tabs" aria-label="Landing page sections">
+          {pageTabs.map((tab) => (
+            <a href={tab.href} key={tab.href}>
+              {tab.label}
+            </a>
+          ))}
+        </nav>
 
         <div className="landing-hero__content">
           <div className="landing-hero__copy">
@@ -101,6 +165,7 @@ export function LandingPage() {
           </div>
 
           <div className="landing-product" aria-label="GCCS product preview">
+            <div className="landing-product__halo" aria-hidden="true" />
             <div className="landing-product__bar">
               <span>GCCS workspace</span>
               <strong>No-CUI</strong>
@@ -129,6 +194,16 @@ export function LandingPage() {
                   <p>{label}</p>
                 </div>
               ))}
+            </div>
+            <div className="landing-product__signal" aria-label="Readiness signal preview">
+              <div className="landing-signal-ring" aria-hidden="true">
+                <span />
+                <strong>72%</strong>
+              </div>
+              <div>
+                <p>Sample readiness signal</p>
+                <small>Combines obligation status, owner coverage, evidence metadata, and unresolved gaps.</small>
+              </div>
             </div>
             <div className="landing-product__table" role="table" aria-label="Sample obligation status">
               <div role="row">
@@ -167,7 +242,41 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="landing-section" id="workflow">
+      <section className="landing-section landing-platform" id="platform">
+        <div className="landing-section__heading">
+          <p className="landing-eyebrow">Visual compliance operations</p>
+          <h2>A lightweight workspace for readiness work that has to be tracked, owned, and reported.</h2>
+        </div>
+        <div className="landing-platform__layout">
+          <div className="landing-feature-grid">
+            {featureTiles.map((feature) => (
+              <article className="landing-feature" key={feature.title}>
+                <span className="landing-card__icon" aria-hidden="true">
+                  {feature.icon}
+                </span>
+                <h3>{feature.title}</h3>
+                <p>{feature.body}</p>
+              </article>
+            ))}
+          </div>
+          <div className="landing-map" aria-label="GCCS readiness map graphic">
+            <div className="landing-map__node landing-map__node--primary">
+              <Layers3 size={22} />
+              <strong>Control workspace</strong>
+              <span>Obligations, owners, evidence metadata</span>
+            </div>
+            <div className="landing-map__rail" aria-hidden="true" />
+            {["Contract", "Obligation", "Evidence", "Report"].map((item, index) => (
+              <div className="landing-map__node" key={item}>
+                <span>{`0${index + 1}`}</span>
+                <strong>{item}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-section landing-section--visual" id="workflow">
         <div className="landing-section__heading">
           <p className="landing-eyebrow">From scattered trackers to reportable work</p>
           <h2>Know what applies. Track what was done. Stay ready to prove it.</h2>
@@ -186,6 +295,26 @@ export function LandingPage() {
               <p>{step.body}</p>
             </article>
           ))}
+        </div>
+        <div className="landing-flow-graphic" aria-label="Sample obligation and evidence workflow graphic">
+          <div className="landing-flow-graphic__header">
+            <span>Sample workflow</span>
+            <strong>Evidence metadata only</strong>
+          </div>
+          <div className="landing-flow-graphic__lanes">
+            {[
+              ["Intake", "Contract profile", "Manual clause tags"],
+              ["Review", "Source-backed obligation", "Qualified review state"],
+              ["Execute", "Owner task", "Due date + risk label"],
+              ["Report", "Readiness artifact", "Audit history"]
+            ].map(([stage, first, second]) => (
+              <div className="landing-flow-graphic__lane" key={stage}>
+                <span>{stage}</span>
+                <p>{first}</p>
+                <p>{second}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -229,6 +358,16 @@ export function LandingPage() {
             <p>Compliance content, customer-facing claims, report language, and any future CUI-ready operating posture.</p>
           </div>
         </div>
+        <div className="landing-boundary">
+          <div className="landing-boundary__item landing-boundary__item--allowed">
+            <CheckCircle2 size={19} />
+            <span>Allowed: redacted records, synthetic examples, metadata, status, source references</span>
+          </div>
+          <div className="landing-boundary__item landing-boundary__item--blocked">
+            <LockKeyhole size={19} />
+            <span>Blocked: real CUI, classified data, ITAR/export-controlled data, sensitive GFI</span>
+          </div>
+        </div>
       </section>
 
       <section className="landing-section landing-pilot" id="pilot">
@@ -241,6 +380,10 @@ export function LandingPage() {
           </p>
         </div>
         <div className="landing-price" aria-label="Founder pilot pricing">
+          <div className="landing-price__badge">
+            <Sparkles size={18} />
+            <span>Early pilot</span>
+          </div>
           <span>Founder pilot</span>
           <strong>$500-$1,500</strong>
           <p>Flat fee hypothesis. Credit toward annual subscription if converted.</p>
@@ -248,6 +391,30 @@ export function LandingPage() {
             <span>Discuss pilot fit</span>
             <ArrowRight size={18} />
           </a>
+        </div>
+      </section>
+
+      <section className="landing-section landing-seo" id="seo">
+        <div className="landing-section__heading">
+          <p className="landing-eyebrow">SEO-ready content structure</p>
+          <h2>Built as a public page that can grow into a searchable marketing site.</h2>
+          <p>
+            The page now has clear section anchors, descriptive headings, source-safe product language, and a focused meta
+            description for GovCon compliance readiness searches.
+          </p>
+        </div>
+        <div className="landing-seo__grid" aria-label="SEO content pillars">
+          {[
+            ["Government contractor compliance software", "No-CUI readiness workspace for small businesses"],
+            ["CMMC readiness workflow", "Track tasks, owners, evidence metadata, and reporting"],
+            ["NIST 800-171 obligation tracking", "Source-backed records with review state and provenance"]
+          ].map(([term, detail]) => (
+            <div className="landing-seo__pillar" key={term}>
+              <Target size={18} />
+              <strong>{term}</strong>
+              <span>{detail}</span>
+            </div>
+          ))}
         </div>
       </section>
 
