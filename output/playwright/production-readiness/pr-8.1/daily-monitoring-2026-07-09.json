@@ -1,0 +1,144 @@
+{
+  "story": "PR-8.1",
+  "reviewDate": "2026-07-09",
+  "checkedAt": "2026-07-09T07:00:56Z",
+  "result": "passed_with_external_monitoring_limitation",
+  "reviewMode": "committed_artifacts_and_monitoring_checklist",
+  "liveProductionQueriesRun": false,
+  "liveSupportQueueQueried": false,
+  "limitation": "No live Azure Monitor, production database, background job queue, or support-ticket credentials were available in this automation context; this review validates committed evidence, risk registers, runbooks, and required monitoring coverage only.",
+  "tokenCapturedInArtifact": false,
+  "containsCustomerData": false,
+  "containsCui": false,
+  "containsRealCustomerIdentifiers": false,
+  "noCuiPosturePreserved": true,
+  "tenantIsolationPosturePreserved": true,
+  "rbacPosturePreserved": true,
+  "auditabilityPosturePreserved": true,
+  "signalsReviewed": [
+    {
+      "signal": "Audit logs",
+      "requiredReview": "Review create/update/delete, upload, report, acknowledgement, role change, authorization denial, and support-relevant events for pilot tenants.",
+      "reviewSource": "docs/production-readiness-pilot-monitoring.md; output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json; docs/production-readiness-launch-gap-decisions.md",
+      "committedEvidenceResult": "No new committed audit-log regression record found after the 2026-07-08 daily review. Prior PR-7.2 smoke evidence remains the latest committed audit sample and includes role change, authorization denial, evidence upload, and report generation events.",
+      "escalationPath": "Tenant exposure, access issue, security incident, or suspected CUI runbook"
+    },
+    {
+      "signal": "Upload blocks",
+      "requiredReview": "Review blocked prohibited uploads, missing No-CUI attestations, scanner-unavailable responses, detected malware, and unusable evidence versions.",
+      "reviewSource": "docs/production-readiness-pilot-monitoring.md; output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json; docs/production-readiness-launch-gap-decisions.md",
+      "committedEvidenceResult": "No new committed upload block, scanner-unavailable, or prohibited-upload regression found after the 2026-07-08 daily review. Prior scanner-backed synthetic upload evidence remains passed and the No-CUI attestation/prohibited upload controls remain documented.",
+      "escalationPath": "Prohibited upload, suspected CUI, evidence failure, or security incident runbook"
+    },
+    {
+      "signal": "Permission denials",
+      "requiredReview": "Review expected RBAC denials, repeated denied actions, unexpected 403, and role drift.",
+      "reviewSource": "docs/production-readiness-pilot-monitoring.md; output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json; docs/production-readiness-launch-gap-decisions.md",
+      "committedEvidenceResult": "No new committed permission-denial trend, role drift record, or tenant-isolation regression found after the 2026-07-08 daily review. Prior synthetic RBAC denial smoke remains passed.",
+      "escalationPath": "Access issue, tenant exposure, or security incident runbook"
+    },
+    {
+      "signal": "Report failures",
+      "requiredReview": "Review failed report generation, unauthenticated report attempts, tenant-scope concerns, source metadata gaps, and prohibited claim language.",
+      "reviewSource": "docs/production-readiness-pilot-monitoring.md; output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json; output/production-readiness/customer-claims-review.json",
+      "committedEvidenceResult": "No new committed report failure, tenant-scope concern, missing-source regression, or prohibited-claim regression found after the 2026-07-08 daily review.",
+      "escalationPath": "Report failure, content correction, or security incident runbook"
+    },
+    {
+      "signal": "Support tickets",
+      "requiredReview": "Review prohibited upload, suspected CUI, tenant exposure, access issue, evidence failure, report failure, content correction, security incident, backup restore, and rollback cases.",
+      "reviewSource": "docs/production-readiness-support-runbooks.md; docs/production-readiness-post-launch-review.md; docs/production-readiness-launch-gap-decisions.md",
+      "committedEvidenceResult": "No committed support-ticket record found for this review date; live support queue was not available. Support runbooks remain the escalation source of record.",
+      "escalationPath": "Matching support runbook"
+    },
+    {
+      "signal": "Content disputes",
+      "requiredReview": "Review disputed sources, stale review dates, high-risk content, publication state, and customer-facing report impact.",
+      "reviewSource": "docs/production-readiness-support-runbooks.md; output/production-readiness/expert-content/high-risk-obligation-review.json; docs/production-readiness-launch-gap-decisions.md",
+      "committedEvidenceResult": "No new committed content dispute found after the 2026-07-08 daily review. High-risk content limitations, publication controls, and claim-drift monitoring remain documented.",
+      "escalationPath": "Content correction or legal/contracting advisor escalation"
+    },
+    {
+      "signal": "Health checks",
+      "requiredReview": "Review API status and dependency status for background jobs, object storage, PostgreSQL, and Redis.",
+      "reviewSource": "docs/production-readiness-pilot-monitoring.md; output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json; output/production-readiness/backup-restore/restore-health.json",
+      "committedEvidenceResult": "No new committed health regression found after the 2026-07-08 daily review. Previous production smoke and restore health evidence remain linked.",
+      "escalationPath": "Evidence failure, rollback, or security incident runbook"
+    },
+    {
+      "signal": "Alerts",
+      "requiredReview": "Review API Http5xx, scanner-unavailable 503, health degradation, upload/storage failure, job failure, and queue backlog signals.",
+      "reviewSource": "output/production-readiness/alerts/production-alert-route-summary.json; output/production-readiness/alerts/production-alert-email-receipt.json; docs/production-readiness-launch-gap-decisions.md",
+      "committedEvidenceResult": "No new committed alert-route regression found after the 2026-07-08 daily review. Alert receiver and delivery receipt evidence remain the control of record.",
+      "escalationPath": "Security incident, evidence failure, or rollback runbook"
+    },
+    {
+      "signal": "Failed jobs",
+      "requiredReview": "Review failed imports, report/export jobs, notification jobs, audit jobs, and retry backlogs.",
+      "reviewSource": "docs/production-readiness-pilot-monitoring.md; docs/production-readiness-support-runbooks.md; docs/production-readiness-launch-gap-decisions.md",
+      "committedEvidenceResult": "No committed failed-job or queue backlog record found for this review date; live queue/dead-letter stores were not available.",
+      "escalationPath": "Evidence failure, report failure, content correction, or rollback runbook"
+    }
+  ],
+  "existingFindingsReviewed": [
+    {
+      "id": "PR81-MONITOR-001",
+      "status": "Closed on 2026-07-05",
+      "reopenCondition": "Reopen if action group receiver is removed, owner changes, or delivery fails without replacement evidence.",
+      "evidence": [
+        "output/production-readiness/alerts/production-alert-route-summary.json",
+        "output/production-readiness/alerts/production-alert-email-receipt.json"
+      ]
+    },
+    {
+      "id": "PR81-MONITOR-002",
+      "status": "Closed on 2026-07-05",
+      "reopenCondition": "Reopen if backup settings, region, database version, migration baseline, networking, retention policy, or launch approval date materially changes.",
+      "evidence": [
+        "output/production-readiness/backup-restore/restore-rehearsal-summary.json",
+        "output/production-readiness/backup-restore/restore-health.json"
+      ]
+    }
+  ],
+  "newFindings": [],
+  "escalationsOpened": [],
+  "riskOrBacklogUpdates": [],
+  "changedCommittedEvidenceSinceLastRun": [
+    "docs/production-readiness-checklist.md",
+    "docs/production-readiness-launch-candidate-tag.md",
+    "docs/production-readiness-launch-closure-evidence.md",
+    "docs/production-readiness-launch-gap-decisions.md",
+    "docs/production-readiness-pilot-monitoring.md",
+    "docs/production-readiness-production-deployment-evidence.md",
+    "docs/production-readiness-release-notes.md",
+    "docs/release/approved-launch-candidate.json",
+    "output/playwright/production-readiness/pr-8.1/daily-monitoring-2026-07-08.json"
+  ],
+  "unchangedUntrackedFilesIgnored": [
+    "docs/marketing/"
+  ],
+  "verificationCommands": [
+    {
+      "command": "jq -e '.story == \"PR-8.1\" and .containsCui == false and .containsCustomerData == false and .noCuiPosturePreserved == true and .tenantIsolationPosturePreserved == true and .rbacPosturePreserved == true and .auditabilityPosturePreserved == true and (.signalsReviewed | length == 9) and (([.signalsReviewed[].signal] | sort) == ([\"Alerts\",\"Audit logs\",\"Content disputes\",\"Failed jobs\",\"Health checks\",\"Permission denials\",\"Report failures\",\"Support tickets\",\"Upload blocks\"] | sort)) and (.existingFindingsReviewed | length == 2) and (.newFindings | length == 0) and (.escalationsOpened | length == 0)' output/playwright/production-readiness/pr-8.1/daily-monitoring-2026-07-09.json",
+      "result": "passed"
+    },
+    {
+      "command": "jq -e '.result == \"receiver_attached\" and .actionGroupAttached == true and .alertEnabled == true and .containsCustomerData == false and .containsCui == false' output/production-readiness/alerts/production-alert-route-summary.json",
+      "result": "passed"
+    },
+    {
+      "command": "jq -e '.result == \"receipt_verified\" and .receiverEmailCaptured == false and .containsCustomerData == false and .containsCui == false' output/production-readiness/alerts/production-alert-email-receipt.json",
+      "result": "passed"
+    },
+    {
+      "command": "jq -e '.result == \"passed\" and .healthStatus == \"ok\" and .teardownConfirmed == true and .containsCustomerData == false and .containsCui == false and .secretsCaptured == false' output/production-readiness/backup-restore/restore-rehearsal-summary.json",
+      "result": "passed"
+    }
+  ],
+  "testCases": {
+    "TC-PR-8.1.1": "passed_with_external_monitoring_limitation",
+    "TC-PR-8.1.2": "passed_no_new_findings",
+    "TC-PR-8.1.3": "passed_runbook_escalation_paths_preserved",
+    "TC-PR-8.1.4": "passed_no_new_regression_tracker_entry_required"
+  }
+}
