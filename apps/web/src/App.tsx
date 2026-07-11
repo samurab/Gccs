@@ -1996,7 +1996,11 @@ export function App() {
         <PageHeader
           eyebrow={`${activeNavigationItem?.group ?? "Command"} / GCCS Compliance Workspace`}
           title={activeRoute === "dashboard" ? "Dashboard" : activeNavigationItem?.label ?? "Dashboard"}
-          description={activeNavigationItem?.description}
+          description={
+            activeRoute === "dashboard"
+              ? "Operational view of tenant posture, obligations, evidence, and readiness risk."
+              : activeNavigationItem?.description
+          }
           actions={
             <div className="tenant-context" aria-label="Current tenant context">
               <NotificationCenter notifications={notifications} onMarkRead={handleNotificationRead} />
@@ -2813,7 +2817,7 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
       <section className="workspace-hero">
         <div>
           <p className="eyebrow">Workspace overview</p>
-          <h2>Govcon obligations, evidence, and readiness in one operating view.</h2>
+          <h2>GovCon obligations, evidence, and readiness in one operating view.</h2>
           <p className="hero-copy">{overview.productPromise}</p>
         </div>
         <div className="hero-panel" aria-label="MVP platform posture">
