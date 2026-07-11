@@ -1385,9 +1385,9 @@ public sealed class ProductionReadinessChecklistTests
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
 
         Assert.Contains("Tag status: created.", tagRecord);
-        Assert.Equal("launch-candidate-2026-07-08-2", manifest.ApprovedLaunchCandidateTag);
-        Assert.Equal("374c8bcf203aa94a4d7522447b2fbb68e3775ae9", manifest.ApprovedCommitSha);
-        Assert.Equal("2026-07-08", manifest.ApprovedDate);
+        Assert.Equal("launch-candidate-2026-07-11-2", manifest.ApprovedLaunchCandidateTag);
+        Assert.Equal("24e1746258217c4715a9aa07fc03774505c27390", manifest.ApprovedCommitSha);
+        Assert.Equal("2026-07-11", manifest.ApprovedDate);
         Assert.Equal("no-cui-only", manifest.DataPosture);
         Assert.Contains($"Launch candidate tag: `{manifest.ApprovedLaunchCandidateTag}`.", tagRecord);
         Assert.Contains($"Tagged commit: `{manifest.ApprovedCommitSha}`.", tagRecord);
