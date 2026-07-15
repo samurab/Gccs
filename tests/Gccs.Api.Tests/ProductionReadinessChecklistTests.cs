@@ -1461,6 +1461,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("PR71-PROD-DEPLOY-001", riskLog);
         Assert.Contains("workflow_dispatch:", workflow);
         Assert.Contains("launch_candidate_tag:", workflow);
+        Assert.Contains($"default: {manifest.ApprovedLaunchCandidateTag}", workflow);
         Assert.Contains("APPROVED_LAUNCH_CANDIDATE_MANIFEST: docs/release/approved-launch-candidate.json", workflow);
         Assert.Contains("approved_tag=\"$(jq -r '.approvedLaunchCandidateTag' \"$APPROVED_LAUNCH_CANDIDATE_MANIFEST\")\"", workflow);
         Assert.Contains("approved_sha=\"$(jq -r '.approvedCommitSha' \"$APPROVED_LAUNCH_CANDIDATE_MANIFEST\")\"", workflow);

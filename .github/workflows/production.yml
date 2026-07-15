@@ -6,6 +6,8 @@ on:
       launch_candidate_tag:
         description: Approved launch candidate tag from docs/release/approved-launch-candidate.json.
         required: true
+        default: launch-candidate-2026-07-14-1
+        type: string
 
 permissions:
   contents: read
