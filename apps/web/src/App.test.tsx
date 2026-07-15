@@ -1484,6 +1484,62 @@ describe("App", () => {
     expect(screen.getByText(/No-CUI acknowledgement is required before contract document upload/i)).toBeInTheDocument();
   });
 
+  it("shows and saves the required No-CUI acknowledgement in the contract workflow", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    acknowledgeNoCuiNoticeMock.mockResolvedValueOnce({
+      isAcknowledged: true,
+      noticeVersion: "no-cui-mvp-v1",
+      noticeCopy:
+        "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      acknowledgedAt: "2026-06-14T12:00:00Z"
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+
+    expect(await screen.findByText("Required before")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "contract or evidence work" })).toBeInTheDocument();
+    expect(screen.getByText("No-CUI acknowledgement")).toBeInTheDocument();
+    expect(screen.getByText("I will not upload, paste, import, or attach real CUI.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "I will not upload classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, or sensitive incident details."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("I will use synthetic, redacted, or non-sensitive data during the pilot.")).toBeInTheDocument();
+    expect(
+      screen.getByText("I understand GCCS reports are workflow guidance, not legal advice or certification decisions.")
+    ).toBeInTheDocument();
+
+    const acknowledgeButton = screen.getByRole("button", { name: /i acknowledge the no-cui upload limitation/i });
+    expect(acknowledgeButton).toBeDisabled();
+    await user.click(screen.getByRole("checkbox", { name: "I will not upload, paste, import, or attach real CUI." }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "I will not upload classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, or sensitive incident details."
+      })
+    );
+    await user.click(screen.getByRole("checkbox", { name: "I will use synthetic, redacted, or non-sensitive data during the pilot." }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "I understand GCCS reports are workflow guidance, not legal advice or certification decisions."
+      })
+    );
+    expect(acknowledgeButton).toBeEnabled();
+    await user.click(acknowledgeButton);
+
+    expect(acknowledgeNoCuiNoticeMock).toHaveBeenCalledWith("no-cui-mvp-v1");
+    expect(await screen.findByText("Acknowledgement saved.")).toBeInTheDocument();
+  });
+
   it("TC-8.2.1 and TC-8.2.2 gates contract document upload on No-CUI acknowledgement", async () => {
     getComplianceOverviewMock.mockResolvedValueOnce(overview);
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
@@ -1950,6 +2006,31 @@ describe("App", () => {
     expect(getNoCuiAcknowledgementStatusMock).not.toHaveBeenCalled();
   });
 
+  it("keeps contract navigation visible without loading evidence APIs for contract-only users", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce({
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc3",
+      userEmail: "contracts@example.com",
+      roles: ["Contracts"],
+      permissions: ["ViewContracts", "ManageContracts"],
+      rolePermissionMatrix: {}
+    });
+    getContractsMock.mockResolvedValueOnce([contract]);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Dashboard" });
+    const navigation = screen.getByRole("navigation", { name: /primary workspace navigation/i });
+
+    expect(within(navigation).getByRole("link", { name: /dashboard/i })).toBeInTheDocument();
+    expect(within(navigation).getByRole("link", { name: /contracts/i })).toBeInTheDocument();
+    expect(within(navigation).queryByRole("link", { name: /evidence/i })).not.toBeInTheDocument();
+    expect(getNoCuiAcknowledgementStatusMock).toHaveBeenCalled();
+    expect(getEvidenceItemsMock).not.toHaveBeenCalled();
+    expect(getContentClassificationReviewItemsMock).not.toHaveBeenCalled();
+  });
+
   it("TC-3.2.4 shows loading, empty, and error states", async () => {
     let resolveOverview: (value: typeof fallbackOverview) => void = () => undefined;
     getComplianceOverviewMock.mockReturnValueOnce(
@@ -2231,7 +2312,22 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("link", { name: /evidence/i }));
-    await user.click(screen.getByRole("button", { name: /i acknowledge the no-cui upload limitation/i }));
+    const acknowledgeButton = screen.getByRole("button", { name: /i acknowledge the no-cui upload limitation/i });
+    expect(acknowledgeButton).toBeDisabled();
+    await user.click(screen.getByRole("checkbox", { name: "I will not upload, paste, import, or attach real CUI." }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "I will not upload classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, or sensitive incident details."
+      })
+    );
+    await user.click(screen.getByRole("checkbox", { name: "I will use synthetic, redacted, or non-sensitive data during the pilot." }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "I understand GCCS reports are workflow guidance, not legal advice or certification decisions."
+      })
+    );
+    expect(acknowledgeButton).toBeEnabled();
+    await user.click(acknowledgeButton);
 
     expect(acknowledgeNoCuiNoticeMock).toHaveBeenCalledWith("no-cui-mvp-v1");
     expect(await screen.findByText("Acknowledgement saved.")).toBeInTheDocument();

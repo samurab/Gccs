@@ -159,6 +159,49 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
     }
 
     [Fact]
+    public async Task Contract_managers_can_read_and_save_no_cui_acknowledgement_for_contract_workflow()
+    {
+        var tenantId = Guid.Parse("41414141-4141-4141-4141-4141414141d3");
+        var userId = Guid.Parse("41414141-4141-4141-4141-4141414141e3");
+        await using var factory = CreateFactory("contract-no-cui-ack", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Contract No-CUI Ack Tenant"));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var statusRequest = CreateRequest(
+            HttpMethod.Get,
+            "/api/no-cui-acknowledgement",
+            tenantId,
+            userId,
+            Permission.ViewContracts);
+        using var acknowledgeRequest = CreateRequest(
+            HttpMethod.Post,
+            "/api/no-cui-acknowledgement",
+            new AcknowledgeNoCuiRequest(true, NoCuiNotice.CurrentVersion),
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+
+        var statusResponse = await client.SendAsync(statusRequest);
+        var acknowledgeResponse = await client.SendAsync(acknowledgeRequest);
+        var acknowledgedStatus = await acknowledgeResponse.Content.ReadFromJsonAsync<NoCuiAcknowledgementStatusDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, acknowledgeResponse.StatusCode);
+        Assert.NotNull(acknowledgedStatus);
+        Assert.True(acknowledgedStatus.IsAcknowledged);
+        Assert.Equal(tenantId, acknowledgedStatus.TenantId);
+        Assert.Equal(userId, acknowledgedStatus.AcknowledgedByUserId);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Single(await dbContext.NoCuiAcknowledgements.Where(candidate =>
+            candidate.TenantId == tenantId &&
+            candidate.UserId == userId).ToListAsync());
+    }
+
+    [Fact]
     public async Task TC_4_1_4_Acknowledgement_is_audit_logged_and_copy_states_no_cui_posture()
     {
         var tenantId = Guid.Parse("41414141-4141-4141-4141-4141414141a4");

@@ -539,4 +539,14 @@ public static class ApiSecurityExtensions
     {
         return builder.RequireAuthorization(permission.ToString());
     }
+
+    public static IEndpointConventionBuilder RequireAnyPermission(
+        this IEndpointConventionBuilder builder,
+        params Permission[] permissions)
+    {
+        return builder.RequireAuthorization(policy => policy
+            .RequireAuthenticatedUser()
+            .RequireAssertion(context => permissions.Any(permission =>
+                context.User.HasClaim(PermissionClaimType, permission.ToString()))));
+    }
 }

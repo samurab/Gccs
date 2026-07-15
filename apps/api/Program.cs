@@ -2458,7 +2458,7 @@ api.MapGet("/no-cui-acknowledgement", async (
     NoCuiAcknowledgementStatusService service,
     CancellationToken cancellationToken) =>
     Results.Ok(await service.GetCurrentStatusAsync(cancellationToken)))
-.RequirePermission(Permission.ViewEvidence)
+.RequireAnyPermission(Permission.ViewContracts, Permission.ManageContracts, Permission.ViewEvidence, Permission.ManageEvidence)
 .WithName("GetNoCuiAcknowledgementStatus");
 
 api.MapPost("/no-cui-acknowledgement", async (
@@ -2479,7 +2479,7 @@ api.MapPost("/no-cui-acknowledgement", async (
         });
     }
 })
-.RequirePermission(Permission.ManageEvidence)
+.RequireAnyPermission(Permission.ManageContracts, Permission.ManageEvidence)
 .WithName("AcknowledgeNoCuiNotice");
 
 api.MapGet("/evidence-items", async (

@@ -35,6 +35,53 @@ describe("GCCS API client", () => {
     expect(access.permissions).toEqual(["ManageContracts", "ViewContracts", "ViewReports"]);
   });
 
+  it("derives role permissions when the API omits the role matrix", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+          userEmail: "admin@example.com",
+          roles: ["Admin"],
+          permissions: [],
+          rolePermissionMatrix: {}
+        })
+      })
+    );
+
+    const access = await getCurrentUserAccess();
+
+    expect(access.permissions).toContain("ViewContracts");
+    expect(access.permissions).toContain("ManageContracts");
+    expect(access.permissions).toContain("ViewEvidence");
+    expect(access.permissions).toContain("ViewReports");
+  });
+
+  it("matches returned role names case-insensitively", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+          userEmail: "admin@example.com",
+          roles: ["admin"],
+          permissions: [],
+          rolePermissionMatrix: {
+            Admin: ["ManageContracts", "ViewContracts", "ViewReports"]
+          }
+        })
+      })
+    );
+
+    const access = await getCurrentUserAccess();
+
+    expect(access.permissions).toEqual(["ManageContracts", "ViewContracts", "ViewReports"]);
+  });
+
   it("does not derive permissions for unknown role names", async () => {
     vi.stubGlobal(
       "fetch",

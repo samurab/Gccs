@@ -761,7 +761,8 @@ export function App() {
         const canLoadTenantAdministration =
           canUseTenantAdministrationApi && nextAccess.permissions.includes("ManageTenant") && nextAccess.tenantId !== null;
         const canLoadAuditLogs = nextAccess.permissions.includes("ViewAuditLog");
-        const canLoadNoCuiStatus = hasAnyPermission(nextAccess, ["ViewEvidence", "ManageEvidence"]);
+        const canLoadNoCuiStatus = hasAnyPermission(nextAccess, ["ViewContracts", "ManageContracts", "ViewEvidence", "ManageEvidence"]);
+        const canLoadEvidence = hasAnyPermission(nextAccess, ["ViewEvidence", "ManageEvidence", "ApproveEvidence"]);
         const canLoadCompanyProfile = hasAnyPermission(nextAccess, ["ViewCompanyProfile", "ManageCompanyProfile"]);
         const canLoadContracts = hasAnyPermission(nextAccess, ["ViewContracts", "ManageContracts"]);
         const canLoadObligations = hasAnyPermission(nextAccess, ["ViewObligations", "ManageObligations"]);
@@ -794,7 +795,7 @@ export function App() {
         const nextNoCuiAcknowledgement = canLoadNoCuiStatus
           ? await getNoCuiAcknowledgementStatus()
           : fallbackNoCuiAcknowledgementStatus;
-        const [nextEvidenceItems, nextClassificationReviewItems] = canLoadNoCuiStatus
+        const [nextEvidenceItems, nextClassificationReviewItems] = canLoadEvidence
           ? await Promise.all([getEvidenceItems(), getContentClassificationReviewItems()])
           : [[], []];
         const nextCompanyProfile = canLoadCompanyProfile ? await getCompanyProfile() : null;
@@ -2047,8 +2048,10 @@ export function App() {
               contractMessage={contractMessage}
               contractStatus={contractStatus}
               noCuiAcknowledgement={noCuiAcknowledgement}
+              acknowledgementStatus={acknowledgementStatus}
               selectedContractId={selectedContractId}
               tenantDataHandlingMode={currentTenant?.dataHandlingMode ?? "NoCui"}
+              onAcknowledge={handleNoCuiAcknowledgement}
               onDeleteDocument={handleContractDocumentDelete}
               onChangeClauseCandidateReviewStatusFilter={setClauseCandidateReviewStatusFilter}
               onStartExtraction={handleStartContractDocumentExtraction}
@@ -3739,8 +3742,10 @@ function ContractsView({
   contractMessage,
   contractStatus,
   noCuiAcknowledgement,
+  acknowledgementStatus,
   selectedContractId,
   tenantDataHandlingMode,
+  onAcknowledge,
   onDeleteDocument,
   onChangeClauseCandidateReviewStatusFilter,
   onStartExtraction,
@@ -3771,8 +3776,10 @@ function ContractsView({
   contractMessage: string;
   contractStatus: "idle" | "saving" | "saved" | "failed";
   noCuiAcknowledgement: NoCuiAcknowledgementStatus;
+  acknowledgementStatus: "idle" | "saving" | "saved" | "failed";
   selectedContractId: string | null;
   tenantDataHandlingMode: string;
+  onAcknowledge: () => void;
   onDeleteDocument: (contractId: string, documentId: string) => Promise<void>;
   onChangeClauseCandidateReviewStatusFilter: (reviewStatus: string) => void;
   onStartExtraction: (contractId: string, documentId: string) => Promise<void>;
@@ -3937,6 +3944,14 @@ function ContractsView({
           selectedContract={selectedContract}
           tenantDataHandlingMode={tenantDataHandlingMode}
           onSave={onSave}
+        />
+
+        <NoCuiAcknowledgementPanel
+          acknowledgement={noCuiAcknowledgement}
+          acknowledgementStatus={acknowledgementStatus}
+          canAcknowledge={canManageContracts}
+          context="contract or evidence work"
+          onAcknowledge={onAcknowledge}
         />
 
         {selectedContract ? (
@@ -6935,48 +6950,13 @@ function EvidenceView({
         </div>
       </section>
 
-      <div className={`notice-panel${acknowledgement.isAcknowledged ? " notice-panel--acknowledged" : ""}`}>
-        <span className="notice-panel__icon" aria-hidden="true">
-          {acknowledgement.isAcknowledged ? <CheckCircle2 size={22} /> : <AlertTriangle size={22} />}
-        </span>
-        <div>
-          <p className="eyebrow">Required before upload</p>
-          <h3>No-CUI acknowledgement</h3>
-          <p>{acknowledgement.noticeCopy}</p>
-          <dl className="notice-meta">
-            <div>
-              <dt>Notice version</dt>
-              <dd>{acknowledgement.noticeVersion}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{acknowledgement.isAcknowledged ? "Acknowledged" : "Not acknowledged"}</dd>
-            </div>
-            {acknowledgement.acknowledgedAt ? (
-              <div>
-                <dt>Acknowledged</dt>
-                <dd>{new Date(acknowledgement.acknowledgedAt).toLocaleString()}</dd>
-              </div>
-            ) : null}
-          </dl>
-          {!acknowledgement.isAcknowledged ? (
-            <button
-              className="notice-action"
-              type="button"
-              disabled={!canManageEvidence || acknowledgementStatus === "saving"}
-              onClick={onAcknowledge}
-            >
-              <CheckCircle2 size={16} aria-hidden="true" />
-              <span>{acknowledgementStatus === "saving" ? "Saving" : "I acknowledge the No-CUI upload limitation"}</span>
-            </button>
-          ) : null}
-          {!canManageEvidence ? <p className="form-status">ManageEvidence permission is required to acknowledge or upload.</p> : null}
-          {acknowledgementStatus === "saved" ? <p className="form-status form-status--ok">Acknowledgement saved.</p> : null}
-          {acknowledgementStatus === "failed" ? (
-            <p className="form-status form-status--error">Acknowledgement was not saved.</p>
-          ) : null}
-        </div>
-      </div>
+      <NoCuiAcknowledgementPanel
+        acknowledgement={acknowledgement}
+        acknowledgementStatus={acknowledgementStatus}
+        canAcknowledge={canManageEvidence}
+        context="evidence upload"
+        onAcknowledge={onAcknowledge}
+      />
 
       <form
         className="upload-panel"
@@ -7060,6 +7040,133 @@ function EvidenceView({
         />
       ) : null}
     </section>
+  );
+}
+
+function NoCuiAcknowledgementPanel({
+  acknowledgement,
+  acknowledgementStatus,
+  canAcknowledge,
+  context,
+  onAcknowledge
+}: {
+  acknowledgement: NoCuiAcknowledgementStatus;
+  acknowledgementStatus: "idle" | "saving" | "saved" | "failed";
+  canAcknowledge: boolean;
+  context: string;
+  onAcknowledge: () => void;
+}) {
+  const [acknowledgedStatements, setAcknowledgedStatements] = useState({
+    noRealCui: false,
+    noProhibitedData: false,
+    syntheticOnly: false,
+    workflowGuidanceOnly: false
+  });
+  const allStatementsAcknowledged = Object.values(acknowledgedStatements).every(Boolean);
+
+  function updateAcknowledgedStatement(key: keyof typeof acknowledgedStatements, checked: boolean) {
+    setAcknowledgedStatements((currentStatements) => ({
+      ...currentStatements,
+      [key]: checked
+    }));
+  }
+
+  return (
+    <div className={`notice-panel${acknowledgement.isAcknowledged ? " notice-panel--acknowledged" : ""}`}>
+      <span className="notice-panel__icon" aria-hidden="true">
+        {acknowledgement.isAcknowledged ? <CheckCircle2 size={22} /> : <AlertTriangle size={22} />}
+      </span>
+      <div>
+        <div className="notice-panel__header">
+          <p className="eyebrow">Required before</p>
+          <h3>{context}</h3>
+          <p className="notice-panel__title">No-CUI acknowledgement</p>
+        </div>
+        {acknowledgement.isAcknowledged ? (
+          <p className="notice-panel__summary">
+            The current No-CUI notice is acknowledged for this tenant. Contract and evidence workflows remain limited to synthetic,
+            redacted, or non-sensitive data.
+          </p>
+        ) : (
+          <>
+          <p>{acknowledgement.noticeCopy}</p>
+          <fieldset className="acknowledgement-checklist">
+            <legend>Required user acknowledgement</legend>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={acknowledgedStatements.noRealCui}
+                onChange={(event) => updateAcknowledgedStatement("noRealCui", event.target.checked)}
+                disabled={!canAcknowledge || acknowledgementStatus === "saving"}
+              />
+              <span>I will not upload, paste, import, or attach real CUI.</span>
+            </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={acknowledgedStatements.noProhibitedData}
+                onChange={(event) => updateAcknowledgedStatement("noProhibitedData", event.target.checked)}
+                disabled={!canAcknowledge || acknowledgementStatus === "saving"}
+              />
+              <span>I will not upload classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, or sensitive incident details.</span>
+            </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={acknowledgedStatements.syntheticOnly}
+                onChange={(event) => updateAcknowledgedStatement("syntheticOnly", event.target.checked)}
+                disabled={!canAcknowledge || acknowledgementStatus === "saving"}
+              />
+              <span>I will use synthetic, redacted, or non-sensitive data during the pilot.</span>
+            </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={acknowledgedStatements.workflowGuidanceOnly}
+                onChange={(event) => updateAcknowledgedStatement("workflowGuidanceOnly", event.target.checked)}
+                disabled={!canAcknowledge || acknowledgementStatus === "saving"}
+              />
+              <span>I understand GCCS reports are workflow guidance, not legal advice or certification decisions.</span>
+            </label>
+          </fieldset>
+          </>
+        )}
+        <dl className="notice-meta">
+          <div>
+            <dt>Notice version</dt>
+            <dd>{acknowledgement.noticeVersion}</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{acknowledgement.isAcknowledged ? "Acknowledged" : "Not acknowledged"}</dd>
+          </div>
+          {acknowledgement.acknowledgedAt ? (
+            <div>
+              <dt>Acknowledged</dt>
+              <dd>{new Date(acknowledgement.acknowledgedAt).toLocaleString()}</dd>
+            </div>
+          ) : null}
+        </dl>
+        {!acknowledgement.isAcknowledged ? (
+          <button
+            className="notice-action"
+            type="button"
+            disabled={!canAcknowledge || !allStatementsAcknowledged || acknowledgementStatus === "saving"}
+            onClick={onAcknowledge}
+          >
+            <CheckCircle2 size={16} aria-hidden="true" />
+            <span>{acknowledgementStatus === "saving" ? "Saving" : "I acknowledge the No-CUI upload limitation"}</span>
+          </button>
+        ) : (
+          <p className="form-status form-status--ok">Acknowledgement already saved. No additional action is required.</p>
+        )}
+        {!canAcknowledge ? <p className="form-status">Required permission is missing for acknowledgement.</p> : null}
+        {acknowledgementStatus === "saved" ? <p className="form-status form-status--ok">Acknowledgement saved.</p> : null}
+        {acknowledgementStatus === "failed" ? (
+          <p className="form-status form-status--error">Acknowledgement was not saved.</p>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

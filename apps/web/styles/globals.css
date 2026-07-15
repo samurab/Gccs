@@ -3062,6 +3062,11 @@ textarea:required:user-invalid {
   grid-template-columns: 300px minmax(0, 1fr);
 }
 
+.contract-workspace > .notice-panel {
+  grid-column: 2;
+  max-width: none;
+}
+
 .contract-list {
   display: grid;
   gap: 8px;
@@ -4094,26 +4099,109 @@ textarea:required:user-invalid {
   color: var(--teal);
 }
 
-.notice-panel h3,
-.notice-panel p {
-  margin-bottom: 10px;
+.notice-panel__header {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 12px;
 }
 
-.notice-panel p {
+.notice-panel__header h3,
+.notice-panel__header p {
+  margin: 0;
+}
+
+.notice-panel__header h3 {
+  color: var(--ink);
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.notice-panel__title {
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+  font-weight: 800;
+}
+
+.notice-panel > div > p:not(.eyebrow, .notice-panel__title) {
   color: var(--muted);
   line-height: 1.58;
+  margin: 0 0 12px;
+}
+
+.notice-panel__summary {
+  background: var(--teal-soft);
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, transparent);
+  border-radius: 7px;
+  color: var(--ink-soft) !important;
+  font-weight: 700;
+  padding: 10px 12px;
+}
+
+.acknowledgement-checklist {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 14px;
+}
+
+.acknowledgement-checklist legend {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 850;
+  padding: 0 6px;
+}
+
+.notice-panel .checkbox-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+.notice-panel .checkbox-row input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  min-height: auto;
+  width: auto;
+}
+
+.notice-panel ul {
+  color: var(--ink-soft);
+  line-height: 1.55;
+  margin: 12px 0;
+  padding-left: 20px;
 }
 
 .notice-meta {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   margin: 12px 0;
 }
 
 .notice-meta div {
   border-left: 3px solid var(--teal-soft);
+  min-width: 0;
   padding-left: 10px;
+}
+
+.notice-meta dt,
+.notice-meta dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.notice-meta dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.notice-meta dd {
+  margin: 4px 0 0;
 }
 
 .notice-action {
@@ -4556,6 +4644,10 @@ textarea:required:user-invalid {
   }
 
   .contract-detail {
+    grid-column: auto;
+  }
+
+  .contract-workspace > .notice-panel {
     grid-column: auto;
   }
 
