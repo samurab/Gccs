@@ -2060,6 +2060,23 @@ describe("App", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Workspace data could not be loaded");
   });
 
+  it("keeps permission-based navigation visible when a downstream module load fails", async () => {
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getTenantMembersMock.mockRejectedValueOnce(new Error("Tenant members request was forbidden"));
+
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Workspace data could not be loaded");
+    const navigation = screen.getByRole("navigation", { name: /primary workspace navigation/i });
+
+    expect(within(navigation).getByRole("link", { name: /dashboard/i })).toBeInTheDocument();
+    expect(within(navigation).getByRole("link", { name: /contracts/i })).toBeInTheDocument();
+    expect(within(navigation).getByRole("link", { name: /evidence/i })).toBeInTheDocument();
+    expect(within(navigation).getByRole("link", { name: /reports/i })).toBeInTheDocument();
+    expect(within(navigation).getByRole("link", { name: /settings/i })).toBeInTheDocument();
+  });
+
   it("keeps user invitation actions in the role-aware settings route", async () => {
     const createdInvitation = {
       ...invitations[0],

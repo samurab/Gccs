@@ -747,9 +747,16 @@ export function App() {
 
   useEffect(() => {
     let isMounted = true;
+    let resolvedAccess: CurrentUserAccess | null = null;
 
-    Promise.all([getComplianceOverview(), getCurrentUserAccess()])
-      .then(async ([nextOverview, nextAccess]) => {
+    getCurrentUserAccess()
+      .then(async (nextAccess) => {
+        resolvedAccess = nextAccess;
+        if (isMounted) {
+          setAccess(nextAccess);
+        }
+
+        const nextOverview = await getComplianceOverview();
         const canLoadUserManagement = nextAccess.permissions.includes("ManageUsers");
         const canUseTenantAdministrationApi = [
           getTenant,
@@ -829,7 +836,6 @@ export function App() {
 
         if (isMounted) {
           setOverview(nextOverview);
-          setAccess(nextAccess);
           setMembers(nextMembers);
           setInvitations(nextInvitations);
           setCurrentTenant(nextTenant);
@@ -881,7 +887,7 @@ export function App() {
       .catch(() => {
         if (isMounted) {
           setOverview(fallbackOverview);
-          setAccess(fallbackAccess);
+          setAccess(resolvedAccess ?? fallbackAccess);
           setMembers([]);
           setInvitations([]);
           setCurrentTenant(null);
