@@ -3,14 +3,12 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { AuthGate } from "./auth";
 import { LandingPage } from "./LandingPage";
+import { shouldRenderLandingPage } from "./routing";
 import "../styles/globals.css";
-
-const searchParams = new URLSearchParams(window.location.search);
-const isLandingPage = window.location.pathname === "/landing" || searchParams.get("view") === "landing";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {isLandingPage ? (
+    {shouldRenderLandingPage() ? (
       <LandingPage />
     ) : (
       <AuthGate>

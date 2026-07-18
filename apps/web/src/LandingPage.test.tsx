@@ -8,6 +8,7 @@ describe("LandingPage", () => {
 
     expect(screen.getByRole("heading", { name: /compliance readiness tracking for small government contractors/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /request a pilot demo/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open workspace/i })).toHaveAttribute("href", "/app#/dashboard");
     expect(screen.getByText(/No-CUI \/ compliance management only/i)).toBeInTheDocument();
     expect(screen.getByText(/does not certify compliance, provide legal advice, or accept real CUI/i)).toBeInTheDocument();
     expect(screen.getByText(/30-day guided readiness pilot/i)).toBeInTheDocument();

@@ -5,6 +5,7 @@ import {
   type AccountInfo
 } from "@azure/msal-browser";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { getWorkspaceUrl } from "./routing";
 
 const accessTokenStorageKey = import.meta.env.VITE_GCCS_ACCESS_TOKEN_STORAGE_KEY ?? "gccs.accessToken";
 const legacyAccessTokenStorageKey = "access_token";
@@ -13,6 +14,7 @@ const tenantId = import.meta.env.VITE_MSAL_TENANT_ID;
 const apiScope = import.meta.env.VITE_MSAL_API_SCOPE;
 const authority = tenantId ? `https://login.microsoftonline.com/${tenantId}` : "";
 const apiTokenRequest = { scopes: apiScope ? [apiScope] : [] };
+const workspaceUrl = getWorkspaceUrl();
 
 const isMsalConfigured = Boolean(clientId && tenantId && apiScope);
 
@@ -21,7 +23,7 @@ const msalInstance = isMsalConfigured
       auth: {
         clientId,
         authority,
-        redirectUri: window.location.origin,
+        redirectUri: workspaceUrl,
         postLogoutRedirectUri: window.location.origin
       },
       cache: {

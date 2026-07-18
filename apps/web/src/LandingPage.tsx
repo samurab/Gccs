@@ -158,6 +158,10 @@ export function LandingPage() {
                 <LockKeyhole size={18} />
                 <span>View No-CUI policy</span>
               </a>
+              <a className="landing-button landing-button--secondary" href="/app#/dashboard">
+                <ShieldCheck size={18} />
+                <span>Open workspace</span>
+              </a>
             </div>
             <p className="landing-disclaimer">
               GCCS does not certify compliance, provide legal advice, or accept real CUI in the MVP.
