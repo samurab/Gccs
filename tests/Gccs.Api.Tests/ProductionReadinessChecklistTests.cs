@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Gccs.Api.Tests;
@@ -1385,9 +1387,21 @@ public sealed class ProductionReadinessChecklistTests
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
 
         Assert.Contains("Tag status: created.", tagRecord);
-        Assert.Equal("launch-candidate-2026-07-14-1", manifest.ApprovedLaunchCandidateTag);
-        Assert.Equal("1d9a4060d3b6c5d4fe2857c9c97d97d50f46e827", manifest.ApprovedCommitSha);
-        Assert.Equal("2026-07-14", manifest.ApprovedDate);
+        var tagMatch = Regex.Match(
+            manifest.ApprovedLaunchCandidateTag,
+            @"^launch-candidate-(?<date>\d{4}-\d{2}-\d{2})-(?<sequence>[1-9]\d*)$",
+            RegexOptions.CultureInvariant);
+        Assert.True(tagMatch.Success, $"Invalid approved launch-candidate tag: {manifest.ApprovedLaunchCandidateTag}");
+        Assert.Matches("^[0-9a-f]{40}$", manifest.ApprovedCommitSha);
+        Assert.True(
+            DateOnly.TryParseExact(
+                manifest.ApprovedDate,
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out _),
+            $"Invalid approved launch-candidate date: {manifest.ApprovedDate}");
+        Assert.Equal(tagMatch.Groups["date"].Value, manifest.ApprovedDate);
         Assert.Equal("no-cui-only", manifest.DataPosture);
         Assert.Contains($"Launch candidate tag: `{manifest.ApprovedLaunchCandidateTag}`.", tagRecord);
         Assert.Contains($"Tagged commit: `{manifest.ApprovedCommitSha}`.", tagRecord);
@@ -1468,6 +1482,43 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("git rev-list -n 1 \"$approved_tag\"", workflow);
         Assert.Contains("ref: ${{ github.event.inputs.launch_candidate_tag }}", workflow);
         Assert.Contains("name: production", workflow);
+    }
+
+    [Fact]
+    public void Approved_launch_candidate_manifest_matches_current_release_artifacts()
+    {
+        var manifest = ReadApprovedLaunchCandidateManifest();
+
+        foreach (var path in new[]
+        {
+            new[] { ".github", "workflows", "production.yml" },
+            new[] { "docs", "production-deployment-runbook.md" },
+            new[] { "docs", "production-readiness-checklist.md" },
+            new[] { "docs", "production-readiness-launch-candidate-tag.md" },
+            new[] { "docs", "production-readiness-launch-closure-evidence.md" },
+            new[] { "docs", "production-readiness-launch-gap-decisions.md" },
+            new[] { "docs", "production-readiness-production-deployment-evidence.md" },
+            new[] { "docs", "production-readiness-release-notes.md" }
+        })
+        {
+            Assert.Contains(manifest.ApprovedLaunchCandidateTag, ReadText(path), StringComparison.Ordinal);
+        }
+
+        foreach (var path in new[]
+        {
+            new[] { "docs", "production-deployment-runbook.md" },
+            new[] { "docs", "production-readiness-launch-candidate-tag.md" },
+            new[] { "docs", "production-readiness-launch-closure-evidence.md" },
+            new[] { "docs", "production-readiness-production-deployment-evidence.md" }
+        })
+        {
+            Assert.Contains(manifest.ApprovedCommitSha, ReadText(path), StringComparison.Ordinal);
+        }
+
+        Assert.Contains(
+            $"default: {manifest.ApprovedLaunchCandidateTag}",
+            ReadText(".github", "workflows", "production.yml"),
+            StringComparison.Ordinal);
     }
 
     [Fact]

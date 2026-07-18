@@ -21,6 +21,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "25"
+
+      - name: Validate approved launch candidate synchronization
+        run: npm run check:launch-candidate
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v5
         with:

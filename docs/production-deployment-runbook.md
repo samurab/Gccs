@@ -36,8 +36,8 @@ Verify these values before every deployment. They reflect the production readine
 | GitHub environment | `production` |
 | Approved workflow | `.github/workflows/production.yml` |
 | Approved launch candidate manifest | `docs/release/approved-launch-candidate.json` |
-| Approved launch candidate tag | `launch-candidate-2026-07-14-1` |
-| Launch candidate commit | `1d9a4060d3b6c5d4fe2857c9c97d97d50f46e827` |
+| Approved launch candidate tag | `launch-candidate-2026-07-18-1` |
+| Launch candidate commit | `e442bec6b9a0cc72df95df936d222461d7e57e99` |
 | API App Service | `gccs-api-production` |
 | API base URL | `https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net` |
 | Web base URL | `https://lemon-pond-093710c0f.7.azurestaticapps.net` |
@@ -46,6 +46,8 @@ Verify these values before every deployment. They reflect the production readine
 | Static Web App token secret | `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION` |
 | Data posture | `No-CUI / compliance management only` |
 | Customer data mode | `no-cui-only` |
+
+`docs/release/approved-launch-candidate.json` is the only editable source for the current launch-candidate tag, commit SHA, and approval date. After updating the manifest, run `npm run sync:launch-candidate`. CI runs `npm run check:launch-candidate` and fails when generated current-candidate fields drift from the manifest.
 
 ## Required Access
 
@@ -364,7 +366,7 @@ Use the GitHub website:
 4. Enter the approved launch candidate tag:
 
 ```text
-launch-candidate-2026-07-14-1
+launch-candidate-2026-07-18-1
 ```
 
 5. Start the workflow.
@@ -376,7 +378,7 @@ Or use GitHub CLI:
 gh workflow run ".github/workflows/production.yml" \
   --repo samurab/Gccs \
   --ref main \
-  -f launch_candidate_tag=launch-candidate-2026-07-14-1
+  -f launch_candidate_tag=launch-candidate-2026-07-18-1
 ```
 
 Watch the run:
