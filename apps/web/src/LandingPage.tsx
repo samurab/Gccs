@@ -14,7 +14,6 @@ import {
   SearchCheck,
   ShieldCheck,
   Sparkles,
-  Target,
   UsersRound
 } from "lucide-react";
 import { useEffect } from "react";
@@ -38,20 +37,18 @@ const workflowSteps = [
 ];
 
 const proofPoints = [
-  "Source-backed obligations",
-  "Evidence metadata tracking",
-  "Task ownership and due dates",
-  "CMMC readiness workflows",
-  "Subcontractor flow-down tracking",
-  "Audit history and reports"
+  "Implemented: tenant-scoped workspace",
+  "Implemented: evidence metadata",
+  "Implemented: task ownership",
+  "Implemented: audit history",
+  "Implemented: readiness reports",
+  "Current posture: No-CUI only"
 ];
 
-const pageTabs = [
-  { label: "Platform", href: "#platform" },
-  { label: "Workflow", href: "#workflow" },
-  { label: "Pilot", href: "#pilot" },
-  { label: "Security", href: "#security" },
-  { label: "SEO", href: "#seo" }
+const heroMetrics = [
+  ["72%", "Sample readiness signal"],
+  ["24", "Open obligations"],
+  ["11", "Evidence metadata gaps"]
 ];
 
 const audienceCards = [
@@ -130,24 +127,17 @@ export function LandingPage() {
             <a href="#workflow">Workflow</a>
             <a href="#pilot">Pilot</a>
             <a href="#security">Data posture</a>
+            <a className="landing-nav__cta" href="/app#/dashboard">Open workspace</a>
           </div>
         </div>
-
-        <nav className="landing-tabs" aria-label="Landing page sections">
-          {pageTabs.map((tab) => (
-            <a href={tab.href} key={tab.href}>
-              {tab.label}
-            </a>
-          ))}
-        </nav>
 
         <div className="landing-hero__content">
           <div className="landing-hero__copy">
             <p className="landing-eyebrow">No-CUI compliance management for small GovCon teams</p>
-            <h1>Compliance readiness tracking for small government contractors.</h1>
+            <h1>Turn compliance work into an operating system.</h1>
             <p className="landing-hero__lede">
-              GCCS helps small GovCon teams organize source-backed obligations, assign compliance work, track evidence metadata,
-              monitor readiness, and generate reports under a No-CUI compliance management posture.
+              GCCS gives small government contractors one focused workspace for obligations, owners, evidence metadata,
+              readiness status, and reportable audit history without turning the MVP into a CUI storage system.
             </p>
             <div className="landing-actions">
               <a className="landing-button landing-button--primary" href="mailto:hello@gccs.example?subject=GCCS%20pilot%20demo">
@@ -163,33 +153,30 @@ export function LandingPage() {
                 <span>Open workspace</span>
               </a>
             </div>
+            <div className="landing-hero__metrics" aria-label="GCCS sample operating metrics">
+              {heroMetrics.map(([value, label]) => (
+                <div key={label}>
+                  <strong>{value}</strong>
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
             <p className="landing-disclaimer">
-              GCCS does not certify compliance, provide legal advice, or accept real CUI in the MVP.
+              GCCS does not certify compliance, provide legal advice, or provide government approval. Do not upload real CUI in the MVP.
             </p>
           </div>
 
-          <div className="landing-product" aria-label="GCCS product preview">
-            <div className="landing-product__halo" aria-hidden="true" />
+          <div className="landing-product landing-product--showcase" aria-label="GCCS product preview">
+            <img src="/landing/compliance-operations-hero.png" alt="" aria-hidden="true" />
+            <div className="landing-product__overlay" aria-hidden="true" />
             <div className="landing-product__bar">
               <span>GCCS workspace</span>
               <strong>No-CUI</strong>
             </div>
-            <div className="landing-product__grid">
-              <div className="landing-product__metric">
-                <span>Readiness</span>
-                <strong>72%</strong>
-                <small>Internal workflow view</small>
-              </div>
-              <div className="landing-product__metric">
-                <span>Open obligations</span>
-                <strong>24</strong>
-                <small>6 high priority</small>
-              </div>
-              <div className="landing-product__metric">
-                <span>Evidence gaps</span>
-                <strong>11</strong>
-                <small>Metadata only</small>
-              </div>
+            <div className="landing-product__command">
+              <span>Current workflow</span>
+              <strong>Obligation review</strong>
+              <small>Source-backed records, owners, status, evidence metadata</small>
             </div>
             <div className="landing-product__workflow">
               {["Contract intake", "Obligation review", "Evidence ready", "Report export"].map((label, index) => (
@@ -248,8 +235,8 @@ export function LandingPage() {
 
       <section className="landing-section landing-platform" id="platform">
         <div className="landing-section__heading">
-          <p className="landing-eyebrow">Visual compliance operations</p>
-          <h2>A lightweight workspace for readiness work that has to be tracked, owned, and reported.</h2>
+          <p className="landing-eyebrow">Operational clarity</p>
+          <h2>Built for the messy middle between contract requirements and evidence packages.</h2>
         </div>
         <div className="landing-platform__layout">
           <div className="landing-feature-grid">
@@ -283,7 +270,7 @@ export function LandingPage() {
       <section className="landing-section landing-section--visual" id="workflow">
         <div className="landing-section__heading">
           <p className="landing-eyebrow">From scattered trackers to reportable work</p>
-          <h2>Know what applies. Track what was done. Stay ready to prove it.</h2>
+          <h2>See the chain of work from obligation to owner to report.</h2>
           <p>
             The first GCCS workflow is intentionally concrete: one company profile, one contract or synthetic workflow,
             reviewed obligations, evidence metadata, and a readiness report.
@@ -345,9 +332,9 @@ export function LandingPage() {
           <p className="landing-eyebrow">Security and data-handling boundary</p>
           <h2>No-CUI / compliance management only.</h2>
           <p>
-            The MVP is designed for synthetic, redacted, and non-sensitive records. Real CUI, classified information,
+            The MVP is for synthetic, redacted, and non-sensitive records. Do not upload real CUI, classified information,
             ITAR/export-controlled data, sensitive government-furnished information, credentials, payroll records, SSNs,
-            health data, and sensitive incident details are prohibited.
+            health data, or sensitive incident details.
           </p>
         </div>
         <div className="landing-security__panel">
@@ -369,7 +356,7 @@ export function LandingPage() {
           </div>
           <div className="landing-boundary__item landing-boundary__item--blocked">
             <LockKeyhole size={19} />
-            <span>Blocked: real CUI, classified data, ITAR/export-controlled data, sensitive GFI</span>
+            <span>Do not upload: real CUI, classified data, ITAR/export-controlled data, sensitive GFI</span>
           </div>
         </div>
       </section>
@@ -395,30 +382,6 @@ export function LandingPage() {
             <span>Discuss pilot fit</span>
             <ArrowRight size={18} />
           </a>
-        </div>
-      </section>
-
-      <section className="landing-section landing-seo" id="seo">
-        <div className="landing-section__heading">
-          <p className="landing-eyebrow">SEO-ready content structure</p>
-          <h2>Built as a public page that can grow into a searchable marketing site.</h2>
-          <p>
-            The page now has clear section anchors, descriptive headings, source-safe product language, and a focused meta
-            description for GovCon compliance readiness searches.
-          </p>
-        </div>
-        <div className="landing-seo__grid" aria-label="SEO content pillars">
-          {[
-            ["Government contractor compliance software", "No-CUI readiness workspace for small businesses"],
-            ["CMMC readiness workflow", "Track tasks, owners, evidence metadata, and reporting"],
-            ["NIST 800-171 obligation tracking", "Source-backed records with review state and provenance"]
-          ].map(([term, detail]) => (
-            <div className="landing-seo__pillar" key={term}>
-              <Target size={18} />
-              <strong>{term}</strong>
-              <span>{detail}</span>
-            </div>
-          ))}
         </div>
       </section>
 
