@@ -8,7 +8,7 @@ Evidence date: 2026-07-03.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-07-19-1`.
+Approved launch candidate tag: `launch-candidate-2026-07-19-2`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -34,7 +34,7 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-07-19-1` at `f890fb7c06b55fd6888c861865110a45cae052ec`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-07-19-2` at `15101d201a7747ce77b2fdcb47cd91cb8c1c77ef`; see `docs/production-readiness-launch-candidate-tag.md`. |
 | Approved production CI/CD path | Passed | `.github/workflows/production.yml` requires `workflow_dispatch`, reads the approved launch candidate manifest, checks the input tag and tag commit against it, and runs in GitHub environment `production`. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services. |
 | Production secrets source | Passed as contract | `.github/workflows/production.yml` resolves production-only GitHub environment/repository secrets: `AZURE_CREDENTIALS_GCCS_PRODUCTION`, `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION`, and `PRODUCTION_DATABASE_URL`. Secret values are not stored in the repository. |
