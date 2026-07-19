@@ -9,7 +9,7 @@ public sealed class LaborComplianceReportService(
     IAuditEventWriter auditEventWriter)
 {
     public const string WorkflowDisclaimer =
-        "This report summarizes GCCS workflow status and source-backed records. It is not a final legal determination.";
+        "This report summarizes FeDril workflow status and source-backed records. It is not a final legal determination.";
 
     public async Task<LaborDashboardDto> GetDashboardAsync(
         LaborDashboardQuery query,

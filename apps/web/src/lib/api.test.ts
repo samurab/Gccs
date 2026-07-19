@@ -6,7 +6,7 @@ vi.mock("../auth", () => ({
   getFreshAccessToken: vi.fn()
 }));
 
-describe("GCCS API client", () => {
+describe("FeDril API client", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.mocked(getFreshAccessToken).mockReset();

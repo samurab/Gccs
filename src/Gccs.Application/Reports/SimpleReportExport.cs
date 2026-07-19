@@ -17,7 +17,7 @@ public sealed class SimpleReportExportService(
         var data = await repository.GetExportDataAsync(normalized, actorUserId, cancellationToken);
         var generatedAt = DateTimeOffset.UtcNow;
         var csv = BuildCsv(data, generatedAt, actorUserId, normalized.AppliedFilters);
-        var fileName = $"gccs-{normalized.ReportType.ToString().ToLowerInvariant()}-{generatedAt:yyyyMMddHHmmss}.csv";
+        var fileName = $"fedril-{normalized.ReportType.ToString().ToLowerInvariant()}-{generatedAt:yyyyMMddHHmmss}.csv";
 
         await auditEventWriter.WriteAsync(
             data.TenantId,

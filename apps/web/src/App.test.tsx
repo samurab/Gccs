@@ -214,7 +214,7 @@ const {
   },
   fallbackOverview: {
     productPromise:
-      "Connect to the GCCS API to load source-backed modules, obligations, review metadata, and tenant-scoped compliance workflow state.",
+      "Connect to the FeDril API to load source-backed modules, obligations, review metadata, and tenant-scoped compliance workflow state.",
     mvpDataPosture: "No-CUI / compliance management only",
     readinessScore: {
       score: null,
@@ -828,7 +828,7 @@ vi.mock("@/lib/api", () => ({
     isAcknowledged: false,
     noticeVersion: "no-cui-mvp-v1",
     noticeCopy:
-      "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+      "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
     tenantId: null,
     acknowledgedByUserId: null,
     acknowledgedAt: null
@@ -1024,7 +1024,7 @@ describe("App", () => {
       isAcknowledged: false,
       noticeVersion: "no-cui-mvp-v1",
       noticeCopy:
-        "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+        "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
       tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
       acknowledgedByUserId: null,
       acknowledgedAt: null
@@ -1494,7 +1494,7 @@ describe("App", () => {
       isAcknowledged: true,
       noticeVersion: "no-cui-mvp-v1",
       noticeCopy:
-        "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+        "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
       tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
       acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
       acknowledgedAt: "2026-06-14T12:00:00Z"
@@ -1516,7 +1516,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("I will use synthetic, redacted, or non-sensitive data during the pilot.")).toBeInTheDocument();
     expect(
-      screen.getByText("I understand GCCS reports are workflow guidance, not legal advice or certification decisions.")
+      screen.getByText("I understand FeDril reports are workflow guidance, not legal advice or certification decisions.")
     ).toBeInTheDocument();
 
     const acknowledgeButton = screen.getByRole("button", { name: /i acknowledge the no-cui upload limitation/i });
@@ -1530,7 +1530,7 @@ describe("App", () => {
     await user.click(screen.getByRole("checkbox", { name: "I will use synthetic, redacted, or non-sensitive data during the pilot." }));
     await user.click(
       screen.getByRole("checkbox", {
-        name: "I understand GCCS reports are workflow guidance, not legal advice or certification decisions."
+        name: "I understand FeDril reports are workflow guidance, not legal advice or certification decisions."
       })
     );
     expect(acknowledgeButton).toBeEnabled();
@@ -2095,7 +2095,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("link", { name: /settings/i }));
-    expect(screen.getByText(/Roles connect each person to the GCCS business goal/i)).toBeInTheDocument();
+    expect(screen.getByText(/Roles connect each person to the FeDril business goal/i)).toBeInTheDocument();
     expect(screen.getByText("MSP, CMMC consultant, govcon attorney, CPA, or compliance advisor")).toBeInTheDocument();
     expect(screen.getByText(/Reviews source-backed status, evidence, CMMC readiness/i)).toBeInTheDocument();
 
@@ -2299,7 +2299,7 @@ describe("App", () => {
       isAcknowledged: true,
       noticeVersion: "no-cui-mvp-v1",
       noticeCopy:
-        "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+        "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
       tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
       acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
       acknowledgedAt: "2026-06-14T12:00:00Z"
@@ -2340,7 +2340,7 @@ describe("App", () => {
     await user.click(screen.getByRole("checkbox", { name: "I will use synthetic, redacted, or non-sensitive data during the pilot." }));
     await user.click(
       screen.getByRole("checkbox", {
-        name: "I understand GCCS reports are workflow guidance, not legal advice or certification decisions."
+        name: "I understand FeDril reports are workflow guidance, not legal advice or certification decisions."
       })
     );
     expect(acknowledgeButton).toBeEnabled();
@@ -2379,7 +2379,7 @@ describe("App", () => {
       isAcknowledged: true,
       noticeVersion: "no-cui-mvp-v1",
       noticeCopy:
-        "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+        "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
       tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
       acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
       acknowledgedAt: "2026-06-14T12:00:00Z"

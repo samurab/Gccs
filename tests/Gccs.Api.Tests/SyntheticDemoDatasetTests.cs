@@ -60,7 +60,7 @@ public sealed class SyntheticDemoDatasetTests
         Assert.Equal("gccs-synthetic-cui-demo", dataset.Metadata.DatasetId);
         Assert.False(string.IsNullOrWhiteSpace(dataset.Metadata.Purpose));
         Assert.NotEmpty(dataset.Metadata.Limitations);
-        Assert.Equal("GCCS Compliance Content Owner", dataset.Metadata.Owner);
+        Assert.Equal("FeDril Compliance Content Owner", dataset.Metadata.Owner);
         Assert.False(string.IsNullOrWhiteSpace(dataset.Metadata.SourceBasis));
         Assert.Equal(new DateOnly(2026, 6, 18), dataset.Metadata.ReviewedAt);
         Assert.Equal("Phase 1A Compliance SME", dataset.Metadata.ApprovedReviewer);

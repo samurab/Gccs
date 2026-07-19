@@ -11,7 +11,7 @@ public sealed class SprsReadinessReportService(
     IAuditEventWriter auditEventWriter)
 {
     public const string NotSubmittedDisclaimer =
-        "GCCS has not submitted this score to SPRS. This report is draft readiness tracking for customer review.";
+        "FeDril has not submitted this score to SPRS. This report is draft readiness tracking for customer review.";
 
     public async Task<SprsReadinessReportDto?> GenerateAsync(
         Guid assessmentId,

@@ -94,10 +94,10 @@ const featureTiles = [
 
 export function LandingPage() {
   useEffect(() => {
-    document.title = "GCCS | GovCon Compliance Readiness Software";
+    document.title = "FeDril | GovCon Compliance Readiness Software";
 
     const description =
-      "GCCS is a No-CUI compliance management workspace for small government contractors to track obligations, evidence metadata, readiness workflows, and reports.";
+      "FeDril is a No-CUI compliance management workspace for small government contractors to track obligations, evidence metadata, readiness workflows, and reports.";
     let metaDescription = document.querySelector<HTMLMetaElement>('meta[name="description"]');
 
     if (!metaDescription) {
@@ -111,14 +111,12 @@ export function LandingPage() {
 
   return (
     <main className="landing-page">
-      <section className="landing-hero" aria-label="GCCS landing page">
+      <section className="landing-hero" aria-label="FeDril landing page">
         <div className="landing-nav" aria-label="Primary">
-          <a className="landing-brand" href="/landing" aria-label="GCCS landing page">
-            <span className="landing-brand__mark" aria-hidden="true">
-              <ShieldCheck size={22} />
-            </span>
+          <a className="landing-brand" href="/landing" aria-label="FeDril landing page">
+            <img className="landing-brand__logo" src="/company-logo.svg" alt="" aria-hidden="true" />
             <span>
-              <strong>GCCS</strong>
+              <strong>FeDril</strong>
               <small>GovCon compliance workspace</small>
             </span>
           </a>
@@ -136,11 +134,11 @@ export function LandingPage() {
             <p className="landing-eyebrow">No-CUI compliance management for small GovCon teams</p>
             <h1>Turn compliance work into an operating system.</h1>
             <p className="landing-hero__lede">
-              GCCS gives small government contractors one focused workspace for obligations, owners, evidence metadata,
+              FeDril gives small government contractors one focused workspace for obligations, owners, evidence metadata,
               readiness status, and reportable audit history without turning the MVP into a CUI storage system.
             </p>
             <div className="landing-actions">
-              <a className="landing-button landing-button--primary" href="mailto:hello@gccs.example?subject=GCCS%20pilot%20demo">
+              <a className="landing-button landing-button--primary" href="mailto:hello@fedril.example?subject=FeDril%20pilot%20demo">
                 <span>Request a pilot demo</span>
                 <ArrowRight size={18} />
               </a>
@@ -153,7 +151,7 @@ export function LandingPage() {
                 <span>Open workspace</span>
               </a>
             </div>
-            <div className="landing-hero__metrics" aria-label="GCCS sample operating metrics">
+            <div className="landing-hero__metrics" aria-label="FeDril sample operating metrics">
               {heroMetrics.map(([value, label]) => (
                 <div key={label}>
                   <strong>{value}</strong>
@@ -162,15 +160,15 @@ export function LandingPage() {
               ))}
             </div>
             <p className="landing-disclaimer">
-              GCCS does not certify compliance, provide legal advice, or provide government approval. Do not upload real CUI in the MVP.
+              FeDril does not certify compliance, provide legal advice, or provide government approval. Do not upload real CUI in the MVP.
             </p>
           </div>
 
-          <div className="landing-product landing-product--showcase" aria-label="GCCS product preview">
+          <div className="landing-product landing-product--showcase" aria-label="FeDril product preview">
             <img src="/landing/compliance-operations-hero.png" alt="" aria-hidden="true" />
             <div className="landing-product__overlay" aria-hidden="true" />
             <div className="landing-product__bar">
-              <span>GCCS workspace</span>
+              <span>FeDril workspace</span>
               <strong>No-CUI</strong>
             </div>
             <div className="landing-product__command">
@@ -250,7 +248,7 @@ export function LandingPage() {
               </article>
             ))}
           </div>
-          <div className="landing-map" aria-label="GCCS readiness map graphic">
+          <div className="landing-map" aria-label="FeDril readiness map graphic">
             <div className="landing-map__node landing-map__node--primary">
               <Layers3 size={22} />
               <strong>Control workspace</strong>
@@ -272,7 +270,7 @@ export function LandingPage() {
           <p className="landing-eyebrow">From scattered trackers to reportable work</p>
           <h2>See the chain of work from obligation to owner to report.</h2>
           <p>
-            The first GCCS workflow is intentionally concrete: one company profile, one contract or synthetic workflow,
+            The first FeDril workflow is intentionally concrete: one company profile, one contract or synthetic workflow,
             reviewed obligations, evidence metadata, and a readiness report.
           </p>
         </div>
@@ -340,7 +338,7 @@ export function LandingPage() {
         <div className="landing-security__panel">
           <div>
             <LockKeyhole size={24} />
-            <h3>What GCCS tracks</h3>
+            <h3>What FeDril tracks</h3>
             <p>Obligation status, task ownership, evidence metadata, source references, review state, and audit history.</p>
           </div>
           <div>
@@ -378,7 +376,7 @@ export function LandingPage() {
           <span>Founder pilot</span>
           <strong>$500-$1,500</strong>
           <p>Flat fee hypothesis. Credit toward annual subscription if converted.</p>
-          <a className="landing-button landing-button--primary" href="mailto:hello@gccs.example?subject=GCCS%20founder%20pilot">
+          <a className="landing-button landing-button--primary" href="mailto:hello@fedril.example?subject=FeDril%20founder%20pilot">
             <span>Discuss pilot fit</span>
             <ArrowRight size={18} />
           </a>
@@ -386,7 +384,7 @@ export function LandingPage() {
       </section>
 
       <footer className="landing-footer">
-        <strong>GCCS</strong>
+        <strong>FeDril</strong>
         <p>
           Reports are readiness artifacts and workflow guidance, not legal advice, certification decisions, government
           determinations, or substitutes for qualified expert review.

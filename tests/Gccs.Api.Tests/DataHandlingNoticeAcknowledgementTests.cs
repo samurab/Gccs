@@ -117,8 +117,8 @@ public sealed class DataHandlingNoticeAcknowledgementTests
                 _ => "CUI handling is limited to approved tenant workflows and customer responsibilities."
             },
             "Published",
-            "GCCS Product Owner",
-            "GCCS Security Owner",
+            "FeDril Product Owner",
+            "FeDril Security Owner",
             new DateOnly(2026, 6, 18),
             new DateOnly(2026, 6, 18),
             "Phase 1A notices");

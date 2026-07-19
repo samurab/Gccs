@@ -45,15 +45,15 @@ public sealed class ScimProvisioningTests : IClassFixture<WebApplicationFactory<
         });
         using var client = factory.CreateClient();
         var enabled = await EnableAsync(client, tenantId, actorUserId);
-        await PutMappingAsync(client, tenantId, actorUserId, "GCCS Admins", RoleCatalog.Admin);
+        await PutMappingAsync(client, tenantId, actorUserId, "FeDril Admins", RoleCatalog.Admin);
 
-        var firstTokenWorks = await ProvisionAsync(client, tenantId, actorUserId, enabled.Token, "external-1", "one@example.com", ["GCCS Admins"]);
+        var firstTokenWorks = await ProvisionAsync(client, tenantId, actorUserId, enabled.Token, "external-1", "one@example.com", ["FeDril Admins"]);
         var rotatedResponse = await client.SendAsync(CreateRequest(HttpMethod.Post, "/api/enterprise/scim/token/rotate", tenantId, actorUserId, Permission.ManageUsers));
         var rotated = await rotatedResponse.Content.ReadFromJsonAsync<ScimTokenLifecycleResult>(JsonOptions);
-        var oldTokenResponse = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(enabled.Token, "external-old", "old@example.com", ["GCCS Admins"]), tenantId, actorUserId, Permission.ManageUsers));
-        var newTokenWorks = await ProvisionAsync(client, tenantId, actorUserId, rotated!.Token, "external-2", "two@example.com", ["GCCS Admins"]);
+        var oldTokenResponse = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(enabled.Token, "external-old", "old@example.com", ["FeDril Admins"]), tenantId, actorUserId, Permission.ManageUsers));
+        var newTokenWorks = await ProvisionAsync(client, tenantId, actorUserId, rotated!.Token, "external-2", "two@example.com", ["FeDril Admins"]);
         await client.SendAsync(CreateRequest(HttpMethod.Post, "/api/enterprise/scim/token/revoke", tenantId, actorUserId, Permission.ManageUsers));
-        var revokedTokenResponse = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(rotated.Token, "external-revoked", "revoked@example.com", ["GCCS Admins"]), tenantId, actorUserId, Permission.ManageUsers));
+        var revokedTokenResponse = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(rotated.Token, "external-revoked", "revoked@example.com", ["FeDril Admins"]), tenantId, actorUserId, Permission.ManageUsers));
 
         Assert.True(firstTokenWorks.UserStatus == UserStatus.Active);
         Assert.Equal(HttpStatusCode.OK, rotatedResponse.StatusCode);
@@ -75,11 +75,11 @@ public sealed class ScimProvisioningTests : IClassFixture<WebApplicationFactory<
         });
         using var client = factory.CreateClient();
         var provisioningKey = (await EnableAsync(client, tenantId, actorUserId)).Token;
-        await PutMappingAsync(client, tenantId, actorUserId, "GCCS Users", RoleCatalog.Contributor);
+        await PutMappingAsync(client, tenantId, actorUserId, "FeDril Users", RoleCatalog.Contributor);
 
-        var created = await ProvisionAsync(client, tenantId, actorUserId, provisioningKey, "external-2", "user@example.com", ["GCCS Users"]);
-        var updated = await ProvisionAsync(client, tenantId, actorUserId, provisioningKey, "external-2", "user@example.com", ["GCCS Users"], "Updated User");
-        var deactivated = await ProvisionAsync(client, tenantId, actorUserId, provisioningKey, "external-2", "user@example.com", ["GCCS Users"], "Updated User", active: false);
+        var created = await ProvisionAsync(client, tenantId, actorUserId, provisioningKey, "external-2", "user@example.com", ["FeDril Users"]);
+        var updated = await ProvisionAsync(client, tenantId, actorUserId, provisioningKey, "external-2", "user@example.com", ["FeDril Users"], "Updated User");
+        var deactivated = await ProvisionAsync(client, tenantId, actorUserId, provisioningKey, "external-2", "user@example.com", ["FeDril Users"], "Updated User", active: false);
         var reactivateResponse = await client.SendAsync(CreateRequest(HttpMethod.Post, "/api/enterprise/scim/users/external-2/reactivate", new ScimTokenRequest(provisioningKey), tenantId, actorUserId, Permission.ManageUsers));
         var reactivated = await reactivateResponse.Content.ReadFromJsonAsync<ScimProvisionedUserDto>(JsonOptions);
 
@@ -107,15 +107,15 @@ public sealed class ScimProvisioningTests : IClassFixture<WebApplicationFactory<
         });
         using var client = factory.CreateClient();
         var provisioningKey = (await EnableAsync(client, tenantId, actorUserId)).Token;
-        await PutMappingAsync(client, tenantId, actorUserId, "GCCS Admins", RoleCatalog.Admin);
-        await PutMappingAsync(client, tenantId, actorUserId, "GCCS Contributors", RoleCatalog.Contributor);
+        await PutMappingAsync(client, tenantId, actorUserId, "FeDril Admins", RoleCatalog.Admin);
+        await PutMappingAsync(client, tenantId, actorUserId, "FeDril Contributors", RoleCatalog.Contributor);
 
-        var provisioned = await ProvisionAsync(client, tenantId, actorUserId, provisioningKey, "external-3", "grouped@example.com", ["GCCS Contributors"]);
-        var assignedResponse = await client.SendAsync(CreateRequest(HttpMethod.Post, "/api/enterprise/scim/users/external-3/groups", new ScimGroupAssignmentRequest(provisioningKey, "GCCS Admins"), tenantId, actorUserId, Permission.ManageUsers));
+        var provisioned = await ProvisionAsync(client, tenantId, actorUserId, provisioningKey, "external-3", "grouped@example.com", ["FeDril Contributors"]);
+        var assignedResponse = await client.SendAsync(CreateRequest(HttpMethod.Post, "/api/enterprise/scim/users/external-3/groups", new ScimGroupAssignmentRequest(provisioningKey, "FeDril Admins"), tenantId, actorUserId, Permission.ManageUsers));
         var assigned = await assignedResponse.Content.ReadFromJsonAsync<ScimProvisionedUserDto>(JsonOptions);
-        var removedResponse = await client.SendAsync(CreateRequest(HttpMethod.Delete, "/api/enterprise/scim/users/external-3/groups", new ScimGroupAssignmentRequest(provisioningKey, "GCCS Admins"), tenantId, actorUserId, Permission.ManageUsers));
+        var removedResponse = await client.SendAsync(CreateRequest(HttpMethod.Delete, "/api/enterprise/scim/users/external-3/groups", new ScimGroupAssignmentRequest(provisioningKey, "FeDril Admins"), tenantId, actorUserId, Permission.ManageUsers));
         var removed = await removedResponse.Content.ReadFromJsonAsync<ScimProvisionedUserDto>(JsonOptions);
-        var conflictResponse = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(provisioningKey, "external-conflict", "conflict@example.com", ["GCCS Admins", "GCCS Contributors"]), tenantId, actorUserId, Permission.ManageUsers));
+        var conflictResponse = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(provisioningKey, "external-conflict", "conflict@example.com", ["FeDril Admins", "FeDril Contributors"]), tenantId, actorUserId, Permission.ManageUsers));
 
         Assert.Equal(RoleCatalog.Contributor, provisioned.RoleName);
         Assert.Equal(HttpStatusCode.OK, assignedResponse.StatusCode);
@@ -139,13 +139,13 @@ public sealed class ScimProvisioningTests : IClassFixture<WebApplicationFactory<
         });
         using var client = factory.CreateClient();
         var provisioningKey = (await EnableAsync(client, tenantId, actorUserId)).Token;
-        await PutMappingAsync(client, tenantId, actorUserId, "GCCS Admins", RoleCatalog.Admin);
-        await ProvisionAsync(client, tenantId, actorUserId, provisioningKey, "external-dup", "duplicate@example.com", ["GCCS Admins"]);
+        await PutMappingAsync(client, tenantId, actorUserId, "FeDril Admins", RoleCatalog.Admin);
+        await ProvisionAsync(client, tenantId, actorUserId, provisioningKey, "external-dup", "duplicate@example.com", ["FeDril Admins"]);
 
-        var duplicate = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(provisioningKey, "external-dup", "changed@example.com", ["GCCS Admins"]), tenantId, actorUserId, Permission.ManageUsers));
+        var duplicate = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(provisioningKey, "external-dup", "changed@example.com", ["FeDril Admins"]), tenantId, actorUserId, Permission.ManageUsers));
         var invalidGroup = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(provisioningKey, "external-invalid", "invalid@example.com", ["Unknown Group"]), tenantId, actorUserId, Permission.ManageUsers));
         var invalidMapping = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/group-mappings", new UpsertScimGroupMappingRequest("Bad", "Superuser"), tenantId, actorUserId, Permission.ManageUsers));
-        var crossTenant = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(provisioningKey, "external-cross", "cross@example.com", ["GCCS Admins"]), tenantId, actorUserId, Permission.ManageUsers));
+        var crossTenant = await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(provisioningKey, "external-cross", "cross@example.com", ["FeDril Admins"]), tenantId, actorUserId, Permission.ManageUsers));
 
         Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, invalidGroup.StatusCode);
@@ -165,11 +165,11 @@ public sealed class ScimProvisioningTests : IClassFixture<WebApplicationFactory<
         });
         using var client = factory.CreateClient();
         var enabled = await EnableAsync(client, tenantId, actorUserId);
-        await PutMappingAsync(client, tenantId, actorUserId, "GCCS Admins", RoleCatalog.Admin);
-        await PutMappingAsync(client, tenantId, actorUserId, "GCCS Contributors", RoleCatalog.Contributor);
-        await ProvisionAsync(client, tenantId, actorUserId, enabled.Token, "external-audit", "audit@example.com", ["GCCS Admins"]);
-        await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(enabled.Token, "external-audit", "changed@example.com", ["GCCS Admins"]), tenantId, actorUserId, Permission.ManageUsers));
-        await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(enabled.Token, "external-conflict", "conflict@example.com", ["GCCS Admins", "GCCS Contributors"]), tenantId, actorUserId, Permission.ManageUsers));
+        await PutMappingAsync(client, tenantId, actorUserId, "FeDril Admins", RoleCatalog.Admin);
+        await PutMappingAsync(client, tenantId, actorUserId, "FeDril Contributors", RoleCatalog.Contributor);
+        await ProvisionAsync(client, tenantId, actorUserId, enabled.Token, "external-audit", "audit@example.com", ["FeDril Admins"]);
+        await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(enabled.Token, "external-audit", "changed@example.com", ["FeDril Admins"]), tenantId, actorUserId, Permission.ManageUsers));
+        await client.SendAsync(CreateRequest(HttpMethod.Put, "/api/enterprise/scim/users", NewUser(enabled.Token, "external-conflict", "conflict@example.com", ["FeDril Admins", "FeDril Contributors"]), tenantId, actorUserId, Permission.ManageUsers));
         await client.SendAsync(CreateRequest(HttpMethod.Post, "/api/enterprise/scim/users/missing/reactivate", new ScimTokenRequest(enabled.Token), tenantId, actorUserId, Permission.ManageUsers));
         await client.SendAsync(CreateRequest(HttpMethod.Post, "/api/enterprise/scim/token/rotate", tenantId, actorUserId, Permission.ManageUsers));
         await client.SendAsync(CreateRequest(HttpMethod.Post, "/api/enterprise/scim/token/revoke", tenantId, actorUserId, Permission.ManageUsers));

@@ -177,8 +177,24 @@ a {
 .landing-brand {
   align-items: center;
   display: inline-flex;
-  gap: 10px;
+  gap: 14px;
   text-decoration: none;
+}
+
+.landing-brand__logo {
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  display: block;
+  filter:
+    drop-shadow(-4px -5px 4px rgb(255 241 184 / 0.5))
+    drop-shadow(0 10px 16px rgb(78 48 6 / 0.34))
+    contrast(1.06)
+    saturate(1.04);
+  height: 104px;
+  object-fit: contain;
+  padding: 0;
+  width: 92px;
 }
 
 .landing-brand__mark,
@@ -1526,6 +1542,23 @@ main {
   height: 32px;
   justify-content: center;
   width: 32px;
+}
+
+.brand-logo {
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  display: block;
+  flex: 0 0 auto;
+  filter:
+    drop-shadow(-3px -4px 3px rgb(255 241 184 / 0.45))
+    drop-shadow(0 8px 13px rgb(78 48 6 / 0.32))
+    contrast(1.06)
+    saturate(1.04);
+  height: 80px;
+  object-fit: contain;
+  padding: 0;
+  width: 70px;
 }
 
 .brand-mark svg {

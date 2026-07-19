@@ -37,7 +37,7 @@ public sealed class SharedResponsibilityMatrixTests
         var invalid = new SharedResponsibilityMatrixDto(
             MatrixId: "gccs-cui-ready-baseline",
             Version: "2026.06.phase1a",
-            Title: "GCCS CUI-Ready Shared Responsibility Matrix",
+            Title: "FeDril CUI-Ready Shared Responsibility Matrix",
             State: "Published",
             EffectiveAt: new DateOnly(2026, 6, 18),
             ReviewOwner: "",

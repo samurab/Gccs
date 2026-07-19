@@ -9,7 +9,7 @@ public sealed class EsrsReportPackageService(
     IAuditEventWriter auditEventWriter)
 {
     public const string NotSubmittedDisclaimer =
-        "GCCS has not submitted this report to eSRS. This package is preparation-only for customer review.";
+        "FeDril has not submitted this report to eSRS. This package is preparation-only for customer review.";
 
     public async Task<EsrsReportPackageDto> GenerateAsync(
         EsrsReportPackageGenerateRequest request,

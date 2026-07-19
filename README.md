@@ -1,6 +1,6 @@
-# GCCS - Government Contractor Compliance SaaS
+# FeDril - Government Contractor Compliance SaaS
 
-GCCS is a starter application for a govcon-specific compliance operating system for small U.S. government contractors. The current MVP posture is **No-CUI / compliance management only**: users can manage compliance work, metadata, obligations, tasks, and evidence, but real customer CUI is prohibited until a future approved `CuiReady` posture is implemented.
+FeDril is a starter application for a govcon-specific compliance operating system for small U.S. government contractors. The current MVP posture is **No-CUI / compliance management only**: users can manage compliance work, metadata, obligations, tasks, and evidence, but real customer CUI is prohibited until a future approved `CuiReady` posture is implemented.
 
 ## Project Structure
 

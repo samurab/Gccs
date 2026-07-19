@@ -2195,7 +2195,7 @@ public sealed class ProductionReadinessChecklistTests
 
     private static IEnumerable<string> ForbiddenAffirmativeCustomerClaims()
     {
-        yield return "GCCS provides legal advice";
+        yield return "FeDril provides legal advice";
         yield return "makes legal determinations";
         yield return "guarantees CMMC";
         yield return "CMMC certified";

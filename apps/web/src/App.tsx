@@ -10,7 +10,6 @@ import {
   FileSearch,
   FolderKanban,
   GitBranch,
-  Home,
   LayoutDashboard,
   ScrollText,
   Send,
@@ -315,7 +314,7 @@ const roleGuidance = [
   {
     role: "Compliance Manager",
     persona: "Contracts admin, proposal manager, CMMC lead, or back-office compliance owner",
-    purpose: "Runs the core GCCS workflow: profile, contracts, obligations, calendar, evidence, CMMC, subcontractors, and reports."
+    purpose: "Runs the core FeDril workflow: profile, contracts, obligations, calendar, evidence, CMMC, subcontractors, and reports."
   },
   {
     role: "Contributor",
@@ -1947,11 +1946,9 @@ export function App() {
       </a>
       <aside className="workspace-sidebar">
         <div className="workspace-brand">
-          <span className="brand-mark" aria-hidden="true">
-            <Home size={18} />
-          </span>
+          <img className="brand-logo" src="/company-logo.svg" alt="" aria-hidden="true" />
           <div>
-            <strong>GCCS</strong>
+            <strong>FeDril</strong>
             <span>No-CUI workspace</span>
           </div>
         </div>
@@ -2001,7 +1998,7 @@ export function App() {
 
       <main id="workspace-content" className="workspace-main" tabIndex={-1}>
         <PageHeader
-          eyebrow={`${activeNavigationItem?.group ?? "Command"} / GCCS Compliance Workspace`}
+          eyebrow={`${activeNavigationItem?.group ?? "Command"} / FeDril Compliance Workspace`}
           title={activeRoute === "dashboard" ? "Dashboard" : activeNavigationItem?.label ?? "Dashboard"}
           description={
             activeRoute === "dashboard"
@@ -7132,7 +7129,7 @@ function NoCuiAcknowledgementPanel({
                 onChange={(event) => updateAcknowledgedStatement("workflowGuidanceOnly", event.target.checked)}
                 disabled={!canAcknowledge || acknowledgementStatus === "saving"}
               />
-              <span>I understand GCCS reports are workflow guidance, not legal advice or certification decisions.</span>
+              <span>I understand FeDril reports are workflow guidance, not legal advice or certification decisions.</span>
             </label>
           </fieldset>
           </>
@@ -8112,7 +8109,7 @@ function SettingsView({
               <p className="eyebrow">Tenant access</p>
               <h2>Team members</h2>
               <p className="section-summary">
-                Roles connect each person to the GCCS business goal: know what applies, assign the work, collect evidence,
+                Roles connect each person to the FeDril business goal: know what applies, assign the work, collect evidence,
                 and keep the tenant ready for reviews without giving more access than needed.
               </p>
             </div>

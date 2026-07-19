@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { LandingPage } from "./LandingPage";
 
 describe("LandingPage", () => {
-  it("presents the GCCS pilot offer with No-CUI boundaries", () => {
+  it("presents the FeDril pilot offer with No-CUI boundaries", () => {
     render(<LandingPage />);
 
     expect(screen.getByRole("heading", { name: /turn compliance work into an operating system/i })).toBeInTheDocument();

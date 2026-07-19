@@ -23,6 +23,7 @@ public sealed class SharedResponsibilityMatrixService(ISharedResponsibilityMatri
     private static readonly HashSet<string> AllowedResponsibilities = new(StringComparer.Ordinal)
     {
         "GCCS",
+        "FeDril",
         "Customer",
         "Shared",
         "ThirdPartyProvider",

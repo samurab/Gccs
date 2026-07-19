@@ -158,7 +158,7 @@ public sealed class ScimProvisioningService(
             throw new ScimProvisioningValidationException("SCIM identity was not found.");
         }
 
-        await WriteAuditAsync(actorUserId, AuditAction.Updated, "ScimProvisionedUser", user.ExternalId, "SCIM group assignment changed the GCCS role.", "group_assigned", cancellationToken);
+        await WriteAuditAsync(actorUserId, AuditAction.Updated, "ScimProvisionedUser", user.ExternalId, "SCIM group assignment changed the FeDril role.", "group_assigned", cancellationToken);
         return user;
     }
 
@@ -175,7 +175,7 @@ public sealed class ScimProvisioningService(
             throw new ScimProvisioningValidationException("SCIM identity was not found.");
         }
 
-        await WriteAuditAsync(actorUserId, AuditAction.Updated, "ScimProvisionedUser", user.ExternalId, "SCIM group removal reset the GCCS role.", "group_removed", cancellationToken);
+        await WriteAuditAsync(actorUserId, AuditAction.Updated, "ScimProvisionedUser", user.ExternalId, "SCIM group removal reset the FeDril role.", "group_removed", cancellationToken);
         return user;
     }
 
@@ -206,7 +206,7 @@ public sealed class ScimProvisioningService(
             if (mapping is null)
             {
                 await WriteAuditAsync(actorUserId, AuditAction.Rejected, "ScimGroupMapping", group, "SCIM group mapping was not found.", "invalid_group_mapping", cancellationToken);
-                throw new ScimProvisioningValidationException($"SCIM group '{group}' is not mapped to a GCCS role.");
+                throw new ScimProvisioningValidationException($"SCIM group '{group}' is not mapped to a FeDril role.");
             }
 
             roles.Add(mapping.RoleName);
@@ -215,7 +215,7 @@ public sealed class ScimProvisioningService(
         if (roles.Count > 1)
         {
             await WriteAuditAsync(actorUserId, AuditAction.Rejected, "ScimGroupMapping", string.Join(",", groups), "Conflicting SCIM group mappings were rejected.", "conflict", cancellationToken);
-            throw new ScimProvisioningValidationException("SCIM groups map to conflicting GCCS roles.");
+            throw new ScimProvisioningValidationException("SCIM groups map to conflicting FeDril roles.");
         }
 
         return roles.Single();

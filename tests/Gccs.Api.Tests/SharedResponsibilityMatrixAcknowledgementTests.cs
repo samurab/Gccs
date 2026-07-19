@@ -119,10 +119,10 @@ public sealed class SharedResponsibilityMatrixAcknowledgementTests
         new(
             "gccs-cui-ready-baseline",
             version,
-            "GCCS CUI-Ready Shared Responsibility Matrix",
+            "FeDril CUI-Ready Shared Responsibility Matrix",
             "Published",
             new DateOnly(2026, 6, 18),
-            "GCCS Security Owner",
+            "FeDril Security Owner",
             new DateOnly(2026, 6, 18),
             "Phase 1A CUI readiness baseline",
             []);

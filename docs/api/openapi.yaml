@@ -1,20 +1,20 @@
 openapi: 3.1.0
 info:
-  title: GCCS API
+  title: FeDril API
   version: 0.1.0
   summary: Government Contractor Compliance SaaS API
   description: >
-    API specification for the GCCS MVP. GCCS is a No-CUI compliance management
+    API specification for the FeDril MVP. FeDril is a No-CUI compliance management
     SaaS for small U.S. government contractors. The API is tenant-scoped and
     supports company profiles, contract intake, clause obligations, evidence,
     calendar tasks, CMMC readiness, subcontractor flow-downs, reports, and
     source-backed compliance content.
   contact:
-    name: GCCS Product Team
+    name: FeDril Product Team
 servers:
   - url: http://localhost:5062
     description: Local ASP.NET Core API
-  - url: https://api.gccs.example.com
+  - url: https://api.fedril.example.com
     description: Production API placeholder
 security:
   - bearerAuth: []
@@ -5181,7 +5181,7 @@ components:
           example: no-cui-mvp-v1
         noticeCopy:
           type: string
-          example: The GCCS MVP is compliance management only and is not ready to store CUI.
+          example: The FeDril MVP is compliance management only and is not ready to store CUI.
         tenantId:
           type: string
           format: uuid

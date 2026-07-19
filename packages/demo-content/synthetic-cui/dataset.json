@@ -2,15 +2,15 @@
   "metadata": {
     "datasetId": "gccs-synthetic-cui-demo",
     "version": "2026.06.phase1a",
-    "name": "GCCS Synthetic CUI Demo Dataset",
+    "name": "FeDril Synthetic CUI Demo Dataset",
     "purpose": "Provide realistic, clearly labeled CUI-like workflow examples for demo, training, QA, and onboarding without using real customer or government-sensitive content.",
     "limitations": [
       "Synthetic examples are not legal, contracting, CMMC assessment, export-control, or labor compliance advice.",
       "Synthetic examples must not be used as customer records, official determinations, certification evidence, or production compliance content.",
       "The dataset intentionally excludes real customer CUI, classified data, export-controlled technical data, payroll data, secrets, and customer proprietary information."
     ],
-    "owner": "GCCS Compliance Content Owner",
-    "sourceBasis": "GCCS-authored fictional examples derived from public compliance workflow patterns and non-sensitive product requirements.",
+    "owner": "FeDril Compliance Content Owner",
+    "sourceBasis": "FeDril-authored fictional examples derived from public compliance workflow patterns and non-sensitive product requirements.",
     "reviewedAt": "2026-06-18",
     "approvedReviewer": "Phase 1A Compliance SME",
     "reviewStatus": "Approved",
