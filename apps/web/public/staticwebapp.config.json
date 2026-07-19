@@ -3,7 +3,7 @@
     "rewrite": "/index.html",
     "exclude": [
       "/assets/*",
-      "/landing/*",
+      "/landing/compliance-operations-hero.png",
       "/company-logo.svg",
       "/favicon.svg"
     ]
