@@ -27,3 +27,6 @@ infra/**/.terraform/
 infra/**/*.tfstate
 infra/**/*.tfstate.*
 .DS_Store
+
+# Generated PDF and Fontconfig temporary files
+tmp/pdfs/fontcache/
