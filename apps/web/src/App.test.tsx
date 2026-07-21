@@ -2077,6 +2077,21 @@ describe("App", () => {
     expect(within(navigation).getByRole("link", { name: /settings/i })).toBeInTheDocument();
   });
 
+  it("does not present an API outage as dashboard-only authorization", async () => {
+    getCurrentUserAccessMock.mockRejectedValueOnce(new Error("API unavailable"));
+
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Workspace data could not be loaded");
+    const navigation = screen.getByRole("navigation", { name: /primary workspace navigation/i });
+
+    expect(within(navigation).queryAllByRole("link")).toHaveLength(0);
+    expect(within(navigation).getByRole("status")).toHaveTextContent(
+      "Navigation unavailable until the API connection is restored."
+    );
+    expect(screen.getByRole("button", { name: "Retry connection" })).toBeInTheDocument();
+  });
+
   it("keeps user invitation actions in the role-aware settings route", async () => {
     const createdInvitation = {
       ...invitations[0],

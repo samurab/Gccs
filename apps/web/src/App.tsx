@@ -11,6 +11,7 @@ import {
   FolderKanban,
   GitBranch,
   LayoutDashboard,
+  RefreshCw,
   ScrollText,
   Send,
   Settings,
@@ -24,6 +25,7 @@ import { type CSSProperties, type FormEvent, type ReactNode, type RefObject, use
 import { ModuleCard } from "@/components/ModuleCard";
 import {
   Alert,
+  Button,
   DataHandlingBadge,
   LoadingState,
   MetricTile,
@@ -197,6 +199,7 @@ type WorkspaceRoute =
   | "settings";
 
 type LoadState = "loading" | "ready" | "error";
+type AccessLoadState = "loading" | "ready" | "error";
 
 const tenantModeUpdateTimeoutMs = 15000;
 const tenantModeHistoryTimeoutMs = 10000;
@@ -594,6 +597,7 @@ export function App() {
   );
   const [activeRoute, setActiveRoute] = useState<WorkspaceRoute>(getInitialRoute);
   const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [accessLoadState, setAccessLoadState] = useState<AccessLoadState>("loading");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Contributor");
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "created" | "failed">("idle");
@@ -641,8 +645,11 @@ export function App() {
   const [demoSeedMessage, setDemoSeedMessage] = useState("");
 
   const visibleNavigation = useMemo(
-    () => navigationItems.filter((item) => hasAnyPermission(access, item.permissions)),
-    [access]
+    () =>
+      accessLoadState === "ready"
+        ? navigationItems.filter((item) => hasAnyPermission(access, item.permissions))
+        : [],
+    [access, accessLoadState]
   );
   const visibleNavigationByGroup = useMemo(
     () =>
@@ -753,6 +760,7 @@ export function App() {
         resolvedAccess = nextAccess;
         if (isMounted) {
           setAccess(nextAccess);
+          setAccessLoadState("ready");
         }
 
         const nextOverview = await getComplianceOverview();
@@ -887,6 +895,7 @@ export function App() {
         if (isMounted) {
           setOverview(fallbackOverview);
           setAccess(resolvedAccess ?? fallbackAccess);
+          setAccessLoadState(resolvedAccess ? "ready" : "error");
           setMembers([]);
           setInvitations([]);
           setCurrentTenant(null);
@@ -1964,31 +1973,37 @@ export function App() {
           <p>{overview.mvpDataPosture}</p>
         </div>
         <nav aria-label="Primary workspace navigation">
-          {visibleNavigationByGroup.map((group) => (
-            <div className="workspace-nav-group" key={group.group}>
-              <p>{group.group}</p>
-              <ul className="workspace-nav">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.route}>
-                      <a
-                        href={`#/${item.route}`}
-                        aria-current={activeRoute === item.route ? "page" : undefined}
-                        onClick={() => handleRouteClick(item.route)}
-                      >
-                        <Icon size={18} aria-hidden="true" />
-                        <span>
-                          <strong>{item.label}</strong>
-                          <small>{item.description}</small>
-                        </span>
-                      </a>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+          {accessLoadState === "loading" ? (
+            <p role="status">Loading authorized navigation...</p>
+          ) : accessLoadState === "error" ? (
+            <p role="status">Navigation unavailable until the API connection is restored.</p>
+          ) : (
+            visibleNavigationByGroup.map((group) => (
+              <div className="workspace-nav-group" key={group.group}>
+                <p>{group.group}</p>
+                <ul className="workspace-nav">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <li key={item.route}>
+                        <a
+                          href={`#/${item.route}`}
+                          aria-current={activeRoute === item.route ? "page" : undefined}
+                          onClick={() => handleRouteClick(item.route)}
+                        >
+                          <Icon size={18} aria-hidden="true" />
+                          <span>
+                            <strong>{item.label}</strong>
+                            <small>{item.description}</small>
+                          </span>
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))
+          )}
         </nav>
         <div className="workspace-sidebar__footer" aria-label="Signed-in workspace context">
           <span>Signed in</span>
@@ -2017,7 +2032,7 @@ export function App() {
         </PageHeader>
         <PostureNotice currentTenant={currentTenant} />
 
-        <WorkspaceState state={loadState}>
+        <WorkspaceState state={loadState} onRetry={() => window.location.reload()}>
           {activeRoute === "dashboard" ? (
             <DashboardView overview={overview} />
           ) : activeRoute === "profile" ? (
@@ -2284,7 +2299,7 @@ function NotificationCenter({
   );
 }
 
-function WorkspaceState({ children, state }: { children: ReactNode; state: LoadState }) {
+function WorkspaceState({ children, onRetry, state }: { children: ReactNode; onRetry: () => void; state: LoadState }) {
   if (state === "loading") {
     return (
       <section className="route-state" aria-live="polite">
@@ -2300,6 +2315,9 @@ function WorkspaceState({ children, state }: { children: ReactNode; state: LoadS
       <section className="route-state route-state--error" role="alert">
         <h2>Workspace data could not be loaded</h2>
         <p>Check the API connection, authentication context, and active tenant before relying on this workspace.</p>
+        <Button icon={<RefreshCw size={16} aria-hidden="true" />} onClick={onRetry} variant="primary">
+          Retry connection
+        </Button>
       </section>
     );
   }

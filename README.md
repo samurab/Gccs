@@ -58,6 +58,14 @@ Prerequisites:
 - Node.js and npm
 - Docker, when local PostgreSQL/Redis/MinIO/ClamAV services are needed
 
+Start the complete local stack with one supervised command:
+
+```bash
+npm run dev
+```
+
+This starts or reuses the Docker dependencies, applies pending development migrations when the API is not already running, and supervises the API at `http://localhost:5062` and web app at `http://127.0.0.1:5173`. If either managed application process stops, the command stops the other one so the UI cannot silently remain online without its API.
+
 ### Backend
 
 ```bash

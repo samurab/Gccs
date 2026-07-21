@@ -132,10 +132,10 @@ export function LandingPage() {
         <div className="landing-hero__content">
           <div className="landing-hero__copy">
             <p className="landing-eyebrow">No-CUI compliance management for small GovCon teams</p>
-            <h1>Turn compliance work into an operating system.</h1>
+            <h1>Turn govcon compliance work into an operating system.</h1>
             <p className="landing-hero__lede">
-              FeDril gives small government contractors one focused workspace for obligations, owners, evidence metadata,
-              readiness status, and reportable audit history without turning the MVP into a CUI storage system.
+              FeDril tracks obligations, evidence, deadlines, and readiness gaps in one No-CUI workspace, so your team
+              can see what is missing before reviews, renewals, and contract deliverables.
             </p>
             <div className="landing-actions">
               <a className="landing-button landing-button--primary" href="mailto:hello@fedril.example?subject=FeDril%20pilot%20demo">

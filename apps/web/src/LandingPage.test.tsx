@@ -6,7 +6,12 @@ describe("LandingPage", () => {
   it("presents the FeDril pilot offer with No-CUI boundaries", () => {
     render(<LandingPage />);
 
-    expect(screen.getByRole("heading", { name: /turn compliance work into an operating system/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /turn govcon compliance work into an operating system/i })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /FeDril tracks obligations, evidence, deadlines, and readiness gaps in one No-CUI workspace, so your team can see what is missing before reviews, renewals, and contract deliverables/i
+      )
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /request a pilot demo/i })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /open workspace/i })).toHaveLength(2);
     for (const link of screen.getAllByRole("link", { name: /open workspace/i })) {
@@ -20,6 +25,6 @@ describe("LandingPage", () => {
     expect(within(primaryNavigation as HTMLElement).getByRole("link", { name: /platform/i })).toHaveAttribute("href", "#platform");
     expect(screen.getByRole("heading", { name: /messy middle between contract requirements and evidence packages/i })).toBeInTheDocument();
     expect(screen.getByText(/Do not upload: real CUI, classified data/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /turn compliance work into an operating system/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /turn govcon compliance work into an operating system/i })).toBeInTheDocument();
   });
 });
