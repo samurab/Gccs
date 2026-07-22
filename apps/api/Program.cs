@@ -5287,6 +5287,28 @@ api.MapPost("/tenants", async (
 .RequirePermission(Permission.ManageTenant)
 .WithName("CreateTenant");
 
+api.MapPost("/admin/pilot-tenants", async (
+    PilotTenantProvisioningRequest request,
+    PilotTenantProvisioningService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var result = await service.ProvisionAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/tenants/{result.Tenant.Id}", result);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["pilotTenant"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ProvisionPilotTenant");
+
 api.MapGet("/tenants/{tenantId:guid}", async (
     Guid tenantId,
     TenantService service,

@@ -1732,7 +1732,7 @@ public sealed class ProductionReadinessChecklistTests
         var checklist = ReadText("docs", "production-readiness-checklist.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
         using var monitoringJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.1", "pilot-monitoring-evidence.json"));
-        using var dailyReviewJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.1", "daily-monitoring-2026-07-21.json"));
+        using var dailyReviewJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.1", "daily-monitoring-2026-07-22.json"));
 
         foreach (var requiredSignal in new[]
         {
@@ -1772,6 +1772,8 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("daily-monitoring-2026-07-20.json", checklist);
         Assert.Contains("daily-monitoring-2026-07-21.json", monitoring);
         Assert.Contains("daily-monitoring-2026-07-21.json", checklist);
+        Assert.Contains("daily-monitoring-2026-07-22.json", monitoring);
+        Assert.Contains("daily-monitoring-2026-07-22.json", checklist);
         Assert.Equal("passed_with_external_monitoring_limitation", dailyReviewJson.RootElement.GetProperty("result").GetString());
         Assert.False(dailyReviewJson.RootElement.GetProperty("liveProductionQueriesRun").GetBoolean());
         Assert.False(dailyReviewJson.RootElement.GetProperty("liveSupportQueueQueried").GetBoolean());
@@ -1786,7 +1788,7 @@ public sealed class ProductionReadinessChecklistTests
         var monitoring = ReadText("docs", "production-readiness-pilot-monitoring.md");
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
         using var monitoringJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.1", "pilot-monitoring-evidence.json"));
-        using var dailyReviewJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.1", "daily-monitoring-2026-07-21.json"));
+        using var dailyReviewJson = JsonDocument.Parse(ReadText("output", "playwright", "production-readiness", "pr-8.1", "daily-monitoring-2026-07-22.json"));
 
         foreach (var header in new[] { "Severity", "Owner", "Mitigation", "Target date", "Status", "Risk or backlog link" })
         {

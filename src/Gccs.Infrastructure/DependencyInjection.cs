@@ -79,6 +79,7 @@ public static class DependencyInjection
         services.AddScoped<ContractService>();
         services.AddScoped<ContractSizeCheckService>();
         services.AddScoped<TenantService>();
+        services.AddScoped<PilotTenantProvisioningService>();
         services.AddScoped<GovernmentCloudEnvironmentService>();
         services.AddScoped<RegulatedTenantProvisioningService>();
         services.AddScoped<GovernmentCloudReleaseReadinessService>();
@@ -223,6 +224,7 @@ public static class DependencyInjection
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "gccs")));
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
+            services.AddScoped<IPilotTenantProvisioningRepository, EfPilotTenantProvisioningRepository>();
             services.AddScoped<IGovernmentCloudEnvironmentRepository, EfGovernmentCloudEnvironmentRepository>();
             services.AddScoped<IRegulatedTenantProvisioningRepository, EfRegulatedTenantProvisioningRepository>();
             services.AddScoped<IGovernmentCloudReleaseReadinessRepository, EfGovernmentCloudReleaseReadinessRepository>();
@@ -284,6 +286,8 @@ public static class DependencyInjection
             services.AddSingleton<IObligationRepository, InMemoryObligationRepository>();
             services.AddScoped<ITenantRepository>(_ =>
                 throw new InvalidOperationException("Tenant persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IPilotTenantProvisioningRepository>(_ =>
+                throw new InvalidOperationException("Pilot tenant provisioning requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IGovernmentCloudEnvironmentRepository>(_ =>
                 throw new InvalidOperationException("Government cloud environment persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IRegulatedTenantProvisioningRepository>(_ =>
