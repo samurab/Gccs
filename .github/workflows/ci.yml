@@ -61,6 +61,7 @@ jobs:
           dotnet test Gccs.slnx
           --no-build
           --configuration Release
+          --filter "Category!=LocalDocker"
           --logger "trx;LogFileName=gccs-backend-tests.trx"
           --results-directory TestResults/backend
 

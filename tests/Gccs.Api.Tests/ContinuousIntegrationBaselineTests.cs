@@ -46,6 +46,7 @@ public sealed class ContinuousIntegrationBaselineTests
             [
                 "dotnet test Gccs.slnx",
                 "--configuration Release",
+                "--filter \"Category!=LocalDocker\"",
                 "gccs-backend-tests.trx",
                 "TestResults/backend"
             ]
@@ -129,6 +130,7 @@ public sealed class ContinuousIntegrationBaselineTests
         AssertCiStepContains("Backend validation", "Validate EF Core migrations", "migrations has-pending-model-changes");
         AssertCiStepContains("Backend validation", "Validate EF Core migrations", "migrations script --idempotent");
         AssertCiStepContains("Backend validation", "Run backend unit and integration tests", "dotnet test Gccs.slnx");
+        AssertCiStepContains("Backend validation", "Run backend unit and integration tests", "--filter \"Category!=LocalDocker\"");
         AssertCiStepContains("Backend validation", "Run extraction precision and recall evaluation", "tools/extraction-evaluation/evaluate_corpus.py");
         AssertCiStepContains("Backend validation", "Run extraction precision and recall evaluation", "TestResults/extraction-evaluation");
 
