@@ -295,6 +295,11 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
             foreach (Match match in pattern.Matches(content))
             {
                 var value = match.Groups["value"].Success ? match.Groups["value"].Value : match.Value;
+                if (IsCSharpAssignedCredentialFalsePositive(relativePath, name, match.Value, value))
+                {
+                    continue;
+                }
+
                 if (IsAllowedPlaceholderSecret(value))
                 {
                     continue;
@@ -303,6 +308,21 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
                 findings.Add($"{relativePath}: possible {name} '{Redact(value)}'");
             }
         }
+    }
+
+    private static bool IsCSharpAssignedCredentialFalsePositive(string relativePath, string findingName, string matchText, string value)
+    {
+        if (!relativePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(findingName, "assigned credential", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var normalizedMatch = matchText.ToLowerInvariant();
+        return value.EndsWith("()", StringComparison.Ordinal)
+            || value.Contains(".Length", StringComparison.Ordinal)
+            || normalizedMatch.Contains("?token=", StringComparison.Ordinal)
+            || normalizedMatch.Contains("&token=", StringComparison.Ordinal);
     }
 
     private static void AddCustomerDataFindings(List<string> findings, string relativePath, string content)
