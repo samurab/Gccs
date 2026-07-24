@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
+using Gccs.Api;
 using Gccs.Application.Audit;
 using Gccs.Application.Calendar;
 using Gccs.Application.Common;
@@ -29,6 +30,25 @@ using Microsoft.AspNetCore.Mvc;
 var builder = WebApplication.CreateBuilder(args);
 
 LocalDependencyOptions.ValidateRequiredConfiguration(builder.Configuration);
+
+var invitationDeliveryEnabled = builder.Configuration.GetValue("InvitationDelivery:Enabled", false);
+if (invitationDeliveryEnabled)
+{
+    var publicWebBaseUrl = builder.Configuration["InvitationDelivery:PublicWebBaseUrl"];
+    var endpoint = builder.Configuration["InvitationDelivery:Endpoint"];
+    var connectionString = builder.Configuration["InvitationDelivery:ConnectionString"];
+    var senderAddress = builder.Configuration["InvitationDelivery:SenderAddress"];
+    var useManagedIdentity = builder.Configuration.GetValue("InvitationDelivery:UseManagedIdentity", true);
+    if (!Uri.TryCreate(publicWebBaseUrl, UriKind.Absolute, out var publicWebUri) ||
+        (!builder.Environment.IsDevelopment() && publicWebUri.Scheme != Uri.UriSchemeHttps) ||
+        string.IsNullOrWhiteSpace(senderAddress) ||
+        (useManagedIdentity && !Uri.TryCreate(endpoint, UriKind.Absolute, out _)) ||
+        (!useManagedIdentity && string.IsNullOrWhiteSpace(connectionString)))
+    {
+        throw new InvalidOperationException(
+            "Enabled invitation delivery requires a valid public web URL, sender address, and Azure Communication Services credential configuration.");
+    }
+}
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -70,6 +90,7 @@ builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSect
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<InvitationDeliveryWorker>();
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddHostedService<DevelopmentTenantBootstrapper>();
@@ -115,6 +136,183 @@ app.MapGet("/health", async (LocalDependencyHealthService healthService, Cancell
 })
 .AllowAnonymous()
 .WithName("Health");
+
+var platformApi = app.MapGroup("/api/platform")
+    .RequireAuthorization()
+    .RequireRateLimiting("api")
+    .AllowWithoutTenantMembership();
+
+platformApi.MapGet("/me/access", (ClaimsPrincipal user) =>
+{
+    return Results.Ok(new
+    {
+        userId = user.FindFirstValue(ClaimTypes.NameIdentifier),
+        userEmail = user.FindFirstValue(ClaimTypes.Email),
+        canProvisionTenants = PlatformAuthorization.CanProvisionTenants(user),
+        permissions = user
+            .FindAll(PlatformAuthorization.PermissionClaimType)
+            .Select(claim => claim.Value)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order()
+            .ToArray()
+    });
+})
+.WithName("GetPlatformAccess");
+
+platformApi.MapPost("/tenants", async (
+    PlatformTenantProvisioningRequest request,
+    PlatformTenantProvisioningService service,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Invalid platform operator identity",
+            "The authenticated platform operator identity is missing or invalid.",
+            StatusCodes.Status401Unauthorized,
+            "invalid_platform_operator_identity");
+    }
+
+    var idempotencyKey = httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty;
+
+    try
+    {
+        var result = await service.ProvisionAsync(request, idempotencyKey, actorUserId, cancellationToken);
+        return result.IsReplay
+            ? Results.Ok(result)
+            : Results.Created($"/api/platform/tenant-onboardings/{result.OnboardingId}", result);
+    }
+    catch (TenantProvisioningConflictException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Tenant provisioning conflict",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "tenant_provisioning_conflict");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["tenantOnboarding"] = [exception.Message]
+        });
+    }
+})
+.RequireTenantProvisioningPermission()
+.WithName("ProvisionPlatformTenant");
+
+platformApi.MapGet("/tenant-onboardings", async (
+    int page,
+    int pageSize,
+    TenantOnboardingStatus? status,
+    PlatformTenantProvisioningService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ListAsync(
+            page == 0 ? 1 : page,
+            pageSize == 0 ? 25 : pageSize,
+            status,
+            cancellationToken));
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["tenantOnboardings"] = [exception.Message]
+        });
+    }
+})
+.RequireTenantProvisioningPermission()
+.WithName("ListPlatformTenantOnboardings");
+
+platformApi.MapPost("/tenant-onboardings/{onboardingId:guid}/cancel", async (
+    Guid onboardingId,
+    CancelPlatformTenantOnboardingRequest request,
+    PlatformTenantProvisioningService service,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Invalid platform operator identity",
+            "The authenticated platform operator identity is missing or invalid.",
+            StatusCodes.Status401Unauthorized,
+            "invalid_platform_operator_identity");
+    }
+
+    try
+    {
+        var result = await service.CancelAsync(onboardingId, request, actorUserId, cancellationToken);
+        return result is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "Tenant onboarding was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(result);
+    }
+    catch (TenantOnboardingCancellationConflictException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Tenant onboarding cancellation conflict",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "tenant_onboarding_cancellation_conflict");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["tenantOnboardingCancellation"] = [exception.Message]
+        });
+    }
+})
+.RequireTenantProvisioningPermission()
+.WithName("CancelPlatformTenantOnboarding");
+
+platformApi.MapPost("/tenant-invitations/{invitationId:guid}/resend", async (
+    Guid invitationId,
+    TenantInvitationService service,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Invalid platform operator identity",
+            "The authenticated platform operator identity is missing or invalid.",
+            StatusCodes.Status401Unauthorized,
+            "invalid_platform_operator_identity");
+    }
+
+    try
+    {
+        var invitation = await service.ResendPlatformAsync(invitationId, actorUserId, cancellationToken);
+        return invitation is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Invitation was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(invitation);
+    }
+    catch (InvalidInvitationStateException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["invitation"] = [exception.Message] });
+    }
+})
+.RequireTenantProvisioningPermission()
+.WithName("ResendPlatformTenantInvitation");
 
 var api = app.MapGroup("/api")
     .RequireAuthorization()
@@ -3695,7 +3893,56 @@ api.MapPost("/invitations/{token}/accept", async (
         });
     }
 })
+.AllowWithoutTenantMembership()
 .WithName("AcceptTenantInvitation");
+
+api.MapGet("/invitations/{token}", async (
+    string token,
+    TenantInvitationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var invitation = await service.GetAcceptanceContextAsync(token, tenantContext.UserEmail, cancellationToken);
+        return invitation is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Invitation token was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(invitation);
+    }
+    catch (InvalidInvitationStateException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["invitation"] = [exception.Message] });
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["invitation"] = [exception.Message] });
+    }
+})
+.AllowWithoutTenantMembership()
+.WithName("GetInvitationAcceptanceContext");
+
+api.MapPost("/tenant-invitations/{invitationId:guid}/resend", async (
+    Guid invitationId,
+    TenantInvitationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var invitation = await service.ResendCurrentTenantAsync(invitationId, tenantContext.UserId, cancellationToken);
+        return invitation is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Invitation was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(invitation);
+    }
+    catch (InvalidInvitationStateException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["invitation"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageUsers)
+.WithName("ResendTenantInvitation");
 
 api.MapPost("/tenant-invitations/{invitationId:guid}/expire", async (
     Guid invitationId,
@@ -5286,28 +5533,6 @@ api.MapPost("/tenants", async (
 })
 .RequirePermission(Permission.ManageTenant)
 .WithName("CreateTenant");
-
-api.MapPost("/admin/pilot-tenants", async (
-    PilotTenantProvisioningRequest request,
-    PilotTenantProvisioningService service,
-    ITenantContext tenantContext,
-    CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var result = await service.ProvisionAsync(request, tenantContext.UserId, cancellationToken);
-        return Results.Created($"/api/tenants/{result.Tenant.Id}", result);
-    }
-    catch (ArgumentException exception)
-    {
-        return Results.ValidationProblem(new Dictionary<string, string[]>
-        {
-            ["pilotTenant"] = [exception.Message]
-        });
-    }
-})
-.RequirePermission(Permission.ManageTenant)
-.WithName("ProvisionPilotTenant");
 
 api.MapGet("/tenants/{tenantId:guid}", async (
     Guid tenantId,

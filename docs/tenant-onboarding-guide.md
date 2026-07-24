@@ -1,55 +1,57 @@
 # Tenant Onboarding Guide
 
-Review date: 2026-07-22.
+Review date: 2026-07-23.
 
-Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator runbook, not a customer self-service guide.
+Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator runbook, not customer self-service.
 
 ## Decision
 
-- Use the current `POST /api/admin/pilot-tenants` endpoint only for controlled pilot setup in local development or an explicitly approved, operator-controlled environment.
-- Do not use the current endpoint as the permanent paid-tenant onboarding path. It is protected by tenant-level `ManageTenant`, which is also granted to customer Owners.
-- Before paid onboarding, implement a platform control plane with a separate `ProvisionTenants` authorization policy, invitation-based owner activation, idempotency, subscription state, and an internal admin form.
-- All MVP tenants start in `NoCui`. Neither pilot nor payment authorizes CUI storage or processing.
+- Use the internal admin form at `/platform/tenants/new` for new tenant onboarding.
+- Do not use customer `ManageTenant` permission for tenant creation.
+- Do not ask a customer to provide or invent an `ownerUserId`. GCCS creates a pending invitation and binds the authenticated identity when the Owner accepts it.
+- All MVP tenants start in `NoCui`. Pilot status or payment does not authorize CUI storage or processing.
 
 ## Current Implementation Status
 
 | Capability | Status | Evidence or limitation |
 | --- | --- | --- |
-| Create a No-CUI pilot tenant, owner membership, role, permissions, mode history, and audit entries in one transaction | Implemented | `PilotTenantProvisioningService` and `EfPilotTenantProvisioningRepository` |
-| Validate tenant name, owner identity fields, and Owner/Admin role | Implemented | Application service validation |
-| Require authorization on the provisioning endpoint | Partially implemented | Endpoint requires `ManageTenant`, but this is a customer tenant permission rather than a platform-operator permission |
-| Local authorized request using development headers | Implemented | Development only; must remain disabled outside local development |
-| Real invitation delivery to the initial owner | Partially implemented | Invitation workflow exists, but notification is a local placeholder; pilot provisioning activates the supplied user ID directly |
-| Tenant selection/switching after provisioning | Planned | The web application has no complete operator-to-new-tenant or multi-membership switching flow |
-| Internal tenant-provisioning admin form | Planned | No form calls `/api/admin/pilot-tenants` |
-| Paid plan, subscription, payment, renewal, suspension, and cancellation state | Planned | No product-backed billing/subscription lifecycle was found |
-| Duplicate-request prevention | Planned | Repeating the POST can create duplicate tenants |
+| Dedicated internal admin route | Implemented | `/platform/tenants/new` |
+| Platform-only tenant provisioning authorization | Implemented | `Platform.ProvisionTenants` policy; customer roles do not receive it |
+| Pilot and Paid form modes with conditional fields | Implemented | Paid mode requires plan, subscription reference, and commercial approval confirmation |
+| Explicit No-CUI confirmation | Implemented | Enforced in the UI and application service |
+| Pending tenant, Owner role, invitation, mode history, and audit entries | Implemented | Created in one EF Core save transaction |
+| Idempotent submission and duplicate reference protection | Implemented | Unique request key, request fingerprint, customer reference, and subscription reference |
+| Platform cancellation of pending onboarding | Implemented | Requires a reason; revokes delivery, archives the inactive tenant, preserves the record, and writes cancellation audit entries atomically |
+| Initial Owner activation through authenticated invitation acceptance | Implemented | Acceptance validates authenticated email, creates membership, and activates the tenant |
+| External invitation email delivery | Implemented; configuration required | Durable invitation queue, bounded retries, Azure Communication Services adapter, and delivery audit records are implemented; Azure resource and sender configuration are deployment dependencies |
+| Owner invitation-acceptance page | Implemented | `/invitations/accept` receives the emailed invitation parameter, requires authentication, and validates the signed-in email |
+| Membership-based tenant selection after sign-in | Implemented for activation | The activated GCCS tenant ID is selected in the browser and sent in `X-Gccs-Tenant`; API membership authorization validates it |
+| Automated billing verification and paid lifecycle | Partially implemented | The form records a confirmed subscription reference; no billing provider validates or updates it |
 
 ## Roles
 
 | Role | Responsibility |
 | --- | --- |
-| Platform Operator | Approves and executes tenant provisioning. This must become a non-customer platform role before paid onboarding. |
-| Customer Success Owner | Confirms scope, onboarding contacts, training, support routing, and first-use monitoring. |
-| Customer Tenant Owner | Accepts access, manages tenant users, and acknowledges the No-CUI posture. |
+| Platform Operator | Internal GCCS operator authorized by `ProvisionTenants`. Creates pending tenants. |
+| Customer Success Owner | Confirms scope, contacts, training, support routing, and first-use monitoring. |
+| Customer Tenant Owner | Named customer administrator who accepts the Owner invitation and manages the workspace. |
 | Security/Support Owner | Handles access incidents, suspected CUI, tenant exposure, and prohibited-data escalation. |
-| Billing Operator | Confirms paid entitlement and manages subscription lifecycle. This role and lifecycle are not yet implemented in the application. |
+| Billing Operator | Confirms paid entitlement in the billing system of record. Automated billing integration is not implemented. |
 
-## Shared Entry Checklist
+## Before Onboarding
 
-Complete these checks before creating either tenant type:
+1. Assign a non-sensitive reference such as `PILOT-003` or `CUSTOMER-014`.
+2. Confirm the customer accepts the No-CUI product boundary.
+3. Deliver the prohibited-data guidance and support route in `docs/production-readiness-pilot-onboarding.md`.
+4. Confirm the initial Owner's individual work email and display name. Do not use a shared administrator mailbox.
+5. For a pilot, confirm the pilot end date.
+6. For a paid tenant, confirm plan code and subscription reference in the billing system of record.
+7. Confirm API, database, audit logging, authentication, alerts, and support ownership are operational.
+8. Stop if the customer requires CUI, classified information, ITAR/export-controlled data, sensitive government-furnished information, secrets, payroll data, SSNs, health data, or unrestricted security logs.
 
-1. Assign a non-sensitive internal onboarding ID, such as `PILOT-003` or `CUSTOMER-014`. Do not put customer data or contract contents in repository evidence.
-2. Confirm the tenant is approved for the No-CUI product boundary.
-3. Give the customer the prohibited-data guidance and support route from `docs/production-readiness-pilot-onboarding.md`.
-4. Confirm the initial owner email, display name, and identity-provider object ID. For Microsoft Entra, the application currently maps the token `oid` claim to the GCCS user ID.
-5. Confirm the owner role. Use `Owner` unless an approved access design requires `Admin`.
-6. Confirm production health, database connectivity, object storage, malware scanning, audit logging, alerts, and support ownership.
-7. Stop if the customer requires CUI, classified data, ITAR/export-controlled technical data, sensitive government-furnished information, secrets, payroll data, SSNs, health data, or unrestricted security logs.
+## Local Development Procedure
 
-## Controlled Pilot Onboarding: Current Operator Procedure
-
-### 1. Start and verify the local stack
+### 1. Start the application
 
 From the repository root:
 
@@ -63,172 +65,251 @@ Expected services:
 - API: `http://localhost:5062`
 - Web: `http://127.0.0.1:5173`
 
-Verify API health:
+Verify health:
 
 ```bash
 curl -i http://localhost:5062/health
 ```
 
-Expected result: `200 OK`. Do not provision when health is degraded or the database is unavailable.
+Expected result: `200 OK`.
 
-### 2. Verify the operator permission
+### 2. Open the internal admin form
 
-```bash
-curl -s http://localhost:5062/api/me/access \
-  -H 'X-Gccs-Dev-Auth: true' \
-  -H 'X-Gccs-Dev-Tenant: 11111111-1111-1111-1111-111111111111' \
-  -H 'X-Gccs-Dev-User: 22222222-2222-2222-2222-222222222222' \
-  -H 'X-Gccs-Dev-Permissions: ManageTenant'
+Open:
+
+```text
+http://127.0.0.1:5173/platform/tenants/new
 ```
 
-Confirm the response contains the expected tenant ID, user ID, and `ManageTenant` permission. These headers are development-only credentials and must never be enabled in staging or production.
+Local development grants the seeded operator `ProvisionTenants` through `Security:DevelopmentAuth:DefaultPlatformPermissions`. Development authentication must remain disabled outside local development.
 
-### 3. Prepare the request data
+### 3. Enter Pilot values
 
-Use approved values:
+1. Select **Pilot**.
+2. Enter a unique customer reference, for example `PILOT-003`.
+3. Enter the tenant display name.
+4. Enter the pilot end date.
+5. Enter a non-sensitive setup reason.
+6. Enter the designated Owner's email and display name.
+7. Select **No-CUI boundary confirmed**.
+8. Select **Create pending tenant**.
 
-| Field | Example | Rule |
-| --- | --- | --- |
-| `displayName` | `Aegis Pilot Workspace` | Required; 240 characters or fewer |
-| `ownerUserId` | `70707070-7070-7070-7070-7070707070c1` | Required UUID; use the real identity-provider object ID outside synthetic testing |
-| `ownerEmail` | `pilot.owner@example.com` | Required; must match the intended owner |
-| `ownerDisplayName` | `Pilot Owner` | Required; 200 characters or fewer |
-| `ownerRoleName` | `Owner` | Only `Owner` or `Admin` |
-| `trialEndsAt` | `2026-08-31` | Pilot end date; optional in the API but required by this operating process |
-| `setupReason` | `Provision approved No-CUI pilot PILOT-003.` | Use the non-sensitive onboarding ID; do not include contract contents |
+Expected result:
 
-### 4. Provision the pilot tenant
+- Tenant status: `PendingActivation`.
+- Onboarding status: `PendingOwnerAcceptance`.
+- Data handling: `NoCui`.
+- Owner invitation: `Pending`.
+- Email delivery: `Queued`, then `Sent` when the provider completes delivery.
+- No user or membership is created before invitation acceptance.
+
+### 4. Enter Paid values
+
+1. Select **Paid**.
+2. Enter a unique customer reference, for example `CUSTOMER-014`.
+3. Enter the tenant display name.
+4. Enter the approved plan code.
+5. Enter the unique subscription reference.
+6. Enter a non-sensitive setup reason.
+7. Enter the designated Owner's email and display name.
+8. Select **No-CUI boundary confirmed**.
+9. Select **Commercial approval confirmed** only after checking the billing system of record.
+10. Select **Create pending tenant**.
+
+The application records the operator's confirmation. It does not independently verify payment or subscription state.
+
+### 5. Record the result
+
+Record only:
+
+- Customer reference.
+- Tenant ID.
+- Onboarding ID.
+- Operator identity.
+- Request correlation ID.
+- Timestamp and result.
+
+Do not record bearer tokens, invitation tokens, customer files, or sensitive contract data.
+
+### 6. Verify delivery and activation
+
+1. Confirm **Email delivery** changes to `Sent`. If it is `Failed`, resolve provider configuration before selecting **Resend invitation**.
+2. The Owner opens the emailed activation link and signs in through Microsoft Entra using the exact invited email address.
+3. The Owner enters their display name and selects **Accept invitation**.
+4. Confirm the activation page reports **Workspace activated**.
+5. Confirm Pilot tenant status is `Trialing`, or Paid tenant status is `Active`.
+6. Confirm the Owner membership and invitation-delivery/acceptance audit entries exist.
+
+### 7. Retry safely
+
+The form retains one request key while a submission is unresolved. A retry with the same key and same values returns the original tenant. Reusing the key with different values returns `409 Conflict`.
+
+Do not select **Provision another tenant** until the current result is known; that action generates a new request key.
+
+### 8. Cancel an incorrect pending onboarding
+
+Cancellation is available only while onboarding is `PendingOwnerAcceptance`, the tenant is `PendingActivation`, and the Owner invitation is `Pending`.
+
+1. Under **Pending tenant onboardings**, locate the incorrect tenant by display name, customer reference, and Owner email.
+2. Select the cancel icon for that row.
+3. Enter a specific, non-sensitive cancellation reason.
+4. Select **Confirm cancellation**.
+5. Confirm the onboarding no longer appears in the pending list.
+6. Verify the preserved record has onboarding status `Cancelled`, tenant status `Archived`, invitation status `Revoked`, and email delivery `Cancelled`.
+7. Verify audit history records the platform operator, reason, timestamp, onboarding transition, and invitation revocation.
+
+Cancellation clears an unused activation token and prevents the delivery worker from claiming the invitation. If the provider accepted an email before cancellation, its link remains unusable because the invitation is revoked. Activated onboarding cannot be cancelled through this operation.
+
+## API Procedure
+
+Use the API only when the form is unavailable. The platform endpoint is:
+
+```text
+POST /api/platform/tenants
+```
+
+Local pilot example:
 
 ```bash
-curl -i -X POST http://localhost:5062/api/admin/pilot-tenants \
+curl -i -X POST http://localhost:5062/api/platform/tenants \
   -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: pilot-003-initial-provisioning' \
   -H 'X-Gccs-Dev-Auth: true' \
-  -H 'X-Gccs-Dev-Tenant: 11111111-1111-1111-1111-111111111111' \
   -H 'X-Gccs-Dev-User: 22222222-2222-2222-2222-222222222222' \
-  -H 'X-Gccs-Dev-Permissions: ManageTenant' \
+  -H 'X-Gccs-Dev-Tenant: none' \
+  -H 'X-Gccs-Dev-Platform-Permissions: ProvisionTenants' \
   --data '{
+    "onboardingType": "Pilot",
+    "customerReference": "PILOT-003",
     "displayName": "Aegis Pilot Workspace",
-    "ownerUserId": "70707070-7070-7070-7070-7070707070c1",
     "ownerEmail": "pilot.owner@example.com",
     "ownerDisplayName": "Pilot Owner",
-    "ownerRoleName": "Owner",
     "trialEndsAt": "2026-08-31",
-    "setupReason": "Provision approved No-CUI pilot PILOT-003."
+    "planCode": null,
+    "subscriptionReference": null,
+    "setupReason": "Provision approved No-CUI pilot PILOT-003.",
+    "confirmsNoCui": true,
+    "commercialApprovalConfirmed": false
   }'
 ```
 
-Expected result: `201 Created` with a response containing:
+Expected initial response: `201 Created`. An identical replay returns `200 OK` with `isReplay: true`.
 
-- A new tenant ID.
-- `status: Active`.
-- `dataHandlingMode: NoCui`.
-- The intended owner user ID, email, and role.
-- The approved setup reason.
+List pending onboarding:
 
-Do not retry a timed-out request blindly. Check the database or audit history first because the current endpoint has no idempotency key.
+```text
+GET /api/platform/tenant-onboardings?page=1&pageSize=25&status=PendingOwnerAcceptance
+```
 
-### 5. Record and verify the result
+Cancel pending onboarding:
 
-Record only the internal onboarding ID, generated tenant ID, request correlation ID, operator, timestamp, and result. Do not record bearer tokens, invitation tokens, customer files, or sensitive contract data.
+```text
+POST /api/platform/tenant-onboardings/{onboardingId}/cancel
+```
 
-Verify all of the following before handing off access:
+Request body:
+
+```json
+{
+  "reason": "Duplicate pilot onboarding superseded before Owner activation."
+}
+```
+
+Only an authenticated platform operator with `ProvisionTenants` can list or cancel platform onboarding. Unknown IDs return `404`; non-pending or activated records return `409`.
+
+## Staging and Production Authorization
+
+1. Define the Microsoft Entra application role `Gccs.PlatformOperator` for the GCCS API.
+2. Assign it only to approved internal platform operators through a controlled group.
+3. Require MFA and normal access-review controls for that group.
+4. Configure `Authentication:Authority` and `Authentication:Audience` for the API.
+5. Configure `VITE_MSAL_CLIENT_ID`, `VITE_MSAL_TENANT_ID`, and `VITE_MSAL_API_SCOPE` for the web app.
+6. Confirm `Security:DevelopmentAuth:Enabled=false`.
+7. Apply the `AddPlatformTenantOnboarding`, `AddInvitationDeliveryWorkflow`, and `AddPlatformTenantCancellation` database migrations before deploying the API.
+8. Verify an operator receives `canProvisionTenants: true` from `GET /api/platform/me/access`.
+9. Verify a customer Owner with `ManageTenant` receives `403 Forbidden` from `POST /api/platform/tenants`.
+10. Verify that same customer receives `403 Forbidden` from the platform onboarding list and cancellation endpoints.
+
+## Invitation Email Configuration
+
+The delivery worker is disabled by default. Enabling it without complete configuration causes API startup to fail.
+
+1. Provision Azure Communication Services and a connected Email Communication Services resource.
+2. Configure an Azure-managed or verified custom sending domain and record its `MailFrom` sender address.
+3. Prefer the API App Service managed identity. Grant it only the Azure Communication Services email permissions required to send.
+4. Configure these API App Service settings:
+
+```text
+InvitationDelivery__Enabled=true
+InvitationDelivery__Provider=AzureCommunicationServices
+InvitationDelivery__PublicWebBaseUrl=https://<web-host>
+InvitationDelivery__Endpoint=https://<communication-resource>.communication.azure.com
+InvitationDelivery__UseManagedIdentity=true
+InvitationDelivery__SenderAddress=DoNotReply@<verified-domain>
+InvitationDelivery__PollIntervalSeconds=5
+InvitationDelivery__LeaseMinutes=5
+InvitationDelivery__MaximumAttempts=5
+```
+
+Use `InvitationDelivery__ConnectionString` with `UseManagedIdentity=false` only when managed identity is unavailable. Store that secret in approved secret storage; do not commit or print it.
+
+For local activation testing, set `VITE_GCCS_DEV_EMAIL` to the exact invited Owner email and `VITE_GCCS_DEV_USER_ID` to a stable test UUID before starting Vite. This development shortcut must not be deployed.
+
+## Owner Activation
+
+The API activation sequence is:
+
+1. Owner authenticates through Microsoft Entra.
+2. GCCS reads the validated user ID and email claims.
+3. Owner submits the single-use invitation token.
+4. GCCS verifies that the authenticated email matches the invitation.
+5. GCCS creates the user and Owner membership.
+6. Pilot tenant changes to `Trialing`; Paid tenant changes to `Active`.
+7. GCCS records invitation acceptance and onboarding activation in audit history.
+
+The admin result intentionally does not expose the invitation token. The database stores only its SHA-256 hash; the raw single-use token exists only in the outbound activation URL.
+
+## Verification Checklist
+
+Before handoff, verify:
 
 1. Tenant mode is `NoCui`.
-2. Tenant status is `Active`.
-3. Trial end date is correct.
-4. Owner membership is active and has the intended role.
-5. Tenant creation and membership creation audit entries exist.
-6. No duplicate tenant was created.
-7. Support routing and first-use monitoring are assigned.
-
-### 6. Validate first use
-
-The current provisioning endpoint does not complete production identity routing or browser tenant switching. Before inviting a real pilot user, prove that the user's authenticated `oid` maps to the stored `ownerUserId` and that the request resolves to the generated GCCS tenant ID.
-
-After access is proven, validate this No-CUI workflow with synthetic or approved non-sensitive data:
-
-1. Sign in as the tenant Owner.
-2. Confirm `/api/me/access` returns the new tenant ID and expected role.
-3. Acknowledge the No-CUI notice.
-4. Enter company and contract metadata without uploading customer contract contents unless separately approved as non-sensitive.
-5. Review clauses and obligations.
-6. Assign an obligation owner and status.
-7. Add allowed evidence metadata and, only when approved, a non-sensitive file.
-8. Generate a current report artifact.
-9. Confirm the relevant actions appear in tenant-scoped audit history.
-10. Record first-use monitoring using the non-sensitive onboarding ID.
-
-## Paid Tenant Onboarding: Required Production Procedure
-
-Paid onboarding is not currently product-complete. Do not treat a successful pilot-provisioning response as proof of billing entitlement, production identity readiness, or paid-service activation.
-
-Implement and enforce this sequence before onboarding a paid tenant:
-
-1. **Commercial approval:** Confirm signed terms, selected plan, billing contact, effective date, renewal date, and payment state in the authoritative billing system.
-2. **Platform authorization:** Require a dedicated `ProvisionTenants` app role or policy issued only to internal platform operators. Do not reuse customer `ManageTenant`.
-3. **Idempotent request:** Send an immutable commercial customer ID and idempotency key. Enforce uniqueness so retries return the original result rather than creating another tenant.
-4. **Create pending tenant:** Create the tenant as `PendingActivation`, with `NoCui`, plan, subscription ID, entitlement dates, and audit metadata.
-5. **Invite the owner:** Create a single-use, expiring invitation bound to the verified email. Do not activate an arbitrary client-supplied user ID.
-6. **Bind identity:** On acceptance, verify authenticated email and identity-provider subject/object ID, then create the active owner membership.
-7. **Activate entitlement:** Change the tenant to `Active` only after subscription and owner activation checks pass.
-8. **Verify access:** Confirm tenant context, role, permissions, No-CUI acknowledgement, audit entries, and tenant isolation.
-9. **Operational handoff:** Assign customer success, support, security escalation, monitoring, and renewal owners.
-10. **First-use acceptance:** Complete the same synthetic/non-sensitive workflow used for the pilot and record the result.
-
-Required paid lifecycle states should include at least `PendingActivation`, `Active`, `PastDue`, `Suspended`, `Cancelled`, and `Archived`. Authorization must deny tenant writes when the commercial state does not allow service, while preserving controlled read/export access according to contract and retention policy.
-
-## Internal Admin Form: Best Implementation
-
-Build an internal route such as `/platform/tenants/new`, separate from customer Tenant Settings.
-
-The form should collect:
-
-- Onboarding type: Pilot or Paid.
-- Internal customer/onboarding ID.
-- Tenant display name.
-- Verified owner email and display name.
-- Pilot end date, or paid plan and subscription identifier.
-- Setup reason.
-- Explicit No-CUI confirmation.
-
-The form must:
-
-1. Require the platform `ProvisionTenants` policy on both the page and API. API authorization is authoritative.
-2. Use an owner invitation instead of accepting an arbitrary owner UUID from the browser.
-3. Send an idempotency key and disable duplicate submission while a request is running.
-4. Show validation, authorization, conflict, dependency-failure, and success states.
-5. Display the generated tenant ID and onboarding status after success.
-6. Never display or log access tokens, invitation tokens, sensitive customer data, or raw uploaded content.
-7. Audit provisioning, invitation, activation, suspension, cancellation, and operator overrides.
+2. Tenant status is appropriate for the onboarding stage.
+3. Pilot end date or paid subscription reference is correct.
+4. Owner invitation email matches the approved individual.
+5. Tenant creation and invitation audit entries exist.
+6. No duplicate customer, subscription, or tenant record exists.
+7. After acceptance, Owner membership and activation audit entries exist.
+8. Support routing and first-use monitoring are assigned.
+9. Tenant isolation and RBAC denial tests pass.
+10. Incorrect pending onboarding is cancelled through the platform operation, not deleted or modified directly in the database.
 
 ## Stop Conditions
 
-Stop onboarding and escalate when:
+Stop onboarding when:
 
-- The operator lacks the correct platform authorization.
-- Production development authentication is enabled.
-- The owner identity cannot be verified.
-- The tenant already exists or a prior request has an unknown result.
-- Billing or contract state is not approved for a paid tenant.
-- Any dependency required for login, persistence, audit, upload controls, reporting, or monitoring is unhealthy.
+- The operator lacks `ProvisionTenants`.
+- Development authentication is enabled outside local development.
+- Owner email cannot be verified.
+- A customer or subscription reference already exists.
+- A previous request has an unresolved result.
+- Paid commercial approval cannot be confirmed.
+- Authentication, persistence, audit, reporting, upload controls, or monitoring is unhealthy.
 - The customer requests prohibited data handling or CUI capability.
 - Tenant isolation, RBAC, audit history, or first-use verification fails.
 
-## Principal Risks
+## Remaining Risks
 
-1. **Privilege escalation:** Customer Owners currently receive `ManageTenant`; exposing provisioning through that permission allows customer-controlled tenant creation. Replace it with platform authorization.
-2. **Identity mismatch:** Directly accepting `ownerUserId` can create an owner who cannot authenticate or can overwrite an existing user's profile. Use verified invitation acceptance and immutable external identity mapping.
-3. **Duplicate and inconsistent state:** The endpoint lacks idempotency and subscription state. Retries can create duplicate tenants, and payment changes cannot reliably suspend or reactivate service.
-4. **Tenant-context gap:** A generated GCCS tenant ID is not automatically present in a user's token or browser context. Implement explicit membership-based tenant selection and server-validated context switching.
-5. **Operational scaling:** Manual `curl` onboarding provides no queue, approval record, searchable status, or safe retry workflow. Use an internal admin UI backed by an idempotent orchestration service.
+1. Azure Communication Services, a sender domain, managed-identity permission, and production App Service settings are external deployment dependencies; code deployment alone does not send email.
+2. Provider acceptance does not prove inbox placement. Bounce and complaint webhook processing is not implemented; operators must use provider telemetry for delivery incidents.
+3. Browser tenant selection is membership-validated, but a full multi-tenant workspace selector and server-side user preference remain planned.
+4. Paid provisioning trusts an internal operator confirmation; billing-provider verification, renewal, past-due, suspension, cancellation, and archival automation remain planned.
+5. The web production bundle still reports a size warning; route-level code splitting should be completed as the internal control plane grows.
 
 ## Pre-Publication Checklist
 
-Before treating this guide as a production paid-tenant runbook, verify:
-
-- The UI exposes only the platform-admin flow described here.
-- The API enforces `ProvisionTenants`, idempotency, invitation binding, tenant isolation, and subscription state.
-- Tests prove platform RBAC denial, duplicate-request handling, owner identity binding, cross-tenant isolation, audit logging, and paid lifecycle transitions.
+- The admin route is available only to platform operators.
+- The API enforces `ProvisionTenants`, idempotency, invitation binding, No-CUI posture, and audit logging.
+- Tests prove customer-role denial, duplicate-request behavior, validated cancellation, queue exclusion, cancellation audit history, Owner activation, token replay rejection, retry behavior, and tenant isolation.
 - Development authentication is disabled outside local development.
-- Wording does not claim certification, legal advice, government approval, guaranteed compliance, secure CUI storage, or audit readiness.
-- Every tenant remains within the No-CUI product posture unless a separately reviewed and implemented capability explicitly changes that boundary.
+- Documentation does not claim certification, legal advice, government approval, guaranteed compliance, secure CUI storage, or audit readiness.

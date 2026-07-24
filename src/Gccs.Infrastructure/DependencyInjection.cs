@@ -79,7 +79,7 @@ public static class DependencyInjection
         services.AddScoped<ContractService>();
         services.AddScoped<ContractSizeCheckService>();
         services.AddScoped<TenantService>();
-        services.AddScoped<PilotTenantProvisioningService>();
+        services.AddScoped<PlatformTenantProvisioningService>();
         services.AddScoped<GovernmentCloudEnvironmentService>();
         services.AddScoped<RegulatedTenantProvisioningService>();
         services.AddScoped<GovernmentCloudReleaseReadinessService>();
@@ -121,6 +121,7 @@ public static class DependencyInjection
         services.AddSingleton<ICuiEnclaveAccessControlRepository, InMemoryCuiEnclaveAccessControlRepository>();
         services.AddScoped<TenantMembershipService>();
         services.AddScoped<TenantInvitationService>();
+        services.AddScoped<InvitationDeliveryService>();
         services.AddScoped<SamlIdentityProviderConfigurationService>();
         services.AddScoped<SsoSignInEnforcementService>();
         services.AddScoped<ScimProvisioningService>();
@@ -161,6 +162,34 @@ public static class DependencyInjection
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         services.AddScoped<SimpleReportExportService>();
+        services.Configure<InvitationEmailOptions>(options =>
+        {
+            if (configuration is null)
+            {
+                return;
+            }
+
+            var prefix = InvitationEmailOptions.SectionName;
+            options.Enabled = ReadBool(configuration, $"{prefix}:Enabled", options.Enabled);
+            options.Provider = configuration[$"{prefix}:Provider"] ?? options.Provider;
+            options.PublicWebBaseUrl = configuration[$"{prefix}:PublicWebBaseUrl"] ?? options.PublicWebBaseUrl;
+            options.Endpoint = configuration[$"{prefix}:Endpoint"] ?? options.Endpoint;
+            options.ConnectionString = configuration[$"{prefix}:ConnectionString"] ?? options.ConnectionString;
+            options.UseManagedIdentity = ReadBool(configuration, $"{prefix}:UseManagedIdentity", options.UseManagedIdentity);
+            options.SenderAddress = configuration[$"{prefix}:SenderAddress"] ?? options.SenderAddress;
+            options.PollIntervalSeconds = ReadInt(configuration, $"{prefix}:PollIntervalSeconds", options.PollIntervalSeconds);
+            options.LeaseMinutes = ReadInt(configuration, $"{prefix}:LeaseMinutes", options.LeaseMinutes);
+            options.MaximumAttempts = ReadInt(configuration, $"{prefix}:MaximumAttempts", options.MaximumAttempts);
+        });
+        services.AddScoped<IInvitationEmailSender, AzureCommunicationInvitationEmailSender>();
+        services.AddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<InvitationEmailOptions>>().Value;
+            return new InvitationDeliverySettings(
+                options.PublicWebBaseUrl,
+                TimeSpan.FromMinutes(Math.Clamp(options.LeaseMinutes, 1, 30)),
+                Math.Clamp(options.MaximumAttempts, 1, 10));
+        });
         services.Configure<AzureBlobStorageOptions>(options =>
         {
             if (configuration is null)
@@ -224,7 +253,7 @@ public static class DependencyInjection
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "gccs")));
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
-            services.AddScoped<IPilotTenantProvisioningRepository, EfPilotTenantProvisioningRepository>();
+            services.AddScoped<IPlatformTenantProvisioningRepository, EfPlatformTenantProvisioningRepository>();
             services.AddScoped<IGovernmentCloudEnvironmentRepository, EfGovernmentCloudEnvironmentRepository>();
             services.AddScoped<IRegulatedTenantProvisioningRepository, EfRegulatedTenantProvisioningRepository>();
             services.AddScoped<IGovernmentCloudReleaseReadinessRepository, EfGovernmentCloudReleaseReadinessRepository>();
@@ -235,6 +264,7 @@ public static class DependencyInjection
             services.AddScoped<ICuiReadyApprovalChecklistGate>(provider => provider.GetRequiredService<CuiReadyApprovalChecklistService>());
             services.AddScoped<ITenantMembershipRepository, EfTenantMembershipRepository>();
             services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
+            services.AddScoped<IInvitationDeliveryRepository, EfInvitationDeliveryRepository>();
             services.AddScoped<ISamlIdentityProviderConfigurationRepository, EfSamlIdentityProviderConfigurationRepository>();
             services.AddScoped<ISsoSignInEnforcementRepository, EfSsoSignInEnforcementRepository>();
             services.AddScoped<IScimProvisioningRepository, EfScimProvisioningRepository>();
@@ -286,8 +316,8 @@ public static class DependencyInjection
             services.AddSingleton<IObligationRepository, InMemoryObligationRepository>();
             services.AddScoped<ITenantRepository>(_ =>
                 throw new InvalidOperationException("Tenant persistence requires ConnectionStrings:GccsDatabase to be configured."));
-            services.AddScoped<IPilotTenantProvisioningRepository>(_ =>
-                throw new InvalidOperationException("Pilot tenant provisioning requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IPlatformTenantProvisioningRepository>(_ =>
+                throw new InvalidOperationException("Platform tenant provisioning requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IGovernmentCloudEnvironmentRepository>(_ =>
                 throw new InvalidOperationException("Government cloud environment persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IRegulatedTenantProvisioningRepository>(_ =>
@@ -306,6 +336,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Tenant membership persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ITenantInvitationRepository>(_ =>
                 throw new InvalidOperationException("Tenant invitation persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IInvitationDeliveryRepository>(_ =>
+                throw new InvalidOperationException("Invitation delivery requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ISamlIdentityProviderConfigurationRepository>(_ =>
                 throw new InvalidOperationException("SAML identity provider persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ISsoSignInEnforcementRepository>(_ =>

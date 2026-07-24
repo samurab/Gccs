@@ -41,7 +41,7 @@ public sealed record TenantInvitation(
     Guid TenantId,
     string Email,
     string RoleName,
-    string InvitationToken,
+    string? InvitationTokenHash,
     TenantInvitationStatus Status,
     DateTimeOffset ExpiresAt,
     DateTimeOffset? AcceptedAt,
@@ -50,6 +50,13 @@ public sealed record TenantInvitation(
     Guid? RevokedByUserId,
     DateTimeOffset? NotificationSentAt,
     string NotificationPlaceholder,
+    InvitationDeliveryStatus DeliveryStatus,
+    int DeliveryAttemptCount,
+    DateTimeOffset? NextDeliveryAttemptAt,
+    DateTimeOffset? DeliveryLeaseUntil,
+    DateTimeOffset? LastDeliveryAttemptAt,
+    string? DeliveryProviderMessageId,
+    string? DeliveryFailureCode,
     EntityAudit Audit);
 
 public enum TenantInvitationStatus
@@ -58,4 +65,14 @@ public enum TenantInvitationStatus
     Accepted,
     Expired,
     Revoked
+}
+
+public enum InvitationDeliveryStatus
+{
+    Queued,
+    Processing,
+    RetryScheduled,
+    Sent,
+    Failed,
+    Cancelled
 }

@@ -4,9 +4,26 @@ namespace Gccs.Api.Security;
 
 public sealed class HttpTenantContext(IHttpContextAccessor httpContextAccessor) : ITenantContext
 {
-    public Guid TenantId => GetRequiredGuid(
-        ApiSecurityExtensions.TenantIdClaimType,
-        claimType => new MissingTenantContextException($"The authenticated user claim '{claimType}' is missing or invalid."));
+    public Guid TenantId
+    {
+        get
+        {
+            var selectedTenant = httpContextAccessor.HttpContext?.Request.Headers[ApiSecurityExtensions.TenantSelectionHeader].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(selectedTenant))
+            {
+                if (Guid.TryParse(selectedTenant, out var selectedTenantId))
+                {
+                    return selectedTenantId;
+                }
+
+                throw new MissingTenantContextException($"The tenant selection header '{ApiSecurityExtensions.TenantSelectionHeader}' is invalid.");
+            }
+
+            return GetRequiredGuid(
+                ApiSecurityExtensions.TenantIdClaimType,
+                claimType => new MissingTenantContextException($"The authenticated user claim '{claimType}' is missing or invalid."));
+        }
+    }
 
     public Guid UserId => GetRequiredGuid(
         ClaimTypes.NameIdentifier,

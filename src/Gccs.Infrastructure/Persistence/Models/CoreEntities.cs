@@ -31,6 +31,31 @@ public sealed class TenantEntity : AuditedEntity
     public ICollection<TenantInvitationEntity> Invitations { get; set; } = [];
     public ICollection<RoleEntity> Roles { get; set; } = [];
     public ICollection<TenantDataHandlingModeHistoryEntity> DataHandlingModeHistory { get; set; } = [];
+    public PlatformTenantOnboardingEntity? PlatformOnboarding { get; set; }
+}
+
+public sealed class PlatformTenantOnboardingEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid InvitationId { get; set; }
+    public string IdempotencyKey { get; set; } = string.Empty;
+    public string RequestFingerprint { get; set; } = string.Empty;
+    public TenantOnboardingType OnboardingType { get; set; }
+    public TenantOnboardingStatus Status { get; set; }
+    public string CustomerReference { get; set; } = string.Empty;
+    public string OwnerEmail { get; set; } = string.Empty;
+    public string OwnerDisplayName { get; set; } = string.Empty;
+    public string? PlanCode { get; set; }
+    public string? SubscriptionReference { get; set; }
+    public bool CommercialApprovalConfirmed { get; set; }
+    public string SetupReason { get; set; } = string.Empty;
+    public DateTimeOffset? CancelledAt { get; set; }
+    public Guid? CancelledByUserId { get; set; }
+    public string? CancellationReason { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public TenantInvitationEntity? Invitation { get; set; }
 }
 
 public sealed class TenantDataHandlingModeHistoryEntity
@@ -349,7 +374,7 @@ public sealed class TenantInvitationEntity : AuditedEntity
     public Guid TenantId { get; set; }
     public string Email { get; set; } = string.Empty;
     public string RoleName { get; set; } = string.Empty;
-    public string InvitationToken { get; set; } = string.Empty;
+    public string? InvitationTokenHash { get; set; }
     public TenantInvitationStatus Status { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? AcceptedAt { get; set; }
@@ -358,6 +383,13 @@ public sealed class TenantInvitationEntity : AuditedEntity
     public Guid? RevokedByUserId { get; set; }
     public DateTimeOffset? NotificationSentAt { get; set; }
     public string NotificationPlaceholder { get; set; } = string.Empty;
+    public InvitationDeliveryStatus DeliveryStatus { get; set; }
+    public int DeliveryAttemptCount { get; set; }
+    public DateTimeOffset? NextDeliveryAttemptAt { get; set; }
+    public DateTimeOffset? DeliveryLeaseUntil { get; set; }
+    public DateTimeOffset? LastDeliveryAttemptAt { get; set; }
+    public string? DeliveryProviderMessageId { get; set; }
+    public string? DeliveryFailureCode { get; set; }
 
     public TenantEntity? Tenant { get; set; }
 }

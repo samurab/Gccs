@@ -4,20 +4,20 @@ Story: PR-6.2 - Tag Launch Candidate With Evidence Links.
 
 Tag status: created.
 
-Tag date: 2026-07-21.
+Tag date: 2026-07-22.
 
 Tag owner: Engineering lead.
 
-Launch candidate tag: `launch-candidate-2026-07-21-1`.
+Launch candidate tag: `launch-candidate-2026-07-22-1`.
 
-Tagged commit: `3c2c962e6263d4ecc11663f5525945c3b98607de`.
+Tagged commit: `65e9133064dff1d4d529447afd35c67cc1a2ecba`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
 Tag command:
 
 ```bash
-git tag launch-candidate-2026-07-21-1 3c2c962e6263d4ecc11663f5525945c3b98607de
+git tag launch-candidate-2026-07-22-1 65e9133064dff1d4d529447afd35c67cc1a2ecba
 ```
 
 This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testing and project completion. It is not a production deployment approval, production separation-of-duties approval, legal advice, certification evidence, government endorsement, broader customer launch approval, or authorization to accept real CUI.

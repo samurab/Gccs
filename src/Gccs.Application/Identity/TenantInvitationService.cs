@@ -33,22 +33,27 @@ public sealed class TenantInvitationService(
         }
 
         var now = DateTimeOffset.UtcNow;
-        var invitationToken = GenerateToken();
-        var notificationPlaceholder = $"Local invitation notification queued for {email} with token {invitationToken}.";
         var invitation = new TenantInvitation(
             Guid.NewGuid(),
             tenantContext.TenantId,
             email,
             roleName,
-            invitationToken,
+            null,
             TenantInvitationStatus.Pending,
             now.AddDays(request.ExpiresInDays),
             null,
             null,
             null,
             null,
+            null,
+            "Owner invitation is queued for delivery.",
+            InvitationDeliveryStatus.Queued,
+            0,
             now,
-            notificationPlaceholder,
+            null,
+            null,
+            null,
+            null,
             new EntityAudit(now, actorUserId, null, null));
 
         var createdInvitation = await invitationRepository.AddToCurrentTenantAsync(invitation, cancellationToken);
@@ -80,7 +85,7 @@ public sealed class TenantInvitationService(
             throw new ArgumentException("Display name is required and must be 200 characters or fewer.", nameof(request));
         }
 
-        var invitation = await invitationRepository.FindByTokenAsync(invitationToken.Trim(), cancellationToken);
+        var invitation = await invitationRepository.FindByTokenHashAsync(HashToken(invitationToken.Trim()), cancellationToken);
         if (invitation is null)
         {
             return null;
@@ -127,6 +132,60 @@ public sealed class TenantInvitationService(
             cancellationToken);
 
         return acceptedInvitation;
+    }
+
+    public async Task<InvitationAcceptanceContextDto?> GetAcceptanceContextAsync(
+        string invitationToken,
+        string actorEmail,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(invitationToken))
+        {
+            throw new ArgumentException("Invitation token is required.", nameof(invitationToken));
+        }
+
+        var context = await invitationRepository.FindAcceptanceContextByTokenHashAsync(
+            HashToken(invitationToken.Trim()),
+            cancellationToken);
+        if (context is null)
+        {
+            return null;
+        }
+
+        if (!string.Equals(context.Email, NormalizeEmail(actorEmail), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidInvitationStateException("The authenticated email does not match this invitation.");
+        }
+
+        return context;
+    }
+
+    public async Task<TenantInvitationDto?> ResendCurrentTenantAsync(
+        Guid invitationId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var invitation = await invitationRepository.QueueCurrentTenantDeliveryAsync(invitationId, actorUserId, cancellationToken);
+        if (invitation is not null)
+        {
+            await WriteInvitationAuditAsync(invitation, actorUserId, AuditAction.Updated, $"Invitation delivery for '{invitation.Email}' was requeued.", cancellationToken);
+        }
+
+        return invitation;
+    }
+
+    public async Task<TenantInvitationDto?> ResendPlatformAsync(
+        Guid invitationId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var invitation = await invitationRepository.QueuePlatformDeliveryAsync(invitationId, actorUserId, cancellationToken);
+        if (invitation is not null)
+        {
+            await WriteInvitationAuditAsync(invitation, actorUserId, AuditAction.Updated, $"Platform Owner invitation delivery for '{invitation.Email}' was requeued.", cancellationToken);
+        }
+
+        return invitation;
     }
 
     public async Task<TenantInvitationDto?> ExpireAsync(
@@ -198,7 +257,7 @@ public sealed class TenantInvitationService(
                 ["roleName"] = invitation.RoleName,
                 ["status"] = invitation.Status.ToString(),
                 ["expiresAt"] = invitation.ExpiresAt.ToString("O"),
-                ["notificationPlaceholder"] = invitation.NotificationPlaceholder
+                ["deliveryStatus"] = invitation.DeliveryStatus.ToString()
             },
             cancellationToken);
 
@@ -236,15 +295,8 @@ public sealed class TenantInvitationService(
         return canonicalRoleName;
     }
 
-    private static string GenerateToken()
-    {
-        Span<byte> bytes = stackalloc byte[32];
-        RandomNumberGenerator.Fill(bytes);
-        return Convert.ToBase64String(bytes)
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
-    }
+    internal static string HashToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
 }
 
 public sealed class DuplicateInvitationException(string message) : InvalidOperationException(message);

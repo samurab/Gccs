@@ -1,5 +1,7 @@
 import { getFreshAccessToken } from "../auth";
 
+const selectedTenantStorageKey = "gccs.selectedTenantId";
+
 export type ModuleStatus = {
   key: string;
   name: string;
@@ -93,6 +95,64 @@ export type CurrentUserAccess = {
   rolePermissionMatrix: Record<string, string[]>;
 };
 
+export type PlatformAccess = {
+  userId: string | null;
+  userEmail: string | null;
+  canProvisionTenants: boolean;
+  permissions: string[];
+};
+
+export type PlatformTenantProvisioningRequest = {
+  onboardingType: "Pilot" | "Paid";
+  customerReference: string;
+  displayName: string;
+  ownerEmail: string;
+  ownerDisplayName: string;
+  trialEndsAt: string | null;
+  planCode: string | null;
+  subscriptionReference: string | null;
+  setupReason: string;
+  confirmsNoCui: boolean;
+  commercialApprovalConfirmed: boolean;
+};
+
+export type PlatformTenantProvisioningResult = {
+  onboardingId: string;
+  tenantId: string;
+  displayName: string;
+  onboardingType: "Pilot" | "Paid";
+  onboardingStatus: string;
+  tenantStatus: string;
+  dataHandlingMode: string;
+  customerReference: string;
+  ownerEmail: string;
+  ownerDisplayName: string;
+  ownerRoleName: string;
+  invitationId: string;
+  invitationStatus: string;
+  invitationDeliveryStatus: string;
+  invitationNotificationSentAt: string | null;
+  invitationExpiresAt: string;
+  trialEndsAt: string | null;
+  planCode: string | null;
+  subscriptionReference: string | null;
+  setupReason: string;
+  createdAt: string;
+  cancelledAt: string | null;
+  cancelledByUserId: string | null;
+  cancellationReason: string | null;
+  isReplay: boolean;
+};
+
+export type PlatformTenantOnboardingPage = {
+  items: PlatformTenantProvisioningResult[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
 export type TenantMember = {
   membershipId: string;
   tenantId: string;
@@ -114,7 +174,6 @@ export type TenantInvitation = {
   tenantId: string;
   email: string;
   roleName: string;
-  invitationToken: string;
   status: "Pending" | "Accepted" | "Expired" | "Revoked" | string;
   expiresAt: string;
   acceptedAt: string | null;
@@ -123,8 +182,22 @@ export type TenantInvitation = {
   revokedByUserId: string | null;
   notificationSentAt: string | null;
   notificationPlaceholder: string;
+  deliveryStatus: "Queued" | "Processing" | "RetryScheduled" | "Sent" | "Failed" | string;
+  deliveryAttemptCount: number;
+  nextDeliveryAttemptAt: string | null;
+  lastDeliveryAttemptAt: string | null;
+  deliveryFailureCode: string | null;
   createdAt: string;
   updatedAt: string | null;
+};
+
+export type InvitationAcceptanceContext = {
+  invitationId: string;
+  tenantDisplayName: string;
+  email: string;
+  roleName: string;
+  status: string;
+  expiresAt: string;
 };
 
 export type Tenant = {
@@ -1663,6 +1736,91 @@ export async function getCurrentUserAccess(): Promise<CurrentUserAccess> {
   return normalizeCurrentUserAccess(await getRequiredJson<CurrentUserAccess>("/api/me/access"));
 }
 
+export async function getPlatformAccess(): Promise<PlatformAccess> {
+  return getRequiredJson<PlatformAccess>("/api/platform/me/access");
+}
+
+export async function provisionPlatformTenant(
+  request: PlatformTenantProvisioningRequest,
+  idempotencyKey: string
+): Promise<ApiMutationResult<PlatformTenantProvisioningResult>> {
+  const path = "/api/platform/tenants";
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+
+  try {
+    const apiHeaders = await getApiHeaders();
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "POST",
+      headers: {
+        ...(apiHeaders ?? {}),
+        "Content-Type": "application/json",
+        "Idempotency-Key": idempotencyKey
+      },
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      return { data: null, error: await readErrorMessage(response) };
+    }
+
+    return { data: await response.json(), error: null };
+  } catch {
+    return { data: null, error: "The platform API could not be reached." };
+  }
+}
+
+export async function resendPlatformTenantInvitation(
+  invitationId: string
+): Promise<ApiMutationResult<TenantInvitation>> {
+  return postJsonResult<TenantInvitation>(`/api/platform/tenant-invitations/${invitationId}/resend`, {});
+}
+
+export async function getPlatformTenantOnboardings(
+  page = 1,
+  pageSize = 25,
+  status?: string
+): Promise<PlatformTenantOnboardingPage> {
+  const parameters = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString()
+  });
+  if (status) parameters.set("status", status);
+  return getRequiredJson<PlatformTenantOnboardingPage>(`/api/platform/tenant-onboardings?${parameters}`);
+}
+
+export async function cancelPlatformTenantOnboarding(
+  onboardingId: string,
+  reason: string
+): Promise<ApiMutationResult<PlatformTenantProvisioningResult>> {
+  return postJsonResult<PlatformTenantProvisioningResult>(
+    `/api/platform/tenant-onboardings/${onboardingId}/cancel`,
+    { reason }
+  );
+}
+
+export async function getInvitationAcceptanceContext(token: string): Promise<InvitationAcceptanceContext> {
+  return getRequiredJson<InvitationAcceptanceContext>(`/api/invitations/${encodeURIComponent(token)}`);
+}
+
+export async function acceptTenantInvitation(
+  token: string,
+  displayName: string
+): Promise<ApiMutationResult<TenantInvitation>> {
+  return postJsonResult<TenantInvitation>(`/api/invitations/${encodeURIComponent(token)}/accept`, { displayName });
+}
+
+export function selectTenant(tenantId: string) {
+  window.localStorage.setItem(selectedTenantStorageKey, tenantId);
+}
+
+function getSelectedTenantId(): string | null {
+  try {
+    return window.localStorage.getItem(selectedTenantStorageKey);
+  } catch {
+    return null;
+  }
+}
+
 function normalizeComplianceOverview(overview: ComplianceOverview): ComplianceOverview {
   return {
     ...overview,
@@ -2809,11 +2967,17 @@ async function getText(path: string, fallback: string): Promise<string> {
 
 function getDevelopmentHeaders(): HeadersInit | undefined {
   const role = import.meta.env.VITE_GCCS_DEV_ROLE;
+  const email = import.meta.env.VITE_GCCS_DEV_EMAIL;
+  const userId = import.meta.env.VITE_GCCS_DEV_USER_ID;
+  const selectedTenantId = getSelectedTenantId();
 
   return import.meta.env.DEV
     ? {
         "X-Gccs-Dev-Auth": "true",
-        ...(role ? { "X-Gccs-Dev-Role": role } : {})
+        ...(role ? { "X-Gccs-Dev-Role": role } : {}),
+        ...(email ? { "X-Gccs-Dev-Email": email } : {}),
+        ...(userId ? { "X-Gccs-Dev-User": userId } : {}),
+        ...(selectedTenantId ? { "X-Gccs-Tenant": selectedTenantId } : {})
       }
     : undefined;
 }
@@ -2825,7 +2989,13 @@ async function getApiHeaders(): Promise<HeadersInit | undefined> {
   }
 
   const token = await getFreshAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : undefined;
+  const selectedTenantId = getSelectedTenantId();
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+        ...(selectedTenantId ? { "X-Gccs-Tenant": selectedTenantId } : {})
+      }
+    : undefined;
 }
 
 async function readErrorMessage(response: Response): Promise<string> {

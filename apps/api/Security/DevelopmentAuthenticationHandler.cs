@@ -14,6 +14,7 @@ public sealed class DevelopmentAuthenticationOptions : AuthenticationSchemeOptio
     public string DefaultTenantId { get; set; } = FallbackTenantId;
     public string DefaultUserId { get; set; } = FallbackUserId;
     public string DefaultEmail { get; set; } = "developer@gccs.local";
+    public string DefaultPlatformPermissions { get; set; } = string.Empty;
 }
 
 public sealed class DevelopmentAuthenticationHandler(
@@ -36,6 +37,8 @@ public sealed class DevelopmentAuthenticationHandler(
         var email = Request.Headers["X-Gccs-Dev-Email"].FirstOrDefault() ?? Options.DefaultEmail;
         var roleName = Request.Headers["X-Gccs-Dev-Role"].FirstOrDefault();
         var permissions = Request.Headers["X-Gccs-Dev-Permissions"].FirstOrDefault();
+        var platformPermissions = Request.Headers["X-Gccs-Dev-Platform-Permissions"].FirstOrDefault() ??
+            Options.DefaultPlatformPermissions;
         var canonicalRoleName = RoleCatalog.TryNormalizeRoleName(
             roleName ?? (string.IsNullOrWhiteSpace(permissions) ? RoleCatalog.Owner : string.Empty),
             out var normalizedRoleName)
@@ -77,6 +80,13 @@ public sealed class DevelopmentAuthenticationHandler(
         foreach (var permission in requestedPermissions)
         {
             claims.Add(new Claim(ApiSecurityExtensions.PermissionClaimType, permission));
+        }
+
+        foreach (var permission in platformPermissions.Split(
+                     ',',
+                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            claims.Add(new Claim(PlatformAuthorization.PermissionClaimType, permission));
         }
 
         var identity = new ClaimsIdentity(claims, Scheme.Name);

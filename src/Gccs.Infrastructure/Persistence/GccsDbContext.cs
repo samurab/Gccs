@@ -23,6 +23,7 @@ namespace Gccs.Infrastructure.Persistence;
 public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbContext(options)
 {
     public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
+    public DbSet<PlatformTenantOnboardingEntity> PlatformTenantOnboardings => Set<PlatformTenantOnboardingEntity>();
     public DbSet<TenantDataHandlingModeHistoryEntity> TenantDataHandlingModeHistory => Set<TenantDataHandlingModeHistoryEntity>();
     public DbSet<GovernmentCloudEnvironmentEntity> GovernmentCloudEnvironments => Set<GovernmentCloudEnvironmentEntity>();
     public DbSet<GovernmentCloudEnvironmentStatusHistoryEntity> GovernmentCloudEnvironmentStatusHistory => Set<GovernmentCloudEnvironmentStatusHistoryEntity>();
@@ -162,7 +163,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<SubcontractorStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorEvidenceRequestStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<InvitationDeliveryStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TenantOnboardingStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TenantOnboardingType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TrainingStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TrainingType>().HaveConversion<string>().HaveMaxLength(64);
@@ -210,6 +214,31 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("tenants");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<PlatformTenantOnboardingEntity>(entity =>
+        {
+            entity.ToTable("platform_tenant_onboardings");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TenantId).IsUnique();
+            entity.HasIndex(x => x.InvitationId).IsUnique();
+            entity.HasIndex(x => x.IdempotencyKey).IsUnique();
+            entity.HasIndex(x => x.CustomerReference).IsUnique();
+            entity.HasIndex(x => x.SubscriptionReference).IsUnique();
+            entity.Property(x => x.IdempotencyKey).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.RequestFingerprint).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.CustomerReference).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.OwnerEmail).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.OwnerDisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.PlanCode).HasMaxLength(80);
+            entity.Property(x => x.SubscriptionReference).HasMaxLength(160);
+            entity.Property(x => x.SetupReason).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.CancellationReason).HasMaxLength(600);
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithOne(x => x.PlatformOnboarding).HasForeignKey<PlatformTenantOnboardingEntity>(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Invitation).WithMany().HasForeignKey(x => x.InvitationId).OnDelete(DeleteBehavior.Restrict);
             ConfigureAuditColumns(entity);
         });
 
@@ -452,13 +481,18 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("tenant_invitations");
             entity.HasKey(x => x.Id);
-            entity.HasIndex(x => x.InvitationToken).IsUnique();
+            entity.HasIndex(x => x.InvitationTokenHash).IsUnique();
             entity.HasIndex(x => new { x.TenantId, x.Status, x.ExpiresAt });
             entity.HasIndex(x => new { x.TenantId, x.Email, x.Status });
+            entity.HasIndex(x => new { x.DeliveryStatus, x.NextDeliveryAttemptAt, x.DeliveryLeaseUntil });
             entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
             entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();
-            entity.Property(x => x.InvitationToken).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.InvitationTokenHash).HasColumnName("invitation_token_hash").HasMaxLength(64);
             entity.Property(x => x.NotificationPlaceholder).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.DeliveryProviderMessageId).HasMaxLength(200);
+            entity.Property(x => x.DeliveryFailureCode).HasMaxLength(120);
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            entity.Property(x => x.DeliveryStatus).IsConcurrencyToken();
             entity.HasOne(x => x.Tenant).WithMany(x => x.Invitations).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             ConfigureAuditColumns(entity);
         });

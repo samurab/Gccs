@@ -12,6 +12,7 @@ public sealed record Tenant(
 
 public enum TenantStatus
 {
+    PendingActivation,
     Active,
     Trialing,
     Suspended,

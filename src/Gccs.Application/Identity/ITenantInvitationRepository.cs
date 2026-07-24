@@ -15,8 +15,12 @@ public interface ITenantInvitationRepository
         TenantInvitation invitation,
         CancellationToken cancellationToken = default);
 
-    Task<TenantInvitationDto?> FindByTokenAsync(
-        string token,
+    Task<TenantInvitationDto?> FindByTokenHashAsync(
+        string tokenHash,
+        CancellationToken cancellationToken = default);
+
+    Task<InvitationAcceptanceContextDto?> FindAcceptanceContextByTokenHashAsync(
+        string tokenHash,
         CancellationToken cancellationToken = default);
 
     Task<TenantInvitationDto?> AcceptAsync(
@@ -33,6 +37,16 @@ public interface ITenantInvitationRepository
         CancellationToken cancellationToken = default);
 
     Task<TenantInvitationDto?> RevokeInCurrentTenantScopeAsync(
+        Guid invitationId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<TenantInvitationDto?> QueueCurrentTenantDeliveryAsync(
+        Guid invitationId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<TenantInvitationDto?> QueuePlatformDeliveryAsync(
         Guid invitationId,
         Guid actorUserId,
         CancellationToken cancellationToken = default);

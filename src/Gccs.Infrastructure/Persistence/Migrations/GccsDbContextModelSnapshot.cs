@@ -4447,6 +4447,135 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.ToTable("payroll_records", "gccs");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.PlatformTenantOnboardingEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cancelled_by_user_id");
+
+                    b.Property<bool>("CommercialApprovalConfirmed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("commercial_approval_confirmed");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("CustomerReference")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("customer_reference");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<Guid>("InvitationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invitation_id");
+
+                    b.Property<string>("OnboardingType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("onboarding_type");
+
+                    b.Property<string>("OwnerDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("owner_display_name");
+
+                    b.Property<string>("OwnerEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("owner_email");
+
+                    b.Property<string>("PlanCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("plan_code");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_fingerprint");
+
+                    b.Property<string>("SetupReason")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)")
+                        .HasColumnName("setup_reason");
+
+                    b.Property<string>("Status")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SubscriptionReference")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("subscription_reference");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerReference")
+                        .IsUnique();
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("InvitationId")
+                        .IsUnique();
+
+                    b.HasIndex("SubscriptionReference")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedAt", "UpdatedAt");
+
+                    b.ToTable("platform_tenant_onboardings", "gccs");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.PoamEvidenceEntity", b =>
                 {
                     b.Property<Guid>("PoamItemId")
@@ -6411,6 +6540,7 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnName("name");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
@@ -6458,6 +6588,31 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by_user_id");
 
+                    b.Property<int>("DeliveryAttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("delivery_attempt_count");
+
+                    b.Property<string>("DeliveryFailureCode")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("delivery_failure_code");
+
+                    b.Property<DateTimeOffset?>("DeliveryLeaseUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("delivery_lease_until");
+
+                    b.Property<string>("DeliveryProviderMessageId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("delivery_provider_message_id");
+
+                    b.Property<string>("DeliveryStatus")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("delivery_status");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(320)
@@ -6468,11 +6623,18 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
-                    b.Property<string>("InvitationToken")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("invitation_token");
+                    b.Property<string>("InvitationTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("invitation_token_hash");
+
+                    b.Property<DateTimeOffset?>("LastDeliveryAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_delivery_attempt_at");
+
+                    b.Property<DateTimeOffset?>("NextDeliveryAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_delivery_attempt_at");
 
                     b.Property<string>("NotificationPlaceholder")
                         .IsRequired()
@@ -6499,6 +6661,7 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnName("role_name");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
@@ -6518,10 +6681,12 @@ namespace Gccs.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("InvitationToken")
+                    b.HasIndex("InvitationTokenHash")
                         .IsUnique();
 
                     b.HasIndex("CreatedAt", "UpdatedAt");
+
+                    b.HasIndex("DeliveryStatus", "NextDeliveryAttemptAt", "DeliveryLeaseUntil");
 
                     b.HasIndex("TenantId", "Email", "Status");
 
@@ -7739,6 +7904,25 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.PlatformTenantOnboardingEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantInvitationEntity", "Invitation")
+                        .WithMany()
+                        .HasForeignKey("InvitationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", "Tenant")
+                        .WithOne("PlatformOnboarding")
+                        .HasForeignKey("Gccs.Infrastructure.Persistence.Models.PlatformTenantOnboardingEntity", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Invitation");
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.PoamEvidenceEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.EvidenceItemEntity", "EvidenceItem")
@@ -8445,6 +8629,8 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("Invitations");
 
                     b.Navigation("Memberships");
+
+                    b.Navigation("PlatformOnboarding");
 
                     b.Navigation("Roles");
 

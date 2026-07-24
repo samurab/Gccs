@@ -24,6 +24,7 @@ public static class ApiSecurityExtensions
     public const string PermissionClaimType = "permission";
     public const string RoleNameClaimType = "gccs_role";
     public const string TenantIdClaimType = "tenant_id";
+    public const string TenantSelectionHeader = "X-Gccs-Tenant";
     private const string MembershipAuthorizationEnforcedKey = "Security:MembershipAuthorization:Enforce";
     private const string MicrosoftTenantIdClaimType = "http://schemas.microsoft.com/identity/claims/tenantid";
     private const string MicrosoftObjectIdClaimType = "http://schemas.microsoft.com/identity/claims/objectidentifier";
@@ -52,6 +53,9 @@ public static class ApiSecurityExtensions
                         options.DefaultEmail = configuration.GetValue(
                             "Security:DevelopmentAuth:DefaultEmail",
                             "developer@gccs.local");
+                        options.DefaultPlatformPermissions = configuration.GetValue(
+                            "Security:DevelopmentAuth:DefaultPlatformPermissions",
+                            string.Empty);
                     });
         }
         else
@@ -128,6 +132,10 @@ public static class ApiSecurityExtensions
                     policy.RequireAuthenticatedUser()
                         .RequireClaim(PermissionClaimType, permission.ToString()));
             }
+
+            options.AddPolicy(PlatformAuthorization.ProvisionTenantsPolicy, policy =>
+                policy.RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanProvisionTenants(context.User)));
         });
         services.AddTransient<IClaimsTransformation, RolePermissionClaimsTransformation>();
         services.AddSingleton<IAuthorizationMiddlewareResultHandler, ProblemDetailsAuthorizationResultHandler>();
@@ -154,6 +162,7 @@ public static class ApiSecurityExtensions
             options.AddPolicy("api", httpContext =>
             {
                 var partitionKey =
+                    httpContext.Request.Headers[TenantSelectionHeader].FirstOrDefault() ??
                     httpContext.User.FindFirstValue(TenantIdClaimType) ??
                     httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ??
                     httpContext.Connection.RemoteIpAddress?.ToString() ??
@@ -210,6 +219,12 @@ public static class ApiSecurityExtensions
 
             var endpoint = context.GetEndpoint();
             if (endpoint?.Metadata.GetMetadata<IAllowAnonymous>() is not null)
+            {
+                await next();
+                return;
+            }
+
+            if (endpoint?.Metadata.GetMetadata<AllowWithoutTenantMembershipAttribute>() is not null)
             {
                 await next();
                 return;

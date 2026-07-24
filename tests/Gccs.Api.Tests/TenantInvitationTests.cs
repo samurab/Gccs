@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Security.Cryptography;
+using System.Text;
 using Gccs.Application.Audit;
 using Gccs.Application.Identity;
 using Gccs.Domain.Audit;
@@ -61,11 +63,10 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         Assert.Equal("invited.user@example.com", invitation.Email);
         Assert.Equal("Compliance Manager", invitation.RoleName);
         Assert.Equal(TenantInvitationStatus.Pending, invitation.Status);
-        Assert.False(string.IsNullOrWhiteSpace(invitation.InvitationToken));
         Assert.True(invitation.ExpiresAt > DateTimeOffset.UtcNow.AddDays(4));
-        Assert.NotNull(invitation.NotificationSentAt);
-        Assert.Contains(invitation.Email, invitation.NotificationPlaceholder, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(invitation.InvitationToken, invitation.NotificationPlaceholder, StringComparison.Ordinal);
+        Assert.Null(invitation.NotificationSentAt);
+        Assert.Equal(InvitationDeliveryStatus.Queued, invitation.DeliveryStatus);
+        Assert.DoesNotContain("token", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
 
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
@@ -242,10 +243,18 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         var acceptedInvitation = await CreateInvitationAsync(client, tenantId, adminUserId, "accepted.audit@example.com", "Admin");
         var expiredInvitation = await CreateInvitationAsync(client, tenantId, adminUserId, "expired.audit@example.com", "Auditor");
         var revokedInvitation = await CreateInvitationAsync(client, tenantId, adminUserId, "revoked.audit@example.com", "Contributor");
+        const string acceptedCode = "accepted-audit-token";
+        using (var tokenScope = factory.Services.CreateScope())
+        {
+            var tokenDbContext = tokenScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var invitation = await tokenDbContext.TenantInvitations.SingleAsync(candidate => candidate.Id == acceptedInvitation.InvitationId);
+            invitation.InvitationTokenHash = HashToken(acceptedCode);
+            await tokenDbContext.SaveChangesAsync();
+        }
 
         using var acceptRequest = CreateRequest(
             HttpMethod.Post,
-            $"/api/invitations/{acceptedInvitation.InvitationToken}/accept",
+            $"/api/invitations/{acceptedCode}/accept",
             new AcceptTenantInvitationRequest("Accepted Audit"),
             tenantId,
             invitedUserId,
@@ -360,6 +369,51 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         Assert.Equal(TenantInvitationStatus.Pending, tenantBInvitationStatus);
     }
 
+    [Fact]
+    public async Task Acceptance_context_requires_matching_email_and_token_cannot_be_replayed()
+    {
+        var tenantId = Guid.Parse("23232323-2323-2323-2323-2323232323a6");
+        const string invitationCode = "single-use-owner-token";
+        await using var factory = CreateFactory("tc-2-3-acceptance-security", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Acceptance Security Tenant"));
+            dbContext.TenantInvitations.Add(CreateInvitation(
+                Guid.NewGuid(), tenantId, "owner@example.com", "Owner", invitationCode, TenantInvitationStatus.Pending));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var wrongEmailRequest = CreateRequest(
+            HttpMethod.Get, $"/api/invitations/{invitationCode}", tenantId, Guid.NewGuid(), "attacker@example.com", Permission.AuditorReadOnly);
+        using var acceptRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/invitations/{invitationCode}/accept",
+            new AcceptTenantInvitationRequest("Tenant Owner"),
+            tenantId,
+            Guid.Parse("23232323-2323-2323-2323-2323232323b6"),
+            "owner@example.com",
+            Permission.AuditorReadOnly);
+        using var replayRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/invitations/{invitationCode}/accept",
+            new AcceptTenantInvitationRequest("Tenant Owner"),
+            tenantId,
+            Guid.Parse("23232323-2323-2323-2323-2323232323b6"),
+            "owner@example.com",
+            Permission.AuditorReadOnly);
+
+        var wrongEmailResponse = await client.SendAsync(wrongEmailRequest);
+        var acceptResponse = await client.SendAsync(acceptRequest);
+        var replayResponse = await client.SendAsync(replayRequest);
+
+        Assert.Equal(HttpStatusCode.BadRequest, wrongEmailResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, replayResponse.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var persistedInvitation = await scope.ServiceProvider.GetRequiredService<GccsDbContext>().TenantInvitations.SingleAsync();
+        Assert.Null(persistedInvitation.InvitationTokenHash);
+    }
+
     private async Task<TenantInvitationDto> CreateInvitationAsync(
         HttpClient client,
         Guid tenantId,
@@ -465,13 +519,19 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
             TenantId = tenantId,
             Email = email,
             RoleName = roleName,
-            InvitationToken = invitationToken,
+            InvitationTokenHash = HashToken(invitationToken),
             Status = status,
             ExpiresAt = status == TenantInvitationStatus.Expired
                 ? DateTimeOffset.UtcNow.AddDays(-1)
                 : DateTimeOffset.UtcNow.AddDays(3),
             NotificationSentAt = DateTimeOffset.UtcNow.AddDays(-2),
-            NotificationPlaceholder = $"Local invitation notification queued for {email} with token {invitationToken}.",
+            NotificationPlaceholder = "Owner invitation email was sent.",
+            DeliveryStatus = InvitationDeliveryStatus.Sent,
+            DeliveryAttemptCount = 1,
+            LastDeliveryAttemptAt = DateTimeOffset.UtcNow.AddDays(-2),
             CreatedAt = DateTimeOffset.Parse("2026-06-13T12:00:00Z")
         };
+
+    private static string HashToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 }
