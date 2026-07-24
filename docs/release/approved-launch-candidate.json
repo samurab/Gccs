@@ -1,7 +1,7 @@
 {
-  "approvedLaunchCandidateTag": "launch-candidate-2026-07-22-1",
-  "approvedCommitSha": "65e9133064dff1d4d529447afd35c67cc1a2ecba",
-  "approvedDate": "2026-07-22",
+  "approvedLaunchCandidateTag": "launch-candidate-2026-07-24-1",
+  "approvedCommitSha": "44da818dc01a56acde07f6665739547e9717e5e8",
+  "approvedDate": "2026-07-24",
   "approvalScope": "No-CUI MVP production deployment candidate",
   "dataPosture": "no-cui-only"
 }
