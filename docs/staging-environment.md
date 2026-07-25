@@ -23,12 +23,13 @@ Story 17.3 defines staging as the production-like release verification environme
 
 ## CI/CD Deployment
 
-The GitHub Actions workflow `.github/workflows/staging.yml` runs on `workflow_dispatch` and pushes to `main` or `release/**`. It builds API and web artifacts, generates the EF Core idempotent migration script, validates the staging infrastructure contract, confirms the CUI-gating/no-production-data guardrails, performs the staging deployment step, and runs smoke tests.
+The GitHub Actions workflow `.github/workflows/staging.yml` runs on `workflow_dispatch` and pushes to `main` or `release/**`. It builds API and web artifacts, generates and applies the EF Core idempotent migration script, validates the staging infrastructure contract, confirms the CUI-gating/no-production-data guardrails, deploys the API and web artifacts, and runs smoke tests. Migration execution completes before API deployment so application code cannot depend on a schema that has not been applied.
 
 The deployment environment must provide:
 
 - `vars.STAGING_API_BASE_URL`
 - `vars.STAGING_WEB_BASE_URL`
+- `secrets.STAGING_DATABASE_URL`, containing the staging-only PostgreSQL URL used by `psql` to apply the generated migration script.
 - Staging-only cloud identity, database, object storage, cache, queue, and secret-store access configured through the GitHub `staging` environment.
 
 ## Health And Smoke Coverage
@@ -42,7 +43,7 @@ Post-deployment smoke tests call `GET /health` on the staging API and require th
 - Storage dependency reports `object-storage`.
 - Background job dependency reports `background-jobs`.
 
-The staging workflow uploads `staging-smoke-test-results` so success or failure is visible in CI/CD.
+The staging workflow uploads `staging-smoke-test-results` so success or failure is visible in CI/CD. The artifact includes the health response and generated migration script, preserving the exact migration input used by the deployment.
 
 ## Compliance Content Import
 

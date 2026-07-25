@@ -19,6 +19,13 @@ public sealed class StagingEnvironmentTests
         Assert.Contains("npm run build:web", workflow);
         Assert.Contains("Generate idempotent migration script", workflow);
         Assert.Contains("migrations script --idempotent", workflow);
+        Assert.Contains("Apply staging migrations through approved CI/CD", workflow);
+        Assert.Contains("STAGING_DATABASE_URL", workflow);
+        Assert.Contains("psql \"$STAGING_DATABASE_URL\" --set ON_ERROR_STOP=on", workflow);
+        Assert.True(
+            workflow.IndexOf("Apply staging migrations through approved CI/CD", StringComparison.Ordinal) <
+            workflow.IndexOf("Deploy staging API App Service", StringComparison.Ordinal),
+            "Staging migrations must run before the API artifact is deployed.");
         Assert.Contains("Deploy staging API, web, data, storage, cache, queue, and secrets", workflow);
 
         foreach (var serviceSignal in new[] { "api", "web", "database", "object_storage", "cache", "queue", "secrets" })
