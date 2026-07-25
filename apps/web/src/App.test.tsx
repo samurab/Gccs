@@ -57,6 +57,10 @@ const {
   getSharedResponsibilityMatrixAcknowledgementsMock,
   getComplianceOverviewMock,
   getCurrentUserAccessMock,
+  getDevelopmentTestingContextMock,
+  getMyTenantWorkspacesMock,
+  getSelectedDevelopmentRoleMock,
+  getSelectedTenantIdMock,
   getTenantMock,
   getTenantDataHandlingModeHistoryMock,
   getTenantInvitationsMock,
@@ -88,6 +92,9 @@ const {
   reclassifyEvidenceItemMock,
   saveCompanyProfileMock,
   searchClauseLibraryMock,
+  selectDevelopmentTestingContextMock,
+  selectMyTenantWorkspaceMock,
+  selectTenantMock,
   startContractDocumentExtractionMock,
   supersedeClauseCandidateMock,
   supersedeCuiReadyApprovalChecklistMock,
@@ -143,6 +150,10 @@ const {
   getEvidenceItemsMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
+  getDevelopmentTestingContextMock: vi.fn(),
+  getMyTenantWorkspacesMock: vi.fn(),
+  getSelectedDevelopmentRoleMock: vi.fn(),
+  getSelectedTenantIdMock: vi.fn(),
   getTenantMock: vi.fn(),
   getTenantDataHandlingModeHistoryMock: vi.fn(),
   getNoCuiAcknowledgementStatusMock: vi.fn(),
@@ -165,6 +176,9 @@ const {
   reclassifyEvidenceItemMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
+  selectDevelopmentTestingContextMock: vi.fn(),
+  selectMyTenantWorkspaceMock: vi.fn(),
+  selectTenantMock: vi.fn(),
   startContractDocumentExtractionMock: vi.fn(),
   supersedeClauseCandidateMock: vi.fn(),
   supersedeCuiReadyApprovalChecklistMock: vi.fn(),
@@ -219,7 +233,9 @@ const {
     readinessScore: {
       score: null,
       controlsTotal: 0,
+      controlsApplicable: 0,
       controlsImplemented: 0,
+      controlsNotApplicable: 0,
       status: "Not started"
     },
     contractRiskIndicator: {
@@ -291,8 +307,10 @@ const {
     readinessScore: {
       score: 72,
       controlsTotal: 25,
+      controlsApplicable: 25,
       controlsImplemented: 18,
-      status: "Needs attention"
+      controlsNotApplicable: 0,
+      status: "Moderate coverage"
     },
     contractRiskIndicator: {
       level: "High",
@@ -802,6 +820,8 @@ vi.mock("@/lib/api", () => ({
   reclassifyEvidenceItem: reclassifyEvidenceItemMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
+  selectMyTenantWorkspace: selectMyTenantWorkspaceMock,
+  selectTenant: selectTenantMock,
   startContractDocumentExtraction: startContractDocumentExtractionMock,
   supersedeClauseCandidate: supersedeClauseCandidateMock,
   supersedeCuiReadyApprovalChecklist: supersedeCuiReadyApprovalChecklistMock,
@@ -836,6 +856,10 @@ vi.mock("@/lib/api", () => ({
   fallbackOverview,
   getComplianceOverview: getComplianceOverviewMock,
   getCurrentUserAccess: getCurrentUserAccessMock,
+  getDevelopmentTestingContext: getDevelopmentTestingContextMock,
+  getMyTenantWorkspaces: getMyTenantWorkspacesMock,
+  getSelectedDevelopmentRole: getSelectedDevelopmentRoleMock,
+  getSelectedTenantId: getSelectedTenantIdMock,
   getTenant: getTenantMock,
   getTenantDataHandlingModeHistory: getTenantDataHandlingModeHistoryMock,
   getAuditLogs: getAuditLogsMock,
@@ -850,6 +874,7 @@ vi.mock("@/lib/api", () => ({
   getNoCuiAcknowledgementStatus: getNoCuiAcknowledgementStatusMock,
   getTenantInvitations: getTenantInvitationsMock,
   getTenantMembers: getTenantMembersMock,
+  selectDevelopmentTestingContext: selectDevelopmentTestingContextMock,
   updateTenantDataHandlingMode: updateTenantDataHandlingModeMock
 }));
 
@@ -902,6 +927,13 @@ describe("App", () => {
     updateCuiReadyApprovalChecklistItemMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
+    getDevelopmentTestingContextMock.mockReset();
+    getMyTenantWorkspacesMock.mockReset();
+    getSelectedDevelopmentRoleMock.mockReset();
+    getSelectedTenantIdMock.mockReset();
+    selectDevelopmentTestingContextMock.mockReset();
+    selectMyTenantWorkspaceMock.mockReset();
+    selectTenantMock.mockReset();
     getTenantMock.mockReset();
     getTenantDataHandlingModeHistoryMock.mockReset();
     getAuditLogsMock.mockReset();
@@ -933,6 +965,38 @@ describe("App", () => {
     getContractObligationDetailMock.mockReset();
     getContractObligationsMock.mockReset();
     searchClauseLibraryMock.mockReset();
+    getSelectedTenantIdMock.mockReturnValue("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1");
+    getSelectedDevelopmentRoleMock.mockReturnValue("Owner");
+    getDevelopmentTestingContextMock.mockResolvedValue({
+      tenants: [
+        {
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          displayName: "Primary workspace",
+          tenantStatus: "Active",
+          dataHandlingMode: "NoCui",
+          isSelectable: true,
+          unavailableReason: null
+        }
+      ],
+      roles: ["Owner", "Admin", "Compliance Manager", "Contributor", "Auditor", "Advisor"]
+    });
+    getMyTenantWorkspacesMock.mockResolvedValue({
+      preferredTenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      tenants: [
+        {
+          membershipId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          displayName: "Primary workspace",
+          tenantStatus: "Active",
+          dataHandlingMode: "NoCui",
+          membershipStatus: "Active",
+          roleName: "Admin",
+          lastAccessedAt: null,
+          isSelectable: true,
+          unavailableReason: null
+        }
+      ]
+    });
     getAuditLogsMock.mockResolvedValue({
       items: [],
       page: 1,
@@ -1271,6 +1335,85 @@ describe("App", () => {
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllEnvs();
+  });
+
+  it("waits for a validated production workspace before tenant-scoped API loading", async () => {
+    vi.stubEnv("DEV", false);
+    getSelectedTenantIdMock.mockReturnValue(null);
+    getMyTenantWorkspacesMock.mockResolvedValueOnce({
+      preferredTenantId: null,
+      tenants: [
+        {
+          membershipId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          displayName: "Primary workspace",
+          tenantStatus: "Active",
+          dataHandlingMode: "NoCui",
+          membershipStatus: "Active",
+          roleName: "Admin",
+          lastAccessedAt: null,
+          isSelectable: true,
+          unavailableReason: null
+        },
+        {
+          membershipId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+          displayName: "Secondary workspace",
+          tenantStatus: "Active",
+          dataHandlingMode: "NoCui",
+          membershipStatus: "Active",
+          roleName: "Auditor",
+          lastAccessedAt: null,
+          isSelectable: true,
+          unavailableReason: null
+        }
+      ]
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole("combobox", { name: "Workspace" })).toHaveValue("");
+    expect(getCurrentUserAccessMock).not.toHaveBeenCalled();
+    expect(getComplianceOverviewMock).not.toHaveBeenCalled();
+  });
+
+  it("lists every tenant and role in the local development testing context", async () => {
+    getDevelopmentTestingContextMock.mockResolvedValueOnce({
+      tenants: [
+        {
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          displayName: "Primary workspace",
+          tenantStatus: "Active",
+          dataHandlingMode: "NoCui",
+          isSelectable: true,
+          unavailableReason: null
+        },
+        {
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+          displayName: "Suspended workspace",
+          tenantStatus: "Suspended",
+          dataHandlingMode: "NoCui",
+          isSelectable: false,
+          unavailableReason: "The tenant is not operational."
+        }
+      ],
+      roles: ["Owner", "Admin", "Compliance Manager", "Contributor", "Auditor", "Advisor"]
+    });
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+
+    render(<App />);
+
+    const tenantSelector = await screen.findByRole("combobox", { name: "Test tenant" });
+    expect(tenantSelector).toHaveValue("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1");
+    expect(
+      within(tenantSelector).getByRole("option", { name: "Suspended workspace (Suspended - unavailable)" })
+    ).toBeDisabled();
+
+    const roleSelector = screen.getByRole("combobox", { name: "Test role" });
+    expect(roleSelector).toHaveValue("Owner");
+    expect(within(roleSelector).getByRole("option", { name: "Auditor" })).toBeEnabled();
   });
 
   it("TC-3.2.1 lands authenticated users in the workspace dashboard", async () => {
@@ -1283,8 +1426,11 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByText(overview.productPromise)).toBeInTheDocument();
-    expect(screen.getByText("Readiness score")).toBeInTheDocument();
+    expect(screen.getByText("Control coverage")).toBeInTheDocument();
     expect(screen.getByText("72%")).toBeInTheDocument();
+    expect(screen.getByText("18 of 25 applicable controls implemented")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Applicable control implementation coverage" })).toHaveAttribute("aria-valuenow", "72");
+    expect(screen.getByText(/implementation only/i)).toBeInTheDocument();
     expect(screen.getByText("Contract risk")).toBeInTheDocument();
     expect(screen.getByText("4 high-risk obligations")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Dashboard alerts" })).toBeInTheDocument();

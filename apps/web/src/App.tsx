@@ -21,8 +21,12 @@ import {
   UserPlus,
   UsersRound
 } from "lucide-react";
-import { type CSSProperties, type FormEvent, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
+import { controlCoverageTone } from "@/components/controlCoverage";
+import { DevelopmentTestingContextSelector } from "@/components/development/DevelopmentTestingContextSelector";
 import { ModuleCard } from "@/components/ModuleCard";
+import { TenantWorkspaceSelector } from "@/components/TenantWorkspaceSelector";
 import {
   Alert,
   Button,
@@ -183,7 +187,7 @@ import {
   type UpsertSubcontractorRequest,
   type UpdateTenantDataHandlingModeRequest,
   type ReclassifyContentRequest,
-  type TenantMember
+  type TenantMember,
 } from "@/lib/api";
 
 type WorkspaceRoute =
@@ -598,6 +602,7 @@ export function App() {
   const [activeRoute, setActiveRoute] = useState<WorkspaceRoute>(getInitialRoute);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [accessLoadState, setAccessLoadState] = useState<AccessLoadState>("loading");
+  const [workspaceInitialized, setWorkspaceInitialized] = useState(import.meta.env.DEV);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Contributor");
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "created" | "failed">("idle");
@@ -668,10 +673,10 @@ export function App() {
   const workspacePriorityMetrics = useMemo(
     () => [
       {
-        label: "Readiness score",
-        value: <ReadinessScoreMeter score={overview.readinessScore.score} />,
-        tone: readinessTone(overview.readinessScore.status),
-        hint: overview.readinessScore.status
+        label: "Control coverage",
+        value: <ControlCoverageMeter readinessScore={overview.readinessScore} />,
+        tone: controlCoverageTone(overview.readinessScore.status),
+        hint: `${overview.readinessScore.status} · implementation only`
       },
       {
         label: "Contract risk",
@@ -752,6 +757,10 @@ export function App() {
   }, [access]);
 
   useEffect(() => {
+    if (!workspaceInitialized) {
+      return;
+    }
+
     let isMounted = true;
     let resolvedAccess: CurrentUserAccess | null = null;
 
@@ -765,8 +774,11 @@ export function App() {
 
         const nextOverview = await getComplianceOverview();
         const canLoadUserManagement = nextAccess.permissions.includes("ManageUsers");
+        const canLoadTenantContext =
+          typeof getTenant === "function" &&
+          nextAccess.permissions.includes("ViewCompanyProfile") &&
+          nextAccess.tenantId !== null;
         const canUseTenantAdministrationApi = [
-          getTenant,
           getTenantDataHandlingModeHistory,
           getCuiReadyApprovalChecklists,
           getPublishedSharedResponsibilityMatrix,
@@ -788,21 +800,20 @@ export function App() {
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
+        const nextTenant = canLoadTenantContext ? await getTenant(nextAccess.tenantId!) : null;
         const [
-          nextTenant,
           nextTenantModeHistory,
           nextCuiReadyChecklists,
           nextSharedResponsibilityMatrix,
           nextSharedResponsibilityMatrixAcknowledgements
         ] = canLoadTenantAdministration
           ? await Promise.all([
-              getTenant(nextAccess.tenantId!),
               getTenantDataHandlingModeHistory(nextAccess.tenantId!),
               getCuiReadyApprovalChecklists(nextAccess.tenantId!),
               getPublishedSharedResponsibilityMatrix(),
               getSharedResponsibilityMatrixAcknowledgements(nextAccess.tenantId!)
             ])
-          : [null, [], [], null, []];
+          : [[], [], null, []];
         const nextNotifications = canLoadNotifications ? await getNotifications() : [];
         const nextNotificationPreference = canLoadNotifications ? await getNotificationPreferences() : null;
         const nextAuditLogs = canLoadAuditLogs ? await getAuditLogs({ page: 1, pageSize: 5 }) : fallbackAuditLogs;
@@ -944,7 +955,11 @@ export function App() {
     return () => {
       isMounted = false;
     };
-  }, [clauseCandidateReviewStatusFilter]);
+  }, [clauseCandidateReviewStatusFilter, workspaceInitialized]);
+
+  const handleWorkspaceInitialized = useCallback(() => {
+    setWorkspaceInitialized(true);
+  }, []);
 
   async function handleInvitationSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1962,6 +1977,14 @@ export function App() {
           </div>
         </div>
         <div className="sidebar-posture" aria-label="Workspace compliance posture">
+          {import.meta.env.DEV ? (
+            <DevelopmentTestingContextSelector currentTenantId={currentTenant?.id ?? access.tenantId} />
+          ) : (
+            <TenantWorkspaceSelector
+              currentTenantId={currentTenant?.id ?? access.tenantId}
+              onInitialized={handleWorkspaceInitialized}
+            />
+          )}
           <div>
             <span>Tenant</span>
             <strong>{activeTenantName}</strong>
@@ -2670,39 +2693,6 @@ function statusTone(status: string): UiTone {
     return "success";
   }
   return "neutral";
-}
-
-function readinessTone(status: string): UiTone {
-  const normalized = status.toLowerCase();
-  if (normalized.includes("ready")) {
-    return "success";
-  }
-  if (normalized.includes("attention")) {
-    return "warning";
-  }
-  if (normalized.includes("risk")) {
-    return "danger";
-  }
-  return "neutral";
-}
-
-function ReadinessScoreMeter({ score }: { score: number | null }) {
-  const hasScore = score !== null;
-  const boundedScore = hasScore ? Math.min(100, Math.max(0, score)) : 0;
-  const meterStyle = { "--readiness-score-position": `${boundedScore}%` } as CSSProperties;
-  const classes = ["readiness-score-meter", hasScore ? undefined : "readiness-score-meter--empty"].filter(Boolean).join(" ");
-
-  return (
-    <span className={classes} style={meterStyle} aria-label={hasScore ? `Readiness score ${boundedScore} percent` : "Readiness score unavailable"}>
-      <span className="readiness-score-meter__bar" aria-hidden="true">
-        {Array.from({ length: 10 }, (_, index) => (
-          <span className="readiness-score-meter__segment" key={index} />
-        ))}
-        <span className="readiness-score-meter__marker" />
-      </span>
-      <span className="readiness-score-meter__value">{hasScore ? `${boundedScore}%` : "N/A"}</span>
-    </span>
-  );
 }
 
 function riskIndicatorTone(level: string): UiTone {

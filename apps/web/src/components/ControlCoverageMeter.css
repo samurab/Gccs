@@ -1,0 +1,71 @@
+.readiness-score-meter {
+  --readiness-accent: var(--muted);
+  align-items: center;
+  display: grid;
+  gap: 4px 8px;
+  grid-template-columns: minmax(76px, 1fr) auto;
+  max-width: 210px;
+  min-width: 132px;
+}
+
+.workspace-metric.ui-metric-tile strong .readiness-score-meter,
+.workspace-metric.ui-metric-tile strong .readiness-score-meter span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
+}
+
+.readiness-score-meter--empty {
+  opacity: 0.72;
+}
+
+.readiness-score-meter__bar {
+  background: color-mix(in srgb, var(--readiness-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--readiness-accent) 32%, transparent);
+  border-radius: 999px;
+  display: block;
+  height: 10px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.readiness-score-meter__fill {
+  background: var(--readiness-accent);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  width: var(--readiness-score-value, 0%);
+}
+
+.workspace-metric--success .readiness-score-meter {
+  --readiness-accent: var(--teal);
+}
+
+.workspace-metric--warning .readiness-score-meter {
+  --readiness-accent: var(--amber);
+}
+
+.workspace-metric--danger .readiness-score-meter {
+  --readiness-accent: var(--red);
+}
+
+.readiness-score-meter__value {
+  color: var(--ink) !important;
+  font-size: 0.84rem !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800 !important;
+  text-align: right;
+}
+
+.readiness-score-meter__caption {
+  color: var(--muted) !important;
+  font-size: 0.66rem !important;
+  font-weight: 650 !important;
+  grid-column: 1 / -1;
+  line-height: 1.2 !important;
+  overflow-wrap: anywhere;
+}
