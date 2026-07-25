@@ -2731,8 +2731,10 @@ export async function createEvidenceUploadIntent(
   return postFormResult<EvidenceFileAccess>(`/api/evidence-items/${placeholderEvidenceItemId}/file`, form);
 }
 
-export async function createTenantInvitation(request: CreateTenantInvitationRequest): Promise<TenantInvitation | null> {
-  return postJson<TenantInvitation>("/api/tenant-invitations", request);
+export async function createTenantInvitation(
+  request: CreateTenantInvitationRequest
+): Promise<ApiMutationResult<TenantInvitation>> {
+  return postJsonResult<TenantInvitation>("/api/tenant-invitations", request);
 }
 
 export async function updateTenantDataHandlingMode(

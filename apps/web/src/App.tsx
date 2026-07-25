@@ -606,6 +606,7 @@ export function App() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Contributor");
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "created" | "failed">("idle");
+  const [inviteMessage, setInviteMessage] = useState("");
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [profileMessage, setProfileMessage] = useState("");
   const [contractStatus, setContractStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -964,22 +965,26 @@ export function App() {
   async function handleInvitationSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setInviteStatus("sending");
+    setInviteMessage("");
 
-    const createdInvitation = await createTenantInvitation({
+    const result = await createTenantInvitation({
       email: inviteEmail,
       roleName: inviteRole,
       expiresInDays: 7
     });
 
-    if (createdInvitation) {
+    if (result.data) {
+      const createdInvitation = result.data;
       setInvitations((currentInvitations) => [createdInvitation, ...currentInvitations]);
       setInviteEmail("");
       setInviteRole("Contributor");
       setInviteStatus("created");
+      setInviteMessage("Invitation created.");
       return;
     }
 
     setInviteStatus("failed");
+    setInviteMessage(result.error ?? "Invitation was not created.");
   }
 
   async function handleTenantModeUpdate(request: UpdateTenantDataHandlingModeRequest) {
@@ -2231,6 +2236,7 @@ export function App() {
               cuiReadyChecklistMessage={cuiReadyChecklistMessage}
               cuiReadyChecklistStatus={cuiReadyChecklistStatus}
               inviteEmail={inviteEmail}
+              inviteMessage={inviteMessage}
               inviteRole={inviteRole}
               inviteStatus={inviteStatus}
               invitations={invitations}
@@ -7970,6 +7976,7 @@ function SettingsView({
   cuiReadyChecklistMessage,
   cuiReadyChecklistStatus,
   inviteEmail,
+  inviteMessage,
   inviteRole,
   inviteStatus,
   invitations,
@@ -8015,6 +8022,7 @@ function SettingsView({
   cuiReadyChecklistMessage: string;
   cuiReadyChecklistStatus: "idle" | "saving" | "saved" | "failed";
   inviteEmail: string;
+  inviteMessage: string;
   inviteRole: string;
   inviteStatus: "idle" | "sending" | "created" | "failed";
   invitations: TenantInvitation[];
@@ -8205,8 +8213,11 @@ function SettingsView({
                 </article>
               ))}
             </div>
-            {inviteStatus === "created" ? <p className="form-status form-status--ok">Invitation created.</p> : null}
-            {inviteStatus === "failed" ? <p className="form-status form-status--error">Invitation was not created.</p> : null}
+            {inviteMessage ? (
+              <p className={`form-status ${inviteStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
+                {inviteMessage}
+              </p>
+            ) : null}
             {invitations.length > 0 ? (
               <div className="invitation-list">
                 {invitations.map((invitation) => (

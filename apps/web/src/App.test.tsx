@@ -2250,7 +2250,7 @@ describe("App", () => {
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce([]);
     getTenantMembersMock.mockResolvedValueOnce([]);
-    createTenantInvitationMock.mockResolvedValueOnce(createdInvitation);
+    createTenantInvitationMock.mockResolvedValueOnce({ data: createdInvitation, error: null });
     const user = userEvent.setup();
 
     render(<App />);
@@ -2271,6 +2271,28 @@ describe("App", () => {
     });
     expect(await screen.findByText("Invitation created.")).toBeInTheDocument();
     expect(screen.getByText("new.invite@example.com")).toBeInTheDocument();
+  });
+
+  it("shows the API reason when a tenant invitation is rejected", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(fallbackOverview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce([]);
+    getTenantMembersMock.mockResolvedValueOnce([]);
+    createTenantInvitationMock.mockResolvedValueOnce({
+      data: null,
+      error: "The email is already a member of the current tenant."
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /settings/i }));
+    await user.type(screen.getByLabelText("Email"), "owner@example.com");
+    await user.selectOptions(screen.getByLabelText("Role"), "Compliance Manager");
+    await user.click(screen.getByRole("button", { name: /invite/i }));
+
+    expect(await screen.findByText("The email is already a member of the current tenant.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toHaveValue("owner@example.com");
   });
 
   it("TC-5.2.1, TC-5.2.3, and TC-5.2.4 renders tenant audit logs with filters and pagination", async () => {
