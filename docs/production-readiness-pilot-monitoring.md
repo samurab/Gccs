@@ -2,15 +2,15 @@
 
 Story: PR-8.1 - Monitor Pilot Signals Daily.
 
-Evidence date: 2026-07-24.
+Evidence date: 2026-07-25.
 
 Evidence owner: Customer success/support owner.
 
-Review status: daily pilot monitoring continued for controlled No-CUI pilot at 2026-07-24T07:01:48Z; latest review is limited to committed evidence and documented monitoring sources because live production monitoring and support systems were not available in this automation context.
+Review status: daily pilot monitoring continued for controlled No-CUI pilot at 2026-07-25T07:02:34Z; latest review is limited to committed evidence and documented monitoring sources because live production monitoring and support systems were not available in this automation context.
 
 Sanitized evidence artifact: `output/playwright/production-readiness/pr-8.1/pilot-monitoring-evidence.json`.
 
-Latest daily review artifact: `output/playwright/production-readiness/pr-8.1/daily-monitoring-2026-07-24.json`.
+Latest daily review artifact: `output/playwright/production-readiness/pr-8.1/daily-monitoring-2026-07-25.json`.
 
 ## Architectural Assessment
 
@@ -60,6 +60,7 @@ The corrected pattern is a daily pilot monitoring register with fixed signal cov
 | 2026-07-22 | Committed artifact and checklist continuation review, refreshed at 2026-07-22T07:08:17Z | Passed with limitation: no new committed pilot incidents, support tickets, upload blocks, permission-denial trends, content disputes, report failures, health regressions, alert regressions, or failed-job records were found since the 2026-07-21 artifact; live Azure/support/backlog systems were not queried from this automation run. Artifact-level `jq` checks passed for required signal coverage, No-CUI/customer-data posture, alert route evidence, alert receipt evidence, and restore evidence. | `output/playwright/production-readiness/pr-8.1/daily-monitoring-2026-07-22.json` | None opened; reopen `PR81-MONITOR-001` if alert receiver delivery or ownership changes, and reopen `PR81-MONITOR-002` if restore assumptions change. |
 | 2026-07-23 | Committed artifact and checklist continuation review, refreshed at 2026-07-23T07:02:35Z | Passed with limitation: no new committed pilot incidents, support tickets, upload blocks, permission-denial trends, content disputes, report failures, health regressions, alert regressions, or failed-job records were found since the 2026-07-22 artifact; live Azure/support/backlog systems were not queried from this automation run. Artifact-level `jq` checks passed for required signal coverage, No-CUI/customer-data posture, alert route evidence, alert receipt evidence, and restore evidence. Uncommitted platform tenant onboarding changes were present but were not treated as PR-8.1 pilot signal evidence. | `output/playwright/production-readiness/pr-8.1/daily-monitoring-2026-07-23.json` | None opened; reopen `PR81-MONITOR-001` if alert receiver delivery or ownership changes, and reopen `PR81-MONITOR-002` if restore assumptions change. |
 | 2026-07-24 | Committed artifact and checklist continuation review, refreshed at 2026-07-24T07:01:48Z | Passed with limitation: no new committed pilot incidents, support tickets, upload blocks, permission-denial trends, content disputes, report failures, health regressions, alert regressions, or failed-job records were found since the 2026-07-23 artifact; live Azure/support/backlog systems were not queried from this automation run. Artifact-level `jq` checks passed for required signal coverage, No-CUI/customer-data posture, alert route evidence, alert receipt evidence, and restore evidence. Uncommitted platform tenant onboarding changes remained present but were not treated as PR-8.1 pilot signal evidence. | `output/playwright/production-readiness/pr-8.1/daily-monitoring-2026-07-24.json` | None opened; reopen `PR81-MONITOR-001` if alert receiver delivery or ownership changes, and reopen `PR81-MONITOR-002` if restore assumptions change. |
+| 2026-07-25 | Committed artifact and checklist continuation review, refreshed at 2026-07-25T07:02:34Z | Passed with limitation: no new committed pilot incidents, support tickets, upload blocks, permission-denial trends, content disputes, report failures, health regressions, alert regressions, or failed-job records were found since the 2026-07-24 artifact; live Azure/support/backlog systems were not queried from this automation run. Artifact-level `jq` checks passed for required signal coverage, No-CUI/customer-data posture, alert route evidence, alert receipt evidence, restore evidence, and approved No-CUI launch-candidate manifest. Committed launch-candidate and onboarding changes were reviewed but were not treated as PR-8.1 pilot incident evidence. Uncommitted platform tenant onboarding, tenant workspace selection, compliance overview, documentation, migration, test, and Playwright screenshot changes were present but were not treated as PR-8.1 pilot signal evidence. | `output/playwright/production-readiness/pr-8.1/daily-monitoring-2026-07-25.json` | None opened; reopen `PR81-MONITOR-001` if alert receiver delivery or ownership changes, and reopen `PR81-MONITOR-002` if restore assumptions change. |
 
 ## Day-Zero Review Result
 
