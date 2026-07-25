@@ -105,6 +105,8 @@ jobs:
           dotnet publish apps/api/Gccs.Api.csproj --configuration Release --output "$RUNNER_TEMP/gccs-api-production"
           npm run build:web
           ! grep -R "http://localhost:5062" apps/web/dist
+          ! grep -R "Local test context" apps/web/dist
+          ! grep -R "/api/development/testing-context" apps/web/dist
 
       - name: Generate idempotent production migration script
         run: |

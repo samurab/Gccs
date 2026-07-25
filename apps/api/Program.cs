@@ -90,6 +90,12 @@ builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSect
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
+if (builder.Environment.IsDevelopment() &&
+    builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
+    builder.Configuration.GetValue("Security:DevelopmentAuth:Enabled", false))
+{
+    builder.Services.AddGccsDevelopmentTestingInfrastructure(builder.Configuration);
+}
 builder.Services.AddHostedService<InvitationDeliveryWorker>();
 if (builder.Environment.IsDevelopment())
 {
@@ -322,6 +328,21 @@ var api = app.MapGroup("/api")
 var currentUserApi = api.MapGroup("/me")
     .AllowWithoutTenantMembership();
 
+if (app.Environment.IsDevelopment() &&
+    builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
+    builder.Configuration.GetValue("Security:DevelopmentAuth:Enabled", false))
+{
+    api.MapGet("/development/testing-context", async (
+        DevelopmentTestingContextService service,
+        HttpContext httpContext,
+        CancellationToken cancellationToken) =>
+    {
+        httpContext.Response.Headers.CacheControl = "no-store";
+        return Results.Ok(await service.GetAsync(cancellationToken));
+    })
+    .AllowWithoutTenantMembership()
+    .WithName("GetDevelopmentTestingContext");
+}
 
 currentUserApi.MapGet("/tenants", async (
     ClaimsPrincipal user,

@@ -424,6 +424,27 @@ public static class DependencyInjection
         return services;
     }
 
+    public static IServiceCollection AddGccsDevelopmentTestingInfrastructure(
+        this IServiceCollection services,
+        IConfiguration? configuration = null)
+    {
+        services.AddScoped<DevelopmentTestingContextService>();
+
+        var connectionString = configuration?.GetConnectionString("GccsDatabase");
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            services.AddScoped<IDevelopmentTenantCatalogRepository, EfDevelopmentTenantCatalogRepository>();
+        }
+        else
+        {
+            services.AddScoped<IDevelopmentTenantCatalogRepository>(_ =>
+                throw new InvalidOperationException(
+                    "Development tenant catalog requires ConnectionStrings:GccsDatabase to be configured."));
+        }
+
+        return services;
+    }
+
     private static int ReadInt(IConfiguration configuration, string key, int fallback) =>
         int.TryParse(configuration[key], out var value) ? value : fallback;
 
