@@ -86,6 +86,114 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         Assert.Contains("Compliance Manager", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task Existing_tenant_member_cannot_receive_another_invitation_for_a_different_role()
+    {
+        var tenantId = Guid.Parse("23232323-2323-2323-2323-2323232323a7");
+        var ownerUserId = Guid.Parse("23232323-2323-2323-2323-2323232323b7");
+        await using var factory = CreateFactory("tenant-invitation-existing-member", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Existing Member Tenant"));
+            AddMember(dbContext, tenantId, ownerUserId, "owner@example.com", RoleCatalog.Owner);
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            "/api/tenant-invitations",
+            new CreateTenantInvitationRequest("OWNER@example.com", RoleCatalog.ComplianceManager),
+            tenantId,
+            ownerUserId,
+            "owner@example.com",
+            Permission.ManageUsers);
+
+        var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("already a member of the current tenant", responseBody, StringComparison.OrdinalIgnoreCase);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.TenantInvitations.ToListAsync());
+        Assert.Single(await dbContext.TenantMemberships.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Existing_membership_in_another_tenant_does_not_block_an_invitation()
+    {
+        var tenantAId = Guid.Parse("23232323-2323-2323-2323-2323232323a8");
+        var tenantBId = Guid.Parse("23232323-2323-2323-2323-2323232323b8");
+        var userId = Guid.Parse("23232323-2323-2323-2323-2323232323c8");
+        await using var factory = CreateFactory("tenant-invitation-other-tenant-member", dbContext =>
+        {
+            dbContext.Tenants.AddRange(
+                CreateTenant(tenantAId, "Inviting Tenant"),
+                CreateTenant(tenantBId, "Existing Membership Tenant"));
+            AddMember(dbContext, tenantBId, userId, "multi.tenant@example.com", RoleCatalog.Owner);
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            "/api/tenant-invitations",
+            new CreateTenantInvitationRequest("multi.tenant@example.com", RoleCatalog.Auditor),
+            tenantAId,
+            Guid.NewGuid(),
+            "admin@example.com",
+            Permission.ManageUsers);
+
+        var response = await client.SendAsync(request);
+        var invitation = await response.Content.ReadFromJsonAsync<TenantInvitationDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(tenantAId, Assert.IsType<TenantInvitationDto>(invitation).TenantId);
+    }
+
+    [Fact]
+    public async Task Existing_tenant_member_cannot_accept_a_stale_invitation()
+    {
+        var tenantId = Guid.Parse("23232323-2323-2323-2323-2323232323a9");
+        var ownerUserId = Guid.Parse("23232323-2323-2323-2323-2323232323b9");
+        var invitationId = Guid.Parse("23232323-2323-2323-2323-2323232323c9");
+        const string invitationCode = "stale-existing-member-token";
+        await using var factory = CreateFactory("tenant-invitation-stale-existing-member", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Stale Invitation Tenant"));
+            AddMember(dbContext, tenantId, ownerUserId, "owner@example.com", RoleCatalog.Owner);
+            dbContext.TenantInvitations.Add(CreateInvitation(
+                invitationId,
+                tenantId,
+                "owner@example.com",
+                RoleCatalog.ComplianceManager,
+                invitationCode,
+                TenantInvitationStatus.Pending));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/invitations/{invitationCode}/accept",
+            new AcceptTenantInvitationRequest("Tenant Owner"),
+            tenantId,
+            ownerUserId,
+            "owner@example.com",
+            Permission.AuditorReadOnly);
+
+        var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("already a member of this tenant", responseBody, StringComparison.OrdinalIgnoreCase);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var invitation = await dbContext.TenantInvitations.SingleAsync(candidate => candidate.Id == invitationId);
+        Assert.Equal(TenantInvitationStatus.Pending, invitation.Status);
+        Assert.NotNull(invitation.InvitationTokenHash);
+        Assert.Single(await dbContext.TenantMemberships.ToListAsync());
+    }
+
     [Theory]
     [InlineData(Permission.ManageEvidence, "contributor@example.com")]
     [InlineData(Permission.AuditorReadOnly, "auditor@example.com")]
@@ -505,6 +613,35 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
             DataPosture = TenantDataPosture.NoCui,
             CreatedAt = DateTimeOffset.Parse("2026-06-13T12:00:00Z")
         };
+
+    private static void AddMember(
+        GccsDbContext dbContext,
+        Guid tenantId,
+        Guid userId,
+        string email,
+        string roleName)
+    {
+        var createdAt = DateTimeOffset.Parse("2026-06-13T12:00:00Z");
+        dbContext.Users.Add(new UserEntity
+        {
+            Id = userId,
+            TenantId = tenantId,
+            Email = email,
+            DisplayName = "Existing Member",
+            Status = UserStatus.Active,
+            MfaEnabled = true,
+            CreatedAt = createdAt
+        });
+        dbContext.TenantMemberships.Add(new TenantMembershipEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UserId = userId,
+            RoleName = roleName,
+            Status = MembershipStatus.Active,
+            CreatedAt = createdAt
+        });
+    }
 
     private static TenantInvitationEntity CreateInvitation(
         Guid invitationId,

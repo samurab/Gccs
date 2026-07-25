@@ -8,6 +8,7 @@ using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Gccs.Infrastructure.Identity;
 
@@ -16,6 +17,7 @@ public sealed class EfTenantInvitationRepository(
     ICurrentTenantContext tenantContext,
     IAuditRequestMetadata requestMetadata) : ITenantInvitationRepository
 {
+    private const string PendingInvitationConstraintName = "UX_tenant_invitations_tenant_email_pending";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<IReadOnlyList<TenantInvitationDto>> ListCurrentTenantInvitationsAsync(
@@ -36,6 +38,17 @@ public sealed class EfTenantInvitationRepository(
                 invitation.TenantId == tenantContext.TenantId &&
                 invitation.Email == email &&
                 invitation.Status == TenantInvitationStatus.Pending,
+            cancellationToken);
+
+    public Task<bool> TenantMemberEmailExistsAsync(
+        Guid tenantId,
+        string email,
+        CancellationToken cancellationToken = default) =>
+        dbContext.TenantMemberships.AnyAsync(
+            membership =>
+                membership.TenantId == tenantId &&
+                membership.User != null &&
+                membership.User.Email == email,
             cancellationToken);
 
     public async Task<TenantInvitationDto> AddToCurrentTenantAsync(
@@ -69,7 +82,20 @@ public sealed class EfTenantInvitationRepository(
         };
 
         dbContext.TenantInvitations.Add(invitationEntity);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: PendingInvitationConstraintName
+            })
+        {
+            dbContext.Entry(invitationEntity).State = EntityState.Detached;
+            throw new DuplicateInvitationException("A pending invitation already exists for this email in the current tenant.");
+        }
 
         return ToDto(invitationEntity);
     }

@@ -27,6 +27,11 @@ public sealed class TenantInvitationService(
 
         var email = NormalizeEmail(request.Email);
         var roleName = NormalizeRoleName(request.RoleName);
+        if (await invitationRepository.TenantMemberEmailExistsAsync(tenantContext.TenantId, email, cancellationToken))
+        {
+            throw new DuplicateInvitationException("The email is already a member of the current tenant.");
+        }
+
         if (await invitationRepository.CurrentTenantPendingInvitationExistsAsync(email, cancellationToken))
         {
             throw new DuplicateInvitationException("A pending invitation already exists for this email in the current tenant.");
@@ -109,6 +114,11 @@ public sealed class TenantInvitationService(
         if (invitation.Status is not TenantInvitationStatus.Pending)
         {
             throw new InvalidInvitationStateException("Only pending invitations can be accepted.");
+        }
+
+        if (await invitationRepository.TenantMemberEmailExistsAsync(invitation.TenantId, invitation.Email, cancellationToken))
+        {
+            throw new InvalidInvitationStateException("The invited email is already a member of this tenant.");
         }
 
         var acceptedInvitation = await invitationRepository.AcceptAsync(

@@ -11,6 +11,11 @@ public interface ITenantInvitationRepository
         string email,
         CancellationToken cancellationToken = default);
 
+    Task<bool> TenantMemberEmailExistsAsync(
+        Guid tenantId,
+        string email,
+        CancellationToken cancellationToken = default);
+
     Task<TenantInvitationDto> AddToCurrentTenantAsync(
         TenantInvitation invitation,
         CancellationToken cancellationToken = default);
