@@ -5550,7 +5550,7 @@ api.MapGet("/tenants/{tenantId:guid}", async (
             "resource_not_found")
         : Results.Ok(tenant);
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ViewCompanyProfile)
 .WithName("GetTenant");
 
 api.MapPatch("/tenants/{tenantId:guid}/status", async (

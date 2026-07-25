@@ -138,6 +138,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
 
         var checks = new[]
         {
+            EndpointPermissionCheck.Get("tenant-context", $"/api/tenants/{tenantId}", Permission.ViewCompanyProfile, HttpStatusCode.OK),
             EndpointPermissionCheck.Get("obligation", "/api/obligations", Permission.ViewObligations, HttpStatusCode.OK),
             EndpointPermissionCheck.Get("report", "/api/reports/approved-evidence-packages", Permission.ViewReports, HttpStatusCode.OK),
             EndpointPermissionCheck.Get("admin-read", "/api/tenant-members", Permission.ManageUsers, HttpStatusCode.OK),
