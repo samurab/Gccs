@@ -59,7 +59,7 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         Assert.Equal(2, overview.OpenPoams);
         Assert.Equal(1, overview.OverduePoams);
         Assert.Equal(2, overview.EvidenceItems);
-        Assert.Equal(new ReadinessScoreDto(33, 3, 1, "At risk"), overview.ReadinessScore);
+        Assert.Equal(new ReadinessScoreDto(33, 3, 3, 1, 0, "Low coverage"), overview.ReadinessScore);
         Assert.Equal("High", overview.ContractRiskIndicator.Level);
         Assert.Equal(1, overview.ContractRiskIndicator.ActiveContracts);
         Assert.Equal(1, overview.ContractRiskIndicator.HighRiskObligations);
@@ -91,10 +91,64 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         Assert.Equal(0, overview.OpenPoams);
         Assert.Equal(0, overview.OverduePoams);
         Assert.Equal(0, overview.EvidenceItems);
-        Assert.Equal(new ReadinessScoreDto(null, 0, 0, "Not started"), overview.ReadinessScore);
+        Assert.Equal(new ReadinessScoreDto(null, 0, 0, 0, 0, "Not started"), overview.ReadinessScore);
         Assert.Equal(new ContractRiskIndicatorDto("Low", 0, 0, 0, 0, 0, 0, 0), overview.ContractRiskIndicator);
         Assert.Empty(overview.RecentAuditEvents);
         Assert.Empty(overview.Alerts);
+    }
+
+    [Fact]
+    public async Task Coverage_excludes_not_applicable_controls_and_historical_assessments()
+    {
+        var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a7");
+        await using var factory = CreatePersistenceFactory("overview-coverage-scope", dbContext =>
+        {
+            var currentAssessmentId = Guid.NewGuid();
+            var supersededAssessmentId = Guid.NewGuid();
+            dbContext.Assessments.AddRange(
+                AssessmentFor(currentAssessmentId, tenantId, AssessmentStatus.InProgress),
+                AssessmentFor(supersededAssessmentId, tenantId, AssessmentStatus.Superseded));
+            dbContext.ControlAssessments.AddRange(
+                new ControlAssessmentEntity
+                {
+                    AssessmentId = currentAssessmentId,
+                    ControlId = "AC.CURRENT.1",
+                    ImplementationStatus = ControlImplementationStatus.Implemented,
+                    Result = AssessmentResult.Met
+                },
+                new ControlAssessmentEntity
+                {
+                    AssessmentId = currentAssessmentId,
+                    ControlId = "AC.CURRENT.2",
+                    ImplementationStatus = ControlImplementationStatus.NotApplicable,
+                    Result = AssessmentResult.NotApplicable
+                },
+                new ControlAssessmentEntity
+                {
+                    AssessmentId = supersededAssessmentId,
+                    ControlId = "AC.HISTORICAL.1",
+                    ImplementationStatus = ControlImplementationStatus.NotStarted,
+                    Result = AssessmentResult.NotAssessed
+                });
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateOverviewRequest(tenantId, Permission.ViewObligations);
+
+        var response = await client.SendAsync(request);
+        var overview = await response.Content.ReadFromJsonAsync<ComplianceOverviewDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(overview);
+        Assert.Equal(2, overview.ControlsTotal);
+        Assert.Equal(new ReadinessScoreDto(100, 2, 1, 1, 1, "High coverage"), overview.ReadinessScore);
+    }
+
+    [Fact]
+    public void Coverage_is_unavailable_when_every_scoped_control_is_not_applicable()
+    {
+        var score = ComplianceOverviewScoring.BuildReadinessScore(3, 0, 3);
+
+        Assert.Equal(new ReadinessScoreDto(null, 3, 0, 0, 3, "No applicable controls"), score);
     }
 
     [Fact]
@@ -276,6 +330,21 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         request.Headers.Add("X-Gccs-Dev-Permissions", permission.ToString());
         return request;
     }
+
+    private static AssessmentEntity AssessmentFor(Guid assessmentId, Guid tenantId, AssessmentStatus status) =>
+        new()
+        {
+            Id = assessmentId,
+            TenantId = tenantId,
+            Name = $"{status} assessment",
+            Type = AssessmentType.Readiness,
+            Level = CmmcLevel.Level2,
+            Framework = "CMMC",
+            Status = status,
+            StartedAt = DateOnly.Parse("2026-06-01"),
+            OwnerFunction = "Security",
+            CreatedAt = DateTimeOffset.Parse("2026-06-20T12:00:00Z")
+        };
 
     private static void SeedTenantOverviewData(GccsDbContext dbContext, Guid tenantId, string suffix = "A")
     {

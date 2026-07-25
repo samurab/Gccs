@@ -2,23 +2,39 @@ namespace Gccs.Application.Compliance;
 
 public static class ComplianceOverviewScoring
 {
-    public static ReadinessScoreDto BuildReadinessScore(int controlsTotal, int controlsImplemented)
+    public static ReadinessScoreDto BuildReadinessScore(
+        int controlsTotal,
+        int controlsImplemented,
+        int controlsNotApplicable)
     {
         if (controlsTotal <= 0)
         {
-            return new ReadinessScoreDto(null, 0, 0, "Not started");
+            return new ReadinessScoreDto(null, 0, 0, 0, 0, "Not started");
         }
 
-        var boundedImplemented = Math.Clamp(controlsImplemented, 0, controlsTotal);
-        var score = Math.Clamp((int)Math.Round(boundedImplemented * 100m / controlsTotal, MidpointRounding.AwayFromZero), 0, 100);
+        var boundedNotApplicable = Math.Clamp(controlsNotApplicable, 0, controlsTotal);
+        var applicableControls = controlsTotal - boundedNotApplicable;
+        var boundedImplemented = Math.Clamp(controlsImplemented, 0, applicableControls);
+        if (applicableControls == 0)
+        {
+            return new ReadinessScoreDto(null, controlsTotal, 0, 0, boundedNotApplicable, "No applicable controls");
+        }
+
+        var score = Math.Clamp((int)Math.Round(boundedImplemented * 100m / applicableControls, MidpointRounding.AwayFromZero), 0, 100);
         var status = score switch
         {
-            >= 90 => "Ready",
-            >= 70 => "Needs attention",
-            _ => "At risk"
+            >= 90 => "High coverage",
+            >= 70 => "Moderate coverage",
+            _ => "Low coverage"
         };
 
-        return new ReadinessScoreDto(score, controlsTotal, boundedImplemented, status);
+        return new ReadinessScoreDto(
+            score,
+            controlsTotal,
+            applicableControls,
+            boundedImplemented,
+            boundedNotApplicable,
+            status);
     }
 
     public static string DetermineContractRiskLevel(

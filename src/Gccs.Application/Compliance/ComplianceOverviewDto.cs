@@ -47,7 +47,9 @@ public sealed record ComplianceDashboardAlertDto(
 public sealed record ReadinessScoreDto(
     int? Score,
     int ControlsTotal,
+    int ControlsApplicable,
     int ControlsImplemented,
+    int ControlsNotApplicable,
     string Status);
 
 public sealed record ContractRiskIndicatorDto(

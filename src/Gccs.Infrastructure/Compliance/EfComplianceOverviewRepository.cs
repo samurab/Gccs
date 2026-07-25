@@ -29,7 +29,11 @@ public sealed class EfComplianceOverviewRepository(
 
         var controlStatuses = await dbContext.ControlAssessments
             .AsNoTracking()
-            .Where(control => control.Assessment != null && control.Assessment.TenantId == tenantId)
+            .Where(control =>
+                control.Assessment != null &&
+                control.Assessment.TenantId == tenantId &&
+                control.Assessment.Status != AssessmentStatus.Expired &&
+                control.Assessment.Status != AssessmentStatus.Superseded)
             .GroupBy(control => control.ImplementationStatus)
             .Select(group => new { Status = group.Key, Count = group.Count() })
             .ToArrayAsync(cancellationToken);
@@ -70,9 +74,13 @@ public sealed class EfComplianceOverviewRepository(
         var controlCountByStatus = controlStatuses.ToDictionary(item => item.Status, item => item.Count);
         var controlsTotal = controlStatuses.Sum(item => item.Count);
         var controlsImplemented = controlCountByStatus.GetValueOrDefault(ControlImplementationStatus.Implemented);
+        var controlsNotApplicable = controlCountByStatus.GetValueOrDefault(ControlImplementationStatus.NotApplicable);
         var openPoams = poamStatuses.Where(item => item.IsOpen).Sum(item => item.Count);
         var overduePoams = poamStatuses.Where(item => item.IsOverdue).Sum(item => item.Count);
-        var readinessScore = ComplianceOverviewScoring.BuildReadinessScore(controlsTotal, controlsImplemented);
+        var readinessScore = ComplianceOverviewScoring.BuildReadinessScore(
+            controlsTotal,
+            controlsImplemented,
+            controlsNotApplicable);
         var contractRiskIndicator = await BuildContractRiskIndicatorAsync(
             tenantId,
             today,
