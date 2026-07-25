@@ -1,6 +1,6 @@
 # Tenant Onboarding Guide
 
-Review date: 2026-07-23.
+Review date: 2026-07-24.
 
 Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator runbook, not customer self-service.
 
@@ -25,7 +25,8 @@ Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator
 | Initial Owner activation through authenticated invitation acceptance | Implemented | Acceptance validates authenticated email, creates membership, and activates the tenant |
 | External invitation email delivery | Implemented; configuration required | Durable invitation queue, bounded retries, Azure Communication Services adapter, and delivery audit records are implemented; Azure resource and sender configuration are deployment dependencies |
 | Owner invitation-acceptance page | Implemented | `/invitations/accept` receives the emailed invitation parameter, requires authentication, and validates the signed-in email |
-| Membership-based tenant selection after sign-in | Implemented for activation | The activated GCCS tenant ID is selected in the browser and sent in `X-Gccs-Tenant`; API membership authorization validates it |
+| Membership-based tenant selection after sign-in | Implemented | `GET /api/me/tenants` returns only the authenticated user's memberships; `POST /api/me/tenant-selection` revalidates active user, membership, and tenant state before persisting the preference |
+| Workspace selector | Implemented | The sidebar selector shows the user's memberships, disables unavailable tenants, and reloads tenant-scoped state after a successful switch |
 | Automated billing verification and paid lifecycle | Partially implemented | The form records a confirmed subscription reference; no billing provider validates or updates it |
 
 ## Roles
@@ -302,7 +303,7 @@ Stop onboarding when:
 
 1. Azure Communication Services, a sender domain, managed-identity permission, and production App Service settings are external deployment dependencies; code deployment alone does not send email.
 2. Provider acceptance does not prove inbox placement. Bounce and complaint webhook processing is not implemented; operators must use provider telemetry for delivery incidents.
-3. Browser tenant selection is membership-validated, but a full multi-tenant workspace selector and server-side user preference remain planned.
+3. The legacy `users.tenant_id` home-tenant column remains for compatibility with tenant-scoped user lookup and SCIM flows. Tenant switching authorization uses `tenant_memberships`; removal of the legacy ownership column requires a separate identity-model migration.
 4. Paid provisioning trusts an internal operator confirmation; billing-provider verification, renewal, past-due, suspension, cancellation, and archival automation remain planned.
 5. The web production bundle still reports a size warning; route-level code splitting should be completed as the internal control plane grows.
 
@@ -310,6 +311,6 @@ Stop onboarding when:
 
 - The admin route is available only to platform operators.
 - The API enforces `ProvisionTenants`, idempotency, invitation binding, No-CUI posture, and audit logging.
-- Tests prove customer-role denial, duplicate-request behavior, validated cancellation, queue exclusion, cancellation audit history, Owner activation, token replay rejection, retry behavior, and tenant isolation.
+- Tests prove customer-role denial, duplicate-request behavior, validated cancellation, queue exclusion, cancellation audit history, Owner activation, token replay rejection, retry behavior, tenant selection validation, and tenant isolation.
 - Development authentication is disabled outside local development.
 - Documentation does not claim certification, legal advice, government approval, guaranteed compliance, secure CUI storage, or audit readiness.

@@ -162,9 +162,9 @@ public static class ApiSecurityExtensions
             options.AddPolicy("api", httpContext =>
             {
                 var partitionKey =
+                    httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ??
                     httpContext.Request.Headers[TenantSelectionHeader].FirstOrDefault() ??
                     httpContext.User.FindFirstValue(TenantIdClaimType) ??
-                    httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ??
                     httpContext.Connection.RemoteIpAddress?.ToString() ??
                     "anonymous";
 
@@ -230,8 +230,7 @@ public static class ApiSecurityExtensions
                 return;
             }
 
-            if (!TryReadGuid(context.User, TenantIdClaimType, out _) ||
-                !TryReadGuid(context.User, ClaimTypes.NameIdentifier, out _))
+            if (!TryReadGuid(context.User, ClaimTypes.NameIdentifier, out _))
             {
                 await next();
                 return;

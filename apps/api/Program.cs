@@ -319,6 +319,70 @@ var api = app.MapGroup("/api")
     .RequireRateLimiting("api")
     .RequireRouteTenantScope();
 
+var currentUserApi = api.MapGroup("/me")
+    .AllowWithoutTenantMembership();
+
+
+currentUserApi.MapGet("/tenants", async (
+    ClaimsPrincipal user,
+    TenantWorkspaceSelectionService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Invalid user identity",
+            "The authenticated user identity is missing or invalid.",
+            StatusCodes.Status401Unauthorized,
+            "invalid_user_identity");
+    }
+
+    return Results.Ok(await service.ListAsync(userId, cancellationToken));
+})
+.WithName("ListCurrentUserTenantWorkspaces");
+
+currentUserApi.MapPost("/tenant-selection", async (
+    SelectTenantWorkspaceRequest request,
+    ClaimsPrincipal user,
+    TenantWorkspaceSelectionService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Invalid user identity",
+            "The authenticated user identity is missing or invalid.",
+            StatusCodes.Status401Unauthorized,
+            "invalid_user_identity");
+    }
+
+    try
+    {
+        return Results.Ok(await service.SelectAsync(userId, request, cancellationToken));
+    }
+    catch (TenantWorkspaceSelectionDeniedException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Tenant selection denied",
+            exception.Message,
+            StatusCodes.Status403Forbidden,
+            "tenant_selection_denied");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["tenantId"] = [exception.Message]
+        });
+    }
+})
+.WithName("SelectCurrentUserTenantWorkspace");
+
 api.MapGet("/me/access", (ClaimsPrincipal user, ITenantContext tenantContext) =>
 {
     var roles = user

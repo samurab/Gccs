@@ -680,7 +680,7 @@ Goal: Confirm synthetic CUI seed data is isolated to demo tenants.
 2. Find `Data handling mode` at the top of the page.
 3. Confirm `Active tenant`, `Tenant ID`, and `Current mode` are visible.
 4. Confirm `Current mode` = `DemoSandbox`. If it does not, set `Mode` = `DemoSandbox`, enter `Reason for mode change` = `UAT validation of approved synthetic demo dataset.`, leave `Approval checklist ID` blank, and click `Update mode`.
-5. The current UI does not provide a tenant switcher. Do not look for a sign-in, tenant picker, or tenant creation form during this UAT.
+5. Use the `Workspace` selector in the left sidebar if the authenticated user belongs to more than one tenant. Confirm the selected tenant is the intended `DemoSandbox` tenant before continuing.
 6. Find `Demo sandbox seed`.
 7. Confirm the panel shows:
    - `Required mode`: `DemoSandbox`
