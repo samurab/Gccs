@@ -1,6 +1,7 @@
 import {
   Archive,
   AlertTriangle,
+  Ban,
   Bell,
   Building2,
   CalendarClock,
@@ -106,6 +107,7 @@ import {
   markClauseCandidateNeedsClarification,
   markNotificationRead,
   runDueDateReminders,
+  revokeTenantInvitation,
   saveCompanyProfile,
   searchCompanyEntity,
   searchSubcontractorEntity,
@@ -173,6 +175,7 @@ import {
   type SubcontractorEvidenceRequest,
   type SubcontractorFlowDown,
   type TenantInvitation,
+  type RevokeTenantInvitationRequest,
   type Tenant,
   type TenantDataHandlingModeHistory,
   type AttachContractClauseRequest,
@@ -607,6 +610,9 @@ export function App() {
   const [inviteRole, setInviteRole] = useState("Contributor");
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "created" | "failed">("idle");
   const [inviteMessage, setInviteMessage] = useState("");
+  const [invitationActionStatus, setInvitationActionStatus] = useState<"idle" | "revoking" | "succeeded" | "failed">("idle");
+  const [invitationActionMessage, setInvitationActionMessage] = useState("");
+  const [revokingInvitationId, setRevokingInvitationId] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [profileMessage, setProfileMessage] = useState("");
   const [contractStatus, setContractStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -985,6 +991,33 @@ export function App() {
 
     setInviteStatus("failed");
     setInviteMessage(result.error ?? "Invitation was not created.");
+  }
+
+  async function handleInvitationRevoke(
+    invitationId: string,
+    request: RevokeTenantInvitationRequest
+  ): Promise<boolean> {
+    setInvitationActionStatus("revoking");
+    setInvitationActionMessage("");
+    setRevokingInvitationId(invitationId);
+
+    const result = await revokeTenantInvitation(invitationId, request);
+    setRevokingInvitationId(null);
+
+    if (result.data) {
+      setInvitations((currentInvitations) =>
+        currentInvitations.map((invitation) =>
+          invitation.invitationId === invitationId ? result.data! : invitation
+        )
+      );
+      setInvitationActionStatus("succeeded");
+      setInvitationActionMessage(`Invitation for ${result.data.email} was revoked.`);
+      return true;
+    }
+
+    setInvitationActionStatus("failed");
+    setInvitationActionMessage(result.error ?? "Invitation could not be revoked.");
+    return false;
   }
 
   async function handleTenantModeUpdate(request: UpdateTenantDataHandlingModeRequest) {
@@ -2239,6 +2272,8 @@ export function App() {
               inviteMessage={inviteMessage}
               inviteRole={inviteRole}
               inviteStatus={inviteStatus}
+              invitationActionMessage={invitationActionMessage}
+              invitationActionStatus={invitationActionStatus}
               invitations={invitations}
               members={members}
               notificationPreference={notificationPreference}
@@ -2264,6 +2299,8 @@ export function App() {
               onInviteEmailChange={setInviteEmail}
               onInviteRoleChange={setInviteRole}
               onInvitationSubmit={handleInvitationSubmit}
+              onInvitationRevoke={handleInvitationRevoke}
+              revokingInvitationId={revokingInvitationId}
               onNotificationPreferenceSave={handleNotificationPreferenceSave}
               onTenantModeUpdate={handleTenantModeUpdate}
             />
@@ -7960,6 +7997,84 @@ function DemoSandboxSeedPanel({
   );
 }
 
+function InvitationListItem({
+  invitation,
+  isBusy,
+  isRevoking,
+  onRevoke
+}: {
+  invitation: TenantInvitation;
+  isBusy: boolean;
+  isRevoking: boolean;
+  onRevoke: (invitationId: string, request: RevokeTenantInvitationRequest) => Promise<boolean>;
+}) {
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [reason, setReason] = useState("");
+
+  async function handleRevoke(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const succeeded = await onRevoke(invitation.invitationId, { reason });
+    if (succeeded) {
+      setIsConfirming(false);
+      setReason("");
+    }
+  }
+
+  return (
+    <article className="invitation-item">
+      <div className="invitation-item__main">
+        <span className="icon-box icon-box--small" aria-hidden="true">
+          <UserPlus size={17} />
+        </span>
+        <span>
+          <strong>{invitation.email}</strong>
+          <small>{invitation.roleName}</small>
+        </span>
+      </div>
+      <div className="invitation-item__status">
+        <span className={`status status--${invitation.status.toLowerCase()}`}>{invitation.status}</span>
+        {invitation.status === "Pending" ? (
+          <Button
+            aria-label={`Revoke invitation for ${invitation.email}`}
+            disabled={isBusy}
+            icon={<Ban size={15} />}
+            onClick={() => setIsConfirming(true)}
+            size="sm"
+            variant="danger"
+          >
+            Revoke
+          </Button>
+        ) : null}
+      </div>
+      <span className="invitation-date">Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
+      <small className="notification-placeholder">{invitation.notificationPlaceholder}</small>
+      {isConfirming ? (
+        <form className="invitation-revoke-form" onSubmit={handleRevoke}>
+          <label>
+            <span>Revocation reason</span>
+            <textarea
+              autoFocus
+              maxLength={500}
+              onChange={(event) => setReason(event.target.value)}
+              required
+              rows={2}
+              value={reason}
+            />
+          </label>
+          <div className="invitation-revoke-form__actions">
+            <Button disabled={isBusy} type="submit" variant="danger">
+              {isRevoking ? "Revoking" : "Confirm revoke"}
+            </Button>
+            <Button disabled={isBusy} onClick={() => setIsConfirming(false)} type="button" variant="ghost">
+              Cancel
+            </Button>
+          </div>
+        </form>
+      ) : null}
+    </article>
+  );
+}
+
 function SettingsView({
   auditLogFilters,
   auditLogStatus,
@@ -7979,6 +8094,8 @@ function SettingsView({
   inviteMessage,
   inviteRole,
   inviteStatus,
+  invitationActionMessage,
+  invitationActionStatus,
   invitations,
   members,
   notificationPreference,
@@ -8003,9 +8120,11 @@ function SettingsView({
   onInviteEmailChange,
   onInviteRoleChange,
   onInvitationSubmit,
+  onInvitationRevoke,
   onNotificationPreferenceSave,
   onSharedResponsibilityMatrixAcknowledge,
-  onTenantModeUpdate
+  onTenantModeUpdate,
+  revokingInvitationId
 }: {
   auditLogFilters: AuditLogFilters;
   auditLogStatus: "idle" | "loading" | "ready" | "failed";
@@ -8025,6 +8144,8 @@ function SettingsView({
   inviteMessage: string;
   inviteRole: string;
   inviteStatus: "idle" | "sending" | "created" | "failed";
+  invitationActionMessage: string;
+  invitationActionStatus: "idle" | "revoking" | "succeeded" | "failed";
   invitations: TenantInvitation[];
   members: TenantMember[];
   notificationPreference: NotificationPreference | null;
@@ -8057,9 +8178,14 @@ function SettingsView({
   onInviteEmailChange: (email: string) => void;
   onInviteRoleChange: (roleName: string) => void;
   onInvitationSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onInvitationRevoke: (
+    invitationId: string,
+    request: RevokeTenantInvitationRequest
+  ) => Promise<boolean>;
   onNotificationPreferenceSave: (request: NotificationPreferenceUpdateRequest) => Promise<void>;
   onSharedResponsibilityMatrixAcknowledge: () => Promise<void>;
   onTenantModeUpdate: (request: UpdateTenantDataHandlingModeRequest) => Promise<void>;
+  revokingInvitationId: string | null;
 }) {
   if (!canManageTenant && !canManageUsers && !canViewAuditLog && !notificationPreference) {
     return (
@@ -8218,23 +8344,25 @@ function SettingsView({
                 {inviteMessage}
               </p>
             ) : null}
+            {invitationActionMessage ? (
+              <p
+                className={`form-status ${
+                  invitationActionStatus === "failed" ? "form-status--error" : "form-status--ok"
+                }`}
+              >
+                {invitationActionMessage}
+              </p>
+            ) : null}
             {invitations.length > 0 ? (
               <div className="invitation-list">
                 {invitations.map((invitation) => (
-                  <article className="invitation-item" key={invitation.invitationId}>
-                    <div className="invitation-item__main">
-                      <span className="icon-box icon-box--small" aria-hidden="true">
-                        <UserPlus size={17} />
-                      </span>
-                      <span>
-                        <strong>{invitation.email}</strong>
-                        <small>{invitation.roleName}</small>
-                      </span>
-                    </div>
-                    <span className={`status status--${invitation.status.toLowerCase()}`}>{invitation.status}</span>
-                    <span className="invitation-date">Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
-                    <small className="notification-placeholder">{invitation.notificationPlaceholder}</small>
-                  </article>
+                  <InvitationListItem
+                    invitation={invitation}
+                    isBusy={invitationActionStatus === "revoking"}
+                    isRevoking={revokingInvitationId === invitation.invitationId}
+                    key={invitation.invitationId}
+                    onRevoke={onInvitationRevoke}
+                  />
                 ))}
               </div>
             ) : (

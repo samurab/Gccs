@@ -224,7 +224,7 @@ export type TenantInvitation = {
   revokedByUserId: string | null;
   notificationSentAt: string | null;
   notificationPlaceholder: string;
-  deliveryStatus: "Queued" | "Processing" | "RetryScheduled" | "Sent" | "Failed" | string;
+  deliveryStatus: "Queued" | "Processing" | "RetryScheduled" | "Sent" | "Failed" | "Cancelled" | string;
   deliveryAttemptCount: number;
   nextDeliveryAttemptAt: string | null;
   lastDeliveryAttemptAt: string | null;
@@ -240,6 +240,10 @@ export type InvitationAcceptanceContext = {
   roleName: string;
   status: string;
   expiresAt: string;
+};
+
+export type RevokeTenantInvitationRequest = {
+  reason: string;
 };
 
 export type Tenant = {
@@ -2735,6 +2739,13 @@ export async function createTenantInvitation(
   request: CreateTenantInvitationRequest
 ): Promise<ApiMutationResult<TenantInvitation>> {
   return postJsonResult<TenantInvitation>("/api/tenant-invitations", request);
+}
+
+export async function revokeTenantInvitation(
+  invitationId: string,
+  request: RevokeTenantInvitationRequest
+): Promise<ApiMutationResult<TenantInvitation>> {
+  return postJsonResult<TenantInvitation>(`/api/tenant-invitations/${invitationId}/revoke`, request);
 }
 
 export async function updateTenantDataHandlingMode(

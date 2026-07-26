@@ -82,6 +82,7 @@ const {
   markClauseCandidateNeedsClarificationMock,
   markNotificationReadMock,
   runDueDateRemindersMock,
+  revokeTenantInvitationMock,
   generateCmmcReadinessReportMock,
   generateComplianceStatusReportMock,
   generateEvidencePackageMock,
@@ -170,6 +171,7 @@ const {
   markClauseCandidateNeedsClarificationMock: vi.fn(),
   markNotificationReadMock: vi.fn(),
   runDueDateRemindersMock: vi.fn(),
+  revokeTenantInvitationMock: vi.fn(),
   removeContractClauseMock: vi.fn(),
   rejectClauseCandidateMock: vi.fn(),
   rejectCuiReadyApprovalChecklistMock: vi.fn(),
@@ -814,6 +816,7 @@ vi.mock("@/lib/api", () => ({
   markClauseCandidateNeedsClarification: markClauseCandidateNeedsClarificationMock,
   markNotificationRead: markNotificationReadMock,
   runDueDateReminders: runDueDateRemindersMock,
+  revokeTenantInvitation: revokeTenantInvitationMock,
   removeContractClause: removeContractClauseMock,
   rejectClauseCandidate: rejectClauseCandidateMock,
   rejectCuiReadyApprovalChecklist: rejectCuiReadyApprovalChecklistMock,
@@ -912,6 +915,7 @@ describe("App", () => {
     markNotificationReadMock.mockReset();
     markClauseCandidateNeedsClarificationMock.mockReset();
     runDueDateRemindersMock.mockReset();
+    revokeTenantInvitationMock.mockReset();
     generateCmmcReadinessReportMock.mockReset();
     generateComplianceStatusReportMock.mockReset();
     generateEvidencePackageMock.mockReset();
@@ -2293,6 +2297,38 @@ describe("App", () => {
 
     expect(await screen.findByText("The email is already a member of the current tenant.")).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toHaveValue("owner@example.com");
+  });
+
+  it("revokes a pending tenant invitation from Settings with an audit reason", async () => {
+    const revokedInvitation = {
+      ...invitations[0],
+      status: "Revoked",
+      revokedAt: "2026-06-16T12:00:00Z",
+      revokedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      deliveryStatus: "Sent",
+      notificationPlaceholder: "Invitation was revoked after email delivery.",
+      updatedAt: "2026-06-16T12:00:00Z"
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(fallbackOverview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce([]);
+    revokeTenantInvitationMock.mockResolvedValueOnce({ data: revokedInvitation, error: null });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /settings/i }));
+    await user.click(screen.getByRole("button", { name: "Revoke invitation for pending@example.com" }));
+    await user.type(screen.getByLabelText("Revocation reason"), "The user no longer requires tenant access.");
+    await user.click(screen.getByRole("button", { name: "Confirm revoke" }));
+
+    expect(revokeTenantInvitationMock).toHaveBeenCalledWith(invitations[0].invitationId, {
+      reason: "The user no longer requires tenant access."
+    });
+    expect(await screen.findByText("Invitation for pending@example.com was revoked.")).toBeInTheDocument();
+    expect(screen.getByText("Invitation was revoked after email delivery.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Revoke invitation for pending@example.com" })).not.toBeInTheDocument();
   });
 
   it("TC-5.2.1, TC-5.2.3, and TC-5.2.4 renders tenant audit logs with filters and pagination", async () => {
