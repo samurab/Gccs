@@ -1,6 +1,7 @@
 import {
   Archive,
   AlertTriangle,
+  Ban,
   Bell,
   Building2,
   CalendarClock,
@@ -21,8 +22,12 @@ import {
   UserPlus,
   UsersRound
 } from "lucide-react";
-import { type CSSProperties, type FormEvent, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
+import { controlCoverageTone } from "@/components/controlCoverage";
+import { DevelopmentTestingContextSelector } from "@/components/development/DevelopmentTestingContextSelector";
 import { ModuleCard } from "@/components/ModuleCard";
+import { TenantWorkspaceSelector } from "@/components/TenantWorkspaceSelector";
 import {
   Alert,
   Button,
@@ -102,6 +107,7 @@ import {
   markClauseCandidateNeedsClarification,
   markNotificationRead,
   runDueDateReminders,
+  revokeTenantInvitation,
   saveCompanyProfile,
   searchCompanyEntity,
   searchSubcontractorEntity,
@@ -169,6 +175,7 @@ import {
   type SubcontractorEvidenceRequest,
   type SubcontractorFlowDown,
   type TenantInvitation,
+  type RevokeTenantInvitationRequest,
   type Tenant,
   type TenantDataHandlingModeHistory,
   type AttachContractClauseRequest,
@@ -183,7 +190,7 @@ import {
   type UpsertSubcontractorRequest,
   type UpdateTenantDataHandlingModeRequest,
   type ReclassifyContentRequest,
-  type TenantMember
+  type TenantMember,
 } from "@/lib/api";
 
 type WorkspaceRoute =
@@ -598,9 +605,14 @@ export function App() {
   const [activeRoute, setActiveRoute] = useState<WorkspaceRoute>(getInitialRoute);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [accessLoadState, setAccessLoadState] = useState<AccessLoadState>("loading");
+  const [workspaceInitialized, setWorkspaceInitialized] = useState(import.meta.env.DEV);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Contributor");
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "created" | "failed">("idle");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [invitationActionStatus, setInvitationActionStatus] = useState<"idle" | "revoking" | "succeeded" | "failed">("idle");
+  const [invitationActionMessage, setInvitationActionMessage] = useState("");
+  const [revokingInvitationId, setRevokingInvitationId] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [profileMessage, setProfileMessage] = useState("");
   const [contractStatus, setContractStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -668,10 +680,10 @@ export function App() {
   const workspacePriorityMetrics = useMemo(
     () => [
       {
-        label: "Readiness score",
-        value: <ReadinessScoreMeter score={overview.readinessScore.score} />,
-        tone: readinessTone(overview.readinessScore.status),
-        hint: overview.readinessScore.status
+        label: "Control coverage",
+        value: <ControlCoverageMeter readinessScore={overview.readinessScore} />,
+        tone: controlCoverageTone(overview.readinessScore.status),
+        hint: `${overview.readinessScore.status} · implementation only`
       },
       {
         label: "Contract risk",
@@ -752,6 +764,10 @@ export function App() {
   }, [access]);
 
   useEffect(() => {
+    if (!workspaceInitialized) {
+      return;
+    }
+
     let isMounted = true;
     let resolvedAccess: CurrentUserAccess | null = null;
 
@@ -765,8 +781,11 @@ export function App() {
 
         const nextOverview = await getComplianceOverview();
         const canLoadUserManagement = nextAccess.permissions.includes("ManageUsers");
+        const canLoadTenantContext =
+          typeof getTenant === "function" &&
+          nextAccess.permissions.includes("ViewCompanyProfile") &&
+          nextAccess.tenantId !== null;
         const canUseTenantAdministrationApi = [
-          getTenant,
           getTenantDataHandlingModeHistory,
           getCuiReadyApprovalChecklists,
           getPublishedSharedResponsibilityMatrix,
@@ -788,21 +807,20 @@ export function App() {
         const [nextMembers, nextInvitations] = canLoadUserManagement
           ? await Promise.all([getTenantMembers(), getTenantInvitations()])
           : [[], []];
+        const nextTenant = canLoadTenantContext ? await getTenant(nextAccess.tenantId!) : null;
         const [
-          nextTenant,
           nextTenantModeHistory,
           nextCuiReadyChecklists,
           nextSharedResponsibilityMatrix,
           nextSharedResponsibilityMatrixAcknowledgements
         ] = canLoadTenantAdministration
           ? await Promise.all([
-              getTenant(nextAccess.tenantId!),
               getTenantDataHandlingModeHistory(nextAccess.tenantId!),
               getCuiReadyApprovalChecklists(nextAccess.tenantId!),
               getPublishedSharedResponsibilityMatrix(),
               getSharedResponsibilityMatrixAcknowledgements(nextAccess.tenantId!)
             ])
-          : [null, [], [], null, []];
+          : [[], [], null, []];
         const nextNotifications = canLoadNotifications ? await getNotifications() : [];
         const nextNotificationPreference = canLoadNotifications ? await getNotificationPreferences() : null;
         const nextAuditLogs = canLoadAuditLogs ? await getAuditLogs({ page: 1, pageSize: 5 }) : fallbackAuditLogs;
@@ -944,27 +962,62 @@ export function App() {
     return () => {
       isMounted = false;
     };
-  }, [clauseCandidateReviewStatusFilter]);
+  }, [clauseCandidateReviewStatusFilter, workspaceInitialized]);
+
+  const handleWorkspaceInitialized = useCallback(() => {
+    setWorkspaceInitialized(true);
+  }, []);
 
   async function handleInvitationSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setInviteStatus("sending");
+    setInviteMessage("");
 
-    const createdInvitation = await createTenantInvitation({
+    const result = await createTenantInvitation({
       email: inviteEmail,
       roleName: inviteRole,
       expiresInDays: 7
     });
 
-    if (createdInvitation) {
+    if (result.data) {
+      const createdInvitation = result.data;
       setInvitations((currentInvitations) => [createdInvitation, ...currentInvitations]);
       setInviteEmail("");
       setInviteRole("Contributor");
       setInviteStatus("created");
+      setInviteMessage("Invitation created.");
       return;
     }
 
     setInviteStatus("failed");
+    setInviteMessage(result.error ?? "Invitation was not created.");
+  }
+
+  async function handleInvitationRevoke(
+    invitationId: string,
+    request: RevokeTenantInvitationRequest
+  ): Promise<boolean> {
+    setInvitationActionStatus("revoking");
+    setInvitationActionMessage("");
+    setRevokingInvitationId(invitationId);
+
+    const result = await revokeTenantInvitation(invitationId, request);
+    setRevokingInvitationId(null);
+
+    if (result.data) {
+      setInvitations((currentInvitations) =>
+        currentInvitations.map((invitation) =>
+          invitation.invitationId === invitationId ? result.data! : invitation
+        )
+      );
+      setInvitationActionStatus("succeeded");
+      setInvitationActionMessage(`Invitation for ${result.data.email} was revoked.`);
+      return true;
+    }
+
+    setInvitationActionStatus("failed");
+    setInvitationActionMessage(result.error ?? "Invitation could not be revoked.");
+    return false;
   }
 
   async function handleTenantModeUpdate(request: UpdateTenantDataHandlingModeRequest) {
@@ -1962,6 +2015,14 @@ export function App() {
           </div>
         </div>
         <div className="sidebar-posture" aria-label="Workspace compliance posture">
+          {import.meta.env.DEV ? (
+            <DevelopmentTestingContextSelector currentTenantId={currentTenant?.id ?? access.tenantId} />
+          ) : (
+            <TenantWorkspaceSelector
+              currentTenantId={currentTenant?.id ?? access.tenantId}
+              onInitialized={handleWorkspaceInitialized}
+            />
+          )}
           <div>
             <span>Tenant</span>
             <strong>{activeTenantName}</strong>
@@ -2208,8 +2269,11 @@ export function App() {
               cuiReadyChecklistMessage={cuiReadyChecklistMessage}
               cuiReadyChecklistStatus={cuiReadyChecklistStatus}
               inviteEmail={inviteEmail}
+              inviteMessage={inviteMessage}
               inviteRole={inviteRole}
               inviteStatus={inviteStatus}
+              invitationActionMessage={invitationActionMessage}
+              invitationActionStatus={invitationActionStatus}
               invitations={invitations}
               members={members}
               notificationPreference={notificationPreference}
@@ -2235,6 +2299,8 @@ export function App() {
               onInviteEmailChange={setInviteEmail}
               onInviteRoleChange={setInviteRole}
               onInvitationSubmit={handleInvitationSubmit}
+              onInvitationRevoke={handleInvitationRevoke}
+              revokingInvitationId={revokingInvitationId}
               onNotificationPreferenceSave={handleNotificationPreferenceSave}
               onTenantModeUpdate={handleTenantModeUpdate}
             />
@@ -2670,39 +2736,6 @@ function statusTone(status: string): UiTone {
     return "success";
   }
   return "neutral";
-}
-
-function readinessTone(status: string): UiTone {
-  const normalized = status.toLowerCase();
-  if (normalized.includes("ready")) {
-    return "success";
-  }
-  if (normalized.includes("attention")) {
-    return "warning";
-  }
-  if (normalized.includes("risk")) {
-    return "danger";
-  }
-  return "neutral";
-}
-
-function ReadinessScoreMeter({ score }: { score: number | null }) {
-  const hasScore = score !== null;
-  const boundedScore = hasScore ? Math.min(100, Math.max(0, score)) : 0;
-  const meterStyle = { "--readiness-score-position": `${boundedScore}%` } as CSSProperties;
-  const classes = ["readiness-score-meter", hasScore ? undefined : "readiness-score-meter--empty"].filter(Boolean).join(" ");
-
-  return (
-    <span className={classes} style={meterStyle} aria-label={hasScore ? `Readiness score ${boundedScore} percent` : "Readiness score unavailable"}>
-      <span className="readiness-score-meter__bar" aria-hidden="true">
-        {Array.from({ length: 10 }, (_, index) => (
-          <span className="readiness-score-meter__segment" key={index} />
-        ))}
-        <span className="readiness-score-meter__marker" />
-      </span>
-      <span className="readiness-score-meter__value">{hasScore ? `${boundedScore}%` : "N/A"}</span>
-    </span>
-  );
 }
 
 function riskIndicatorTone(level: string): UiTone {
@@ -7964,6 +7997,84 @@ function DemoSandboxSeedPanel({
   );
 }
 
+function InvitationListItem({
+  invitation,
+  isBusy,
+  isRevoking,
+  onRevoke
+}: {
+  invitation: TenantInvitation;
+  isBusy: boolean;
+  isRevoking: boolean;
+  onRevoke: (invitationId: string, request: RevokeTenantInvitationRequest) => Promise<boolean>;
+}) {
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [reason, setReason] = useState("");
+
+  async function handleRevoke(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const succeeded = await onRevoke(invitation.invitationId, { reason });
+    if (succeeded) {
+      setIsConfirming(false);
+      setReason("");
+    }
+  }
+
+  return (
+    <article className="invitation-item">
+      <div className="invitation-item__main">
+        <span className="icon-box icon-box--small" aria-hidden="true">
+          <UserPlus size={17} />
+        </span>
+        <span>
+          <strong>{invitation.email}</strong>
+          <small>{invitation.roleName}</small>
+        </span>
+      </div>
+      <div className="invitation-item__status">
+        <span className={`status status--${invitation.status.toLowerCase()}`}>{invitation.status}</span>
+        {invitation.status === "Pending" ? (
+          <Button
+            aria-label={`Revoke invitation for ${invitation.email}`}
+            disabled={isBusy}
+            icon={<Ban size={15} />}
+            onClick={() => setIsConfirming(true)}
+            size="sm"
+            variant="danger"
+          >
+            Revoke
+          </Button>
+        ) : null}
+      </div>
+      <span className="invitation-date">Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
+      <small className="notification-placeholder">{invitation.notificationPlaceholder}</small>
+      {isConfirming ? (
+        <form className="invitation-revoke-form" onSubmit={handleRevoke}>
+          <label>
+            <span>Revocation reason</span>
+            <textarea
+              autoFocus
+              maxLength={500}
+              onChange={(event) => setReason(event.target.value)}
+              required
+              rows={2}
+              value={reason}
+            />
+          </label>
+          <div className="invitation-revoke-form__actions">
+            <Button disabled={isBusy} type="submit" variant="danger">
+              {isRevoking ? "Revoking" : "Confirm revoke"}
+            </Button>
+            <Button disabled={isBusy} onClick={() => setIsConfirming(false)} type="button" variant="ghost">
+              Cancel
+            </Button>
+          </div>
+        </form>
+      ) : null}
+    </article>
+  );
+}
+
 function SettingsView({
   auditLogFilters,
   auditLogStatus,
@@ -7980,8 +8091,11 @@ function SettingsView({
   cuiReadyChecklistMessage,
   cuiReadyChecklistStatus,
   inviteEmail,
+  inviteMessage,
   inviteRole,
   inviteStatus,
+  invitationActionMessage,
+  invitationActionStatus,
   invitations,
   members,
   notificationPreference,
@@ -8006,9 +8120,11 @@ function SettingsView({
   onInviteEmailChange,
   onInviteRoleChange,
   onInvitationSubmit,
+  onInvitationRevoke,
   onNotificationPreferenceSave,
   onSharedResponsibilityMatrixAcknowledge,
-  onTenantModeUpdate
+  onTenantModeUpdate,
+  revokingInvitationId
 }: {
   auditLogFilters: AuditLogFilters;
   auditLogStatus: "idle" | "loading" | "ready" | "failed";
@@ -8025,8 +8141,11 @@ function SettingsView({
   cuiReadyChecklistMessage: string;
   cuiReadyChecklistStatus: "idle" | "saving" | "saved" | "failed";
   inviteEmail: string;
+  inviteMessage: string;
   inviteRole: string;
   inviteStatus: "idle" | "sending" | "created" | "failed";
+  invitationActionMessage: string;
+  invitationActionStatus: "idle" | "revoking" | "succeeded" | "failed";
   invitations: TenantInvitation[];
   members: TenantMember[];
   notificationPreference: NotificationPreference | null;
@@ -8059,9 +8178,14 @@ function SettingsView({
   onInviteEmailChange: (email: string) => void;
   onInviteRoleChange: (roleName: string) => void;
   onInvitationSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onInvitationRevoke: (
+    invitationId: string,
+    request: RevokeTenantInvitationRequest
+  ) => Promise<boolean>;
   onNotificationPreferenceSave: (request: NotificationPreferenceUpdateRequest) => Promise<void>;
   onSharedResponsibilityMatrixAcknowledge: () => Promise<void>;
   onTenantModeUpdate: (request: UpdateTenantDataHandlingModeRequest) => Promise<void>;
+  revokingInvitationId: string | null;
 }) {
   if (!canManageTenant && !canManageUsers && !canViewAuditLog && !notificationPreference) {
     return (
@@ -8215,25 +8339,30 @@ function SettingsView({
                 </article>
               ))}
             </div>
-            {inviteStatus === "created" ? <p className="form-status form-status--ok">Invitation created.</p> : null}
-            {inviteStatus === "failed" ? <p className="form-status form-status--error">Invitation was not created.</p> : null}
+            {inviteMessage ? (
+              <p className={`form-status ${inviteStatus === "failed" ? "form-status--error" : "form-status--ok"}`}>
+                {inviteMessage}
+              </p>
+            ) : null}
+            {invitationActionMessage ? (
+              <p
+                className={`form-status ${
+                  invitationActionStatus === "failed" ? "form-status--error" : "form-status--ok"
+                }`}
+              >
+                {invitationActionMessage}
+              </p>
+            ) : null}
             {invitations.length > 0 ? (
               <div className="invitation-list">
                 {invitations.map((invitation) => (
-                  <article className="invitation-item" key={invitation.invitationId}>
-                    <div className="invitation-item__main">
-                      <span className="icon-box icon-box--small" aria-hidden="true">
-                        <UserPlus size={17} />
-                      </span>
-                      <span>
-                        <strong>{invitation.email}</strong>
-                        <small>{invitation.roleName}</small>
-                      </span>
-                    </div>
-                    <span className={`status status--${invitation.status.toLowerCase()}`}>{invitation.status}</span>
-                    <span className="invitation-date">Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
-                    <small className="notification-placeholder">{invitation.notificationPlaceholder}</small>
-                  </article>
+                  <InvitationListItem
+                    invitation={invitation}
+                    isBusy={invitationActionStatus === "revoking"}
+                    isRevoking={revokingInvitationId === invitation.invitationId}
+                    key={invitation.invitationId}
+                    onRevoke={onInvitationRevoke}
+                  />
                 ))}
               </div>
             ) : (

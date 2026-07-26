@@ -1,6 +1,7 @@
 import { getFreshAccessToken } from "../auth";
 
 const selectedTenantStorageKey = "gccs.selectedTenantId";
+const developmentRoleStorageKey = "gccs.developmentRole";
 
 export type ModuleStatus = {
   key: string;
@@ -32,7 +33,9 @@ export type ComplianceDashboardAlert = {
 export type ReadinessScore = {
   score: number | null;
   controlsTotal: number;
+  controlsApplicable: number;
   controlsImplemented: number;
+  controlsNotApplicable: number;
   status: string;
 };
 
@@ -93,6 +96,45 @@ export type CurrentUserAccess = {
   roles: string[];
   permissions: string[];
   rolePermissionMatrix: Record<string, string[]>;
+};
+
+export type TenantWorkspace = {
+  membershipId: string;
+  tenantId: string;
+  displayName: string;
+  tenantStatus: string;
+  dataHandlingMode: string;
+  membershipStatus: string;
+  roleName: string;
+  lastAccessedAt: string | null;
+  isSelectable: boolean;
+  unavailableReason: string | null;
+};
+
+export type TenantWorkspaceList = {
+  preferredTenantId: string | null;
+  tenants: TenantWorkspace[];
+};
+
+export type TenantWorkspaceSelection = {
+  tenantId: string;
+  displayName: string;
+  roleName: string;
+  dataHandlingMode: string;
+};
+
+export type DevelopmentTenantOption = {
+  tenantId: string;
+  displayName: string;
+  tenantStatus: string;
+  dataHandlingMode: string;
+  isSelectable: boolean;
+  unavailableReason: string | null;
+};
+
+export type DevelopmentTestingContext = {
+  tenants: DevelopmentTenantOption[];
+  roles: string[];
 };
 
 export type PlatformAccess = {
@@ -182,7 +224,7 @@ export type TenantInvitation = {
   revokedByUserId: string | null;
   notificationSentAt: string | null;
   notificationPlaceholder: string;
-  deliveryStatus: "Queued" | "Processing" | "RetryScheduled" | "Sent" | "Failed" | string;
+  deliveryStatus: "Queued" | "Processing" | "RetryScheduled" | "Sent" | "Failed" | "Cancelled" | string;
   deliveryAttemptCount: number;
   nextDeliveryAttemptAt: string | null;
   lastDeliveryAttemptAt: string | null;
@@ -198,6 +240,10 @@ export type InvitationAcceptanceContext = {
   roleName: string;
   status: string;
   expiresAt: string;
+};
+
+export type RevokeTenantInvitationRequest = {
+  reason: string;
 };
 
 export type Tenant = {
@@ -1553,7 +1599,9 @@ export const fallbackOverview: ComplianceOverview = {
   readinessScore: {
     score: null,
     controlsTotal: 0,
+    controlsApplicable: 0,
     controlsImplemented: 0,
+    controlsNotApplicable: 0,
     status: "Not started"
   },
   contractRiskIndicator: {
@@ -1736,6 +1784,20 @@ export async function getCurrentUserAccess(): Promise<CurrentUserAccess> {
   return normalizeCurrentUserAccess(await getRequiredJson<CurrentUserAccess>("/api/me/access"));
 }
 
+export async function getMyTenantWorkspaces(): Promise<TenantWorkspaceList> {
+  return getRequiredJson<TenantWorkspaceList>("/api/me/tenants");
+}
+
+export async function selectMyTenantWorkspace(
+  tenantId: string
+): Promise<ApiMutationResult<TenantWorkspaceSelection>> {
+  return postJsonResult<TenantWorkspaceSelection>("/api/me/tenant-selection", { tenantId });
+}
+
+export async function getDevelopmentTestingContext(): Promise<DevelopmentTestingContext> {
+  return getRequiredJson<DevelopmentTestingContext>("/api/development/testing-context");
+}
+
 export async function getPlatformAccess(): Promise<PlatformAccess> {
   return getRequiredJson<PlatformAccess>("/api/platform/me/access");
 }
@@ -1813,7 +1875,7 @@ export function selectTenant(tenantId: string) {
   window.localStorage.setItem(selectedTenantStorageKey, tenantId);
 }
 
-function getSelectedTenantId(): string | null {
+export function getSelectedTenantId(): string | null {
   try {
     return window.localStorage.getItem(selectedTenantStorageKey);
   } catch {
@@ -1821,10 +1883,35 @@ function getSelectedTenantId(): string | null {
   }
 }
 
+export function getSelectedDevelopmentRole(): string {
+  try {
+    return window.localStorage.getItem(developmentRoleStorageKey) ?? import.meta.env.VITE_GCCS_DEV_ROLE ?? "Owner";
+  } catch {
+    return import.meta.env.VITE_GCCS_DEV_ROLE ?? "Owner";
+  }
+}
+
+export function selectDevelopmentTestingContext(tenantId: string, role: string) {
+  window.localStorage.setItem(selectedTenantStorageKey, tenantId);
+  window.localStorage.setItem(developmentRoleStorageKey, role);
+}
+
 function normalizeComplianceOverview(overview: ComplianceOverview): ComplianceOverview {
+  const readinessScore = overview.readinessScore ?? fallbackOverview.readinessScore;
+  const controlsTotal = Number.isFinite(readinessScore.controlsTotal) ? readinessScore.controlsTotal : 0;
+  const controlsNotApplicable = Number.isFinite(readinessScore.controlsNotApplicable) ? readinessScore.controlsNotApplicable : 0;
+
   return {
     ...overview,
-    readinessScore: overview.readinessScore ?? fallbackOverview.readinessScore,
+    readinessScore: {
+      ...readinessScore,
+      controlsTotal,
+      controlsApplicable: Number.isFinite(readinessScore.controlsApplicable)
+        ? readinessScore.controlsApplicable
+        : Math.max(0, controlsTotal - controlsNotApplicable),
+      controlsImplemented: Number.isFinite(readinessScore.controlsImplemented) ? readinessScore.controlsImplemented : 0,
+      controlsNotApplicable
+    },
     contractRiskIndicator: overview.contractRiskIndicator ?? fallbackOverview.contractRiskIndicator,
     modules: Array.isArray(overview.modules) ? overview.modules : [],
     priorityObligations: Array.isArray(overview.priorityObligations) ? overview.priorityObligations : [],
@@ -2648,8 +2735,17 @@ export async function createEvidenceUploadIntent(
   return postFormResult<EvidenceFileAccess>(`/api/evidence-items/${placeholderEvidenceItemId}/file`, form);
 }
 
-export async function createTenantInvitation(request: CreateTenantInvitationRequest): Promise<TenantInvitation | null> {
-  return postJson<TenantInvitation>("/api/tenant-invitations", request);
+export async function createTenantInvitation(
+  request: CreateTenantInvitationRequest
+): Promise<ApiMutationResult<TenantInvitation>> {
+  return postJsonResult<TenantInvitation>("/api/tenant-invitations", request);
+}
+
+export async function revokeTenantInvitation(
+  invitationId: string,
+  request: RevokeTenantInvitationRequest
+): Promise<ApiMutationResult<TenantInvitation>> {
+  return postJsonResult<TenantInvitation>(`/api/tenant-invitations/${invitationId}/revoke`, request);
 }
 
 export async function updateTenantDataHandlingMode(
@@ -2966,7 +3062,7 @@ async function getText(path: string, fallback: string): Promise<string> {
 }
 
 function getDevelopmentHeaders(): HeadersInit | undefined {
-  const role = import.meta.env.VITE_GCCS_DEV_ROLE;
+  const role = getSelectedDevelopmentRole();
   const email = import.meta.env.VITE_GCCS_DEV_EMAIL;
   const userId = import.meta.env.VITE_GCCS_DEV_USER_ID;
   const selectedTenantId = getSelectedTenantId();
@@ -2977,7 +3073,12 @@ function getDevelopmentHeaders(): HeadersInit | undefined {
         ...(role ? { "X-Gccs-Dev-Role": role } : {}),
         ...(email ? { "X-Gccs-Dev-Email": email } : {}),
         ...(userId ? { "X-Gccs-Dev-User": userId } : {}),
-        ...(selectedTenantId ? { "X-Gccs-Tenant": selectedTenantId } : {})
+        ...(selectedTenantId
+          ? {
+              "X-Gccs-Dev-Tenant": selectedTenantId,
+              "X-Gccs-Tenant": selectedTenantId
+            }
+          : {})
       }
     : undefined;
 }

@@ -58,6 +58,8 @@ jobs:
           dotnet publish apps/api/Gccs.Api.csproj --configuration Release --output "$RUNNER_TEMP/gccs-api-staging"
           npm run build:web
           ! grep -R "http://localhost:5062" apps/web/dist
+          ! grep -R "Local test context" apps/web/dist
+          ! grep -R "/api/development/testing-context" apps/web/dist
 
       - name: Generate idempotent migration script
         run: |
@@ -84,6 +86,15 @@ jobs:
           grep -R "cache" infra/terraform/environments/staging/main.tf
           grep -R "queue" infra/terraform/environments/staging/main.tf
           grep -R "secrets" infra/terraform/environments/staging/main.tf
+
+      - name: Apply staging migrations through approved CI/CD
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          test -n "$STAGING_DATABASE_URL"
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+          psql "$STAGING_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-staging-migrations.sql"
 
       - name: Deploy staging API, web, data, storage, cache, queue, and secrets
         run: |
@@ -149,4 +160,6 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: staging-smoke-test-results
-          path: ${{ runner.temp }}/staging-health.json
+          path: |
+            ${{ runner.temp }}/staging-health.json
+            ${{ runner.temp }}/gccs-staging-migrations.sql

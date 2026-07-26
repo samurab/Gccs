@@ -120,6 +120,7 @@ public static class DependencyInjection
         services.AddSingleton<ICustomerManagedKeyPolicyRepository, InMemoryCustomerManagedKeyPolicyRepository>();
         services.AddSingleton<ICuiEnclaveAccessControlRepository, InMemoryCuiEnclaveAccessControlRepository>();
         services.AddScoped<TenantMembershipService>();
+        services.AddScoped<TenantWorkspaceSelectionService>();
         services.AddScoped<TenantInvitationService>();
         services.AddScoped<InvitationDeliveryService>();
         services.AddScoped<SamlIdentityProviderConfigurationService>();
@@ -263,6 +264,7 @@ public static class DependencyInjection
             services.AddScoped<ICuiSupportEscalationRepository, EfCuiSupportEscalationRepository>();
             services.AddScoped<ICuiReadyApprovalChecklistGate>(provider => provider.GetRequiredService<CuiReadyApprovalChecklistService>());
             services.AddScoped<ITenantMembershipRepository, EfTenantMembershipRepository>();
+            services.AddScoped<ITenantWorkspaceSelectionRepository, EfTenantWorkspaceSelectionRepository>();
             services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
             services.AddScoped<IInvitationDeliveryRepository, EfInvitationDeliveryRepository>();
             services.AddScoped<ISamlIdentityProviderConfigurationRepository, EfSamlIdentityProviderConfigurationRepository>();
@@ -334,6 +336,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("CUI support escalation persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ITenantMembershipRepository>(_ =>
                 throw new InvalidOperationException("Tenant membership persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ITenantWorkspaceSelectionRepository>(_ =>
+                throw new InvalidOperationException("Tenant workspace selection requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ITenantInvitationRepository>(_ =>
                 throw new InvalidOperationException("Tenant invitation persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IInvitationDeliveryRepository>(_ =>
@@ -415,6 +419,27 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Content classification review persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IDemoTenantSeedRepository>(_ =>
                 throw new InvalidOperationException("Demo tenant seed persistence requires ConnectionStrings:GccsDatabase to be configured."));
+        }
+
+        return services;
+    }
+
+    public static IServiceCollection AddGccsDevelopmentTestingInfrastructure(
+        this IServiceCollection services,
+        IConfiguration? configuration = null)
+    {
+        services.AddScoped<DevelopmentTestingContextService>();
+
+        var connectionString = configuration?.GetConnectionString("GccsDatabase");
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            services.AddScoped<IDevelopmentTenantCatalogRepository, EfDevelopmentTenantCatalogRepository>();
+        }
+        else
+        {
+            services.AddScoped<IDevelopmentTenantCatalogRepository>(_ =>
+                throw new InvalidOperationException(
+                    "Development tenant catalog requires ConnectionStrings:GccsDatabase to be configured."));
         }
 
         return services;

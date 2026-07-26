@@ -543,6 +543,12 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeTenantInvitationRequest"
       responses:
         "200":
           description: Revoked invitation.
@@ -550,6 +556,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TenantInvitation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3415,6 +3423,16 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+
+    RevokeTenantInvitationRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
 
     CreateTenantRequest:
       type: object

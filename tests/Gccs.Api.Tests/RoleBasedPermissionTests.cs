@@ -138,6 +138,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
 
         var checks = new[]
         {
+            EndpointPermissionCheck.Get("tenant-context", $"/api/tenants/{tenantId}", Permission.ViewCompanyProfile, HttpStatusCode.OK),
             EndpointPermissionCheck.Get("obligation", "/api/obligations", Permission.ViewObligations, HttpStatusCode.OK),
             EndpointPermissionCheck.Get("report", "/api/reports/approved-evidence-packages", Permission.ViewReports, HttpStatusCode.OK),
             EndpointPermissionCheck.Get("admin-read", "/api/tenant-members", Permission.ManageUsers, HttpStatusCode.OK),
@@ -273,6 +274,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
         using var blockedDeleteLikeRequest = CreateRequest(
             HttpMethod.Post,
             "/api/tenant-invitations/24242424-2424-2424-2424-2424242424d1/revoke",
+            new RevokeTenantInvitationRequest("Unauthorized role test."),
             tenantAId,
             auditorUserId,
             RoleCatalog.Auditor);

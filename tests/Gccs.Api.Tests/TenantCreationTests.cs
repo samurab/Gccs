@@ -93,13 +93,13 @@ public sealed class TenantCreationTests : IClassFixture<WebApplicationFactory<Pr
             $"/api/tenants/{tenantOneId}",
             tenantOneId,
             Guid.NewGuid(),
-            Permission.ManageTenant);
+            Permission.ViewCompanyProfile);
         using var otherTenantRequest = CreateRequest(
             HttpMethod.Get,
             $"/api/tenants/{tenantTwoId}",
             tenantOneId,
             Guid.NewGuid(),
-            Permission.ManageTenant);
+            Permission.ViewCompanyProfile);
 
         var ownTenantResponse = await client.SendAsync(ownTenantRequest);
         var otherTenantResponse = await client.SendAsync(otherTenantRequest);

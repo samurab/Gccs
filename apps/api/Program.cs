@@ -90,6 +90,12 @@ builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSect
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
+if (builder.Environment.IsDevelopment() &&
+    builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
+    builder.Configuration.GetValue("Security:DevelopmentAuth:Enabled", false))
+{
+    builder.Services.AddGccsDevelopmentTestingInfrastructure(builder.Configuration);
+}
 builder.Services.AddHostedService<InvitationDeliveryWorker>();
 if (builder.Environment.IsDevelopment())
 {
@@ -318,6 +324,85 @@ var api = app.MapGroup("/api")
     .RequireAuthorization()
     .RequireRateLimiting("api")
     .RequireRouteTenantScope();
+
+var currentUserApi = api.MapGroup("/me")
+    .AllowWithoutTenantMembership();
+
+if (app.Environment.IsDevelopment() &&
+    builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
+    builder.Configuration.GetValue("Security:DevelopmentAuth:Enabled", false))
+{
+    api.MapGet("/development/testing-context", async (
+        DevelopmentTestingContextService service,
+        HttpContext httpContext,
+        CancellationToken cancellationToken) =>
+    {
+        httpContext.Response.Headers.CacheControl = "no-store";
+        return Results.Ok(await service.GetAsync(cancellationToken));
+    })
+    .AllowWithoutTenantMembership()
+    .WithName("GetDevelopmentTestingContext");
+}
+
+currentUserApi.MapGet("/tenants", async (
+    ClaimsPrincipal user,
+    TenantWorkspaceSelectionService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Invalid user identity",
+            "The authenticated user identity is missing or invalid.",
+            StatusCodes.Status401Unauthorized,
+            "invalid_user_identity");
+    }
+
+    return Results.Ok(await service.ListAsync(userId, cancellationToken));
+})
+.WithName("ListCurrentUserTenantWorkspaces");
+
+currentUserApi.MapPost("/tenant-selection", async (
+    SelectTenantWorkspaceRequest request,
+    ClaimsPrincipal user,
+    TenantWorkspaceSelectionService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Invalid user identity",
+            "The authenticated user identity is missing or invalid.",
+            StatusCodes.Status401Unauthorized,
+            "invalid_user_identity");
+    }
+
+    try
+    {
+        return Results.Ok(await service.SelectAsync(userId, request, cancellationToken));
+    }
+    catch (TenantWorkspaceSelectionDeniedException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Tenant selection denied",
+            exception.Message,
+            StatusCodes.Status403Forbidden,
+            "tenant_selection_denied");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["tenantId"] = [exception.Message]
+        });
+    }
+})
+.WithName("SelectCurrentUserTenantWorkspace");
 
 api.MapGet("/me/access", (ClaimsPrincipal user, ITenantContext tenantContext) =>
 {
@@ -3966,20 +4051,32 @@ api.MapPost("/tenant-invitations/{invitationId:guid}/expire", async (
 
 api.MapPost("/tenant-invitations/{invitationId:guid}/revoke", async (
     Guid invitationId,
+    RevokeTenantInvitationRequest request,
     TenantInvitationService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var invitation = await service.RevokeAsync(invitationId, tenantContext.UserId, cancellationToken);
-    return invitation is null
-        ? ApiProblemDetails.Create(
-            httpContext,
-            "Resource not found",
-            "Invitation was not found in the current tenant scope.",
-            StatusCodes.Status404NotFound,
-            "resource_not_found")
-        : Results.Ok(invitation);
+    try
+    {
+        var invitation = await service.RevokeAsync(invitationId, request, tenantContext.UserId, cancellationToken);
+        return invitation is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "Invitation was not found in the current tenant scope.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(invitation);
+    }
+    catch (InvalidInvitationStateException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["invitation"] = [exception.Message] });
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["reason"] = [exception.Message] });
+    }
 })
 .RequirePermission(Permission.ManageUsers)
 .WithName("RevokeTenantInvitation");
@@ -5550,7 +5647,7 @@ api.MapGet("/tenants/{tenantId:guid}", async (
             "resource_not_found")
         : Results.Ok(tenant);
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ViewCompanyProfile)
 .WithName("GetTenant");
 
 api.MapPatch("/tenants/{tenantId:guid}/status", async (

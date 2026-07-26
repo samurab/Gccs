@@ -177,7 +177,7 @@ public sealed class TenantLifecycleVerificationTests : IClassFixture<WebApplicat
             $"/api/tenants/{tenantBId}",
             tenantAId,
             Guid.Parse("cccccccc-cccc-cccc-cccc-ccccccccccc3"),
-            Permission.ManageTenant);
+            Permission.ViewCompanyProfile);
 
         var response = await client.SendAsync(request);
         var responseBody = await response.Content.ReadAsStringAsync();

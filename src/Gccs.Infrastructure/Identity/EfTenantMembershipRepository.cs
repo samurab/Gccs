@@ -48,13 +48,17 @@ public sealed class EfTenantMembershipRepository(
         var membership = await dbContext.TenantMemberships
             .AsNoTracking()
             .Include(candidate => candidate.User)
+            .Include(candidate => candidate.Tenant)
             .SingleOrDefaultAsync(
                 candidate =>
                     candidate.TenantId == tenantContext.TenantId &&
                     candidate.UserId == tenantContext.UserId &&
                     candidate.Status == MembershipStatus.Active &&
                     candidate.User != null &&
-                    candidate.User.Status == UserStatus.Active,
+                    candidate.User.Status == UserStatus.Active &&
+                    candidate.Tenant != null &&
+                    (candidate.Tenant.Status == Gccs.Domain.Tenancy.TenantStatus.Active ||
+                     candidate.Tenant.Status == Gccs.Domain.Tenancy.TenantStatus.Trialing),
                 cancellationToken);
 
         return membership is null ? null : ToDto(membership);

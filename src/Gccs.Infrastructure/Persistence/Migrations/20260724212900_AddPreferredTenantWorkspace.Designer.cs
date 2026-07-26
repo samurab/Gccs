@@ -3,6 +3,7 @@ using System;
 using Gccs.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Gccs.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GccsDbContext))]
-    partial class GccsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260724212900_AddPreferredTenantWorkspace")]
+    partial class AddPreferredTenantWorkspace
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -6685,11 +6688,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("CreatedAt", "UpdatedAt");
-
-                    b.HasIndex("TenantId", "Email")
-                        .IsUnique()
-                        .HasDatabaseName("UX_tenant_invitations_tenant_email_pending")
-                        .HasFilter("status = 'Pending'");
 
                     b.HasIndex("DeliveryStatus", "NextDeliveryAttemptAt", "DeliveryLeaseUntil");
 

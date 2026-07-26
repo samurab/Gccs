@@ -459,9 +459,11 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("users");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Email }).IsUnique();
+            entity.HasIndex(x => x.PreferredTenantId);
             entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
             entity.HasOne(x => x.Tenant).WithMany(x => x.Users).HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.PreferredTenant).WithMany().HasForeignKey(x => x.PreferredTenantId).OnDelete(DeleteBehavior.SetNull);
             ConfigureAuditColumns(entity);
         });
 
@@ -484,6 +486,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => x.InvitationTokenHash).IsUnique();
             entity.HasIndex(x => new { x.TenantId, x.Status, x.ExpiresAt });
             entity.HasIndex(x => new { x.TenantId, x.Email, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.Email })
+                .HasDatabaseName("UX_tenant_invitations_tenant_email_pending")
+                .IsUnique()
+                .HasFilter("status = 'Pending'");
             entity.HasIndex(x => new { x.DeliveryStatus, x.NextDeliveryAttemptAt, x.DeliveryLeaseUntil });
             entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
             entity.Property(x => x.RoleName).HasMaxLength(120).IsRequired();

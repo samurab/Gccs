@@ -8,6 +8,7 @@ using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Gccs.Infrastructure.Identity;
 
@@ -16,6 +17,7 @@ public sealed class EfTenantInvitationRepository(
     ICurrentTenantContext tenantContext,
     IAuditRequestMetadata requestMetadata) : ITenantInvitationRepository
 {
+    private const string PendingInvitationConstraintName = "UX_tenant_invitations_tenant_email_pending";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<IReadOnlyList<TenantInvitationDto>> ListCurrentTenantInvitationsAsync(
@@ -36,6 +38,17 @@ public sealed class EfTenantInvitationRepository(
                 invitation.TenantId == tenantContext.TenantId &&
                 invitation.Email == email &&
                 invitation.Status == TenantInvitationStatus.Pending,
+            cancellationToken);
+
+    public Task<bool> TenantMemberEmailExistsAsync(
+        Guid tenantId,
+        string email,
+        CancellationToken cancellationToken = default) =>
+        dbContext.TenantMemberships.AnyAsync(
+            membership =>
+                membership.TenantId == tenantId &&
+                membership.User != null &&
+                membership.User.Email == email,
             cancellationToken);
 
     public async Task<TenantInvitationDto> AddToCurrentTenantAsync(
@@ -69,7 +82,20 @@ public sealed class EfTenantInvitationRepository(
         };
 
         dbContext.TenantInvitations.Add(invitationEntity);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: PendingInvitationConstraintName
+            })
+        {
+            dbContext.Entry(invitationEntity).State = EntityState.Detached;
+            throw new DuplicateInvitationException("A pending invitation already exists for this email in the current tenant.");
+        }
 
         return ToDto(invitationEntity);
     }
@@ -292,26 +318,97 @@ public sealed class EfTenantInvitationRepository(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var invitation = await dbContext.TenantInvitations
-            .SingleOrDefaultAsync(
-                candidate => candidate.Id == invitationId && candidate.TenantId == tenantContext.TenantId,
+        var now = DateTimeOffset.UtcNow;
+        if (!dbContext.Database.IsRelational())
+        {
+            var trackedInvitation = await dbContext.TenantInvitations
+                .SingleOrDefaultAsync(
+                    candidate => candidate.Id == invitationId && candidate.TenantId == tenantContext.TenantId,
+                    cancellationToken);
+            if (trackedInvitation is null)
+            {
+                return null;
+            }
+
+            if (trackedInvitation.Status is not TenantInvitationStatus.Pending)
+            {
+                throw new InvalidInvitationStateException("Only pending invitations can be revoked.");
+            }
+
+            ApplyRevocation(trackedInvitation, actorUserId, now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return ToDto(trackedInvitation);
+        }
+
+        var updated = await dbContext.TenantInvitations
+            .Where(candidate =>
+                candidate.Id == invitationId &&
+                candidate.TenantId == tenantContext.TenantId &&
+                candidate.Status == TenantInvitationStatus.Pending)
+            .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(candidate => candidate.Status, TenantInvitationStatus.Revoked)
+                    .SetProperty(candidate => candidate.InvitationTokenHash, (string?)null)
+                    .SetProperty(candidate => candidate.RevokedAt, now)
+                    .SetProperty(candidate => candidate.RevokedByUserId, actorUserId)
+                    .SetProperty(
+                        candidate => candidate.DeliveryStatus,
+                        candidate => candidate.DeliveryStatus == InvitationDeliveryStatus.Sent
+                            ? InvitationDeliveryStatus.Sent
+                            : InvitationDeliveryStatus.Cancelled)
+                    .SetProperty(candidate => candidate.DeliveryLeaseUntil, (DateTimeOffset?)null)
+                    .SetProperty(candidate => candidate.NextDeliveryAttemptAt, (DateTimeOffset?)null)
+                    .SetProperty(candidate => candidate.DeliveryFailureCode, (string?)null)
+                    .SetProperty(
+                        candidate => candidate.NotificationPlaceholder,
+                        candidate => candidate.DeliveryStatus == InvitationDeliveryStatus.Sent
+                            ? "Invitation was revoked after email delivery."
+                            : "Invitation delivery was cancelled because the invitation was revoked.")
+                    .SetProperty(candidate => candidate.UpdatedAt, now)
+                    .SetProperty(candidate => candidate.UpdatedByUserId, actorUserId),
                 cancellationToken);
 
-        if (invitation is null)
+        if (updated == 0)
         {
+            var invitationExists = await dbContext.TenantInvitations
+                .AsNoTracking()
+                .AnyAsync(
+                    candidate => candidate.Id == invitationId && candidate.TenantId == tenantContext.TenantId,
+                    cancellationToken);
+            if (invitationExists)
+            {
+                throw new InvalidInvitationStateException("Only pending invitations can be revoked.");
+            }
+
             return null;
         }
 
-        var now = DateTimeOffset.UtcNow;
+        var invitation = await dbContext.TenantInvitations
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == invitationId, cancellationToken);
+        return ToDto(invitation);
+    }
+
+    private static void ApplyRevocation(
+        TenantInvitationEntity invitation,
+        Guid actorUserId,
+        DateTimeOffset now)
+    {
+        var emailWasSent = invitation.DeliveryStatus == InvitationDeliveryStatus.Sent;
         invitation.Status = TenantInvitationStatus.Revoked;
+        invitation.InvitationTokenHash = null;
         invitation.RevokedAt = now;
         invitation.RevokedByUserId = actorUserId;
+        invitation.DeliveryStatus = emailWasSent
+            ? InvitationDeliveryStatus.Sent
+            : InvitationDeliveryStatus.Cancelled;
+        invitation.DeliveryLeaseUntil = null;
+        invitation.NextDeliveryAttemptAt = null;
+        invitation.DeliveryFailureCode = null;
+        invitation.NotificationPlaceholder = emailWasSent
+            ? "Invitation was revoked after email delivery."
+            : "Invitation delivery was cancelled because the invitation was revoked.";
         invitation.UpdatedAt = now;
         invitation.UpdatedByUserId = actorUserId;
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return ToDto(invitation);
     }
 
     public Task<TenantInvitationDto?> QueueCurrentTenantDeliveryAsync(

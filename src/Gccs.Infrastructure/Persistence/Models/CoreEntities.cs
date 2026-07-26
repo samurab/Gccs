@@ -344,6 +344,7 @@ public sealed class UserEntity : AuditedEntity
 {
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
+    public Guid? PreferredTenantId { get; set; }
     public string Email { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public UserStatus Status { get; set; }
@@ -351,6 +352,7 @@ public sealed class UserEntity : AuditedEntity
     public DateTimeOffset? LastSignedInAt { get; set; }
 
     public TenantEntity? Tenant { get; set; }
+    public TenantEntity? PreferredTenant { get; set; }
     public ICollection<UserRoleEntity> UserRoles { get; set; } = [];
     public ICollection<TenantMembershipEntity> Memberships { get; set; } = [];
 }

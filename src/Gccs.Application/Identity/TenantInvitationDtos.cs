@@ -30,6 +30,8 @@ public sealed record CreateTenantInvitationRequest(
 
 public sealed record AcceptTenantInvitationRequest(string DisplayName);
 
+public sealed record RevokeTenantInvitationRequest(string Reason);
+
 public sealed record InvitationAcceptanceContextDto(
     Guid InvitationId,
     string TenantDisplayName,
