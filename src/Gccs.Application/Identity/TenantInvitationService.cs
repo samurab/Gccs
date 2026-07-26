@@ -225,9 +225,15 @@ public sealed class TenantInvitationService(
 
     public async Task<TenantInvitationDto?> RevokeAsync(
         Guid invitationId,
+        RevokeTenantInvitationRequest request,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length > 500)
+        {
+            throw new ArgumentException("A revocation reason is required and must be 500 characters or fewer.", nameof(request));
+        }
+
         var invitation = await invitationRepository.RevokeInCurrentTenantScopeAsync(
             invitationId,
             actorUserId,
@@ -243,7 +249,11 @@ public sealed class TenantInvitationService(
             actorUserId,
             AuditAction.Updated,
             $"Invitation for '{invitation.Email}' was revoked.",
-            cancellationToken);
+            cancellationToken,
+            new Dictionary<string, string>
+            {
+                ["reason"] = request.Reason.Trim()
+            });
 
         return invitation;
     }
@@ -253,23 +263,35 @@ public sealed class TenantInvitationService(
         Guid actorUserId,
         AuditAction action,
         string summary,
-        CancellationToken cancellationToken) =>
-        auditEventWriter.WriteAsync(
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string>? additionalMetadata = null)
+    {
+        var metadata = new Dictionary<string, string>
+        {
+            ["email"] = invitation.Email,
+            ["roleName"] = invitation.RoleName,
+            ["status"] = invitation.Status.ToString(),
+            ["expiresAt"] = invitation.ExpiresAt.ToString("O"),
+            ["deliveryStatus"] = invitation.DeliveryStatus.ToString()
+        };
+        if (additionalMetadata is not null)
+        {
+            foreach (var (key, value) in additionalMetadata)
+            {
+                metadata[key] = value;
+            }
+        }
+
+        return auditEventWriter.WriteAsync(
             invitation.TenantId,
             actorUserId,
             action,
             "TenantInvitation",
             invitation.InvitationId.ToString(),
             summary,
-            new Dictionary<string, string>
-            {
-                ["email"] = invitation.Email,
-                ["roleName"] = invitation.RoleName,
-                ["status"] = invitation.Status.ToString(),
-                ["expiresAt"] = invitation.ExpiresAt.ToString("O"),
-                ["deliveryStatus"] = invitation.DeliveryStatus.ToString()
-            },
+            metadata,
             cancellationToken);
+    }
 
     private static void ValidateCreateRequest(CreateTenantInvitationRequest request)
     {

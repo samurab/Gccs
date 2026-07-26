@@ -274,6 +274,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
         using var blockedDeleteLikeRequest = CreateRequest(
             HttpMethod.Post,
             "/api/tenant-invitations/24242424-2424-2424-2424-2424242424d1/revoke",
+            new RevokeTenantInvitationRequest("Unauthorized role test."),
             tenantAId,
             auditorUserId,
             RoleCatalog.Auditor);

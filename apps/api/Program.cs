@@ -4051,20 +4051,32 @@ api.MapPost("/tenant-invitations/{invitationId:guid}/expire", async (
 
 api.MapPost("/tenant-invitations/{invitationId:guid}/revoke", async (
     Guid invitationId,
+    RevokeTenantInvitationRequest request,
     TenantInvitationService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var invitation = await service.RevokeAsync(invitationId, tenantContext.UserId, cancellationToken);
-    return invitation is null
-        ? ApiProblemDetails.Create(
-            httpContext,
-            "Resource not found",
-            "Invitation was not found in the current tenant scope.",
-            StatusCodes.Status404NotFound,
-            "resource_not_found")
-        : Results.Ok(invitation);
+    try
+    {
+        var invitation = await service.RevokeAsync(invitationId, request, tenantContext.UserId, cancellationToken);
+        return invitation is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "Invitation was not found in the current tenant scope.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(invitation);
+    }
+    catch (InvalidInvitationStateException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["invitation"] = [exception.Message] });
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["reason"] = [exception.Message] });
+    }
 })
 .RequirePermission(Permission.ManageUsers)
 .WithName("RevokeTenantInvitation");

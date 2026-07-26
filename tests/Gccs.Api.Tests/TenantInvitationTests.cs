@@ -242,6 +242,7 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         using var revokeRequest = CreateRequest(
             HttpMethod.Post,
             $"/api/tenant-invitations/{invitationId}/revoke",
+            new RevokeTenantInvitationRequest("Authorization regression test."),
             tenantId,
             actorUserId,
             actorEmail,
@@ -357,6 +358,12 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
             var tokenDbContext = tokenScope.ServiceProvider.GetRequiredService<GccsDbContext>();
             var invitation = await tokenDbContext.TenantInvitations.SingleAsync(candidate => candidate.Id == acceptedInvitation.InvitationId);
             invitation.InvitationTokenHash = HashToken(acceptedCode);
+            var invitationToRevoke = await tokenDbContext.TenantInvitations.SingleAsync(candidate =>
+                candidate.Id == revokedInvitation.InvitationId);
+            invitationToRevoke.InvitationTokenHash = HashToken("revoked-audit-token");
+            invitationToRevoke.DeliveryStatus = InvitationDeliveryStatus.Sent;
+            invitationToRevoke.NotificationSentAt = DateTimeOffset.UtcNow.AddMinutes(-5);
+            invitationToRevoke.NotificationPlaceholder = "Owner invitation email was sent.";
             await tokenDbContext.SaveChangesAsync();
         }
 
@@ -378,6 +385,7 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         using var revokeRequest = CreateRequest(
             HttpMethod.Post,
             $"/api/tenant-invitations/{revokedInvitation.InvitationId}/revoke",
+            new RevokeTenantInvitationRequest("Role assignment is no longer required."),
             tenantId,
             adminUserId,
             "admin@example.com",
@@ -413,9 +421,105 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         Assert.Contains(auditEvents, candidate => candidate.Action == AuditAction.Updated && candidate.Summary.Contains("accepted", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(auditEvents, candidate => candidate.Action == AuditAction.Updated && candidate.Summary.Contains("expired", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(auditEvents, candidate => candidate.Action == AuditAction.Updated && candidate.Summary.Contains("revoked", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            auditEvents,
+            candidate =>
+                candidate.Action == AuditAction.Updated &&
+                candidate.Summary.Contains("revoked", StringComparison.OrdinalIgnoreCase) &&
+                candidate.MetadataJson.Contains("Role assignment is no longer required.", StringComparison.Ordinal));
         Assert.All(auditEvents, candidate => Assert.Contains("roleName", candidate.MetadataJson, StringComparison.OrdinalIgnoreCase));
+        var persistedRevokedInvitation = await dbContext.TenantInvitations.SingleAsync(candidate =>
+            candidate.Id == revokedInvitation.InvitationId);
+        Assert.Null(persistedRevokedInvitation.InvitationTokenHash);
+        Assert.Equal(InvitationDeliveryStatus.Sent, persistedRevokedInvitation.DeliveryStatus);
         Assert.Equal("Admin", membership.RoleName);
         Assert.Equal(MembershipStatus.Active, membership.Status);
+    }
+
+    [Fact]
+    public async Task Revoke_requires_a_pending_invitation_and_cancels_queued_delivery()
+    {
+        var tenantId = Guid.Parse("23232323-2323-2323-2323-2323232323a7");
+        var actorUserId = Guid.Parse("23232323-2323-2323-2323-2323232323b7");
+        var acceptedInvitationId = Guid.Parse("23232323-2323-2323-2323-2323232323c7");
+        var pendingInvitationId = Guid.Parse("23232323-2323-2323-2323-2323232323d7");
+        await using var factory = CreateFactory("tenant-invitation-revoke-state", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Invitation Revoke State Tenant"));
+            var accepted = CreateInvitation(
+                acceptedInvitationId,
+                tenantId,
+                "accepted@example.com",
+                "Admin",
+                "accepted-token",
+                TenantInvitationStatus.Accepted);
+            var pending = CreateInvitation(
+                pendingInvitationId,
+                tenantId,
+                "pending@example.com",
+                "Contributor",
+                "pending-token",
+                TenantInvitationStatus.Pending);
+            pending.DeliveryStatus = InvitationDeliveryStatus.Queued;
+            pending.NotificationSentAt = null;
+            pending.NotificationPlaceholder = "Invitation is queued for delivery.";
+            dbContext.TenantInvitations.AddRange(accepted, pending);
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var acceptedRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/tenant-invitations/{acceptedInvitationId}/revoke",
+            new RevokeTenantInvitationRequest("This must not overwrite accepted state."),
+            tenantId,
+            actorUserId,
+            "admin@example.com",
+            Permission.ManageUsers);
+        using var pendingRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/tenant-invitations/{pendingInvitationId}/revoke",
+            new RevokeTenantInvitationRequest("The invited user no longer needs access."),
+            tenantId,
+            actorUserId,
+            "admin@example.com",
+            Permission.ManageUsers);
+        using var missingReasonRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/tenant-invitations/{pendingInvitationId}/revoke",
+            new RevokeTenantInvitationRequest(" "),
+            tenantId,
+            actorUserId,
+            "admin@example.com",
+            Permission.ManageUsers);
+
+        var acceptedResponse = await client.SendAsync(acceptedRequest);
+        var missingReasonResponse = await client.SendAsync(missingReasonRequest);
+        var pendingResponse = await client.SendAsync(pendingRequest);
+
+        Assert.Equal(HttpStatusCode.BadRequest, acceptedResponse.StatusCode);
+        Assert.Contains(
+            "Only pending invitations can be revoked.",
+            await acceptedResponse.Content.ReadAsStringAsync(),
+            StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.BadRequest, missingReasonResponse.StatusCode);
+        Assert.Contains(
+            "A revocation reason is required",
+            await missingReasonResponse.Content.ReadAsStringAsync(),
+            StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, pendingResponse.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var accepted = await dbContext.TenantInvitations.SingleAsync(candidate => candidate.Id == acceptedInvitationId);
+        var revoked = await dbContext.TenantInvitations.SingleAsync(candidate => candidate.Id == pendingInvitationId);
+        Assert.Equal(TenantInvitationStatus.Accepted, accepted.Status);
+        Assert.NotNull(accepted.InvitationTokenHash);
+        Assert.Equal(TenantInvitationStatus.Revoked, revoked.Status);
+        Assert.Equal(InvitationDeliveryStatus.Cancelled, revoked.DeliveryStatus);
+        Assert.Null(revoked.InvitationTokenHash);
+        Assert.Equal(actorUserId, revoked.RevokedByUserId);
+        Assert.Null(revoked.NextDeliveryAttemptAt);
+        Assert.Null(revoked.DeliveryLeaseUntil);
     }
 
     [Fact]
@@ -441,6 +545,7 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         using var crossTenantRevokeRequest = CreateRequest(
             HttpMethod.Post,
             $"/api/tenant-invitations/{tenantBInvitationId}/revoke",
+            new RevokeTenantInvitationRequest("Cross-tenant isolation test."),
             tenantAId,
             Guid.NewGuid(),
             "admin-a@example.com",
