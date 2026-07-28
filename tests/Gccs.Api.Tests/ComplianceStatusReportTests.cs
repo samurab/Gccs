@@ -208,7 +208,7 @@ public sealed class ComplianceStatusReportTests : IClassFixture<WebApplicationFa
 
     private static async Task<ComplianceStatusReportDto> GenerateReportAsync(HttpClient client, Guid tenantId)
     {
-        using var request = CreateRequest<object?>(HttpMethod.Post, "/api/reports/compliance-status", null, tenantId, Permission.ViewReports);
+        using var request = CreateRequest<object?>(HttpMethod.Post, "/api/reports/compliance-status", null, tenantId, Permission.ManageReports);
         var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

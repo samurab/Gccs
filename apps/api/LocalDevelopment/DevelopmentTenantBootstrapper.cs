@@ -62,7 +62,10 @@ public sealed class DevelopmentTenantBootstrapper(
             return;
         }
 
-        var seedDataEnabled = configuration.GetValue("LocalDevelopment:SeedData:Enabled", false);
+        var seedDataEnabled =
+            configuration.GetValue("LocalDevelopment:SeedData:Enabled", false) ||
+            (configuration.GetValue("LocalDependencies:Enabled", false) &&
+             configuration.GetValue("LocalDependencies:SeedData:Enabled", false));
         if (!seedDataEnabled)
         {
             return;

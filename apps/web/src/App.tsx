@@ -6829,60 +6829,71 @@ function ReportsView({
         Reports are workflow guidance only. They are not legal advice, certification decisions, assessor determinations,
         contracting-officer determinations, or government endorsements.
       </div>
+      {!canManageReports ? (
+        <div className="form-status form-status--notice" role="note">
+          Your role can view existing reports but cannot generate new reports or evidence packages.
+        </div>
+      ) : null}
       {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
-      <div className="report-action-grid">
-        <section className="evidence-metadata">
-          <h3>Compliance status</h3>
-          <p>Snapshot obligation status, overdue tasks, evidence state, high-risk items, and readiness gaps.</p>
-          <div className="form-actions">
-            <button type="button" disabled={status === "loading"} onClick={() => void onComplianceReportGenerate()}>
-              <ScrollText size={16} aria-hidden="true" />
-              <span>Generate status</span>
-            </button>
+      {canManageReports ? (
+        <>
+          <div className="report-action-grid">
+            <section className="evidence-metadata">
+              <h3>Compliance status</h3>
+              <p>Snapshot obligation status, overdue tasks, evidence state, high-risk items, and readiness gaps.</p>
+              <div className="form-actions">
+                <button type="button" disabled={status === "loading"} onClick={() => void onComplianceReportGenerate()}>
+                  <ScrollText size={16} aria-hidden="true" />
+                  <span>Generate status</span>
+                </button>
+              </div>
+            </section>
+            <section className="evidence-metadata">
+              <h3>CMMC readiness</h3>
+              <label>
+                <span>Assessment</span>
+                <select value={assessmentId} onChange={(event) => setAssessmentId(event.target.value)}>
+                  <option value="">Select assessment</option>
+                  {assessments.map((assessment) => (
+                    <option key={assessment.id} value={assessment.id}>
+                      {assessment.name} · {assessment.level}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  disabled={!assessmentId || status === "loading"}
+                  onClick={() => void onCmmcReportGenerate(assessmentId)}
+                >
+                  <ShieldCheck size={16} aria-hidden="true" />
+                  <span>Generate readiness</span>
+                </button>
+              </div>
+            </section>
+            <section className="evidence-metadata">
+              <h3>Subcontractor compliance</h3>
+              <label>
+                <span>Contract filter</span>
+                <select value={contractId} onChange={(event) => setContractId(event.target.value)}>
+                  <option value="">All contracts</option>
+                  {contracts.map((contract) => (
+                    <option key={contract.id} value={contract.id}>
+                      {contract.contractNumber}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="form-actions">
+                <button type="button" disabled={status === "loading"} onClick={() => void onSubcontractorReportGenerate(contractId || undefined)}>
+                  <UsersRound size={16} aria-hidden="true" />
+                  <span>Generate supplier report</span>
+                </button>
+              </div>
+            </section>
           </div>
-        </section>
-        <section className="evidence-metadata">
-          <h3>CMMC readiness</h3>
-          <label>
-            <span>Assessment</span>
-            <select value={assessmentId} onChange={(event) => setAssessmentId(event.target.value)}>
-              <option value="">Select assessment</option>
-              {assessments.map((assessment) => (
-                <option key={assessment.id} value={assessment.id}>
-                  {assessment.name} · {assessment.level}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="form-actions">
-            <button type="button" disabled={!assessmentId || status === "loading"} onClick={() => void onCmmcReportGenerate(assessmentId)}>
-              <ShieldCheck size={16} aria-hidden="true" />
-              <span>Generate readiness</span>
-            </button>
-          </div>
-        </section>
-        <section className="evidence-metadata">
-          <h3>Subcontractor compliance</h3>
-          <label>
-            <span>Contract filter</span>
-            <select value={contractId} onChange={(event) => setContractId(event.target.value)}>
-              <option value="">All contracts</option>
-              {contracts.map((contract) => (
-                <option key={contract.id} value={contract.id}>
-                  {contract.contractNumber}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="form-actions">
-            <button type="button" disabled={status === "loading"} onClick={() => void onSubcontractorReportGenerate(contractId || undefined)}>
-              <UsersRound size={16} aria-hidden="true" />
-              <span>Generate supplier report</span>
-            </button>
-          </div>
-        </section>
-      </div>
-      <form className="evidence-metadata" onSubmit={generatePackage}>
+          <form className="evidence-metadata" onSubmit={generatePackage}>
         <h3>Evidence package builder</h3>
         <div className="form-grid">
           <label className="span-2">
@@ -6960,7 +6971,9 @@ function ReportsView({
             <span>Generate package</span>
           </button>
         </div>
-      </form>
+          </form>
+        </>
+      ) : null}
       <div className="report-action-grid">
         <section className="evidence-metadata">
           <h3>Recent generated reports</h3>

@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 
@@ -7,12 +8,14 @@ namespace Gccs.Application.Reports;
 public sealed class SubcontractorComplianceReportService(
     IReportRepository repository,
     IAuditEventWriter auditEventWriter,
-    TenantDataHandlingModePolicyService dataHandlingModePolicy)
+    TenantDataHandlingModePolicyService dataHandlingModePolicy,
+    IApplicationTransaction transaction)
 {
-    public async Task<SubcontractorComplianceReportDto> GenerateAsync(
+    public Task<SubcontractorComplianceReportDto> GenerateAsync(
         Guid? contractId,
         Guid actorUserId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        transaction.ExecuteAsync(async transactionCancellationToken =>
     {
         await dataHandlingModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(
@@ -21,9 +24,9 @@ public sealed class SubcontractorComplianceReportService(
                 EntityType: "Contract",
                 EntityId: contractId?.ToString()),
             actorUserId,
-            cancellationToken);
+            transactionCancellationToken);
 
-        var report = await repository.GenerateSubcontractorComplianceReportAsync(contractId, actorUserId, cancellationToken);
+        var report = await repository.GenerateSubcontractorComplianceReportAsync(contractId, actorUserId, transactionCancellationToken);
         await auditEventWriter.WriteAsync(
             report.TenantId,
             actorUserId,
@@ -40,7 +43,7 @@ public sealed class SubcontractorComplianceReportService(
                 ["overdueEvidenceRequests"] = report.Snapshot.OverdueEvidenceRequests.ToString(),
                 ["openFlowDowns"] = report.Snapshot.OpenFlowDowns.ToString()
             },
-            cancellationToken);
+            transactionCancellationToken);
         return report;
-    }
+    }, cancellationToken);
 }

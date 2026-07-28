@@ -598,7 +598,8 @@ public sealed class EfReportRepository(
                 status?.Result ?? AssessmentResult.NotAssessed,
                 ReadGuidArray(status?.EvidenceItemIdsJson ?? "[]"));
         }).ToArray();
-        var evidenceStatusByControl = await BuildEvidenceStatusByControlAsync(controlRows, cancellationToken);
+        var reportEvidence = await LoadReportableEvidenceAsync(controlRows, actorUserId, cancellationToken);
+        var evidenceStatusByControl = BuildEvidenceStatusByControl(controlRows, reportEvidence);
         var progress = controlRows
             .GroupBy(row => row.Control.Family)
             .Select(group => new CmmcFamilyProgressDto(
@@ -668,7 +669,7 @@ public sealed class EfReportRepository(
                 item.TargetCompletionAt))
             .ToArrayAsync(cancellationToken);
         var evidenceLinks = includeEvidenceLinks
-            ? await BuildEvidenceLinksAsync(controlRows, cancellationToken)
+            ? BuildEvidenceLinks(controlRows, reportEvidence)
             : [];
         var responsibilityMatrix = controlRows
             .Select(row =>
@@ -964,48 +965,68 @@ public sealed class EfReportRepository(
         };
     }
 
-    private async Task<IReadOnlyList<CmmcReportEvidenceLinkDto>> BuildEvidenceLinksAsync(
+    private async Task<IReadOnlyDictionary<Guid, EvidenceItemEntity>> LoadReportableEvidenceAsync(
         IEnumerable<CmmcControlReportRow> controlRows,
+        Guid actorUserId,
         CancellationToken cancellationToken)
     {
-        var pairs = controlRows
-            .SelectMany(row => row.EvidenceItemIds.Select(id => new { EvidenceItemId = id, row.Control.Id }))
+        var evidenceIds = controlRows
+            .SelectMany(row => row.EvidenceItemIds)
+            .Distinct()
             .ToArray();
-        var evidenceIds = pairs.Select(pair => pair.EvidenceItemId).Distinct().ToArray();
+        if (evidenceIds.Length == 0)
+        {
+            return new Dictionary<Guid, EvidenceItemEntity>();
+        }
+
         var evidence = await dbContext.EvidenceItems
             .AsNoTracking()
             .Where(item => item.TenantId == tenantContext.TenantId && evidenceIds.Contains(item.Id))
-            .ToDictionaryAsync(item => item.Id, item => item.Name, cancellationToken);
-        return pairs
-            .Where(pair => evidence.ContainsKey(pair.EvidenceItemId))
-            .Select(pair => new CmmcReportEvidenceLinkDto(pair.EvidenceItemId, evidence[pair.EvidenceItemId], pair.Id))
-            .ToArray();
+            .ToArrayAsync(cancellationToken);
+        foreach (var item in evidence)
+        {
+            await EnsureEvidenceAllowedForReportAsync(item, actorUserId, cancellationToken);
+            ContentClassificationPolicy.EnsureProcessable(item.Classification, "CMMC readiness report generation");
+        }
+
+        return evidence.ToDictionary(item => item.Id);
     }
 
-    private async Task<IReadOnlyDictionary<string, string>> BuildEvidenceStatusByControlAsync(
+    private static IReadOnlyList<CmmcReportEvidenceLinkDto> BuildEvidenceLinks(
         IEnumerable<CmmcControlReportRow> controlRows,
-        CancellationToken cancellationToken)
+        IReadOnlyDictionary<Guid, EvidenceItemEntity> evidence)
     {
         var pairs = controlRows
             .SelectMany(row => row.EvidenceItemIds.Select(id => new { EvidenceItemId = id, row.Control.Id }))
             .ToArray();
-        var evidenceIds = pairs.Select(pair => pair.EvidenceItemId).Distinct().ToArray();
-        if (evidenceIds.Length == 0)
+        return pairs
+            .Where(pair => evidence.ContainsKey(pair.EvidenceItemId))
+            .Select(pair => new CmmcReportEvidenceLinkDto(
+                pair.EvidenceItemId,
+                evidence[pair.EvidenceItemId].Name,
+                pair.Id))
+            .ToArray();
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildEvidenceStatusByControl(
+        IEnumerable<CmmcControlReportRow> controlRows,
+        IReadOnlyDictionary<Guid, EvidenceItemEntity> evidence)
+    {
+        var pairs = controlRows
+            .SelectMany(row => row.EvidenceItemIds.Select(id => new { EvidenceItemId = id, row.Control.Id }))
+            .ToArray();
+        if (pairs.Length == 0)
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        var evidenceStatuses = await dbContext.EvidenceItems
-            .AsNoTracking()
-            .Where(item => item.TenantId == tenantContext.TenantId && evidenceIds.Contains(item.Id))
-            .Select(item => new { item.Id, item.Status })
-            .ToDictionaryAsync(item => item.Id, item => item.Status.ToString(), cancellationToken);
         return pairs
-            .Where(pair => evidenceStatuses.ContainsKey(pair.EvidenceItemId))
+            .Where(pair => evidence.ContainsKey(pair.EvidenceItemId))
             .GroupBy(pair => pair.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 group => group.Key,
-                group => SummarizeReportEvidenceStatus(group.Select(pair => evidenceStatuses[pair.EvidenceItemId]).ToArray()),
+                group => SummarizeReportEvidenceStatus(
+                    group.Select(pair => evidence[pair.EvidenceItemId].Status.ToString()).ToArray()),
                 StringComparer.OrdinalIgnoreCase);
     }
 

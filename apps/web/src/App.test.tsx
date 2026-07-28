@@ -226,6 +226,7 @@ const {
       "ViewSubcontractors",
       "ManageSubcontractors",
       "ViewReports",
+      "ManageReports",
       "ViewAuditLog"
     ],
     rolePermissionMatrix: {}
@@ -2421,6 +2422,27 @@ describe("App", () => {
     expect(getTenantMembersMock).not.toHaveBeenCalled();
     expect(getTenantInvitationsMock).not.toHaveBeenCalled();
     expect(getNoCuiAcknowledgementStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("UAT-02 keeps report history visible but hides report generation for auditors", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(restrictedAccess);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /reports/i }));
+
+    expect(screen.getByRole("heading", { name: "Recent generated reports" })).toBeInTheDocument();
+    expect(screen.getByText("Your role can view existing reports but cannot generate new reports or evidence packages.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Generate status" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Generate readiness" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Generate supplier report" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Generate package" })).not.toBeInTheDocument();
+    expect(generateComplianceStatusReportMock).not.toHaveBeenCalled();
+    expect(generateCmmcReadinessReportMock).not.toHaveBeenCalled();
+    expect(generateSubcontractorComplianceReportMock).not.toHaveBeenCalled();
+    expect(generateEvidencePackageMock).not.toHaveBeenCalled();
   });
 
   it("keeps contract navigation visible without loading evidence APIs for contract-only users", async () => {

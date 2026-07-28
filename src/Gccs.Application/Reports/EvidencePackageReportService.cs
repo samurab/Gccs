@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 
@@ -7,24 +8,26 @@ namespace Gccs.Application.Reports;
 public sealed class EvidencePackageReportService(
     IReportRepository repository,
     IAuditEventWriter auditEventWriter,
-    TenantDataHandlingModePolicyService dataHandlingModePolicy)
+    TenantDataHandlingModePolicyService dataHandlingModePolicy,
+    IApplicationTransaction transaction)
 {
-    public async Task<EvidencePackageReportDto> GenerateAsync(
+    public Task<EvidencePackageReportDto> GenerateAsync(
         EvidencePackageGenerateRequest request,
         Guid actorUserId,
         bool includeDraftOrRejectedEvidence,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        transaction.ExecuteAsync(async transactionCancellationToken =>
     {
         await dataHandlingModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(TenantDataHandlingWorkflow.Report, ContainsRealCui: false),
             actorUserId,
-            cancellationToken);
+            transactionCancellationToken);
 
         var report = await repository.GenerateEvidencePackageAsync(
             request,
             actorUserId,
             includeDraftOrRejectedEvidence,
-            cancellationToken);
+            transactionCancellationToken);
         await auditEventWriter.WriteAsync(
             report.TenantId,
             actorUserId,
@@ -42,9 +45,9 @@ public sealed class EvidencePackageReportService(
                 ["controlScopeCount"] = report.Manifest.Scope.ControlIds.Count.ToString(),
                 ["subcontractorScopeCount"] = report.Manifest.Scope.SubcontractorIds.Count.ToString()
             },
-            cancellationToken);
+            transactionCancellationToken);
         return report;
-    }
+    }, cancellationToken);
 
     public Task<EvidencePackageReportDto?> GetAsync(
         Guid reportId,

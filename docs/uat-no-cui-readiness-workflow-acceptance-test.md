@@ -111,7 +111,7 @@ Steps:
 1. Stay on `Settings`.
 2. Review the visible role guidance or current access details if shown.
 3. Confirm the test actor can access `Contracts`, `Obligations`, `Evidence`, and `Reports`.
-4. Confirm `Auditor` can view workflow records and reports but cannot create or update them.
+4. Confirm `Auditor` can view workflow records and existing reports, that all report-generation controls are absent, and that direct `POST` attempts to every report-generation endpoint return `403` without creating a report or other mutation.
 5. Confirm `Contributor` can help with evidence and task work but cannot generate reports or approve evidence.
 
 Expected result: UAT actors are assigned to roles that match the work they perform.

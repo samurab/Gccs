@@ -69,10 +69,10 @@ Using the existing GCCS architecture and test patterns, create or update automat
 ### Story 2.4: Role-Based Permissions
 Using the existing GCCS architecture and test patterns, create or update automated tests for the following test case. Keep tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, and standard error handling in scope where relevant. Run the narrowest relevant test command and report results.
 
-- **TC-2.4.1:** For each role, call representative profile, contract, obligation, task, evidence, report, subcontractor, and admin endpoints and verify results match the permission matrix.
+- **TC-2.4.1:** For each role, verify the complete endpoint inventory for each security-sensitive workflow family, including every report-generation route; call all story-affected mutations and verify results and machine-readable endpoint authorization metadata match the permission matrix.
 - **TC-2.4.2:** Render workspace pages for each role and verify actions the role cannot perform are hidden.
 - **TC-2.4.3:** Directly call a restricted action and verify the API returns the standard authorization error response.
-- **TC-2.4.4:** Verify an auditor can view approved evidence packages but cannot create, update, approve, delete, or assign tenant data.
+- **TC-2.4.4:** Verify an auditor can view approved evidence packages and existing reports but cannot create, update, approve, delete, assign, or invoke any report-generation endpoint; prove denied mutations create no persisted or queued side effects.
 
 ## 3. Authenticated Application Shell
 

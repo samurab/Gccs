@@ -55,6 +55,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddGccsInfrastructure(this IServiceCollection services, IConfiguration? configuration = null)
     {
+        services.AddScoped<IApplicationTransaction, EfApplicationTransaction>();
         services.AddScoped<ComplianceOverviewService>();
         services.AddScoped<ComplianceChecklistService>();
         services.AddScoped<ComplianceContentReviewService>();

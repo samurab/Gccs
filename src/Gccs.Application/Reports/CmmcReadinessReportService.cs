@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 
@@ -7,24 +8,26 @@ namespace Gccs.Application.Reports;
 public sealed class CmmcReadinessReportService(
     IReportRepository repository,
     IAuditEventWriter auditEventWriter,
-    TenantDataHandlingModePolicyService dataHandlingModePolicy)
+    TenantDataHandlingModePolicyService dataHandlingModePolicy,
+    IApplicationTransaction transaction)
 {
-    public async Task<CmmcReadinessReportDto?> GenerateAsync(
+    public Task<CmmcReadinessReportDto?> GenerateAsync(
         Guid assessmentId,
         Guid actorUserId,
         bool includeEvidenceLinks,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        transaction.ExecuteAsync(async transactionCancellationToken =>
     {
         await dataHandlingModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(TenantDataHandlingWorkflow.Report, ContainsRealCui: false),
             actorUserId,
-            cancellationToken);
+            transactionCancellationToken);
 
         var report = await repository.GenerateCmmcReadinessReportAsync(
             assessmentId,
             actorUserId,
             includeEvidenceLinks,
-            cancellationToken);
+            transactionCancellationToken);
         if (report is null)
         {
             return null;
@@ -45,7 +48,7 @@ public sealed class CmmcReadinessReportService(
                 ["openPoamItems"] = report.Snapshot.OpenPoamItems.Count.ToString(),
                 ["evidenceLinksIncluded"] = includeEvidenceLinks.ToString()
             },
-            cancellationToken);
+            transactionCancellationToken);
         return report;
-    }
+    }, cancellationToken);
 }

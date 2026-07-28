@@ -109,7 +109,7 @@ public sealed class SubcontractorComplianceReportTests : IClassFixture<WebApplic
 
     private static async Task<SubcontractorComplianceReportDto> GenerateReportAsync(HttpClient client, Guid tenantId, Guid contractId)
     {
-        using var request = CreateRequest<object?>(HttpMethod.Post, $"/api/reports/subcontractor-compliance?contractId={contractId}", null, tenantId, Permission.ViewReports);
+        using var request = CreateRequest<object?>(HttpMethod.Post, $"/api/reports/subcontractor-compliance?contractId={contractId}", null, tenantId, Permission.ManageReports);
         var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

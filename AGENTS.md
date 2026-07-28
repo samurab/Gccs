@@ -104,6 +104,24 @@ Add or update focused tests for the risk introduced by the change.
 
 Run the narrowest relevant tests first, then broader build/test commands when practical.
 
+## Deep Verification and Hidden-Bug Prevention
+
+Treat acceptance criteria as executable contracts, not prose-only guidance.
+
+1. Decompose each requirement into actor, action, preconditions, expected result, forbidden result, tenant boundary, persisted state, audit event, and external side effects. Record which UI control, API endpoint, application service, repository rule, and automated test proves each applicable part.
+2. For authorization, tenant isolation, classification, exports, reports, uploads, approvals, and auditability, test the complete endpoint inventory. A representative endpoint is not sufficient evidence for a security boundary. Every added or changed endpoint must declare machine-readable authorization metadata and be included in an executable endpoint contract or manifest.
+3. Keep permissions server-authoritative. The UI must consume explicit server permissions, fail closed when access data is missing or malformed, and hide restricted actions. Never maintain a second client-side role-to-permission matrix.
+4. Test both allowed and denied behavior for every affected role and mutation. Denied tests must prove the response contract and prove no report, audit event, related row, notification, job, token change, or external call was created.
+5. Compliance-relevant business writes and their audit events must be atomic in one database transaction, or use a proven transactional-outbox design when an external system is involved. Add real-provider fault-injection tests that force audit or outbox failure and prove rollback.
+6. Every report, export, background job, and search path must independently enforce tenant scope, RBAC, data-handling mode, and content classification on the source records it consumes. Do not infer safety from UI filters or from a request-level boolean.
+7. Trace cross-layer workflows through UI, HTTP, application service, persistence, audit, background processing, and external providers. Unit or mocked-browser tests do not replace a real-stack test for a critical workflow.
+8. Maintain separate mocked UI tests and real-stack Playwright tests. CI must run critical UAT personas against the actual API and PostgreSQL schema, including direct API attempts that bypass hidden or disabled controls.
+9. Cover lifecycle and boundary states: zero/one/many records, stale and deleted links, cross-tenant identifiers, unknown/prohibited/synthetic classifications, equality boundaries, expired data, retries, duplicate submission, concurrency, cancellation, and partial infrastructure failure.
+10. Coverage percentage, test-name substring matching, snapshots, and generated verification documents are supporting signals only. They are never proof that an acceptance criterion is enforced.
+11. Verification evidence must identify the commit SHA, environment, database provider, commands, result counts, and execution time. Treat evidence from an older SHA or a mocked-only environment as stale.
+12. Deploy to staging only after focused tests, adjacent regression suites, builds, migrations, dependency scans, and real-stack critical-path tests pass. Deploy to production only from the repository's approved launch-candidate tag and manifest after required approvals and staging evidence.
+13. Never claim that all bugs are detected. State the verified scope, untested scope, skipped tests, environmental differences, and remaining risks.
+
 ## Codex Workflow
 
 Before editing:

@@ -106,6 +106,47 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
             audit.EntityType == "Report" && audit.Action == AuditAction.Created && audit.MetadataJson.Contains("CmmcReadiness", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(ContentClassification.Unknown)]
+    [InlineData(ContentClassification.Prohibited)]
+    [InlineData(ContentClassification.Cui)]
+    public async Task Cmmc_report_rejects_non_reportable_evidence_without_persisting_report_or_audit(
+        ContentClassification classification)
+    {
+        var ids = StoryIds.ForCase($"cmmc-classification-{classification}");
+        await using var factory = CreateFactory($"cmmc-classification-{classification}", dbContext =>
+        {
+            SeedScenario(dbContext, ids);
+            var evidence = dbContext.ChangeTracker
+                .Entries<EvidenceItemEntity>()
+                .Single(entry => entry.Entity.Id == ids.EvidenceItemId)
+                .Entity;
+            evidence.Classification = classification;
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest<object?>(
+            HttpMethod.Post,
+            $"/api/reports/cmmc-readiness?assessmentId={ids.AssessmentId}",
+            null,
+            ids.TenantId,
+            Permission.ManageReports,
+            Permission.ViewEvidence);
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(
+            classification == ContentClassification.Cui ? HttpStatusCode.Forbidden : HttpStatusCode.BadRequest,
+            response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.False(await dbContext.Reports.AnyAsync(report =>
+            report.TenantId == ids.TenantId &&
+            report.Type == ReportType.CmmcReadiness));
+        Assert.False(await dbContext.AuditLogEntries.AnyAsync(audit =>
+            audit.TenantId == ids.TenantId &&
+            audit.EntityType == "Report"));
+    }
+
     [Fact]
     public async Task TC_27_4_1_through_TC_27_4_5_Level_2_readiness_report_has_draft_scoped_sections_and_audit()
     {
@@ -159,8 +200,8 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
         bool includeEvidencePermission)
     {
         var permissions = includeEvidencePermission
-            ? [Permission.ViewReports, Permission.ViewEvidence]
-            : new[] { Permission.ViewReports };
+            ? [Permission.ManageReports, Permission.ViewEvidence]
+            : new[] { Permission.ManageReports };
         using var request = CreateRequest<object?>(HttpMethod.Post, $"/api/reports/cmmc-readiness?assessmentId={assessmentId}", null, tenantId, permissions);
         var response = await client.SendAsync(request);
 
