@@ -19,7 +19,7 @@ export default defineConfig({
   webServer: [
     {
       command: "dotnet run --project apps/api --configuration Release --no-build --no-launch-profile",
-      url: `${apiURL}/health`,
+      port: Number(new URL(apiURL).port),
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
