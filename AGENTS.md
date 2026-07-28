@@ -57,6 +57,35 @@ Do not put database queries directly in API endpoints. Keep controllers and mini
 - Keep frontend screens complete for normal UX states when touched: loading, empty, success, error, and authorization-denied states where applicable.
 - For EF Core changes, add migrations when the project uses migrations and keep generated migrations scoped to the model change.
 
+## Backward Compatibility and Regression Prevention
+
+Existing working behavior is a product contract. A new feature, defect fix, refactor, configuration change, or UI redesign must not silently remove, disable, weaken, or alter an existing working flow.
+
+Before changing code:
+
+1. Identify the existing callers, routes, controls, persisted fields, configuration keys, background workers, tests, and documented/UAT flows affected by the change.
+2. Record the current expected behavior and determine which behavior must remain compatible.
+3. Run the narrowest relevant existing tests before editing when practical. Treat unexpected baseline failures as existing conditions to investigate, not as permission to change the contract.
+4. Add or identify a regression test for any previously working behavior that the change could affect. When fixing a regression, reproduce it with a failing test before implementing the fix where practical.
+5. Prefer additive changes. Do not rename or remove API fields, routes, roles, permissions, UI actions, configuration keys, storage keys, seeded identities, or database semantics without explicit authorization and a compatibility/migration plan.
+
+During implementation:
+
+1. Preserve existing public and internal contracts unless the requested change explicitly requires a breaking change.
+2. Keep security enforcement, tenant isolation, RBAC, audit history, No-CUI controls, token lifecycle, retry behavior, and user identity semantics at least as strong as before.
+3. Do not fix one environment by weakening another. Development-only behavior must be explicitly gated and must not alter staging or production authentication or authorization.
+4. When a workflow spans UI, API, persistence, email/background processing, or external providers, trace and verify the complete workflow rather than validating only the changed layer.
+5. If a breaking change is unavoidable, stop and document the affected behavior, migration steps, rollback path, and required user approval before implementing it.
+
+Before declaring the change complete:
+
+1. Run the new focused tests and the existing tests for adjacent behavior.
+2. Build every touched application or project.
+3. Perform a smoke test of the original working flow and the new/changed flow using realistic persisted state.
+4. Inspect the final diff for unrelated changes, removed behavior, stale copy, configuration drift, and accidental security or authorization changes.
+5. Report exactly which regression suites, builds, and smoke tests were run. If a broader suite was not run, disclose that limitation and the remaining regression risk.
+6. Do not mark a change complete while a known backward regression remains. Restore compatibility or explicitly obtain approval for the breaking behavior.
+
 ## Testing Rules
 
 Add or update focused tests for the risk introduced by the change.
@@ -68,6 +97,10 @@ Add or update focused tests for the risk introduced by the change.
 - Validation and error handling tests for invalid input, missing resources, conflicts, and unexpected failures where applicable.
 - Cross-tenant tests must prove data is not returned, updated, exported, counted, or linked across tenants.
 - Empty-state tests must prove tenant-safe endpoints return valid empty responses instead of throwing.
+- Cross-field and lifecycle validation tests must cover valid ordering, reversed ordering, equality boundaries, individually omitted optional values, expired/historical values where allowed, and incompatible status/date combinations.
+- Rejected-mutation tests must prove that invalid requests do not partially persist data, create audit events, enqueue tasks or notifications, rotate tokens, or trigger external side effects.
+- When adding database constraints to existing tables, inspect current persisted data first. Do not silently rewrite ambiguous customer values; use an explicit audited remediation or a staged constraint such as PostgreSQL `NOT VALID`, then track validation of existing rows.
+- Regression tests must include realistic UAT values and previously observed failure cases when those cases are safe to retain as synthetic fixtures.
 
 Run the narrowest relevant tests first, then broader build/test commands when practical.
 
@@ -78,10 +111,10 @@ Before editing:
 1. Inspect the existing project structure.
 2. Read this `AGENTS.md`.
 3. Read relevant docs, specs, schema/model files, tests, and implementation files.
-4. Summarize the current implementation state.
-5. Identify the smallest safe change needed.
-6. State the files you plan to modify.
-7. Wait for confirmation before editing if the change is large, risky, or touches many files.
+4. Summarize the current implementation state and the existing behavior that must not regress.
+5. Identify the smallest safe change needed and its compatibility surface.
+6. State the files you plan to modify and the existing regression tests you will preserve or extend.
+7. Wait for confirmation before editing if the change is large, risky, touches many files, or requires a breaking compatibility decision.
 
 During implementation:
 
@@ -89,6 +122,7 @@ During implementation:
 2. Avoid unrelated rewrites and formatting churn.
 3. Work with existing uncommitted user changes; do not revert them unless explicitly asked.
 4. Keep API responses aligned with the project standard error format.
+5. Preserve verified existing behavior and add regression coverage for any working flow placed at risk.
 
 After implementation:
 
@@ -98,6 +132,7 @@ After implementation:
 4. List tests added or updated.
 5. Provide commands run and commands the user can run locally.
 6. Call out hidden risks, edge cases, dependencies, and follow-up work.
+7. State which original workflows were re-tested and whether any backward-compatibility limitations remain.
 
 ## Key Project References
 

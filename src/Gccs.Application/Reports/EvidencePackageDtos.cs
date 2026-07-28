@@ -22,7 +22,10 @@ public sealed record EvidencePackageReportDto(
     DateTimeOffset GeneratedAt,
     Guid GeneratedByUserId,
     EvidencePackageManifestDto Manifest,
-    string ExportHtml);
+    string ExportHtml)
+{
+    public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
+}
 
 public sealed record EvidencePackageManifestDto(
     string Title,

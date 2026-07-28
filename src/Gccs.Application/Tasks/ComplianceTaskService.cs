@@ -80,7 +80,9 @@ public sealed class ComplianceTaskService(
             assignedUserId,
             task.Title,
             actorUserId,
-            cancellationToken);
+            queueEmail: true,
+            linkUrl: $"/tasks/{task.Id}",
+            cancellationToken: cancellationToken);
     }
 
     private async Task WriteAuditAsync(

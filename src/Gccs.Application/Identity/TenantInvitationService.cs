@@ -27,9 +27,10 @@ public sealed class TenantInvitationService(
 
         var email = NormalizeEmail(request.Email);
         var roleName = NormalizeRoleName(request.RoleName);
-        if (await invitationRepository.TenantMemberEmailExistsAsync(tenantContext.TenantId, email, cancellationToken))
+        if (await invitationRepository.TenantUserExistsForEmailAsync(tenantContext.TenantId, email, cancellationToken))
         {
-            throw new DuplicateInvitationException("The email is already a member of the current tenant.");
+            throw new ExistingTenantUserException(
+                "This email already belongs to a user in the tenant. Manage the existing user's membership or role instead of sending an invitation.");
         }
 
         if (await invitationRepository.CurrentTenantPendingInvitationExistsAsync(email, cancellationToken))
@@ -51,7 +52,7 @@ public sealed class TenantInvitationService(
             null,
             null,
             null,
-            "Owner invitation is queued for delivery.",
+            $"{roleName} invitation is queued for delivery.",
             InvitationDeliveryStatus.Queued,
             0,
             now,
@@ -116,9 +117,13 @@ public sealed class TenantInvitationService(
             throw new InvalidInvitationStateException("Only pending invitations can be accepted.");
         }
 
-        if (await invitationRepository.TenantMemberEmailExistsAsync(invitation.TenantId, invitation.Email, cancellationToken))
+        if (await invitationRepository.TenantUserExistsForEmailAsync(
+                invitation.TenantId,
+                invitation.Email,
+                cancellationToken))
         {
-            throw new InvalidInvitationStateException("The invited email is already a member of this tenant.");
+            throw new ExistingTenantUserException(
+                "This email already belongs to a user in the tenant. Ask an administrator to revoke this invitation and manage the existing user's membership or role.");
         }
 
         var acceptedInvitation = await invitationRepository.AcceptAsync(
@@ -332,5 +337,7 @@ public sealed class TenantInvitationService(
 }
 
 public sealed class DuplicateInvitationException(string message) : InvalidOperationException(message);
+
+public sealed class ExistingTenantUserException(string message) : InvalidOperationException(message);
 
 public sealed class InvalidInvitationStateException(string message) : InvalidOperationException(message);

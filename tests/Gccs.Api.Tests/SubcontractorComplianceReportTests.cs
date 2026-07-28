@@ -47,6 +47,7 @@ public sealed class SubcontractorComplianceReportTests : IClassFixture<WebApplic
         var report = await GenerateReportAsync(client, ids.TenantId, ids.ContractId);
 
         Assert.Equal(ids.ContractId, report.Snapshot.ContractId);
+        Assert.Equal(ReportArtifactLanguage.WorkflowGuidanceDisclaimer, report.Disclaimer);
         var row = Assert.Single(report.Snapshot.Rows);
         Assert.Equal(ids.SubcontractorId, row.SubcontractorId);
         Assert.Equal("Scoped Supplier LLC", row.Name);

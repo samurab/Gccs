@@ -4,6 +4,14 @@ namespace Gccs.Application.Reports;
 
 public interface IReportRepository
 {
+    Task<IReadOnlyList<ReportHistoryItemDto>> ListRecentReportsAsync(
+        int limit,
+        CancellationToken cancellationToken = default);
+
+    Task<ReportArtifactDetailDto?> GetReportArtifactAsync(
+        Guid reportId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ApprovedEvidencePackageDto>> ListApprovedEvidencePackagesAsync(
         Guid tenantId,
         CancellationToken cancellationToken = default);
@@ -43,7 +51,10 @@ public sealed record ComplianceStatusReportDto(
     DateTimeOffset GeneratedAt,
     Guid GeneratedByUserId,
     ComplianceStatusReportSnapshotDto Snapshot,
-    string ExportHtml);
+    string ExportHtml)
+{
+    public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
+}
 
 public sealed record ComplianceStatusReportSnapshotDto(
     DateTimeOffset GeneratedAt,

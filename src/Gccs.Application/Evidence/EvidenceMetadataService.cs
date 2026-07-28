@@ -149,6 +149,13 @@ public sealed class EvidenceMetadataService(
         {
             throw new EvidenceMetadataValidationException("Evidence tags must be 80 characters or fewer.");
         }
+
+        if (request.EffectiveAt is { } effectiveAt &&
+            request.ExpiresAt is { } expiresAt &&
+            expiresAt < effectiveAt)
+        {
+            throw new EvidenceMetadataValidationException("Expires date must be on or after Effective date.");
+        }
     }
 
     private async Task ValidateReferencesAsync(

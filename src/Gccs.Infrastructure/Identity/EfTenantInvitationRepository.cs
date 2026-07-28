@@ -40,15 +40,14 @@ public sealed class EfTenantInvitationRepository(
                 invitation.Status == TenantInvitationStatus.Pending,
             cancellationToken);
 
-    public Task<bool> TenantMemberEmailExistsAsync(
+    public Task<bool> TenantUserExistsForEmailAsync(
         Guid tenantId,
         string email,
         CancellationToken cancellationToken = default) =>
-        dbContext.TenantMemberships.AnyAsync(
-            membership =>
-                membership.TenantId == tenantId &&
-                membership.User != null &&
-                membership.User.Email == email,
+        dbContext.Users.AnyAsync(
+            user =>
+                user.TenantId == tenantId &&
+                user.Email == email,
             cancellationToken);
 
     public async Task<TenantInvitationDto> AddToCurrentTenantAsync(
@@ -139,6 +138,18 @@ public sealed class EfTenantInvitationRepository(
             : null;
         TenantInvitationEntity? invitation;
         var now = DateTimeOffset.UtcNow;
+
+        var invitationTenantId = await dbContext.TenantInvitations
+            .AsNoTracking()
+            .Where(candidate => candidate.Id == invitationId)
+            .Select(candidate => (Guid?)candidate.TenantId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (invitationTenantId.HasValue &&
+            await TenantUserExistsForEmailAsync(invitationTenantId.Value, email, cancellationToken))
+        {
+            throw new ExistingTenantUserException(
+                "This email already belongs to a user in the tenant. Ask an administrator to revoke this invitation and manage the existing user's membership or role.");
+        }
 
         if (dbContext.Database.IsRelational())
         {
@@ -279,7 +290,21 @@ public sealed class EfTenantInvitationRepository(
             });
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: "IX_users_tenant_id_email"
+            })
+        {
+            throw new ExistingTenantUserException(
+                "This email already belongs to a user in the tenant. Ask an administrator to revoke this invitation and manage the existing user's membership or role.");
+        }
+
         if (transaction is not null)
         {
             await transaction.CommitAsync(cancellationToken);
@@ -455,7 +480,7 @@ public sealed class EfTenantInvitationRepository(
         invitation.DeliveryFailureCode = null;
         invitation.DeliveryProviderMessageId = null;
         invitation.NotificationSentAt = null;
-        invitation.NotificationPlaceholder = "Owner invitation is queued for delivery.";
+        invitation.NotificationPlaceholder = $"{invitation.RoleName} invitation is queued for delivery.";
         invitation.UpdatedAt = now;
         invitation.UpdatedByUserId = actorUserId;
         await dbContext.SaveChangesAsync(cancellationToken);

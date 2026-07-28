@@ -172,7 +172,7 @@ Allowed default MVP data includes company profile metadata, contract metadata, c
 - Application layer: use cases, ports, and DTOs in `src/Gccs.Application`.
 - Infrastructure: persistence, storage, queue, search, external APIs in `src/Gccs.Infrastructure`.
 - Compliance content: source-backed obligation seed data in `packages/compliance-content`.
-- Local services: PostgreSQL, Redis, MinIO, and ClamAV placeholders via Docker Compose.
+- Local services: PostgreSQL, Redis, Azure Blob-compatible Azurite, and ClamAV via Docker Compose.
 
 ### Target MVP Architecture
 

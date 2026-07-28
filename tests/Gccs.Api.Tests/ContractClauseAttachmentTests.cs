@@ -69,8 +69,14 @@ public sealed class ContractClauseAttachmentTests : IClassFixture<WebApplication
         Assert.Equal("Required by award package.", attached.AttachmentReason);
         Assert.Equal("sow.pdf section 7", attached.SourceDocumentReference);
         Assert.Equal("https://www.acquisition.gov/far/52.204-21", attached.SourceUrl);
+        Assert.Equal("Published", attached.ReviewState);
+        Assert.Equal("high", attached.Confidence);
+        Assert.Equal(new DateOnly(2026, 6, 3), attached.LastReviewedAt);
+        Assert.False(attached.RequiresExpertReview);
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.Equal([attached.Id], (listed ?? []).Select(clause => clause.Id).ToArray());
+        Assert.Equal("Published", Assert.Single(listed ?? []).ReviewState);
+        Assert.Equal("high", Assert.Single(listed ?? []).Confidence);
     }
 
     [Fact]

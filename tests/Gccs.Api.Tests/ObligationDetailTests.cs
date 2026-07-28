@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.Compliance;
+using Gccs.Application.Notifications;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
@@ -15,6 +16,7 @@ using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Audit;
 using Gccs.Infrastructure.Compliance;
+using Gccs.Infrastructure.Notifications;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -160,9 +162,9 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
         var dashboardItems = await ListDashboardAsync(client, scenario);
 
         Assert.Null(detail.AssignedUserId);
-        Assert.Equal("ComplianceManager", detail.AssignedRoleName);
-        Assert.Equal("ComplianceManager", detail.OwnerFunction);
-        Assert.Equal("ComplianceManager", Assert.Single(dashboardItems).OwnerFunction);
+        Assert.Equal("Compliance Manager", detail.AssignedRoleName);
+        Assert.Equal("Compliance Manager", detail.OwnerFunction);
+        Assert.Equal("Compliance Manager", Assert.Single(dashboardItems).OwnerFunction);
     }
 
     [Fact]
@@ -203,8 +205,170 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
             audit.Summary.Contains("owner changed", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(AuditAction.Updated, auditEvent.Action);
         Assert.Contains("assignmentType", auditEvent.MetadataJson);
-        Assert.Contains("notificationEmitted", auditEvent.MetadataJson);
+        Assert.Contains("inAppNotificationCreated", auditEvent.MetadataJson);
+        Assert.Contains("inAppNotificationRecipientCount", auditEvent.MetadataJson);
+        Assert.Contains("emailNotificationQueued", auditEvent.MetadataJson);
         Assert.Contains("True", auditEvent.MetadataJson);
+    }
+
+    [Fact]
+    public async Task TC_10_3_5_User_assignment_always_creates_in_app_notification_and_can_queue_email()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a5");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("tc-10-3-5", dbContext => SeedScenario(dbContext, scenario));
+        using var client = factory.CreateClient();
+
+        await PatchOwnerAsync(
+            client,
+            scenario,
+            new AssignContractObligationOwnerRequest(scenario.AssigneeUserId, null, Notify: true));
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var notification = await dbContext.NotificationDeliveries.SingleAsync(delivery =>
+            delivery.TenantId == tenantId &&
+            delivery.UserId == scenario.AssigneeUserId &&
+            delivery.SourceTaskId == scenario.TaskId &&
+            delivery.Category == "assignment");
+        var email = await dbContext.AssignmentEmailDeliveries.SingleAsync(delivery =>
+            delivery.NotificationDeliveryId == notification.Id);
+
+        Assert.Equal("Delivered", notification.Status);
+        Assert.Equal("/#/obligations", notification.LinkUrl);
+        Assert.Equal("Queued", email.Status);
+        Assert.Equal("assigned.owner@example.com", email.RecipientEmail);
+        Assert.Equal("/#/obligations", email.LinkUrl);
+    }
+
+    [Fact]
+    public async Task TC_10_3_6_User_assignment_creates_in_app_notification_when_email_not_requested()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a6");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("tc-10-3-6", dbContext => SeedScenario(dbContext, scenario));
+        using var client = factory.CreateClient();
+
+        await PatchOwnerAsync(
+            client,
+            scenario,
+            new AssignContractObligationOwnerRequest(scenario.AssigneeUserId, null, Notify: false));
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.True(await dbContext.NotificationDeliveries.AnyAsync(delivery =>
+            delivery.TenantId == tenantId && delivery.UserId == scenario.AssigneeUserId));
+        Assert.False(await dbContext.AssignmentEmailDeliveries.AnyAsync());
+    }
+
+    [Fact]
+    public async Task TC_10_3_7_Disabled_assignment_email_preference_suppresses_email_but_not_in_app_notification()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a7");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("tc-10-3-7", dbContext =>
+        {
+            SeedScenario(dbContext, scenario);
+            dbContext.NotificationPreferences.Add(new NotificationPreferenceEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                UserId = scenario.AssigneeUserId,
+                RoleName = "Contributor",
+                AssignmentNotificationsEnabled = false,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        });
+        using var client = factory.CreateClient();
+
+        await PatchOwnerAsync(
+            client,
+            scenario,
+            new AssignContractObligationOwnerRequest(scenario.AssigneeUserId, null, Notify: true));
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.True(await dbContext.NotificationDeliveries.AnyAsync(delivery =>
+            delivery.TenantId == tenantId && delivery.UserId == scenario.AssigneeUserId));
+        Assert.False(await dbContext.AssignmentEmailDeliveries.AnyAsync());
+    }
+
+    [Fact]
+    public async Task TC_10_3_8_Role_assignment_notifies_active_role_members_without_email()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a8");
+        var otherTenantId = Guid.Parse("10310310-3103-1031-0310-3103103103b8");
+        var otherTenantUserId = Guid.NewGuid();
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("tc-10-3-8", dbContext =>
+        {
+            SeedScenario(dbContext, scenario);
+            var membership = dbContext.TenantMemberships.Local.Single(item =>
+                item.TenantId == tenantId && item.UserId == scenario.AssigneeUserId);
+            membership.RoleName = RoleCatalog.ComplianceManager;
+            var currentTenantRecipient = dbContext.Users.Local.Single(user =>
+                user.Id == scenario.AssigneeUserId);
+            currentTenantRecipient.TenantId = otherTenantId;
+            SeedTenant(dbContext, otherTenantId, "Other Tenant");
+            dbContext.Users.Add(new UserEntity
+            {
+                Id = otherTenantUserId,
+                TenantId = otherTenantId,
+                Email = "other.tenant.manager@example.com",
+                DisplayName = "Other Tenant Manager",
+                Status = UserStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            dbContext.TenantMemberships.Add(new TenantMembershipEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = otherTenantId,
+                UserId = otherTenantUserId,
+                RoleName = RoleCatalog.ComplianceManager,
+                Status = MembershipStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        });
+        using var client = factory.CreateClient();
+
+        await PatchOwnerAsync(
+            client,
+            scenario,
+            new AssignContractObligationOwnerRequest(null, "ComplianceManager", Notify: true));
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var notification = await dbContext.NotificationDeliveries.SingleAsync();
+        Assert.Equal(scenario.AssigneeUserId, notification.UserId);
+        Assert.NotEqual(otherTenantUserId, notification.UserId);
+        Assert.Equal("role_assignment", notification.Category);
+        Assert.Contains("Compliance Manager", notification.Placeholder, StringComparison.Ordinal);
+        Assert.Equal("/#/obligations", notification.LinkUrl);
+        Assert.False(await dbContext.AssignmentEmailDeliveries.AnyAsync());
+    }
+
+    [Fact]
+    public async Task TC_10_3_9_Unchanged_role_assignment_does_not_duplicate_role_member_notifications()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a9");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("tc-10-3-9", dbContext =>
+        {
+            SeedScenario(dbContext, scenario);
+            var membership = dbContext.TenantMemberships.Local.Single(item =>
+                item.TenantId == tenantId && item.UserId == scenario.AssigneeUserId);
+            membership.RoleName = RoleCatalog.ComplianceManager;
+        });
+        using var client = factory.CreateClient();
+
+        var assignment = new AssignContractObligationOwnerRequest(null, "ComplianceManager", Notify: true);
+        await PatchOwnerAsync(client, scenario, assignment);
+        await PatchOwnerAsync(client, scenario, assignment);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Equal(1, await dbContext.NotificationDeliveries.CountAsync());
+        Assert.False(await dbContext.AssignmentEmailDeliveries.AnyAsync());
     }
 
     private async Task<ContractObligationDetailDto> GetDetailAsync(HttpClient client, DetailScenario scenario)
@@ -280,6 +444,7 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
                 services.AddScoped<ObligationDetailService>();
                 services.AddScoped<IObligationDetailRepository, EfObligationDetailRepository>();
                 services.AddScoped<IObligationDashboardRepository, EfObligationDashboardRepository>();
+                services.AddScoped<IAssignmentNotificationRepository, EfAssignmentNotificationRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
                 using var provider = services.BuildServiceProvider();

@@ -134,12 +134,16 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
         Assert.Contains(report.Snapshot.SourceReferences, source =>
             source.ControlId == "AC.L1-3.1.1" &&
             source.LastReviewedAt == new DateOnly(2026, 6, 15));
+        Assert.Equal(ReportArtifactLanguage.WorkflowGuidanceDisclaimer, report.Disclaimer);
+        Assert.Contains(ReportArtifactLanguage.WorkflowGuidanceDisclaimer, report.ExportHtml, StringComparison.Ordinal);
         Assert.Contains("Draft readiness tracking only", report.ExportHtml, StringComparison.Ordinal);
         Assert.Contains("Responsibility matrix", report.ExportHtml, StringComparison.Ordinal);
         Assert.Contains("Source references", report.ExportHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("pass", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("fail", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("certification", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not legal advice", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("a certification decision", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("government endorsement", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Other tenant evidence", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
 
         using var scope = factory.Services.CreateScope();

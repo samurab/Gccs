@@ -57,9 +57,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("loads the compliance workspace dashboard", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/app");
 
-  await expect(page).toHaveTitle("GCCS Compliance Workspace");
+  await expect(page).toHaveTitle("FeDril | GovCon Compliance Readiness Software");
   await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
   await expect(page.getByText("No-CUI workspace")).toBeVisible();
   await expect(page.getByText("Keep every govcon obligation tied to evidence and review status.")).toBeVisible();
@@ -67,7 +67,7 @@ test("loads the compliance workspace dashboard", async ({ page }) => {
 });
 
 test("navigates between key MVP workspaces", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/app");
 
   await page.getByRole("link", { name: /Contracts/ }).click();
   await expect(page.getByRole("heading", { name: "Contracts", exact: true })).toBeVisible();
@@ -94,6 +94,34 @@ async function mockApi(page: Page) {
 
     if (path === "/api/me/access") {
       await route.fulfill({ json: access });
+      return;
+    }
+
+    if (path === "/api/development/testing-context") {
+      await route.fulfill({
+        json: {
+          tenants: [
+            {
+              tenantId: access.tenantId,
+              displayName: "Playwright tenant",
+              tenantStatus: "Active",
+              dataHandlingMode: "NoCui",
+              isSelectable: true,
+              unavailableReason: null
+            }
+          ],
+          personas: [
+            {
+              tenantId: access.tenantId,
+              userId: access.userId,
+              email: access.userEmail,
+              displayName: "Playwright admin",
+              roleName: "Admin"
+            }
+          ],
+          roles: ["Owner", "Admin", "Compliance Manager", "Contributor", "Auditor", "Advisor"]
+        }
+      });
       return;
     }
 

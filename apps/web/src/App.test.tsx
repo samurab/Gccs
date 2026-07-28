@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -49,6 +49,9 @@ const {
   getContentClassificationReviewItemsMock,
   getCuiReadyApprovalChecklistsMock,
   getEvidenceItemsMock,
+  getEvidencePackageMock,
+  getRecentReportsMock,
+  getReportArtifactMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
   getNotificationPreferencesMock,
@@ -60,6 +63,7 @@ const {
   getDevelopmentTestingContextMock,
   getMyTenantWorkspacesMock,
   getSelectedDevelopmentRoleMock,
+  getSelectedDevelopmentUserIdMock,
   getSelectedTenantIdMock,
   getTenantMock,
   getTenantDataHandlingModeHistoryMock,
@@ -85,6 +89,7 @@ const {
   revokeTenantInvitationMock,
   generateCmmcReadinessReportMock,
   generateComplianceStatusReportMock,
+  generateContractClauseObligationsMock,
   generateEvidencePackageMock,
   generateSubcontractorComplianceReportMock,
   removeContractClauseMock,
@@ -149,11 +154,15 @@ const {
   getContentClassificationReviewItemsMock: vi.fn(),
   getCuiReadyApprovalChecklistsMock: vi.fn(),
   getEvidenceItemsMock: vi.fn(),
+  getEvidencePackageMock: vi.fn(),
+  getRecentReportsMock: vi.fn(),
+  getReportArtifactMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
   getDevelopmentTestingContextMock: vi.fn(),
   getMyTenantWorkspacesMock: vi.fn(),
   getSelectedDevelopmentRoleMock: vi.fn(),
+  getSelectedDevelopmentUserIdMock: vi.fn(),
   getSelectedTenantIdMock: vi.fn(),
   getTenantMock: vi.fn(),
   getTenantDataHandlingModeHistoryMock: vi.fn(),
@@ -164,6 +173,7 @@ const {
   getSharedResponsibilityMatrixAcknowledgementsMock: vi.fn(),
   generateCmmcReadinessReportMock: vi.fn(),
   generateComplianceStatusReportMock: vi.fn(),
+  generateContractClauseObligationsMock: vi.fn(),
   generateEvidencePackageMock: vi.fn(),
   generateSubcontractorComplianceReportMock: vi.fn(),
   getTenantInvitationsMock: vi.fn(),
@@ -456,6 +466,11 @@ const {
     source: "Far",
     sourceUrl: "https://www.acquisition.gov/far/52.204-27",
     lastReviewedAt: "2026-06-03",
+    reviewedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc3",
+    nextReviewDueAt: "2027-06-03",
+    confidence: "high",
+    requiresExpertReview: false,
+    reviewState: "Published",
     attachmentReason: "Required by prime flow-down.",
     sourceDocumentReference: "flowdown.pdf section 4",
     attachedAt: "2026-06-15T12:00:00Z",
@@ -805,12 +820,16 @@ vi.mock("@/lib/api", () => ({
   getContentClassificationReviewItems: getContentClassificationReviewItemsMock,
   getCuiReadyApprovalChecklists: getCuiReadyApprovalChecklistsMock,
   getEvidenceItems: getEvidenceItemsMock,
+  getEvidencePackage: getEvidencePackageMock,
+  getRecentReports: getRecentReportsMock,
+  getReportArtifact: getReportArtifactMock,
   getNotificationPreferences: getNotificationPreferencesMock,
   getNotifications: getNotificationsMock,
   getPublishedSharedResponsibilityMatrix: getPublishedSharedResponsibilityMatrixMock,
   getSharedResponsibilityMatrixAcknowledgements: getSharedResponsibilityMatrixAcknowledgementsMock,
   generateCmmcReadinessReport: generateCmmcReadinessReportMock,
   generateComplianceStatusReport: generateComplianceStatusReportMock,
+  generateContractClauseObligations: generateContractClauseObligationsMock,
   generateEvidencePackage: generateEvidencePackageMock,
   generateSubcontractorComplianceReport: generateSubcontractorComplianceReportMock,
   markClauseCandidateNeedsClarification: markClauseCandidateNeedsClarificationMock,
@@ -862,6 +881,7 @@ vi.mock("@/lib/api", () => ({
   getDevelopmentTestingContext: getDevelopmentTestingContextMock,
   getMyTenantWorkspaces: getMyTenantWorkspacesMock,
   getSelectedDevelopmentRole: getSelectedDevelopmentRoleMock,
+  getSelectedDevelopmentUserId: getSelectedDevelopmentUserIdMock,
   getSelectedTenantId: getSelectedTenantIdMock,
   getTenant: getTenantMock,
   getTenantDataHandlingModeHistory: getTenantDataHandlingModeHistoryMock,
@@ -882,6 +902,9 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { App } from "@/App";
+
+const reportDisclaimer =
+  "Workflow guidance only. This report is not legal advice, a certification decision, an assessor determination, a contracting-officer determination, or a government endorsement.";
 
 describe("App", () => {
   beforeEach(() => {
@@ -918,6 +941,7 @@ describe("App", () => {
     revokeTenantInvitationMock.mockReset();
     generateCmmcReadinessReportMock.mockReset();
     generateComplianceStatusReportMock.mockReset();
+    generateContractClauseObligationsMock.mockReset();
     generateEvidencePackageMock.mockReset();
     generateSubcontractorComplianceReportMock.mockReset();
     removeContractClauseMock.mockReset();
@@ -934,6 +958,7 @@ describe("App", () => {
     getDevelopmentTestingContextMock.mockReset();
     getMyTenantWorkspacesMock.mockReset();
     getSelectedDevelopmentRoleMock.mockReset();
+    getSelectedDevelopmentUserIdMock.mockReset();
     getSelectedTenantIdMock.mockReset();
     selectDevelopmentTestingContextMock.mockReset();
     selectMyTenantWorkspaceMock.mockReset();
@@ -962,6 +987,9 @@ describe("App", () => {
     getContentClassificationReviewItemsMock.mockReset();
     getCuiReadyApprovalChecklistsMock.mockReset();
     getEvidenceItemsMock.mockReset();
+    getEvidencePackageMock.mockReset();
+    getRecentReportsMock.mockReset();
+    getReportArtifactMock.mockReset();
     getContractClausesMock.mockReset();
     getContractDeliverablesMock.mockReset();
     getContractDocumentExtractionResultsMock.mockReset();
@@ -971,6 +999,7 @@ describe("App", () => {
     searchClauseLibraryMock.mockReset();
     getSelectedTenantIdMock.mockReturnValue("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1");
     getSelectedDevelopmentRoleMock.mockReturnValue("Owner");
+    getSelectedDevelopmentUserIdMock.mockReturnValue("cccccccc-cccc-cccc-cccc-ccccccccccc1");
     getDevelopmentTestingContextMock.mockResolvedValue({
       tenants: [
         {
@@ -980,6 +1009,15 @@ describe("App", () => {
           dataHandlingMode: "NoCui",
           isSelectable: true,
           unavailableReason: null
+        }
+      ],
+      personas: [
+        {
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+          email: "owner@example.test",
+          displayName: "Workspace Owner",
+          roleName: "Owner"
         }
       ],
       roles: ["Owner", "Admin", "Compliance Manager", "Contributor", "Auditor", "Advisor"]
@@ -1010,6 +1048,7 @@ describe("App", () => {
       hasPreviousPage: false
     });
     getApprovedEvidencePackagesMock.mockResolvedValue([]);
+    getRecentReportsMock.mockResolvedValue([]);
     getSubcontractorFlowDownsMock.mockResolvedValue([]);
     getSubcontractorEvidenceRequestsMock.mockResolvedValue([]);
     getNotificationPreferencesMock.mockResolvedValue({
@@ -1402,6 +1441,22 @@ describe("App", () => {
           unavailableReason: "The tenant is not operational."
         }
       ],
+      personas: [
+        {
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+          email: "owner@example.test",
+          displayName: "Workspace Owner",
+          roleName: "Owner"
+        },
+        {
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          userId: "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+          email: "compliance@example.test",
+          displayName: "Compliance Manager",
+          roleName: "Compliance Manager"
+        }
+      ],
       roles: ["Owner", "Admin", "Compliance Manager", "Contributor", "Auditor", "Advisor"]
     });
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
@@ -1409,15 +1464,18 @@ describe("App", () => {
 
     render(<App />);
 
-    const tenantSelector = await screen.findByRole("combobox", { name: "Test tenant" });
+    const tenantSelector = await screen.findByRole("combobox", { name: "Switch tenant" });
     expect(tenantSelector).toHaveValue("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1");
     expect(
       within(tenantSelector).getByRole("option", { name: "Suspended workspace (Suspended - unavailable)" })
     ).toBeDisabled();
 
-    const roleSelector = screen.getByRole("combobox", { name: "Test role" });
+    const roleSelector = screen.getByRole("combobox", { name: "Switch role" });
     expect(roleSelector).toHaveValue("Owner");
     expect(within(roleSelector).getByRole("option", { name: "Auditor" })).toBeEnabled();
+    const userSelector = screen.getByRole("combobox", { name: "Switch user" });
+    expect(userSelector).toHaveValue("cccccccc-cccc-cccc-cccc-ccccccccccc1");
+    expect(within(userSelector).getByRole("option", { name: "Compliance Manager (Compliance Manager)" })).toBeEnabled();
   });
 
   it("TC-3.2.1 lands authenticated users in the workspace dashboard", async () => {
@@ -1540,6 +1598,9 @@ describe("App", () => {
     );
     expect(await screen.findByText("Draft saved.")).toBeInTheDocument();
     expect(screen.getByText("62%")).toBeInTheDocument();
+    expect(screen.getByText(/UEI is required before profile completion/i).closest(".validation-summary")).toHaveClass(
+      "validation-summary--error"
+    );
   });
 
   it("TC-7.3.1 submits company certification rows from the profile form", async () => {
@@ -1630,6 +1691,8 @@ describe("App", () => {
 
     await user.click(await screen.findByRole("link", { name: /contracts/i }));
 
+    expect(screen.getByLabelText("Document type")).toBeDisabled();
+    expect(screen.getByLabelText("Contract document classification")).toBeDisabled();
     expect(await screen.findByLabelText("Contract document")).toBeDisabled();
     expect(screen.getByText(/No-CUI acknowledgement is required before contract document upload/i)).toBeInTheDocument();
   });
@@ -1641,13 +1704,16 @@ describe("App", () => {
     getTenantMembersMock.mockResolvedValueOnce(members);
     getContractsMock.mockResolvedValueOnce([contract]);
     acknowledgeNoCuiNoticeMock.mockResolvedValueOnce({
-      isAcknowledged: true,
-      noticeVersion: "no-cui-mvp-v1",
-      noticeCopy:
-        "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
-      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
-      acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
-      acknowledgedAt: "2026-06-14T12:00:00Z"
+      data: {
+        isAcknowledged: true,
+        noticeVersion: "no-cui-mvp-v1",
+        noticeCopy:
+          "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+        tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+        acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+        acknowledgedAt: "2026-06-14T12:00:00Z"
+      },
+      error: null
     });
     const user = userEvent.setup();
 
@@ -1688,6 +1754,40 @@ describe("App", () => {
 
     expect(acknowledgeNoCuiNoticeMock).toHaveBeenCalledWith("no-cui-mvp-v1");
     expect(await screen.findByText("Acknowledgement saved.")).toBeInTheDocument();
+  });
+
+  it("shows the API problem detail when No-CUI acknowledgement fails", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    acknowledgeNoCuiNoticeMock.mockResolvedValueOnce({
+      data: null,
+      error: "Object storage configuration is unavailable. Correlation ID: test-correlation-id."
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+    await user.click(screen.getByRole("checkbox", { name: "I will not upload, paste, import, or attach real CUI." }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "I will not upload classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, or sensitive incident details."
+      })
+    );
+    await user.click(screen.getByRole("checkbox", { name: "I will use synthetic, redacted, or non-sensitive data during the pilot." }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "I understand FeDril reports are workflow guidance, not legal advice or certification decisions."
+      })
+    );
+    await user.click(screen.getByRole("button", { name: /i acknowledge the no-cui upload limitation/i }));
+
+    expect(
+      await screen.findByText("Object storage configuration is unavailable. Correlation ID: test-correlation-id.")
+    ).toBeInTheDocument();
   });
 
   it("TC-8.2.1 and TC-8.2.2 gates contract document upload on No-CUI acknowledgement", async () => {
@@ -1881,12 +1981,28 @@ describe("App", () => {
       },
       error: null
     });
+    generateContractClauseObligationsMock.mockResolvedValueOnce({
+      data: {
+        contractClauseId: contractClause.id,
+        obligationIds: ["obligation-fci-safeguards"],
+        tasksCreated: 0
+      },
+      error: null
+    });
     const user = userEvent.setup();
 
     render(<App />);
 
     await user.click(await screen.findByRole("link", { name: /contracts/i }));
     expect(await screen.findByText("Prohibition on a ByteDance Covered Application")).toBeInTheDocument();
+    const attachedClause = screen.getByText("Prohibition on a ByteDance Covered Application").closest("article");
+    expect(attachedClause).not.toBeNull();
+    expect(within(attachedClause as HTMLElement).getByText("Published")).toBeInTheDocument();
+    expect(within(attachedClause as HTMLElement).getByText("High")).toBeInTheDocument();
+    expect(within(attachedClause as HTMLElement).getByText("2026-06-03")).toBeInTheDocument();
+    expect(within(attachedClause as HTMLElement).getByText("2027-06-03")).toBeInTheDocument();
+    expect(within(attachedClause as HTMLElement).getByText("Published review complete")).toBeInTheDocument();
+    expect(within(attachedClause as HTMLElement).getByText("flowdown.pdf section 4")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Published clause ID"), "far-52-204-21");
     await user.type(screen.getByLabelText("Attachment reason"), "Required by award package.");
@@ -1902,6 +2018,10 @@ describe("App", () => {
       })
     );
     expect(await screen.findByText("Clause attached to contract.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Generate obligations for 52.204-27" }));
+    expect(generateContractClauseObligationsMock).toHaveBeenCalledWith(contract.id, contractClause.id);
+    expect(await screen.findByText("1 obligation mapping available; 0 new tasks created.")).toBeInTheDocument();
 
     const removalReason = screen.getByLabelText("Removal reason for 52.204-27");
     await user.type(removalReason, "Removed from revised flow-down.");
@@ -1935,15 +2055,89 @@ describe("App", () => {
       category: "ByteDance"
     });
     expect(await screen.findByText("Prohibition on a ByteDance Covered Application")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "FAR 52.204-27" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "https://www.acquisition.gov/far/52.204-27" })).toHaveAttribute(
       "href",
       "https://www.acquisition.gov/far/52.204-27"
     );
-    expect(screen.getByText("2026-06-03")).toBeInTheDocument();
+    const clauseResult = screen.getByText("Prohibition on a ByteDance Covered Application").closest("article");
+    expect(clauseResult).not.toBeNull();
+    expect(within(clauseResult as HTMLElement).getByText("far-52-204-27")).toBeInTheDocument();
+    expect(within(clauseResult as HTMLElement).getByText("High")).toBeInTheDocument();
+    expect(within(clauseResult as HTMLElement).getByText("Published")).toBeInTheDocument();
+    expect(within(clauseResult as HTMLElement).getByText("2026-06-03")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /select clause/i }));
 
     expect(screen.getByText("Selected 52.204-27")).toBeInTheDocument();
+  });
+
+  it("retains sequential UAT clause searches and keeps published clauses selectable", async () => {
+    const clause21 = {
+      ...clauseLibraryItem,
+      id: "far-52-204-21",
+      source: "FAR 52.204-21",
+      number: "52.204-21",
+      title: "Basic Safeguarding of Covered Contractor Information Systems",
+      category: "FAR",
+      sourceUrl: "https://www.acquisition.gov/far/52.204-21"
+    };
+    const clause25 = {
+      ...clauseLibraryItem,
+      id: "far-52-204-25",
+      source: "FAR 52.204-25",
+      number: "52.204-25",
+      title: "Prohibition on Certain Telecommunications and Video Surveillance Services or Equipment",
+      category: "Telecom",
+      sourceUrl: "https://www.acquisition.gov/far/52.204-25"
+    };
+
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    searchClauseLibraryMock
+      .mockResolvedValueOnce([clause21])
+      .mockResolvedValueOnce([clause25])
+      .mockResolvedValueOnce([clauseLibraryItem]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    const searchInput = screen.getByLabelText("Clause search");
+    const searchButton = screen.getByRole("button", { name: /search clauses/i });
+
+    await user.type(searchInput, "52.204-21");
+    await user.click(searchButton);
+    expect(await screen.findByText(clause21.title)).toBeInTheDocument();
+
+    await user.clear(searchInput);
+    await user.type(searchInput, "52.204-25");
+    await user.click(searchButton);
+    expect(await screen.findByText(clause25.title)).toBeInTheDocument();
+
+    await user.clear(searchInput);
+    await user.type(searchInput, "52.204-27");
+    await user.click(searchButton);
+    expect(await screen.findByText(clauseLibraryItem.title)).toBeInTheDocument();
+
+    expect(screen.getByText(clause21.title)).toBeInTheDocument();
+    expect(screen.getByText(clause25.title)).toBeInTheDocument();
+    expect(screen.getByText(clauseLibraryItem.title)).toBeInTheDocument();
+    [clause21, clause25, clauseLibraryItem].forEach((clause) => {
+      const result = screen.getByText(clause.title).closest("article");
+      expect(result).not.toBeNull();
+      expect(within(result as HTMLElement).getByText("High")).toBeInTheDocument();
+      expect(within(result as HTMLElement).getByText("Published")).toBeInTheDocument();
+    });
+
+    const selectButtons = screen.getAllByRole("button", { name: "Select clause" });
+    expect(selectButtons).toHaveLength(3);
+    selectButtons.forEach((button) => expect(button).toBeEnabled());
+
+    await user.click(selectButtons[0]);
+    expect(screen.getByText("Selected 52.204-21")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Selected" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("TC-10.1.2 and TC-10.1.3 filters the obligation work queue and highlights priority items", async () => {
@@ -2081,7 +2275,7 @@ describe("App", () => {
     await user.click(await screen.findByRole("link", { name: /obligations/i }));
     await user.click(await screen.findByRole("button", { name: /view details/i }));
     await user.selectOptions(await screen.findByLabelText("Tenant member"), members[0].userId);
-    await user.click(screen.getByLabelText("Notify owner"));
+    expect(screen.getByLabelText("Also send assignment email")).toBeChecked();
     await user.click(screen.getByRole("button", { name: /assign owner/i }));
 
     expect(assignContractObligationOwnerMock).toHaveBeenCalledWith(
@@ -2108,8 +2302,8 @@ describe("App", () => {
     assignContractObligationOwnerMock.mockResolvedValueOnce({
       data: {
         ...obligationDetail,
-        ownerFunction: "ComplianceManager",
-        assignedRoleName: "ComplianceManager"
+        ownerFunction: "Compliance Manager",
+        assignedRoleName: "Compliance Manager"
       },
       error: null
     });
@@ -2120,7 +2314,9 @@ describe("App", () => {
     await user.click(await screen.findByRole("link", { name: /obligations/i }));
     await user.click(await screen.findByRole("button", { name: /view details/i }));
     await user.selectOptions(await screen.findByLabelText("Assign by"), "role");
-    await user.selectOptions(screen.getByLabelText("Role"), "ComplianceManager");
+    await user.selectOptions(screen.getByLabelText("Role"), "Compliance Manager");
+    expect(screen.getByLabelText("Also send assignment email")).toBeDisabled();
+    expect(screen.getByText(/Active members of this role receive an in-app notification/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /assign owner/i }));
 
     expect(assignContractObligationOwnerMock).toHaveBeenCalledWith(
@@ -2128,12 +2324,83 @@ describe("App", () => {
       obligationDetail.obligationId,
       {
         userId: null,
-        roleName: "ComplianceManager",
+        roleName: "Compliance Manager",
         notify: false
       }
     );
     expect(await screen.findByText("Obligation owner assigned.")).toBeInTheDocument();
-    expect(screen.getAllByText("ComplianceManager").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Compliance Manager").length).toBeGreaterThan(0);
+  });
+
+  it("hydrates the assignment controls and persistent summary from a saved role assignment", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractObligationsMock.mockResolvedValueOnce([
+      {
+        ...obligationDashboardItem,
+        ownerFunction: "ComplianceManager",
+        assignedRoleName: "ComplianceManager"
+      }
+    ]);
+    getContractObligationDetailMock.mockResolvedValueOnce({
+      ...obligationDetail,
+      ownerFunction: "ComplianceManager",
+      assignedRoleName: "ComplianceManager"
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    await user.click(await screen.findByRole("button", { name: /view details/i }));
+
+    expect(await screen.findByLabelText("Assign by")).toHaveValue("role");
+    expect(screen.getByLabelText("Role")).toHaveValue("Compliance Manager");
+    expect(screen.getByText(/Currently assigned to:/i).closest("p")).toHaveTextContent(
+      "Currently assigned to: Compliance Manager (role queue)"
+    );
+  });
+
+  it("shows signed-in member and role assignment queue counts and filters", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce({
+      ...allWorkflowAccess,
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      roles: ["Compliance Manager"]
+    });
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractObligationsMock.mockResolvedValueOnce([
+      {
+        ...obligationDashboardItem,
+        id: "mine",
+        title: "My direct obligation",
+        assignedUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+        assignedUserDisplayName: "Signed-in member"
+      },
+      {
+        ...obligationDashboardItem,
+        id: "role",
+        title: "Role obligation",
+        ownerFunction: "ComplianceManager",
+        assignedRoleName: "ComplianceManager"
+      }
+    ]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    const myQueue = await screen.findByRole("button", { name: /My assignments 1/i });
+    const roleQueue = screen.getByRole("button", { name: /Role assignments 1/i });
+    await user.click(myQueue);
+    expect(screen.getByText("My direct obligation")).toBeInTheDocument();
+    expect(screen.queryByText("Role obligation")).not.toBeInTheDocument();
+    await user.click(roleQueue);
+    expect(screen.getByText("Role obligation")).toBeInTheDocument();
+    expect(screen.queryByText("My direct obligation")).not.toBeInTheDocument();
   });
 
   it("TC-2.4.2 renders workspace actions and TC-3.2.3 hides restricted navigation", async () => {
@@ -2207,7 +2474,8 @@ describe("App", () => {
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
 
     render(<App />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Workspace data could not be loaded");
+    expect(await screen.findByRole("alert")).toHaveClass("route-state--error");
+    expect(screen.getByRole("alert")).toHaveTextContent("Workspace data could not be loaded");
   });
 
   it("keeps permission-based navigation visible when a downstream module load fails", async () => {
@@ -2479,6 +2747,40 @@ describe("App", () => {
     expect(await screen.findByText("Evidence metadata created.")).toBeInTheDocument();
   });
 
+  it("blocks evidence metadata submission when Expires is before Effective and accepts the boundary date", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getEvidenceItemsMock.mockResolvedValueOnce([]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /evidence/i }));
+    const panel = within(await screen.findByLabelText("Evidence metadata"));
+    await user.type(panel.getByLabelText("Title"), "Date validation evidence");
+    fireEvent.change(panel.getByLabelText("Effective"), { target: { value: "2026-08-01" } });
+    fireEvent.change(panel.getByLabelText("Expires"), { target: { value: "2026-07-31" } });
+
+    expect(panel.getByLabelText("Expires")).toHaveAttribute("min", "2026-08-01");
+    expect(panel.getByRole("alert")).toHaveClass("field-error");
+    expect(panel.getByRole("alert")).toHaveTextContent("Expires date must be on or after Effective date.");
+    expect(panel.getByRole("button", { name: "Create metadata" })).toBeDisabled();
+    expect(createEvidenceMetadataMock).not.toHaveBeenCalled();
+
+    fireEvent.change(panel.getByLabelText("Expires"), { target: { value: "2026-08-01" } });
+    expect(panel.queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(panel.getByRole("button", { name: "Create metadata" }));
+
+    expect(createEvidenceMetadataMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        effectiveAt: "2026-08-01",
+        expiresAt: "2026-08-01"
+      })
+    );
+  });
+
   it("TC-1A.3.1.3 identifies synthetic demo evidence in the UI", async () => {
     getComplianceOverviewMock.mockResolvedValueOnce(overview);
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
@@ -2515,13 +2817,16 @@ describe("App", () => {
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
     acknowledgeNoCuiNoticeMock.mockResolvedValueOnce({
-      isAcknowledged: true,
-      noticeVersion: "no-cui-mvp-v1",
-      noticeCopy:
-        "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
-      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
-      acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
-      acknowledgedAt: "2026-06-14T12:00:00Z"
+      data: {
+        isAcknowledged: true,
+        noticeVersion: "no-cui-mvp-v1",
+        noticeCopy:
+          "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI, classified information, ITAR/export-controlled technical data, SSNs, payroll, bank or tax details, protected medical or disability data, passwords, secrets, private keys, unrestricted security logs, or other prohibited sensitive content.",
+        tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+        acknowledgedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+        acknowledgedAt: "2026-06-14T12:00:00Z"
+      },
+      error: null
     });
     createEvidenceUploadIntentMock.mockResolvedValueOnce({
       data: {
@@ -2771,5 +3076,176 @@ describe("App", () => {
       })
     );
     expect(await screen.findByText("1 calendar items matched.")).toBeInTheDocument();
+  });
+
+  it("UAT-13 displays the server disclaimer and opens generated report card details", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    generateComplianceStatusReportMock.mockResolvedValueOnce({
+      data: {
+        id: "33333333-3333-3333-3333-333333333331",
+        tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+        type: "ComplianceStatus",
+        status: "Complete",
+        title: "Compliance status report",
+        generatedAt: "2026-07-27T20:00:00Z",
+        generatedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+        disclaimer: reportDisclaimer,
+        snapshot: {
+          totalObligations: 12,
+          highRiskObligations: 3,
+          overdueTasks: 2,
+          cmmcAssessments: 1,
+          cmmcControlsImplemented: 2,
+          cmmcControlsTotal: 5,
+          subcontractorGaps: 1,
+          highRiskItems: ["FAR 52.204-21 evidence review is overdue."]
+        },
+        exportHtml: "<strong>Unsafe stored HTML must not be rendered.</strong>"
+      },
+      error: null
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /reports/i }));
+    await user.click(screen.getByRole("button", { name: "Generate status" }));
+
+    const detail = within(await screen.findByLabelText("Generated report detail"));
+    expect(detail.getByRole("heading", { name: "Compliance status report" })).toBeInTheDocument();
+    expect(detail.getByText(reportDisclaimer)).toBeInTheDocument();
+    expect(detail.getByText("2 of 5 implemented")).toBeInTheDocument();
+    expect(detail.getByText("FAR 52.204-21 evidence review is overdue.")).toBeInTheDocument();
+    expect(screen.queryByText("Unsafe stored HTML must not be rendered.")).not.toBeInTheDocument();
+
+    await user.click(detail.getByRole("button", { name: "Close detail" }));
+    expect(screen.queryByLabelText("Generated report detail")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Compliance status report.*View report details/i }));
+    expect(await screen.findByLabelText("Generated report detail")).toBeInTheDocument();
+  });
+
+  it("UAT-13 reloads persisted report history and fetches detail when a recent report is clicked", async () => {
+    const persistedReport = {
+      id: "33333333-3333-3333-3333-333333333339",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      type: "ComplianceStatus",
+      status: "Complete",
+      title: "Compliance status report",
+      generatedAt: "2026-07-27T21:00:00Z",
+      generatedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      disclaimer: reportDisclaimer
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getRecentReportsMock.mockResolvedValueOnce([persistedReport]);
+    getReportArtifactMock.mockResolvedValueOnce({
+      ...persistedReport,
+      snapshot: {
+        totalObligations: 12,
+        highRiskObligations: 3,
+        overdueTasks: 2,
+        cmmcAssessments: 1,
+        cmmcControlsImplemented: 2,
+        cmmcControlsTotal: 5,
+        subcontractorGaps: 1,
+        highRiskItems: ["Persisted high-risk report item."]
+      }
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /reports/i }));
+    expect(screen.getByRole("heading", { name: "Recent generated reports" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Compliance status report.*Persisted report artifact/i }));
+
+    expect(getRecentReportsMock).toHaveBeenCalledWith();
+    expect(getReportArtifactMock).toHaveBeenCalledWith(persistedReport.id);
+    const detail = within(await screen.findByLabelText("Generated report detail"));
+    expect(detail.getByText("Persisted high-risk report item.")).toBeInTheDocument();
+    expect(detail.getByText(reportDisclaimer)).toBeInTheDocument();
+  });
+
+  it("UAT-13 loads tenant-scoped details when an approved evidence package card is clicked", async () => {
+    const approvedPackage = {
+      reportId: "33333333-3333-3333-3333-333333333332",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      type: "PrimeEvidencePackage",
+      title: "Prime review evidence package - No-CUI UAT",
+      status: "Complete",
+      generatedAt: "2026-07-27T20:05:00Z",
+      generatedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      disclaimer: reportDisclaimer,
+      evidenceItems: [
+        {
+          evidenceItemId: evidenceMetadata.id,
+          name: evidenceMetadata.title,
+          type: evidenceMetadata.type,
+          status: "Approved",
+          approvedAt: "2026-07-27T19:55:00Z",
+          approvedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1"
+        }
+      ]
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getApprovedEvidencePackagesMock.mockResolvedValueOnce([approvedPackage]);
+    getEvidencePackageMock.mockResolvedValueOnce({
+      id: approvedPackage.reportId,
+      tenantId: approvedPackage.tenantId,
+      type: approvedPackage.type,
+      status: approvedPackage.status,
+      title: approvedPackage.title,
+      generatedAt: approvedPackage.generatedAt,
+      generatedByUserId: approvedPackage.generatedByUserId,
+      disclaimer: reportDisclaimer,
+      manifest: {
+        title: approvedPackage.title,
+        generatedAt: approvedPackage.generatedAt,
+        scope: {
+          obligationIds: [obligationDashboardItem.obligationId],
+          contractIds: [contract.id],
+          controlIds: ["AC.L1-3.1.1"],
+          subcontractorIds: [],
+          includesDraftOrRejectedEvidence: false
+        },
+        items: [
+          {
+            evidenceItemId: evidenceMetadata.id,
+            title: evidenceMetadata.title,
+            type: evidenceMetadata.type,
+            status: "Approved",
+            approvedAt: "2026-07-27T19:55:00Z",
+            approvedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+            obligationIds: [obligationDashboardItem.obligationId],
+            contractIds: [contract.id],
+            controlIds: ["AC.L1-3.1.1"],
+            subcontractorIds: [],
+            manifestedAt: approvedPackage.generatedAt
+          }
+        ]
+      },
+      exportHtml: "<p>Stored artifact</p>"
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /reports/i }));
+    await user.click(screen.getByRole("button", { name: /Prime review evidence package.*View package details/i }));
+
+    expect(getEvidencePackageMock).toHaveBeenCalledWith(approvedPackage.reportId);
+    const detail = within(await screen.findByLabelText("Generated report detail"));
+    expect(detail.getByText(reportDisclaimer)).toBeInTheDocument();
+    expect(detail.getByText("Access control policy · Policy · Approved")).toBeInTheDocument();
+    expect(detail.getByText("Evidence items").parentElement).toHaveTextContent("1");
   });
 });

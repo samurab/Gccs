@@ -127,6 +127,7 @@ public static class DependencyInjection
         services.AddScoped<SsoSignInEnforcementService>();
         services.AddScoped<ScimProvisioningService>();
         services.AddScoped<NoCuiAcknowledgementService>();
+        services.AddScoped<EvidenceFileService>();
         services.AddScoped<NoCuiAcknowledgementStatusService>();
         services.AddScoped<NotificationPreferenceService>();
         services.AddScoped<DueDateReminderService>();
@@ -146,6 +147,7 @@ public static class DependencyInjection
         services.AddScoped<SubcontractorEntityLookupService>();
         services.AddScoped<ComplianceStatusReportService>();
         services.AddScoped<CmmcReadinessReportService>();
+        services.AddScoped<ReportHistoryService>();
         services.AddScoped<SprsReadinessReportService>();
         services.AddScoped<EsrsApplicabilityService>();
         services.AddScoped<SubcontractingReportDataService>();
@@ -183,10 +185,19 @@ public static class DependencyInjection
             options.MaximumAttempts = ReadInt(configuration, $"{prefix}:MaximumAttempts", options.MaximumAttempts);
         });
         services.AddScoped<IInvitationEmailSender, AzureCommunicationInvitationEmailSender>();
+        services.AddScoped<IAssignmentEmailSender, AzureCommunicationAssignmentEmailSender>();
         services.AddSingleton(provider =>
         {
             var options = provider.GetRequiredService<IOptions<InvitationEmailOptions>>().Value;
             return new InvitationDeliverySettings(
+                options.PublicWebBaseUrl,
+                TimeSpan.FromMinutes(Math.Clamp(options.LeaseMinutes, 1, 30)),
+                Math.Clamp(options.MaximumAttempts, 1, 10));
+        });
+        services.AddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<InvitationEmailOptions>>().Value;
+            return new AssignmentEmailDeliverySettings(
                 options.PublicWebBaseUrl,
                 TimeSpan.FromMinutes(Math.Clamp(options.LeaseMinutes, 1, 30)),
                 Math.Clamp(options.MaximumAttempts, 1, 10));
@@ -274,6 +285,8 @@ public static class DependencyInjection
             services.AddScoped<INotificationPreferenceRepository, EfNotificationPreferenceRepository>();
             services.AddScoped<IDueDateReminderRepository, EfDueDateReminderRepository>();
             services.AddScoped<IAssignmentNotificationRepository, EfAssignmentNotificationRepository>();
+            services.AddScoped<IAssignmentEmailDeliveryRepository, EfAssignmentEmailDeliveryRepository>();
+            services.AddScoped<AssignmentEmailDeliveryService>();
             services.AddScoped<AssignmentNotificationService>();
             services.AddScoped<IReportRepository, EfReportRepository>();
             services.AddScoped<ISimpleReportExportRepository, EfSimpleReportExportRepository>();

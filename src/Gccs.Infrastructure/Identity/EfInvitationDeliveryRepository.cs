@@ -100,12 +100,12 @@ public sealed class EfInvitationDeliveryRepository(GccsDbContext dbContext) : II
 
         invitation.DeliveryStatus = InvitationDeliveryStatus.Sent;
         invitation.NotificationSentAt = sentAt;
-        invitation.NotificationPlaceholder = "Owner invitation email was sent.";
+        invitation.NotificationPlaceholder = $"{invitation.RoleName} invitation email was sent.";
         invitation.DeliveryProviderMessageId = Truncate(providerMessageId, 200);
         invitation.DeliveryFailureCode = null;
         invitation.DeliveryLeaseUntil = null;
         invitation.NextDeliveryAttemptAt = null;
-        AddAudit(invitation, AuditAction.Updated, "Owner invitation email was sent.", sentAt);
+        AddAudit(invitation, AuditAction.Updated, invitation.NotificationPlaceholder, sentAt);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -126,8 +126,8 @@ public sealed class EfInvitationDeliveryRepository(GccsDbContext dbContext) : II
             ? InvitationDeliveryStatus.RetryScheduled
             : InvitationDeliveryStatus.Failed;
         invitation.NotificationPlaceholder = retryAt.HasValue
-            ? "Owner invitation delivery failed and is scheduled for retry."
-            : "Owner invitation delivery failed after the maximum retry count.";
+            ? $"{invitation.RoleName} invitation delivery failed and is scheduled for retry."
+            : $"{invitation.RoleName} invitation delivery failed after the maximum retry count.";
         invitation.DeliveryFailureCode = Truncate(failureCode, 120);
         invitation.DeliveryLeaseUntil = null;
         invitation.NextDeliveryAttemptAt = retryAt;

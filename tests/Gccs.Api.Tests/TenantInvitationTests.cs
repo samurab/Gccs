@@ -66,6 +66,7 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         Assert.True(invitation.ExpiresAt > DateTimeOffset.UtcNow.AddDays(4));
         Assert.Null(invitation.NotificationSentAt);
         Assert.Equal(InvitationDeliveryStatus.Queued, invitation.DeliveryStatus);
+        Assert.Equal("Compliance Manager invitation is queued for delivery.", invitation.NotificationPlaceholder);
         Assert.DoesNotContain("token", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
 
         using var scope = factory.Services.CreateScope();
@@ -111,7 +112,8 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         var responseBody = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Contains("already a member of the current tenant", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("tenant_user_exists", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("already belongs to a user", responseBody, StringComparison.OrdinalIgnoreCase);
 
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
@@ -183,8 +185,9 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         var response = await client.SendAsync(request);
         var responseBody = await response.Content.ReadAsStringAsync();
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("already a member of this tenant", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("tenant_user_exists", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("already belongs to a user", responseBody, StringComparison.OrdinalIgnoreCase);
 
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
@@ -625,6 +628,139 @@ public sealed class TenantInvitationTests : IClassFixture<WebApplicationFactory<
         using var scope = factory.Services.CreateScope();
         var persistedInvitation = await scope.ServiceProvider.GetRequiredService<GccsDbContext>().TenantInvitations.SingleAsync();
         Assert.Null(persistedInvitation.InvitationTokenHash);
+    }
+
+    [Fact]
+    public async Task Existing_tenant_user_cannot_be_invited_again_but_same_email_in_another_tenant_is_allowed()
+    {
+        var tenantAId = Guid.Parse("23232323-2323-2323-2323-2323232323a7");
+        var tenantBId = Guid.Parse("23232323-2323-2323-2323-2323232323b7");
+        var existingUserId = Guid.Parse("23232323-2323-2323-2323-2323232323c7");
+        const string existingEmail = "existing.member@example.com";
+        await using var factory = CreateFactory("tenant-invitation-existing-user", dbContext =>
+        {
+            dbContext.Tenants.AddRange(
+                CreateTenant(tenantAId, "Existing User Tenant"),
+                CreateTenant(tenantBId, "Other Tenant"));
+            dbContext.Users.Add(new UserEntity
+            {
+                Id = existingUserId,
+                TenantId = tenantAId,
+                Email = existingEmail,
+                DisplayName = "Existing Member",
+                Status = UserStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            dbContext.TenantMemberships.Add(new TenantMembershipEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantAId,
+                UserId = existingUserId,
+                RoleName = RoleCatalog.Owner,
+                Status = MembershipStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var duplicateRequest = CreateRequest(
+            HttpMethod.Post,
+            "/api/tenant-invitations",
+            new CreateTenantInvitationRequest(existingEmail, RoleCatalog.Auditor),
+            tenantAId,
+            Guid.NewGuid(),
+            "admin-a@example.com",
+            Permission.ManageUsers);
+        using var otherTenantRequest = CreateRequest(
+            HttpMethod.Post,
+            "/api/tenant-invitations",
+            new CreateTenantInvitationRequest(existingEmail, RoleCatalog.Auditor),
+            tenantBId,
+            Guid.NewGuid(),
+            "admin-b@example.com",
+            Permission.ManageUsers);
+
+        var duplicateResponse = await client.SendAsync(duplicateRequest);
+        var otherTenantResponse = await client.SendAsync(otherTenantRequest);
+        var duplicateBody = await duplicateResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
+        Assert.Contains("already belongs to a user", duplicateBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.Created, otherTenantResponse.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.False(await dbContext.TenantInvitations.AnyAsync(candidate => candidate.TenantId == tenantAId));
+        Assert.True(await dbContext.TenantInvitations.AnyAsync(candidate =>
+            candidate.TenantId == tenantBId &&
+            candidate.Email == existingEmail));
+    }
+
+    [Fact]
+    public async Task Legacy_pending_invitation_for_existing_user_returns_conflict_without_consuming_token_or_changing_role()
+    {
+        var tenantId = Guid.Parse("23232323-2323-2323-2323-2323232323a8");
+        var invitationId = Guid.Parse("23232323-2323-2323-2323-2323232323b8");
+        var existingUserId = Guid.Parse("23232323-2323-2323-2323-2323232323c8");
+        var acceptingActorId = Guid.Parse("23232323-2323-2323-2323-2323232323d8");
+        const string invitationCode = "legacy-existing-user-token";
+        const string existingEmail = "existing.owner@example.com";
+        await using var factory = CreateFactory("tenant-invitation-legacy-existing-user", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Legacy Invitation Tenant"));
+            dbContext.Users.Add(new UserEntity
+            {
+                Id = existingUserId,
+                TenantId = tenantId,
+                Email = existingEmail,
+                DisplayName = "Existing Owner",
+                Status = UserStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            dbContext.TenantMemberships.Add(new TenantMembershipEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                UserId = existingUserId,
+                RoleName = RoleCatalog.Owner,
+                Status = MembershipStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            dbContext.TenantInvitations.Add(CreateInvitation(
+                invitationId,
+                tenantId,
+                existingEmail,
+                RoleCatalog.Auditor,
+                invitationCode,
+                TenantInvitationStatus.Pending));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/invitations/{invitationCode}/accept",
+            new AcceptTenantInvitationRequest("Existing Owner"),
+            tenantId,
+            acceptingActorId,
+            existingEmail,
+            Permission.AuditorReadOnly);
+
+        var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("manage the existing user", responseBody, StringComparison.OrdinalIgnoreCase);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var invitation = await dbContext.TenantInvitations.SingleAsync(candidate => candidate.Id == invitationId);
+        var membership = await dbContext.TenantMemberships.SingleAsync(candidate => candidate.UserId == existingUserId);
+
+        Assert.Equal(TenantInvitationStatus.Pending, invitation.Status);
+        Assert.Equal(HashToken(invitationCode), invitation.InvitationTokenHash);
+        Assert.Equal(RoleCatalog.Owner, membership.RoleName);
+        Assert.Equal(MembershipStatus.Active, membership.Status);
+        Assert.Equal(1, await dbContext.Users.CountAsync(candidate => candidate.TenantId == tenantId));
     }
 
     private async Task<TenantInvitationDto> CreateInvitationAsync(

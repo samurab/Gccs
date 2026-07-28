@@ -20,7 +20,8 @@ import {
   SlidersHorizontal,
   UploadCloud,
   UserPlus,
-  UsersRound
+  UsersRound,
+  X
 } from "lucide-react";
 import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
@@ -70,9 +71,13 @@ import {
   fallbackOverview,
   generateCmmcReadinessReport,
   generateComplianceStatusReport,
+  generateContractClauseObligations,
   generateEvidencePackage,
   generateSubcontractorComplianceReport,
   getApprovedEvidencePackages,
+  getEvidencePackage,
+  getRecentReports,
+  getReportArtifact,
   getCompanyProfile,
   getCmmcAssessments,
   getCmmcControlLibrary,
@@ -169,6 +174,7 @@ import {
   type NotificationPreference,
   type NotificationPreferenceUpdateRequest,
   type PagedResult,
+  type ReportHistoryItem,
   type Subcontractor,
   type SubcontractorEntityLookupResult,
   type SubcontractorComplianceReport,
@@ -207,6 +213,8 @@ type WorkspaceRoute =
 
 type LoadState = "loading" | "ready" | "error";
 type AccessLoadState = "loading" | "ready" | "error";
+type ReportArtifact = ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | EvidencePackageReport;
+type ReportDetailStatus = "idle" | "loading" | "ready" | "failed";
 
 const tenantModeUpdateTimeoutMs = 15000;
 const tenantModeHistoryTimeoutMs = 10000;
@@ -526,6 +534,14 @@ function ownerOptionsWith(currentValue: string) {
   return [[currentValue, formatOwnerLabel(currentValue)], ...ownerFunctionOptions] as const;
 }
 
+function normalizeRoleKey(value: string | null | undefined) {
+  return (value ?? "").replace(/[\s_-]/g, "").toLowerCase();
+}
+
+function canonicalAssignmentRoleName(value: string | null | undefined) {
+  return normalizeRoleKey(value) === "compliancemanager" ? "Compliance Manager" : (value ?? "");
+}
+
 function defaultCalendarFilters(): CalendarFilters {
   const query = defaultCalendarQuery();
 
@@ -588,9 +604,11 @@ export function App() {
   const [subcontractorFlowDowns, setSubcontractorFlowDowns] = useState<SubcontractorFlowDown[]>([]);
   const [subcontractorEvidenceRequests, setSubcontractorEvidenceRequests] = useState<SubcontractorEvidenceRequest[]>([]);
   const [approvedEvidencePackages, setApprovedEvidencePackages] = useState<ApprovedEvidencePackage[]>([]);
-  const [generatedReports, setGeneratedReports] = useState<
-    Array<ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | EvidencePackageReport>
-  >([]);
+  const [generatedReports, setGeneratedReports] = useState<ReportArtifact[]>([]);
+  const [recentReports, setRecentReports] = useState<ReportHistoryItem[]>([]);
+  const [selectedReport, setSelectedReport] = useState<ReportArtifact | null>(null);
+  const [reportDetailStatus, setReportDetailStatus] = useState<ReportDetailStatus>("idle");
+  const [reportDetailMessage, setReportDetailMessage] = useState("");
   const [selectedEvidenceItemId, setSelectedEvidenceItemId] = useState<string | null>(null);
   const [calendarFilters, setCalendarFilters] = useState<CalendarFilters>(() => defaultCalendarFilters());
   const [calendarStatus, setCalendarStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
@@ -631,6 +649,7 @@ export function App() {
   const [contractDocumentMessage, setContractDocumentMessage] = useState("");
   const [selectedEvidenceFile, setSelectedEvidenceFile] = useState<File | null>(null);
   const [acknowledgementStatus, setAcknowledgementStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [acknowledgementMessage, setAcknowledgementMessage] = useState("");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "creating" | "created" | "blocked">("idle");
   const [uploadMessage, setUploadMessage] = useState("");
   const [evidenceMetadataStatus, setEvidenceMetadataStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -846,7 +865,9 @@ export function App() {
         const nextSubcontractorEvidenceRequests = nextSubcontractors[0]
           ? await getSubcontractorEvidenceRequests(nextSubcontractors[0].id)
           : [];
-        const nextApprovedEvidencePackages = canLoadReports ? await getApprovedEvidencePackages() : [];
+        const [nextApprovedEvidencePackages, nextRecentReports] = canLoadReports
+          ? await Promise.all([getApprovedEvidencePackages(), getRecentReports()])
+          : [[], []];
         const nextContractClauses = nextContracts[0] ? await getContractClauses(nextContracts[0].id) : [];
         const nextContractDeliverables = nextContracts[0] ? await getContractDeliverables(nextContracts[0].id) : [];
         const nextContractDocuments = nextContracts[0] ? await getContractDocuments(nextContracts[0].id) : [];
@@ -903,6 +924,10 @@ export function App() {
           setSubcontractorEvidenceRequests(nextSubcontractorEvidenceRequests);
           setSubcontractorDetailStatus(canLoadSubcontractors ? "ready" : "idle");
           setApprovedEvidencePackages(nextApprovedEvidencePackages);
+          setRecentReports(nextRecentReports);
+          setSelectedReport(null);
+          setReportDetailStatus("idle");
+          setReportDetailMessage("");
           setReportStatus(canLoadReports ? "ready" : "idle");
           setCmmcStatus(canLoadCmmc ? "idle" : "idle");
           setSelectedEvidenceItemId(nextEvidenceItems[0]?.id ?? null);
@@ -952,6 +977,10 @@ export function App() {
           setSubcontractorDetailStatus("idle");
           setApprovedEvidencePackages([]);
           setGeneratedReports([]);
+          setRecentReports([]);
+          setSelectedReport(null);
+          setReportDetailStatus("idle");
+          setReportDetailMessage("");
           setReportStatus("idle");
           setCmmcStatus("idle");
           setSelectedEvidenceItemId(null);
@@ -1276,13 +1305,16 @@ export function App() {
 
     try {
       const results = await searchClauseLibrary(params);
-      setClauseResults(results);
+      setClauseResults((currentResults) => mergeClauseSearchResults(currentResults, results));
       setClauseSearchStatus("ready");
-      setClauseSearchMessage(results.length > 0 ? `${results.length} published clause results.` : "No published clauses matched.");
+      setClauseSearchMessage(
+        results.length > 0
+          ? `${results.length} published clause result${results.length === 1 ? "" : "s"} added or refreshed.`
+          : "No new published clauses matched. Previous results were retained."
+      );
     } catch {
-      setClauseResults([]);
       setClauseSearchStatus("failed");
-      setClauseSearchMessage("Clause search could not be completed.");
+      setClauseSearchMessage("Clause search could not be completed. Previous results were retained.");
     }
   }
 
@@ -1389,6 +1421,7 @@ export function App() {
       );
       setObligationDetailStatus("ready");
       setObligationDetailMessage("Obligation owner assigned.");
+      setNotifications(await getNotifications());
       return;
     }
 
@@ -1451,6 +1484,28 @@ export function App() {
 
     setContractClauseStatus("failed");
     setContractClauseMessage(result.error ?? "Clause could not be removed.");
+  }
+
+  async function handleContractClauseObligationGenerate(contractId: string, contractClauseId: string) {
+    setContractClauseStatus("saving");
+    setContractClauseMessage("");
+
+    const result = await generateContractClauseObligations(contractId, contractClauseId);
+    if (result.data) {
+      const obligationCount = result.data.obligationIds.length;
+      const taskCount = result.data.tasksCreated;
+      setContractClauseStatus("saved");
+      setContractClauseMessage(
+        obligationCount === 0
+          ? "No published obligation mappings are available for this clause."
+          : `${obligationCount} obligation mapping${obligationCount === 1 ? "" : "s"} available; ` +
+              `${taskCount} new task${taskCount === 1 ? "" : "s"} created.`
+      );
+      return;
+    }
+
+    setContractClauseStatus("failed");
+    setContractClauseMessage(result.error ?? "Contract obligations could not be generated.");
   }
 
   async function handleDeliverableSave(
@@ -1650,15 +1705,18 @@ export function App() {
 
   async function handleNoCuiAcknowledgement() {
     setAcknowledgementStatus("saving");
-    const acknowledgement = await acknowledgeNoCuiNotice(noCuiAcknowledgement.noticeVersion);
+    setAcknowledgementMessage("");
+    const result = await acknowledgeNoCuiNotice(noCuiAcknowledgement.noticeVersion);
 
-    if (acknowledgement) {
-      setNoCuiAcknowledgement(acknowledgement);
+    if (result.data) {
+      setNoCuiAcknowledgement(result.data);
       setAcknowledgementStatus("saved");
+      setAcknowledgementMessage("Acknowledgement saved.");
       return;
     }
 
     setAcknowledgementStatus("failed");
+    setAcknowledgementMessage(result.error ?? "Acknowledgement was not saved.");
   }
 
   async function handleEvidenceUploadIntentSubmit(
@@ -1929,6 +1987,9 @@ export function App() {
 
     if (result.data) {
       setGeneratedReports((currentReports) => [result.data!, ...currentReports]);
+      setSelectedReport(result.data);
+      setReportDetailStatus("ready");
+      setReportDetailMessage("");
       setApprovedEvidencePackages(await getApprovedEvidencePackages());
       setReportStatus("ready");
       setReportMessage("Evidence package generated.");
@@ -1946,6 +2007,13 @@ export function App() {
   ) {
     if (report) {
       setGeneratedReports((currentReports) => [report, ...currentReports]);
+      setRecentReports((currentReports) => [
+        reportHistoryItem(report),
+        ...currentReports.filter((candidate) => candidate.id !== report.id)
+      ]);
+      setSelectedReport(report);
+      setReportDetailStatus("ready");
+      setReportDetailMessage("");
       setReportStatus("ready");
       setReportMessage(successMessage);
       return;
@@ -1953,6 +2021,49 @@ export function App() {
 
     setReportStatus("failed");
     setReportMessage(error ?? "Report could not be generated.");
+  }
+
+  async function handleGeneratedReportSelect(report: ReportArtifact | ReportHistoryItem) {
+    if ("snapshot" in report || "manifest" in report) {
+      setSelectedReport(report);
+      setReportDetailStatus("ready");
+      setReportDetailMessage("");
+      return;
+    }
+
+    setSelectedReport(null);
+    setReportDetailStatus("loading");
+    setReportDetailMessage("");
+
+    try {
+      const detail = await getReportArtifact(report.id);
+      setSelectedReport(detail);
+      setReportDetailStatus("ready");
+    } catch (error) {
+      setReportDetailStatus("failed");
+      setReportDetailMessage(error instanceof Error ? error.message : "Report detail could not be loaded.");
+    }
+  }
+
+  async function handleApprovedEvidencePackageSelect(reportId: string) {
+    setSelectedReport(null);
+    setReportDetailStatus("loading");
+    setReportDetailMessage("");
+
+    try {
+      const report = await getEvidencePackage(reportId);
+      setSelectedReport(report);
+      setReportDetailStatus("ready");
+    } catch (error) {
+      setReportDetailStatus("failed");
+      setReportDetailMessage(error instanceof Error ? error.message : "Evidence package detail could not be loaded.");
+    }
+  }
+
+  function handleReportDetailClose() {
+    setSelectedReport(null);
+    setReportDetailStatus("idle");
+    setReportDetailMessage("");
   }
 
   async function handleAuditLogFilterSubmit(event: FormEvent<HTMLFormElement>) {
@@ -2127,6 +2238,7 @@ export function App() {
               contractMessage={contractMessage}
               contractStatus={contractStatus}
               noCuiAcknowledgement={noCuiAcknowledgement}
+              acknowledgementMessage={acknowledgementMessage}
               acknowledgementStatus={acknowledgementStatus}
               selectedContractId={selectedContractId}
               tenantDataHandlingMode={currentTenant?.dataHandlingMode ?? "NoCui"}
@@ -2136,6 +2248,7 @@ export function App() {
               onStartExtraction={handleStartContractDocumentExtraction}
               onReviewCandidate={handleClauseCandidateReview}
               onAttachClause={handleContractClauseAttach}
+              onGenerateClauseObligations={handleContractClauseObligationGenerate}
               onRemoveClause={handleContractClauseRemove}
               onSaveDeliverable={handleDeliverableSave}
               onUploadDocument={handleContractDocumentUpload}
@@ -2146,6 +2259,8 @@ export function App() {
             <ObligationsView
               contracts={contracts}
               canManageObligations={canManageObligations}
+              currentRoles={access.roles}
+              currentUserId={access.userId}
               detail={selectedObligationDetail}
               detailMessage={obligationDetailMessage}
               detailStatus={obligationDetailStatus}
@@ -2169,6 +2284,7 @@ export function App() {
           ) : activeRoute === "evidence" ? (
             <EvidenceView
               acknowledgement={noCuiAcknowledgement}
+              acknowledgementMessage={acknowledgementMessage}
               acknowledgementStatus={acknowledgementStatus}
               canManageEvidence={canManageEvidence}
               controls={cmmcControlLibrary}
@@ -2243,13 +2359,20 @@ export function App() {
               contracts={contracts}
               evidenceItems={evidenceItems}
               generatedReports={generatedReports}
+              recentReports={recentReports}
               message={reportMessage}
               obligationItems={obligationDashboardItems}
+              reportDetailMessage={reportDetailMessage}
+              reportDetailStatus={reportDetailStatus}
+              selectedReport={selectedReport}
               status={reportStatus}
               subcontractors={subcontractors}
+              onApprovedEvidencePackageSelect={handleApprovedEvidencePackageSelect}
               onCmmcReportGenerate={handleCmmcReportGenerate}
               onComplianceReportGenerate={handleComplianceReportGenerate}
               onEvidencePackageGenerate={handleEvidencePackageGenerate}
+              onGeneratedReportSelect={handleGeneratedReportSelect}
+              onReportDetailClose={handleReportDetailClose}
               onSubcontractorReportGenerate={handleSubcontractorReportGenerate}
             />
           ) : activeRoute === "settings" ? (
@@ -2276,6 +2399,7 @@ export function App() {
               invitationActionStatus={invitationActionStatus}
               invitations={invitations}
               members={members}
+              revokingInvitationId={revokingInvitationId}
               notificationPreference={notificationPreference}
               notificationPreferenceMessage={notificationPreferenceMessage}
               notificationPreferenceStatus={notificationPreferenceStatus}
@@ -2300,7 +2424,6 @@ export function App() {
               onInviteRoleChange={setInviteRole}
               onInvitationSubmit={handleInvitationSubmit}
               onInvitationRevoke={handleInvitationRevoke}
-              revokingInvitationId={revokingInvitationId}
               onNotificationPreferenceSave={handleNotificationPreferenceSave}
               onTenantModeUpdate={handleTenantModeUpdate}
             />
@@ -2348,7 +2471,9 @@ function NotificationCenter({
                 </small>
               </div>
               <div className="notification-center__actions">
-                <a href={`/api${notification.linkUrl}`}>Open</a>
+                <a href={notification.linkUrl.startsWith("/#/") ? notification.linkUrl : `/api${notification.linkUrl}`}>
+                  Open
+                </a>
                 {!notification.readAt ? (
                   <button type="button" onClick={() => void onMarkRead(notification.id)} aria-label="Mark notification as read">
                     <CheckCircle2 size={15} aria-hidden="true" />
@@ -2587,7 +2712,10 @@ function CalendarView({
       </form>
 
       {message ? (
-        <p className={`form-message form-message--${status === "failed" ? "error" : "success"}`} role="status">
+        <p
+          className={`form-message form-message--${status === "failed" ? "error" : "success"}`}
+          role={status === "failed" ? "alert" : "status"}
+        >
           {message}
         </p>
       ) : null}
@@ -3141,6 +3269,8 @@ function ObligationsView({
   canManageObligations,
   clauseLibrary,
   contracts,
+  currentRoles,
+  currentUserId,
   detail,
   detailMessage,
   detailStatus,
@@ -3156,6 +3286,8 @@ function ObligationsView({
   canManageObligations: boolean;
   clauseLibrary: ReactNode;
   contracts: ContractRecord[];
+  currentRoles: string[];
+  currentUserId: string | null;
   detail: ContractObligationDetail | null;
   detailMessage: string;
   detailStatus: "idle" | "loading" | "ready" | "saving" | "failed";
@@ -3175,10 +3307,17 @@ function ObligationsView({
   const [module, setModule] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [source, setSource] = useState("");
+  const [queueScope, setQueueScope] = useState<"all" | "mine" | "role">("all");
   const [requestedDetailId, setRequestedDetailId] = useState("");
   const detailPanelRef = useRef<HTMLElement | null>(null);
-  const overdueCount = items.filter((item) => item.isOverdue).length;
-  const highRiskCount = items.filter((item) => item.isHighRisk).length;
+  const normalizedCurrentRoles = new Set(currentRoles.map(normalizeRoleKey));
+  const myItems = currentUserId ? items.filter((item) => item.assignedUserId === currentUserId) : [];
+  const roleItems = items.filter(
+    (item) => item.assignedRoleName && normalizedCurrentRoles.has(normalizeRoleKey(item.assignedRoleName))
+  );
+  const visibleItems = queueScope === "mine" ? myItems : queueScope === "role" ? roleItems : items;
+  const overdueCount = visibleItems.filter((item) => item.isOverdue).length;
+  const highRiskCount = visibleItems.filter((item) => item.isHighRisk).length;
   const selectedDetailId = detail?.id ?? requestedDetailId;
 
   useEffect(() => {
@@ -3210,6 +3349,25 @@ function ObligationsView({
           </span>
         </div>
       </div>
+
+      <div className="queue-scope-tabs" role="group" aria-label="Obligation queue view">
+        <button type="button" aria-pressed={queueScope === "all"} onClick={() => setQueueScope("all")}>
+          All assignments <span>{items.length}</span>
+        </button>
+        <button type="button" aria-pressed={queueScope === "mine"} onClick={() => setQueueScope("mine")}>
+          My assignments <span>{myItems.length}</span>
+        </button>
+        <button type="button" aria-pressed={queueScope === "role"} onClick={() => setQueueScope("role")}>
+          Role assignments <span>{roleItems.length}</span>
+        </button>
+      </div>
+      <p className="queue-scope-description">
+        {queueScope === "mine"
+          ? "Obligations assigned directly to the signed-in tenant member."
+          : queueScope === "role"
+            ? "Obligations assigned to one of the signed-in member's active roles."
+            : "All tenant-scoped obligation assignments."}
+      </p>
 
       <form
         className="obligation-filter-form"
@@ -3313,11 +3471,11 @@ function ObligationsView({
         <p className="form-status form-status--ok">{message}</p>
       ) : null}
 
-      {status === "loading" && items.length === 0 ? (
+      {status === "loading" && visibleItems.length === 0 ? (
         <LoadingState label="Loading obligation work queue" />
-      ) : items.length > 0 ? (
+      ) : visibleItems.length > 0 ? (
         <div className="obligation-dashboard-list" aria-label="Tenant obligation work queue">
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const itemClasses = `obligation-dashboard-item${item.id === selectedDetailId ? " obligation-dashboard-item--selected" : ""}${
               item.isOverdue ? " obligation-dashboard-item--overdue" : ""
             }${item.isHighRisk ? " obligation-dashboard-item--high-risk" : ""}`;
@@ -3383,12 +3541,19 @@ function ObligationsView({
         </div>
       ) : (
         <EmptyState
-          title="Start with company profile or contract intake"
-          body="Complete the company profile, add a contract, and attach mapped clauses to generate tenant-scoped obligations."
+          title={queueScope === "all" ? "Start with company profile or contract intake" : "No assignments in this queue"}
+          body={
+            queueScope === "all"
+              ? "Complete the company profile, add a contract, and attach mapped clauses to generate tenant-scoped obligations."
+              : queueScope === "mine"
+                ? "No obligations are assigned directly to the signed-in tenant member."
+                : "No obligations are assigned to the signed-in member's active roles."
+          }
         />
       )}
 
       <ObligationDetailPanel
+        key={`${detail?.id ?? "none"}:${detail?.assignedUserId ?? detail?.assignedRoleName ?? "default"}`}
         canManageObligations={canManageObligations}
         detail={detail}
         panelRef={detailPanelRef}
@@ -3423,7 +3588,13 @@ function ObligationDetailPanel({
   onStatusUpdate: (status: string) => Promise<void>;
   status: "idle" | "loading" | "ready" | "saving" | "failed";
 }) {
-  const [ownerKind, setOwnerKind] = useState<"user" | "role">("user");
+  const [ownerKind, setOwnerKind] = useState<"user" | "role">(
+    detail?.assignedRoleName ? "role" : "user"
+  );
+  const [selectedUserId, setSelectedUserId] = useState(detail?.assignedUserId ?? "");
+  const [selectedRoleName, setSelectedRoleName] = useState(
+    canonicalAssignmentRoleName(detail?.assignedRoleName)
+  );
 
   if (status === "loading") {
     return (
@@ -3474,6 +3645,14 @@ function ObligationDetailPanel({
         ]}
       />
       <DataQualityWarnings warnings={obligationQualityWarnings(detail)} />
+      <p className="current-assignment-summary" role="status">
+        <strong>Currently assigned to:</strong>{" "}
+        {detail.assignedUserDisplayName
+          ? `${detail.assignedUserDisplayName} (tenant member)`
+          : detail.assignedRoleName
+            ? `${formatOwnerLabel(detail.assignedRoleName)} (role queue)`
+            : `${formatOwnerLabel(detail.ownerFunction)} (default functional owner)`}
+      </p>
 
       <div className="obligation-detail-grid">
         <div>
@@ -3602,7 +3781,7 @@ function ObligationDetailPanel({
         onSubmit={(event) => {
           event.preventDefault();
           const formData = new FormData(event.currentTarget);
-          const value = String(formData.get(ownerKind === "user" ? "userId" : "roleName") ?? "");
+          const value = ownerKind === "user" ? selectedUserId : selectedRoleName;
           const notify = formData.get("notify") === "on";
           if (value) {
             void onOwnerAssign(ownerKind, value, notify);
@@ -3613,7 +3792,16 @@ function ObligationDetailPanel({
           Assign by
           <select
             value={ownerKind}
-            onChange={(event) => setOwnerKind(event.target.value as "user" | "role")}
+            onChange={(event) => {
+              const nextKind = event.target.value as "user" | "role";
+              setOwnerKind(nextKind);
+              if (nextKind === "user" && !selectedUserId) {
+                setSelectedUserId(detail.assignedUserId ?? "");
+              }
+              if (nextKind === "role" && !selectedRoleName) {
+                setSelectedRoleName(canonicalAssignmentRoleName(detail.assignedRoleName));
+              }
+            }}
             disabled={!canManageObligations || status === "saving"}
           >
             <option value="user">Tenant member</option>
@@ -3623,7 +3811,12 @@ function ObligationDetailPanel({
         {ownerKind === "user" ? (
           <label>
             Tenant member
-            <select name="userId" disabled={!canManageObligations || status === "saving"}>
+            <select
+              name="userId"
+              value={selectedUserId}
+              onChange={(event) => setSelectedUserId(event.target.value)}
+              disabled={!canManageObligations || status === "saving"}
+            >
               <option value="">Select member</option>
               {members.map((member) => (
                 <option key={member.userId} value={member.userId}>
@@ -3635,9 +3828,14 @@ function ObligationDetailPanel({
         ) : (
           <label>
             Role
-            <select name="roleName" disabled={!canManageObligations || status === "saving"}>
+            <select
+              name="roleName"
+              value={selectedRoleName}
+              onChange={(event) => setSelectedRoleName(event.target.value)}
+              disabled={!canManageObligations || status === "saving"}
+            >
               <option value="">Select role</option>
-              <option value="ComplianceManager">Compliance manager</option>
+              <option value="Compliance Manager">Compliance manager</option>
               <option value="Advisor">Advisor</option>
               <option value="Contributor">Contributor</option>
               <option value="Auditor">Auditor</option>
@@ -3645,9 +3843,19 @@ function ObligationDetailPanel({
           </label>
         )}
         <label className="inline-checkbox">
-          <input name="notify" type="checkbox" disabled={!canManageObligations || status === "saving"} />
-          Notify owner
+          <input
+            name="notify"
+            type="checkbox"
+            defaultChecked
+            disabled={ownerKind === "role" || !canManageObligations || status === "saving"}
+          />
+          Also send assignment email
         </label>
+        <small>
+          {ownerKind === "user"
+            ? "The member always receives an in-app notification. Email follows their assignment-email preference."
+            : "Active members of this role receive an in-app notification. Role-assignment email is not sent."}
+        </small>
         <button type="submit" disabled={!canManageObligations || status === "saving"}>
           <UserPlus size={16} aria-hidden="true" />
           Assign owner
@@ -3743,12 +3951,24 @@ function ClauseLibraryView({
                 <p>{clause.plainEnglishSummary}</p>
                 <dl>
                   <div>
-                    <dt>Source</dt>
+                    <dt>Published clause ID</dt>
+                    <dd>{clause.id}</dd>
+                  </div>
+                  <div>
+                    <dt>Source URL</dt>
                     <dd>
                       <a href={clause.sourceUrl} target="_blank" rel="noreferrer">
-                        {clause.source}
+                        {clause.sourceUrl}
                       </a>
                     </dd>
+                  </div>
+                  <div>
+                    <dt>Confidence</dt>
+                    <dd>{formatEnumLabel(clause.confidence)}</dd>
+                  </div>
+                  <div>
+                    <dt>Review state</dt>
+                    <dd>{formatEnumLabel(clause.reviewState)}</dd>
                   </div>
                   <div>
                     <dt>Reviewed</dt>
@@ -3760,8 +3980,13 @@ function ClauseLibraryView({
                   </div>
                 </dl>
               </div>
-              <button type="button" onClick={() => setSelectedClauseId(clause.id)} disabled={!clause.isMappable}>
-                Select clause
+              <button
+                type="button"
+                aria-pressed={selectedClauseId === clause.id}
+                onClick={() => setSelectedClauseId(clause.id)}
+                disabled={clause.isMappable === false}
+              >
+                {selectedClauseId === clause.id ? "Selected" : "Select clause"}
               </button>
             </article>
           ))
@@ -3774,6 +3999,19 @@ function ClauseLibraryView({
       </div>
     </section>
   );
+}
+
+function mergeClauseSearchResults(
+  currentResults: ClauseLibraryItem[],
+  incomingResults: ClauseLibraryItem[]
+): ClauseLibraryItem[] {
+  const resultsById = new Map(currentResults.map((clause) => [clause.id, clause]));
+
+  incomingResults.forEach((clause) => {
+    resultsById.set(clause.id, clause);
+  });
+
+  return Array.from(resultsById.values());
 }
 
 function ContractsView({
@@ -3796,6 +4034,7 @@ function ContractsView({
   contractMessage,
   contractStatus,
   noCuiAcknowledgement,
+  acknowledgementMessage,
   acknowledgementStatus,
   selectedContractId,
   tenantDataHandlingMode,
@@ -3805,6 +4044,7 @@ function ContractsView({
   onStartExtraction,
   onReviewCandidate,
   onAttachClause,
+  onGenerateClauseObligations,
   onRemoveClause,
   onSaveDeliverable,
   onUploadDocument,
@@ -3830,6 +4070,7 @@ function ContractsView({
   contractMessage: string;
   contractStatus: "idle" | "saving" | "saved" | "failed";
   noCuiAcknowledgement: NoCuiAcknowledgementStatus;
+  acknowledgementMessage: string;
   acknowledgementStatus: "idle" | "saving" | "saved" | "failed";
   selectedContractId: string | null;
   tenantDataHandlingMode: string;
@@ -3845,6 +4086,7 @@ function ContractsView({
     clauseLibraryId: string | null
   ) => Promise<void>;
   onAttachClause: (contractId: string, request: AttachContractClauseRequest) => Promise<void>;
+  onGenerateClauseObligations: (contractId: string, contractClauseId: string) => Promise<void>;
   onRemoveClause: (contractId: string, contractClauseId: string, reason: string) => Promise<void>;
   onSaveDeliverable: (
     contractId: string,
@@ -4002,6 +4244,7 @@ function ContractsView({
 
         <NoCuiAcknowledgementPanel
           acknowledgement={noCuiAcknowledgement}
+          acknowledgementMessage={acknowledgementMessage}
           acknowledgementStatus={acknowledgementStatus}
           canAcknowledge={canManageContracts}
           context="contract or evidence work"
@@ -4099,38 +4342,63 @@ function ContractsView({
                     <ScanMeta
                       items={[
                         { label: "Source", value: clause.source },
-                        { label: "Reviewed", value: clause.lastReviewedAt },
+                        { label: "Review state", value: formatEnumLabel(clause.reviewState) },
+                        { label: "Confidence", value: formatEnumLabel(clause.confidence) },
+                        { label: "Last reviewed", value: clause.lastReviewedAt },
+                        ...(clause.reviewedByUserId
+                          ? [{ label: "Reviewed by", value: clause.reviewedByUserId }]
+                          : []),
+                        ...(clause.nextReviewDueAt
+                          ? [{ label: "Next review due", value: clause.nextReviewDueAt }]
+                          : []),
+                        {
+                          label: "Review gate",
+                          value: clause.requiresExpertReview ? "Expert review required" : "Published review complete"
+                        },
                         { label: "Attached", value: clause.attachedAt },
-                        { label: "Reason", value: clause.attachmentReason }
+                        { label: "Reason", value: clause.attachmentReason },
+                        ...(clause.sourceDocumentReference
+                          ? [{ label: "Source reference", value: clause.sourceDocumentReference }]
+                          : [])
                       ]}
                     />
                     <a href={clause.sourceUrl} target="_blank" rel="noreferrer">
                       {clause.sourceUrl}
                     </a>
                   </div>
-                  <form
-                    className="contract-clause-remove"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void removeClause(clause.id);
-                    }}
-                  >
-                    <input
-                      aria-label={`Removal reason for ${clause.clauseNumber}`}
-                      value={removalReasons[clause.id] ?? ""}
-                      onChange={(event) =>
-                        setRemovalReasons((currentReasons) => ({
-                          ...currentReasons,
-                          [clause.id]: event.target.value
-                        }))
-                      }
-                      placeholder="Removal reason"
+                  <div className="contract-clause-actions">
+                    <button
+                      type="button"
+                      aria-label={`Generate obligations for ${clause.clauseNumber}`}
+                      onClick={() => selectedContract && void onGenerateClauseObligations(selectedContract.id, clause.id)}
                       disabled={clauseDisabled}
-                    />
-                    <button type="submit" disabled={clauseDisabled}>
-                      Remove
+                    >
+                      Generate obligations
                     </button>
-                  </form>
+                    <form
+                      className="contract-clause-remove"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void removeClause(clause.id);
+                      }}
+                    >
+                      <input
+                        aria-label={`Removal reason for ${clause.clauseNumber}`}
+                        value={removalReasons[clause.id] ?? ""}
+                        onChange={(event) =>
+                          setRemovalReasons((currentReasons) => ({
+                            ...currentReasons,
+                            [clause.id]: event.target.value
+                          }))
+                        }
+                        placeholder="Removal reason"
+                        disabled={clauseDisabled}
+                      />
+                      <button type="submit" disabled={clauseDisabled}>
+                        Remove
+                      </button>
+                    </form>
+                  </div>
                 </article>
               ))
             ) : (
@@ -4275,43 +4543,50 @@ function ContractsView({
               <span>Documents</span>
               <strong>{contractDocuments.length}</strong>
             </div>
-            <select value={documentType} onChange={(event) => setDocumentType(event.target.value)} disabled={uploadDisabled}>
-              <option value="Solicitation">Solicitation</option>
-              <option value="Contract">Contract</option>
-              <option value="Subcontract">Subcontract</option>
-              <option value="PurchaseOrder">Purchase order</option>
-              <option value="StatementOfWork">SOW</option>
-              <option value="FlowDownAttachment">Flow-down</option>
-              <option value="WageDetermination">Wage determination</option>
-              <option value="Dd254">DD 254</option>
-              <option value="CuiMarkingGuide">CUI marking guide</option>
-              <option value="Other">Other</option>
-            </select>
-            <select
-              aria-label="Contract document classification"
-              value={documentClassification}
-              onChange={(event) => setDocumentClassification(event.target.value)}
-              disabled={uploadDisabled}
-            >
-              <option value="Unclassified">Unclassified</option>
-              <option value="Fci">FCI</option>
-              <option value="Cui">CUI</option>
-              <option value="SyntheticCui">Synthetic CUI</option>
-              <option value="Unknown">Unknown</option>
-              <option value="Prohibited">Prohibited</option>
-            </select>
-            <select
-              aria-label="Clause candidate review status"
-              value={clauseCandidateReviewStatusFilter}
-              onChange={(event) => onChangeClauseCandidateReviewStatusFilter(event.target.value)}
-            >
-              <option value="all">All review states</option>
-              <option value="pending_review">Pending review</option>
-              <option value="needs_clarification">Needs clarification</option>
-              <option value="accepted">Accepted</option>
-              <option value="rejected">Rejected</option>
-              <option value="superseded">Superseded</option>
-            </select>
+            <label className="contract-documents__field">
+              <span>Document type</span>
+              <select value={documentType} onChange={(event) => setDocumentType(event.target.value)} disabled={uploadDisabled}>
+                <option value="Solicitation">Solicitation</option>
+                <option value="Contract">Contract</option>
+                <option value="Subcontract">Subcontract</option>
+                <option value="PurchaseOrder">Purchase order</option>
+                <option value="StatementOfWork">SOW</option>
+                <option value="FlowDownAttachment">Flow-down</option>
+                <option value="WageDetermination">Wage determination</option>
+                <option value="Dd254">DD 254</option>
+                <option value="CuiMarkingGuide">CUI marking guide</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label className="contract-documents__field">
+              <span>Contract document classification</span>
+              <select
+                value={documentClassification}
+                onChange={(event) => setDocumentClassification(event.target.value)}
+                disabled={uploadDisabled}
+              >
+                <option value="Unclassified">Unclassified</option>
+                <option value="Fci">FCI</option>
+                <option value="Cui">CUI</option>
+                <option value="SyntheticCui">Synthetic CUI</option>
+                <option value="Unknown">Unknown</option>
+                <option value="Prohibited">Prohibited</option>
+              </select>
+            </label>
+            <label className="contract-documents__field">
+              <span>Clause candidate review status</span>
+              <select
+                value={clauseCandidateReviewStatusFilter}
+                onChange={(event) => onChangeClauseCandidateReviewStatusFilter(event.target.value)}
+              >
+                <option value="all">All review states</option>
+                <option value="pending_review">Pending review</option>
+                <option value="needs_clarification">Needs clarification</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="superseded">Superseded</option>
+              </select>
+            </label>
           </div>
           <form
             className="contract-document-upload"
@@ -4772,7 +5047,7 @@ function ProfileView({
       ) : null}
 
       {profile && Object.keys(profile.validationErrors).length > 0 ? (
-        <div className="validation-summary" role="status">
+        <div className="validation-summary validation-summary--error" role="status">
           {Object.entries(profile.validationErrors).map(([field, messages]) => (
             <p key={field}>
               <strong>{field}</strong> {messages.join(" ")}
@@ -6476,12 +6751,19 @@ function ReportsView({
   contracts,
   evidenceItems,
   generatedReports,
+  recentReports,
   message,
   obligationItems,
+  onApprovedEvidencePackageSelect,
   onCmmcReportGenerate,
   onComplianceReportGenerate,
   onEvidencePackageGenerate,
+  onGeneratedReportSelect,
+  onReportDetailClose,
   onSubcontractorReportGenerate,
+  reportDetailMessage,
+  reportDetailStatus,
+  selectedReport,
   status,
   subcontractors
 }: {
@@ -6491,16 +6773,28 @@ function ReportsView({
   controls: CmmcControlLibrary[];
   contracts: ContractRecord[];
   evidenceItems: EvidenceMetadata[];
-  generatedReports: Array<ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | EvidencePackageReport>;
+  generatedReports: ReportArtifact[];
+  recentReports: ReportHistoryItem[];
   message: string;
   obligationItems: ContractObligationDashboardItem[];
+  onApprovedEvidencePackageSelect: (reportId: string) => Promise<void>;
   onCmmcReportGenerate: (assessmentId: string) => Promise<void>;
   onComplianceReportGenerate: () => Promise<void>;
   onEvidencePackageGenerate: (request: EvidencePackageGenerateRequest) => Promise<void>;
+  onGeneratedReportSelect: (report: ReportArtifact | ReportHistoryItem) => Promise<void>;
+  onReportDetailClose: () => void;
   onSubcontractorReportGenerate: (contractId?: string) => Promise<void>;
+  reportDetailMessage: string;
+  reportDetailStatus: ReportDetailStatus;
+  selectedReport: ReportArtifact | null;
   status: "idle" | "loading" | "ready" | "failed";
   subcontractors: Subcontractor[];
 }) {
+  const generatedReportIds = new Set(generatedReports.map((report) => report.id));
+  const visibleReports: Array<ReportArtifact | ReportHistoryItem> = [
+    ...generatedReports,
+    ...recentReports.filter((report) => !generatedReportIds.has(report.id))
+  ];
   const [assessmentId, setAssessmentId] = useState(assessments[0]?.id ?? "");
   const [contractId, setContractId] = useState("");
   const [packageTitle, setPackageTitle] = useState("Prime review evidence package");
@@ -6669,21 +6963,29 @@ function ReportsView({
       </form>
       <div className="report-action-grid">
         <section className="evidence-metadata">
-          <h3>Generated this session</h3>
-          {generatedReports.length > 0 ? (
+          <h3>Recent generated reports</h3>
+          {visibleReports.length > 0 ? (
             <div className="evidence-list">
-              {generatedReports.map((report) => (
-                <article className="evidence-list__item" key={report.id}>
+              {visibleReports.map((report) => (
+                <button
+                  aria-pressed={selectedReport?.id === report.id}
+                  className="evidence-list__item report-artifact-card"
+                  key={report.id}
+                  onClick={() => void onGeneratedReportSelect(report)}
+                  type="button"
+                >
                   <strong>{report.title}</strong>
                   <span>
                     {report.type} · {report.status} · {new Date(report.generatedAt).toLocaleString()}
                   </span>
-                  <span>{renderReportSummary(report)}</span>
-                </article>
+                  <span>{reportCardSummary(report)}</span>
+                  <span className="report-artifact-card__disclaimer">{report.disclaimer}</span>
+                  <span className="report-artifact-card__action">View report details</span>
+                </button>
               ))}
             </div>
           ) : (
-            <EmptyState title="No reports have been generated yet" body="Use the report actions above to create tenant-scoped snapshots." />
+            <EmptyState title="No reports have been generated yet" body="Use the report actions above to create persisted tenant-scoped snapshots." />
           )}
         </section>
         <section className="evidence-metadata">
@@ -6691,12 +6993,20 @@ function ReportsView({
           {approvedEvidencePackages.length > 0 ? (
             <div className="evidence-list">
               {approvedEvidencePackages.map((report) => (
-                <article className="evidence-list__item" key={report.reportId}>
+                <button
+                  aria-pressed={selectedReport?.id === report.reportId}
+                  className="evidence-list__item report-artifact-card"
+                  key={report.reportId}
+                  onClick={() => void onApprovedEvidencePackageSelect(report.reportId)}
+                  type="button"
+                >
                   <strong>{report.title}</strong>
                   <span>
                     {report.status} · {report.evidenceItems.length} approved items · {new Date(report.generatedAt).toLocaleDateString()}
                   </span>
-                </article>
+                  <span className="report-artifact-card__disclaimer">{report.disclaimer}</span>
+                  <span className="report-artifact-card__action">View package details</span>
+                </button>
               ))}
             </div>
           ) : (
@@ -6704,11 +7014,39 @@ function ReportsView({
           )}
         </section>
       </div>
+      {reportDetailStatus === "loading" ? <LoadingState label="Loading report detail" /> : null}
+      {reportDetailStatus === "failed" ? (
+        <Alert title="Report detail did not load" tone="danger">
+          {reportDetailMessage}
+        </Alert>
+      ) : null}
+      {reportDetailStatus === "ready" && selectedReport ? (
+        <ReportDetailPanel report={selectedReport} onClose={onReportDetailClose} />
+      ) : null}
     </section>
   );
 }
 
-function renderReportSummary(report: ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | EvidencePackageReport) {
+function reportHistoryItem(
+  report: ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport
+): ReportHistoryItem {
+  return {
+    id: report.id,
+    tenantId: report.tenantId,
+    type: report.type,
+    status: report.status,
+    title: report.title,
+    generatedAt: report.generatedAt,
+    generatedByUserId: report.generatedByUserId,
+    disclaimer: report.disclaimer
+  };
+}
+
+function reportCardSummary(report: ReportArtifact | ReportHistoryItem) {
+  return "snapshot" in report || "manifest" in report ? renderReportSummary(report) : "Persisted report artifact";
+}
+
+function renderReportSummary(report: ReportArtifact) {
   if ("manifest" in report) {
     return `${report.manifest.items.length} evidence items · scope ${Object.values(report.manifest.scope)
       .filter((value) => Array.isArray(value) && value.length > 0)
@@ -6720,6 +7058,163 @@ function renderReportSummary(report: ComplianceStatusReport | CmmcReadinessRepor
   const openGaps = Array.isArray(snapshot.openGaps) ? `${snapshot.openGaps.length} CMMC gaps` : null;
   const highRisk = Array.isArray(snapshot.highRiskItems) ? `${snapshot.highRiskItems.length} high-risk items` : null;
   return [totalSubcontractors, openGaps, highRisk].filter(Boolean).join(" · ") || "Snapshot complete";
+}
+
+function ReportDetailPanel({ onClose, report }: { onClose: () => void; report: ReportArtifact }) {
+  const metrics = reportDetailMetrics(report);
+  const items = reportDetailItems(report);
+
+  return (
+    <section className="report-detail" aria-label="Generated report detail" aria-live="polite">
+      <div className="section-heading section-heading--split">
+        <div>
+          <p className="eyebrow">Report artifact</p>
+          <h3>{report.title}</h3>
+          <p>
+            {formatEnumLabel(report.type)} · {formatEnumLabel(report.status)} · generated{" "}
+            {new Date(report.generatedAt).toLocaleString()}
+          </p>
+        </div>
+        <Button icon={<X size={16} aria-hidden="true" />} onClick={onClose} variant="secondary">
+          Close detail
+        </Button>
+      </div>
+
+      <Alert title="Artifact limitations" tone="warning">
+        {report.disclaimer}
+      </Alert>
+
+      <dl className="report-detail__metrics">
+        {metrics.map((metric) => (
+          <div key={metric.label}>
+            <dt>{metric.label}</dt>
+            <dd>{metric.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="report-detail__content">
+        <h4>Report content</h4>
+        {items.length > 0 ? (
+          <ul>
+            {items.map((item, index) => (
+              <li key={`${index}-${item}`}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p>No scoped detail rows were included in this report snapshot.</p>
+        )}
+      </div>
+
+      <p className="report-detail__identifier">
+        Report ID <code>{report.id}</code>
+      </p>
+    </section>
+  );
+}
+
+function reportDetailMetrics(report: ReportArtifact): Array<{ label: string; value: string }> {
+  if ("manifest" in report) {
+    return [
+      { label: "Evidence items", value: report.manifest.items.length.toString() },
+      { label: "Obligation scope", value: report.manifest.scope.obligationIds.length.toString() },
+      { label: "Contract scope", value: report.manifest.scope.contractIds.length.toString() },
+      { label: "Control scope", value: report.manifest.scope.controlIds.length.toString() },
+      { label: "Subcontractor scope", value: report.manifest.scope.subcontractorIds.length.toString() },
+      {
+        label: "Draft/rejected evidence",
+        value: report.manifest.scope.includesDraftOrRejectedEvidence ? "Included by authorized override" : "Excluded"
+      }
+    ];
+  }
+
+  const snapshot = report.snapshot;
+  if (report.type === "CmmcReadiness") {
+    return [
+      { label: "Assessment", value: snapshotText(snapshot, "assessmentName") },
+      { label: "Target level", value: formatEnumLabel(snapshotText(snapshot, "targetLevel")) },
+      { label: "Control rows", value: snapshotArrayLength(snapshot, "controlStatuses") },
+      { label: "Open gaps", value: snapshotArrayLength(snapshot, "openGaps") },
+      { label: "Open POA&M", value: snapshotArrayLength(snapshot, "openPoamItems") },
+      { label: "Evidence links", value: snapshotArrayLength(snapshot, "evidenceLinks") }
+    ];
+  }
+
+  if (report.type === "SubcontractorCompliance") {
+    return [
+      { label: "Subcontractors", value: snapshotText(snapshot, "totalSubcontractors") },
+      { label: "Missing evidence", value: snapshotText(snapshot, "missingEvidenceRequests") },
+      { label: "Overdue evidence", value: snapshotText(snapshot, "overdueEvidenceRequests") },
+      { label: "Open flow-downs", value: snapshotText(snapshot, "openFlowDowns") },
+      { label: "Contract scope", value: snapshotText(snapshot, "contractId", "All contracts") }
+    ];
+  }
+
+  return [
+    { label: "Total obligations", value: snapshotText(snapshot, "totalObligations") },
+    { label: "High-risk obligations", value: snapshotText(snapshot, "highRiskObligations") },
+    { label: "Overdue tasks", value: snapshotText(snapshot, "overdueTasks") },
+    { label: "CMMC assessments", value: snapshotText(snapshot, "cmmcAssessments") },
+    {
+      label: "CMMC controls",
+      value: `${snapshotText(snapshot, "cmmcControlsImplemented")} of ${snapshotText(snapshot, "cmmcControlsTotal")} implemented`
+    },
+    { label: "Subcontractor gaps", value: snapshotText(snapshot, "subcontractorGaps") }
+  ];
+}
+
+function reportDetailItems(report: ReportArtifact): string[] {
+  if ("manifest" in report) {
+    return report.manifest.items.map(
+      (item) => `${item.title} · ${formatEnumLabel(item.type)} · ${formatEnumLabel(item.status)}`
+    );
+  }
+
+  const snapshot = report.snapshot;
+  if (report.type === "CmmcReadiness") {
+    return snapshotRecordItems(snapshot, "openGaps", (item) =>
+      [recordText(item, "controlId"), recordText(item, "title"), formatEnumLabel(recordText(item, "status"))]
+        .filter((value) => value && value !== "Not available")
+        .join(" · ")
+    );
+  }
+
+  if (report.type === "SubcontractorCompliance") {
+    return snapshotRecordItems(snapshot, "rows", (item) =>
+      [recordText(item, "name"), formatEnumLabel(recordText(item, "status")), recordText(item, "cmmcStatus")]
+        .filter((value) => value && value !== "Not available")
+        .join(" · ")
+    );
+  }
+
+  const highRiskItems = snapshot.highRiskItems;
+  return Array.isArray(highRiskItems) ? highRiskItems.filter((item): item is string => typeof item === "string") : [];
+}
+
+function snapshotText(snapshot: Record<string, unknown>, key: string, fallback = "Not available"): string {
+  const value = snapshot[key];
+  return typeof value === "string" || typeof value === "number" ? String(value) : fallback;
+}
+
+function snapshotArrayLength(snapshot: Record<string, unknown>, key: string): string {
+  const value = snapshot[key];
+  return Array.isArray(value) ? value.length.toString() : "0";
+}
+
+function snapshotRecordItems(
+  snapshot: Record<string, unknown>,
+  key: string,
+  format: (item: Record<string, unknown>) => string
+): string[] {
+  const value = snapshot[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object").map(format)
+    : [];
+}
+
+function recordText(record: Record<string, unknown>, key: string): string {
+  const value = record[key];
+  return typeof value === "string" || typeof value === "number" ? String(value) : "Not available";
 }
 
 function PostureNotice({ currentTenant }: { currentTenant: Tenant | null }) {
@@ -6831,7 +7326,7 @@ function NotificationPreferencesPanel({
           <div className="preference-toggle-grid">
             {(
               [
-                ["assignmentNotificationsEnabled", "Assignments"],
+                ["assignmentNotificationsEnabled", "Assignment emails"],
                 ["dueSoonNotificationsEnabled", "Due soon"],
                 ["overdueNotificationsEnabled", "Overdue"],
                 ["evidenceRequestNotificationsEnabled", "Evidence requests"],
@@ -6893,6 +7388,7 @@ function NotificationPreferencesPanel({
 
 function EvidenceView({
   acknowledgement,
+  acknowledgementMessage,
   acknowledgementStatus,
   canManageEvidence,
   classificationReviewItems,
@@ -6913,6 +7409,7 @@ function EvidenceView({
   uploadStatus
 }: {
   acknowledgement: NoCuiAcknowledgementStatus;
+  acknowledgementMessage: string;
   acknowledgementStatus: "idle" | "saving" | "saved" | "failed";
   canManageEvidence: boolean;
   classificationReviewItems: ContentClassificationReviewItem[];
@@ -7006,6 +7503,7 @@ function EvidenceView({
 
       <NoCuiAcknowledgementPanel
         acknowledgement={acknowledgement}
+        acknowledgementMessage={acknowledgementMessage}
         acknowledgementStatus={acknowledgementStatus}
         canAcknowledge={canManageEvidence}
         context="evidence upload"
@@ -7099,12 +7597,14 @@ function EvidenceView({
 
 function NoCuiAcknowledgementPanel({
   acknowledgement,
+  acknowledgementMessage,
   acknowledgementStatus,
   canAcknowledge,
   context,
   onAcknowledge
 }: {
   acknowledgement: NoCuiAcknowledgementStatus;
+  acknowledgementMessage: string;
   acknowledgementStatus: "idle" | "saving" | "saved" | "failed";
   canAcknowledge: boolean;
   context: string;
@@ -7215,9 +7715,11 @@ function NoCuiAcknowledgementPanel({
           <p className="form-status form-status--ok">Acknowledgement already saved. No additional action is required.</p>
         )}
         {!canAcknowledge ? <p className="form-status">Required permission is missing for acknowledgement.</p> : null}
-        {acknowledgementStatus === "saved" ? <p className="form-status form-status--ok">Acknowledgement saved.</p> : null}
+        {acknowledgementStatus === "saved" ? (
+          <p className="form-status form-status--ok">{acknowledgementMessage || "Acknowledgement saved."}</p>
+        ) : null}
         {acknowledgementStatus === "failed" ? (
-          <p className="form-status form-status--error">Acknowledgement was not saved.</p>
+          <p className="form-status form-status--error">{acknowledgementMessage || "Acknowledgement was not saved."}</p>
         ) : null}
       </div>
     </div>
@@ -7278,12 +7780,20 @@ function EvidenceMetadataPanel({
   status: "idle" | "saving" | "saved" | "failed";
 }) {
   const [form, setForm] = useState<EvidenceMetadataFormState>(() => evidenceToMetadataForm(selectedEvidence));
+  const evidenceDateError =
+    form.effectiveAt && form.expiresAt && form.expiresAt < form.effectiveAt
+      ? "Expires date must be on or after Effective date."
+      : "";
 
   function updateField<TKey extends keyof EvidenceMetadataFormState>(field: TKey, value: EvidenceMetadataFormState[TKey]) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
   function save() {
+    if (evidenceDateError) {
+      return;
+    }
+
     void onSave(selectedEvidence?.id ?? null, evidenceMetadataFormToRequest(form, selectedEvidence));
   }
 
@@ -7422,11 +7932,32 @@ function EvidenceMetadataPanel({
               </label>
               <label>
                 <span>Effective</span>
-                <input type="date" value={form.effectiveAt} onChange={(event) => updateField("effectiveAt", event.target.value)} />
+                <input
+                  aria-label="Effective"
+                  aria-describedby={evidenceDateError ? "evidence-date-error" : undefined}
+                  aria-invalid={Boolean(evidenceDateError)}
+                  max={form.expiresAt || undefined}
+                  type="date"
+                  value={form.effectiveAt}
+                  onChange={(event) => updateField("effectiveAt", event.target.value)}
+                />
               </label>
               <label>
                 <span>Expires</span>
-                <input type="date" value={form.expiresAt} onChange={(event) => updateField("expiresAt", event.target.value)} />
+                <input
+                  aria-label="Expires"
+                  aria-describedby={evidenceDateError ? "evidence-date-error" : undefined}
+                  aria-invalid={Boolean(evidenceDateError)}
+                  min={form.effectiveAt || undefined}
+                  type="date"
+                  value={form.expiresAt}
+                  onChange={(event) => updateField("expiresAt", event.target.value)}
+                />
+                {evidenceDateError ? (
+                  <span className="field-error" id="evidence-date-error" role="alert">
+                    {evidenceDateError}
+                  </span>
+                ) : null}
               </label>
               <label>
                 <span>Tags</span>
@@ -7487,7 +8018,7 @@ function EvidenceMetadataPanel({
             </div>
           </fieldset>
           <div className="form-actions">
-            <button type="submit" disabled={!canManageEvidence || status === "saving"}>
+            <button type="submit" disabled={!canManageEvidence || status === "saving" || Boolean(evidenceDateError)}>
               {selectedEvidence ? "Update metadata" : "Create metadata"}
             </button>
             <button type="button" onClick={reclassify} disabled={!selectedEvidence || !canManageEvidence || status === "saving"}>
@@ -8098,6 +8629,7 @@ function SettingsView({
   invitationActionStatus,
   invitations,
   members,
+  revokingInvitationId,
   notificationPreference,
   notificationPreferenceMessage,
   notificationPreferenceStatus,
@@ -8123,8 +8655,7 @@ function SettingsView({
   onInvitationRevoke,
   onNotificationPreferenceSave,
   onSharedResponsibilityMatrixAcknowledge,
-  onTenantModeUpdate,
-  revokingInvitationId
+  onTenantModeUpdate
 }: {
   auditLogFilters: AuditLogFilters;
   auditLogStatus: "idle" | "loading" | "ready" | "failed";
@@ -8148,6 +8679,7 @@ function SettingsView({
   invitationActionStatus: "idle" | "revoking" | "succeeded" | "failed";
   invitations: TenantInvitation[];
   members: TenantMember[];
+  revokingInvitationId: string | null;
   notificationPreference: NotificationPreference | null;
   notificationPreferenceMessage: string;
   notificationPreferenceStatus: "idle" | "saving" | "saved" | "failed";
@@ -8185,7 +8717,6 @@ function SettingsView({
   onNotificationPreferenceSave: (request: NotificationPreferenceUpdateRequest) => Promise<void>;
   onSharedResponsibilityMatrixAcknowledge: () => Promise<void>;
   onTenantModeUpdate: (request: UpdateTenantDataHandlingModeRequest) => Promise<void>;
-  revokingInvitationId: string | null;
 }) {
   if (!canManageTenant && !canManageUsers && !canViewAuditLog && !notificationPreference) {
     return (

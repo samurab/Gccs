@@ -54,6 +54,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<NoCuiAcknowledgementEntity> NoCuiAcknowledgements => Set<NoCuiAcknowledgementEntity>();
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
     public DbSet<NotificationDeliveryEntity> NotificationDeliveries => Set<NotificationDeliveryEntity>();
+    public DbSet<AssignmentEmailDeliveryEntity> AssignmentEmailDeliveries => Set<AssignmentEmailDeliveryEntity>();
     public DbSet<RoleEntity> Roles => Set<RoleEntity>();
     public DbSet<CompanyProfileEntity> CompanyProfiles => Set<CompanyProfileEntity>();
     public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
@@ -632,6 +633,26 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             ConfigureAuditColumns(entity);
         });
 
+        modelBuilder.Entity<AssignmentEmailDeliveryEntity>(entity =>
+        {
+            entity.ToTable("assignment_email_deliveries");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.NotificationDeliveryId).IsUnique();
+            entity.HasIndex(x => new { x.Status, x.NextAttemptAt, x.LeaseUntil });
+            entity.HasIndex(x => new { x.TenantId, x.UserId });
+            entity.Property(x => x.RecipientEmail).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.RecipientDisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.LinkUrl).HasMaxLength(400).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.ProviderMessageId).HasMaxLength(300);
+            entity.Property(x => x.FailureCode).HasMaxLength(120);
+            entity.HasOne<NotificationDeliveryEntity>()
+                .WithOne()
+                .HasForeignKey<AssignmentEmailDeliveryEntity>(x => x.NotificationDeliveryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
         modelBuilder.Entity<RoleEntity>(entity =>
         {
             entity.ToTable("roles");
@@ -966,7 +987,11 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     {
         modelBuilder.Entity<EvidenceItemEntity>(entity =>
         {
-            entity.ToTable("evidence_items");
+            entity.ToTable(
+                "evidence_items",
+                table => table.HasCheckConstraint(
+                    "CK_evidence_items_effective_expiration_range",
+                    "effective_at IS NULL OR expires_at IS NULL OR expires_at >= effective_at"));
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Status });
             entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });

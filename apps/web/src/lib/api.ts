@@ -2,6 +2,8 @@ import { getFreshAccessToken } from "../auth";
 
 const selectedTenantStorageKey = "gccs.selectedTenantId";
 const developmentRoleStorageKey = "gccs.developmentRole";
+const developmentUserIdStorageKey = "gccs.developmentUserId";
+const developmentUserEmailStorageKey = "gccs.developmentUserEmail";
 
 export type ModuleStatus = {
   key: string;
@@ -134,7 +136,16 @@ export type DevelopmentTenantOption = {
 
 export type DevelopmentTestingContext = {
   tenants: DevelopmentTenantOption[];
+  personas: DevelopmentPersonaOption[];
   roles: string[];
+};
+
+export type DevelopmentPersonaOption = {
+  tenantId: string;
+  userId: string;
+  email: string;
+  displayName: string;
+  roleName: string;
 };
 
 export type PlatformAccess = {
@@ -1053,6 +1064,7 @@ export type ApprovedEvidencePackage = {
   status: string;
   generatedAt: string;
   generatedByUserId: string;
+  disclaimer: string;
   evidenceItems: Array<{
     evidenceItemId: string;
     name: string;
@@ -1063,6 +1075,21 @@ export type ApprovedEvidencePackage = {
   }>;
 };
 
+export type ReportHistoryItem = {
+  id: string;
+  tenantId: string;
+  type: string;
+  status: string;
+  title: string;
+  generatedAt: string;
+  generatedByUserId: string;
+  disclaimer: string;
+};
+
+export type ReportArtifactDetail = ReportHistoryItem & {
+  snapshot: Record<string, unknown>;
+};
+
 export type ComplianceStatusReport = {
   id: string;
   tenantId: string;
@@ -1071,6 +1098,7 @@ export type ComplianceStatusReport = {
   title: string;
   generatedAt: string;
   generatedByUserId: string;
+  disclaimer: string;
   snapshot: Record<string, unknown>;
   exportHtml?: string;
   exportCsv?: string;
@@ -1096,6 +1124,7 @@ export type EvidencePackageReport = {
   title: string;
   generatedAt: string;
   generatedByUserId: string;
+  disclaimer: string;
   manifest: {
     title: string;
     generatedAt: string;
@@ -1479,10 +1508,21 @@ export type ContractClause = {
   source: string;
   sourceUrl: string;
   lastReviewedAt: string;
+  reviewedByUserId: string | null;
+  nextReviewDueAt: string | null;
+  confidence: string;
+  requiresExpertReview: boolean;
+  reviewState: string;
   attachmentReason: string;
   sourceDocumentReference: string | null;
   attachedAt: string;
   attachedByUserId: string;
+};
+
+export type GeneratedContractObligations = {
+  contractClauseId: string;
+  obligationIds: string[];
+  tasksCreated: number;
 };
 
 export type ContractObligationDashboardItem = {
@@ -1891,9 +1931,45 @@ export function getSelectedDevelopmentRole(): string {
   }
 }
 
-export function selectDevelopmentTestingContext(tenantId: string, role: string) {
+export function getSelectedDevelopmentUserId(): string | null {
+  try {
+    return window.localStorage.getItem(developmentUserIdStorageKey);
+  } catch {
+    return null;
+  }
+}
+
+export function getSelectedDevelopmentUserEmail(): string | null {
+  try {
+    return window.localStorage.getItem(developmentUserEmailStorageKey);
+  } catch {
+    return null;
+  }
+}
+
+export function selectDevelopmentTestingContext(
+  tenantId: string,
+  role: string,
+  userId?: string | null,
+  email?: string | null
+) {
   window.localStorage.setItem(selectedTenantStorageKey, tenantId);
   window.localStorage.setItem(developmentRoleStorageKey, role);
+  if (userId) {
+    window.localStorage.setItem(developmentUserIdStorageKey, userId);
+  } else {
+    window.localStorage.removeItem(developmentUserIdStorageKey);
+  }
+  if (email) {
+    window.localStorage.setItem(developmentUserEmailStorageKey, email);
+  } else {
+    window.localStorage.removeItem(developmentUserEmailStorageKey);
+  }
+}
+
+export function selectDevelopmentInvitationIdentity(email: string) {
+  window.localStorage.removeItem(developmentUserIdStorageKey);
+  window.localStorage.setItem(developmentUserEmailStorageKey, email.trim().toLowerCase());
 }
 
 function normalizeComplianceOverview(overview: ComplianceOverview): ComplianceOverview {
@@ -2589,6 +2665,16 @@ export async function attachContractClause(
   return postJsonResult<ContractClause>(`/api/contracts/${contractId}/clauses`, request);
 }
 
+export async function generateContractClauseObligations(
+  contractId: string,
+  contractClauseId: string
+): Promise<ApiMutationResult<GeneratedContractObligations>> {
+  return postJsonResult<GeneratedContractObligations>(
+    `/api/contracts/${contractId}/clauses/${contractClauseId}/obligations/generate`,
+    {}
+  );
+}
+
 export async function removeContractClause(
   contractId: string,
   contractClauseId: string,
@@ -2617,13 +2703,11 @@ export async function removeContractClause(
   }
 }
 
-export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<NoCuiAcknowledgementStatus | null> {
-  const response = await postJson<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement", {
+export async function acknowledgeNoCuiNotice(noticeVersion: string): Promise<ApiMutationResult<NoCuiAcknowledgementStatus>> {
+  return postJsonResult<NoCuiAcknowledgementStatus>("/api/no-cui-acknowledgement", {
     acknowledged: true,
     noticeVersion
   });
-
-  return response;
 }
 
 export async function createEvidenceMetadata(
@@ -2662,6 +2746,18 @@ export async function createSubcontractor(request: UpsertSubcontractorRequest): 
 
 export async function getApprovedEvidencePackages(): Promise<ApprovedEvidencePackage[]> {
   return getJson<ApprovedEvidencePackage[]>("/api/reports/approved-evidence-packages", []);
+}
+
+export async function getRecentReports(limit = 25): Promise<ReportHistoryItem[]> {
+  return getJson<ReportHistoryItem[]>(`/api/reports/recent?limit=${encodeURIComponent(limit)}`, []);
+}
+
+export async function getReportArtifact(reportId: string): Promise<ReportArtifactDetail> {
+  return getRequiredJson<ReportArtifactDetail>(`/api/reports/${reportId}`);
+}
+
+export async function getEvidencePackage(reportId: string): Promise<EvidencePackageReport> {
+  return getRequiredJson<EvidencePackageReport>(`/api/reports/evidence-packages/${reportId}`);
 }
 
 export async function generateComplianceStatusReport(): Promise<ApiMutationResult<ComplianceStatusReport>> {
@@ -2859,30 +2955,6 @@ export async function supersedeCuiReadyApprovalChecklist(
   return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/supersede`, request);
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T | null> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
-
-  try {
-    const apiHeaders = await getApiHeaders();
-    const response = await fetch(`${apiBaseUrl}${path}`, {
-      method: "POST",
-      headers: {
-        ...(apiHeaders ?? {}),
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return response.json();
-  } catch {
-    return null;
-  }
-}
-
 async function postJsonResult<T>(path: string, body: unknown): Promise<ApiMutationResult<T>> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
@@ -3063,8 +3135,8 @@ async function getText(path: string, fallback: string): Promise<string> {
 
 function getDevelopmentHeaders(): HeadersInit | undefined {
   const role = getSelectedDevelopmentRole();
-  const email = import.meta.env.VITE_GCCS_DEV_EMAIL;
-  const userId = import.meta.env.VITE_GCCS_DEV_USER_ID;
+  const email = getSelectedDevelopmentUserEmail() ?? import.meta.env.VITE_GCCS_DEV_EMAIL;
+  const userId = getSelectedDevelopmentUserId() ?? import.meta.env.VITE_GCCS_DEV_USER_ID;
   const selectedTenantId = getSelectedTenantId();
 
   return import.meta.env.DEV
@@ -3105,8 +3177,9 @@ async function readErrorMessage(response: Response): Promise<string> {
     const errors = problem.errors ? Object.values(problem.errors).flat().filter(Boolean) : [];
     const parts = [problem.detail, ...errors].filter(Boolean);
     const uniqueParts = Array.from(new Set(parts));
-    return uniqueParts.join(" ") || problem.title || "The upload was rejected.";
+    const message = uniqueParts.join(" ") || problem.title || "The request was rejected.";
+    return problem.correlationId ? `${message} Correlation ID: ${problem.correlationId}.` : message;
   } catch {
-    return "The upload was rejected.";
+    return "The request was rejected.";
   }
 }

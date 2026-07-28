@@ -461,7 +461,6 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
                 services.AddScoped<NoCuiAcknowledgementService>();
                 services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
-                services.AddSingleton<IObjectStorageService, TestObjectStorageService>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();

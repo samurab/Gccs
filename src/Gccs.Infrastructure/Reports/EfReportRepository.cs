@@ -22,8 +22,79 @@ public sealed class EfReportRepository(
     TenantDataHandlingModePolicyService dataHandlingModePolicy) : IReportRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    private const string MvpReportDisclaimer =
-        "GCCS MVP report for workflow tracking only. This is not legal advice, a certification decision, an assessor determination, a contracting-officer determination, or government endorsement.";
+
+    public async Task<IReadOnlyList<ReportHistoryItemDto>> ListRecentReportsAsync(
+        int limit,
+        CancellationToken cancellationToken = default) =>
+        await dbContext.Reports
+            .AsNoTracking()
+            .Where(report =>
+                report.TenantId == tenantContext.TenantId &&
+                (report.Type == ReportType.ComplianceStatus ||
+                 report.Type == ReportType.CmmcReadiness ||
+                 report.Type == ReportType.SubcontractorCompliance))
+            .OrderByDescending(report => report.GeneratedAt)
+            .ThenByDescending(report => report.Id)
+            .Take(limit)
+            .Select(report => new ReportHistoryItemDto(
+                report.Id,
+                report.TenantId,
+                report.Type,
+                report.Status,
+                report.Title,
+                report.GeneratedAt,
+                report.GeneratedByUserId))
+            .ToArrayAsync(cancellationToken);
+
+    public async Task<ReportArtifactDetailDto?> GetReportArtifactAsync(
+        Guid reportId,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await dbContext.Reports
+            .AsNoTracking()
+            .Where(candidate =>
+                candidate.Id == reportId &&
+                candidate.TenantId == tenantContext.TenantId &&
+                (candidate.Type == ReportType.ComplianceStatus ||
+                 candidate.Type == ReportType.CmmcReadiness ||
+                 candidate.Type == ReportType.SubcontractorCompliance))
+            .Select(candidate => new
+            {
+                candidate.Id,
+                candidate.TenantId,
+                candidate.Type,
+                candidate.Status,
+                candidate.Title,
+                candidate.GeneratedAt,
+                candidate.GeneratedByUserId,
+                candidate.SnapshotJson
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (report is null)
+        {
+            return null;
+        }
+
+        JsonElement snapshot;
+        try
+        {
+            snapshot = JsonSerializer.Deserialize<JsonElement>(report.SnapshotJson, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            snapshot = JsonSerializer.Deserialize<JsonElement>("{}", JsonOptions);
+        }
+
+        return new ReportArtifactDetailDto(
+            report.Id,
+            report.TenantId,
+            report.Type,
+            report.Status,
+            report.Title,
+            report.GeneratedAt,
+            report.GeneratedByUserId,
+            snapshot);
+    }
 
     public async Task<IReadOnlyList<ApprovedEvidencePackageDto>> ListApprovedEvidencePackagesAsync(
         Guid tenantId,
@@ -743,7 +814,7 @@ public sealed class EfReportRepository(
         var html = new StringBuilder();
         html.Append("<!doctype html><html><head><meta charset=\"utf-8\"><title>Compliance status report</title></head><body>");
         html.Append("<h1>Compliance status report</h1>");
-        html.Append("<p>").Append(MvpReportDisclaimer).Append("</p>");
+        html.Append("<p>").Append(ReportArtifactLanguage.WorkflowGuidanceDisclaimer).Append("</p>");
         html.Append("<p>Generated at ").Append(snapshot.GeneratedAt.ToString("O")).Append("</p>");
         html.Append("<ul>");
         html.Append("<li>Total obligations: ").Append(snapshot.TotalObligations).Append("</li>");
@@ -761,6 +832,7 @@ public sealed class EfReportRepository(
         var html = new StringBuilder();
         html.Append("<!doctype html><html><head><meta charset=\"utf-8\"><title>CMMC readiness report</title></head><body>");
         html.Append("<h1>CMMC readiness report</h1>");
+        html.Append("<p>").Append(ReportArtifactLanguage.WorkflowGuidanceDisclaimer).Append("</p>");
         html.Append("<p>Draft readiness tracking only. This report is not an official assessment determination.</p>");
         html.Append("<p>Tenant: ").Append(snapshot.TenantName).Append("</p>");
         html.Append("<p>Target level: ").Append(snapshot.TargetLevel).Append("</p>");
@@ -834,7 +906,7 @@ public sealed class EfReportRepository(
         var html = new StringBuilder();
         html.Append("<!doctype html><html><head><meta charset=\"utf-8\"><title>Evidence package</title></head><body>");
         html.Append("<h1>").Append(manifest.Title).Append("</h1>");
-        html.Append("<p>").Append(MvpReportDisclaimer).Append("</p>");
+        html.Append("<p>").Append(ReportArtifactLanguage.WorkflowGuidanceDisclaimer).Append("</p>");
         html.Append("<p>Generated at ").Append(manifest.GeneratedAt.ToString("O")).Append("</p>");
         html.Append("<p>Evidence items: ").Append(manifest.Items.Count).Append("</p>");
         html.Append("<ul>");

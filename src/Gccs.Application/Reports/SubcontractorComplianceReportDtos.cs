@@ -12,7 +12,10 @@ public sealed record SubcontractorComplianceReportDto(
     DateTimeOffset GeneratedAt,
     Guid GeneratedByUserId,
     SubcontractorComplianceSnapshotDto Snapshot,
-    string ExportCsv);
+    string ExportCsv)
+{
+    public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
+}
 
 public sealed record SubcontractorComplianceSnapshotDto(
     Guid? ContractId,

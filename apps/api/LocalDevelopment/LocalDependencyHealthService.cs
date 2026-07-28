@@ -106,7 +106,7 @@ public sealed class LocalDependencyHealthService
 
     private async Task<LocalDependencyHealthCheck> CheckObjectStorageAsync(CancellationToken cancellationToken)
     {
-        if (!_options.Enabled && HasAzureObjectStorageConfiguration())
+        if (HasAzureObjectStorageConfiguration())
         {
             if (_objectStorageService is null)
             {
@@ -125,7 +125,7 @@ public sealed class LocalDependencyHealthService
                     cancellationToken);
                 return LocalDependencyHealthCheck.Healthy(
                     "object-storage",
-                    "Azure object storage endpoint is reachable.");
+                    "Azure Blob-compatible object storage endpoint is reachable.");
             }
             catch (Exception exception)
             {
@@ -135,30 +135,9 @@ public sealed class LocalDependencyHealthService
             }
         }
 
-        if (!_options.Enabled)
-        {
-            return LocalDependencyHealthCheck.Unhealthy(
-                "object-storage",
-                "Object storage is not configured.");
-        }
-
-        try
-        {
-            var endpoint = _options.ObjectStorage.Endpoint.TrimEnd('/');
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"{endpoint}/minio/health/live");
-            using var client = _httpClientFactory.CreateClient();
-            using var response = await client.SendAsync(request, cancellationToken).WaitAsync(CheckTimeout, cancellationToken);
-
-            return response.IsSuccessStatusCode
-                ? LocalDependencyHealthCheck.Healthy("object-storage", $"MinIO health endpoint is reachable for bucket '{_options.ObjectStorage.Bucket}'.")
-                : LocalDependencyHealthCheck.Unhealthy("object-storage", $"MinIO health endpoint returned {(int)response.StatusCode}.");
-        }
-        catch (Exception exception)
-        {
-            return LocalDependencyHealthCheck.Unhealthy(
-                "object-storage",
-                $"Could not connect to local object storage ({exception.GetType().Name}).");
-        }
+        return LocalDependencyHealthCheck.Unhealthy(
+            "object-storage",
+            "Object storage is not configured. Set ConnectionStrings:AzureStorage or Storage:BlobServiceUri.");
     }
 
     private async Task<LocalDependencyHealthCheck> CheckMalwareScannerAsync(CancellationToken cancellationToken)
@@ -318,6 +297,7 @@ public sealed class LocalDependencyHealthService
     }
 
     private bool HasAzureObjectStorageConfiguration() =>
+        !string.IsNullOrWhiteSpace(_configuration.GetConnectionString("AzureStorage")) ||
         !string.IsNullOrWhiteSpace(_configuration["Storage:BlobServiceUri"]) ||
         !string.IsNullOrWhiteSpace(_configuration["Storage:AccountName"]);
 }

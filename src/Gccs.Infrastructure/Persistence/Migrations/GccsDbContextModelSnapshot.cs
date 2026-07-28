@@ -265,6 +265,105 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.ToTable("assets", "gccs");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AssignmentEmailDeliveryEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("failure_code");
+
+                    b.Property<DateTimeOffset?>("LeaseUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lease_until");
+
+                    b.Property<string>("LinkUrl")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("link_url");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<Guid>("NotificationDeliveryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("notification_delivery_id");
+
+                    b.Property<string>("ProviderMessageId")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("provider_message_id");
+
+                    b.Property<string>("RecipientDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("recipient_display_name");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("recipient_email");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NotificationDeliveryId")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedAt", "UpdatedAt");
+
+                    b.HasIndex("TenantId", "UserId");
+
+                    b.HasIndex("Status", "NextAttemptAt", "LeaseUntil");
+
+                    b.ToTable("assignment_email_deliveries", "gccs");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AuditLogEntryEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2863,7 +2962,10 @@ namespace Gccs.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId", "Status");
 
-                    b.ToTable("evidence_items", "gccs");
+                    b.ToTable("evidence_items", "gccs", t =>
+                        {
+                            t.HasCheckConstraint("CK_evidence_items_effective_expiration_range", "effective_at IS NULL OR expires_at IS NULL OR expires_at >= effective_at");
+                        });
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.EvidenceObligationEntity", b =>
@@ -7141,6 +7243,21 @@ namespace Gccs.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AssetEntity", b =>
                 {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AssignmentEmailDeliveryEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.NotificationDeliveryEntity", null)
+                        .WithOne()
+                        .HasForeignKey("Gccs.Infrastructure.Persistence.Models.AssignmentEmailDeliveryEntity", "NotificationDeliveryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
                         .WithMany()
                         .HasForeignKey("TenantId")

@@ -49,7 +49,7 @@ flowchart TB
     subgraph infraLayer["Infrastructure Layer"]
         adapters["Adapters<br/>src/Gccs.Infrastructure"]
         postgres[("PostgreSQL<br/>tenant data")]
-        objectStorage[("Object storage / MinIO<br/>evidence files")]
+        objectStorage[("Azure Blob-compatible object storage / Azurite<br/>evidence files")]
         redis[("Redis<br/>cache and job coordination")]
         queue[["Queue<br/>background work"]]
         search[("Search index<br/>content and metadata")]
@@ -128,6 +128,20 @@ Shared design tokens, brand assets, and API contracts should be factored so both
 - Object storage for evidence files.
 - Redis for cache and background job coordination.
 - Queue worker for document extraction, notifications, malware scanning, and report generation.
+
+## Assignment Notifications
+
+Current state: **Implemented** for direct tenant-member obligation and task assignments.
+
+- A direct assignment writes a tenant-scoped in-app notification independently of email availability.
+- When assignment email is requested and the recipient's assignment-email preference is enabled, a separate outbox record is queued.
+- `AssignmentEmailDeliveryWorker` claims outbox records with a lease, sends through Azure Communication Services, retries transient failures with bounded exponential delay, and audit-logs sent or failed delivery outcomes.
+- Email contains a generic assignment notice and an authenticated deep link only. Customer-controlled task titles, evidence files, document contents, and customer-provided CUI are not copied into email.
+- A role assignment appears under the signed-in member's `Role assignments` queue. Active same-tenant members holding the canonical role receive one deduplicated in-app notification with an authenticated link to the obligation queue.
+- Role assignment does not queue email. Role email requires a future subscription, digest, or role-lead policy to prevent ungoverned fan-out.
+- Local development context selection can switch tenant, actual tenant-member persona, and role so recipient-specific notification behavior is testable without changing production authentication.
+
+Deployment dependency: actual email transmission occurs only when `InvitationDelivery` email-provider configuration is enabled and valid. With delivery disabled, the in-app notification remains available and assignment itself remains successful.
 - Search over curated compliance content and tenant documents.
 - RAG service limited to cited internal and curated sources.
 

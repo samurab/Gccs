@@ -4,8 +4,10 @@ import { Button } from "@/components/ui";
 import {
   getDevelopmentTestingContext,
   getSelectedDevelopmentRole,
+  getSelectedDevelopmentUserId,
   getSelectedTenantId,
   selectDevelopmentTestingContext,
+  type DevelopmentPersonaOption,
   type DevelopmentTenantOption
 } from "@/lib/api";
 
@@ -15,8 +17,10 @@ export function DevelopmentTestingContextSelector({
   currentTenantId: string | null;
 }) {
   const [tenants, setTenants] = useState<DevelopmentTenantOption[]>([]);
+  const [personas, setPersonas] = useState<DevelopmentPersonaOption[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
   const [tenantId, setTenantId] = useState(getSelectedTenantId() ?? currentTenantId ?? "");
+  const [userId, setUserId] = useState(getSelectedDevelopmentUserId() ?? "");
   const [role, setRole] = useState(getSelectedDevelopmentRole());
   const [status, setStatus] = useState<"loading" | "ready" | "applying" | "error">("loading");
   const [message, setMessage] = useState("");
@@ -31,23 +35,38 @@ export function DevelopmentTestingContextSelector({
         const storedTenantId = getSelectedTenantId();
         const storedTenant = context.tenants.find((tenant) => tenant.tenantId === storedTenantId);
         const fallbackTenant = context.tenants.find((tenant) => tenant.isSelectable);
+        const selectedTenantId = storedTenant?.isSelectable ? storedTenant.tenantId : (fallbackTenant?.tenantId ?? "");
+        const availablePersonas = context.personas ?? [];
+        const storedUserId = getSelectedDevelopmentUserId();
+        const selectedPersona =
+          availablePersonas.find(
+            (persona) => persona.tenantId === selectedTenantId && persona.userId === storedUserId
+          ) ?? availablePersonas.find((persona) => persona.tenantId === selectedTenantId);
         const selectedRole = getSelectedDevelopmentRole();
-        const normalizedRole = context.roles.includes(selectedRole) ? selectedRole : (context.roles[0] ?? "");
+        const normalizedRole = selectedPersona?.roleName ??
+          (context.roles.includes(selectedRole) ? selectedRole : (context.roles[0] ?? ""));
+
         if (storedTenantId && !storedTenant?.isSelectable && fallbackTenant && normalizedRole) {
-          selectDevelopmentTestingContext(fallbackTenant.tenantId, normalizedRole);
+          const fallbackPersona = availablePersonas.find((persona) => persona.tenantId === fallbackTenant.tenantId);
+          selectDevelopmentTestingContext(
+            fallbackTenant.tenantId,
+            fallbackPersona?.roleName ?? normalizedRole,
+            fallbackPersona?.userId,
+            fallbackPersona?.email
+          );
           window.location.reload();
           return;
         }
 
         setTenants(context.tenants);
+        setPersonas(availablePersonas);
         setRoles(context.roles);
         setTenantId((selected) => {
           const selectedTenant = context.tenants.find((tenant) => tenant.tenantId === selected);
-          return selectedTenant?.isSelectable
-            ? selected
-            : (context.tenants.find((tenant) => tenant.isSelectable)?.tenantId ?? "");
+          return selectedTenant?.isSelectable ? selected : (fallbackTenant?.tenantId ?? "");
         });
-        setRole((selected) => (context.roles.includes(selected) ? selected : (context.roles[0] ?? "")));
+        setUserId(selectedPersona?.userId ?? "");
+        setRole(normalizedRole);
         setStatus("ready");
       })
       .catch(() => {
@@ -66,7 +85,15 @@ export function DevelopmentTestingContextSelector({
     if (!tenantId || !role) return;
 
     setStatus("applying");
-    selectDevelopmentTestingContext(tenantId, role);
+    const selectedPersona = personas.find(
+      (persona) => persona.tenantId === tenantId && persona.userId === userId
+    );
+    selectDevelopmentTestingContext(
+      tenantId,
+      role,
+      selectedPersona?.userId,
+      selectedPersona?.email
+    );
     window.location.reload();
   }
 
@@ -85,12 +112,20 @@ export function DevelopmentTestingContextSelector({
         <SlidersHorizontal size={15} aria-hidden="true" />
         <span>Local test context</span>
       </div>
-      <label htmlFor="development-test-tenant">Test tenant</label>
+      <label htmlFor="development-test-tenant">Switch tenant</label>
       <select
         id="development-test-tenant"
         value={tenantId}
         disabled={status === "applying" || tenants.length === 0}
-        onChange={(event) => setTenantId(event.target.value)}
+        onChange={(event) => {
+          const nextTenantId = event.target.value;
+          const firstPersona = personas.find((persona) => persona.tenantId === nextTenantId);
+          setTenantId(nextTenantId);
+          setUserId(firstPersona?.userId ?? "");
+          if (firstPersona?.roleName) {
+            setRole(firstPersona.roleName);
+          }
+        }}
       >
         {tenants.every((tenant) => !tenant.isSelectable) ? <option value="">No operational tenants available</option> : null}
         {tenants.map((tenant) => (
@@ -100,7 +135,31 @@ export function DevelopmentTestingContextSelector({
           </option>
         ))}
       </select>
-      <label htmlFor="development-test-role">Test role</label>
+      <label htmlFor="development-test-user">Switch user</label>
+      <select
+        id="development-test-user"
+        value={userId}
+        disabled={status === "applying" || personas.every((persona) => persona.tenantId !== tenantId)}
+        onChange={(event) => {
+          const nextUserId = event.target.value;
+          const nextPersona = personas.find(
+            (persona) => persona.tenantId === tenantId && persona.userId === nextUserId
+          );
+          setUserId(nextUserId);
+          if (nextPersona?.roleName) {
+            setRole(nextPersona.roleName);
+          }
+        }}
+      >
+        {personas
+          .filter((persona) => persona.tenantId === tenantId)
+          .map((persona) => (
+            <option key={persona.userId} value={persona.userId}>
+              {persona.displayName} ({persona.roleName})
+            </option>
+          ))}
+      </select>
+      <label htmlFor="development-test-role">Switch role</label>
       <select
         id="development-test-role"
         value={role}
@@ -115,7 +174,7 @@ export function DevelopmentTestingContextSelector({
       </select>
       <Button type="submit" variant="secondary" disabled={status === "applying" || !tenantId || !role}>
         <RefreshCw size={14} className={status === "applying" ? "spin" : undefined} aria-hidden="true" />
-        {status === "applying" ? "Applying" : "Apply"}
+        {status === "applying" ? "Applying" : "Apply context"}
       </Button>
       {message ? (
         <span className="tenant-workspace-selector__error" role="alert">

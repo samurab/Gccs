@@ -11,7 +11,7 @@ public interface ITenantInvitationRepository
         string email,
         CancellationToken cancellationToken = default);
 
-    Task<bool> TenantMemberEmailExistsAsync(
+    Task<bool> TenantUserExistsForEmailAsync(
         Guid tenantId,
         string email,
         CancellationToken cancellationToken = default);

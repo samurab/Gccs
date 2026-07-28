@@ -57,6 +57,7 @@ public static class RoleCatalog
             [Owner] = Owner,
             [Admin] = Admin,
             [ComplianceManager] = ComplianceManager,
+            ["ComplianceManager"] = ComplianceManager,
             [Contributor] = Contributor,
             [Auditor] = Auditor,
             [Advisor] = Advisor
@@ -180,7 +181,8 @@ public static class RoleCatalog
             }
         };
 
-    public static IReadOnlyList<string> Roles => CanonicalRoleNames.Values.ToArray();
+    public static IReadOnlyList<string> Roles =>
+        [Owner, Admin, ComplianceManager, Contributor, Auditor, Advisor];
 
     public static bool TryNormalizeRoleName(string? roleName, out string canonicalRoleName)
     {

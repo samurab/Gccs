@@ -54,6 +54,7 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
 
         Assert.Equal(ReportType.PrimeEvidencePackage, report.Type);
         Assert.Equal(ReportStatus.Complete, report.Status);
+        Assert.Equal(ReportArtifactLanguage.WorkflowGuidanceDisclaimer, report.Disclaimer);
         Assert.Equal(4, report.Manifest.Items.Count);
         Assert.Contains(report.Manifest.Items, item => item.EvidenceItemId == ids.ObligationEvidenceId);
         Assert.Contains(report.Manifest.Items, item => item.EvidenceItemId == ids.ContractEvidenceId);
@@ -117,6 +118,7 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
         Assert.Contains(ids.ObligationId, report.Manifest.Scope.ObligationIds);
         Assert.True(item.ManifestedAt <= DateTimeOffset.UtcNow.AddMinutes(1));
         Assert.Contains("Evidence package", report.ExportHtml, StringComparison.Ordinal);
+        Assert.Contains(ReportArtifactLanguage.WorkflowGuidanceDisclaimer, report.ExportHtml, StringComparison.Ordinal);
         Assert.Contains("not legal advice", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("a certification decision", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("government endorsement", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
@@ -136,11 +138,20 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
         using var viewRequest = CreateRequest<object?>(HttpMethod.Get, $"/api/reports/evidence-packages/{report.Id}", null, ids.TenantId, Permission.ViewReports);
         var viewResponse = await client.SendAsync(viewRequest);
         var viewed = await viewResponse.Content.ReadFromJsonAsync<EvidencePackageReportDto>(JsonOptions);
+        using var crossTenantViewRequest = CreateRequest<object?>(
+            HttpMethod.Get,
+            $"/api/reports/evidence-packages/{report.Id}",
+            null,
+            Guid.NewGuid(),
+            Permission.ViewReports);
+        var crossTenantViewResponse = await client.SendAsync(crossTenantViewRequest);
 
         Assert.Equal(HttpStatusCode.Forbidden, readOnlyCreateResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, viewResponse.StatusCode);
         Assert.Equal(report.Id, viewed?.Id);
+        Assert.Equal(ReportArtifactLanguage.WorkflowGuidanceDisclaimer, viewed?.Disclaimer);
         Assert.Equal(report.Manifest.Items.Count, viewed?.Manifest.Items.Count);
+        Assert.Equal(HttpStatusCode.NotFound, crossTenantViewResponse.StatusCode);
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.Contains(await dbContext.AuditLogEntries.Where(audit => audit.TenantId == ids.TenantId).ToArrayAsync(), audit =>

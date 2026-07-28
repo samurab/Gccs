@@ -13,7 +13,10 @@ public sealed record CmmcReadinessReportDto(
     DateTimeOffset GeneratedAt,
     Guid GeneratedByUserId,
     CmmcReadinessSnapshotDto Snapshot,
-    string ExportHtml);
+    string ExportHtml)
+{
+    public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
+}
 
 public sealed record CmmcReadinessSnapshotDto(
     Guid AssessmentId,

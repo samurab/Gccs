@@ -11,7 +11,10 @@ public sealed record ApprovedEvidencePackageDto(
     ReportStatus Status,
     DateTimeOffset GeneratedAt,
     Guid GeneratedByUserId,
-    IReadOnlyList<ApprovedEvidencePackageItemDto> EvidenceItems);
+    IReadOnlyList<ApprovedEvidencePackageItemDto> EvidenceItems)
+{
+    public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
+}
 
 public sealed record ApprovedEvidencePackageItemDto(
     Guid EvidenceItemId,

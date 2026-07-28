@@ -10,8 +10,6 @@ public sealed class LocalDependencyOptions
 
     public RedisDependencyOptions Redis { get; init; } = new();
 
-    public ObjectStorageDependencyOptions ObjectStorage { get; init; } = new();
-
     public MalwareScannerDependencyOptions MalwareScanner { get; init; } = new();
 
     public static void ValidateRequiredConfiguration(IConfiguration configuration)
@@ -25,10 +23,7 @@ public sealed class LocalDependencyOptions
 
         AddMissingKey(missingKeys, "ConnectionStrings:GccsDatabase", configuration.GetConnectionString("GccsDatabase"));
         AddMissingKey(missingKeys, $"{SectionName}:Redis:ConnectionString", configuration[$"{SectionName}:Redis:ConnectionString"]);
-        AddMissingKey(missingKeys, $"{SectionName}:ObjectStorage:Endpoint", configuration[$"{SectionName}:ObjectStorage:Endpoint"]);
-        AddMissingKey(missingKeys, $"{SectionName}:ObjectStorage:Bucket", configuration[$"{SectionName}:ObjectStorage:Bucket"]);
-        AddMissingKey(missingKeys, $"{SectionName}:ObjectStorage:AccessKey", configuration[$"{SectionName}:ObjectStorage:AccessKey"]);
-        AddMissingKey(missingKeys, $"{SectionName}:ObjectStorage:SecretKey", configuration[$"{SectionName}:ObjectStorage:SecretKey"]);
+        AddMissingKey(missingKeys, "ConnectionStrings:AzureStorage", configuration.GetConnectionString("AzureStorage"));
         AddMissingKey(missingKeys, $"{SectionName}:MalwareScanner:Host", configuration[$"{SectionName}:MalwareScanner:Host"]);
 
         if (configuration.GetValue<int?>($"{SectionName}:MalwareScanner:Port") is null or <= 0)
@@ -63,17 +58,6 @@ public sealed class LocalDependencyOptions
 public sealed class RedisDependencyOptions
 {
     public string ConnectionString { get; init; } = string.Empty;
-}
-
-public sealed class ObjectStorageDependencyOptions
-{
-    public string Endpoint { get; init; } = string.Empty;
-
-    public string Bucket { get; init; } = string.Empty;
-
-    public string AccessKey { get; init; } = string.Empty;
-
-    public string SecretKey { get; init; } = string.Empty;
 }
 
 public sealed class MalwareScannerDependencyOptions

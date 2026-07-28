@@ -19,7 +19,8 @@ public sealed record InvitationEmailMessage(
     string TenantDisplayName,
     string RoleName,
     DateTimeOffset ExpiresAt,
-    string ActivationUrl);
+    string ActivationUrl,
+    int AttemptNumber);
 
 public sealed record InvitationEmailSendResult(string ProviderMessageId);
 
@@ -96,7 +97,8 @@ public sealed class InvitationDeliveryService(
                     delivery.TenantDisplayName,
                     delivery.RoleName,
                     delivery.ExpiresAt,
-                    activationUrl),
+                    activationUrl,
+                    delivery.AttemptNumber),
                 cancellationToken);
             await repository.MarkSentAsync(delivery.InvitationId, result.ProviderMessageId, DateTimeOffset.UtcNow, cancellationToken);
         }

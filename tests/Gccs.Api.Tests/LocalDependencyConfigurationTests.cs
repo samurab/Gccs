@@ -24,8 +24,7 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
     [
         "postgres",
         "redis",
-        "minio",
-        "minio-init",
+        "azurite",
         "clamav"
     ];
 
@@ -41,10 +40,7 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         {
             { "ConnectionStrings:GccsDatabase", string.Empty, "ConnectionStrings__GccsDatabase" },
             { "LocalDependencies:Redis:ConnectionString", string.Empty, "LocalDependencies__Redis__ConnectionString" },
-            { "LocalDependencies:ObjectStorage:Endpoint", string.Empty, "LocalDependencies__ObjectStorage__Endpoint" },
-            { "LocalDependencies:ObjectStorage:Bucket", string.Empty, "LocalDependencies__ObjectStorage__Bucket" },
-            { "LocalDependencies:ObjectStorage:AccessKey", string.Empty, "LocalDependencies__ObjectStorage__AccessKey" },
-            { "LocalDependencies:ObjectStorage:SecretKey", string.Empty, "LocalDependencies__ObjectStorage__SecretKey" },
+            { "ConnectionStrings:AzureStorage", string.Empty, "ConnectionStrings__AzureStorage" },
             { "LocalDependencies:MalwareScanner:Host", string.Empty, "LocalDependencies__MalwareScanner__Host" },
             { "LocalDependencies:MalwareScanner:Port", "0", "LocalDependencies__MalwareScanner__Port" }
         };
@@ -207,10 +203,10 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
             builder.UseSetting("LocalDependencies:Enabled", "true");
             builder.UseSetting("ConnectionStrings:GccsDatabase", "Host=localhost;Port=15432;Database=gccs;Username=gccs;Password=gccs_dev_password");
             builder.UseSetting("LocalDependencies:Redis:ConnectionString", "localhost:16379");
-            builder.UseSetting("LocalDependencies:ObjectStorage:Endpoint", "http://localhost:19000");
-            builder.UseSetting("LocalDependencies:ObjectStorage:Bucket", "gccs-evidence-dev");
-            builder.UseSetting("LocalDependencies:ObjectStorage:AccessKey", "gccs");
-            builder.UseSetting("LocalDependencies:ObjectStorage:SecretKey", "gccs_dev_password");
+            builder.UseSetting(
+                "ConnectionStrings:AzureStorage",
+                "DefaultEndpointsProtocol=http;AccountName=gccs;AccountKey=Z2Njcy1sb2NhbC1kZXYtc3RvcmFnZS1rZXktMDEyMzQ1Njc4OWFiY2RlZg==;BlobEndpoint=http://127.0.0.1:19000/gccs;");
+            builder.UseSetting("Storage:UseManagedIdentity", "false");
             builder.UseSetting("LocalDependencies:MalwareScanner:Host", "localhost");
             builder.UseSetting("LocalDependencies:MalwareScanner:Port", "13310");
             configure?.Invoke(builder);

@@ -24,8 +24,7 @@ This register identifies the known GCCS dependencies for local development, test
 | --- | --- | --- | --- | --- |
 | PostgreSQL | Docker image `postgres:17`, host port `15432` | API persistence, migrations, tests with real DB when needed | Yes for local persistence | Default database `gccs`. |
 | Redis | Docker image `redis:8`, host port `16379` | Cache/job placeholder | Required when `LocalDependencies:Enabled=true` | Health checked by API local dependency checks. |
-| MinIO object storage | Docker image `minio/minio:latest`, host ports `19000/19001` | Evidence/document storage placeholder | Required when local dependency checks are enabled | Bucket `gccs-evidence-dev` created by `minio-init`. |
-| MinIO client init | Docker image `minio/mc:latest` | Local bucket setup | Yes for local object-storage readiness | Keeps bucket health check available. |
+| Azurite object storage | Docker image `mcr.microsoft.com/azure-storage/azurite:3.35.0`, host port `19000` | Azure Blob-compatible evidence/document storage | Required when local dependency checks are enabled | Private containers are created on first write by the storage adapter. |
 | ClamAV | Docker image `clamav/clamav-debian:stable`, host port `13310` | Malware scanning placeholder | Required when local dependency checks are enabled | Production launch needs real scanner path or accepted exception. |
 | Docker Compose | Local developer tool | Local services | Yes for full local stack | Defined in `infra/docker/docker-compose.yml`. |
 
@@ -56,8 +55,10 @@ This register identifies the known GCCS dependencies for local development, test
 | `Security:RateLimiting` | API | Request rate limiting. |
 | `LocalDependencies:Enabled` | Local/dev API | Enables dependency health checks. |
 | `LocalDependencies:Redis:ConnectionString` | Local/dev API | Redis health/dependency config. |
-| `LocalDependencies:ObjectStorage:*` | Local/dev API | Object storage endpoint, bucket, and credentials. |
+| `ConnectionStrings:AzureStorage` | Local/dev API | Azure Blob-compatible object storage connection. |
+| `Storage:*` | API | Blob endpoint/account, managed identity choice, and private container names. |
 | `LocalDependencies:MalwareScanner:*` | Local/dev API | Malware scanner host and port. |
+| `InvitationDelivery:*` | API background workers | Shared Azure Communication Services transport, public web URL, retry, and lease settings for invitation and assignment emails. Disabled by default in local development. |
 | `VITE_API_BASE_URL` | Web app | API base URL for frontend calls. |
 
 ## Source And Compliance Content Dependencies
@@ -77,10 +78,10 @@ This register identifies the known GCCS dependencies for local development, test
 
 | Dependency | Planned use | Status | Gate before enablement |
 | --- | --- | --- | --- |
-| Queue/background worker | Extraction, notifications, scanning, report jobs | Planned | Tenant-scoped job payloads, retry/poison handling, audit events. |
+| Queue/background worker | Extraction, scanning, report jobs | Planned | Tenant-scoped job payloads, retry/poison handling, audit events. |
 | Search index | Compliance content and tenant document metadata search | Planned | Tenant isolation, CUI/data-handling controls, source provenance. |
 | AI/RAG service | Draft-only clause explanations, evidence suggestions, summaries | Deferred | Source citations, logging, review workflow, tenant CUI/data-handling decision. |
-| Email provider | Invitations, reminders, notifications | Placeholder/local only | Provider selection, secrets management, delivery failure handling. |
+| Azure Communication Services Email | Tenant invitations and direct assignment emails | Partially implemented | Provider configuration and secrets are deployment dependencies; assignment delivery has a persisted outbox, leases, bounded retries, and audit outcomes. Reminder email delivery remains planned. |
 | Production object storage | Evidence/document files | Planned | Encryption, malware scanning, retention/export/delete controls. |
 | Production malware scanner | Upload scanning | Planned | Real scanner integration or explicit launch exception. |
 | GovCloud/Government cloud | Regulated deployment tier | Deferred | Product decision, CUI-ready architecture, shared responsibility matrix. |

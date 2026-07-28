@@ -27,7 +27,9 @@ public sealed class AzureBlobObjectStorageService : IObjectStorageService
         ArgumentNullException.ThrowIfNull(request.Content);
 
         var blobName = ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName);
-        var blob = GetContainerClient(request.Container).GetBlobClient(blobName);
+        var container = GetContainerClient(request.Container);
+        await container.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
+        var blob = container.GetBlobClient(blobName);
         var metadata = NormalizeMetadata(request.Metadata);
         metadata["tenantId"] = request.TenantId.ToString("D");
 

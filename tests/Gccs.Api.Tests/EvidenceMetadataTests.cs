@@ -7,6 +7,7 @@ using Gccs.Application.Evidence;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
+using Gccs.Domain.Compliance;
 using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
@@ -145,6 +146,163 @@ public sealed class EvidenceMetadataTests : IClassFixture<WebApplicationFactory<
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("Control 'CA.L2-3.12.4' was not found", body);
+    }
+
+    [Fact]
+    public async Task Rejects_create_when_expires_date_is_before_effective_date_without_side_effects()
+    {
+        var tenantId = Guid.Parse("12112111-2112-1112-1211-2111211121a6");
+        await using var factory = CreateFactory("evidence-invalid-create-dates", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            "/api/evidence-items",
+            CreateRequestBody() with
+            {
+                EffectiveAt = new DateOnly(2026, 8, 1),
+                ExpiresAt = new DateOnly(2026, 7, 31)
+            },
+            tenantId,
+            Permission.ManageEvidence);
+
+        var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Expires date must be on or after Effective date.", body);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.EvidenceItems.Where(item => item.TenantId == tenantId).ToArrayAsync());
+        Assert.Empty(await dbContext.ComplianceTasks.Where(task => task.TenantId == tenantId).ToArrayAsync());
+        Assert.Empty(await dbContext.AuditLogEntries.Where(audit => audit.TenantId == tenantId).ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task Rejects_update_when_expires_date_is_before_effective_date_and_preserves_existing_record()
+    {
+        var tenantId = Guid.Parse("12112111-2112-1112-1211-2111211121a7");
+        await using var factory = CreateFactory("evidence-invalid-update-dates", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var created = await CreateEvidenceAsync(client, tenantId, CreateRequestBody());
+        using var request = CreateRequest(
+            HttpMethod.Put,
+            $"/api/evidence-items/{created.Id}",
+            CreateRequestBody() with
+            {
+                Title = "Invalid update must not persist",
+                EffectiveAt = new DateOnly(2026, 8, 1),
+                ExpiresAt = new DateOnly(2026, 7, 31)
+            },
+            tenantId,
+            Permission.ManageEvidence);
+
+        var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Expires date must be on or after Effective date.", body);
+        var persisted = await GetEvidenceAsync(client, tenantId, created.Id);
+        Assert.Equal(created.Title, persisted.Title);
+        Assert.Equal(created.EffectiveAt, persisted.EffectiveAt);
+        Assert.Equal(created.ExpiresAt, persisted.ExpiresAt);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Single(await dbContext.AuditLogEntries
+            .Where(audit => audit.TenantId == tenantId && audit.EntityType == "EvidenceItem")
+            .ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task Accepts_equal_or_individually_omitted_evidence_dates()
+    {
+        var tenantId = Guid.Parse("12112111-2112-1112-1211-2111211121a8");
+        await using var factory = CreateFactory("evidence-date-boundaries", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var boundaryDate = new DateOnly(2026, 8, 1);
+
+        var equalDates = await CreateEvidenceAsync(
+            client,
+            tenantId,
+            CreateRequestBody() with { Title = "One-day evidence", EffectiveAt = boundaryDate, ExpiresAt = boundaryDate });
+        var effectiveOnly = await CreateEvidenceAsync(
+            client,
+            tenantId,
+            CreateRequestBody() with { Title = "Effective-only evidence", EffectiveAt = boundaryDate, ExpiresAt = null });
+        var expirationOnly = await CreateEvidenceAsync(
+            client,
+            tenantId,
+            CreateRequestBody() with { Title = "Expiration-only evidence", EffectiveAt = null, ExpiresAt = boundaryDate });
+
+        Assert.Equal(boundaryDate, equalDates.ExpiresAt);
+        Assert.Null(effectiveOnly.ExpiresAt);
+        Assert.Null(expirationOnly.EffectiveAt);
+    }
+
+    [Fact]
+    public async Task Updating_expiration_reschedules_one_active_renewal_task_and_cancels_stale_duplicates()
+    {
+        var tenantId = Guid.Parse("12112111-2112-1112-1211-2111211121a9");
+        await using var factory = CreateFactory("evidence-renewal-reschedule", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var created = await CreateEvidenceAsync(client, tenantId, CreateRequestBody());
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            dbContext.ComplianceTasks.Add(new ComplianceTaskEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Title = $"Renew evidence: {created.Title}",
+                Description = "Stale duplicate renewal task.",
+                Type = ComplianceTaskType.Renewal,
+                Status = ComplianceTaskStatus.Open,
+                RiskLevel = RiskLevel.Medium,
+                OwnerFunction = created.OwnerFunction,
+                DueAt = new DateOnly(2026, 1, 1),
+                EvidenceItemId = created.Id,
+                CreatedAt = DateTimeOffset.UtcNow.AddMinutes(1)
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var replacementExpiration = new DateOnly(2027, 1, 31);
+        await UpdateEvidenceAsync(
+            client,
+            tenantId,
+            created.Id,
+            CreateRequestBody() with { ExpiresAt = replacementExpiration });
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var tasks = await dbContext.ComplianceTasks
+                .Where(task => task.TenantId == tenantId && task.EvidenceItemId == created.Id)
+                .OrderBy(task => task.CreatedAt)
+                .ToArrayAsync();
+            Assert.Equal(2, tasks.Length);
+            var active = Assert.Single(tasks, task => task.Status != ComplianceTaskStatus.Canceled);
+            Assert.Equal(replacementExpiration.AddDays(-30), active.DueAt);
+            Assert.Contains($"{replacementExpiration:yyyy-MM-dd}", active.Description);
+            Assert.Single(tasks, task => task.Status == ComplianceTaskStatus.Canceled);
+        }
+
+        await UpdateEvidenceAsync(
+            client,
+            tenantId,
+            created.Id,
+            CreateRequestBody() with { ExpiresAt = null });
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            Assert.Empty(await dbContext.ComplianceTasks
+                .Where(task =>
+                    task.TenantId == tenantId &&
+                    task.EvidenceItemId == created.Id &&
+                    task.Status != ComplianceTaskStatus.Canceled)
+                .ToArrayAsync());
+        }
     }
 
     private async Task<EvidenceMetadataDto> CreateEvidenceAsync(

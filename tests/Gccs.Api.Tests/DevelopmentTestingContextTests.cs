@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Gccs.Application.Tenancy;
+using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure;
 using Gccs.Infrastructure.Persistence;
@@ -26,6 +27,7 @@ public sealed class DevelopmentTestingContextTests : IClassFixture<WebApplicatio
     {
         var activeTenantId = Guid.NewGuid();
         var archivedTenantId = Guid.NewGuid();
+        var complianceManagerUserId = Guid.NewGuid();
         using var factory = CreateFactory(
             nameof(Catalog_returns_all_tenants_and_supported_roles_in_development),
             developmentTestingEnabled: true,
@@ -34,6 +36,24 @@ public sealed class DevelopmentTestingContextTests : IClassFixture<WebApplicatio
                 dbContext.Tenants.AddRange(
                     CreateTenant(archivedTenantId, "Zulu archived", TenantStatus.Archived),
                     CreateTenant(activeTenantId, "Alpha active", TenantStatus.Active));
+                dbContext.Users.Add(new UserEntity
+                {
+                    Id = complianceManagerUserId,
+                    TenantId = activeTenantId,
+                    Email = "compliance.manager@example.test",
+                    DisplayName = "Compliance Manager",
+                    Status = UserStatus.Active,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+                dbContext.TenantMemberships.Add(new TenantMembershipEntity
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = activeTenantId,
+                    UserId = complianceManagerUserId,
+                    RoleName = RoleCatalog.ComplianceManager,
+                    Status = MembershipStatus.Active,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
             });
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/development/testing-context");
@@ -52,6 +72,10 @@ public sealed class DevelopmentTestingContextTests : IClassFixture<WebApplicatio
         Assert.Equal(
             ["Owner", "Admin", "Compliance Manager", "Contributor", "Auditor", "Advisor"],
             result.Roles);
+        var persona = Assert.Single(result.Personas);
+        Assert.Equal(activeTenantId, persona.TenantId);
+        Assert.Equal(complianceManagerUserId, persona.UserId);
+        Assert.Equal("Compliance Manager", persona.RoleName);
     }
 
     [Fact]
