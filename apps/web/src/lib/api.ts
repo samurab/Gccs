@@ -1668,135 +1668,6 @@ export const fallbackAccess: CurrentUserAccess = {
   rolePermissionMatrix: {}
 };
 
-const fallbackRolePermissionMatrix: Record<string, string[]> = {
-  Owner: [
-    "ApproveEnclave",
-    "ApproveEvidence",
-    "AuditorReadOnly",
-    "DownloadEnclave",
-    "EmergencyEnclave",
-    "ExportEnclave",
-    "ManageCmmc",
-    "ManageCompanyProfile",
-    "ManageContracts",
-    "ManageEvidence",
-    "ManageObligations",
-    "ManageReports",
-    "ManageSubcontractors",
-    "ManageTasks",
-    "ManageTenant",
-    "ManageUsers",
-    "ReviewClauses",
-    "SupportEnclave",
-    "UploadEnclave",
-    "ViewAuditLog",
-    "ViewCmmc",
-    "ViewCompanyProfile",
-    "ViewContracts",
-    "ViewEnclave",
-    "ViewEvidence",
-    "ViewObligations",
-    "ViewReports",
-    "ViewSubcontractors",
-    "ViewTasks"
-  ],
-  Admin: [
-    "ApproveEnclave",
-    "ApproveEvidence",
-    "AuditorReadOnly",
-    "DownloadEnclave",
-    "EmergencyEnclave",
-    "ExportEnclave",
-    "ManageCmmc",
-    "ManageCompanyProfile",
-    "ManageContracts",
-    "ManageEvidence",
-    "ManageObligations",
-    "ManageReports",
-    "ManageSubcontractors",
-    "ManageTasks",
-    "ManageUsers",
-    "ReviewClauses",
-    "SupportEnclave",
-    "UploadEnclave",
-    "ViewAuditLog",
-    "ViewCmmc",
-    "ViewCompanyProfile",
-    "ViewContracts",
-    "ViewEnclave",
-    "ViewEvidence",
-    "ViewObligations",
-    "ViewReports",
-    "ViewSubcontractors",
-    "ViewTasks"
-  ],
-  "Compliance Manager": [
-    "ApproveEvidence",
-    "AuditorReadOnly",
-    "ManageCmmc",
-    "ManageCompanyProfile",
-    "ManageContracts",
-    "ManageEvidence",
-    "ManageObligations",
-    "ManageReports",
-    "ManageSubcontractors",
-    "ManageTasks",
-    "ReviewClauses",
-    "ViewCmmc",
-    "ViewCompanyProfile",
-    "ViewContracts",
-    "ViewEvidence",
-    "ViewObligations",
-    "ViewReports",
-    "ViewSubcontractors",
-    "ViewTasks"
-  ],
-  Contributor: [
-    "ManageEvidence",
-    "ManageTasks",
-    "ViewCmmc",
-    "ViewCompanyProfile",
-    "ViewContracts",
-    "ViewEvidence",
-    "ViewObligations",
-    "ViewReports",
-    "ViewSubcontractors",
-    "ViewTasks"
-  ],
-  Auditor: [
-    "AuditorReadOnly",
-    "ViewCmmc",
-    "ViewCompanyProfile",
-    "ViewContracts",
-    "ViewEvidence",
-    "ViewObligations",
-    "ViewReports",
-    "ViewSubcontractors",
-    "ViewTasks"
-  ],
-  Advisor: [
-    "ApproveEvidence",
-    "AuditorReadOnly",
-    "ManageCmmc",
-    "ManageContracts",
-    "ManageEvidence",
-    "ManageObligations",
-    "ManageReports",
-    "ManageSubcontractors",
-    "ManageTasks",
-    "ReviewClauses",
-    "ViewAuditLog",
-    "ViewCmmc",
-    "ViewCompanyProfile",
-    "ViewContracts",
-    "ViewEvidence",
-    "ViewObligations",
-    "ViewReports",
-    "ViewSubcontractors",
-    "ViewTasks"
-  ]
-};
-
 export const fallbackNoCuiAcknowledgementStatus: NoCuiAcknowledgementStatus = {
   isAcknowledged: false,
   noticeVersion: "no-cui-mvp-v1",
@@ -1998,18 +1869,8 @@ function normalizeComplianceOverview(overview: ComplianceOverview): ComplianceOv
 function normalizeCurrentUserAccess(access: CurrentUserAccess): CurrentUserAccess {
   const explicitPermissions = Array.isArray(access.permissions) ? access.permissions : [];
   const roles = Array.isArray(access.roles) ? access.roles : [];
-  const rolePermissionMatrix = {
-    ...fallbackRolePermissionMatrix,
-    ...(access.rolePermissionMatrix ?? {})
-  };
-  const rolePermissionEntries = Object.entries(rolePermissionMatrix);
-  const derivedPermissions = roles.flatMap((role) => {
-    const normalizedRole = role.trim().toLocaleLowerCase();
-    return rolePermissionEntries.find(([candidateRole]) => candidateRole.toLocaleLowerCase() === normalizedRole)?.[1] ?? [];
-  });
-  const permissions = [...new Set([...explicitPermissions, ...derivedPermissions])].sort((left, right) =>
-    left.localeCompare(right)
-  );
+  const rolePermissionMatrix = access.rolePermissionMatrix ?? {};
+  const permissions = [...new Set(explicitPermissions)].sort((left, right) => left.localeCompare(right));
 
   return {
     ...access,

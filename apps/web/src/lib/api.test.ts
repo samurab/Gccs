@@ -109,7 +109,7 @@ describe("FeDril API client", () => {
     expect(headers).not.toHaveProperty("X-Gccs-Dev-User");
   });
 
-  it("derives effective permissions from returned roles and role matrix", async () => {
+  it("uses only explicit server permissions for authorization gating", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -119,7 +119,7 @@ describe("FeDril API client", () => {
           userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
           userEmail: "admin@example.com",
           roles: ["Admin"],
-          permissions: [],
+          permissions: ["ViewReports"],
           rolePermissionMatrix: {
             Admin: ["ManageContracts", "ViewContracts", "ViewReports"]
           }
@@ -129,10 +129,10 @@ describe("FeDril API client", () => {
 
     const access = await getCurrentUserAccess();
 
-    expect(access.permissions).toEqual(["ManageContracts", "ViewContracts", "ViewReports"]);
+    expect(access.permissions).toEqual(["ViewReports"]);
   });
 
-  it("derives role permissions when the API omits the role matrix", async () => {
+  it("fails closed when the API omits explicit permissions and the role matrix", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -150,13 +150,10 @@ describe("FeDril API client", () => {
 
     const access = await getCurrentUserAccess();
 
-    expect(access.permissions).toContain("ViewContracts");
-    expect(access.permissions).toContain("ManageContracts");
-    expect(access.permissions).toContain("ViewEvidence");
-    expect(access.permissions).toContain("ViewReports");
+    expect(access.permissions).toEqual([]);
   });
 
-  it("matches returned role names case-insensitively", async () => {
+  it("does not derive permissions from role names", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -166,7 +163,7 @@ describe("FeDril API client", () => {
           userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
           userEmail: "admin@example.com",
           roles: ["admin"],
-          permissions: [],
+          permissions: ["ViewReports"],
           rolePermissionMatrix: {
             Admin: ["ManageContracts", "ViewContracts", "ViewReports"]
           }
@@ -176,7 +173,7 @@ describe("FeDril API client", () => {
 
     const access = await getCurrentUserAccess();
 
-    expect(access.permissions).toEqual(["ManageContracts", "ViewContracts", "ViewReports"]);
+    expect(access.permissions).toEqual(["ViewReports"]);
   });
 
   it("does not derive permissions for unknown role names", async () => {

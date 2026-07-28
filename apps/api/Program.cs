@@ -1862,7 +1862,7 @@ api.MapPost("/reports/compliance-status", async (
     var report = await service.GenerateAsync(tenantContext.UserId, cancellationToken);
     return Results.Created($"/api/reports/{report.Id}", report);
 })
-.RequirePermission(Permission.ViewReports)
+.RequirePermission(Permission.ManageReports)
 .WithName("GenerateComplianceStatusReport");
 
 api.MapPost("/reports/cmmc-readiness", async (
@@ -1883,7 +1883,7 @@ api.MapPost("/reports/cmmc-readiness", async (
             "resource_not_found")
         : Results.Created($"/api/reports/{report.Id}", report);
 })
-.RequirePermission(Permission.ViewReports)
+.RequirePermission(Permission.ManageReports)
 .WithName("GenerateCmmcReadinessReport");
 
 api.MapPost("/reports/subcontractor-compliance", async (
@@ -1895,7 +1895,7 @@ api.MapPost("/reports/subcontractor-compliance", async (
     var report = await service.GenerateAsync(contractId, tenantContext.UserId, cancellationToken);
     return Results.Created($"/api/reports/{report.Id}", report);
 })
-.RequirePermission(Permission.ViewReports)
+.RequirePermission(Permission.ManageReports)
 .WithName("GenerateSubcontractorComplianceReport");
 
 api.MapGet("/subcontractors", async (

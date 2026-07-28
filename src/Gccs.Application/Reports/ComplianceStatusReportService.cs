@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 
@@ -7,18 +8,20 @@ namespace Gccs.Application.Reports;
 public sealed class ComplianceStatusReportService(
     IReportRepository repository,
     IAuditEventWriter auditEventWriter,
-    TenantDataHandlingModePolicyService dataHandlingModePolicy)
+    TenantDataHandlingModePolicyService dataHandlingModePolicy,
+    IApplicationTransaction transaction)
 {
-    public async Task<ComplianceStatusReportDto> GenerateAsync(
+    public Task<ComplianceStatusReportDto> GenerateAsync(
         Guid actorUserId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        transaction.ExecuteAsync(async transactionCancellationToken =>
     {
         await dataHandlingModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(TenantDataHandlingWorkflow.Report, ContainsRealCui: false),
             actorUserId,
-            cancellationToken);
+            transactionCancellationToken);
 
-        var report = await repository.GenerateComplianceStatusReportAsync(actorUserId, cancellationToken);
+        var report = await repository.GenerateComplianceStatusReportAsync(actorUserId, transactionCancellationToken);
         await auditEventWriter.WriteAsync(
             report.TenantId,
             actorUserId,
@@ -34,7 +37,7 @@ public sealed class ComplianceStatusReportService(
                 ["highRiskItems"] = report.Snapshot.HighRiskItems.Count.ToString(),
                 ["overdueTasks"] = report.Snapshot.OverdueTasks.ToString()
             },
-            cancellationToken);
+            transactionCancellationToken);
         return report;
-    }
+    }, cancellationToken);
 }

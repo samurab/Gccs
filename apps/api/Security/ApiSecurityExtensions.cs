@@ -17,6 +17,10 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Gccs.Api.Security;
 
+public sealed record RequiredPermissionMetadata(Permission Permission);
+
+public sealed record RequiredAnyPermissionMetadata(IReadOnlyList<Permission> Permissions);
+
 public static class ApiSecurityExtensions
 {
     public const string DevelopmentAuthenticationScheme = "Development";
@@ -551,6 +555,7 @@ public static class ApiSecurityExtensions
         this IEndpointConventionBuilder builder,
         Permission permission)
     {
+        builder.WithMetadata(new RequiredPermissionMetadata(permission));
         return builder.RequireAuthorization(permission.ToString());
     }
 
@@ -558,6 +563,7 @@ public static class ApiSecurityExtensions
         this IEndpointConventionBuilder builder,
         params Permission[] permissions)
     {
+        builder.WithMetadata(new RequiredAnyPermissionMetadata(permissions));
         return builder.RequireAuthorization(policy => policy
             .RequireAuthenticatedUser()
             .RequireAssertion(context => permissions.Any(permission =>

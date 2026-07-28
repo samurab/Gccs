@@ -61,7 +61,7 @@ jobs:
           dotnet test Gccs.slnx
           --no-build
           --configuration Release
-          --filter "Category!=LocalDocker"
+          --filter "Category!=LocalDocker&Category!=PostgresIntegration"
           --logger "trx;LogFileName=gccs-backend-tests.trx"
           --results-directory TestResults/backend
 
@@ -116,6 +116,79 @@ jobs:
         with:
           name: frontend-test-results
           path: apps/web/TestResults/web
+
+  real-stack-report-rbac:
+    name: Real-stack report RBAC
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: gccs
+          POSTGRES_USER: gccs
+          POSTGRES_PASSWORD: gccs_dev_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gccs -d gccs"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__GccsDatabase: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
+      GCCS_DATABASE: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
+      GCCS_TEST_POSTGRES_CONNECTION: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "25"
+          cache: npm
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore dependencies
+        run: |
+          npm ci
+          dotnet restore Gccs.slnx
+          dotnet tool restore
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build API
+        run: dotnet build apps/api/Gccs.Api.csproj --no-restore --configuration Release
+
+      - name: Apply database migrations
+        run: >
+          dotnet tool run dotnet-ef database update
+          --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj
+          --startup-project apps/api/Gccs.Api.csproj
+          --context GccsDbContext
+
+      - name: Verify report and audit transaction rollback
+        run: >
+          dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
+          --no-restore
+          --filter "FullyQualifiedName~ReportPostgresTransactionTests"
+
+      - name: Run real-stack report authorization tests
+        run: npm run test:e2e:real
+
+      - name: Upload real-stack browser artifacts
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: real-stack-report-rbac
+          path: output/playwright
 
   secret-scan:
     name: Secret scan

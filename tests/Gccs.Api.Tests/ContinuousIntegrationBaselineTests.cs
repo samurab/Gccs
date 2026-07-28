@@ -46,7 +46,7 @@ public sealed class ContinuousIntegrationBaselineTests
             [
                 "dotnet test Gccs.slnx",
                 "--configuration Release",
-                "--filter \"Category!=LocalDocker\"",
+                "--filter \"Category!=LocalDocker&Category!=PostgresIntegration\"",
                 "gccs-backend-tests.trx",
                 "TestResults/backend"
             ]
@@ -92,6 +92,19 @@ public sealed class ContinuousIntegrationBaselineTests
             ["npm run build:web"]
         },
         {
+            "Real-stack report RBAC",
+            "Verify report and audit transaction rollback",
+            [
+                "ReportPostgresTransactionTests",
+                "dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj"
+            ]
+        },
+        {
+            "Real-stack report RBAC",
+            "Run real-stack report authorization tests",
+            ["npm run test:e2e:real"]
+        },
+        {
             "Secret scan",
             "Scan repository for committed secrets",
             ["gitleaks/gitleaks-action@v2"]
@@ -130,7 +143,10 @@ public sealed class ContinuousIntegrationBaselineTests
         AssertCiStepContains("Backend validation", "Validate EF Core migrations", "migrations has-pending-model-changes");
         AssertCiStepContains("Backend validation", "Validate EF Core migrations", "migrations script --idempotent");
         AssertCiStepContains("Backend validation", "Run backend unit and integration tests", "dotnet test Gccs.slnx");
-        AssertCiStepContains("Backend validation", "Run backend unit and integration tests", "--filter \"Category!=LocalDocker\"");
+        AssertCiStepContains(
+            "Backend validation",
+            "Run backend unit and integration tests",
+            "--filter \"Category!=LocalDocker&Category!=PostgresIntegration\"");
         AssertCiStepContains("Backend validation", "Run extraction precision and recall evaluation", "tools/extraction-evaluation/evaluate_corpus.py");
         AssertCiStepContains("Backend validation", "Run extraction precision and recall evaluation", "TestResults/extraction-evaluation");
 
@@ -138,6 +154,14 @@ public sealed class ContinuousIntegrationBaselineTests
         AssertCiStepContains("Frontend validation", "Lint frontend workspace", "npm run lint:web");
         AssertCiStepContains("Frontend validation", "Run frontend unit tests", "npm --workspace apps/web run test:run");
         AssertCiStepContains("Frontend validation", "Build frontend workspace", "npm run build:web");
+        AssertCiStepContains(
+            "Real-stack report RBAC",
+            "Verify report and audit transaction rollback",
+            "ReportPostgresTransactionTests");
+        AssertCiStepContains(
+            "Real-stack report RBAC",
+            "Run real-stack report authorization tests",
+            "npm run test:e2e:real");
 
         AssertCiStepContains("Backend validation", "Scan backend dependencies for known vulnerabilities", "dotnet list Gccs.slnx package --vulnerable --include-transitive");
         AssertCiStepContains("Frontend validation", "Scan frontend dependencies for known vulnerabilities", "npm audit --audit-level=high");

@@ -93,6 +93,19 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
     }
 
     [Fact]
+    public void Every_role_that_can_manage_reports_can_also_view_reports()
+    {
+        Assert.All(RoleCatalog.Roles, roleName =>
+        {
+            var permissions = RoleCatalog.GetPermissions(roleName);
+            if (permissions.Contains(Permission.ManageReports))
+            {
+                Assert.Contains(Permission.ViewReports, permissions);
+            }
+        });
+    }
+
+    [Fact]
     public async Task TC_2_4_1_Server_side_permission_checks_use_role_derived_permissions()
     {
         var tenantId = Guid.Parse("24242424-2424-2424-2424-2424242424a1");
@@ -285,6 +298,30 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             tenantAId,
             auditorUserId,
             RoleCatalog.Auditor);
+        using var blockedComplianceReportRequest = CreateRequest(
+            HttpMethod.Post,
+            "/api/reports/compliance-status",
+            tenantAId,
+            auditorUserId,
+            RoleCatalog.Auditor);
+        using var blockedCmmcReportRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/reports/cmmc-readiness?assessmentId={Guid.NewGuid()}",
+            tenantAId,
+            auditorUserId,
+            RoleCatalog.Auditor);
+        using var blockedSubcontractorReportRequest = CreateRequest(
+            HttpMethod.Post,
+            "/api/reports/subcontractor-compliance",
+            tenantAId,
+            auditorUserId,
+            RoleCatalog.Auditor);
+        using var blockedEvidencePackageRequest = CreateRequest(
+            HttpMethod.Post,
+            "/api/reports/evidence-packages",
+            tenantAId,
+            auditorUserId,
+            RoleCatalog.Auditor);
 
         var packagesResponse = await client.SendAsync(packagesRequest);
         var blockedInviteResponse = await client.SendAsync(blockedInviteRequest);
@@ -292,6 +329,10 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
         var blockedEvidenceApprovalResponse = await client.SendAsync(blockedEvidenceApprovalRequest);
         var blockedDeleteLikeResponse = await client.SendAsync(blockedDeleteLikeRequest);
         var blockedAssignResponse = await client.SendAsync(blockedAssignRequest);
+        var blockedComplianceReportResponse = await client.SendAsync(blockedComplianceReportRequest);
+        var blockedCmmcReportResponse = await client.SendAsync(blockedCmmcReportRequest);
+        var blockedSubcontractorReportResponse = await client.SendAsync(blockedSubcontractorReportRequest);
+        var blockedEvidencePackageResponse = await client.SendAsync(blockedEvidencePackageRequest);
         var packages = await packagesResponse.Content.ReadFromJsonAsync<ApprovedEvidencePackageDto[]>(JsonOptions);
 
         Assert.Equal(HttpStatusCode.OK, packagesResponse.StatusCode);
@@ -300,11 +341,19 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
         Assert.Equal(HttpStatusCode.Forbidden, blockedEvidenceApprovalResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, blockedDeleteLikeResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, blockedAssignResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, blockedComplianceReportResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, blockedCmmcReportResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, blockedSubcontractorReportResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, blockedEvidencePackageResponse.StatusCode);
         await AssertStandardAuthorizationErrorAsync(blockedInviteResponse);
         await AssertStandardAuthorizationErrorAsync(blockedTenantUpdateResponse);
         await AssertStandardAuthorizationErrorAsync(blockedEvidenceApprovalResponse);
         await AssertStandardAuthorizationErrorAsync(blockedDeleteLikeResponse);
         await AssertStandardAuthorizationErrorAsync(blockedAssignResponse);
+        await AssertStandardAuthorizationErrorAsync(blockedComplianceReportResponse);
+        await AssertStandardAuthorizationErrorAsync(blockedCmmcReportResponse);
+        await AssertStandardAuthorizationErrorAsync(blockedSubcontractorReportResponse);
+        await AssertStandardAuthorizationErrorAsync(blockedEvidencePackageResponse);
         Assert.DoesNotContain(Permission.ManageEvidence, RoleCatalog.GetPermissions(RoleCatalog.Auditor));
         Assert.DoesNotContain(Permission.ApproveEvidence, RoleCatalog.GetPermissions(RoleCatalog.Auditor));
         Assert.DoesNotContain(Permission.ManageReports, RoleCatalog.GetPermissions(RoleCatalog.Auditor));
@@ -322,6 +371,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.False(await dbContext.TenantInvitations.AnyAsync(candidate => candidate.TenantId == tenantAId));
         Assert.False(await dbContext.TenantMemberships.AnyAsync(candidate => candidate.TenantId == tenantAId));
+        Assert.Single(await dbContext.Reports.Where(candidate => candidate.TenantId == tenantAId).ToArrayAsync());
         var auditEvents = await dbContext.AuditLogEntries
             .Where(candidate => candidate.TenantId == tenantAId)
             .ToListAsync();
@@ -332,6 +382,39 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             Assert.Equal(auditorUserId, audit.ActorUserId);
         });
         Assert.DoesNotContain(auditEvents, audit => audit.EntityType is "TenantInvitation" or "TenantMembership");
+    }
+
+    [Theory]
+    [InlineData(RoleCatalog.Auditor)]
+    [InlineData(RoleCatalog.Contributor)]
+    public async Task Read_only_report_roles_cannot_invoke_any_report_generation_endpoint(string roleName)
+    {
+        var tenantId = Guid.NewGuid();
+        await using var factory = CreateFactory($"report-mutations-{roleName}", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, $"{roleName} report mutation tenant"));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        var userId = Guid.NewGuid();
+        var paths = new[]
+        {
+            "/api/reports/compliance-status",
+            $"/api/reports/cmmc-readiness?assessmentId={Guid.NewGuid()}",
+            "/api/reports/subcontractor-compliance",
+            "/api/reports/evidence-packages"
+        };
+
+        foreach (var path in paths)
+        {
+            using var request = CreateRequest(HttpMethod.Post, path, tenantId, userId, roleName);
+            using var response = await client.SendAsync(request);
+            await AssertStandardAuthorizationErrorAsync(response);
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Reports.Where(report => report.TenantId == tenantId).ToArrayAsync());
     }
 
     [Fact]
