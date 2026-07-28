@@ -56,7 +56,7 @@ Prerequisites:
 
 - .NET SDK matching [`global.json`](global.json)
 - Node.js and npm
-- Docker, when local PostgreSQL/Redis/MinIO/ClamAV services are needed
+- Docker, when local PostgreSQL/Redis/Azurite/ClamAV services are needed
 
 Start the complete local stack with one supervised command:
 
@@ -129,9 +129,9 @@ Configure repository branch protection to require the `Backend validation`, `Fro
 docker compose -f infra/docker/docker-compose.yml up -d --wait
 ```
 
-This starts PostgreSQL, Redis, MinIO, creates the `gccs-evidence-dev` bucket, and starts the ClamAV malware-scanning placeholder for the MVP architecture. The credentials in `infra/docker/docker-compose.yml`, `apps/api/appsettings.Development.json`, and `.env.example` are local-only development placeholders and must not be reused as production secrets.
+This starts PostgreSQL, Redis, an Azure Blob-compatible Azurite endpoint, and the ClamAV malware-scanning placeholder for the MVP architecture. Blob containers are created privately on first write. The credentials in `infra/docker/docker-compose.yml`, `apps/api/appsettings.Development.json`, and `.env.example` are local-only development placeholders and must not be reused as production secrets.
 
-To avoid common port conflicts with developer machines, the services are exposed on non-default host ports: PostgreSQL `15432`, Redis `16379`, MinIO API `19000`, MinIO console `19001`, and ClamAV `13310`.
+To avoid common port conflicts with developer machines, the services are exposed on non-default host ports: PostgreSQL `15432`, Redis `16379`, Azurite Blob API `19000`, and ClamAV `13310`.
 
 The API reads local dependency configuration from `apps/api/appsettings.Development.json` by default. If you prefer shell environment variables, use `.env.example` as the key template and export the values before running the API. When `LocalDependencies:Enabled` is `true`, startup fails with a clear error if PostgreSQL, Redis, object storage, or malware scanner configuration is missing.
 

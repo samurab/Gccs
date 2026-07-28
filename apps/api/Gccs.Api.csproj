@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>Gccs.Api-Development-7b6ab5f8-5e68-48ea-b6fc-5da1af5209f4</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

@@ -97,6 +97,7 @@ if (builder.Environment.IsDevelopment() &&
     builder.Services.AddGccsDevelopmentTestingInfrastructure(builder.Configuration);
 }
 builder.Services.AddHostedService<InvitationDeliveryWorker>();
+builder.Services.AddHostedService<AssignmentEmailDeliveryWorker>();
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddHostedService<DevelopmentTenantBootstrapper>();
@@ -1715,6 +1716,45 @@ api.MapGet("/reports/approved-evidence-packages", async (
 .RequirePermission(Permission.ViewReports)
 .WithName("ListApprovedEvidencePackages");
 
+api.MapGet("/reports/recent", async (
+    int? limit,
+    ReportHistoryService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ListAsync(limit, cancellationToken));
+    }
+    catch (ArgumentOutOfRangeException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["limit"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("ListRecentReports");
+
+api.MapGet("/reports/{reportId:guid}", async (
+    Guid reportId,
+    ReportHistoryService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var report = await service.GetAsync(reportId, cancellationToken);
+    return report is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Report '{reportId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(report);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetReportArtifact");
+
 api.MapGet("/reports/exports/{reportType}", async (
     string reportType,
     SimpleReportExportService service,
@@ -3120,7 +3160,7 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/reviews", async (
 api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
     Guid evidenceItemId,
     EvidenceUploadIntentRequest request,
-    NoCuiAcknowledgementService service,
+    EvidenceFileService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
@@ -3165,7 +3205,7 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
 
 api.MapPost("/evidence-items/{evidenceItemId:guid}/file", async (
     Guid evidenceItemId,
-    NoCuiAcknowledgementService service,
+    EvidenceFileService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
@@ -3762,7 +3802,7 @@ api.MapPatch("/cmmc/affirmations/{affirmationId:guid}", async (
 
 api.MapGet("/evidence-items/{evidenceItemId:guid}/download", async (
     Guid evidenceItemId,
-    NoCuiAcknowledgementService service,
+    EvidenceFileService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
@@ -3782,7 +3822,7 @@ api.MapGet("/evidence-items/{evidenceItemId:guid}/download", async (
 
 api.MapGet("/evidence-items/{evidenceItemId:guid}/file/content", async (
     Guid evidenceItemId,
-    NoCuiAcknowledgementService service,
+    EvidenceFileService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
@@ -3820,7 +3860,7 @@ api.MapGet("/evidence-items/{evidenceItemId:guid}/file/content", async (
 
 api.MapDelete("/evidence-items/{evidenceItemId:guid}/file", async (
     Guid evidenceItemId,
-    NoCuiAcknowledgementService service,
+    EvidenceFileService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
@@ -3926,6 +3966,15 @@ api.MapPost("/tenant-invitations", async (
             StatusCodes.Status409Conflict,
             "duplicate_invitation");
     }
+    catch (ExistingTenantUserException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Tenant user already exists",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "tenant_user_exists");
+    }
     catch (ArgumentException exception)
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -3958,7 +4007,7 @@ api.MapPost("/invitations/{token}/accept", async (
             ? ApiProblemDetails.Create(
                 httpContext,
                 "Resource not found",
-                "Invitation token was not found.",
+                "This invitation link is invalid or was replaced by a newer email. Use the newest invitation email or ask an administrator to resend it.",
                 StatusCodes.Status404NotFound,
                 "resource_not_found")
             : Results.Ok(invitation);
@@ -3969,6 +4018,15 @@ api.MapPost("/invitations/{token}/accept", async (
         {
             ["invitation"] = [exception.Message]
         });
+    }
+    catch (ExistingTenantUserException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Tenant user already exists",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "tenant_user_exists");
     }
     catch (ArgumentException exception)
     {
@@ -3992,7 +4050,12 @@ api.MapGet("/invitations/{token}", async (
     {
         var invitation = await service.GetAcceptanceContextAsync(token, tenantContext.UserEmail, cancellationToken);
         return invitation is null
-            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Invitation token was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "This invitation link is invalid or was replaced by a newer email. Use the newest invitation email or ask an administrator to resend it.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
             : Results.Ok(invitation);
     }
     catch (InvalidInvitationStateException exception)

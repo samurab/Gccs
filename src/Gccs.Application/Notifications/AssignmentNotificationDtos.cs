@@ -13,12 +13,27 @@ public sealed record NotificationCenterItemDto(
     DateTimeOffset AttemptedAt,
     DateTimeOffset? ReadAt);
 
+public sealed record AssignmentNotificationEmission(
+    bool InAppNotificationCreated,
+    bool EmailDeliveryQueued,
+    int InAppRecipientCount = 0);
+
 public interface IAssignmentNotificationRepository
 {
-    Task EmitTaskAssignmentAsync(
+    Task<AssignmentNotificationEmission> EmitTaskAssignmentAsync(
         Guid tenantId,
         Guid taskId,
         Guid assignedUserId,
+        string taskTitle,
+        Guid actorUserId,
+        bool queueEmail = false,
+        string linkUrl = "/#/calendar",
+        CancellationToken cancellationToken = default);
+
+    Task<AssignmentNotificationEmission> EmitRoleTaskAssignmentAsync(
+        Guid tenantId,
+        Guid taskId,
+        string roleName,
         string taskTitle,
         Guid actorUserId,
         CancellationToken cancellationToken = default);

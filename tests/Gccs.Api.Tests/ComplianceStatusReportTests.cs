@@ -60,7 +60,9 @@ public sealed class ComplianceStatusReportTests : IClassFixture<WebApplicationFa
         Assert.Equal(2, report.Snapshot.CmmcControlsTotal);
         Assert.Equal(2, report.Snapshot.SubcontractorGaps);
         Assert.Contains(report.Snapshot.HighRiskItems, item => item.Contains("High risk obligation", StringComparison.Ordinal));
+        Assert.Equal(ReportArtifactLanguage.WorkflowGuidanceDisclaimer, report.Disclaimer);
         Assert.Contains("Compliance status report", report.ExportHtml);
+        Assert.Contains(ReportArtifactLanguage.WorkflowGuidanceDisclaimer, report.ExportHtml, StringComparison.Ordinal);
         Assert.Contains("not legal advice", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("a certification decision", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("government endorsement", report.ExportHtml, StringComparison.OrdinalIgnoreCase);
@@ -115,6 +117,93 @@ public sealed class ComplianceStatusReportTests : IClassFixture<WebApplicationFa
             candidate.EntityId == report.Id.ToString());
         Assert.Equal(AuditAction.Created, audit.Action);
         Assert.Contains("ComplianceStatus", audit.MetadataJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task UAT_13_Report_history_survives_reload_and_returns_tenant_scoped_detail()
+    {
+        var ids = StoryIds.ForCase("uat-13-report-history");
+        await using var factory = CreateFactory("uat-13-report-history", dbContext => SeedScenario(dbContext, ids));
+        using var client = factory.CreateClient();
+        var report = await GenerateReportAsync(client, ids.TenantId);
+
+        using var listRequest = CreateRequest<object?>(
+            HttpMethod.Get,
+            "/api/reports/recent?limit=25",
+            null,
+            ids.TenantId,
+            Permission.ViewReports);
+        var listResponse = await client.SendAsync(listRequest);
+        var history = await listResponse.Content.ReadFromJsonAsync<ReportHistoryItemDto[]>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        var historyItem = Assert.Single(history ?? []);
+        Assert.Equal(report.Id, historyItem.Id);
+        Assert.Equal(ids.TenantId, historyItem.TenantId);
+        Assert.Equal(ReportArtifactLanguage.WorkflowGuidanceDisclaimer, historyItem.Disclaimer);
+
+        using var detailRequest = CreateRequest<object?>(
+            HttpMethod.Get,
+            $"/api/reports/{report.Id}",
+            null,
+            ids.TenantId,
+            Permission.ViewReports);
+        var detailResponse = await client.SendAsync(detailRequest);
+        var detail = await detailResponse.Content.ReadFromJsonAsync<ReportArtifactDetailDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+        Assert.NotNull(detail);
+        Assert.Equal(report.Id, detail.Id);
+        Assert.Equal(1, detail.Snapshot.GetProperty("totalObligations").GetInt32());
+
+        using var otherTenantListRequest = CreateRequest<object?>(
+            HttpMethod.Get,
+            "/api/reports/recent",
+            null,
+            ids.OtherTenantId,
+            Permission.ViewReports);
+        var otherTenantListResponse = await client.SendAsync(otherTenantListRequest);
+        var otherTenantHistory = await otherTenantListResponse.Content.ReadFromJsonAsync<ReportHistoryItemDto[]>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, otherTenantListResponse.StatusCode);
+        Assert.Empty(otherTenantHistory ?? []);
+
+        using var crossTenantDetailRequest = CreateRequest<object?>(
+            HttpMethod.Get,
+            $"/api/reports/{report.Id}",
+            null,
+            ids.OtherTenantId,
+            Permission.ViewReports);
+        var crossTenantDetailResponse = await client.SendAsync(crossTenantDetailRequest);
+
+        Assert.Equal(HttpStatusCode.NotFound, crossTenantDetailResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task UAT_13_Report_history_requires_view_reports_and_bounds_page_size()
+    {
+        var ids = StoryIds.ForCase("uat-13-report-history-rbac");
+        await using var factory = CreateFactory("uat-13-report-history-rbac", dbContext => SeedScenario(dbContext, ids));
+        using var client = factory.CreateClient();
+
+        using var deniedRequest = CreateRequest<object?>(
+            HttpMethod.Get,
+            "/api/reports/recent",
+            null,
+            ids.TenantId,
+            Permission.ViewContracts);
+        var deniedResponse = await client.SendAsync(deniedRequest);
+
+        using var invalidLimitRequest = CreateRequest<object?>(
+            HttpMethod.Get,
+            "/api/reports/recent?limit=51",
+            null,
+            ids.TenantId,
+            Permission.ViewReports);
+        var invalidLimitResponse = await client.SendAsync(invalidLimitRequest);
+
+        Assert.Equal(HttpStatusCode.Forbidden, deniedResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidLimitResponse.StatusCode);
     }
 
     private static async Task<ComplianceStatusReportDto> GenerateReportAsync(HttpClient client, Guid tenantId)

@@ -20,6 +20,7 @@ public sealed class InvitationDeliveryServiceTests
         var rawToken = new Uri(sender.Message.ActivationUrl).Query["?token=".Length..];
         Assert.NotEqual(rawToken, repository.TokenHash);
         Assert.Equal(64, repository.TokenHash?.Length);
+        Assert.Equal(1, sender.Message.AttemptNumber);
         Assert.Equal("provider-message-1", repository.ProviderMessageId);
         Assert.Null(repository.FailureCode);
     }

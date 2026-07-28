@@ -63,25 +63,35 @@ public sealed class AzureCommunicationInvitationEmailSender : IInvitationEmailSe
         var roleName = WebUtility.HtmlEncode(message.RoleName);
         var activationUrl = WebUtility.HtmlEncode(message.ActivationUrl);
         var expiration = WebUtility.HtmlEncode(message.ExpiresAt.ToString("f"));
+        var replacementNotice = message.AttemptNumber > 1
+            ? "<p><strong>This updated email replaces every earlier invitation email. Only the link below is valid.</strong></p>"
+            : string.Empty;
         var html = $"""
             <html><body>
             <p>Hello {recipientName},</p>
             <p>You have been invited to join <strong>{tenantName}</strong> as {roleName}.</p>
+            {replacementNotice}
             <p><a href="{activationUrl}">Accept invitation</a></p>
             <p>This single-use link expires {expiration}. Sign in with {WebUtility.HtmlEncode(message.RecipientEmail)}.</p>
             <p>Do not forward this email. FeDril is a No-CUI compliance-management service; do not upload CUI or prohibited sensitive data.</p>
             </body></html>
             """;
+        var replacementPlainText = message.AttemptNumber > 1
+            ? "IMPORTANT: This updated email replaces every earlier invitation email. Only the link below is valid.\n\n"
+            : string.Empty;
         var plainText = $"""
             Hello {message.RecipientDisplayName},
 
             You have been invited to join {message.TenantDisplayName} as {message.RoleName}.
-            Accept the invitation: {message.ActivationUrl}
+            {replacementPlainText}Accept the invitation: {message.ActivationUrl}
 
             This single-use link expires {message.ExpiresAt:f}. Sign in with {message.RecipientEmail}.
             Do not forward this email. FeDril is a No-CUI compliance-management service; do not upload CUI or prohibited sensitive data.
             """;
-        var content = new EmailContent($"Invitation to join {message.TenantDisplayName}")
+        var subject = message.AttemptNumber > 1
+            ? $"UPDATED invitation link for {message.TenantDisplayName}"
+            : $"Invitation to join {message.TenantDisplayName}";
+        var content = new EmailContent(subject)
         {
             Html = html,
             PlainText = plainText

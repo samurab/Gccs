@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known local-only Azurite account key used by the disposable Docker development stack."
+regexTarget = "secret"
+regexes = [
+  '''^Z2Njcy1sb2NhbC1kZXYtc3RvcmFnZS1rZXktMDEyMzQ1Njc4OWFiY2RlZg==$'''
+]

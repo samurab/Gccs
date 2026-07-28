@@ -3,10 +3,18 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InvitationAcceptancePage } from "./InvitationAcceptancePage";
 
-const { getContextMock, acceptMock, selectTenantMock } = vi.hoisted(() => ({
+const {
+  getContextMock,
+  acceptMock,
+  selectTenantMock,
+  selectDevelopmentInvitationIdentityMock,
+  selectDevelopmentTestingContextMock
+} = vi.hoisted(() => ({
   getContextMock: vi.fn(),
   acceptMock: vi.fn(),
-  selectTenantMock: vi.fn()
+  selectTenantMock: vi.fn(),
+  selectDevelopmentInvitationIdentityMock: vi.fn(),
+  selectDevelopmentTestingContextMock: vi.fn()
 }));
 
 vi.mock("./lib/api", async () => {
@@ -15,7 +23,9 @@ vi.mock("./lib/api", async () => {
     ...actual,
     getInvitationAcceptanceContext: getContextMock,
     acceptTenantInvitation: acceptMock,
-    selectTenant: selectTenantMock
+    selectTenant: selectTenantMock,
+    selectDevelopmentInvitationIdentity: selectDevelopmentInvitationIdentityMock,
+    selectDevelopmentTestingContext: selectDevelopmentTestingContextMock
   };
 });
 
@@ -38,9 +48,20 @@ describe("InvitationAcceptancePage", () => {
       error: null
     });
     selectTenantMock.mockReset();
+    selectDevelopmentInvitationIdentityMock.mockReset();
+    selectDevelopmentTestingContextMock.mockReset();
   });
 
   afterEach(() => cleanup());
+
+  it("presents invitation errors with the danger message treatment", async () => {
+    window.history.replaceState({}, "", "/invitations/accept");
+
+    render(<InvitationAcceptancePage />);
+
+    expect(await screen.findByRole("alert")).toHaveClass("invitation-activation-state--error");
+    expect(screen.getByRole("alert")).toHaveTextContent("The activation link is missing its invitation token.");
+  });
 
   it("verifies the signed-in owner, accepts once, and selects the activated tenant", async () => {
     const user = userEvent.setup();
@@ -52,15 +73,50 @@ describe("InvitationAcceptancePage", () => {
     await user.click(screen.getByRole("button", { name: "Accept invitation" }));
 
     expect(acceptMock).toHaveBeenCalledWith("owner-token", "Pilot Owner");
-    expect(selectTenantMock).toHaveBeenCalledWith("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+    expect(selectDevelopmentTestingContextMock).toHaveBeenCalledWith(
+      "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "Owner",
+      null,
+      "owner@example.com"
+    );
     expect(await screen.findByRole("heading", { name: "Workspace activated" })).toBeInTheDocument();
   });
 
-  it("shows a controlled error when the authenticated email does not match", async () => {
-    getContextMock.mockRejectedValue(new Error("The authenticated email does not match this invitation."));
+  it("lets a local tester switch to the invited email after an identity mismatch", async () => {
+    const user = userEvent.setup();
+    getContextMock
+      .mockRejectedValueOnce(new Error("The authenticated email does not match this invitation."))
+      .mockResolvedValueOnce({
+        invitationId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        tenantDisplayName: "Aegis Pilot Workspace",
+        email: "invitee@example.com",
+        roleName: "Contributor",
+        status: "Pending",
+        expiresAt: "2099-08-05T12:00:00Z"
+      });
     render(<InvitationAcceptancePage />);
 
-    expect(await screen.findByRole("heading", { name: "Invitation unavailable" })).toBeInTheDocument();
-    expect(screen.getByText(/does not match this invitation/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Use invited test identity" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Invited email"), "invitee@example.com");
+    await user.click(screen.getByRole("button", { name: "Continue as invitee" }));
+
+    expect(selectDevelopmentInvitationIdentityMock).toHaveBeenCalledWith("invitee@example.com");
+    expect(await screen.findByRole("heading", { name: "Aegis Pilot Workspace" })).toBeInTheDocument();
+  });
+
+  it("shows an existing-member conflict instead of a generic invitation failure", async () => {
+    const user = userEvent.setup();
+    acceptMock.mockResolvedValueOnce({
+      data: null,
+      error:
+        "This email already belongs to a user in the tenant. Ask an administrator to revoke this invitation and manage the existing user's membership or role."
+    });
+    render(<InvitationAcceptancePage />);
+
+    await user.type(await screen.findByLabelText("Display name"), "Existing Member");
+    await user.click(screen.getByRole("button", { name: "Accept invitation" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("already belongs to a user in the tenant");
+    expect(screen.getByRole("alert")).toHaveClass("invitation-activation-state--error");
   });
 });

@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Encodings.Web;
 using Gccs.Domain.Identity;
 using Microsoft.AspNetCore.Authentication;
@@ -32,9 +34,14 @@ public sealed class DevelopmentAuthenticationHandler(
 
         var tenantHeader = Request.Headers["X-Gccs-Dev-Tenant"].FirstOrDefault();
         var userHeader = Request.Headers["X-Gccs-Dev-User"].FirstOrDefault();
+        var emailHeader = Request.Headers["X-Gccs-Dev-Email"].FirstOrDefault();
         var tenantId = tenantHeader is null ? Options.DefaultTenantId : tenantHeader;
-        var userId = userHeader is null ? Options.DefaultUserId : userHeader;
-        var email = Request.Headers["X-Gccs-Dev-Email"].FirstOrDefault() ?? Options.DefaultEmail;
+        var email = emailHeader ?? Options.DefaultEmail;
+        var userId = userHeader is null
+            ? emailHeader is null
+                ? Options.DefaultUserId
+                : CreateDevelopmentUserId(email)
+            : userHeader;
         var roleName = Request.Headers["X-Gccs-Dev-Role"].FirstOrDefault();
         var permissions = Request.Headers["X-Gccs-Dev-Permissions"].FirstOrDefault();
         var platformPermissions = Request.Headers["X-Gccs-Dev-Platform-Permissions"].FirstOrDefault() ??
@@ -94,5 +101,14 @@ public sealed class DevelopmentAuthenticationHandler(
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
 
         return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
+
+    private static string CreateDevelopmentUserId(string email)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"gccs-development-user:{normalizedEmail}"));
+        hash[6] = (byte)((hash[6] & 0x0f) | 0x80);
+        hash[8] = (byte)((hash[8] & 0x3f) | 0x80);
+        return new Guid(hash.AsSpan(0, 16)).ToString();
     }
 }

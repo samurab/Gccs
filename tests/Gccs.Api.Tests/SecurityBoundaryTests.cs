@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Gccs.Api.Security;
 using Gccs.Application.Audit;
 using Gccs.Application.Identity;
 using Gccs.Application.Tenancy;
@@ -88,6 +89,20 @@ public sealed class SecurityBoundaryTests : IClassFixture<WebApplicationFactory<
     }
 
     [Fact]
+    public async Task Development_auth_derives_a_stable_distinct_user_id_for_an_explicit_email()
+    {
+        using var client = _factory.CreateClient();
+
+        var firstUserId = await GetDevelopmentUserIdAsync(client, "invitee.one@example.com");
+        var repeatedUserId = await GetDevelopmentUserIdAsync(client, "INVITEE.ONE@example.com");
+        var secondUserId = await GetDevelopmentUserIdAsync(client, "invitee.two@example.com");
+
+        Assert.Equal(firstUserId, repeatedUserId);
+        Assert.NotEqual(DevelopmentAuthenticationOptions.FallbackUserId, firstUserId.ToString());
+        Assert.NotEqual(firstUserId, secondUserId);
+    }
+
+    [Fact]
     public async Task Authenticated_permissioned_api_request_preserves_tenant_scoped_no_cui_response_shape()
     {
         var tenantId = Guid.Parse("33333333-3333-3333-3333-333333333332");
@@ -110,6 +125,19 @@ public sealed class SecurityBoundaryTests : IClassFixture<WebApplicationFactory<
         Assert.Equal(0, payload.RootElement.GetProperty("controlsTotal").GetInt32());
         Assert.Equal(0, payload.RootElement.GetProperty("evidenceItems").GetInt32());
         Assert.Empty(payload.RootElement.GetProperty("recentAuditEvents").EnumerateArray());
+    }
+
+    private static async Task<Guid> GetDevelopmentUserIdAsync(HttpClient client, string email)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/me/access");
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Email", email);
+
+        var response = await client.SendAsync(request);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return payload.RootElement.GetProperty("userId").GetGuid();
     }
 
     [Fact]

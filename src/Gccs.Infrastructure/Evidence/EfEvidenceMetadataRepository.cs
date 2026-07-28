@@ -361,40 +361,64 @@ public sealed class EfEvidenceMetadataRepository(
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
+        var activeTasks = await dbContext.ComplianceTasks
+            .Where(task =>
+                task.TenantId == tenantContext.TenantId &&
+                task.Type == ComplianceTaskType.Renewal &&
+                task.EvidenceItemId == entity.Id &&
+                task.Status != ComplianceTaskStatus.Done &&
+                task.Status != ComplianceTaskStatus.Canceled)
+            .OrderByDescending(task => task.CreatedAt)
+            .ToListAsync(cancellationToken);
+
         if (entity.ExpiresAt is not { } expiresAt)
         {
+            foreach (var task in activeTasks)
+            {
+                task.Status = ComplianceTaskStatus.Canceled;
+                task.UpdatedAt = now;
+                task.UpdatedByUserId = actorUserId;
+            }
+
             return;
         }
 
         var reminderDueAt = expiresAt.AddDays(-30);
-        var exists = await dbContext.ComplianceTasks.AnyAsync(
-            task =>
-                task.TenantId == tenantContext.TenantId &&
-                task.Type == ComplianceTaskType.Renewal &&
-                task.EvidenceItemId == entity.Id &&
-                task.DueAt == reminderDueAt,
-            cancellationToken);
-
-        if (exists)
+        var currentTask = activeTasks.FirstOrDefault(task => task.DueAt == reminderDueAt) ??
+            activeTasks.FirstOrDefault();
+        if (currentTask is null)
         {
+            dbContext.ComplianceTasks.Add(new ComplianceTaskEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                Title = $"Renew evidence: {entity.Name}",
+                Description = $"{entity.Name} expires on {expiresAt:yyyy-MM-dd}.",
+                Type = ComplianceTaskType.Renewal,
+                Status = ComplianceTaskStatus.Open,
+                RiskLevel = RiskLevel.Medium,
+                OwnerFunction = entity.OwnerFunction,
+                DueAt = reminderDueAt,
+                EvidenceItemId = entity.Id,
+                CreatedAt = now,
+                CreatedByUserId = actorUserId
+            });
             return;
         }
 
-        dbContext.ComplianceTasks.Add(new ComplianceTaskEntity
+        currentTask.Title = $"Renew evidence: {entity.Name}";
+        currentTask.Description = $"{entity.Name} expires on {expiresAt:yyyy-MM-dd}.";
+        currentTask.OwnerFunction = entity.OwnerFunction;
+        currentTask.DueAt = reminderDueAt;
+        currentTask.UpdatedAt = now;
+        currentTask.UpdatedByUserId = actorUserId;
+
+        foreach (var duplicate in activeTasks.Where(task => task.Id != currentTask.Id))
         {
-            Id = Guid.NewGuid(),
-            TenantId = tenantContext.TenantId,
-            Title = $"Renew evidence: {entity.Name}",
-            Description = $"{entity.Name} expires on {expiresAt:yyyy-MM-dd}.",
-            Type = ComplianceTaskType.Renewal,
-            Status = ComplianceTaskStatus.Open,
-            RiskLevel = RiskLevel.Medium,
-            OwnerFunction = entity.OwnerFunction,
-            DueAt = reminderDueAt,
-            EvidenceItemId = entity.Id,
-            CreatedAt = now,
-            CreatedByUserId = actorUserId
-        });
+            duplicate.Status = ComplianceTaskStatus.Canceled;
+            duplicate.UpdatedAt = now;
+            duplicate.UpdatedByUserId = actorUserId;
+        }
     }
 
     private EvidenceMetadataDto ToDto(EvidenceItemEntity entity) =>

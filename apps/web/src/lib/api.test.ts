@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getFreshAccessToken } from "../auth";
-import { getCurrentUserAccess, selectDevelopmentTestingContext } from "./api";
+import {
+  getCurrentUserAccess,
+  getEvidencePackage,
+  getRecentReports,
+  getReportArtifact,
+  revokeTenantInvitation,
+  selectDevelopmentInvitationIdentity,
+  selectDevelopmentTestingContext
+} from "./api";
 
 vi.mock("../auth", () => ({
   getFreshAccessToken: vi.fn()
@@ -27,9 +35,14 @@ describe("FeDril API client", () => {
     vi.mocked(getFreshAccessToken).mockReset();
   });
 
-  it("sends the selected local tenant and role through development authentication headers", async () => {
+  it("sends the selected local tenant, persona, and role through development authentication headers", async () => {
     vi.stubEnv("DEV", true);
-    selectDevelopmentTestingContext("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2", "Auditor");
+    selectDevelopmentTestingContext(
+      "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+      "Auditor",
+      "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      "auditor@example.com"
+    );
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -50,12 +63,50 @@ describe("FeDril API client", () => {
       {
         headers: expect.objectContaining({
           "X-Gccs-Dev-Auth": "true",
+          "X-Gccs-Dev-Email": "auditor@example.com",
           "X-Gccs-Dev-Role": "Auditor",
+          "X-Gccs-Dev-User": "cccccccc-cccc-cccc-cccc-ccccccccccc1",
           "X-Gccs-Dev-Tenant": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
           "X-Gccs-Tenant": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2"
         })
       }
     );
+  });
+
+  it("uses an invited development email without reusing the selected persona user id", async () => {
+    vi.stubEnv("DEV", true);
+    selectDevelopmentTestingContext(
+      "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+      "Owner",
+      "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      "owner@example.com"
+    );
+    selectDevelopmentInvitationIdentity("  Invitee@Example.com ");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+        userId: "dddddddd-dddd-dddd-dddd-ddddddddddd1",
+        userEmail: "invitee@example.com",
+        roles: ["Owner"],
+        permissions: [],
+        rolePermissionMatrix: {}
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getCurrentUserAccess();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:5062/api/me/access",
+      {
+        headers: expect.objectContaining({
+          "X-Gccs-Dev-Email": "invitee@example.com"
+        })
+      }
+    );
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    expect(headers).not.toHaveProperty("X-Gccs-Dev-User");
   });
 
   it("derives effective permissions from returned roles and role matrix", async () => {
@@ -172,6 +223,117 @@ describe("FeDril API client", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:5062/api/me/access",
       { headers: { Authorization: "Bearer fresh-access-token" } }
+    );
+  });
+
+  it("posts pending invitation revocation to the tenant-scoped endpoint", async () => {
+    vi.stubEnv("DEV", true);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ invitationId: "dddddddd-dddd-dddd-dddd-ddddddddddd1", status: "Revoked" })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await revokeTenantInvitation(
+      "dddddddd-dddd-dddd-dddd-ddddddddddd1",
+      { reason: "Duplicate invitation." }
+    );
+
+    expect(result.data).toEqual(expect.objectContaining({ status: "Revoked" }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:5062/api/tenant-invitations/dddddddd-dddd-dddd-dddd-ddddddddddd1/revoke",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ reason: "Duplicate invitation." })
+      })
+    );
+  });
+
+  it("loads a persisted evidence package through the tenant-scoped report detail endpoint", async () => {
+    vi.stubEnv("DEV", true);
+    selectDevelopmentTestingContext(
+      "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+      "Auditor",
+      "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      "auditor@example.com"
+    );
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "33333333-3333-3333-3333-333333333332",
+        tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+        type: "PrimeEvidencePackage",
+        status: "Complete",
+        title: "Prime review evidence package",
+        disclaimer: "Workflow guidance only.",
+        manifest: { scope: {}, items: [] }
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const report = await getEvidencePackage("33333333-3333-3333-3333-333333333332");
+
+    expect(report.title).toBe("Prime review evidence package");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:5062/api/reports/evidence-packages/33333333-3333-3333-3333-333333333332",
+      {
+        headers: expect.objectContaining({
+          "X-Gccs-Dev-Tenant": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+          "X-Gccs-Tenant": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2"
+        })
+      }
+    );
+  });
+
+  it("loads bounded report history and structured report detail with the selected tenant headers", async () => {
+    vi.stubEnv("DEV", true);
+    selectDevelopmentTestingContext(
+      "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+      "Compliance Manager",
+      "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      "manager@example.com"
+    );
+    const reportId = "33333333-3333-3333-3333-333333333339";
+    const report = {
+      id: reportId,
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+      type: "ComplianceStatus",
+      status: "Complete",
+      title: "Compliance status report",
+      generatedAt: "2026-07-27T21:00:00Z",
+      generatedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      disclaimer: "Workflow guidance only."
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => [report] })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ...report, snapshot: { totalObligations: 1 } }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const history = await getRecentReports();
+    const detail = await getReportArtifact(reportId);
+
+    expect(history).toEqual([report]);
+    expect(detail.snapshot.totalObligations).toBe(1);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:5062/api/reports/recent?limit=25",
+      {
+        headers: expect.objectContaining({
+          "X-Gccs-Dev-Tenant": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+          "X-Gccs-Tenant": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2"
+        })
+      }
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `http://localhost:5062/api/reports/${reportId}`,
+      {
+        headers: expect.objectContaining({
+          "X-Gccs-Dev-Tenant": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+          "X-Gccs-Tenant": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2"
+        })
+      }
     );
   });
 });

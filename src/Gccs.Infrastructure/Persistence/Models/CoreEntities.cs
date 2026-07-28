@@ -543,6 +543,24 @@ public sealed class NotificationDeliveryEntity : AuditedEntity
     public DateTimeOffset? ReadAt { get; set; }
 }
 
+public sealed class AssignmentEmailDeliveryEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid NotificationDeliveryId { get; set; }
+    public Guid UserId { get; set; }
+    public string RecipientEmail { get; set; } = string.Empty;
+    public string RecipientDisplayName { get; set; } = string.Empty;
+    public string LinkUrl { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public int AttemptCount { get; set; }
+    public DateTimeOffset? NextAttemptAt { get; set; }
+    public DateTimeOffset? LeaseUntil { get; set; }
+    public DateTimeOffset? SentAt { get; set; }
+    public string? ProviderMessageId { get; set; }
+    public string? FailureCode { get; set; }
+}
+
 public sealed class RoleEntity : AuditedEntity
 {
     public Guid Id { get; set; }

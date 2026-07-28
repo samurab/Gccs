@@ -27,7 +27,7 @@ Do not use real customer CUI, classified information, export-controlled technica
 | Auditor | Elena Carter, `elena.carter+uat@example.com` | Read-only acceptance review | Can view records and reports, cannot modify workflow data or audit logs |
 | Advisor | Avery Quinn, `avery.quinn+advisor@example.com` | External compliance advisor review | Can help manage compliance workflow and view audit log inside tenant boundary |
 
-Note: In local development, the React app uses development authentication headers. Treat the names above as test personas unless separate login accounts are configured.
+Note: In local development, the React app uses development authentication headers. Treat the names above as test personas unless separate login accounts are configured. `Switch user` lists only active users with an active membership in the selected tenant. Before UAT-09, confirm Priya Shah and Devin Brooks have active memberships; an invitation that has not been accepted is not sufficient.
 
 ## Test Data
 
@@ -151,11 +151,13 @@ Steps:
 
 1. Stay on `Contracts`.
 2. Select `DEMO-NC-26-0007`.
-3. In `Documents`, set `Document type` to `Contract`.
-4. Set `Contract document classification` to `FCI`.
-5. Choose a local text file named `demo-nc-contract.txt` containing the allowed synthetic text from `Test Data`.
-6. Click `Upload metadata`.
-7. Confirm the document appears in the document list with `FCI` classification.
+3. In `Required before contract or evidence work`, confirm the current No-CUI notice is acknowledged. If it is not, check all four `Required user acknowledgement` statements and click `I acknowledge the No-CUI upload limitation`.
+4. Confirm the acknowledgement status is `Acknowledged` before continuing.
+5. In `Documents`, set `Document type` to `Contract`.
+6. Set `Contract document classification` to `FCI`.
+7. Choose a local text file named `demo-nc-contract.txt` containing the allowed synthetic text from `Test Data`.
+8. Click `Upload metadata`.
+9. Confirm the document appears in the document list with `FCI` classification.
 
 Expected result: The app accepts synthetic FCI-only contract document metadata.
 
@@ -256,18 +258,26 @@ Role: Compliance Manager.
 
 Tab: `Obligations`.
 
+Prerequisite: Priya Shah and Devin Brooks are active members of the selected tenant. Confirm both names appear under `Switch user` before assigning the obligation. If the selector is disabled or either name is absent, complete the tenant invitation/activation workflow first.
+
 Steps:
 
 1. Stay in the opened obligation detail.
-2. In `Assign by`, choose `Role`.
-3. In `Role`, choose `Compliance manager` or `Security`.
-4. Check `Notify owner` if available.
+2. In `Assign by`, choose `Tenant member`.
+3. In `Tenant member`, choose `Devin Brooks`.
+4. Leave `Also send assignment email` checked.
 5. Click `Assign owner`.
-6. Return to the work queue and confirm the owner/role assignment appears.
+6. Reload, reopen the obligation detail, and confirm `Currently assigned to`, `Assign by`, and `Tenant member` show Devin Brooks.
+7. In the local test context, use `Switch user` to select Devin Brooks and apply the context.
+8. Confirm the notification bell shows an unread direct assignment. Open it, then return to `Obligations` and select `My assignments`.
+9. Switch the development user back to Priya Shah, assign the same obligation by `Role`, and choose `Compliance manager`.
+10. Reload, reopen the detail, and confirm the saved role remains displayed.
+11. Select `Role assignments` and confirm the obligation appears with the role-queue count.
+12. Switch to an active Compliance Manager persona and confirm the bell contains the role-assignment notification.
 
-Expected result: The owner assignment updates and remains visible with the obligation.
+Expected result: A tenant-member or role assignment remains visible after reload in both the persistent assignment summary and assignment controls. A directly assigned member receives an in-app notification and can find the obligation under `My assignments`. Active members of an assigned role receive one deduplicated in-app notification and can find the obligation under `Role assignments`. When direct-assignment email delivery is configured and the member's `Assignment emails` preference is enabled, an email is queued asynchronously. Role-assignment email remains disabled.
 
-Reason: Owner assignment prevents generated obligations from becoming unowned backlog. It also supports reminders, calendar review, and management reporting.
+Reason: Direct and role ownership must survive reload, provide an explicit queue, and make eligible recipients aware of new work. Role notification fan-out remains tenant-scoped and in-app only to avoid ungoverned mass email. Asynchronous direct-assignment email delivery prevents an external email-provider failure from rolling back the obligation assignment.
 
 ## UAT-10: Acknowledge No-CUI Evidence Rules
 
@@ -344,15 +354,15 @@ Steps:
 
 1. Click the `Reports` tab.
 2. In `Compliance status`, click `Generate status`.
-3. Confirm a report appears under `Generated this session`.
+3. Confirm a report appears under `Recent generated reports`, then click its card and confirm the report detail panel opens. Reload the page and confirm the report remains listed.
 4. In `Evidence package builder`, enter `Prime review evidence package - No-CUI UAT` for `Package title`.
 5. Select the generated obligation if available.
 6. Select contract `DEMO-NC-26-0007`.
 7. Select control `AC.L1-3.1.1` if available.
 8. Leave `Include draft/rejected evidence when authorized` unchecked.
 9. Click `Generate package`.
-10. Confirm the package appears under `Generated this session` or `Approved evidence packages`.
-11. Confirm the report wording says it is workflow guidance and does not claim legal advice, certification decision, assessor determination, contracting-officer determination, or government endorsement.
+10. Confirm the package appears under `Recent generated reports` or `Approved evidence packages`, then click its card and confirm the package detail panel opens.
+11. In the opened detail panel, confirm the report wording says it is workflow guidance and does not claim legal advice, certification decision, assessor determination, contracting-officer determination, or government endorsement.
 
 Expected result: A current report artifact is generated from tenant-scoped obligations, contract data, and approved evidence metadata.
 
