@@ -21,6 +21,19 @@ for (const persona of readOnlyPersonas) {
     page,
     request
   }) => {
+    const setupHeaders = {
+      "X-Gccs-Dev-Auth": "true",
+      "X-Gccs-Dev-Tenant": tenantId,
+      "X-Gccs-Tenant": tenantId,
+      "X-Gccs-Dev-User": "22222222-2222-2222-2222-222222222222",
+      "X-Gccs-Dev-Email": "alpha.admin@gccs.local",
+      "X-Gccs-Dev-Role": "Admin"
+    };
+    const setupReportResponse = await request.post(`${apiURL}/api/reports/compliance-status`, {
+      headers: setupHeaders
+    });
+    expect(setupReportResponse.status()).toBe(201);
+
     await page.addInitScript(
       ({ selectedTenantId, role, userId, email }) => {
         window.localStorage.setItem("gccs.selectedTenantId", selectedTenantId);
