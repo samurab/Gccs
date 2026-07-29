@@ -45,8 +45,8 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             [RoleCatalog.Owner, RoleCatalog.Admin, RoleCatalog.ComplianceManager, RoleCatalog.Contributor, RoleCatalog.Auditor, RoleCatalog.Advisor],
             RoleCatalog.Roles);
 
-        AssertRoleHas(RoleCatalog.Owner, Permission.ManageTenant, Permission.ManageUsers, Permission.ManageReports, Permission.ViewAuditLog);
-        AssertRoleHas(RoleCatalog.Admin, Permission.ManageUsers, Permission.ManageCompanyProfile, Permission.ManageContracts, Permission.ManageEvidence);
+        AssertRoleHas(RoleCatalog.Owner, Permission.ManageTenant, Permission.ManageUsers, Permission.ManageReports, Permission.ArchiveReports, Permission.ViewAuditLog);
+        AssertRoleHas(RoleCatalog.Admin, Permission.ManageUsers, Permission.ManageCompanyProfile, Permission.ManageContracts, Permission.ManageEvidence, Permission.ArchiveReports);
         AssertRoleHas(RoleCatalog.ComplianceManager, Permission.ManageObligations, Permission.ManageTasks, Permission.ApproveEvidence, Permission.ManageSubcontractors);
         AssertRoleHas(RoleCatalog.Contributor, Permission.ViewCompanyProfile, Permission.ManageTasks, Permission.ManageEvidence);
         AssertRoleHas(RoleCatalog.Auditor, Permission.AuditorReadOnly, Permission.ViewEvidence, Permission.ViewReports);
@@ -75,7 +75,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             Permission.ManageSubcontractors,
             Permission.ManageReports);
         AssertRoleDoesNotHave(RoleCatalog.Admin, Permission.ManageTenant);
-        AssertRoleDoesNotHave(RoleCatalog.Contributor, Permission.ManageUsers, Permission.ApproveEvidence, Permission.ManageReports);
+        AssertRoleDoesNotHave(RoleCatalog.Contributor, Permission.ManageUsers, Permission.ApproveEvidence, Permission.ManageReports, Permission.ArchiveReports);
         AssertRoleDoesNotHave(
             RoleCatalog.Auditor,
             Permission.ManageUsers,
@@ -88,8 +88,10 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             Permission.ManageCmmc,
             Permission.ManageSubcontractors,
             Permission.ManageReports,
+            Permission.ArchiveReports,
             Permission.ManageTenant);
-        AssertRoleDoesNotHave(RoleCatalog.Advisor, Permission.ManageUsers, Permission.ManageTenant);
+        AssertRoleDoesNotHave(RoleCatalog.Advisor, Permission.ManageUsers, Permission.ManageTenant, Permission.ArchiveReports);
+        AssertRoleDoesNotHave(RoleCatalog.ComplianceManager, Permission.ArchiveReports);
     }
 
     [Fact]
@@ -103,6 +105,16 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
                 Assert.Contains(Permission.ViewReports, permissions);
             }
         });
+    }
+
+    [Fact]
+    public void Report_archive_permission_is_limited_to_owner_and_admin()
+    {
+        var rolesWithArchivePermission = RoleCatalog.Roles
+            .Where(roleName => RoleCatalog.GetPermissions(roleName).Contains(Permission.ArchiveReports))
+            .ToArray();
+
+        Assert.Equal([RoleCatalog.Owner, RoleCatalog.Admin], rolesWithArchivePermission);
     }
 
     [Fact]
@@ -418,6 +430,188 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
     }
 
     [Fact]
+    public async Task UAT_02_Auditor_can_open_report_detail_but_cannot_archive_it()
+    {
+        var tenantId = Guid.NewGuid();
+        var reportId = Guid.NewGuid();
+        await using var factory = CreateFactory("uat-02-auditor-report-detail", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "UAT-02 Auditor tenant"));
+            dbContext.Reports.Add(CreateComplianceStatusReport(reportId, tenantId));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        var auditorId = Guid.NewGuid();
+
+        using var listRequest = CreateRequest(HttpMethod.Get, "/api/reports/recent", tenantId, auditorId, RoleCatalog.Auditor);
+        using var listResponse = await client.SendAsync(listRequest);
+        var reports = await listResponse.Content.ReadFromJsonAsync<ReportHistoryItemDto[]>(JsonOptions);
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.Equal(reportId, Assert.Single(reports ?? []).Id);
+
+        using var detailRequest = CreateRequest(HttpMethod.Get, $"/api/reports/{reportId}", tenantId, auditorId, RoleCatalog.Auditor);
+        using var detailResponse = await client.SendAsync(detailRequest);
+        var detail = await detailResponse.Content.ReadFromJsonAsync<ReportArtifactDetailDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+        Assert.Equal(reportId, detail?.Id);
+        Assert.Equal(1, detail?.Snapshot.GetProperty("totalObligations").GetInt32());
+
+        using var archiveRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/reports/{reportId}/archive",
+            new ReportLifecycleRequest("Auditor must not archive reports."),
+            tenantId,
+            auditorId,
+            RoleCatalog.Auditor);
+        using var archiveResponse = await client.SendAsync(archiveRequest);
+        await AssertStandardAuthorizationErrorAsync(archiveResponse);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Equal(ReportStatus.Complete, (await dbContext.Reports.SingleAsync()).Status);
+        Assert.DoesNotContain(
+            await dbContext.AuditLogEntries.ToArrayAsync(),
+            audit => audit.EntityType == "Report" && audit.EntityId == reportId.ToString());
+    }
+
+    [Fact]
+    public async Task Admin_can_archive_and_restore_report_with_tenant_scoped_idempotent_audit_history()
+    {
+        var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
+        var reportId = Guid.NewGuid();
+        await using var factory = CreateFactory("report-archive-lifecycle", dbContext =>
+        {
+            dbContext.Tenants.AddRange(
+                CreateTenant(tenantId, "Archive tenant"),
+                CreateTenant(otherTenantId, "Other archive tenant"));
+            dbContext.Reports.Add(CreateComplianceStatusReport(reportId, tenantId));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        var adminId = Guid.NewGuid();
+
+        using var invalidRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/reports/{reportId}/archive",
+            new ReportLifecycleRequest(" "),
+            tenantId,
+            adminId,
+            RoleCatalog.Admin);
+        using var invalidResponse = await client.SendAsync(invalidRequest);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidResponse.StatusCode);
+
+        using var crossTenantRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/reports/{reportId}/archive",
+            new ReportLifecycleRequest("Must not cross tenant boundaries."),
+            otherTenantId,
+            adminId,
+            RoleCatalog.Admin);
+        using var crossTenantResponse = await client.SendAsync(crossTenantRequest);
+        Assert.Equal(HttpStatusCode.NotFound, crossTenantResponse.StatusCode);
+
+        using var archiveRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/reports/{reportId}/archive",
+            new ReportLifecycleRequest("Superseded by a corrected immutable snapshot."),
+            tenantId,
+            adminId,
+            RoleCatalog.Admin);
+        using var archiveResponse = await client.SendAsync(archiveRequest);
+        var archived = await archiveResponse.Content.ReadFromJsonAsync<ReportArtifactDetailDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.OK, archiveResponse.StatusCode);
+        Assert.Equal(ReportStatus.Archived, archived?.Status);
+        Assert.Equal("Superseded by a corrected immutable snapshot.", archived?.ArchiveReason);
+        Assert.Equal(adminId, archived?.ArchivedByUserId);
+        Assert.NotNull(archived?.ArchivedAt);
+
+        using var repeatedArchiveRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/reports/{reportId}/archive",
+            new ReportLifecycleRequest("Repeated request must be idempotent."),
+            tenantId,
+            adminId,
+            RoleCatalog.Admin);
+        using var repeatedArchiveResponse = await client.SendAsync(repeatedArchiveRequest);
+        Assert.Equal(HttpStatusCode.OK, repeatedArchiveResponse.StatusCode);
+
+        using var restoreRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/reports/{reportId}/restore",
+            new ReportLifecycleRequest("Original snapshot remains the authoritative artifact."),
+            tenantId,
+            adminId,
+            RoleCatalog.Admin);
+        using var restoreResponse = await client.SendAsync(restoreRequest);
+        var restored = await restoreResponse.Content.ReadFromJsonAsync<ReportArtifactDetailDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.OK, restoreResponse.StatusCode);
+        Assert.Equal(ReportStatus.Complete, restored?.Status);
+        Assert.Null(restored?.ArchivedAt);
+        Assert.Null(restored?.ArchivedByUserId);
+        Assert.Null(restored?.ArchiveReason);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var audits = await dbContext.AuditLogEntries
+            .Where(audit => audit.EntityType == "Report" && audit.EntityId == reportId.ToString())
+            .OrderBy(audit => audit.OccurredAt)
+            .ToArrayAsync();
+        Assert.Equal(2, audits.Length);
+        Assert.Equal(AuditAction.Archived, audits[0].Action);
+        Assert.Contains("Superseded by a corrected immutable snapshot.", audits[0].MetadataJson);
+        Assert.Equal(AuditAction.Updated, audits[1].Action);
+        Assert.Contains("Original snapshot remains the authoritative artifact.", audits[1].MetadataJson);
+    }
+
+    [Fact]
+    public async Task Concurrent_archive_requests_produce_one_state_transition_and_one_audit_event()
+    {
+        var tenantId = Guid.NewGuid();
+        var reportId = Guid.NewGuid();
+        await using var factory = CreateFactory("report-archive-concurrency", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Concurrent archive tenant"));
+            dbContext.Reports.Add(CreateComplianceStatusReport(reportId, tenantId));
+            dbContext.SaveChanges();
+        });
+        using var firstClient = factory.CreateClient();
+        using var secondClient = factory.CreateClient();
+        var adminId = Guid.NewGuid();
+        using var firstRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/reports/{reportId}/archive",
+            new ReportLifecycleRequest("First concurrent archive request."),
+            tenantId,
+            adminId,
+            RoleCatalog.Admin);
+        using var secondRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/reports/{reportId}/archive",
+            new ReportLifecycleRequest("Second concurrent archive request."),
+            tenantId,
+            adminId,
+            RoleCatalog.Admin);
+
+        var responses = await Task.WhenAll(
+            firstClient.SendAsync(firstRequest),
+            secondClient.SendAsync(secondRequest));
+        using var firstResponse = responses[0];
+        using var secondResponse = responses[1];
+
+        Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Equal(ReportStatus.Archived, (await dbContext.Reports.SingleAsync()).Status);
+        Assert.Single(await dbContext.AuditLogEntries
+            .Where(audit =>
+                audit.EntityType == "Report" &&
+                audit.EntityId == reportId.ToString() &&
+                audit.Action == AuditAction.Archived)
+            .ToArrayAsync());
+    }
+
+    [Fact]
     public async Task Current_access_endpoint_returns_role_derived_permissions_for_ui_gating()
     {
         await using var factory = CreateFactory("tc-2-4-access");
@@ -549,6 +743,20 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             GeneratedAt = DateTimeOffset.Parse("2026-06-13T12:00:00Z"),
             GeneratedByUserId = Guid.Parse("24242424-2424-2424-2424-242424242499"),
             CreatedAt = DateTimeOffset.Parse("2026-06-13T12:00:00Z")
+        };
+
+    private static ReportEntity CreateComplianceStatusReport(Guid reportId, Guid tenantId) =>
+        new()
+        {
+            Id = reportId,
+            TenantId = tenantId,
+            Type = ReportType.ComplianceStatus,
+            Title = "Compliance status report",
+            Status = ReportStatus.Complete,
+            GeneratedAt = DateTimeOffset.Parse("2026-07-28T12:00:00Z"),
+            GeneratedByUserId = Guid.Parse("24242424-2424-2424-2424-242424242499"),
+            SnapshotJson = """{"totalObligations":1}""",
+            CreatedAt = DateTimeOffset.Parse("2026-07-28T12:00:00Z")
         };
 
     private static EvidenceItemEntity CreateEvidence(

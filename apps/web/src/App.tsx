@@ -46,6 +46,7 @@ import {
   acknowledgeNoCuiNotice,
   acknowledgeSharedResponsibilityMatrix,
   acceptClauseCandidate,
+  archiveReport,
   applyCompanyEntityLookup,
   applySubcontractorEntityLookup,
   approveCuiReadyApprovalChecklist,
@@ -120,6 +121,7 @@ import {
   seedDemoTenant,
   removeContractClause,
   rejectClauseCandidate,
+  restoreReport,
   startContractDocumentExtraction,
   supersedeClauseCandidate,
   supersedeCuiReadyApprovalChecklist,
@@ -745,6 +747,7 @@ export function App() {
   const canManageObligations = access.permissions.includes("ManageObligations");
   const canManageCmmc = access.permissions.includes("ManageCmmc");
   const canManageReports = access.permissions.includes("ManageReports");
+  const canArchiveReports = access.permissions.includes("ArchiveReports");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
   const canManageTenant = access.permissions.includes("ManageTenant");
 
@@ -2060,6 +2063,43 @@ export function App() {
     }
   }
 
+  async function handleReportArchiveStateChange(reportId: string, archived: boolean, reason: string): Promise<boolean> {
+    setReportStatus("loading");
+    setReportMessage("");
+    const result = archived
+      ? await archiveReport(reportId, reason)
+      : await restoreReport(reportId, reason);
+
+    if (!result.data) {
+      setReportStatus("failed");
+      setReportMessage(result.error ?? `Report could not be ${archived ? "archived" : "restored"}.`);
+      return false;
+    }
+
+    const updatedReport = result.data;
+    setSelectedReport(updatedReport);
+    setGeneratedReports((reports) =>
+      reports.map((report) => (report.id === updatedReport.id ? { ...report, ...updatedReport } : report))
+    );
+    setRecentReports((reports) =>
+      reports.map((report) =>
+        report.id === updatedReport.id
+          ? {
+              ...report,
+              status: updatedReport.status,
+              archivedAt: updatedReport.archivedAt,
+              archivedByUserId: updatedReport.archivedByUserId,
+              archiveReason: updatedReport.archiveReason
+            }
+          : report
+      )
+    );
+    setReportDetailStatus("ready");
+    setReportStatus("ready");
+    setReportMessage(`Report ${archived ? "archived" : "restored"} successfully.`);
+    return true;
+  }
+
   function handleReportDetailClose() {
     setSelectedReport(null);
     setReportDetailStatus("idle");
@@ -2354,6 +2394,7 @@ export function App() {
             <ReportsView
               approvedEvidencePackages={approvedEvidencePackages}
               assessments={cmmcAssessments}
+              canArchiveReports={canArchiveReports}
               canManageReports={canManageReports}
               controls={cmmcControlLibrary}
               contracts={contracts}
@@ -2372,6 +2413,7 @@ export function App() {
               onComplianceReportGenerate={handleComplianceReportGenerate}
               onEvidencePackageGenerate={handleEvidencePackageGenerate}
               onGeneratedReportSelect={handleGeneratedReportSelect}
+              onReportArchiveStateChange={handleReportArchiveStateChange}
               onReportDetailClose={handleReportDetailClose}
               onSubcontractorReportGenerate={handleSubcontractorReportGenerate}
             />
@@ -6746,6 +6788,7 @@ function SubcontractorDetailPanel({
 function ReportsView({
   approvedEvidencePackages,
   assessments,
+  canArchiveReports,
   canManageReports,
   controls,
   contracts,
@@ -6759,6 +6802,7 @@ function ReportsView({
   onComplianceReportGenerate,
   onEvidencePackageGenerate,
   onGeneratedReportSelect,
+  onReportArchiveStateChange,
   onReportDetailClose,
   onSubcontractorReportGenerate,
   reportDetailMessage,
@@ -6769,6 +6813,7 @@ function ReportsView({
 }: {
   approvedEvidencePackages: ApprovedEvidencePackage[];
   assessments: CmmcAssessment[];
+  canArchiveReports: boolean;
   canManageReports: boolean;
   controls: CmmcControlLibrary[];
   contracts: ContractRecord[];
@@ -6782,6 +6827,7 @@ function ReportsView({
   onComplianceReportGenerate: () => Promise<void>;
   onEvidencePackageGenerate: (request: EvidencePackageGenerateRequest) => Promise<void>;
   onGeneratedReportSelect: (report: ReportArtifact | ReportHistoryItem) => Promise<void>;
+  onReportArchiveStateChange: (reportId: string, archived: boolean, reason: string) => Promise<boolean>;
   onReportDetailClose: () => void;
   onSubcontractorReportGenerate: (contractId?: string) => Promise<void>;
   reportDetailMessage: string;
@@ -7034,7 +7080,12 @@ function ReportsView({
         </Alert>
       ) : null}
       {reportDetailStatus === "ready" && selectedReport ? (
-        <ReportDetailPanel report={selectedReport} onClose={onReportDetailClose} />
+        <ReportDetailPanel
+          canArchive={canArchiveReports && "snapshot" in selectedReport}
+          report={selectedReport}
+          onArchiveStateChange={onReportArchiveStateChange}
+          onClose={onReportDetailClose}
+        />
       ) : null}
     </section>
   );
@@ -7073,12 +7124,59 @@ function renderReportSummary(report: ReportArtifact) {
   return [totalSubcontractors, openGaps, highRisk].filter(Boolean).join(" · ") || "Snapshot complete";
 }
 
-function ReportDetailPanel({ onClose, report }: { onClose: () => void; report: ReportArtifact }) {
+function ReportDetailPanel({
+  canArchive,
+  onArchiveStateChange,
+  onClose,
+  report
+}: {
+  canArchive: boolean;
+  onArchiveStateChange: (reportId: string, archived: boolean, reason: string) => Promise<boolean>;
+  onClose: () => void;
+  report: ReportArtifact;
+}) {
+  const panelRef = useRef<HTMLElement>(null);
+  const [lifecycleReason, setLifecycleReason] = useState("");
+  const [lifecyclePending, setLifecyclePending] = useState(false);
   const metrics = reportDetailMetrics(report);
   const items = reportDetailItems(report);
+  const isArchived = report.status === "Archived";
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) {
+      return;
+    }
+
+    panel.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    panel.focus({ preventScroll: true });
+  }, [report.id]);
+
+  async function handleLifecycleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!lifecycleReason.trim()) {
+      return;
+    }
+
+    setLifecyclePending(true);
+    try {
+      const succeeded = await onArchiveStateChange(report.id, !isArchived, lifecycleReason.trim());
+      if (succeeded) {
+        setLifecycleReason("");
+      }
+    } finally {
+      setLifecyclePending(false);
+    }
+  }
 
   return (
-    <section className="report-detail" aria-label="Generated report detail" aria-live="polite">
+    <section
+      className="report-detail"
+      aria-label="Generated report detail"
+      aria-live="polite"
+      ref={panelRef}
+      tabIndex={-1}
+    >
       <div className="section-heading section-heading--split">
         <div>
           <p className="eyebrow">Report artifact</p>
@@ -7096,6 +7194,12 @@ function ReportDetailPanel({ onClose, report }: { onClose: () => void; report: R
       <Alert title="Artifact limitations" tone="warning">
         {report.disclaimer}
       </Alert>
+
+      {isArchived && "archiveReason" in report && report.archiveReason ? (
+        <Alert title="Archived report" tone="warning">
+          {String(report.archiveReason)}
+        </Alert>
+      ) : null}
 
       <dl className="report-detail__metrics">
         {metrics.map((metric) => (
@@ -7122,6 +7226,30 @@ function ReportDetailPanel({ onClose, report }: { onClose: () => void; report: R
       <p className="report-detail__identifier">
         Report ID <code>{report.id}</code>
       </p>
+
+      {canArchive ? (
+        <form className="evidence-form" onSubmit={(event) => void handleLifecycleSubmit(event)}>
+          <label>
+            <span>{isArchived ? "Restore reason" : "Archive reason"}</span>
+            <textarea
+              maxLength={500}
+              required
+              value={lifecycleReason}
+              onChange={(event) => setLifecycleReason(event.target.value)}
+            />
+          </label>
+          <div className="form-actions">
+            <Button
+              disabled={lifecyclePending || !lifecycleReason.trim()}
+              icon={<Archive size={16} aria-hidden="true" />}
+              type="submit"
+              variant="secondary"
+            >
+              {lifecyclePending ? "Saving…" : isArchived ? "Restore report" : "Archive report"}
+            </Button>
+          </div>
+        </form>
+      ) : null}
     </section>
   );
 }

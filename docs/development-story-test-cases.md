@@ -61,7 +61,7 @@ Common expectations for all functional stories:
 - **TC-2.4.1 - Server-side permission matrix:** For each role, verify the complete endpoint inventory for every security-sensitive workflow family (including every report-generation route) and call at least one read and every mutation route affected by the story. Verify allowed/denied results match the permission matrix and that endpoint authorization metadata matches the executable contract.
 - **TC-2.4.2 - UI hides restricted actions:** Render workspace pages for each role and verify unavailable actions are not shown.
 - **TC-2.4.3 - Clear permission failure:** Directly call a restricted action and verify the response includes a consistent authorization error message.
-- **TC-2.4.4 - Auditor read-only access:** Verify auditor can view approved evidence packages and persisted reports but cannot create, update, approve, delete, assign, export beyond granted permissions, or invoke any report-generation endpoint. Prove denied mutations have no persisted or queued side effects.
+- **TC-2.4.4 - Auditor read-only access:** Verify auditor can click a persisted report card, receive tenant-scoped report detail, and see the detail brought into view; verify the auditor can view approved evidence packages but cannot create, update, approve, delete, archive/restore, assign, export beyond granted permissions, or invoke any report-generation endpoint. Prove denied mutations have no persisted or queued side effects.
 
 ## 3. Authenticated Application Shell
 

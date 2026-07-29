@@ -149,6 +149,7 @@ public static class DependencyInjection
         services.AddScoped<ComplianceStatusReportService>();
         services.AddScoped<CmmcReadinessReportService>();
         services.AddScoped<ReportHistoryService>();
+        services.AddScoped<ReportLifecycleService>();
         services.AddScoped<SprsReadinessReportService>();
         services.AddScoped<EsrsApplicabilityService>();
         services.AddScoped<SubcontractingReportDataService>();

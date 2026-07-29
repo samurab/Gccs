@@ -101,6 +101,11 @@ Add or update focused tests for the risk introduced by the change.
 - Rejected-mutation tests must prove that invalid requests do not partially persist data, create audit events, enqueue tasks or notifications, rotate tokens, or trigger external side effects.
 - When adding database constraints to existing tables, inspect current persisted data first. Do not silently rewrite ambiguous customer values; use an explicit audited remediation or a staged constraint such as PostgreSQL `NOT VALID`, then track validation of existing rows.
 - Regression tests must include realistic UAT values and previously observed failure cases when those cases are safe to retain as synthetic fixtures.
+- A UAT test must execute and assert every verb in the acceptance criterion. Visibility of a card does not prove that its detail action works; click the control, verify the API call and response, and assert the resulting content is visible and keyboard-focused.
+- For content rendered outside the current viewport, verify discoverability after interaction with scroll/focus behavior and a real-browser test. A DOM-only assertion is insufficient for below-the-fold panels, dialogs, drawers, menus, and route transitions.
+- Build a negative and positive permission matrix for each protected resource action. Treat view, generate, export, archive/restore, edit, and delete as separate permissions unless the product contract explicitly combines them.
+- Compliance report artifacts are immutable snapshots. Do not add in-place report editing or hard deletion. Administrative lifecycle changes must use explicit archive/restore transitions, require a reason, preserve tenant isolation, and write append-only audit events.
+- For idempotent lifecycle endpoints, prove repeated requests do not duplicate audit events or side effects. Also prove rejected, invalid, and cross-tenant requests leave both the resource and audit history unchanged.
 
 Run the narrowest relevant tests first, then broader build/test commands when practical.
 

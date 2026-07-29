@@ -1755,6 +1755,68 @@ api.MapGet("/reports/{reportId:guid}", async (
 .RequirePermission(Permission.ViewReports)
 .WithName("GetReportArtifact");
 
+api.MapPost("/reports/{reportId:guid}/archive", async (
+    Guid reportId,
+    ReportLifecycleRequest request,
+    ReportLifecycleService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var report = await service.ArchiveAsync(reportId, request, tenantContext.UserId, cancellationToken);
+        return report is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Report '{reportId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(report);
+    }
+    catch (ReportLifecycleValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["reason"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ArchiveReports)
+.WithName("ArchiveReport");
+
+api.MapPost("/reports/{reportId:guid}/restore", async (
+    Guid reportId,
+    ReportLifecycleRequest request,
+    ReportLifecycleService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var report = await service.RestoreAsync(reportId, request, tenantContext.UserId, cancellationToken);
+        return report is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Report '{reportId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(report);
+    }
+    catch (ReportLifecycleValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["reason"] = [exception.Message]
+        });
+    }
+})
+.RequirePermission(Permission.ArchiveReports)
+.WithName("RestoreReport");
+
 api.MapGet("/reports/exports/{reportType}", async (
     string reportType,
     SimpleReportExportService service,

@@ -1083,6 +1083,9 @@ export type ReportHistoryItem = {
   title: string;
   generatedAt: string;
   generatedByUserId: string;
+  archivedAt?: string | null;
+  archivedByUserId?: string | null;
+  archiveReason?: string | null;
   disclaimer: string;
 };
 
@@ -2615,6 +2618,20 @@ export async function getRecentReports(limit = 25): Promise<ReportHistoryItem[]>
 
 export async function getReportArtifact(reportId: string): Promise<ReportArtifactDetail> {
   return getRequiredJson<ReportArtifactDetail>(`/api/reports/${reportId}`);
+}
+
+export async function archiveReport(
+  reportId: string,
+  reason: string
+): Promise<ApiMutationResult<ReportArtifactDetail>> {
+  return postJsonResult<ReportArtifactDetail>(`/api/reports/${reportId}/archive`, { reason });
+}
+
+export async function restoreReport(
+  reportId: string,
+  reason: string
+): Promise<ApiMutationResult<ReportArtifactDetail>> {
+  return postJsonResult<ReportArtifactDetail>(`/api/reports/${reportId}/restore`, { reason });
 }
 
 export async function getEvidencePackage(reportId: string): Promise<EvidencePackageReport> {

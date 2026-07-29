@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Json;
+using Gccs.Application.Reports;
 using Gccs.Application.Audit;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Identity;
@@ -25,7 +27,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
 
     [Fact]
     [Trait("Category", "PostgresIntegration")]
-    public async Task Audit_failure_rolls_back_report_and_related_rows()
+    public async Task Audit_failure_rolls_back_report_generation_and_archive_lifecycle_changes()
     {
         var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION");
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -34,6 +36,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
         }
 
         var tenantId = Guid.NewGuid();
+        var existingReportId = Guid.NewGuid();
         await using var factory = _factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("LocalDependencies:Enabled", "false");
@@ -55,6 +58,18 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
                     Name = "Atomic report tenant",
                     Status = TenantStatus.Active,
                     DataPosture = TenantDataPosture.NoCui,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+                dbContext.Reports.Add(new ReportEntity
+                {
+                    Id = existingReportId,
+                    TenantId = tenantId,
+                    Type = ReportType.SubcontractorCompliance,
+                    Title = "Existing immutable report",
+                    Status = ReportStatus.Complete,
+                    GeneratedAt = DateTimeOffset.UtcNow,
+                    GeneratedByUserId = Guid.NewGuid(),
+                    SnapshotJson = "{}",
                     CreatedAt = DateTimeOffset.UtcNow
                 });
                 dbContext.SaveChanges();
@@ -80,17 +95,45 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
                 report.TenantId == tenantId &&
                 report.Type == ReportType.ComplianceStatus));
             Assert.False(await verificationDbContext.AuditLogEntries.AnyAsync(audit => audit.TenantId == tenantId));
+
+            using var archiveRequest = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/reports/{existingReportId}/archive")
+            {
+                Content = JsonContent.Create(new ReportLifecycleRequest("Synthetic rollback verification."))
+            };
+            archiveRequest.Headers.Add("X-Gccs-Dev-Auth", "true");
+            archiveRequest.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+            archiveRequest.Headers.Add("X-Gccs-Dev-User", Guid.NewGuid().ToString());
+            archiveRequest.Headers.Add("X-Gccs-Dev-Permissions", Permission.ArchiveReports.ToString());
+
+            using var archiveResponse = await client.SendAsync(archiveRequest);
+
+            Assert.Equal(HttpStatusCode.InternalServerError, archiveResponse.StatusCode);
+            Assert.Contains("audit_write_failed", await archiveResponse.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+            verificationDbContext.ChangeTracker.Clear();
+            var unchangedReport = await verificationDbContext.Reports.SingleAsync(report => report.Id == existingReportId);
+            Assert.Equal(ReportStatus.Complete, unchangedReport.Status);
+            Assert.Null(unchangedReport.ArchivedAt);
+            Assert.Null(unchangedReport.ArchivedByUserId);
+            Assert.Null(unchangedReport.ArchiveReason);
+            Assert.False(await verificationDbContext.AuditLogEntries.AnyAsync(audit => audit.TenantId == tenantId));
         }
         finally
         {
             using var cleanupScope = factory.Services.CreateScope();
             var cleanupDbContext = cleanupScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var reports = await cleanupDbContext.Reports
+                .Where(candidate => candidate.TenantId == tenantId)
+                .ToArrayAsync();
+            cleanupDbContext.Reports.RemoveRange(reports);
             var tenant = await cleanupDbContext.Tenants.SingleOrDefaultAsync(candidate => candidate.Id == tenantId);
             if (tenant is not null)
             {
                 cleanupDbContext.Tenants.Remove(tenant);
-                await cleanupDbContext.SaveChangesAsync();
             }
+
+            await cleanupDbContext.SaveChangesAsync();
         }
     }
 

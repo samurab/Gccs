@@ -111,8 +111,10 @@ Steps:
 1. Stay on `Settings`.
 2. Review the visible role guidance or current access details if shown.
 3. Confirm the test actor can access `Contracts`, `Obligations`, `Evidence`, and `Reports`.
-4. Confirm `Auditor` can view workflow records and existing reports, that all report-generation controls are absent, and that direct `POST` attempts to every report-generation endpoint return `403` without creating a report or other mutation.
-5. Confirm `Contributor` can help with evidence and task work but cannot generate reports or approve evidence.
+4. Sign in as `Auditor`, open `Reports`, click an existing report card, and confirm the full report detail is brought into view and can be read.
+5. Confirm a direct tenant-scoped `GET /api/reports/{reportId}` for that same report returns `200`, while a cross-tenant request returns `404`.
+6. Confirm all report-generation and archive controls are absent for `Auditor`, and that direct `POST` attempts to every report-generation endpoint and `/api/reports/{reportId}/archive` return `403` without changing the report, creating an audit event for the report, or causing another side effect.
+7. Confirm `Contributor` can help with evidence and task work but cannot generate reports or approve evidence.
 
 Expected result: UAT actors are assigned to roles that match the work they perform.
 
