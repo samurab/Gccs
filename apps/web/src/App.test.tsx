@@ -805,7 +805,7 @@ vi.mock("@/lib/api", () => ({
   createSubcontractor: createSubcontractorMock,
   createContractDeliverable: createContractDeliverableMock,
   createContract: createContractMock,
-  createContractDocument: createContractDocumentMock,
+  uploadContractDocumentFile: createContractDocumentMock,
   createCuiReadyApprovalChecklist: createCuiReadyApprovalChecklistMock,
   createEvidenceMetadata: createEvidenceMetadataMock,
   deleteContractDocument: deleteContractDocumentMock,
@@ -1827,19 +1827,21 @@ describe("App", () => {
     const fileInput = await screen.findByLabelText("Contract document");
     expect(fileInput).toBeEnabled();
     await user.upload(fileInput, new File(["source"], "sow.pdf", { type: "application/pdf" }));
-    await user.click(screen.getByRole("button", { name: /upload metadata/i }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /I confirm this file does not contain CUI, classified information, export-controlled data/i
+      })
+    );
+    await user.click(screen.getByRole("button", { name: /upload document/i }));
 
     expect(createContractDocumentMock).toHaveBeenCalledWith(
       contract.id,
-      expect.objectContaining({
-        type: "Contract",
-        fileName: "sow.pdf",
-        contentType: "application/pdf",
-        containsPotentialCui: false,
-        classification: expect.objectContaining({ classification: "Unclassified" })
-      })
+      "Contract",
+      expect.objectContaining({ name: "sow.pdf", type: "application/pdf" }),
+      "Unclassified",
+      true
     );
-    expect(await screen.findByText(/Document metadata captured/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Document uploaded/i)).toBeInTheDocument();
   });
 
   it("TC-18.1 starts clause extraction from contract document metadata", async () => {
@@ -1856,7 +1858,25 @@ describe("App", () => {
       acknowledgedAt: "2026-06-15T12:00:00Z"
     });
     getContractsMock.mockResolvedValueOnce([contract]);
-    getContractDocumentsMock.mockResolvedValueOnce([contractDocument]);
+    getContractDocumentsMock.mockResolvedValueOnce([
+      {
+        ...contractDocument,
+        fileName: "contract.txt",
+        contentType: "text/plain",
+        storageUri: `contracts/${contract.id}/contract.txt`,
+        malwareScanStatus: "clean"
+      }
+    ]);
+    getContractDocumentExtractionResultsMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        contractId: contract.id,
+        sourceDocumentId: contractDocument.id,
+        latestJobStatus: "Completed",
+        failureReason: null,
+        candidateCount: 1,
+        candidates: []
+      });
     const user = userEvent.setup();
 
     render(<App />);
@@ -1867,6 +1887,7 @@ describe("App", () => {
     expect(startContractDocumentExtractionMock).toHaveBeenCalledWith(contract.id, contractDocument.id);
     expect(await screen.findByText(/Extraction job queued with status Queued/i)).toBeInTheDocument();
     expect(screen.getByText(/Extraction Queued/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Extraction completed with 1 clause candidate/i, {}, { timeout: 2500 })).toBeInTheDocument();
   });
 
   it("TC-18.3 shows extraction results and accepts matched candidates", async () => {

@@ -26,6 +26,8 @@ export default defineConfig({
         ASPNETCORE_ENVIRONMENT: "Development",
         ASPNETCORE_URLS: apiURL,
         Cors__AllowedOrigins__0: baseURL,
+        ExtractionProcessing__Enabled: "true",
+        ExtractionProcessing__PollIntervalSeconds: "1",
         LocalDependencies__Enabled: "false",
         LocalDevelopment__SeedData__Enabled: "true"
       }

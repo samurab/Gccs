@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Gccs.Application.Common;
 using Gccs.Application.Contracts;
+using Gccs.Application.NoCui;
 using Gccs.Application.Security;
 using Gccs.Domain.Common;
 using Gccs.Domain.Compliance;
@@ -153,7 +154,9 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         ContractDocumentUploadRequest request,
         Guid actorUserId,
         string noticeVersion,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? storageObjectName = null,
+        string malwareScanStatus = EvidenceUploadGuardrails.PendingMalwareScanStatus)
     {
         var contractExists = await dbContext.Contracts.AnyAsync(
             contract => contract.TenantId == tenantContext.TenantId && contract.Id == contractId,
@@ -174,10 +177,11 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             FileName = fileName,
             ContentType = request.ContentType.Trim().ToLowerInvariant(),
             SizeBytes = request.SizeBytes,
-            StorageUri = $"pending://contracts/{contractId}/documents/{documentId}/{Uri.EscapeDataString(fileName)}",
+            StorageUri = storageObjectName ??
+                $"pending://contracts/{contractId}/documents/{documentId}/{Uri.EscapeDataString(fileName)}",
             ExtractedTextHash = null,
             ValidationStatus = "accepted",
-            MalwareScanStatus = "scan-pending",
+            MalwareScanStatus = malwareScanStatus,
             NoticeVersion = noticeVersion,
             UploadedAt = DateTimeOffset.UtcNow,
             UploadedByUserId = actorUserId,
@@ -302,6 +306,8 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         job.Status = ExtractionJobStatus.Completed;
         job.CompletedAt = DateTimeOffset.UtcNow;
         job.FailureReason = null;
+        job.ProcessingLeaseId = null;
+        job.ProcessingLeaseUntil = null;
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToExtractionJobDto(job);
     }
@@ -343,6 +349,8 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
 
         job.Status = ExtractionJobStatus.Failed;
         job.CompletedAt = DateTimeOffset.UtcNow;
+        job.ProcessingLeaseId = null;
+        job.ProcessingLeaseUntil = null;
         job.FailureReason = string.IsNullOrWhiteSpace(failureReason)
             ? "Extraction failed without a detailed reason."
             : failureReason.Trim();

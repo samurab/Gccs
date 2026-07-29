@@ -158,12 +158,15 @@ Steps:
 5. In `Documents`, set `Document type` to `Contract`.
 6. Set `Contract document classification` to `FCI`.
 7. Choose a local text file named `demo-nc-contract.txt` containing the allowed synthetic text from `Test Data`.
-8. Click `Upload metadata`.
-9. Confirm the document appears in the document list with `FCI` classification.
+8. Check `I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information`.
+9. Click `Upload document`.
+10. Confirm the document appears in the document list with `FCI` classification, `accepted` validation, and `clean` malware status.
+11. Click `Start extraction`.
+12. Confirm the status progresses from `Queued` or `Processing` to `Completed` and that the candidate count is displayed.
 
-Expected result: The app accepts synthetic FCI-only contract document metadata.
+Expected result: The app accepts the synthetic FCI-only text document, stores it privately after malware scanning, and completes tenant-scoped clause extraction.
 
-Reason: This proves the workflow can record contract-document context without accepting prohibited CUI content.
+Reason: This proves the workflow can process an allowed synthetic contract document without accepting prohibited CUI content or treating extracted candidates as reviewed clauses.
 
 ## UAT-05: Search Source-Backed Clauses
 

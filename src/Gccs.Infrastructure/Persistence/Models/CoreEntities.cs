@@ -770,6 +770,10 @@ public sealed class ExtractionJobEntity
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public string? FailureReason { get; set; }
+    public Guid? ProcessingLeaseId { get; set; }
+    public DateTimeOffset? ProcessingLeaseUntil { get; set; }
+    public int ProcessingAttemptCount { get; set; }
+    public DateTimeOffset? LastProcessingAttemptAt { get; set; }
     public ContentClassification Classification { get; set; } = ContentClassification.Unclassified;
     public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.SystemSuggested;
     public decimal? ClassificationConfidence { get; set; }

@@ -21,7 +21,9 @@ using Gccs.Application.Subcontractors;
 using Gccs.Application.Tasks;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Cmmc;
+using Gccs.Domain.Common;
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Contracts;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure;
@@ -90,14 +92,24 @@ builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSect
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
+builder.Services.Configure<ExtractionProcessingOptions>(
+    builder.Configuration.GetSection(ExtractionProcessingOptions.SectionName));
 if (builder.Environment.IsDevelopment() &&
     builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
     builder.Configuration.GetValue("Security:DevelopmentAuth:Enabled", false))
 {
     builder.Services.AddGccsDevelopmentTestingInfrastructure(builder.Configuration);
 }
-builder.Services.AddHostedService<InvitationDeliveryWorker>();
-builder.Services.AddHostedService<AssignmentEmailDeliveryWorker>();
+if (invitationDeliveryEnabled)
+{
+    builder.Services.AddHostedService<InvitationDeliveryWorker>();
+    builder.Services.AddHostedService<AssignmentEmailDeliveryWorker>();
+}
+if (builder.Configuration.GetValue("ExtractionProcessing:Enabled", true) &&
+    !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
+{
+    builder.Services.AddHostedService<ExtractionJobWorker>();
+}
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddHostedService<DevelopmentTenantBootstrapper>();
@@ -808,15 +820,141 @@ api.MapPost("/contracts/{contractId:guid}/documents", async (
 .RequirePermission(Permission.ManageContracts)
 .WithName("CreateContractDocumentMetadata");
 
-api.MapDelete("/contracts/{contractId:guid}/documents/{documentId:guid}", async (
+api.MapPost("/contracts/{contractId:guid}/documents/file", async (
     Guid contractId,
-    Guid documentId,
-    ContractService service,
+    ContractDocumentFileService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var deleted = await service.DeleteDocumentAsync(contractId, documentId, tenantContext.UserId, cancellationToken);
+    try
+    {
+        if (!httpContext.Request.HasFormContentType)
+        {
+            return Results.ValidationProblem(
+                new Dictionary<string, string[]>
+                {
+                    ["contentType"] = ["Contract document upload requires multipart/form-data."]
+                },
+                title: "Contract document upload rejected",
+                detail: "Contract document upload requires multipart/form-data.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var form = await httpContext.Request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
+        if (file is null)
+        {
+            return Results.ValidationProblem(
+                new Dictionary<string, string[]> { ["file"] = ["A file is required."] },
+                title: "Contract document upload rejected",
+                detail: "A file is required.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (!Enum.TryParse<ContractDocumentType>(form["documentType"], true, out var documentType))
+        {
+            return Results.ValidationProblem(
+                new Dictionary<string, string[]> { ["documentType"] = ["A valid document type is required."] },
+                title: "Contract document upload rejected",
+                detail: "A valid document type is required.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (!Enum.TryParse<ContentClassification>(form["classification"], true, out var classification))
+        {
+            return Results.ValidationProblem(
+                new Dictionary<string, string[]> { ["classification"] = ["A valid classification is required."] },
+                title: "Contract document upload rejected",
+                detail: "A valid classification is required.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var noCuiAttestation = bool.TryParse(form["noCuiAttestation"], out var attestation) && attestation;
+        var containsPotentialCui = bool.TryParse(form["containsPotentialCui"], out var potentialCui) && potentialCui;
+        var classificationReason = form["classificationReason"].FirstOrDefault();
+        await using var stream = file.OpenReadStream();
+        var document = await service.UploadAsync(
+            contractId,
+            new ContractDocumentFileUploadRequest(
+                documentType,
+                file.FileName,
+                file.ContentType,
+                file.Length,
+                stream,
+                noCuiAttestation,
+                containsPotentialCui,
+                new ContentClassificationRequest(
+                    classification,
+                    ContentClassificationSource.UserSelected,
+                    Reason: classificationReason)),
+            tenantContext.UserId,
+            cancellationToken);
+
+        return document is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Contract '{contractId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/documents/{document.Id}", document);
+    }
+    catch (NoCuiAcknowledgementRequiredException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "No-CUI acknowledgement required",
+            exception.Message,
+            StatusCodes.Status428PreconditionRequired,
+            "no_cui_acknowledgement_required");
+    }
+    catch (UploadGuardrailValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Contract document upload rejected",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (MalwareScanRejectedException exception)
+    {
+        return Results.ValidationProblem(
+            new Dictionary<string, string[]> { ["malwareScan"] = [exception.Message] },
+            title: "Contract document upload rejected",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (MalwareScanUnavailableException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Malware scanner unavailable",
+            exception.Message,
+            StatusCodes.Status503ServiceUnavailable,
+            "malware_scanner_unavailable");
+    }
+    catch (ContentClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(
+            new Dictionary<string, string[]> { ["classification"] = [exception.Message] },
+            title: "Contract document upload rejected",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UploadContractDocumentFile");
+
+api.MapDelete("/contracts/{contractId:guid}/documents/{documentId:guid}", async (
+    Guid contractId,
+    Guid documentId,
+    ContractDocumentFileService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var deleted = await service.DeleteAsync(contractId, documentId, tenantContext.UserId, cancellationToken);
     return deleted
         ? Results.NoContent()
         : ApiProblemDetails.Create(
@@ -837,15 +975,26 @@ api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/extraction
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var job = await service.StartExtractionJobAsync(contractId, documentId, tenantContext.UserId, cancellationToken);
-    return job is null
-        ? ApiProblemDetails.Create(
-            httpContext,
-            "Resource not found",
-            $"Contract document '{documentId}' was not found.",
-            StatusCodes.Status404NotFound,
-            "resource_not_found")
-        : Results.Created($"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs/{job.Id}", job);
+    try
+    {
+        var job = await service.StartExtractionJobAsync(contractId, documentId, tenantContext.UserId, cancellationToken);
+        return job is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Contract document '{documentId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs/{job.Id}", job);
+    }
+    catch (ContractValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Contract document cannot be extracted",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
 })
 .RequirePermission(Permission.ManageContracts)
 .WithName("StartContractDocumentExtraction");
@@ -854,9 +1003,20 @@ api.MapPost("/extraction-jobs/{extractionJobId:guid}/process", async (
     Guid extractionJobId,
     ContractService service,
     ITenantContext tenantContext,
+    IHostEnvironment environment,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
+    if (!environment.IsDevelopment())
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Extraction job '{extractionJobId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found");
+    }
+
     var result = await service.ProcessExtractionJobAsync(extractionJobId, tenantContext.UserId, cancellationToken);
     return result is null
         ? ApiProblemDetails.Create(

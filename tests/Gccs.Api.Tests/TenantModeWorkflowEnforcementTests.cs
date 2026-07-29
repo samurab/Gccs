@@ -301,7 +301,6 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                 services.AddScoped<ITenantRepository, EfTenantRepository>();
                 services.AddScoped<ContractService>();
                 services.AddScoped<IContractRepository, EfContractRepository>();
-                services.AddScoped<IExtractionJobQueue, NoOpExtractionJobQueue>();
                 services.AddScoped<IContractDocumentTextExtractor, DefaultContractDocumentTextExtractor>();
                 services.AddScoped<NoCuiAcknowledgementService>();
                 services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();

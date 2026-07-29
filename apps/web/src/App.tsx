@@ -60,7 +60,6 @@ import {
   createSubcontractorFlowDown,
   createSubcontractor,
   createContractDeliverable,
-  createContractDocument,
   createTenantInvitation,
   createEvidenceUploadIntent,
   createEvidenceMetadata,
@@ -136,6 +135,7 @@ import {
   updateContractDeliverable,
   updateEvidenceMetadata,
   updateSubcontractorFlowDown,
+  uploadContractDocumentFile,
   type ApprovedEvidencePackage,
   type AuditLogEntry,
   type ClauseLibraryItem,
@@ -1555,44 +1555,42 @@ export function App() {
     setDeliverableMessage(result.error ?? "Deliverable could not be saved.");
   }
 
-  async function handleContractDocumentUpload(contractId: string, documentType: string, file: File | null, classification = "Unclassified") {
+  async function handleContractDocumentUpload(
+    contractId: string,
+    documentType: string,
+    file: File | null,
+    classification = "Unclassified",
+    noCuiAttestation = false
+  ): Promise<boolean> {
     if (!file) {
       setContractDocumentStatus("failed");
       setContractDocumentMessage("Select a contract document before upload.");
-      return;
+      return false;
     }
 
     setContractDocumentStatus("saving");
     setContractDocumentMessage("");
-    const result = await createContractDocument(contractId, {
-      type: documentType,
-      fileName: file.name,
-      contentType: file.type || "application/octet-stream",
-      sizeBytes: file.size,
-      containsPotentialCui: classification === "Cui" || classification === "SyntheticCui",
-      classification: {
-        classification,
-        source: "UserSelected",
-        confidence: null,
-        reviewedByUserId: null,
-        reviewedAt: null,
-        reason: `User selected ${classification} for contract document metadata.`,
-        isApprovedDemoContent: false
-      }
-    });
+    const result = await uploadContractDocumentFile(
+      contractId,
+      documentType,
+      file,
+      classification,
+      noCuiAttestation
+    );
 
     if (result.data) {
       const savedDocument = result.data;
       setContractDocuments((currentDocuments) => [savedDocument, ...currentDocuments]);
       setContractDocumentStatus("saved");
       setContractDocumentMessage(
-        `Document metadata captured. Validation ${savedDocument.validationStatus}; malware scan ${savedDocument.malwareScanStatus}.`
+        `Document uploaded. Validation ${savedDocument.validationStatus}; malware scan ${savedDocument.malwareScanStatus}.`
       );
-      return;
+      return true;
     }
 
     setContractDocumentStatus("failed");
     setContractDocumentMessage(result.error ?? "Contract document upload was rejected.");
+    return false;
   }
 
   async function handleContractDocumentDelete(contractId: string, documentId: string) {
@@ -1640,11 +1638,60 @@ export function App() {
           candidates: currentResults[documentId]?.candidates ?? []
         }
       }));
+      void pollContractDocumentExtraction(contractId, documentId);
       return;
     }
 
     setContractDocumentStatus("failed");
     setContractDocumentMessage(result.error ?? "Extraction job could not be started.");
+  }
+
+  async function pollContractDocumentExtraction(contractId: string, documentId: string) {
+    const maximumAttempts = 30;
+    for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
+      const results = await getContractDocumentExtractionResults(contractId, documentId);
+      if (!results) {
+        continue;
+      }
+
+      setExtractionResultsByDocumentId((currentResults) => ({
+        ...currentResults,
+        [documentId]: results
+      }));
+      setExtractionJobsByDocumentId((currentJobs) => {
+        const currentJob = currentJobs[documentId];
+        return currentJob && results.latestJobStatus
+          ? {
+              ...currentJobs,
+              [documentId]: {
+                ...currentJob,
+                status: results.latestJobStatus,
+                failureReason: results.failureReason
+              }
+            }
+          : currentJobs;
+      });
+
+      if (results.latestJobStatus === "Completed") {
+        setContractDocumentStatus("saved");
+        setContractDocumentMessage(
+          `Extraction completed with ${results.candidateCount} clause candidate${results.candidateCount === 1 ? "" : "s"}.`
+        );
+        return;
+      }
+
+      if (results.latestJobStatus === "Failed") {
+        setContractDocumentStatus("failed");
+        setContractDocumentMessage(results.failureReason ?? "Extraction failed.");
+        return;
+      }
+    }
+
+    setContractDocumentStatus("failed");
+    setContractDocumentMessage(
+      "Extraction is still processing. Its durable job will continue in the background; refresh this contract to check status."
+    );
   }
 
   async function handleClauseCandidateReview(
@@ -4150,7 +4197,13 @@ function ContractsView({
     deliverableId: string | null,
     request: UpsertContractDeliverableRequest
   ) => Promise<void>;
-  onUploadDocument: (contractId: string, documentType: string, file: File | null, classification?: string) => Promise<void>;
+  onUploadDocument: (
+    contractId: string,
+    documentType: string,
+    file: File | null,
+    classification?: string,
+    noCuiAttestation?: boolean
+  ) => Promise<boolean>;
   onSave: (contractId: string | null, request: UpsertContractRequest) => Promise<void>;
   onSelectContract: (contractId: string | null) => void;
 }) {
@@ -4158,6 +4211,8 @@ function ContractsView({
   const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState("Contract");
   const [documentClassification, setDocumentClassification] = useState("Unclassified");
+  const [documentNoCuiAttestation, setDocumentNoCuiAttestation] = useState(false);
+  const [documentInputKey, setDocumentInputKey] = useState(0);
   const [clauseDraft, setClauseDraft] = useState<AttachContractClauseRequest>({
     clauseLibraryId: "",
     attachmentReason: "",
@@ -4650,18 +4705,42 @@ function ContractsView({
             onSubmit={(event) => {
               event.preventDefault();
               if (selectedContract) {
-                void onUploadDocument(selectedContract.id, documentType, selectedDocumentFile, documentClassification);
+                void onUploadDocument(
+                    selectedContract.id,
+                    documentType,
+                    selectedDocumentFile,
+                    documentClassification,
+                    documentNoCuiAttestation
+                  )
+                  .then((uploaded) => {
+                    if (uploaded) {
+                      setSelectedDocumentFile(null);
+                      setDocumentNoCuiAttestation(false);
+                      setDocumentInputKey((currentKey) => currentKey + 1);
+                    }
+                  });
               }
             }}
           >
             <input
+              key={documentInputKey}
               aria-label="Contract document"
               type="file"
               onChange={(event) => setSelectedDocumentFile(event.target.files?.[0] ?? null)}
               disabled={uploadDisabled}
             />
-            <button type="submit" disabled={uploadDisabled}>
-              Upload metadata
+            <label>
+              <input
+                type="checkbox"
+                checked={documentNoCuiAttestation}
+                onChange={(event) => setDocumentNoCuiAttestation(event.target.checked)}
+                disabled={uploadDisabled}
+              />
+              I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or
+              sensitive government-furnished information.
+            </label>
+            <button type="submit" disabled={uploadDisabled || !documentNoCuiAttestation}>
+              Upload document
             </button>
           </form>
           {!noCuiAcknowledgement.isAcknowledged ? (
@@ -4695,13 +4774,38 @@ function ContractsView({
                       </small>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => selectedContract && void onStartExtraction(selectedContract.id, document.id)}
-                    disabled={!canManageContracts || contractDocumentStatus === "saving"}
-                  >
-                    Start extraction
-                  </button>
+                  {(() => {
+                    const latestStatus =
+                      extractionResultsByDocumentId[document.id]?.latestJobStatus ??
+                      extractionJobsByDocumentId[document.id]?.status ??
+                      null;
+                    const isRunning = latestStatus === "Queued" || latestStatus === "Processing";
+                    const isStoredText =
+                      document.contentType.toLowerCase() === "text/plain" &&
+                      document.malwareScanStatus.toLowerCase() === "clean" &&
+                      Boolean(document.storageUri) &&
+                      !document.storageUri?.startsWith("pending://");
+
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => selectedContract && void onStartExtraction(selectedContract.id, document.id)}
+                          disabled={!canManageContracts || contractDocumentStatus === "saving" || isRunning || !isStoredText}
+                          title={
+                            isStoredText
+                              ? "Queue tenant-scoped clause extraction."
+                              : "Extraction requires a stored, malware-scanned plain-text document."
+                          }
+                        >
+                          {isRunning ? "Extraction in progress" : isStoredText ? "Start extraction" : "Extraction unavailable"}
+                        </button>
+                        {!isStoredText ? (
+                          <small>Extraction requires a stored, malware-scanned .txt document.</small>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                   <button
                     type="button"
                     onClick={() => selectedContract && void onDeleteDocument(selectedContract.id, document.id)}

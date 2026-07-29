@@ -1,4 +1,4 @@
-import { getFreshAccessToken } from "../auth";
+import { getFreshAccessToken } from "../authSession";
 
 const selectedTenantStorageKey = "gccs.selectedTenantId";
 const developmentRoleStorageKey = "gccs.developmentRole";
@@ -2416,6 +2416,23 @@ export async function createContractDocument(
   request: ContractDocumentUploadRequest
 ): Promise<ApiMutationResult<ContractDocument>> {
   return postJsonResult<ContractDocument>(`/api/contracts/${contractId}/documents`, request);
+}
+
+export async function uploadContractDocumentFile(
+  contractId: string,
+  documentType: string,
+  file: File,
+  classification: string,
+  noCuiAttestation: boolean
+): Promise<ApiMutationResult<ContractDocument>> {
+  const form = new FormData();
+  form.set("file", file);
+  form.set("documentType", documentType);
+  form.set("classification", classification);
+  form.set("classificationReason", `User selected ${classification} for contract document upload.`);
+  form.set("noCuiAttestation", String(noCuiAttestation));
+  form.set("containsPotentialCui", String(classification === "Cui"));
+  return postFormResult<ContractDocument>(`/api/contracts/${contractId}/documents/file`, form);
 }
 
 export async function startContractDocumentExtraction(

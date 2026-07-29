@@ -21,6 +21,7 @@ public interface IObjectStorageService
 
 public enum ObjectStorageContainer
 {
+    ContractDocuments,
     Evidence,
     Exports,
     Reports

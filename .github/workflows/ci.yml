@@ -19,10 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: "25"
 
@@ -30,7 +30,7 @@ jobs:
         run: npm run check:launch-candidate
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -53,8 +53,20 @@ jobs:
           dotnet tool run dotnet-ef migrations script --idempotent \
             --project src/Gccs.Infrastructure/Gccs.Infrastructure.csproj \
             --startup-project apps/api/Gccs.Api.csproj \
-            --context GccsDbContext \
-            --output "$RUNNER_TEMP/gccs-idempotent-migrations.sql"
+          --context GccsDbContext \
+          --output "$RUNNER_TEMP/gccs-idempotent-migrations.sql"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Validate Terraform environments
+        run: |
+          for environment in dev staging production; do
+            terraform -chdir="infra/terraform/environments/$environment" init -backend=false
+            terraform -chdir="infra/terraform/environments/$environment" validate
+          done
 
       - name: Run backend unit and integration tests
         run: >
@@ -75,7 +87,7 @@ jobs:
 
       - name: Upload backend test results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: backend-test-results
           path: |
@@ -87,10 +99,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: "25"
           cache: npm
@@ -112,12 +124,12 @@ jobs:
 
       - name: Upload frontend test results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-test-results
           path: apps/web/TestResults/web
 
-  real-stack-report-rbac:
+  real-stack-critical-uat:
     name: Real-stack report RBAC
     runs-on: ubuntu-latest
     services:
@@ -134,24 +146,47 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+        env:
+          AZURITE_ACCOUNTS: "gccs:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+        ports:
+          - 10000:10000
+        options: >-
+          --health-cmd "node -e \"require('net').connect(10000,'127.0.0.1').on('connect',function(){this.end();process.exit(0)}).on('error',()=>process.exit(1))\""
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      clamav:
+        image: clamav/clamav-debian:stable
+        ports:
+          - 3310:3310
+        options: >-
+          --health-cmd "clamdscan --version"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 20
     env:
       ASPNETCORE_ENVIRONMENT: Development
       DOTNET_ENVIRONMENT: Development
       ConnectionStrings__GccsDatabase: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
+      ConnectionStrings__AzureStorage: DefaultEndpointsProtocol=http;AccountName=gccs;AccountKey=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==;BlobEndpoint=http://127.0.0.1:10000/gccs;
       GCCS_DATABASE: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
       GCCS_TEST_POSTGRES_CONNECTION: Host=127.0.0.1;Port=5432;Database=gccs;Username=gccs;Password=gccs_dev_password
+      MalwareScanning__Host: 127.0.0.1
+      MalwareScanning__Port: 3310
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: "25"
           cache: npm
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -178,16 +213,16 @@ jobs:
         run: >
           dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
           --no-restore
-          --filter "FullyQualifiedName~ReportPostgresTransactionTests"
+          --filter "FullyQualifiedName~ReportPostgresTransactionTests|FullyQualifiedName~ContractExtractionPostgresTransactionTests"
 
       - name: Run real-stack report authorization tests
         run: npm run test:e2e:real
 
       - name: Upload real-stack browser artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          name: real-stack-report-rbac
+          name: real-stack-critical-uat
           path: output/playwright
 
   secret-scan:
@@ -195,7 +230,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

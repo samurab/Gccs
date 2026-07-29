@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getFreshAccessToken } from "../auth";
+import { getFreshAccessToken } from "../authSession";
 import {
   archiveReport,
   getCurrentUserAccess,
@@ -12,7 +12,7 @@ import {
   selectDevelopmentTestingContext
 } from "./api";
 
-vi.mock("../auth", () => ({
+vi.mock("../authSession", () => ({
   getFreshAccessToken: vi.fn()
 }));
 

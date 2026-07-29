@@ -217,11 +217,14 @@ public static class DependencyInjection
                 configuration,
                 $"{AzureBlobStorageOptions.SectionName}:UseManagedIdentity",
                 options.UseManagedIdentity);
+            options.Containers.ContractDocuments = configuration[$"{AzureBlobStorageOptions.SectionName}:Containers:ContractDocuments"] ??
+                options.Containers.ContractDocuments;
             options.Containers.Evidence = configuration[$"{AzureBlobStorageOptions.SectionName}:Containers:Evidence"] ?? options.Containers.Evidence;
             options.Containers.Exports = configuration[$"{AzureBlobStorageOptions.SectionName}:Containers:Exports"] ?? options.Containers.Exports;
             options.Containers.Reports = configuration[$"{AzureBlobStorageOptions.SectionName}:Containers:Reports"] ?? options.Containers.Reports;
         });
         services.AddScoped<IObjectStorageService, AzureBlobObjectStorageService>();
+        services.AddScoped<ContractDocumentFileService>();
         services.Configure<MalwareScanningOptions>(options =>
         {
             if (configuration is null)
@@ -299,7 +302,7 @@ public static class DependencyInjection
             services.AddScoped<ICompanySizeEvaluationRepository, EfCompanySizeEvaluationRepository>();
             services.AddScoped<IContractRepository, EfContractRepository>();
             services.AddScoped<IContractSizeCheckRepository, EfContractSizeCheckRepository>();
-            services.AddScoped<IExtractionJobQueue, NoOpExtractionJobQueue>();
+            services.AddScoped<IExtractionJobWorkRepository, EfExtractionJobWorkRepository>();
             services.AddScoped<IContractDocumentTextExtractor, DefaultContractDocumentTextExtractor>();
             services.AddScoped<IComplianceContentImporter, ComplianceContentImporter>();
             services.AddScoped<IComplianceContentReviewRepository, EfComplianceContentReviewRepository>();
@@ -387,7 +390,6 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Contract persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IContractSizeCheckRepository>(_ =>
                 throw new InvalidOperationException("Contract size checks require ConnectionStrings:GccsDatabase to be configured."));
-            services.AddScoped<IExtractionJobQueue, NoOpExtractionJobQueue>();
             services.AddScoped<IContractDocumentTextExtractor, DefaultContractDocumentTextExtractor>();
             services.AddScoped<IComplianceContentImporter>(_ =>
                 throw new InvalidOperationException("Compliance content import requires ConnectionStrings:GccsDatabase to be configured."));

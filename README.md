@@ -56,6 +56,7 @@ Prerequisites:
 
 - .NET SDK matching [`global.json`](global.json)
 - Node.js and npm
+- Terraform matching [`.terraform-version`](.terraform-version) when validating infrastructure
 - Docker, when local PostgreSQL/Redis/Azurite/ClamAV services are needed
 
 Start the complete local stack with one supervised command:

@@ -34,7 +34,7 @@ jobs:
       APPROVED_LAUNCH_CANDIDATE_MANIFEST: docs/release/approved-launch-candidate.json
     steps:
       - name: Checkout production deployment controls
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -71,17 +71,17 @@ jobs:
           grep -R "alerts" infra/terraform/environments/production/main.tf
 
       - name: Checkout approved launch candidate artifact source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.launch_candidate_tag }}
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: "25"
           cache: npm
@@ -104,9 +104,9 @@ jobs:
           test -n "$VITE_MSAL_API_SCOPE"
           dotnet publish apps/api/Gccs.Api.csproj --configuration Release --output "$RUNNER_TEMP/gccs-api-production"
           npm run build:web
-          ! grep -R "http://localhost:5062" apps/web/dist
-          ! grep -R "Local test context" apps/web/dist
-          ! grep -R "/api/development/testing-context" apps/web/dist
+          if grep -R "http://localhost:5062" apps/web/dist; then exit 1; fi
+          if grep -R "Local test context" apps/web/dist; then exit 1; fi
+          if grep -R "/api/development/testing-context" apps/web/dist; then exit 1; fi
 
       - name: Generate idempotent production migration script
         run: |
@@ -127,7 +127,7 @@ jobs:
           psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-production-migrations.sql"
 
       - name: Login to Azure production subscription
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_PRODUCTION }}
 
@@ -193,7 +193,7 @@ jobs:
 
       - name: Upload production deployment evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: production-deployment-evidence
           path: |
