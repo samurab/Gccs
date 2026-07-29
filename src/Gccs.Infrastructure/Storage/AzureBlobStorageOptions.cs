@@ -15,6 +15,8 @@ public sealed class AzureBlobStorageOptions
 
 public sealed class AzureBlobContainerOptions
 {
+    public string ContractDocuments { get; set; } = "contract-documents";
+
     public string Evidence { get; set; } = "evidence";
 
     public string Exports { get; set; } = "exports";

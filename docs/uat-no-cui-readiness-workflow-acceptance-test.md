@@ -111,8 +111,10 @@ Steps:
 1. Stay on `Settings`.
 2. Review the visible role guidance or current access details if shown.
 3. Confirm the test actor can access `Contracts`, `Obligations`, `Evidence`, and `Reports`.
-4. Confirm `Auditor` can view workflow records and existing reports, that all report-generation controls are absent, and that direct `POST` attempts to every report-generation endpoint return `403` without creating a report or other mutation.
-5. Confirm `Contributor` can help with evidence and task work but cannot generate reports or approve evidence.
+4. Sign in as `Auditor`, open `Reports`, click an existing report card, and confirm the full report detail is brought into view and can be read.
+5. Confirm a direct tenant-scoped `GET /api/reports/{reportId}` for that same report returns `200`, while a cross-tenant request returns `404`.
+6. Confirm all report-generation and archive controls are absent for `Auditor`, and that direct `POST` attempts to every report-generation endpoint and `/api/reports/{reportId}/archive` return `403` without changing the report, creating an audit event for the report, or causing another side effect.
+7. Confirm `Contributor` can help with evidence and task work but cannot generate reports or approve evidence.
 
 Expected result: UAT actors are assigned to roles that match the work they perform.
 
@@ -156,12 +158,15 @@ Steps:
 5. In `Documents`, set `Document type` to `Contract`.
 6. Set `Contract document classification` to `FCI`.
 7. Choose a local text file named `demo-nc-contract.txt` containing the allowed synthetic text from `Test Data`.
-8. Click `Upload metadata`.
-9. Confirm the document appears in the document list with `FCI` classification.
+8. Check `I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information`.
+9. Click `Upload document`.
+10. Confirm the document appears in the document list with `FCI` classification, `accepted` validation, and `clean` malware status.
+11. Click `Start extraction`.
+12. Confirm the status progresses from `Queued` or `Processing` to `Completed` and that the candidate count is displayed.
 
-Expected result: The app accepts synthetic FCI-only contract document metadata.
+Expected result: The app accepts the synthetic FCI-only text document, stores it privately after malware scanning, and completes tenant-scoped clause extraction.
 
-Reason: This proves the workflow can record contract-document context without accepting prohibited CUI content.
+Reason: This proves the workflow can process an allowed synthetic contract document without accepting prohibited CUI content or treating extracted candidates as reviewed clauses.
 
 ## UAT-05: Search Source-Backed Clauses
 

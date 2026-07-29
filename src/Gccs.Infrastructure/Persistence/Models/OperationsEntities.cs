@@ -623,6 +623,10 @@ public sealed class ReportEntity : AuditedEntity
     public ReportStatus Status { get; set; }
     public DateTimeOffset GeneratedAt { get; set; }
     public Guid GeneratedByUserId { get; set; }
+    public ReportStatus? StatusBeforeArchive { get; set; }
+    public DateTimeOffset? ArchivedAt { get; set; }
+    public Guid? ArchivedByUserId { get; set; }
+    public string? ArchiveReason { get; set; }
     public string? StorageUri { get; set; }
     public string SnapshotJson { get; set; } = "{}";
     public string ExportHtml { get; set; } = string.Empty;

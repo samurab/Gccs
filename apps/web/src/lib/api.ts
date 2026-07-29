@@ -1,4 +1,4 @@
-import { getFreshAccessToken } from "../auth";
+import { getFreshAccessToken } from "../authSession";
 
 const selectedTenantStorageKey = "gccs.selectedTenantId";
 const developmentRoleStorageKey = "gccs.developmentRole";
@@ -220,6 +220,11 @@ export type TenantMember = {
   lastAccessedAt: string | null;
   createdAt: string;
   updatedAt: string | null;
+};
+
+export type ObligationAssignmentCandidate = {
+  userId: string;
+  displayName: string;
 };
 
 export type TenantInvitation = {
@@ -1083,6 +1088,9 @@ export type ReportHistoryItem = {
   title: string;
   generatedAt: string;
   generatedByUserId: string;
+  archivedAt?: string | null;
+  archivedByUserId?: string | null;
+  archiveReason?: string | null;
   disclaimer: string;
 };
 
@@ -1884,6 +1892,10 @@ export async function getTenantMembers(): Promise<TenantMember[]> {
   return getJson<TenantMember[]>("/api/tenant-members", []);
 }
 
+export async function getObligationAssignmentCandidates(): Promise<ObligationAssignmentCandidate[]> {
+  return getJson<ObligationAssignmentCandidate[]>("/api/contract-obligations/assignment-candidates", []);
+}
+
 export async function getTenantInvitations(): Promise<TenantInvitation[]> {
   return getJson<TenantInvitation[]>("/api/tenant-invitations", []);
 }
@@ -2406,6 +2418,23 @@ export async function createContractDocument(
   return postJsonResult<ContractDocument>(`/api/contracts/${contractId}/documents`, request);
 }
 
+export async function uploadContractDocumentFile(
+  contractId: string,
+  documentType: string,
+  file: File,
+  classification: string,
+  noCuiAttestation: boolean
+): Promise<ApiMutationResult<ContractDocument>> {
+  const form = new FormData();
+  form.set("file", file);
+  form.set("documentType", documentType);
+  form.set("classification", classification);
+  form.set("classificationReason", `User selected ${classification} for contract document upload.`);
+  form.set("noCuiAttestation", String(noCuiAttestation));
+  form.set("containsPotentialCui", String(classification === "Cui"));
+  return postFormResult<ContractDocument>(`/api/contracts/${contractId}/documents/file`, form);
+}
+
 export async function startContractDocumentExtraction(
   contractId: string,
   documentId: string
@@ -2615,6 +2644,20 @@ export async function getRecentReports(limit = 25): Promise<ReportHistoryItem[]>
 
 export async function getReportArtifact(reportId: string): Promise<ReportArtifactDetail> {
   return getRequiredJson<ReportArtifactDetail>(`/api/reports/${reportId}`);
+}
+
+export async function archiveReport(
+  reportId: string,
+  reason: string
+): Promise<ApiMutationResult<ReportArtifactDetail>> {
+  return postJsonResult<ReportArtifactDetail>(`/api/reports/${reportId}/archive`, { reason });
+}
+
+export async function restoreReport(
+  reportId: string,
+  reason: string
+): Promise<ApiMutationResult<ReportArtifactDetail>> {
+  return postJsonResult<ReportArtifactDetail>(`/api/reports/${reportId}/restore`, { reason });
 }
 
 export async function getEvidencePackage(reportId: string): Promise<EvidencePackageReport> {

@@ -262,6 +262,7 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
             .Split('\0', StringSplitOptions.RemoveEmptyEntries)
             .Where(IsScannableRepositoryFile)
             .Select(path => Path.Combine(repoRoot, path))
+            .Where(File.Exists)
             .ToArray();
     }
 

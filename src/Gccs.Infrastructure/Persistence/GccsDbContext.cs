@@ -809,6 +809,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("extraction_jobs");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Status, x.RequestedAt });
+            entity.HasIndex(x => new { x.Status, x.ProcessingLeaseUntil, x.RequestedAt });
             entity.HasIndex(x => x.SourceDocumentId);
             entity.Property(x => x.FailureReason).HasMaxLength(1000);
             entity.Property(x => x.ClassificationReason).HasMaxLength(600);
@@ -1443,8 +1444,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("reports");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Type, x.Status });
+            entity.Property(x => x.Status).IsConcurrencyToken();
             entity.Property(x => x.SnapshotJson).HasColumnType("jsonb");
             entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.Property(x => x.ArchiveReason).HasMaxLength(500);
             ConfigureAuditColumns(entity);
         });
 

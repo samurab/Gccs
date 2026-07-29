@@ -105,6 +105,7 @@ public sealed class AzureBlobObjectStorageService : IObjectStorageService
     {
         var name = container switch
         {
+            ObjectStorageContainer.ContractDocuments => options.Containers.ContractDocuments,
             ObjectStorageContainer.Evidence => options.Containers.Evidence,
             ObjectStorageContainer.Exports => options.Containers.Exports,
             ObjectStorageContainer.Reports => options.Containers.Reports,

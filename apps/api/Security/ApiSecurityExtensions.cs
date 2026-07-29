@@ -145,7 +145,8 @@ public static class ApiSecurityExtensions
         services.AddSingleton<IAuthorizationMiddlewareResultHandler, ProblemDetailsAuthorizationResultHandler>();
 
         services.AddHttpContextAccessor();
-        services.AddScoped<ITenantContext, HttpTenantContext>();
+        services.AddScoped<HttpTenantContext>();
+        services.AddScoped<ITenantContext>(serviceProvider => serviceProvider.GetRequiredService<HttpTenantContext>());
         services.AddScoped<ICurrentTenantContext>(serviceProvider => serviceProvider.GetRequiredService<ITenantContext>());
         services.AddScoped<IAuditRequestMetadata, HttpAuditRequestMetadata>();
 

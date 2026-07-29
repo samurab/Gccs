@@ -6,6 +6,8 @@ internal sealed class TestObjectStorageService : IObjectStorageService
 {
     private readonly Dictionary<string, StoredObject> _objects = new(StringComparer.Ordinal);
 
+    public int Count => _objects.Count;
+
     public async Task<ObjectStorageWriteResult> UploadAsync(
         ObjectStorageWriteRequest request,
         CancellationToken cancellationToken = default)

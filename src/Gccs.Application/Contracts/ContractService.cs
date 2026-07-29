@@ -16,8 +16,8 @@ public sealed partial class ContractService(
     IAuditEventWriter auditEventWriter,
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
     ContentClassificationPolicy classificationPolicy,
-    IExtractionJobQueue extractionJobQueue,
-    IContractDocumentTextExtractor textExtractor)
+    IContractDocumentTextExtractor textExtractor,
+    IApplicationTransaction transaction)
 {
     public Task<IReadOnlyList<ContractDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
         repository.ListCurrentTenantAsync(cancellationToken);
@@ -104,7 +104,7 @@ public sealed partial class ContractService(
             contractId.ToString(),
             cancellationToken);
 
-        var validationErrors = ValidateDocumentUpload(normalized);
+        var validationErrors = ContractDocumentUploadValidation.Validate(normalized);
         if (validationErrors.Count > 0)
         {
             await WriteDocumentAuditAsync(
@@ -187,20 +187,53 @@ public sealed partial class ContractService(
             cancellationToken);
         ContentClassificationPolicy.EnsureProcessable(document.Classification.Classification, "Clause extraction");
 
-        var job = await repository.CreateExtractionJobAsync(contractId, documentId, actorUserId, cancellationToken);
-        if (job is null)
+        var extractionValidationErrors = ValidateExtractionSource(document);
+        if (extractionValidationErrors.Count > 0)
         {
-            return null;
+            throw new ContractValidationException(extractionValidationErrors);
         }
 
-        await WriteExtractionJobAuditAsync(
-            job,
-            actorUserId,
-            AuditAction.Created,
-            "Clause extraction job was queued for contract document analysis.",
-            cancellationToken);
-        await extractionJobQueue.EnqueueAsync(job.Id, cancellationToken);
-        return job;
+        return await transaction.ExecuteAsync(async transactionToken =>
+        {
+            var job = await repository.CreateExtractionJobAsync(contractId, documentId, actorUserId, transactionToken);
+            if (job is null)
+            {
+                return null;
+            }
+
+            await WriteExtractionJobAuditAsync(
+                job,
+                actorUserId,
+                AuditAction.Created,
+                "Clause extraction job was queued for contract document analysis.",
+                transactionToken);
+            return job;
+        }, cancellationToken);
+    }
+
+    private static IReadOnlyDictionary<string, string[]> ValidateExtractionSource(ContractDocumentDto document)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (!string.Equals(document.ContentType, "text/plain", StringComparison.OrdinalIgnoreCase))
+        {
+            errors["contentType"] = ["Clause extraction currently supports clean text/plain documents only."];
+        }
+
+        if (!string.Equals(
+                document.MalwareScanStatus,
+                EvidenceUploadGuardrails.CleanMalwareScanStatus,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            errors["malwareScanStatus"] = ["Clause extraction requires a clean malware scan result."];
+        }
+
+        if (string.IsNullOrWhiteSpace(document.StorageUri) ||
+            document.StorageUri.StartsWith("pending://", StringComparison.OrdinalIgnoreCase))
+        {
+            errors["storageUri"] = ["Clause extraction requires stored document bytes."];
+        }
+
+        return errors;
     }
 
     public async Task<ExtractionJobDto?> MarkExtractionJobCompletedAsync(
@@ -208,18 +241,21 @@ public sealed partial class ContractService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var job = await repository.MarkExtractionJobCompletedAsync(extractionJobId, cancellationToken);
-        if (job is not null)
+        return await transaction.ExecuteAsync(async transactionToken =>
         {
-            await WriteExtractionJobAuditAsync(
-                job,
-                actorUserId,
-                AuditAction.Updated,
-                "Clause extraction job completed.",
-                cancellationToken);
-        }
+            var job = await repository.MarkExtractionJobCompletedAsync(extractionJobId, transactionToken);
+            if (job is not null)
+            {
+                await WriteExtractionJobAuditAsync(
+                    job,
+                    actorUserId,
+                    AuditAction.Updated,
+                    "Clause extraction job completed.",
+                    transactionToken);
+            }
 
-        return job;
+            return job;
+        }, cancellationToken);
     }
 
     public async Task<ExtractionJobDto?> MarkExtractionJobFailedAsync(
@@ -228,18 +264,21 @@ public sealed partial class ContractService(
         string failureReason,
         CancellationToken cancellationToken = default)
     {
-        var job = await repository.MarkExtractionJobFailedAsync(extractionJobId, failureReason, cancellationToken);
-        if (job is not null)
+        return await transaction.ExecuteAsync(async transactionToken =>
         {
-            await WriteExtractionJobAuditAsync(
-                job,
-                actorUserId,
-                AuditAction.Rejected,
-                "Clause extraction job failed.",
-                cancellationToken);
-        }
+            var job = await repository.MarkExtractionJobFailedAsync(extractionJobId, failureReason, transactionToken);
+            if (job is not null)
+            {
+                await WriteExtractionJobAuditAsync(
+                    job,
+                    actorUserId,
+                    AuditAction.Rejected,
+                    "Clause extraction job failed.",
+                    transactionToken);
+            }
 
-        return job;
+            return job;
+        }, cancellationToken);
     }
 
     public async Task<ExtractionJobProcessResultDto?> ProcessExtractionJobAsync(
@@ -280,16 +319,19 @@ public sealed partial class ContractService(
             input.Job.TenantId,
             extraction.Text,
             cancellationToken);
-        var candidates = await repository.ReplaceClauseCandidatesAsync(
-            extractionJobId,
-            input.Job.SourceDocumentId,
-            candidatesToCreate,
-            cancellationToken);
-        var completed = await MarkExtractionJobCompletedAsync(extractionJobId, actorUserId, cancellationToken);
+        return await transaction.ExecuteAsync(async transactionToken =>
+        {
+            var candidates = await repository.ReplaceClauseCandidatesAsync(
+                extractionJobId,
+                input.Job.SourceDocumentId,
+                candidatesToCreate,
+                transactionToken);
+            var completed = await MarkExtractionJobCompletedAsync(extractionJobId, actorUserId, transactionToken);
 
-        return completed is null
-            ? null
-            : new ExtractionJobProcessResultDto(completed, candidates);
+            return completed is null
+                ? null
+                : new ExtractionJobProcessResultDto(completed, candidates);
+        }, cancellationToken);
     }
 
     public Task<ContractDocumentExtractionResultsDto?> ListExtractionResultsAsync(
@@ -941,48 +983,6 @@ public sealed partial class ContractService(
     [GeneratedRegex(@"\b(?:(?<source>FAR|DFARS)\s+)?(?<number>(?:52|252)\.\d{3}-\d{1,4})(?:\s*[-:]\s*(?<title>[^\n.;]{3,160}))?", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ClauseReferenceRegex();
 
-    private static Dictionary<string, string[]> ValidateDocumentUpload(ContractDocumentUploadRequest request)
-    {
-        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
-
-        if (string.IsNullOrWhiteSpace(request.FileName) || request.FileName.Length > 300)
-        {
-            errors["fileName"] = ["A file name is required and must be 300 characters or fewer."];
-        }
-
-        var extension = Path.GetExtension(request.FileName);
-        if (string.IsNullOrWhiteSpace(extension) ||
-            !EvidenceUploadGuardrails.AllowedContentTypesByExtension.TryGetValue(extension, out var allowedContentTypes))
-        {
-            errors["fileType"] =
-            [
-                $"File type '{extension}' is not allowed. Allowed extensions: {string.Join(", ", EvidenceUploadGuardrails.AllowedExtensions)}."
-            ];
-        }
-        else if (string.IsNullOrWhiteSpace(request.ContentType) ||
-                 !allowedContentTypes.Contains(request.ContentType, StringComparer.OrdinalIgnoreCase))
-        {
-            errors["contentType"] =
-            [
-                $"Content type '{request.ContentType}' is not allowed for {extension} contract document uploads."
-            ];
-        }
-
-        if (request.SizeBytes <= 0)
-        {
-            errors["sizeBytes"] = ["File size must be greater than zero bytes."];
-        }
-        else if (request.SizeBytes > EvidenceUploadGuardrails.MaxSizeBytes)
-        {
-            errors["sizeBytes"] =
-            [
-                $"File size exceeds the {EvidenceUploadGuardrails.MaxSizeBytes} byte No-CUI MVP upload limit."
-            ];
-        }
-
-        return errors;
-    }
-
     private static void AddIf(IDictionary<string, string[]> errors, bool condition, string field, string message)
     {
         if (condition)
@@ -1020,7 +1020,9 @@ public interface IContractRepository
         ContractDocumentUploadRequest request,
         Guid actorUserId,
         string noticeVersion,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? storageObjectName = null,
+        string malwareScanStatus = EvidenceUploadGuardrails.PendingMalwareScanStatus);
 
     Task<ContractDocumentDto?> FindDocumentInCurrentTenantAsync(
         Guid contractId,
@@ -1164,11 +1166,6 @@ public sealed class ContractValidationException(IReadOnlyDictionary<string, stri
             ? string.Join(" ", messages)
             : "Contract request validation failed.";
     }
-}
-
-public interface IExtractionJobQueue
-{
-    Task EnqueueAsync(Guid extractionJobId, CancellationToken cancellationToken = default);
 }
 
 public interface IContractDocumentTextExtractor

@@ -12,6 +12,10 @@ public sealed class ObligationDetailService(
 {
     private IAssignmentNotificationRepository? AssignmentNotifications => assignmentNotificationRepositories.FirstOrDefault();
 
+    public Task<IReadOnlyList<ObligationAssignmentCandidateDto>> ListAssignmentCandidatesAsync(
+        CancellationToken cancellationToken = default) =>
+        repository.ListAssignmentCandidatesAsync(cancellationToken);
+
     public async Task<ContractObligationDetailDto?> FindCurrentTenantAsync(
         Guid contractClauseId,
         string obligationId,

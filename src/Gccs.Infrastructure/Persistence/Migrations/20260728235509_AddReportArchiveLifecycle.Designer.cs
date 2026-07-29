@@ -3,6 +3,7 @@ using System;
 using Gccs.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Gccs.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GccsDbContext))]
-    partial class GccsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728235509_AddReportArchiveLifecycle")]
+    partial class AddReportArchiveLifecycle
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3245,22 +3248,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("failure_reason");
 
-                    b.Property<DateTimeOffset?>("LastProcessingAttemptAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_processing_attempt_at");
-
-                    b.Property<int>("ProcessingAttemptCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("processing_attempt_count");
-
-                    b.Property<Guid?>("ProcessingLeaseId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("processing_lease_id");
-
-                    b.Property<DateTimeOffset?>("ProcessingLeaseUntil")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("processing_lease_until");
-
                     b.Property<DateTimeOffset>("RequestedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("requested_at");
@@ -3290,8 +3277,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("SourceDocumentId");
-
-                    b.HasIndex("Status", "ProcessingLeaseUntil", "RequestedAt");
 
                     b.HasIndex("TenantId", "Status", "RequestedAt");
 

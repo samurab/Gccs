@@ -6,6 +6,7 @@ const {
   acknowledgeNoCuiNoticeMock,
   acknowledgeSharedResponsibilityMatrixMock,
   acceptClauseCandidateMock,
+  archiveReportMock,
   allWorkflowAccess,
   approveCuiReadyApprovalChecklistMock,
   assignContractObligationOwnerMock,
@@ -56,6 +57,7 @@ const {
   getNoCuiAcknowledgementStatusMock,
   getNotificationPreferencesMock,
   getNotificationsMock,
+  getObligationAssignmentCandidatesMock,
   getPublishedSharedResponsibilityMatrixMock,
   getSharedResponsibilityMatrixAcknowledgementsMock,
   getComplianceOverviewMock,
@@ -95,6 +97,7 @@ const {
   removeContractClauseMock,
   rejectClauseCandidateMock,
   rejectCuiReadyApprovalChecklistMock,
+  restoreReportMock,
   reclassifyEvidenceItemMock,
   saveCompanyProfileMock,
   searchClauseLibraryMock,
@@ -117,6 +120,7 @@ const {
   acknowledgeNoCuiNoticeMock: vi.fn(),
   acknowledgeSharedResponsibilityMatrixMock: vi.fn(),
   acceptClauseCandidateMock: vi.fn(),
+  archiveReportMock: vi.fn(),
   approveCuiReadyApprovalChecklistMock: vi.fn(),
   assignContractObligationOwnerMock: vi.fn(),
   attachContractClauseMock: vi.fn(),
@@ -169,6 +173,7 @@ const {
   getNoCuiAcknowledgementStatusMock: vi.fn(),
   getNotificationPreferencesMock: vi.fn(),
   getNotificationsMock: vi.fn(),
+  getObligationAssignmentCandidatesMock: vi.fn(),
   getPublishedSharedResponsibilityMatrixMock: vi.fn(),
   getSharedResponsibilityMatrixAcknowledgementsMock: vi.fn(),
   generateCmmcReadinessReportMock: vi.fn(),
@@ -185,6 +190,7 @@ const {
   removeContractClauseMock: vi.fn(),
   rejectClauseCandidateMock: vi.fn(),
   rejectCuiReadyApprovalChecklistMock: vi.fn(),
+  restoreReportMock: vi.fn(),
   reclassifyEvidenceItemMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
@@ -227,6 +233,7 @@ const {
       "ManageSubcontractors",
       "ViewReports",
       "ManageReports",
+      "ArchiveReports",
       "ViewAuditLog"
     ],
     rolePermissionMatrix: {}
@@ -786,6 +793,7 @@ const {
 
 vi.mock("@/lib/api", () => ({
   acceptClauseCandidate: acceptClauseCandidateMock,
+  archiveReport: archiveReportMock,
   approveCuiReadyApprovalChecklist: approveCuiReadyApprovalChecklistMock,
   assignContractObligationOwner: assignContractObligationOwnerMock,
   attachContractClause: attachContractClauseMock,
@@ -797,7 +805,7 @@ vi.mock("@/lib/api", () => ({
   createSubcontractor: createSubcontractorMock,
   createContractDeliverable: createContractDeliverableMock,
   createContract: createContractMock,
-  createContractDocument: createContractDocumentMock,
+  uploadContractDocumentFile: createContractDocumentMock,
   createCuiReadyApprovalChecklist: createCuiReadyApprovalChecklistMock,
   createEvidenceMetadata: createEvidenceMetadataMock,
   deleteContractDocument: deleteContractDocumentMock,
@@ -826,6 +834,7 @@ vi.mock("@/lib/api", () => ({
   getReportArtifact: getReportArtifactMock,
   getNotificationPreferences: getNotificationPreferencesMock,
   getNotifications: getNotificationsMock,
+  getObligationAssignmentCandidates: getObligationAssignmentCandidatesMock,
   getPublishedSharedResponsibilityMatrix: getPublishedSharedResponsibilityMatrixMock,
   getSharedResponsibilityMatrixAcknowledgements: getSharedResponsibilityMatrixAcknowledgementsMock,
   generateCmmcReadinessReport: generateCmmcReadinessReportMock,
@@ -840,6 +849,7 @@ vi.mock("@/lib/api", () => ({
   removeContractClause: removeContractClauseMock,
   rejectClauseCandidate: rejectClauseCandidateMock,
   rejectCuiReadyApprovalChecklist: rejectCuiReadyApprovalChecklistMock,
+  restoreReport: restoreReportMock,
   reclassifyEvidenceItem: reclassifyEvidenceItemMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
@@ -979,6 +989,7 @@ describe("App", () => {
     getNoCuiAcknowledgementStatusMock.mockReset();
     getNotificationPreferencesMock.mockReset();
     getNotificationsMock.mockReset();
+    getObligationAssignmentCandidatesMock.mockReset();
     getPublishedSharedResponsibilityMatrixMock.mockReset();
     getSharedResponsibilityMatrixAcknowledgementsMock.mockReset();
     getTenantInvitationsMock.mockReset();
@@ -991,6 +1002,8 @@ describe("App", () => {
     getEvidencePackageMock.mockReset();
     getRecentReportsMock.mockReset();
     getReportArtifactMock.mockReset();
+    archiveReportMock.mockReset();
+    restoreReportMock.mockReset();
     getContractClausesMock.mockReset();
     getContractDeliverablesMock.mockReset();
     getContractDocumentExtractionResultsMock.mockReset();
@@ -1092,6 +1105,7 @@ describe("App", () => {
       error: null
     });
     getNotificationsMock.mockResolvedValue([]);
+    getObligationAssignmentCandidatesMock.mockResolvedValue([]);
     getTenantMock.mockResolvedValue({
       id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
       displayName: "Acme GovCon",
@@ -1813,19 +1827,21 @@ describe("App", () => {
     const fileInput = await screen.findByLabelText("Contract document");
     expect(fileInput).toBeEnabled();
     await user.upload(fileInput, new File(["source"], "sow.pdf", { type: "application/pdf" }));
-    await user.click(screen.getByRole("button", { name: /upload metadata/i }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /I confirm this file does not contain CUI, classified information, export-controlled data/i
+      })
+    );
+    await user.click(screen.getByRole("button", { name: /upload document/i }));
 
     expect(createContractDocumentMock).toHaveBeenCalledWith(
       contract.id,
-      expect.objectContaining({
-        type: "Contract",
-        fileName: "sow.pdf",
-        contentType: "application/pdf",
-        containsPotentialCui: false,
-        classification: expect.objectContaining({ classification: "Unclassified" })
-      })
+      "Contract",
+      expect.objectContaining({ name: "sow.pdf", type: "application/pdf" }),
+      "Unclassified",
+      true
     );
-    expect(await screen.findByText(/Document metadata captured/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Document uploaded/i)).toBeInTheDocument();
   });
 
   it("TC-18.1 starts clause extraction from contract document metadata", async () => {
@@ -1842,7 +1858,25 @@ describe("App", () => {
       acknowledgedAt: "2026-06-15T12:00:00Z"
     });
     getContractsMock.mockResolvedValueOnce([contract]);
-    getContractDocumentsMock.mockResolvedValueOnce([contractDocument]);
+    getContractDocumentsMock.mockResolvedValueOnce([
+      {
+        ...contractDocument,
+        fileName: "contract.txt",
+        contentType: "text/plain",
+        storageUri: `contracts/${contract.id}/contract.txt`,
+        malwareScanStatus: "clean"
+      }
+    ]);
+    getContractDocumentExtractionResultsMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        contractId: contract.id,
+        sourceDocumentId: contractDocument.id,
+        latestJobStatus: "Completed",
+        failureReason: null,
+        candidateCount: 1,
+        candidates: []
+      });
     const user = userEvent.setup();
 
     render(<App />);
@@ -1853,6 +1887,7 @@ describe("App", () => {
     expect(startContractDocumentExtractionMock).toHaveBeenCalledWith(contract.id, contractDocument.id);
     expect(await screen.findByText(/Extraction job queued with status Queued/i)).toBeInTheDocument();
     expect(screen.getByText(/Extraction Queued/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Extraction completed with 1 clause candidate/i, {}, { timeout: 2500 })).toBeInTheDocument();
   });
 
   it("TC-18.3 shows extraction results and accepts matched candidates", async () => {
@@ -2266,6 +2301,12 @@ describe("App", () => {
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
+    getObligationAssignmentCandidatesMock.mockResolvedValueOnce([
+      {
+        userId: members[0].userId,
+        displayName: members[0].displayName
+      }
+    ]);
     getContractsMock.mockResolvedValueOnce([contract]);
     getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
     getContractObligationDetailMock.mockResolvedValueOnce(obligationDetail);
@@ -2290,6 +2331,40 @@ describe("App", () => {
     );
     expect(await screen.findByText("Obligation owner assigned.")).toBeInTheDocument();
     expect(screen.getAllByText("Avery Admin").length).toBeGreaterThan(0);
+  });
+
+  it("UAT-09 loads active tenant members for Compliance Manager obligation assignment without ManageUsers", async () => {
+    const assignmentCandidates = [
+      {
+        userId: "cccccccc-cccc-cccc-cccc-ccccccccccc4",
+        displayName: "Devin Brooks"
+      }
+    ];
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce({
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc6",
+      userEmail: "priya.shah@example.com",
+      roles: ["Compliance Manager"],
+      permissions: ["ViewObligations", "ManageObligations"],
+      rolePermissionMatrix: {}
+    });
+    getObligationAssignmentCandidatesMock.mockResolvedValueOnce(assignmentCandidates);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
+    getContractObligationDetailMock.mockResolvedValueOnce(obligationDetail);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    await user.click(await screen.findByRole("button", { name: /view details/i }));
+    const memberSelect = await screen.findByLabelText("Tenant member");
+
+    expect(getObligationAssignmentCandidatesMock).toHaveBeenCalled();
+    expect(getTenantMembersMock).not.toHaveBeenCalled();
+    expect(getTenantInvitationsMock).not.toHaveBeenCalled();
+    expect(within(memberSelect).getByRole("option", { name: "Devin Brooks" })).toBeInTheDocument();
   });
 
   it("TC-10.3.2 assigns an obligation to a role", async () => {
@@ -2420,13 +2495,38 @@ describe("App", () => {
     expect(within(navigation).queryByRole("link", { name: /contracts/i })).not.toBeInTheDocument();
     expect(within(navigation).queryByRole("link", { name: /settings/i })).not.toBeInTheDocument();
     expect(getTenantMembersMock).not.toHaveBeenCalled();
+    expect(getObligationAssignmentCandidatesMock).not.toHaveBeenCalled();
     expect(getTenantInvitationsMock).not.toHaveBeenCalled();
     expect(getNoCuiAcknowledgementStatusMock).not.toHaveBeenCalled();
   });
 
-  it("UAT-02 keeps report history visible but hides report generation for auditors", async () => {
+  it("UAT-02 lets auditors open report detail while generation and archive actions remain unavailable", async () => {
+    const persistedReport = {
+      id: "33333333-3333-3333-3333-333333333302",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      type: "ComplianceStatus",
+      status: "Complete",
+      title: "Auditor-visible compliance status report",
+      generatedAt: "2026-07-28T21:00:00Z",
+      generatedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      disclaimer: reportDisclaimer
+    };
     getComplianceOverviewMock.mockResolvedValueOnce(overview);
     getCurrentUserAccessMock.mockResolvedValueOnce(restrictedAccess);
+    getRecentReportsMock.mockResolvedValueOnce([persistedReport]);
+    getReportArtifactMock.mockResolvedValueOnce({
+      ...persistedReport,
+      snapshot: {
+        totalObligations: 7,
+        highRiskObligations: 1,
+        overdueTasks: 0,
+        cmmcAssessments: 1,
+        cmmcControlsImplemented: 4,
+        cmmcControlsTotal: 5,
+        subcontractorGaps: 0,
+        highRiskItems: ["Auditor can inspect this persisted item."]
+      }
+    });
     const user = userEvent.setup();
 
     render(<App />);
@@ -2439,6 +2539,13 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Generate readiness" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Generate supplier report" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Generate package" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Auditor-visible compliance status report.*View report details/i }));
+    const detail = await screen.findByLabelText("Generated report detail");
+    expect(getReportArtifactMock).toHaveBeenCalledWith(persistedReport.id);
+    expect(detail).toHaveFocus();
+    expect(within(detail).getByText("Auditor can inspect this persisted item.")).toBeInTheDocument();
+    expect(within(detail).queryByRole("button", { name: "Archive report" })).not.toBeInTheDocument();
+    expect(within(detail).queryByRole("textbox", { name: "Archive reason" })).not.toBeInTheDocument();
     expect(generateComplianceStatusReportMock).not.toHaveBeenCalled();
     expect(generateCmmcReadinessReportMock).not.toHaveBeenCalled();
     expect(generateSubcontractorComplianceReportMock).not.toHaveBeenCalled();
@@ -3192,6 +3299,74 @@ describe("App", () => {
     const detail = within(await screen.findByLabelText("Generated report detail"));
     expect(detail.getByText("Persisted high-risk report item.")).toBeInTheDocument();
     expect(detail.getByText(reportDisclaimer)).toBeInTheDocument();
+  });
+
+  it("lets an admin archive and restore an immutable report with an explicit reason", async () => {
+    const persistedReport = {
+      id: "33333333-3333-3333-3333-333333333338",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      type: "ComplianceStatus",
+      status: "Complete",
+      title: "Immutable compliance status report",
+      generatedAt: "2026-07-28T21:00:00Z",
+      generatedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      disclaimer: reportDisclaimer,
+      snapshot: {
+        totalObligations: 12,
+        highRiskObligations: 3,
+        overdueTasks: 2,
+        cmmcAssessments: 1,
+        cmmcControlsImplemented: 2,
+        cmmcControlsTotal: 5,
+        subcontractorGaps: 1,
+        highRiskItems: []
+      }
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getRecentReportsMock.mockResolvedValueOnce([persistedReport]);
+    getReportArtifactMock.mockResolvedValueOnce(persistedReport);
+    archiveReportMock.mockResolvedValueOnce({
+      data: {
+        ...persistedReport,
+        status: "Archived",
+        archivedAt: "2026-07-28T22:00:00Z",
+        archivedByUserId: allWorkflowAccess.userId,
+        archiveReason: "Superseded by a corrected immutable snapshot."
+      },
+      error: null
+    });
+    restoreReportMock.mockResolvedValueOnce({
+      data: {
+        ...persistedReport,
+        archivedAt: null,
+        archivedByUserId: null,
+        archiveReason: null
+      },
+      error: null
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /reports/i }));
+    await user.click(screen.getByRole("button", { name: /Immutable compliance status report.*View report details/i }));
+    let detail = within(await screen.findByLabelText("Generated report detail"));
+    await user.type(detail.getByRole("textbox", { name: "Archive reason" }), "Superseded by a corrected immutable snapshot.");
+    await user.click(detail.getByRole("button", { name: "Archive report" }));
+
+    expect(archiveReportMock).toHaveBeenCalledWith(
+      persistedReport.id,
+      "Superseded by a corrected immutable snapshot."
+    );
+    detail = within(await screen.findByLabelText("Generated report detail"));
+    expect(detail.getByText("Superseded by a corrected immutable snapshot.")).toBeInTheDocument();
+    await user.type(detail.getByRole("textbox", { name: "Restore reason" }), "Original report remains authoritative.");
+    await user.click(detail.getByRole("button", { name: "Restore report" }));
+    expect(restoreReportMock).toHaveBeenCalledWith(persistedReport.id, "Original report remains authoritative.");
+    expect(within(await screen.findByLabelText("Generated report detail")).getByRole("button", { name: "Archive report" })).toBeInTheDocument();
   });
 
   it("UAT-13 loads tenant-scoped details when an approved evidence package card is clicked", async () => {

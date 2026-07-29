@@ -1,16 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getFreshAccessToken } from "../auth";
+import { getFreshAccessToken } from "../authSession";
 import {
+  archiveReport,
   getCurrentUserAccess,
   getEvidencePackage,
   getRecentReports,
   getReportArtifact,
   revokeTenantInvitation,
+  restoreReport,
   selectDevelopmentInvitationIdentity,
   selectDevelopmentTestingContext
 } from "./api";
 
-vi.mock("../auth", () => ({
+vi.mock("../authSession", () => ({
   getFreshAccessToken: vi.fn()
 }));
 
@@ -331,6 +333,36 @@ describe("FeDril API client", () => {
           "X-Gccs-Tenant": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2"
         })
       }
+    );
+  });
+
+  it("posts explicit reasons to report archive and restore lifecycle endpoints", async () => {
+    vi.stubEnv("DEV", true);
+    const reportId = "33333333-3333-3333-3333-333333333339";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: reportId, status: "Archived" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: reportId, status: "Complete" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await archiveReport(reportId, "Superseded snapshot.");
+    await restoreReport(reportId, "Original remains authoritative.");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `http://localhost:5062/api/reports/${reportId}/archive`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ reason: "Superseded snapshot." })
+      })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `http://localhost:5062/api/reports/${reportId}/restore`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ reason: "Original remains authoritative." })
+      })
     );
   });
 });

@@ -49,7 +49,9 @@ public sealed class EndpointAuthorizationContractTests : IClassFixture<WebApplic
             new("POST", "/api/reports/cmmc-readiness", "GenerateCmmcReadinessReport", Permission.ManageReports),
             new("POST", "/api/reports/compliance-status", "GenerateComplianceStatusReport", Permission.ManageReports),
             new("POST", "/api/reports/evidence-packages", "GenerateEvidencePackage", Permission.ManageReports),
-            new("POST", "/api/reports/subcontractor-compliance", "GenerateSubcontractorComplianceReport", Permission.ManageReports)
+            new("POST", "/api/reports/subcontractor-compliance", "GenerateSubcontractorComplianceReport", Permission.ManageReports),
+            new("POST", "/api/reports/{reportId:guid}/archive", "ArchiveReport", Permission.ArchiveReports),
+            new("POST", "/api/reports/{reportId:guid}/restore", "RestoreReport", Permission.ArchiveReports)
         ];
 
         Assert.Equal(

@@ -29,15 +29,15 @@ jobs:
       STAGING_CUSTOMER_DATA_MODE: synthetic-only
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: "25"
           cache: npm
@@ -57,9 +57,9 @@ jobs:
           test -n "$VITE_API_BASE_URL"
           dotnet publish apps/api/Gccs.Api.csproj --configuration Release --output "$RUNNER_TEMP/gccs-api-staging"
           npm run build:web
-          ! grep -R "http://localhost:5062" apps/web/dist
-          ! grep -R "Local test context" apps/web/dist
-          ! grep -R "/api/development/testing-context" apps/web/dist
+          if grep -R "http://localhost:5062" apps/web/dist; then exit 1; fi
+          if grep -R "Local test context" apps/web/dist; then exit 1; fi
+          if grep -R "/api/development/testing-context" apps/web/dist; then exit 1; fi
 
       - name: Generate idempotent migration script
         run: |
@@ -102,7 +102,7 @@ jobs:
           echo "API and web artifacts are deployed by the following workflow steps."
 
       - name: Login to Azure staging subscription
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_STAGING }}
 
@@ -157,7 +157,7 @@ jobs:
 
       - name: Upload staging smoke test results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: staging-smoke-test-results
           path: |

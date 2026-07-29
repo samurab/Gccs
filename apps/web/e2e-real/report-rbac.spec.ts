@@ -21,6 +21,19 @@ for (const persona of readOnlyPersonas) {
     page,
     request
   }) => {
+    const setupHeaders = {
+      "X-Gccs-Dev-Auth": "true",
+      "X-Gccs-Dev-Tenant": tenantId,
+      "X-Gccs-Tenant": tenantId,
+      "X-Gccs-Dev-User": "22222222-2222-2222-2222-222222222222",
+      "X-Gccs-Dev-Email": "alpha.admin@gccs.local",
+      "X-Gccs-Dev-Role": "Admin"
+    };
+    const setupReportResponse = await request.post(`${apiURL}/api/reports/compliance-status`, {
+      headers: setupHeaders
+    });
+    expect(setupReportResponse.status()).toBe(201);
+
     await page.addInitScript(
       ({ selectedTenantId, role, userId, email }) => {
         window.localStorage.setItem("gccs.selectedTenantId", selectedTenantId);
@@ -58,7 +71,28 @@ for (const persona of readOnlyPersonas) {
     };
     const reportHistoryBefore = await request.get(`${apiURL}/api/reports/recent`, { headers });
     expect(reportHistoryBefore.status()).toBe(200);
-    const initialReportCount = (await reportHistoryBefore.json()).length;
+    const reportHistory = await reportHistoryBefore.json();
+    const initialReportCount = reportHistory.length;
+    expect(initialReportCount).toBeGreaterThan(0);
+    const firstReport = reportHistory[0];
+    const reportDetailResponse = await request.get(`${apiURL}/api/reports/${firstReport.id}`, { headers });
+    expect(reportDetailResponse.status()).toBe(200);
+    expect((await reportDetailResponse.json()).id).toBe(firstReport.id);
+
+    const recentReportsSection = page.getByRole("heading", { name: "Recent generated reports" }).locator("..");
+    await recentReportsSection.getByRole("button").first().click();
+    const reportDetail = page.getByLabel("Generated report detail");
+    await expect(reportDetail).toBeVisible();
+    await expect(reportDetail).toContainText(firstReport.id);
+    await expect(reportDetail.getByRole("button", { name: "Archive report" })).toHaveCount(0);
+
+    const archiveResponse = await request.post(`${apiURL}/api/reports/${firstReport.id}/archive`, {
+      headers,
+      data: { reason: "Read-only personas cannot archive reports." }
+    });
+    expect(archiveResponse.status()).toBe(403);
+    expect(await archiveResponse.text()).toContain("permission_denied");
+
     const generationPaths = [
       "/api/reports/compliance-status",
       "/api/reports/cmmc-readiness?assessmentId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3",

@@ -107,7 +107,7 @@ public sealed class ContinuousIntegrationBaselineTests
         {
             "Secret scan",
             "Scan repository for committed secrets",
-            ["gitleaks/gitleaks-action@v2"]
+            ["gitleaks/gitleaks-action@v3"]
         }
     };
 
@@ -165,7 +165,7 @@ public sealed class ContinuousIntegrationBaselineTests
 
         AssertCiStepContains("Backend validation", "Scan backend dependencies for known vulnerabilities", "dotnet list Gccs.slnx package --vulnerable --include-transitive");
         AssertCiStepContains("Frontend validation", "Scan frontend dependencies for known vulnerabilities", "npm audit --audit-level=high");
-        AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "gitleaks/gitleaks-action@v2");
+        AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "gitleaks/gitleaks-action@v3");
     }
 
     [Theory]
@@ -266,7 +266,7 @@ public sealed class ContinuousIntegrationBaselineTests
         Assert.Contains("security-events: write", workflow);
         AssertCiStepContains("Backend validation", "Scan backend dependencies for known vulnerabilities", "dotnet list Gccs.slnx package --vulnerable --include-transitive");
         AssertCiStepContains("Frontend validation", "Scan frontend dependencies for known vulnerabilities", "npm audit --audit-level=high");
-        AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "gitleaks/gitleaks-action@v2");
+        AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "gitleaks/gitleaks-action@v3");
         AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
     }
 

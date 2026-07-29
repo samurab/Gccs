@@ -46,6 +46,7 @@ import {
   acknowledgeNoCuiNotice,
   acknowledgeSharedResponsibilityMatrix,
   acceptClauseCandidate,
+  archiveReport,
   applyCompanyEntityLookup,
   applySubcontractorEntityLookup,
   approveCuiReadyApprovalChecklist,
@@ -59,7 +60,6 @@ import {
   createSubcontractorFlowDown,
   createSubcontractor,
   createContractDeliverable,
-  createContractDocument,
   createTenantInvitation,
   createEvidenceUploadIntent,
   createEvidenceMetadata,
@@ -102,6 +102,7 @@ import {
   getNoCuiAcknowledgementStatus,
   getNotificationPreferences,
   getNotifications,
+  getObligationAssignmentCandidates,
   getPublishedSharedResponsibilityMatrix,
   getSharedResponsibilityMatrixAcknowledgements,
   getTenant,
@@ -120,6 +121,7 @@ import {
   seedDemoTenant,
   removeContractClause,
   rejectClauseCandidate,
+  restoreReport,
   startContractDocumentExtraction,
   supersedeClauseCandidate,
   supersedeCuiReadyApprovalChecklist,
@@ -133,6 +135,7 @@ import {
   updateContractDeliverable,
   updateEvidenceMetadata,
   updateSubcontractorFlowDown,
+  uploadContractDocumentFile,
   type ApprovedEvidencePackage,
   type AuditLogEntry,
   type ClauseLibraryItem,
@@ -173,6 +176,7 @@ import {
   type NotificationCenterItem,
   type NotificationPreference,
   type NotificationPreferenceUpdateRequest,
+  type ObligationAssignmentCandidate,
   type PagedResult,
   type ReportHistoryItem,
   type Subcontractor,
@@ -570,6 +574,7 @@ export function App() {
   const [overview, setOverview] = useState(fallbackOverview);
   const [access, setAccess] = useState<CurrentUserAccess>(fallbackAccess);
   const [members, setMembers] = useState<TenantMember[]>([]);
+  const [obligationAssignmentCandidates, setObligationAssignmentCandidates] = useState<ObligationAssignmentCandidate[]>([]);
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
   const [tenantModeHistory, setTenantModeHistory] = useState<TenantDataHandlingModeHistory[]>([]);
@@ -745,6 +750,7 @@ export function App() {
   const canManageObligations = access.permissions.includes("ManageObligations");
   const canManageCmmc = access.permissions.includes("ManageCmmc");
   const canManageReports = access.permissions.includes("ManageReports");
+  const canArchiveReports = access.permissions.includes("ArchiveReports");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
   const canManageTenant = access.permissions.includes("ManageTenant");
 
@@ -818,14 +824,25 @@ export function App() {
         const canLoadCompanyProfile = hasAnyPermission(nextAccess, ["ViewCompanyProfile", "ManageCompanyProfile"]);
         const canLoadContracts = hasAnyPermission(nextAccess, ["ViewContracts", "ManageContracts"]);
         const canLoadObligations = hasAnyPermission(nextAccess, ["ViewObligations", "ManageObligations"]);
+        const canLoadObligationAssignmentCandidates = nextAccess.permissions.includes("ManageObligations");
         const canLoadCalendar = hasAnyPermission(nextAccess, ["ViewTasks", "ManageTasks"]);
         const canLoadNotifications = hasAnyPermission(nextAccess, ["ViewTasks", "ManageTasks"]);
         const canLoadCmmc = hasAnyPermission(nextAccess, ["ViewCmmc", "ManageCmmc"]);
         const canLoadSubcontractors = hasAnyPermission(nextAccess, ["ViewSubcontractors", "ManageSubcontractors"]);
         const canLoadReports = hasAnyPermission(nextAccess, ["ViewReports", "ManageReports"]);
-        const [nextMembers, nextInvitations] = canLoadUserManagement
-          ? await Promise.all([getTenantMembers(), getTenantInvitations()])
-          : [[], []];
+        const [nextMembers, nextInvitations, nextObligationAssignmentCandidates] = canLoadUserManagement
+          ? await Promise.all([
+              getTenantMembers(),
+              getTenantInvitations(),
+              canLoadObligationAssignmentCandidates ? getObligationAssignmentCandidates() : Promise.resolve([])
+            ])
+          : canLoadObligationAssignmentCandidates
+            ? await Promise.all([
+                Promise.resolve([]),
+                Promise.resolve([]),
+                getObligationAssignmentCandidates()
+              ])
+            : [[], [], []];
         const nextTenant = canLoadTenantContext ? await getTenant(nextAccess.tenantId!) : null;
         const [
           nextTenantModeHistory,
@@ -884,6 +901,7 @@ export function App() {
           setOverview(nextOverview);
           setMembers(nextMembers);
           setInvitations(nextInvitations);
+          setObligationAssignmentCandidates(nextObligationAssignmentCandidates);
           setCurrentTenant(nextTenant);
           setTenantModeHistory(nextTenantModeHistory);
           setCuiReadyChecklists(nextCuiReadyChecklists);
@@ -1537,44 +1555,42 @@ export function App() {
     setDeliverableMessage(result.error ?? "Deliverable could not be saved.");
   }
 
-  async function handleContractDocumentUpload(contractId: string, documentType: string, file: File | null, classification = "Unclassified") {
+  async function handleContractDocumentUpload(
+    contractId: string,
+    documentType: string,
+    file: File | null,
+    classification = "Unclassified",
+    noCuiAttestation = false
+  ): Promise<boolean> {
     if (!file) {
       setContractDocumentStatus("failed");
       setContractDocumentMessage("Select a contract document before upload.");
-      return;
+      return false;
     }
 
     setContractDocumentStatus("saving");
     setContractDocumentMessage("");
-    const result = await createContractDocument(contractId, {
-      type: documentType,
-      fileName: file.name,
-      contentType: file.type || "application/octet-stream",
-      sizeBytes: file.size,
-      containsPotentialCui: classification === "Cui" || classification === "SyntheticCui",
-      classification: {
-        classification,
-        source: "UserSelected",
-        confidence: null,
-        reviewedByUserId: null,
-        reviewedAt: null,
-        reason: `User selected ${classification} for contract document metadata.`,
-        isApprovedDemoContent: false
-      }
-    });
+    const result = await uploadContractDocumentFile(
+      contractId,
+      documentType,
+      file,
+      classification,
+      noCuiAttestation
+    );
 
     if (result.data) {
       const savedDocument = result.data;
       setContractDocuments((currentDocuments) => [savedDocument, ...currentDocuments]);
       setContractDocumentStatus("saved");
       setContractDocumentMessage(
-        `Document metadata captured. Validation ${savedDocument.validationStatus}; malware scan ${savedDocument.malwareScanStatus}.`
+        `Document uploaded. Validation ${savedDocument.validationStatus}; malware scan ${savedDocument.malwareScanStatus}.`
       );
-      return;
+      return true;
     }
 
     setContractDocumentStatus("failed");
     setContractDocumentMessage(result.error ?? "Contract document upload was rejected.");
+    return false;
   }
 
   async function handleContractDocumentDelete(contractId: string, documentId: string) {
@@ -1622,11 +1638,60 @@ export function App() {
           candidates: currentResults[documentId]?.candidates ?? []
         }
       }));
+      void pollContractDocumentExtraction(contractId, documentId);
       return;
     }
 
     setContractDocumentStatus("failed");
     setContractDocumentMessage(result.error ?? "Extraction job could not be started.");
+  }
+
+  async function pollContractDocumentExtraction(contractId: string, documentId: string) {
+    const maximumAttempts = 30;
+    for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
+      const results = await getContractDocumentExtractionResults(contractId, documentId);
+      if (!results) {
+        continue;
+      }
+
+      setExtractionResultsByDocumentId((currentResults) => ({
+        ...currentResults,
+        [documentId]: results
+      }));
+      setExtractionJobsByDocumentId((currentJobs) => {
+        const currentJob = currentJobs[documentId];
+        return currentJob && results.latestJobStatus
+          ? {
+              ...currentJobs,
+              [documentId]: {
+                ...currentJob,
+                status: results.latestJobStatus,
+                failureReason: results.failureReason
+              }
+            }
+          : currentJobs;
+      });
+
+      if (results.latestJobStatus === "Completed") {
+        setContractDocumentStatus("saved");
+        setContractDocumentMessage(
+          `Extraction completed with ${results.candidateCount} clause candidate${results.candidateCount === 1 ? "" : "s"}.`
+        );
+        return;
+      }
+
+      if (results.latestJobStatus === "Failed") {
+        setContractDocumentStatus("failed");
+        setContractDocumentMessage(results.failureReason ?? "Extraction failed.");
+        return;
+      }
+    }
+
+    setContractDocumentStatus("failed");
+    setContractDocumentMessage(
+      "Extraction is still processing. Its durable job will continue in the background; refresh this contract to check status."
+    );
   }
 
   async function handleClauseCandidateReview(
@@ -2060,6 +2125,43 @@ export function App() {
     }
   }
 
+  async function handleReportArchiveStateChange(reportId: string, archived: boolean, reason: string): Promise<boolean> {
+    setReportStatus("loading");
+    setReportMessage("");
+    const result = archived
+      ? await archiveReport(reportId, reason)
+      : await restoreReport(reportId, reason);
+
+    if (!result.data) {
+      setReportStatus("failed");
+      setReportMessage(result.error ?? `Report could not be ${archived ? "archived" : "restored"}.`);
+      return false;
+    }
+
+    const updatedReport = result.data;
+    setSelectedReport(updatedReport);
+    setGeneratedReports((reports) =>
+      reports.map((report) => (report.id === updatedReport.id ? { ...report, ...updatedReport } : report))
+    );
+    setRecentReports((reports) =>
+      reports.map((report) =>
+        report.id === updatedReport.id
+          ? {
+              ...report,
+              status: updatedReport.status,
+              archivedAt: updatedReport.archivedAt,
+              archivedByUserId: updatedReport.archivedByUserId,
+              archiveReason: updatedReport.archiveReason
+            }
+          : report
+      )
+    );
+    setReportDetailStatus("ready");
+    setReportStatus("ready");
+    setReportMessage(`Report ${archived ? "archived" : "restored"} successfully.`);
+    return true;
+  }
+
   function handleReportDetailClose() {
     setSelectedReport(null);
     setReportDetailStatus("idle");
@@ -2265,7 +2367,7 @@ export function App() {
               detailMessage={obligationDetailMessage}
               detailStatus={obligationDetailStatus}
               items={obligationDashboardItems}
-              members={members}
+              assignmentCandidates={obligationAssignmentCandidates}
               message={obligationDashboardMessage}
               status={obligationDashboardStatus}
               onDetailSelect={handleObligationDetailSelect}
@@ -2354,6 +2456,7 @@ export function App() {
             <ReportsView
               approvedEvidencePackages={approvedEvidencePackages}
               assessments={cmmcAssessments}
+              canArchiveReports={canArchiveReports}
               canManageReports={canManageReports}
               controls={cmmcControlLibrary}
               contracts={contracts}
@@ -2372,6 +2475,7 @@ export function App() {
               onComplianceReportGenerate={handleComplianceReportGenerate}
               onEvidencePackageGenerate={handleEvidencePackageGenerate}
               onGeneratedReportSelect={handleGeneratedReportSelect}
+              onReportArchiveStateChange={handleReportArchiveStateChange}
               onReportDetailClose={handleReportDetailClose}
               onSubcontractorReportGenerate={handleSubcontractorReportGenerate}
             />
@@ -3266,6 +3370,7 @@ function contractFormToRequest(form: ContractFormState): UpsertContractRequest {
 }
 
 function ObligationsView({
+  assignmentCandidates,
   canManageObligations,
   clauseLibrary,
   contracts,
@@ -3275,7 +3380,6 @@ function ObligationsView({
   detailMessage,
   detailStatus,
   items,
-  members,
   message,
   onDetailSelect,
   onFilter,
@@ -3292,7 +3396,7 @@ function ObligationsView({
   detailMessage: string;
   detailStatus: "idle" | "loading" | "ready" | "saving" | "failed";
   items: ContractObligationDashboardItem[];
-  members: TenantMember[];
+  assignmentCandidates: ObligationAssignmentCandidate[];
   message: string;
   onDetailSelect: (item: ContractObligationDashboardItem) => Promise<void>;
   onFilter: (params: ContractObligationQueryParams) => Promise<void>;
@@ -3557,7 +3661,7 @@ function ObligationsView({
         canManageObligations={canManageObligations}
         detail={detail}
         panelRef={detailPanelRef}
-        members={members}
+        assignmentCandidates={assignmentCandidates}
         message={detailMessage}
         status={detailStatus}
         onOwnerAssign={onOwnerAssign}
@@ -3570,10 +3674,10 @@ function ObligationsView({
 }
 
 function ObligationDetailPanel({
+  assignmentCandidates,
   canManageObligations,
   detail,
   panelRef,
-  members,
   message,
   onOwnerAssign,
   onStatusUpdate,
@@ -3582,7 +3686,7 @@ function ObligationDetailPanel({
   canManageObligations: boolean;
   detail: ContractObligationDetail | null;
   panelRef: RefObject<HTMLElement | null>;
-  members: TenantMember[];
+  assignmentCandidates: ObligationAssignmentCandidate[];
   message: string;
   onOwnerAssign: (kind: "user" | "role", value: string, notify: boolean) => Promise<void>;
   onStatusUpdate: (status: string) => Promise<void>;
@@ -3818,9 +3922,9 @@ function ObligationDetailPanel({
               disabled={!canManageObligations || status === "saving"}
             >
               <option value="">Select member</option>
-              {members.map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.displayName || member.email}
+              {assignmentCandidates.map((candidate) => (
+                <option key={candidate.userId} value={candidate.userId}>
+                  {candidate.displayName}
                 </option>
               ))}
             </select>
@@ -4093,7 +4197,13 @@ function ContractsView({
     deliverableId: string | null,
     request: UpsertContractDeliverableRequest
   ) => Promise<void>;
-  onUploadDocument: (contractId: string, documentType: string, file: File | null, classification?: string) => Promise<void>;
+  onUploadDocument: (
+    contractId: string,
+    documentType: string,
+    file: File | null,
+    classification?: string,
+    noCuiAttestation?: boolean
+  ) => Promise<boolean>;
   onSave: (contractId: string | null, request: UpsertContractRequest) => Promise<void>;
   onSelectContract: (contractId: string | null) => void;
 }) {
@@ -4101,6 +4211,8 @@ function ContractsView({
   const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState("Contract");
   const [documentClassification, setDocumentClassification] = useState("Unclassified");
+  const [documentNoCuiAttestation, setDocumentNoCuiAttestation] = useState(false);
+  const [documentInputKey, setDocumentInputKey] = useState(0);
   const [clauseDraft, setClauseDraft] = useState<AttachContractClauseRequest>({
     clauseLibraryId: "",
     attachmentReason: "",
@@ -4593,18 +4705,42 @@ function ContractsView({
             onSubmit={(event) => {
               event.preventDefault();
               if (selectedContract) {
-                void onUploadDocument(selectedContract.id, documentType, selectedDocumentFile, documentClassification);
+                void onUploadDocument(
+                    selectedContract.id,
+                    documentType,
+                    selectedDocumentFile,
+                    documentClassification,
+                    documentNoCuiAttestation
+                  )
+                  .then((uploaded) => {
+                    if (uploaded) {
+                      setSelectedDocumentFile(null);
+                      setDocumentNoCuiAttestation(false);
+                      setDocumentInputKey((currentKey) => currentKey + 1);
+                    }
+                  });
               }
             }}
           >
             <input
+              key={documentInputKey}
               aria-label="Contract document"
               type="file"
               onChange={(event) => setSelectedDocumentFile(event.target.files?.[0] ?? null)}
               disabled={uploadDisabled}
             />
-            <button type="submit" disabled={uploadDisabled}>
-              Upload metadata
+            <label>
+              <input
+                type="checkbox"
+                checked={documentNoCuiAttestation}
+                onChange={(event) => setDocumentNoCuiAttestation(event.target.checked)}
+                disabled={uploadDisabled}
+              />
+              I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or
+              sensitive government-furnished information.
+            </label>
+            <button type="submit" disabled={uploadDisabled || !documentNoCuiAttestation}>
+              Upload document
             </button>
           </form>
           {!noCuiAcknowledgement.isAcknowledged ? (
@@ -4638,13 +4774,38 @@ function ContractsView({
                       </small>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => selectedContract && void onStartExtraction(selectedContract.id, document.id)}
-                    disabled={!canManageContracts || contractDocumentStatus === "saving"}
-                  >
-                    Start extraction
-                  </button>
+                  {(() => {
+                    const latestStatus =
+                      extractionResultsByDocumentId[document.id]?.latestJobStatus ??
+                      extractionJobsByDocumentId[document.id]?.status ??
+                      null;
+                    const isRunning = latestStatus === "Queued" || latestStatus === "Processing";
+                    const isStoredText =
+                      document.contentType.toLowerCase() === "text/plain" &&
+                      document.malwareScanStatus.toLowerCase() === "clean" &&
+                      Boolean(document.storageUri) &&
+                      !document.storageUri?.startsWith("pending://");
+
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => selectedContract && void onStartExtraction(selectedContract.id, document.id)}
+                          disabled={!canManageContracts || contractDocumentStatus === "saving" || isRunning || !isStoredText}
+                          title={
+                            isStoredText
+                              ? "Queue tenant-scoped clause extraction."
+                              : "Extraction requires a stored, malware-scanned plain-text document."
+                          }
+                        >
+                          {isRunning ? "Extraction in progress" : isStoredText ? "Start extraction" : "Extraction unavailable"}
+                        </button>
+                        {!isStoredText ? (
+                          <small>Extraction requires a stored, malware-scanned .txt document.</small>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                   <button
                     type="button"
                     onClick={() => selectedContract && void onDeleteDocument(selectedContract.id, document.id)}
@@ -6746,6 +6907,7 @@ function SubcontractorDetailPanel({
 function ReportsView({
   approvedEvidencePackages,
   assessments,
+  canArchiveReports,
   canManageReports,
   controls,
   contracts,
@@ -6759,6 +6921,7 @@ function ReportsView({
   onComplianceReportGenerate,
   onEvidencePackageGenerate,
   onGeneratedReportSelect,
+  onReportArchiveStateChange,
   onReportDetailClose,
   onSubcontractorReportGenerate,
   reportDetailMessage,
@@ -6769,6 +6932,7 @@ function ReportsView({
 }: {
   approvedEvidencePackages: ApprovedEvidencePackage[];
   assessments: CmmcAssessment[];
+  canArchiveReports: boolean;
   canManageReports: boolean;
   controls: CmmcControlLibrary[];
   contracts: ContractRecord[];
@@ -6782,6 +6946,7 @@ function ReportsView({
   onComplianceReportGenerate: () => Promise<void>;
   onEvidencePackageGenerate: (request: EvidencePackageGenerateRequest) => Promise<void>;
   onGeneratedReportSelect: (report: ReportArtifact | ReportHistoryItem) => Promise<void>;
+  onReportArchiveStateChange: (reportId: string, archived: boolean, reason: string) => Promise<boolean>;
   onReportDetailClose: () => void;
   onSubcontractorReportGenerate: (contractId?: string) => Promise<void>;
   reportDetailMessage: string;
@@ -7034,7 +7199,12 @@ function ReportsView({
         </Alert>
       ) : null}
       {reportDetailStatus === "ready" && selectedReport ? (
-        <ReportDetailPanel report={selectedReport} onClose={onReportDetailClose} />
+        <ReportDetailPanel
+          canArchive={canArchiveReports && "snapshot" in selectedReport}
+          report={selectedReport}
+          onArchiveStateChange={onReportArchiveStateChange}
+          onClose={onReportDetailClose}
+        />
       ) : null}
     </section>
   );
@@ -7073,12 +7243,59 @@ function renderReportSummary(report: ReportArtifact) {
   return [totalSubcontractors, openGaps, highRisk].filter(Boolean).join(" · ") || "Snapshot complete";
 }
 
-function ReportDetailPanel({ onClose, report }: { onClose: () => void; report: ReportArtifact }) {
+function ReportDetailPanel({
+  canArchive,
+  onArchiveStateChange,
+  onClose,
+  report
+}: {
+  canArchive: boolean;
+  onArchiveStateChange: (reportId: string, archived: boolean, reason: string) => Promise<boolean>;
+  onClose: () => void;
+  report: ReportArtifact;
+}) {
+  const panelRef = useRef<HTMLElement>(null);
+  const [lifecycleReason, setLifecycleReason] = useState("");
+  const [lifecyclePending, setLifecyclePending] = useState(false);
   const metrics = reportDetailMetrics(report);
   const items = reportDetailItems(report);
+  const isArchived = report.status === "Archived";
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) {
+      return;
+    }
+
+    panel.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    panel.focus({ preventScroll: true });
+  }, [report.id]);
+
+  async function handleLifecycleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!lifecycleReason.trim()) {
+      return;
+    }
+
+    setLifecyclePending(true);
+    try {
+      const succeeded = await onArchiveStateChange(report.id, !isArchived, lifecycleReason.trim());
+      if (succeeded) {
+        setLifecycleReason("");
+      }
+    } finally {
+      setLifecyclePending(false);
+    }
+  }
 
   return (
-    <section className="report-detail" aria-label="Generated report detail" aria-live="polite">
+    <section
+      className="report-detail"
+      aria-label="Generated report detail"
+      aria-live="polite"
+      ref={panelRef}
+      tabIndex={-1}
+    >
       <div className="section-heading section-heading--split">
         <div>
           <p className="eyebrow">Report artifact</p>
@@ -7096,6 +7313,12 @@ function ReportDetailPanel({ onClose, report }: { onClose: () => void; report: R
       <Alert title="Artifact limitations" tone="warning">
         {report.disclaimer}
       </Alert>
+
+      {isArchived && "archiveReason" in report && report.archiveReason ? (
+        <Alert title="Archived report" tone="warning">
+          {String(report.archiveReason)}
+        </Alert>
+      ) : null}
 
       <dl className="report-detail__metrics">
         {metrics.map((metric) => (
@@ -7122,6 +7345,30 @@ function ReportDetailPanel({ onClose, report }: { onClose: () => void; report: R
       <p className="report-detail__identifier">
         Report ID <code>{report.id}</code>
       </p>
+
+      {canArchive ? (
+        <form className="evidence-form" onSubmit={(event) => void handleLifecycleSubmit(event)}>
+          <label>
+            <span>{isArchived ? "Restore reason" : "Archive reason"}</span>
+            <textarea
+              maxLength={500}
+              required
+              value={lifecycleReason}
+              onChange={(event) => setLifecycleReason(event.target.value)}
+            />
+          </label>
+          <div className="form-actions">
+            <Button
+              disabled={lifecyclePending || !lifecycleReason.trim()}
+              icon={<Archive size={16} aria-hidden="true" />}
+              type="submit"
+              variant="secondary"
+            >
+              {lifecyclePending ? "Saving…" : isArchived ? "Restore report" : "Archive report"}
+            </Button>
+          </div>
+        </form>
+      ) : null}
     </section>
   );
 }

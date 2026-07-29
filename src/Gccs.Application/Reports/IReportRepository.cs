@@ -12,6 +12,13 @@ public interface IReportRepository
         Guid reportId,
         CancellationToken cancellationToken = default);
 
+    Task<ReportLifecycleTransitionDto?> SetArchiveStateAsync(
+        Guid reportId,
+        bool archived,
+        Guid actorUserId,
+        string reason,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ApprovedEvidencePackageDto>> ListApprovedEvidencePackagesAsync(
         Guid tenantId,
         CancellationToken cancellationToken = default);

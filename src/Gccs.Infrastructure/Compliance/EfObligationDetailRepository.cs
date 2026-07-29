@@ -13,6 +13,24 @@ public sealed class EfObligationDetailRepository(
     GccsDbContext dbContext,
     ICurrentTenantContext tenantContext) : IObligationDetailRepository
 {
+    public async Task<IReadOnlyList<ObligationAssignmentCandidateDto>> ListAssignmentCandidatesAsync(
+        CancellationToken cancellationToken = default) =>
+        await dbContext.TenantMemberships
+            .AsNoTracking()
+            .Where(membership =>
+                membership.TenantId == tenantContext.TenantId &&
+                membership.Status == Gccs.Domain.Identity.MembershipStatus.Active &&
+                membership.User != null &&
+                membership.User.Status == Gccs.Domain.Identity.UserStatus.Active)
+            .OrderBy(membership => membership.User!.DisplayName)
+            .ThenBy(membership => membership.User!.Email)
+            .Select(membership => new ObligationAssignmentCandidateDto(
+                membership.UserId,
+                string.IsNullOrWhiteSpace(membership.User!.DisplayName)
+                    ? membership.User.Email
+                    : membership.User.DisplayName))
+            .ToListAsync(cancellationToken);
+
     public async Task<ContractObligationDetailResult?> FindCurrentTenantAsync(
         Guid contractClauseId,
         string obligationId,
@@ -93,7 +111,9 @@ public sealed class EfObligationDetailRepository(
                 membership =>
                     membership.TenantId == tenantContext.TenantId &&
                     membership.UserId == request.UserId.Value &&
-                    membership.Status == Gccs.Domain.Identity.MembershipStatus.Active,
+                    membership.Status == Gccs.Domain.Identity.MembershipStatus.Active &&
+                    membership.User != null &&
+                    membership.User.Status == Gccs.Domain.Identity.UserStatus.Active,
                 cancellationToken);
 
             if (!memberExists)

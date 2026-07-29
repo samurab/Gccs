@@ -43,7 +43,10 @@ public sealed class EfReportRepository(
                 report.Status,
                 report.Title,
                 report.GeneratedAt,
-                report.GeneratedByUserId))
+                report.GeneratedByUserId,
+                report.ArchivedAt,
+                report.ArchivedByUserId,
+                report.ArchiveReason))
             .ToArrayAsync(cancellationToken);
 
     public async Task<ReportArtifactDetailDto?> GetReportArtifactAsync(
@@ -67,7 +70,10 @@ public sealed class EfReportRepository(
                 candidate.Title,
                 candidate.GeneratedAt,
                 candidate.GeneratedByUserId,
-                candidate.SnapshotJson
+                candidate.SnapshotJson,
+                candidate.ArchivedAt,
+                candidate.ArchivedByUserId,
+                candidate.ArchiveReason
             })
             .SingleOrDefaultAsync(cancellationToken);
         if (report is null)
@@ -93,7 +99,106 @@ public sealed class EfReportRepository(
             report.Title,
             report.GeneratedAt,
             report.GeneratedByUserId,
-            snapshot);
+            snapshot,
+            report.ArchivedAt,
+            report.ArchivedByUserId,
+            report.ArchiveReason);
+    }
+
+    public async Task<ReportLifecycleTransitionDto?> SetArchiveStateAsync(
+        Guid reportId,
+        bool archived,
+        Guid actorUserId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await dbContext.Reports.SingleOrDefaultAsync(
+            candidate =>
+                candidate.Id == reportId &&
+                candidate.TenantId == tenantContext.TenantId &&
+                (candidate.Type == ReportType.ComplianceStatus ||
+                 candidate.Type == ReportType.CmmcReadiness ||
+                 candidate.Type == ReportType.SubcontractorCompliance),
+            cancellationToken);
+        if (report is null)
+        {
+            return null;
+        }
+
+        var previousStatus = report.Status;
+        var alreadyInRequestedState = archived
+            ? report.Status == ReportStatus.Archived
+            : report.Status != ReportStatus.Archived;
+        if (!alreadyInRequestedState)
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (archived)
+            {
+                report.StatusBeforeArchive = report.Status;
+                report.Status = ReportStatus.Archived;
+                report.ArchivedAt = now;
+                report.ArchivedByUserId = actorUserId;
+                report.ArchiveReason = reason;
+            }
+            else
+            {
+                report.Status = report.StatusBeforeArchive ?? ReportStatus.Complete;
+                report.StatusBeforeArchive = null;
+                report.ArchivedAt = null;
+                report.ArchivedByUserId = null;
+                report.ArchiveReason = null;
+            }
+
+            report.UpdatedAt = now;
+            report.UpdatedByUserId = actorUserId;
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                dbContext.Entry(report).State = EntityState.Detached;
+                report = await dbContext.Reports
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(
+                        candidate =>
+                            candidate.Id == reportId &&
+                            candidate.TenantId == tenantContext.TenantId,
+                        cancellationToken);
+                if (report is null)
+                {
+                    return null;
+                }
+
+                alreadyInRequestedState = true;
+            }
+        }
+
+        JsonElement snapshot;
+        try
+        {
+            snapshot = JsonSerializer.Deserialize<JsonElement>(report.SnapshotJson, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            snapshot = JsonSerializer.Deserialize<JsonElement>("{}", JsonOptions);
+        }
+
+        return new ReportLifecycleTransitionDto(
+            new ReportArtifactDetailDto(
+                report.Id,
+                report.TenantId,
+                report.Type,
+                report.Status,
+                report.Title,
+                report.GeneratedAt,
+                report.GeneratedByUserId,
+                snapshot,
+                report.ArchivedAt,
+                report.ArchivedByUserId,
+                report.ArchiveReason),
+            previousStatus,
+            !alreadyInRequestedState);
     }
 
     public async Task<IReadOnlyList<ApprovedEvidencePackageDto>> ListApprovedEvidencePackagesAsync(

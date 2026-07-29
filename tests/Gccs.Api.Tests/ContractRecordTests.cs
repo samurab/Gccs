@@ -7,6 +7,8 @@ using Gccs.Application.Audit;
 using Gccs.Application.Contracts;
 using Gccs.Application.Common;
 using Gccs.Application.NoCui;
+using Gccs.Application.Security;
+using Gccs.Application.Storage;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
 using Gccs.Domain.Compliance;
@@ -312,6 +314,140 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
     }
 
     [Fact]
+    public async Task UAT_04_Text_document_bytes_are_scanned_stored_and_available_for_extraction()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a5");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282b5");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282c5");
+        await using var factory = CreateFactory("uat-04-file-upload", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "UAT-04", "Extraction upload contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateContractFileUploadRequest(
+            contractId,
+            tenantId,
+            userId,
+            "FAR 52.204-21 - Basic Safeguarding.");
+        var uploadResponse = await client.SendAsync(uploadRequest);
+        var document = await uploadResponse.Content.ReadFromJsonAsync<ContractDocumentDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
+        Assert.NotNull(document);
+        Assert.Equal("clean", document.MalwareScanStatus);
+        Assert.StartsWith($"contracts/{contractId}/", document.StorageUri, StringComparison.Ordinal);
+
+        using var startRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{document.Id}/extraction-jobs",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var startResponse = await client.SendAsync(startRequest);
+        var job = await startResponse.Content.ReadFromJsonAsync<ExtractionJobDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.Created, startResponse.StatusCode);
+        Assert.NotNull(job);
+
+        using var processRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/extraction-jobs/{job.Id}/process",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var processResponse = await client.SendAsync(processRequest);
+        var processed = await processResponse.Content.ReadFromJsonAsync<ExtractionJobProcessResultDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, processResponse.StatusCode);
+        Assert.NotNull(processed);
+        Assert.Equal(ExtractionJobStatus.Completed, processed.Job.Status);
+        Assert.Equal("FAR 52.204-21", Assert.Single(processed.Candidates).NormalizedCitation);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Equal(
+            [AuditAction.Uploaded, AuditAction.Created, AuditAction.Updated],
+            (await dbContext.AuditLogEntries
+                .Where(audit => audit.TenantId == tenantId &&
+                    (audit.EntityType == "ContractDocument" || audit.EntityType == "ExtractionJob"))
+                .OrderBy(audit => audit.OccurredAt)
+                .ToArrayAsync())
+            .Select(audit => audit.Action)
+            .ToArray());
+    }
+
+    [Fact]
+    public async Task Contract_file_upload_for_another_tenant_has_no_scan_storage_or_audit_side_effect()
+    {
+        var tenantAId = Guid.Parse("82828282-8282-8282-8282-8282828282a6");
+        var tenantBId = Guid.Parse("82828282-8282-8282-8282-8282828282b6");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282c6");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282d6");
+        await using var factory = CreateFactory("contract-file-cross-tenant", dbContext =>
+        {
+            SeedTenant(dbContext, tenantAId, "Tenant A");
+            SeedTenant(dbContext, tenantBId, "Tenant B");
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantAId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantBId, "DOC-OTHER", "Other tenant contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var uploadRequest = CreateContractFileUploadRequest(
+            contractId,
+            tenantAId,
+            userId,
+            "FAR 52.204-21 - Basic Safeguarding.");
+        var uploadResponse = await client.SendAsync(uploadRequest);
+
+        Assert.Equal(HttpStatusCode.NotFound, uploadResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractDocumentEntity>().ToArrayAsync());
+        Assert.Empty(await dbContext.AuditLogEntries.ToArrayAsync());
+        Assert.Equal(
+            0,
+            ((TestObjectStorageService)scope.ServiceProvider.GetRequiredService<IObjectStorageService>()).Count);
+        Assert.Equal(
+            0,
+            ((ConfiguredTestMalwareScanner)scope.ServiceProvider.GetRequiredService<IMalwareScanner>()).ScanCount);
+    }
+
+    [Fact]
+    public async Task Contract_file_upload_without_attestation_is_rejected_without_storage_or_persistence()
+    {
+        var tenantId = Guid.Parse("82828282-8282-8282-8282-8282828282a6");
+        var userId = Guid.Parse("82828282-8282-8282-8282-8282828282b6");
+        var contractId = Guid.Parse("82828282-8282-8282-8282-8282828282c6");
+        await using var factory = CreateFactory("contract-file-attestation", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.Contracts.Add(CreateContractEntity(tenantId, "DOC-ATTEST", "Attestation contract", contractId));
+        });
+        using var client = factory.CreateClient();
+
+        using var request = CreateContractFileUploadRequest(
+            contractId,
+            tenantId,
+            userId,
+            "Synthetic text.",
+            noCuiAttestation: false);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractDocumentEntity>().Where(document => document.ContractId == contractId).ToArrayAsync());
+        Assert.Contains(
+            await dbContext.AuditLogEntries.Where(audit => audit.TenantId == tenantId).ToArrayAsync(),
+            audit => audit.Action == AuditAction.Rejected &&
+                audit.EntityType == "ContractDocument" &&
+                audit.MetadataJson.Contains("upload-validation", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task TC_18_1_1_User_with_contract_edit_permission_can_start_extraction_job()
     {
         var tenantId = Guid.Parse("18181818-1818-1818-1818-1818181811a1");
@@ -322,7 +458,11 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
         {
             SeedTenant(dbContext, tenantId);
             dbContext.Contracts.Add(CreateContractEntity(tenantId, "EXT-JOB", "Extraction job contract", contractId));
-            dbContext.Set<ContractDocumentEntity>().Add(CreateDocumentEntity(contractId, documentId, userId));
+            dbContext.Set<ContractDocumentEntity>().Add(CreateTextDocumentEntity(
+                contractId,
+                documentId,
+                userId,
+                "FAR 52.204-21 - Basic Safeguarding."));
         });
         using var client = factory.CreateClient();
 
@@ -470,7 +610,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
     }
 
     [Fact]
-    public async Task TC_18_2_4_Unsupported_or_unreadable_document_marks_job_failed_with_reason()
+    public async Task TC_18_2_4_Unsupported_document_is_rejected_before_a_job_is_created()
     {
         var tenantId = Guid.Parse("18281828-1828-1828-1828-1828182814a1");
         var userId = Guid.Parse("18281828-1828-1828-1828-1828182814b1");
@@ -484,16 +624,21 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
         });
         using var client = factory.CreateClient();
 
-        var job = await StartExtractionJobAsync(client, contractId, documentId, tenantId, userId);
-        using var processRequest = CreateRequest(HttpMethod.Post, $"/api/extraction-jobs/{job.Id}/process", tenantId, userId, Permission.ManageContracts);
-        var processResponse = await client.SendAsync(processRequest);
-        var result = await processResponse.Content.ReadFromJsonAsync<ExtractionJobProcessResultDto>(JsonOptions);
+        using var startRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/documents/{documentId}/extraction-jobs",
+            tenantId,
+            userId,
+            Permission.ManageContracts);
+        var startResponse = await client.SendAsync(startRequest);
 
-        Assert.Equal(HttpStatusCode.OK, processResponse.StatusCode);
-        Assert.NotNull(result);
-        Assert.Equal(ExtractionJobStatus.Failed, result.Job.Status);
-        Assert.Contains("unsupported content type", result.Job.FailureReason, StringComparison.OrdinalIgnoreCase);
-        Assert.Empty(result.Candidates);
+        Assert.Equal(HttpStatusCode.BadRequest, startResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ExtractionJobEntity>().ToArrayAsync());
+        Assert.Empty(await dbContext.AuditLogEntries
+            .Where(audit => audit.EntityType == "ExtractionJob")
+            .ToArrayAsync());
     }
 
     [Fact]
@@ -963,6 +1108,9 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
                 services.AddScoped<IContractRepository, EfContractRepository>();
                 services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.AddSingleton<IObjectStorageService, TestObjectStorageService>();
+                services.AddSingleton<IMalwareScanner>(
+                    new ConfiguredTestMalwareScanner(MalwareScanResult.Clean("test-scanner", "clean")));
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
@@ -973,6 +1121,32 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
                 dbContext.SaveChanges();
             });
         });
+
+    private static HttpRequestMessage CreateContractFileUploadRequest(
+        Guid contractId,
+        Guid tenantId,
+        Guid userId,
+        string text,
+        bool noCuiAttestation = true)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/contracts/{contractId}/documents/file");
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+        request.Headers.Add("X-Gccs-Dev-User", userId.ToString());
+        request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageContracts.ToString());
+        var file = new ByteArrayContent(Encoding.UTF8.GetBytes(text));
+        file.Headers.ContentType = new("text/plain");
+        request.Content = new MultipartFormDataContent
+        {
+            { new StringContent("Contract"), "documentType" },
+            { new StringContent("Fci"), "classification" },
+            { new StringContent("Synthetic FCI-only UAT document."), "classificationReason" },
+            { new StringContent(noCuiAttestation.ToString()), "noCuiAttestation" },
+            { new StringContent("false"), "containsPotentialCui" },
+            { file, "file", "demo-nc-contract.txt" }
+        };
+        return request;
+    }
 
     private static UpsertContractRequest CreateRequestBody(string contractNumber, ContractStatus status) =>
         new(
@@ -1032,7 +1206,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             SizeBytes = 2048,
             StorageUri = $"pending://contracts/{contractId}/documents/{documentId}/contract.pdf",
             ValidationStatus = "accepted",
-            MalwareScanStatus = "scan-pending",
+            MalwareScanStatus = EvidenceUploadGuardrails.CleanMalwareScanStatus,
             NoticeVersion = NoCuiNotice.CurrentVersion,
             UploadedAt = DateTimeOffset.UtcNow,
             UploadedByUserId = userId,
@@ -1050,7 +1224,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             SizeBytes = Encoding.UTF8.GetByteCount(text),
             StorageUri = $"data:text/plain;base64,{Convert.ToBase64String(Encoding.UTF8.GetBytes(text))}",
             ValidationStatus = "accepted",
-            MalwareScanStatus = "scan-pending",
+            MalwareScanStatus = EvidenceUploadGuardrails.CleanMalwareScanStatus,
             NoticeVersion = NoCuiNotice.CurrentVersion,
             UploadedAt = DateTimeOffset.UtcNow,
             UploadedByUserId = userId,
