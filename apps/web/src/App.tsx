@@ -103,6 +103,7 @@ import {
   getNoCuiAcknowledgementStatus,
   getNotificationPreferences,
   getNotifications,
+  getObligationAssignmentCandidates,
   getPublishedSharedResponsibilityMatrix,
   getSharedResponsibilityMatrixAcknowledgements,
   getTenant,
@@ -175,6 +176,7 @@ import {
   type NotificationCenterItem,
   type NotificationPreference,
   type NotificationPreferenceUpdateRequest,
+  type ObligationAssignmentCandidate,
   type PagedResult,
   type ReportHistoryItem,
   type Subcontractor,
@@ -572,6 +574,7 @@ export function App() {
   const [overview, setOverview] = useState(fallbackOverview);
   const [access, setAccess] = useState<CurrentUserAccess>(fallbackAccess);
   const [members, setMembers] = useState<TenantMember[]>([]);
+  const [obligationAssignmentCandidates, setObligationAssignmentCandidates] = useState<ObligationAssignmentCandidate[]>([]);
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
   const [tenantModeHistory, setTenantModeHistory] = useState<TenantDataHandlingModeHistory[]>([]);
@@ -821,14 +824,25 @@ export function App() {
         const canLoadCompanyProfile = hasAnyPermission(nextAccess, ["ViewCompanyProfile", "ManageCompanyProfile"]);
         const canLoadContracts = hasAnyPermission(nextAccess, ["ViewContracts", "ManageContracts"]);
         const canLoadObligations = hasAnyPermission(nextAccess, ["ViewObligations", "ManageObligations"]);
+        const canLoadObligationAssignmentCandidates = nextAccess.permissions.includes("ManageObligations");
         const canLoadCalendar = hasAnyPermission(nextAccess, ["ViewTasks", "ManageTasks"]);
         const canLoadNotifications = hasAnyPermission(nextAccess, ["ViewTasks", "ManageTasks"]);
         const canLoadCmmc = hasAnyPermission(nextAccess, ["ViewCmmc", "ManageCmmc"]);
         const canLoadSubcontractors = hasAnyPermission(nextAccess, ["ViewSubcontractors", "ManageSubcontractors"]);
         const canLoadReports = hasAnyPermission(nextAccess, ["ViewReports", "ManageReports"]);
-        const [nextMembers, nextInvitations] = canLoadUserManagement
-          ? await Promise.all([getTenantMembers(), getTenantInvitations()])
-          : [[], []];
+        const [nextMembers, nextInvitations, nextObligationAssignmentCandidates] = canLoadUserManagement
+          ? await Promise.all([
+              getTenantMembers(),
+              getTenantInvitations(),
+              canLoadObligationAssignmentCandidates ? getObligationAssignmentCandidates() : Promise.resolve([])
+            ])
+          : canLoadObligationAssignmentCandidates
+            ? await Promise.all([
+                Promise.resolve([]),
+                Promise.resolve([]),
+                getObligationAssignmentCandidates()
+              ])
+            : [[], [], []];
         const nextTenant = canLoadTenantContext ? await getTenant(nextAccess.tenantId!) : null;
         const [
           nextTenantModeHistory,
@@ -887,6 +901,7 @@ export function App() {
           setOverview(nextOverview);
           setMembers(nextMembers);
           setInvitations(nextInvitations);
+          setObligationAssignmentCandidates(nextObligationAssignmentCandidates);
           setCurrentTenant(nextTenant);
           setTenantModeHistory(nextTenantModeHistory);
           setCuiReadyChecklists(nextCuiReadyChecklists);
@@ -2305,7 +2320,7 @@ export function App() {
               detailMessage={obligationDetailMessage}
               detailStatus={obligationDetailStatus}
               items={obligationDashboardItems}
-              members={members}
+              assignmentCandidates={obligationAssignmentCandidates}
               message={obligationDashboardMessage}
               status={obligationDashboardStatus}
               onDetailSelect={handleObligationDetailSelect}
@@ -3308,6 +3323,7 @@ function contractFormToRequest(form: ContractFormState): UpsertContractRequest {
 }
 
 function ObligationsView({
+  assignmentCandidates,
   canManageObligations,
   clauseLibrary,
   contracts,
@@ -3317,7 +3333,6 @@ function ObligationsView({
   detailMessage,
   detailStatus,
   items,
-  members,
   message,
   onDetailSelect,
   onFilter,
@@ -3334,7 +3349,7 @@ function ObligationsView({
   detailMessage: string;
   detailStatus: "idle" | "loading" | "ready" | "saving" | "failed";
   items: ContractObligationDashboardItem[];
-  members: TenantMember[];
+  assignmentCandidates: ObligationAssignmentCandidate[];
   message: string;
   onDetailSelect: (item: ContractObligationDashboardItem) => Promise<void>;
   onFilter: (params: ContractObligationQueryParams) => Promise<void>;
@@ -3599,7 +3614,7 @@ function ObligationsView({
         canManageObligations={canManageObligations}
         detail={detail}
         panelRef={detailPanelRef}
-        members={members}
+        assignmentCandidates={assignmentCandidates}
         message={detailMessage}
         status={detailStatus}
         onOwnerAssign={onOwnerAssign}
@@ -3612,10 +3627,10 @@ function ObligationsView({
 }
 
 function ObligationDetailPanel({
+  assignmentCandidates,
   canManageObligations,
   detail,
   panelRef,
-  members,
   message,
   onOwnerAssign,
   onStatusUpdate,
@@ -3624,7 +3639,7 @@ function ObligationDetailPanel({
   canManageObligations: boolean;
   detail: ContractObligationDetail | null;
   panelRef: RefObject<HTMLElement | null>;
-  members: TenantMember[];
+  assignmentCandidates: ObligationAssignmentCandidate[];
   message: string;
   onOwnerAssign: (kind: "user" | "role", value: string, notify: boolean) => Promise<void>;
   onStatusUpdate: (status: string) => Promise<void>;
@@ -3860,9 +3875,9 @@ function ObligationDetailPanel({
               disabled={!canManageObligations || status === "saving"}
             >
               <option value="">Select member</option>
-              {members.map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.displayName || member.email}
+              {assignmentCandidates.map((candidate) => (
+                <option key={candidate.userId} value={candidate.userId}>
+                  {candidate.displayName}
                 </option>
               ))}
             </select>

@@ -222,6 +222,11 @@ export type TenantMember = {
   updatedAt: string | null;
 };
 
+export type ObligationAssignmentCandidate = {
+  userId: string;
+  displayName: string;
+};
+
 export type TenantInvitation = {
   invitationId: string;
   tenantId: string;
@@ -1885,6 +1890,10 @@ function normalizeCurrentUserAccess(access: CurrentUserAccess): CurrentUserAcces
 
 export async function getTenantMembers(): Promise<TenantMember[]> {
   return getJson<TenantMember[]>("/api/tenant-members", []);
+}
+
+export async function getObligationAssignmentCandidates(): Promise<ObligationAssignmentCandidate[]> {
+  return getJson<ObligationAssignmentCandidate[]>("/api/contract-obligations/assignment-candidates", []);
 }
 
 export async function getTenantInvitations(): Promise<TenantInvitation[]> {

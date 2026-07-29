@@ -57,6 +57,7 @@ const {
   getNoCuiAcknowledgementStatusMock,
   getNotificationPreferencesMock,
   getNotificationsMock,
+  getObligationAssignmentCandidatesMock,
   getPublishedSharedResponsibilityMatrixMock,
   getSharedResponsibilityMatrixAcknowledgementsMock,
   getComplianceOverviewMock,
@@ -172,6 +173,7 @@ const {
   getNoCuiAcknowledgementStatusMock: vi.fn(),
   getNotificationPreferencesMock: vi.fn(),
   getNotificationsMock: vi.fn(),
+  getObligationAssignmentCandidatesMock: vi.fn(),
   getPublishedSharedResponsibilityMatrixMock: vi.fn(),
   getSharedResponsibilityMatrixAcknowledgementsMock: vi.fn(),
   generateCmmcReadinessReportMock: vi.fn(),
@@ -832,6 +834,7 @@ vi.mock("@/lib/api", () => ({
   getReportArtifact: getReportArtifactMock,
   getNotificationPreferences: getNotificationPreferencesMock,
   getNotifications: getNotificationsMock,
+  getObligationAssignmentCandidates: getObligationAssignmentCandidatesMock,
   getPublishedSharedResponsibilityMatrix: getPublishedSharedResponsibilityMatrixMock,
   getSharedResponsibilityMatrixAcknowledgements: getSharedResponsibilityMatrixAcknowledgementsMock,
   generateCmmcReadinessReport: generateCmmcReadinessReportMock,
@@ -986,6 +989,7 @@ describe("App", () => {
     getNoCuiAcknowledgementStatusMock.mockReset();
     getNotificationPreferencesMock.mockReset();
     getNotificationsMock.mockReset();
+    getObligationAssignmentCandidatesMock.mockReset();
     getPublishedSharedResponsibilityMatrixMock.mockReset();
     getSharedResponsibilityMatrixAcknowledgementsMock.mockReset();
     getTenantInvitationsMock.mockReset();
@@ -1101,6 +1105,7 @@ describe("App", () => {
       error: null
     });
     getNotificationsMock.mockResolvedValue([]);
+    getObligationAssignmentCandidatesMock.mockResolvedValue([]);
     getTenantMock.mockResolvedValue({
       id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
       displayName: "Acme GovCon",
@@ -2275,6 +2280,12 @@ describe("App", () => {
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
+    getObligationAssignmentCandidatesMock.mockResolvedValueOnce([
+      {
+        userId: members[0].userId,
+        displayName: members[0].displayName
+      }
+    ]);
     getContractsMock.mockResolvedValueOnce([contract]);
     getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
     getContractObligationDetailMock.mockResolvedValueOnce(obligationDetail);
@@ -2299,6 +2310,40 @@ describe("App", () => {
     );
     expect(await screen.findByText("Obligation owner assigned.")).toBeInTheDocument();
     expect(screen.getAllByText("Avery Admin").length).toBeGreaterThan(0);
+  });
+
+  it("UAT-09 loads active tenant members for Compliance Manager obligation assignment without ManageUsers", async () => {
+    const assignmentCandidates = [
+      {
+        userId: "cccccccc-cccc-cccc-cccc-ccccccccccc4",
+        displayName: "Devin Brooks"
+      }
+    ];
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce({
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      userId: "cccccccc-cccc-cccc-cccc-ccccccccccc6",
+      userEmail: "priya.shah@example.com",
+      roles: ["Compliance Manager"],
+      permissions: ["ViewObligations", "ManageObligations"],
+      rolePermissionMatrix: {}
+    });
+    getObligationAssignmentCandidatesMock.mockResolvedValueOnce(assignmentCandidates);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractObligationsMock.mockResolvedValueOnce([obligationDashboardItem]);
+    getContractObligationDetailMock.mockResolvedValueOnce(obligationDetail);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /obligations/i }));
+    await user.click(await screen.findByRole("button", { name: /view details/i }));
+    const memberSelect = await screen.findByLabelText("Tenant member");
+
+    expect(getObligationAssignmentCandidatesMock).toHaveBeenCalled();
+    expect(getTenantMembersMock).not.toHaveBeenCalled();
+    expect(getTenantInvitationsMock).not.toHaveBeenCalled();
+    expect(within(memberSelect).getByRole("option", { name: "Devin Brooks" })).toBeInTheDocument();
   });
 
   it("TC-10.3.2 assigns an obligation to a role", async () => {
@@ -2429,6 +2474,7 @@ describe("App", () => {
     expect(within(navigation).queryByRole("link", { name: /contracts/i })).not.toBeInTheDocument();
     expect(within(navigation).queryByRole("link", { name: /settings/i })).not.toBeInTheDocument();
     expect(getTenantMembersMock).not.toHaveBeenCalled();
+    expect(getObligationAssignmentCandidatesMock).not.toHaveBeenCalled();
     expect(getTenantInvitationsMock).not.toHaveBeenCalled();
     expect(getNoCuiAcknowledgementStatusMock).not.toHaveBeenCalled();
   });

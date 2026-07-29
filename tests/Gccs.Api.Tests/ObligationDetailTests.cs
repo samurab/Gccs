@@ -188,6 +188,129 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
     }
 
     [Fact]
+    public async Task UAT_09_assignment_candidates_are_minimal_active_and_tenant_scoped()
+    {
+        var tenantId = Guid.Parse("90390390-3903-9039-0390-3903903903a1");
+        var otherTenantId = Guid.Parse("90390390-3903-9039-0390-3903903903b1");
+        var scenario = DetailScenario.Create(tenantId);
+        var disabledUserId = Guid.Parse("90390390-3903-9039-0390-3903903903c1");
+        var otherTenantUserId = Guid.Parse("90390390-3903-9039-0390-3903903903d1");
+        await using var factory = CreateFactory("uat-09-assignment-candidates", dbContext =>
+        {
+            SeedScenario(dbContext, scenario);
+            SeedTenant(dbContext, otherTenantId, "Other Tenant");
+            dbContext.Users.AddRange(
+                new UserEntity
+                {
+                    Id = disabledUserId,
+                    TenantId = tenantId,
+                    Email = "disabled.member@example.com",
+                    DisplayName = "Disabled Member",
+                    Status = UserStatus.Disabled,
+                    CreatedAt = DateTimeOffset.UtcNow
+                },
+                new UserEntity
+                {
+                    Id = otherTenantUserId,
+                    TenantId = otherTenantId,
+                    Email = "other.tenant@example.com",
+                    DisplayName = "Other Tenant Member",
+                    Status = UserStatus.Active,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            dbContext.TenantMemberships.AddRange(
+                new TenantMembershipEntity
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    UserId = disabledUserId,
+                    RoleName = RoleCatalog.Contributor,
+                    Status = MembershipStatus.Active,
+                    CreatedAt = DateTimeOffset.UtcNow
+                },
+                new TenantMembershipEntity
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = otherTenantId,
+                    UserId = otherTenantUserId,
+                    RoleName = RoleCatalog.Contributor,
+                    Status = MembershipStatus.Active,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Get,
+            "/api/contract-obligations/assignment-candidates",
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageObligations);
+
+        var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var candidates = JsonSerializer.Deserialize<ObligationAssignmentCandidateDto[]>(responseBody, JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var candidate = Assert.Single(candidates ?? []);
+        Assert.Equal(scenario.AssigneeUserId, candidate.UserId);
+        Assert.Equal("Assigned Owner", candidate.DisplayName);
+        Assert.DoesNotContain("disabled.member@example.com", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("other.tenant@example.com", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("mfaEnabled", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("lastSignedInAt", responseBody, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task UAT_09_view_only_permission_cannot_list_assignment_candidates()
+    {
+        var tenantId = Guid.Parse("90390390-3903-9039-0390-3903903903a2");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("uat-09-assignment-candidates-denied", dbContext => SeedScenario(dbContext, scenario));
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Get,
+            "/api/contract-obligations/assignment-candidates",
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ViewObligations);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UAT_09_disabled_user_assignment_is_rejected_without_side_effects()
+    {
+        var tenantId = Guid.Parse("90390390-3903-9039-0390-3903903903a3");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("uat-09-disabled-assignment", dbContext =>
+        {
+            SeedScenario(dbContext, scenario);
+            var user = dbContext.Users.Local.Single(candidate => candidate.Id == scenario.AssigneeUserId);
+            user.Status = UserStatus.Disabled;
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/contract-obligations/{scenario.ContractClauseId}/{scenario.ObligationId}/owner",
+            new AssignContractObligationOwnerRequest(scenario.AssigneeUserId, null, Notify: true),
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageObligations);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Null((await dbContext.ComplianceTasks.SingleAsync(task => task.Id == scenario.TaskId)).AssignedToUserId);
+        Assert.Empty(await dbContext.AuditLogEntries.ToArrayAsync());
+        Assert.Empty(await dbContext.NotificationDeliveries.ToArrayAsync());
+        Assert.Empty(await dbContext.AssignmentEmailDeliveries.ToArrayAsync());
+    }
+
+    [Fact]
     public async Task TC_10_3_4_Assignment_changes_are_audit_logged_with_notification_metadata()
     {
         var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a4");

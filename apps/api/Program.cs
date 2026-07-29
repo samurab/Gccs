@@ -1419,6 +1419,13 @@ api.MapGet("/contract-obligations/{contractClauseId:guid}/{obligationId}", async
 .RequirePermission(Permission.ViewObligations)
 .WithName("GetContractObligationDetail");
 
+api.MapGet("/contract-obligations/assignment-candidates", async (
+    ObligationDetailService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAssignmentCandidatesAsync(cancellationToken)))
+.RequirePermission(Permission.ManageObligations)
+.WithName("ListContractObligationAssignmentCandidates");
+
 api.MapPatch("/contract-obligations/{contractClauseId:guid}/{obligationId}/status", async (
     Guid contractClauseId,
     string obligationId,

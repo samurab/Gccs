@@ -56,10 +56,15 @@ public sealed record UpdateContractObligationStatusRequest(ComplianceTaskStatus 
 
 public sealed record AssignContractObligationOwnerRequest(Guid? UserId, string? RoleName, bool Notify = false);
 
+public sealed record ObligationAssignmentCandidateDto(Guid UserId, string DisplayName);
+
 public sealed record ContractObligationDetailResult(Guid TenantId, ContractObligationDetailDto Detail);
 
 public interface IObligationDetailRepository
 {
+    Task<IReadOnlyList<ObligationAssignmentCandidateDto>> ListAssignmentCandidatesAsync(
+        CancellationToken cancellationToken = default);
+
     Task<ContractObligationDetailResult?> FindCurrentTenantAsync(
         Guid contractClauseId,
         string obligationId,
