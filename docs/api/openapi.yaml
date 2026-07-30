@@ -1112,6 +1112,31 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/contract-obligations/assignment-candidates:
+    get:
+      tags:
+        - Obligations
+      summary: List active tenant members eligible for obligation assignment
+      operationId: listContractObligationAssignmentCandidates
+      description: >
+        Returns a minimal tenant-scoped assignment picker payload for active users
+        with active tenant memberships. Requires the ManageObligations permission.
+        Full tenant membership administration remains limited to the ManageUsers
+        endpoint.
+      responses:
+        "200":
+          description: Active current-tenant assignment candidates.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ObligationAssignmentCandidate"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/contract-obligations/{contractClauseId}/{obligationId}:
     parameters:
       - name: contractClauseId
@@ -4281,6 +4306,19 @@ components:
         notify:
           type: boolean
           default: false
+
+    ObligationAssignmentCandidate:
+      type: object
+      required:
+        - userId
+        - displayName
+      properties:
+        userId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          maxLength: 200
 
     ContractObligation:
       type: object
