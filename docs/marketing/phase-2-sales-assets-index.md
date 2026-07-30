@@ -28,6 +28,8 @@ Status: draft package. Customer-facing use requires founder, product owner, secu
 | Phase 5 distribution tracker | `docs/marketing/phase-5-distribution-channel-tracker.csv` | Channel activity and conversion tracking | Founder review |
 | Phase 6 first 90-day roadmap | `docs/marketing/phase-6-first-90-day-roadmap.md` | Day-by-day operating roadmap from MVP freeze to first paid customer evidence | Founder, product, security, finance, counsel review where applicable |
 | Phase 6 90-day tracker | `docs/marketing/phase-6-90-day-roadmap-tracker.csv` | Weekly execution metrics and blocker tracking | Founder review |
+| Controlled customer-discovery roadmap | `docs/marketing/controlled-customer-discovery-roadmap.md` | Master pipeline guide tying Phases 1-6 to verified product behavior and phase gates | Founder, product, security, finance, counsel review where applicable |
+| Controlled customer-discovery tracker | `docs/marketing/controlled-customer-discovery-pipeline-tracker.csv` | Master weekly pipeline, gate, claims-risk, and conversion tracker | Founder review |
 | 10-slide sales deck | `docs/marketing/gccs-phase-2-sales-deck.pptx` | Discovery calls, advisor meetings, pilot sales calls | Founder, product, claims review |
 | Sales deck source | `docs/marketing/gccs-phase-2-sales-deck.md` | Reviewable slide copy | Founder, product, claims review |
 | Sample readiness report source | `docs/marketing/sample-readiness-report.md` | Demo report copy and PDF source | Product, security, claims review |

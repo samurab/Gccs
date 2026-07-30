@@ -1,165 +1,233 @@
-# AGENTS.md - Gccs Project Instructions
+# AGENTS.md — Gccs Project Instructions
 
-Use these instructions at the beginning of every Codex session in this repository.
+Use these instructions for work in this repository. Apply verification in
+proportion to the task's risk; do not run release-grade investigation or test
+suites for low-risk work.
 
-## Project Summary
+## Product Invariants
 
-Gccs is a Government Contractor Compliance SaaS for small U.S. government contractors.
+Gccs is a multi-tenant compliance-management SaaS for small U.S. government
+contractors.
 
-- The product is multi-tenant SaaS.
 - The MVP posture is No-CUI / compliance management only.
-- The app supports compliance management, readiness workflows, evidence tracking, obligation tracking, reporting, and auditability.
-- The app must not claim to provide CMMC certification, legal advice, accounting advice, labor determinations, or government endorsement.
-- Production compliance content must remain source-backed, reviewable, and governed by qualified subject-matter review.
+- The product supports readiness workflows, evidence and obligation tracking,
+  reporting, and auditability.
+- Do not claim that Gccs provides CMMC certification, legal advice, accounting
+  advice, labor determinations, government approval, or government endorsement.
+- Production compliance content must be source-backed, reviewable, and governed
+  by qualified subject-matter review.
+- Treat AI-generated compliance content as draft-only unless an implemented,
+  reviewed workflow explicitly establishes otherwise.
 
-## Architecture Rules
+## Architecture Invariants
 
-Preserve the existing Clean Architecture boundaries.
+Preserve the existing Clean Architecture boundaries:
 
-- `apps/api`: ASP.NET Core API endpoints, authentication, tenant context, RBAC policies, request validation, response shaping, and API composition.
-- `src/Gccs.Application`: use cases, DTOs, ports/interfaces, workflow orchestration, and application services.
-- `src/Gccs.Domain`: framework-independent entities, value objects, enums, and domain rules.
-- `src/Gccs.Infrastructure`: EF Core persistence, migrations, repository adapters, local seed adapters, and external integrations.
-- `apps/web`: React + Vite UI, route shell, user-visible states, client API calls, accessibility, and presentation logic.
-- `packages/compliance-content`: source-backed obligation seed content and compliance content metadata.
-- `docs`: product, architecture, API, database, governance, and delivery documentation.
+- `apps/api`: ASP.NET Core endpoints, authentication, tenant context, RBAC,
+  request validation, response shaping, and API composition.
+- `src/Gccs.Application`: use cases, DTOs, ports, workflow orchestration, and
+  application services.
+- `src/Gccs.Domain`: framework-independent entities, value objects, enums, and
+  domain rules.
+- `src/Gccs.Infrastructure`: EF Core persistence, migrations, repositories,
+  seed adapters, and external integrations.
+- `apps/web`: React + Vite presentation, route shell, client API calls,
+  accessibility, and user-visible states.
+- `packages/compliance-content`: source-backed compliance content and metadata.
+- `docs`: product, architecture, API, database, governance, and delivery
+  documentation.
 
-Do not put database queries directly in API endpoints. Keep controllers and minimal API handlers thin. Business workflow logic belongs in application services. Persistence belongs in infrastructure repositories. Domain rules should not depend on ASP.NET, EF Core, React, HTTP, database, or cloud SDKs.
+Keep endpoints thin. Do not query databases directly from API handlers.
+Business workflows belong in application services, persistence in
+infrastructure, and framework-independent rules in the domain.
 
-## Security Rules
+## Security and Compliance Invariants
 
-- Tenant isolation is mandatory on every tenant-scoped read, write, export, report, background job, and search query.
-- RBAC is mandatory on tenant-scoped actions.
-- Never trust a tenant id, user id, role, permission, or ownership value supplied only by the client body.
-- Do not leak cross-tenant entity ids, metadata, names, evidence records, report data, audit logs, or errors.
-- Prefer `404` for missing or cross-tenant resources unless the existing API standard for that feature uses `403`.
-- Do not log secrets, passwords, tokens, credentials, sensitive file contents, or raw customer documents.
-- Use the project standard API error contract. Do not expose stack traces to clients.
-- Preserve append-only behavior for audit logs and compliance-relevant history.
+These requirements apply whenever the affected behavior is relevant:
 
-## Compliance Rules
+- Enforce tenant isolation and server-side RBAC on every tenant-scoped read,
+  write, search, report, export, and background job.
+- Never trust tenant ids, user ids, roles, permissions, or ownership supplied
+  only by the client.
+- Do not disclose cross-tenant identifiers, metadata, names, evidence, report
+  data, audit records, or errors. Prefer `404` for missing or cross-tenant
+  resources unless the established API contract uses `403`.
+- Do not log secrets, passwords, tokens, credentials, raw customer documents,
+  sensitive file contents, or file contents in audit events.
+- Use the standard API error contract and never expose stack traces.
+- Preserve append-only audit history. Compliance-relevant business writes and
+  audit events must be atomic, or use a proven transactional-outbox design for
+  external side effects.
+- Audit compliance-relevant mutations, approvals, rejections, status changes,
+  upload decisions, exports, policy acknowledgements, and data-handling posture
+  changes where the implemented product supports them.
+- Preserve the No-CUI upload policy for CUI, classified information,
+  export-controlled or ITAR data, and sensitive government-furnished
+  information.
+- Preserve evidence and source traceability, review metadata, content
+  provenance, and tenant boundaries.
+- Compliance report artifacts are immutable snapshots. Administrative
+  lifecycle changes use explicit archive/restore transitions, a reason,
+  tenant-safe authorization, and append-only audit events; do not add in-place
+  editing or hard deletion.
+- Keep permissions server-authoritative. The UI must consume server-provided
+  permissions and fail closed when permission data is absent or malformed.
 
-- Audit-log compliance-relevant actions, including create/update/delete, approval/rejection, upload acceptance/rejection, status changes, exports, policy acknowledgements, failed authorization attempts where supported, and data-handling posture changes.
-- Enforce the No-CUI upload policy. The default MVP must reject or warn against CUI, classified information, export-controlled data, ITAR data, and sensitive government-furnished information.
-- Do not store file contents in audit logs.
-- Preserve evidence traceability, source traceability, review metadata, audit history, tenant boundaries, and compliance content provenance.
-- Keep obligation and regulatory content source-backed with source URL, effective/review dates, confidence, and review state where the model supports it.
-- Treat AI output as draft-only unless a reviewed workflow explicitly says otherwise. AI-generated compliance content must cite sources and remain reviewable.
+## Change Discipline
 
-## Coding Rules
+- Make small, focused, reviewable changes and avoid unrelated formatting churn.
+- Preserve existing public and internal contracts unless a breaking change is
+  explicitly requested and approved with a migration and rollback plan.
+- Before changing behavior, identify affected callers, routes, controls,
+  persisted fields, configuration keys, workers, tests, and documented flows.
+- Use existing middleware, policies, services, repositories, DTOs, validators,
+  error handling, and naming patterns before introducing new abstractions.
+- Prefer explicit validation and simple, maintainable implementations.
+- Preserve unrelated user changes; never revert them without authorization.
+- Development-only behavior must be explicitly gated and must not weaken
+  staging or production authentication or authorization.
+- Frontend work must cover the user-visible states relevant to the change:
+  loading, empty, success, error, and authorization denied.
+- EF Core model changes require a scoped migration when the project uses
+  migrations. Inspect existing data before adding constraints; do not silently
+  rewrite ambiguous customer values.
+- If a breaking change is unavoidable, stop before implementation and document
+  compatibility impact, migration steps, rollback, and required approval.
 
-- Make small, focused, reviewable changes.
-- Do not modify unrelated files.
-- Follow existing naming conventions, service patterns, repository patterns, DTO patterns, validation patterns, and error handling patterns.
-- Prefer simple, explicit, maintainable code over broad abstractions.
-- Prefer explicit validation over implicit assumptions.
-- Use existing middleware, authorization policies, services, repositories, DTOs, and helpers before introducing new ones.
-- Keep frontend screens complete for normal UX states when touched: loading, empty, success, error, and authorization-denied states where applicable.
-- For EF Core changes, add migrations when the project uses migrations and keep generated migrations scoped to the model change.
+## Verification Level
 
-## Backward Compatibility and Regression Prevention
+Classify the task before deciding how much repository inspection and
+verification to perform. If uncertain between two levels, use the higher level.
+The size of a diff does not lower the level when it changes a shared security
+boundary.
 
-Existing working behavior is a product contract. A new feature, defect fix, refactor, configuration change, or UI redesign must not silently remove, disable, weaken, or alter an existing working flow.
+### Read-only
 
-Before changing code:
+Use for explanations, investigations, reviews, and status reports.
 
-1. Identify the existing callers, routes, controls, persisted fields, configuration keys, background workers, tests, and documented/UAT flows affected by the change.
-2. Record the current expected behavior and determine which behavior must remain compatible.
-3. Run the narrowest relevant existing tests before editing when practical. Treat unexpected baseline failures as existing conditions to investigate, not as permission to change the contract.
-4. Add or identify a regression test for any previously working behavior that the change could affect. When fixing a regression, reproduce it with a failing test before implementing the fix where practical.
-5. Prefer additive changes. Do not rename or remove API fields, routes, roles, permissions, UI actions, configuration keys, storage keys, seeded identities, or database semantics without explicit authorization and a compatibility/migration plan.
+- Inspect only the files and behavior needed for an evidence-backed answer.
+- Do not edit, build, run broad tests, or perform external mutations unless the
+  user expands the task.
 
-During implementation:
+### Low
 
-1. Preserve existing public and internal contracts unless the requested change explicitly requires a breaking change.
-2. Keep security enforcement, tenant isolation, RBAC, audit history, No-CUI controls, token lifecycle, retry behavior, and user identity semantics at least as strong as before.
-3. Do not fix one environment by weakening another. Development-only behavior must be explicitly gated and must not alter staging or production authentication or authorization.
-4. When a workflow spans UI, API, persistence, email/background processing, or external providers, trace and verify the complete workflow rather than validating only the changed layer.
-5. If a breaking change is unavoidable, stop and document the affected behavior, migration steps, rollback path, and required user approval before implementing it.
+Use for non-behavioral internal documentation, comments, formatting, isolated
+copy, and presentation-only styling.
 
-Before declaring the change complete:
+- Inspect affected files and nearby contracts.
+- Validate changed links, commands, formatting, or claims as applicable.
+- Do not run application builds or broad test suites unless executable
+  behavior, configuration, generated artifacts, or type checking is affected.
+- Customer-facing compliance, marketing, demo, and workflow documents are not
+  automatically low risk; apply the documentation rules below.
 
-1. Run the new focused tests and the existing tests for adjacent behavior.
-2. Build every touched application or project.
-3. Perform a smoke test of the original working flow and the new/changed flow using realistic persisted state.
-4. Inspect the final diff for unrelated changes, removed behavior, stale copy, configuration drift, and accidental security or authorization changes.
-5. Report exactly which regression suites, builds, and smoke tests were run. If a broader suite was not run, disclose that limitation and the remaining regression risk.
-6. Do not mark a change complete while a known backward regression remains. Restore compatibility or explicitly obtain approval for the breaking behavior.
+### Standard
 
-## Testing Rules
+Use for localized application behavior that does not touch a high-risk boundary.
 
-Add or update focused tests for the risk introduced by the change.
+- Record the existing behavior that must remain compatible.
+- Run the narrowest relevant existing test before editing when practical.
+- Add or update focused tests for the changed behavior.
+- Run focused tests and build each touched application or project.
+- Inspect the final diff and smoke-test the original and changed flow when the
+  behavior is user-facing.
 
-- Tenant isolation tests for tenant-scoped data.
-- RBAC tests for protected actions.
-- Audit logging tests for compliance-relevant actions.
-- No-CUI/data-handling policy enforcement tests for upload or document flows.
-- Validation and error handling tests for invalid input, missing resources, conflicts, and unexpected failures where applicable.
-- Cross-tenant tests must prove data is not returned, updated, exported, counted, or linked across tenants.
-- Empty-state tests must prove tenant-safe endpoints return valid empty responses instead of throwing.
-- Cross-field and lifecycle validation tests must cover valid ordering, reversed ordering, equality boundaries, individually omitted optional values, expired/historical values where allowed, and incompatible status/date combinations.
-- Rejected-mutation tests must prove that invalid requests do not partially persist data, create audit events, enqueue tasks or notifications, rotate tokens, or trigger external side effects.
-- When adding database constraints to existing tables, inspect current persisted data first. Do not silently rewrite ambiguous customer values; use an explicit audited remediation or a staged constraint such as PostgreSQL `NOT VALID`, then track validation of existing rows.
-- Regression tests must include realistic UAT values and previously observed failure cases when those cases are safe to retain as synthetic fixtures.
-- A UAT test must execute and assert every verb in the acceptance criterion. Visibility of a card does not prove that its detail action works; click the control, verify the API call and response, and assert the resulting content is visible and keyboard-focused.
-- For content rendered outside the current viewport, verify discoverability after interaction with scroll/focus behavior and a real-browser test. A DOM-only assertion is insufficient for below-the-fold panels, dialogs, drawers, menus, and route transitions.
-- Build a negative and positive permission matrix for each protected resource action. Treat view, generate, export, archive/restore, edit, and delete as separate permissions unless the product contract explicitly combines them.
-- Compliance report artifacts are immutable snapshots. Do not add in-place report editing or hard deletion. Administrative lifecycle changes must use explicit archive/restore transitions, require a reason, preserve tenant isolation, and write append-only audit events.
-- For idempotent lifecycle endpoints, prove repeated requests do not duplicate audit events or side effects. Also prove rejected, invalid, and cross-tenant requests leave both the resource and audit history unchanged.
+### High
 
-Run the narrowest relevant tests first, then broader build/test commands when practical.
+Automatically use High verification for authentication, tenant scope, RBAC,
+audit behavior, No-CUI controls, uploads, document classification, reports,
+exports, compliance lifecycle mutations, shared authorization or error
+middleware, persistence constraints, migrations, background jobs, external
+side effects, or cross-layer critical workflows.
 
-## Deep Verification and Hidden-Bug Prevention
+- Test allowed and denied behavior for every affected action and role.
+- Add tenant-isolation tests for every affected tenant-scoped path, including
+  empty and cross-tenant cases.
+- Prove rejected, invalid, repeated, and cross-tenant mutations leave resources,
+  audit history, jobs, notifications, tokens, and external systems unchanged.
+- Test relevant lifecycle boundaries, retries, duplicate submissions,
+  concurrency, cancellation, and partial infrastructure failure.
+- Verify audit atomicity or transactional-outbox behavior when applicable.
+- Test the complete affected endpoint inventory when a shared security boundary
+  changes; a representative endpoint is insufficient.
+- Trace critical workflows through every changed layer. Use real-stack tests
+  when mocks cannot prove the boundary, persistence, browser interaction, or
+  external-provider behavior.
+- Run focused tests, adjacent regression suites, migrations, and builds for all
+  touched projects. Disclose any unavailable environment or skipped coverage.
 
-Treat acceptance criteria as executable contracts, not prose-only guidance.
+Trigger only the tests relevant to the changed boundary:
 
-1. Decompose each requirement into actor, action, preconditions, expected result, forbidden result, tenant boundary, persisted state, audit event, and external side effects. Record which UI control, API endpoint, application service, repository rule, and automated test proves each applicable part.
-2. For authorization, tenant isolation, classification, exports, reports, uploads, approvals, and auditability, test the complete endpoint inventory. A representative endpoint is not sufficient evidence for a security boundary. Every added or changed endpoint must declare machine-readable authorization metadata and be included in an executable endpoint contract or manifest.
-3. Keep permissions server-authoritative. The UI must consume explicit server permissions, fail closed when access data is missing or malformed, and hide restricted actions. Never maintain a second client-side role-to-permission matrix.
-4. Test both allowed and denied behavior for every affected role and mutation. Denied tests must prove the response contract and prove no report, audit event, related row, notification, job, token change, or external call was created.
-5. Compliance-relevant business writes and their audit events must be atomic in one database transaction, or use a proven transactional-outbox design when an external system is involved. Add real-provider fault-injection tests that force audit or outbox failure and prove rollback.
-6. Every report, export, background job, and search path must independently enforce tenant scope, RBAC, data-handling mode, and content classification on the source records it consumes. Do not infer safety from UI filters or from a request-level boolean.
-7. Trace cross-layer workflows through UI, HTTP, application service, persistence, audit, background processing, and external providers. Unit or mocked-browser tests do not replace a real-stack test for a critical workflow.
-8. Maintain separate mocked UI tests and real-stack Playwright tests. CI must run critical UAT personas against the actual API and PostgreSQL schema, including direct API attempts that bypass hidden or disabled controls.
-9. Cover lifecycle and boundary states: zero/one/many records, stale and deleted links, cross-tenant identifiers, unknown/prohibited/synthetic classifications, equality boundaries, expired data, retries, duplicate submission, concurrency, cancellation, and partial infrastructure failure.
-10. Coverage percentage, test-name substring matching, snapshots, and generated verification documents are supporting signals only. They are never proof that an acceptance criterion is enforced.
-11. Verification evidence must identify the commit SHA, environment, database provider, commands, result counts, and execution time. Treat evidence from an older SHA or a mocked-only environment as stale.
-12. Deploy to staging only after focused tests, adjacent regression suites, builds, migrations, dependency scans, and real-stack critical-path tests pass. Deploy to production only from the repository's approved launch-candidate tag and manifest after required approvals and staging evidence.
-13. Never claim that all bugs are detected. State the verified scope, untested scope, skipped tests, environmental differences, and remaining risks.
+- Tenant-isolation tests for tenant-scoped behavior.
+- RBAC matrices for protected actions or permission changes.
+- Audit and rollback tests for compliance-relevant mutations.
+- No-CUI tests for upload, document, classification, export, or data-handling
+  changes.
+- Browser tests for changed interaction, focus, scrolling, discoverability, or
+  route behavior.
+- Database inspection and migration tests for persistence-model changes.
+- Real-provider fault injection for changed transactional external side effects.
 
-## Codex Workflow
+### Release
+
+Use only for deployment, production readiness, launch evidence, full UAT, or an
+explicit full-regression request.
+
+- Follow `docs/regression-test-execution-prompts.md` and the applicable
+  development-story test cases.
+- Run required focused and adjacent suites, builds, migrations, dependency
+  scans, and real-stack critical-path tests before staging.
+- Deploy to production only from the approved launch-candidate tag and manifest
+  after required approvals and staging evidence.
+- Verification evidence must identify commit SHA, environment, database
+  provider, commands, result counts, execution time, skipped scope, and
+  environmental differences.
+
+## Customer-Facing Documentation
+
+Before treating marketing, sales, demo, compliance, or workflow content as
+usable, verify claims against the current UI, API behavior, authorization
+rules, tests, and No-CUI product posture.
+
+- Label material claims as `Implemented`, `Partially implemented`, `Planned`, or
+  `Do not claim`.
+- Use enforcement language such as "required," "blocked," "prevented,"
+  "enforced," and "must" only when the API or domain service enforces it.
+- Do not use claims such as certified, compliant, approved, guaranteed,
+  government approved, audit ready, secure CUI storage, legal advice, CMMC
+  certification, or required before work begins without direct implementation
+  evidence and appropriate qualified review.
+- Derive customer-facing documents from product behavior. If a document says
+  the product blocks an action, identify the endpoint, service, and test that
+  prove it.
+- Check that the UI exposes the described flow, the API enforces the rule, a
+  test proves it, the wording avoids legal/compliance overclaiming, and the
+  content preserves the No-CUI posture.
+
+## Working Procedure
 
 Before editing:
 
-1. Inspect the existing project structure.
-2. Read this `AGENTS.md`.
-3. Read relevant docs, specs, schema/model files, tests, and implementation files.
-4. Summarize the current implementation state and the existing behavior that must not regress.
-5. Identify the smallest safe change needed and its compatibility surface.
-6. State the files you plan to modify and the existing regression tests you will preserve or extend.
-7. Wait for confirmation before editing if the change is large, risky, touches many files, or requires a breaking compatibility decision.
+1. Read only the relevant implementation, tests, specifications, and reference
+   documents.
+2. Summarize current behavior, compatibility surface, verification level, and
+   the smallest safe change.
+3. State planned files and tests. Wait for confirmation only when the change is
+   large, risky, broad, or requires a compatibility decision.
 
-During implementation:
+After editing:
 
-1. Preserve tenant isolation, RBAC, audit logging, No-CUI policy, source traceability, and review metadata.
-2. Avoid unrelated rewrites and formatting churn.
-3. Work with existing uncommitted user changes; do not revert them unless explicitly asked.
-4. Keep API responses aligned with the project standard error format.
-5. Preserve verified existing behavior and add regression coverage for any working flow placed at risk.
+1. Inspect the final diff for unrelated changes, removed behavior, stale copy,
+   configuration drift, and weakened security.
+2. Report files changed, tests and builds run, relevant controls preserved,
+   original flows re-tested, untested scope, hidden risks, dependencies, and
+   remaining compatibility limitations.
+3. Never claim that all bugs were detected or that unexecuted verification
+   passed.
 
-After implementation:
+## Project References
 
-1. Summarize what changed.
-2. List files modified.
-3. Explain how tenant isolation, RBAC, audit logging, and No-CUI policy were preserved when relevant.
-4. List tests added or updated.
-5. Provide commands run and commands the user can run locally.
-6. Call out hidden risks, edge cases, dependencies, and follow-up work.
-7. State which original workflows were re-tested and whether any backward-compatibility limitations remain.
-
-## Key Project References
-
-Read these when relevant instead of duplicating their contents here:
+Read only references relevant to the current task:
 
 - `README.md`
 - `docs/architecture.md`
