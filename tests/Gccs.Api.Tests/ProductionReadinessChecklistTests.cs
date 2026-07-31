@@ -125,6 +125,17 @@ public sealed class ProductionReadinessChecklistTests
         Assert.False(review.RootElement.GetProperty("launchApprovalBlocker").GetBoolean());
         Assert.True(review.RootElement.GetProperty("broaderCustomerLaunchBlocker").GetBoolean());
 
+        var claimDriftRisk = review.RootElement
+            .GetProperty("acceptedClaimRisks")
+            .EnumerateArray()
+            .Single(risk => risk.GetProperty("id").GetString() == "PR52-CLAIM-001");
+        Assert.Equal(
+            "before-next-external-copy-change-or-broader-customer-launch",
+            claimDriftRisk.GetProperty("targetDate").GetString());
+        Assert.Contains(
+            "independent legal or contracting advisor approval before broader customer launch",
+            claimDriftRisk.GetProperty("mitigation").GetString());
+
         var surfaces = review.RootElement
             .GetProperty("customerFacingSurfaces")
             .EnumerateArray()

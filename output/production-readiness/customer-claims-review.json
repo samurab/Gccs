@@ -104,9 +104,9 @@
     {
       "id": "PR52-CLAIM-001",
       "owner": "legal-or-contracting-advisor",
-      "targetDate": "2026-07-15",
+      "targetDate": "before-next-external-copy-change-or-broader-customer-launch",
       "risk": "Final launch materials and release notes can drift after this review.",
-      "mitigation": "Require legal or contracting advisor approval of the launch candidate package before PR-6.1 approval."
+      "mitigation": "Require another scoped review after any external-copy change and independent legal or contracting advisor approval before broader customer launch."
     }
   ],
   "blockers": [
