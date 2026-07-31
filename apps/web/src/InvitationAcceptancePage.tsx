@@ -34,7 +34,7 @@ export function InvitationAcceptancePage() {
         return;
       }
       if (new Date(result.expiresAt) <= new Date()) {
-        setMessage("This invitation has expired. Ask a GCCS platform operator to resend it.");
+        setMessage("This invitation has expired. Ask a FeDril platform operator to resend it.");
         setState("error");
         return;
       }

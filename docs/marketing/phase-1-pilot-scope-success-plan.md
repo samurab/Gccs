@@ -14,7 +14,7 @@ Status: draft. Counsel review required before use as contractual language.
 | Duration | 30 calendar days |
 | Data posture | No-CUI / synthetic, redacted, or non-sensitive data only |
 | Primary owner | Customer to designate |
-| GCCS owner | Founder or implementation lead |
+| FeDril owner | Founder or implementation lead |
 
 ## In-Scope Workflow
 

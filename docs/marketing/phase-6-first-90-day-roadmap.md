@@ -196,7 +196,7 @@ Track objections in these categories:
 | --- | --- | --- |
 | No-CUI/data posture | "We need to upload CUI." | Disqualify or route to future roadmap. Do not force the MVP. |
 | Certification expectation | "Will this certify us?" | Clarify readiness support only, not certification. |
-| Legal/accounting advice | "Can you tell us what this means legally?" | Refer to qualified advisor. GCCS tracks workflow. |
+| Legal/accounting advice | "Can you tell us what this means legally?" | Refer to qualified advisor. FeDril tracks workflow. |
 | Price | "Why pay for a pilot?" | Explain commitment, guided setup, and conversion credit. |
 | Workflow fit | "This is not our process." | Capture specific mismatch; only fix if repeated. |
 | Reporting | "The report is not useful yet." | Prioritize if it blocks conversion. |
@@ -253,7 +253,7 @@ Before publishing any case study, confirm:
 
 The first partner package should include:
 
-- One-paragraph GCCS description.
+- One-paragraph FeDril description.
 - No-CUI policy summary.
 - Ideal customer profile.
 - Disqualification criteria.

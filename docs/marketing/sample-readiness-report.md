@@ -22,9 +22,9 @@ Required boundary: this report is workflow guidance only. It is not legal advice
 
 ## Executive Snapshot
 
-Acme Federal Services LLC used GCCS to organize one synthetic subcontract workflow, identify source-backed obligations, assign readiness ownership, track allowed evidence metadata, and generate a readiness-oriented sample report.
+Acme Federal Services LLC used FeDril to organize one synthetic subcontract workflow, identify source-backed obligations, assign readiness ownership, track allowed evidence metadata, and generate a readiness-oriented sample report.
 
-This sample shows how GCCS can replace scattered spreadsheet tracking with a controlled compliance workspace. It does not evaluate legal compliance, certify CMMC compliance, determine official readiness, or authorize handling of real CUI.
+This sample shows how FeDril can replace scattered spreadsheet tracking with a controlled compliance workspace. It does not evaluate legal compliance, certify CMMC compliance, determine official readiness, or authorize handling of real CUI.
 
 ## Readiness Overview
 
@@ -52,7 +52,7 @@ This sample shows how GCCS can replace scattered spreadsheet tracking with a con
 
 ## Evidence Metadata Snapshot
 
-GCCS tracks evidence metadata and allowed non-sensitive files for the No-CUI MVP. The sample does not include real customer CUI, classified information, ITAR/export-controlled technical data, credentials, payroll records, SSNs, health data, or sensitive incident details.
+FeDril tracks evidence metadata and allowed non-sensitive files for the No-CUI MVP. The sample does not include real customer CUI, classified information, ITAR/export-controlled technical data, credentials, payroll records, SSNs, health data, or sensitive incident details.
 
 | Evidence item | Linked obligation | Type | Sensitivity | Status |
 | --- | --- | --- | --- | --- |
@@ -79,4 +79,4 @@ GCCS tracks evidence metadata and allowed non-sensitive files for the No-CUI MVP
 
 ## Required Disclaimer
 
-This sample report is for demonstration and workflow-planning purposes only. GCCS does not provide legal advice, accounting advice, labor determinations, CMMC certification, assessor determinations, contracting-officer determinations, or government endorsement. The MVP is No-CUI / compliance management only. Real CUI and other prohibited sensitive data must not be uploaded, pasted, imported, attached, or processed in GCCS unless a future separately approved posture exists.
+This sample report is for demonstration and workflow-planning purposes only. FeDril does not provide legal advice, accounting advice, labor determinations, CMMC certification, assessor determinations, contracting-officer determinations, or government endorsement. The MVP is No-CUI / compliance management only. Real CUI and other prohibited sensitive data must not be uploaded, pasted, imported, attached, or processed in FeDril unless a future separately approved posture exists.

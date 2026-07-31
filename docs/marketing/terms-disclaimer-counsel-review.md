@@ -8,7 +8,7 @@ Required action: counsel must review and approve before this language is used in
 
 ## Purpose
 
-This document gives counsel a starting point for GCCS customer-facing terms and disclaimers. It is not legal advice and must not be treated as final contract language.
+This document gives counsel a starting point for FeDril customer-facing terms and disclaimers. It is not legal advice and must not be treated as final contract language.
 
 ## Counsel Review Checklist
 
@@ -26,23 +26,23 @@ Counsel should review:
 
 ## Draft Product Description
 
-GCCS provides a software workspace for government contractor compliance management, including obligation tracking, task ownership, evidence metadata, readiness workflow tracking, reporting, and audit history.
+FeDril provides a software workspace for government contractor compliance management, including obligation tracking, task ownership, evidence metadata, readiness workflow tracking, reporting, and audit history.
 
-GCCS is not a law firm, accounting firm, CMMC assessor, C3PAO, contracting authority, government agency, or certification body.
+FeDril is not a law firm, accounting firm, CMMC assessor, C3PAO, contracting authority, government agency, or certification body.
 
 ## Draft No-CUI Data Term
 
-The current GCCS MVP is No-CUI / compliance management only. Customer must not upload, paste, import, attach, store, transmit, or process real CUI, classified information, ITAR/export-controlled data, sensitive government-furnished information, credentials, passwords, secrets, private keys, unrestricted security logs, payroll records, SSNs, bank data, tax data, health data, disability data, sensitive incident details, or other prohibited sensitive information in GCCS.
+The current FeDril MVP is No-CUI / compliance management only. Customer must not upload, paste, import, attach, store, transmit, or process real CUI, classified information, ITAR/export-controlled data, sensitive government-furnished information, credentials, passwords, secrets, private keys, unrestricted security logs, payroll records, SSNs, bank data, tax data, health data, disability data, sensitive incident details, or other prohibited sensitive information in FeDril.
 
-Customer is responsible for ensuring that all data entered into GCCS is synthetic, redacted, non-sensitive, or otherwise permitted under the applicable order form and data posture.
+Customer is responsible for ensuring that all data entered into FeDril is synthetic, redacted, non-sensitive, or otherwise permitted under the applicable order form and data posture.
 
 ## Draft Professional Advice Disclaimer
 
-GCCS does not provide legal advice, accounting advice, labor determinations, cybersecurity assessment determinations, contracting-officer determinations, government determinations, or CMMC certification. Customer is responsible for obtaining advice from qualified legal, accounting, labor, cybersecurity, government contracts, CMMC, SBA, or other subject-matter professionals as applicable.
+FeDril does not provide legal advice, accounting advice, labor determinations, cybersecurity assessment determinations, contracting-officer determinations, government determinations, or CMMC certification. Customer is responsible for obtaining advice from qualified legal, accounting, labor, cybersecurity, government contracts, CMMC, SBA, or other subject-matter professionals as applicable.
 
 ## Draft CMMC And Compliance Disclaimer
 
-GCCS may help Customer organize readiness workflows, track evidence metadata, assign tasks, and generate reports. GCCS does not certify CMMC compliance, guarantee assessment success, determine official compliance status, or replace a C3PAO, assessor, attorney, CPA, consultant, contracting officer, or government authority.
+FeDril may help Customer organize readiness workflows, track evidence metadata, assign tasks, and generate reports. FeDril does not certify CMMC compliance, guarantee assessment success, determine official compliance status, or replace a C3PAO, assessor, attorney, CPA, consultant, contracting officer, or government authority.
 
 Readiness reports, dashboard statuses, obligation records, and workflow labels are informational workflow aids unless separately reviewed and approved by qualified professionals. They must not be interpreted as pass/fail determinations, legal conclusions, certification decisions, or official government determinations.
 
@@ -50,8 +50,8 @@ Readiness reports, dashboard statuses, obligation records, and workflow labels a
 
 Customer is responsible for:
 
-- Determining whether GCCS is appropriate for Customer's data and compliance use case.
-- Ensuring prohibited data is not entered into GCCS.
+- Determining whether FeDril is appropriate for Customer's data and compliance use case.
+- Ensuring prohibited data is not entered into FeDril.
 - Reviewing all outputs before internal or external use.
 - Maintaining its own compliance program, records, policies, security controls, and professional advisor relationships.
 - Verifying source-backed obligations and report language before relying on them for customer, prime contractor, auditor, assessor, or government communications.
@@ -64,13 +64,13 @@ The pilot fee is non-refundable unless otherwise agreed in writing. If Customer 
 
 ## Draft Support And Prohibited Data Clause
 
-Customer must not include prohibited data in support tickets, emails, screenshots, chat messages, call recordings, or shared files. If Customer suspects prohibited data was entered into GCCS, Customer must stop using the affected workflow and notify GCCS using a non-sensitive description of the issue.
+Customer must not include prohibited data in support tickets, emails, screenshots, chat messages, call recordings, or shared files. If Customer suspects prohibited data was entered into FeDril, Customer must stop using the affected workflow and notify FeDril using a non-sensitive description of the issue.
 
-GCCS may suspend, restrict, delete, quarantine, or otherwise handle affected records as needed to protect the service, comply with law, preserve tenant isolation, or follow the applicable support and incident process.
+FeDril may suspend, restrict, delete, quarantine, or otherwise handle affected records as needed to protect the service, comply with law, preserve tenant isolation, or follow the applicable support and incident process.
 
 ## Draft Marketing Claims Guardrail
 
-Customer-facing materials must not state or imply that GCCS:
+Customer-facing materials must not state or imply that FeDril:
 
 - Provides legal advice.
 - Certifies compliance.

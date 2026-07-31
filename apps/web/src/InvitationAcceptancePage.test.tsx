@@ -63,6 +63,23 @@ describe("InvitationAcceptancePage", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("The activation link is missing its invitation token.");
   });
 
+  it("uses the external FeDril brand when an invitation has expired", async () => {
+    getContextMock.mockResolvedValueOnce({
+      invitationId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      tenantDisplayName: "Aegis Pilot Workspace",
+      email: "owner@example.com",
+      roleName: "Owner",
+      status: "Pending",
+      expiresAt: "2000-01-01T00:00:00Z"
+    });
+
+    render(<InvitationAcceptancePage />);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Ask a FeDril platform operator to resend it.");
+    expect(alert).not.toHaveTextContent("GCCS");
+  });
+
   it("verifies the signed-in owner, accepts once, and selects the activated tenant", async () => {
     const user = userEvent.setup();
     render(<InvitationAcceptancePage />);

@@ -12,7 +12,7 @@ Start with one guided compliance readiness pilot.
 
 ### Supporting copy
 
-GCCS helps small government contractors replace scattered compliance spreadsheets with a No-CUI workspace for obligations, evidence metadata, ownership, current report artifacts, and audit history.
+FeDril helps small government contractors replace scattered compliance spreadsheets with a No-CUI workspace for obligations, evidence metadata, ownership, current report artifacts, and audit history.
 
 ## Recommended First Offer
 
@@ -78,7 +78,7 @@ Review the No-CUI policy.
 
 ### Do we pay the customer for the pilot?
 
-No. The customer pays GCCS for the pilot. The pilot fee validates urgency and filters out non-buyers.
+No. The customer pays FeDril for the pilot. The pilot fee validates urgency and filters out non-buyers.
 
 ### Why charge for a pilot?
 
@@ -92,10 +92,10 @@ Only for strategic design partners with clear referral, advisor, testimonial, or
 
 No. The MVP is No-CUI / compliance management only. Use synthetic, redacted, or non-sensitive data.
 
-### Does GCCS certify CMMC compliance?
+### Does FeDril certify CMMC compliance?
 
-No. GCCS supports readiness workflow tracking and evidence organization. It does not certify compliance or replace assessors, attorneys, advisors, or contracting authorities.
+No. FeDril supports readiness workflow tracking and evidence organization. It does not certify compliance or replace assessors, attorneys, advisors, or contracting authorities.
 
 ## Required Disclaimer
 
-Pricing, pilot scope, and product availability are subject to written agreement. GCCS is a No-CUI compliance management and readiness workflow tool. GCCS does not provide legal advice, accounting advice, labor determinations, CMMC certification, assessment determinations, contracting-officer determinations, or government endorsement.
+Pricing, pilot scope, and product availability are subject to written agreement. FeDril is a No-CUI compliance management and readiness workflow tool. FeDril does not provide legal advice, accounting advice, labor determinations, CMMC certification, assessment determinations, contracting-officer determinations, or government endorsement.

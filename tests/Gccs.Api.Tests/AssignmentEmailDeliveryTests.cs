@@ -1,10 +1,31 @@
 using Gccs.Application.Notifications;
+using Gccs.Infrastructure.Notifications;
 using Xunit;
 
 namespace Gccs.Api.Tests;
 
 public sealed class AssignmentEmailDeliveryTests
 {
+    [Fact]
+    public void Assignment_email_content_uses_external_brand_and_preserves_no_cui_boundary()
+    {
+        var content = AzureCommunicationAssignmentEmailSender.CreateContent(new AssignmentEmailMessage(
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "assignee@example.test",
+            "Assigned <User>",
+            "https://app.example.test/#/calendar?owner=<assigned>"));
+
+        Assert.Equal("FeDril obligation task assigned", content.Subject);
+        Assert.Contains("A FeDril obligation task has been assigned to you.", content.Html);
+        Assert.Contains("A FeDril obligation task has been assigned to you.", content.PlainText);
+        Assert.DoesNotContain("GCCS", content.Html, StringComparison.Ordinal);
+        Assert.DoesNotContain("GCCS", content.PlainText, StringComparison.Ordinal);
+        Assert.Contains("Do not reply with or upload CUI", content.Html);
+        Assert.Contains("Do not reply with or upload CUI", content.PlainText);
+        Assert.Contains("Assigned &lt;User&gt;", content.Html);
+        Assert.Contains("owner=&lt;assigned&gt;", content.Html);
+    }
+
     [Fact]
     public async Task Configured_delivery_sends_safe_link_and_marks_outbox_sent()
     {

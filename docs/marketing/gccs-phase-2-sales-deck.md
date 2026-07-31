@@ -1,18 +1,18 @@
-# GCCS Phase 2 Sales Deck
+# FeDril Phase 2 Sales Deck
 
 Purpose: 10-slide sales deck for founder-led discovery, pilot demos, advisor conversations, and first-customer sales calls.
 
 Audience: small U.S. government contractors, subcontractors, MSPs, and compliance advisors.
 
-Mandatory boundary: GCCS is No-CUI / compliance management only in the MVP. This deck must not claim legal advice, CMMC certification, assessment success, government endorsement, or permission to upload real CUI.
+Mandatory boundary: FeDril is No-CUI / compliance management only in the MVP. This deck must not claim legal advice, CMMC certification, assessment success, government endorsement, or permission to upload real CUI.
 
 ## Slide 1 - Compliance Readiness Tracking For Small Government Contractors
 
 **Headline:** Compliance readiness tracking for small government contractors.
 
-**Subhead:** GCCS helps small GovCon teams organize source-backed obligations, assign ownership, track evidence metadata, and generate current report artifacts under a No-CUI compliance management posture.
+**Subhead:** FeDril helps small GovCon teams organize source-backed obligations, assign ownership, track evidence metadata, and generate current report artifacts under a No-CUI compliance management posture.
 
-**Speaker note:** Open with the boundary. GCCS is not a certification body, legal advisor, or CUI storage product. It is a compliance operations workspace for readiness tracking.
+**Speaker note:** Open with the boundary. FeDril is not a certification body, legal advisor, or CUI storage product. It is a compliance operations workspace for readiness tracking.
 
 ## Slide 2 - The Problem: Compliance Work Is Scattered
 
@@ -42,21 +42,21 @@ Mandatory boundary: GCCS is No-CUI / compliance management only in the MVP. This
 
 **Speaker note:** The replacement target is not enterprise GRC. The replacement target is spreadsheet-driven readiness management.
 
-## Slide 4 - The GCCS Promise
+## Slide 4 - The FeDril Promise
 
 **Headline:** Know what applies. Track what was done. Stay ready to prove it.
 
 **Key points:**
 
 - Turn contract and compliance requirements into owned obligations.
-- Track evidence metadata without using GCCS as a CUI repository.
+- Track evidence metadata without using FeDril as a CUI repository.
 - Monitor readiness across obligations, calendar items, reports, and reviews.
 - Preserve audit history for compliance-relevant activity.
 - Keep customer-facing content source-backed and reviewable.
 
 **Speaker note:** This is the core positioning. Avoid "automated compliance" language.
 
-## Slide 5 - How GCCS Works
+## Slide 5 - How FeDril Works
 
 **Headline:** A simple workflow for readiness operations.
 
@@ -103,7 +103,7 @@ Mandatory boundary: GCCS is No-CUI / compliance management only in the MVP. This
 
 **Speaker note:** This slide prevents dangerous buyer assumptions. Use it before discussing evidence upload or pilot onboarding.
 
-## Slide 8 - Who GCCS Is For
+## Slide 8 - Who FeDril Is For
 
 **Headline:** Designed for small teams that need readiness discipline without enterprise GRC overhead.
 
@@ -160,6 +160,6 @@ Mandatory boundary: GCCS is No-CUI / compliance management only in the MVP. This
 - Identify the internal owner.
 - Start the 30-day guided pilot.
 
-**Closing line:** GCCS helps your team organize what applies, track who owns it, and produce readiness evidence without running the process through scattered spreadsheets.
+**Closing line:** FeDril helps your team organize what applies, track who owns it, and produce readiness evidence without running the process through scattered spreadsheets.
 
 **Speaker note:** Ask for a concrete next step: fit call, demo, pilot owner, or paid pilot decision. Do not end with a vague "stay in touch."

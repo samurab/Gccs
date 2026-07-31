@@ -4,7 +4,7 @@ Document type: sales demo workflow and pilot setup guide.
 
 Data status: synthetic, redacted, or non-sensitive data only.
 
-Required boundary: GCCS tracks readiness workflow, obligation ownership, and evidence metadata. It does not determine legal compliance, certify CMMC status, or authorize real CUI handling in the MVP.
+Required boundary: FeDril tracks readiness workflow, obligation ownership, and evidence metadata. It does not determine legal compliance, certify CMMC status, or authorize real CUI handling in the MVP.
 
 ## Workflow Goal
 
@@ -47,11 +47,11 @@ Before evidence upload or contract document upload is enabled, the user must ack
 - I will not upload, paste, import, or attach real CUI.
 - I will not upload classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, or sensitive incident details.
 - I will use synthetic, redacted, or non-sensitive data during the pilot.
-- I understand GCCS reports are workflow guidance, not legal advice or certification decisions.
+- I understand FeDril reports are workflow guidance, not legal advice or certification decisions.
 
 ### Sales demo note
 
-Show this step before discussing evidence upload or contract document upload. This prevents the prospect from assuming GCCS is a CUI repository. Do not state that all contract metadata entry is blocked before acknowledgement; the current MVP blocks upload-related workflows, while contract intake still displays the acknowledgement boundary.
+Show this step before discussing evidence upload or contract document upload. This prevents the prospect from assuming FeDril is a CUI repository. Do not state that all contract metadata entry is blocked before acknowledgement; the current MVP blocks upload-related workflows, while contract intake still displays the acknowledgement boundary.
 
 ## Step 2: Add Contract Metadata
 
@@ -122,7 +122,7 @@ The clause search helper is also visible in the `Obligations` tab as `Clause lib
 
 ## Step 4: Generate And Review Obligation Records
 
-After mapped clauses are attached to a contract, GCCS generates source-backed obligation records for review. Each obligation should include source family, trigger, required action, owner, evidence examples, risk level, confidence label, and review state.
+After mapped clauses are attached to a contract, FeDril generates source-backed obligation records for review. Each obligation should include source family, trigger, required action, owner, evidence examples, risk level, confidence label, and review state.
 
 ### Where to find it in the app
 
@@ -142,7 +142,7 @@ After mapped clauses are attached to a contract, GCCS generates source-backed ob
 
 ## Step 5: Link Evidence Metadata
 
-Evidence metadata should describe what exists, who owns it, where it is stored, and whether it is allowed under the No-CUI posture. Do not store prohibited content in GCCS.
+Evidence metadata should describe what exists, who owns it, where it is stored, and whether it is allowed under the No-CUI posture. Do not store prohibited content in FeDril.
 
 ### Where to find it in the app
 
@@ -160,7 +160,7 @@ Evidence metadata should describe what exists, who owns it, where it is stored, 
 | Redacted training register | Maintain basic safeguarding workflow | Yes | Confirm no SSNs, payroll, health, or sensitive employee data. |
 | Incident response contact placeholder | Track cyber incident escalation path | Yes | Placeholder only; no sensitive incident details. |
 | External secure repository pointer | Assign CMMC readiness owners | Yes | Metadata pointer only; do not include CUI. |
-| Real marked CUI document | Any obligation | No | Must be blocked or kept outside GCCS MVP. |
+| Real marked CUI document | Any obligation | No | Must be blocked or kept outside FeDril MVP. |
 
 ## Step 6: Update Workflow Status
 
