@@ -1496,11 +1496,17 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Production environment contract: `infra/terraform/environments/production/main.tf`.", deployment);
         Assert.Contains("Approved production CI/CD path | Passed", deployment);
         Assert.Contains("Production environment configuration | Passed", deployment);
-        Assert.Contains("Production secrets source | Passed as contract", deployment);
+        Assert.Contains("Production secrets source | Passed through protected workflow", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
         Assert.Contains(
-            $"CI/CD path passed historically in workflow run `28746053336`; candidate `{manifest.ApprovedLaunchCandidateTag}` remains pending",
+            $"Candidate `{manifest.ApprovedLaunchCandidateTag}` passed protected production workflow run `30645647404`",
             checklist);
+        Assert.Contains("Production workflow run `30645647404` completed successfully", deployment);
+        Assert.Contains(manifest.ApprovedCommitSha, deployment);
+        Assert.Contains("artifact `8799397884`", deployment);
+        Assert.Contains("FeDril | GovCon Compliance Readiness Software", deployment);
+        Assert.Contains("no visible `GCCS` text", deployment);
+        Assert.Contains("Authenticated workspace, tenant-role, upload, report, and alert-delivery scenarios were not repeated", deployment);
         Assert.Contains("docs/production-readiness-production-deployment-evidence.md", closure);
         Assert.Contains(".github/workflows/production.yml", closure);
         Assert.Contains("Closed on 2026-07-03 by `.github/workflows/production.yml`", riskLog);
@@ -1565,8 +1571,8 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Do not deploy production manually or through the staging workflow.", deployment);
         Assert.Contains("TC-PR-7.1.1 | Passed", deployment);
         Assert.Contains("TC-PR-7.1.2 | Passed", deployment);
-        Assert.Contains("TC-PR-7.1.3 | Passed as repository-verifiable contract", deployment);
-        Assert.Contains("TC-PR-7.1.4 | Passed as CI/CD evidence path", deployment);
+        Assert.Contains("TC-PR-7.1.3 | Passed for deployment runtime and repository contract", deployment);
+        Assert.Contains("TC-PR-7.1.4 | Passed with candidate-specific artifact", deployment);
 
         foreach (var requiredText in new[]
         {
