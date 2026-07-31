@@ -17,6 +17,7 @@ Any prior approval record that says the user acted as product owner, engineering
 Those records are valid for:
 
 - No-CUI MVP launch-candidate tagging inside the solo-controlled pilot project.
+- Deployment to the protected production environment for an explicitly approved solo-controlled No-CUI pilot candidate using synthetic, redacted, or non-sensitive data only.
 - Controlled pilot testing with pseudonymous or synthetic data only.
 - Phase 2 Govcon Intelligence implementation and verification under the existing No-CUI posture.
 - Project-completion evidence gathering and regression testing.
@@ -24,6 +25,7 @@ Those records are valid for:
 Those records are not valid for:
 
 - Production-grade separation-of-duties approval.
+- Treating a protected production-environment pilot deployment as authorization for broader customer production use.
 - Broader customer launch.
 - CUI, classified, ITAR/export-controlled, sensitive government-furnished information, credentials, raw customer files, or sensitive personal data processing.
 - Legal, accounting, labor, CMMC certification, assessment-success, or government endorsement claims.

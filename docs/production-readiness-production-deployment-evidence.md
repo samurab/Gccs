@@ -4,11 +4,13 @@ Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
 Deployment status: passed through approved CI/CD path.
 
+Current candidate execution status: `launch-candidate-2026-07-31-1` is approved but not yet deployed. Historical successful runs below prove the CI/CD path only; candidate-specific production evidence must be appended after the new workflow completes.
+
 Evidence date: 2026-07-03.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-07-29-1`.
+Approved launch candidate tag: `launch-candidate-2026-07-31-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -34,7 +36,7 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-07-29-1` at `2932ffbf8153ba060d8dd40b820fa1ce9f572fef`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-07-31-1` at `1af3296b9b92ae650087dd5ce15471b98354b787`; see `docs/production-readiness-launch-candidate-tag.md`. |
 | Approved production CI/CD path | Passed | `.github/workflows/production.yml` requires `workflow_dispatch`, reads the approved launch candidate manifest, checks the input tag and tag commit against it, and runs in GitHub environment `production`. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services. |
 | Production secrets source | Passed as contract | `.github/workflows/production.yml` resolves production-only GitHub environment/repository secrets: `AZURE_CREDENTIALS_GCCS_PRODUCTION`, `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION`, and `PRODUCTION_DATABASE_URL`. Secret values are not stored in the repository. |
