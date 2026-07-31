@@ -107,7 +107,7 @@ Subject: Learning from small contractor readiness workflows
 
 Hi `<Name>`,
 
-I am building GCCS, a No-CUI compliance-management workflow tool for small government contractors. I am not asking you to evaluate the product or refer clients into a sale.
+I am building FeDril, a No-CUI compliance-management workflow tool for small government contractors. I am not asking you to evaluate the product or refer clients into a sale.
 
 I am trying to understand where small contractors lose track of readiness tasks, evidence, clause obligations, and proof requests. Since APEX works directly with businesses on contracting readiness, registration, certification eligibility, and opportunity research, your perspective would be useful.
 
@@ -137,7 +137,7 @@ Subject: Learning where GovCon clients lose compliance evidence
 
 Hi `<Name>`,
 
-I am doing customer discovery for GCCS, a No-CUI readiness workflow tool for small government contractors. I am trying to understand the recurring operational problems advisors see across clients: task ownership, evidence metadata, obligation tracking, report prep, and audit trail gaps.
+I am doing customer discovery for FeDril, a No-CUI readiness workflow tool for small government contractors. I am trying to understand the recurring operational problems advisors see across clients: task ownership, evidence metadata, obligation tracking, report prep, and audit trail gaps.
 
 Would you be open to a 20-minute call? I am not asking for client names or sensitive details. I am trying to learn which workflow repeatedly creates support burden.
 
@@ -201,7 +201,7 @@ Ask these verbatim unless the conversation naturally covers them.
 ### APEX Counselors
 
 - What readiness issue appears before a contractor is ready for opportunities?
-- Which contractors are too early for GCCS?
+- Which contractors are too early for FeDril?
 - Which contractors are advanced enough to care about evidence and obligation tracking?
 - Do counselors see more pain around registration, certifications, contracts, cybersecurity, accounting, or proof requests?
 - What local events or cohorts would be appropriate for founder-led discovery?
@@ -318,7 +318,7 @@ After 20 calls, write a one-page summary using this structure:
 
 Use this at the start of each call:
 
-`Before we get into workflow details, please do not share real CUI, classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, incident details, or contract documents. I only want to discuss the workflow at a non-sensitive level: how tasks, owners, evidence metadata, and proof requests are tracked. GCCS is currently a No-CUI compliance-management MVP, not legal advice, not certification, and not an assessor decision.`
+`Before we get into workflow details, please do not share real CUI, classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, incident details, or contract documents. I only want to discuss the workflow at a non-sensitive level: how tasks, owners, evidence metadata, and proof requests are tracked. FeDril is currently a No-CUI compliance-management MVP, not legal advice, not certification, and not an assessor decision.`
 
 ## Weekly Execution Plan
 

@@ -27,7 +27,7 @@ Document type: discovery call guide.
 
 - Can this pilot be completed without uploading real CUI?
 - Can evidence be represented as synthetic, redacted, or non-sensitive metadata?
-- Do users understand that GCCS reports are workflow guidance only?
+- Do users understand that FeDril reports are workflow guidance only?
 - Is there any reason a user would try to paste prohibited data into notes, descriptions, uploads, support messages, or screenshots?
 
 ## Stop Or Redirect Questions
@@ -35,8 +35,8 @@ Document type: discovery call guide.
 Stop or redirect if the prospect says:
 
 - "We need to upload real CUI."
-- "Can GCCS certify us?"
-- "Can GCCS tell us if we legally comply?"
+- "Can FeDril certify us?"
+- "Can FeDril tell us if we legally comply?"
 - "Can we paste actual incident details into the demo?"
 - "We cannot assign anyone to own the pilot."
 

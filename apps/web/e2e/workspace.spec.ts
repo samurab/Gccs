@@ -131,7 +131,7 @@ async function mockApi(page: Page) {
           isAcknowledged: false,
           noticeVersion: "no-cui-mvp-v1",
           noticeCopy:
-            "The GCCS MVP is compliance management only and is not ready to store CUI. Do not upload CUI or other prohibited sensitive content.",
+            "The FeDril MVP is compliance management only and is not ready to store CUI. Do not upload CUI or other prohibited sensitive content.",
           tenantId: access.tenantId,
           acknowledgedByUserId: null,
           acknowledgedAt: null

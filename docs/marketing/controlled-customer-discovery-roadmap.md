@@ -52,14 +52,14 @@ Use this table before making sales, demo, onboarding, or customer-facing claims.
 | Landing page for customer acquisition | Planned | Treat landing page copy as planned/controlled until reviewed and published. | Existing marketing docs provide copy; no public launch evidence was verified in this pass. |
 | Paid pilot order form/payment | Planned | Treat payment flow, order form, refund terms, conversion credit, testimonials, and referral terms as planned until counsel/finance review and payment tooling are implemented. | Phase 4 docs exist; no payment system or counsel-approved contract was verified in this pass. |
 | Case study/testimonial | Planned | Treat case studies, testimonials, customer names, logos, and quotes as planned and permission-dependent. | No customer permission or published proof asset was verified in this pass. |
-| Real CUI handling | Do not claim | Do not claim GCCS stores, processes, secures, or supports real CUI in the MVP. | Current posture is No-CUI; upload guardrails and docs prohibit real CUI. |
+| Real CUI handling | Do not claim | Do not claim FeDril stores, processes, secures, or supports real CUI in the MVP. | Current posture is No-CUI; upload guardrails and docs prohibit real CUI. |
 | CMMC certification/compliance outcome | Do not claim | Do not claim certification, compliance guarantee, assessment success, official readiness, or assessor determination. | Product and docs position reports as workflow guidance only. |
 
-## Known Copy Risk
+## Branding Verification
 
-The current UI acknowledgement text includes a likely product-name typo: `FeDril reports` appears where customer-facing copy should say `GCCS reports`. See `apps/web/src/App.tsx`.
+The current UI acknowledgement text correctly uses the external product name in `FeDril reports`. See `apps/web/src/App.tsx`.
 
-Do not reuse that phrase in any sales, demo, or customer-facing document. Fix the UI copy before recording public demos or onboarding real pilots.
+Preserve that wording in sales, demo, and customer-facing documents when referring to the product. Do not change internal `Gccs.*` identifiers or infer that branding alters report behavior, legal meaning, or certification posture.
 
 ## Pipeline Overview
 
@@ -469,8 +469,8 @@ Allowed safer wording:
 
 | Unsafe wording | Safer wording |
 | --- | --- |
-| GCCS makes you compliant. | GCCS helps organize readiness workflows and evidence metadata. |
-| GCCS certifies CMMC readiness. | GCCS supports CMMC readiness workflow tracking. |
+| FeDril makes you compliant. | FeDril helps organize readiness workflows and evidence metadata. |
+| FeDril certifies CMMC readiness. | FeDril supports CMMC readiness workflow tracking. |
 | Audit-ready reports. | Report artifacts for internal workflow review. |
 | Secure CUI storage. | No-CUI compliance management MVP; real CUI is prohibited. |
 | Required before work begins. | No-CUI acknowledgement is required before upload-related workflows where server-side enforcement exists. |

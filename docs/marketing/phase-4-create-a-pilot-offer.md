@@ -52,7 +52,7 @@ Recommended conversion window: `30 days after pilot completion`.
 
 Example language for counsel review:
 
-`If Customer converts to an annual GCCS subscription within 30 days after pilot completion, the paid pilot fee will be credited toward the first annual subscription according to the applicable order form.`
+`If Customer converts to an annual FeDril subscription within 30 days after pilot completion, the paid pilot fee will be credited toward the first annual subscription according to the applicable order form.`
 
 ### Duration
 
@@ -152,9 +152,9 @@ If any answer is `No`, do not close the pilot until the issue is resolved or the
 
 | Deliverable | Completion standard |
 | --- | --- |
-| Kickoff completed | Customer owner, GCCS owner, workflow, data boundary, and calendar are confirmed. |
+| Kickoff completed | Customer owner, FeDril owner, workflow, data boundary, and calendar are confirmed. |
 | No-CUI acknowledgement completed | Customer accepts the No-CUI posture before upload-related workflows. |
-| Workflow configured | One contract, program, subcontract, readiness process, or synthetic workflow is represented in GCCS. |
+| Workflow configured | One contract, program, subcontract, readiness process, or synthetic workflow is represented in FeDril. |
 | Obligations visible | Relevant source-backed obligations are visible and reviewed for workflow usefulness. |
 | Owners assigned | At least one obligation or task has owner/status tracking configured. |
 | Evidence metadata linked | Allowed evidence metadata is linked to obligations or controls where applicable. |
@@ -236,11 +236,11 @@ Use this after a qualified demo or Phase 3 discovery follow-up.
 
 ## Follow-Up Email After Verbal Yes
 
-Subject: GCCS 30-day guided pilot - scope and next steps
+Subject: FeDril 30-day guided pilot - scope and next steps
 
 Hi `<Name>`,
 
-Based on our discussion, the proposed next step is a 30-day GCCS Guided Readiness Pilot.
+Based on our discussion, the proposed next step is a 30-day FeDril Guided Readiness Pilot.
 
 Proposed pilot:
 
@@ -256,7 +256,7 @@ Before kickoff, we need:
 1. Named internal pilot owner.
 2. Confirmation that the pilot will use only synthetic, redacted, or non-sensitive data.
 3. Weekly feedback time.
-4. Agreement that anonymized, non-identifying learnings may be used to improve GCCS.
+4. Agreement that anonymized, non-identifying learnings may be used to improve FeDril.
 5. Agreement to consider a testimonial, reference quote, or anonymized case note if the pilot is successful.
 
 If this matches your understanding, the next step is the pilot scope confirmation and payment/order form.

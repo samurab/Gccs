@@ -113,7 +113,7 @@ Hi `<Name>`,
 
 I am speaking with small government contractors about how they track contract readiness tasks, source-backed obligations, evidence metadata, owners, and proof requests.
 
-I am not asking for contract documents, CUI, or sensitive data. GCCS is currently a No-CUI compliance-management MVP.
+I am not asking for contract documents, CUI, or sensitive data. FeDril is currently a No-CUI compliance-management MVP.
 
 The pattern I am testing is whether teams are still managing readiness through spreadsheets, email, and shared folders.
 
@@ -181,7 +181,7 @@ Subject: Practical readiness workflow session for small contractors
 
 Hi `<Name>`,
 
-I am building GCCS, a No-CUI compliance-management workflow tool for small government contractors. I am not asking for an endorsement.
+I am building FeDril, a No-CUI compliance-management workflow tool for small government contractors. I am not asking for an endorsement.
 
 I am trying to create practical education around how small contractors track readiness tasks, obligations, evidence metadata, owners, and proof requests without using a SaaS product as a CUI repository.
 
@@ -243,7 +243,7 @@ Subject: Reducing client follow-through burden after readiness work
 
 Hi `<Name>`,
 
-I am researching whether GCCS can help small GovCon teams keep track of readiness tasks, source-backed obligations, evidence metadata, owners, and report artifacts after advisor or MSP work begins.
+I am researching whether FeDril can help small GovCon teams keep track of readiness tasks, source-backed obligations, evidence metadata, owners, and report artifacts after advisor or MSP work begins.
 
 The MVP is No-CUI only and does not provide legal advice, certification, or formal assessment determinations.
 
@@ -296,7 +296,7 @@ The question I am asking in discovery:
 
 When someone asks for proof, which tracker breaks first?
 
-GCCS is testing a No-CUI guided readiness pilot around one workflow: obligations, owners, evidence metadata, and one report artifact.
+FeDril is testing a No-CUI guided readiness pilot around one workflow: obligations, owners, evidence metadata, and one report artifact.
 
 If you support small contractors, what breaks first in your clients' process?
 
@@ -323,7 +323,7 @@ Webinars should convert repeated workflow pain into qualified discovery calls. T
 | 0-5 min | No-CUI and no-certification boundary. |
 | 5-15 min | Explain the workflow problem. |
 | 15-30 min | Walk through a practical checklist or sample workflow. |
-| 30-40 min | Show a synthetic GCCS workflow only if appropriate. |
+| 30-40 min | Show a synthetic FeDril workflow only if appropriate. |
 | 40-50 min | Q&A without collecting sensitive details. |
 | 50-60 min | Invite qualified attendees to a workflow review or pilot call. |
 
@@ -371,7 +371,7 @@ Subject: Practical topic for small GovCon readiness tracking
 
 Hi `<Name>`,
 
-I am the founder of GCCS, a No-CUI compliance-management workflow tool for small government contractors.
+I am the founder of FeDril, a No-CUI compliance-management workflow tool for small government contractors.
 
 I am not looking to pitch certification claims. A practical topic for your audience may be:
 

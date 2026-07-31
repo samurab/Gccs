@@ -8,7 +8,7 @@ Required boundary: the demo must not use real CUI, classified information, ITAR/
 
 ## Demo Objective
 
-Show that GCCS can replace one fragile compliance spreadsheet with a controlled readiness workspace where a contractor can see readiness status, open an obligation, assign an owner, update workflow status, link allowed evidence metadata, view source-backed content, generate current report artifacts, and review audit history.
+Show that FeDril can replace one fragile compliance spreadsheet with a controlled readiness workspace where a contractor can see readiness status, open an obligation, assign an owner, update workflow status, link allowed evidence metadata, view source-backed content, generate current report artifacts, and review audit history.
 
 ## Pre-Demo Setup
 
@@ -31,7 +31,7 @@ Do not use production customer data.
 
 **Action:** Log in as a demo contractor user.
 
-**Talk track:** "This demo uses synthetic data in a No-CUI workspace. GCCS is a compliance management and readiness workflow tool. It does not provide legal advice, certify CMMC compliance, or authorize real CUI handling."
+**Talk track:** "This demo uses synthetic data in a No-CUI workspace. FeDril is a compliance management and readiness workflow tool. It does not provide legal advice, certify CMMC compliance, or authorize real CUI handling."
 
 **Proof point:** Authenticated tenant workspace opens without showing cross-tenant data.
 
@@ -68,7 +68,7 @@ Do not use production customer data.
 - Risk or priority label.
 - Review state.
 
-**Talk track:** "GCCS turns requirements into reviewable obligation records. The MVP uses review-driven clause handling so the workflow remains accountable and does not pretend to make unsupported legal or assessment determinations."
+**Talk track:** "FeDril turns requirements into reviewable obligation records. The MVP uses review-driven clause handling so the workflow remains accountable and does not pretend to make unsupported legal or assessment determinations."
 
 ### 4. User Assigns Tasks And Evidence
 
@@ -102,7 +102,7 @@ Do not use production customer data.
 - Confidence or review state.
 - Expert review flag or workflow guidance label, if present.
 
-**Talk track:** "Customer-facing obligation content should remain source-backed, reviewable, and governed. GCCS is not asking the user to trust an unexplained spreadsheet row."
+**Talk track:** "Customer-facing obligation content should remain source-backed, reviewable, and governed. FeDril is not asking the user to trust an unexplained spreadsheet row."
 
 ### 6. User Generates Reports Or Evidence Package
 
@@ -135,7 +135,7 @@ Do not use production customer data.
 - Evidence metadata attachment.
 - Report generation or evidence package export.
 
-**Talk track:** "Compliance-relevant workflow changes should be traceable. GCCS helps answer what changed, who changed it, and when."
+**Talk track:** "Compliance-relevant workflow changes should be traceable. FeDril helps answer what changed, who changed it, and when."
 
 ### 8. User Sees No-CUI Warning On Upload Or Evidence Data Entry
 
@@ -150,7 +150,7 @@ Do not use production customer data.
 - User acknowledgement or attestation.
 - Support instruction for suspected prohibited data.
 
-**Talk track:** "This is a hard MVP boundary. Real CUI and other prohibited sensitive data must not be entered into GCCS. If a customer requires real CUI handling, they are not a fit for the current MVP posture."
+**Talk track:** "This is a hard MVP boundary. Real CUI and other prohibited sensitive data must not be entered into FeDril. If a customer requires real CUI handling, they are not a fit for the current MVP posture."
 
 ## Required Demo Close
 
@@ -173,7 +173,7 @@ End with a specific pilot ask:
 Stop or redirect the demo if the prospect:
 
 - Requires real CUI upload or processing in the MVP.
-- Asks GCCS to certify CMMC compliance.
+- Asks FeDril to certify CMMC compliance.
 - Asks for legal, accounting, labor, or contracting determinations.
 - Wants to paste sensitive customer data into the demo.
 - Treats readiness status as an official pass/fail determination.

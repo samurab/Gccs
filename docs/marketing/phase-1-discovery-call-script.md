@@ -18,7 +18,7 @@ Determine whether the prospect has a painful readiness workflow that can be solv
 
 ## Opening Script
 
-"Before we talk product, I want to be clear about the boundary. GCCS is currently a No-CUI compliance management and readiness workflow tool. It does not provide legal advice, CMMC certification, assessor determinations, or government endorsement. For a pilot, we only use synthetic, redacted, or non-sensitive data."
+"Before we talk product, I want to be clear about the boundary. FeDril is currently a No-CUI compliance management and readiness workflow tool. It does not provide legal advice, CMMC certification, assessor determinations, or government endorsement. For a pilot, we only use synthetic, redacted, or non-sensitive data."
 
 ## Discovery Questions
 
@@ -70,11 +70,11 @@ Disqualify or redirect:
 
 ### If Not A Fit
 
-"Based on what you need, GCCS is not the right MVP fit today because the current product does not handle real CUI or certification decisions. I would rather be clear about that now than overpromise."
+"Based on what you need, FeDril is not the right MVP fit today because the current product does not handle real CUI or certification decisions. I would rather be clear about that now than overpromise."
 
 ## Follow-Up Email Template
 
-Subject: GCCS guided readiness pilot - proposed scope
+Subject: FeDril guided readiness pilot - proposed scope
 
 Thanks for the conversation today.
 
@@ -86,7 +86,7 @@ Based on what you shared, the strongest pilot candidate is:
 - Pilot artifact: Compliance Status, CMMC Readiness, or Evidence Package
 - Pilot fee: $750, credited toward first annual subscription if converted
 
-GCCS is No-CUI / compliance management only in the MVP and does not provide legal advice, CMMC certification, assessor determinations, or government endorsement.
+FeDril is No-CUI / compliance management only in the MVP and does not provide legal advice, CMMC certification, assessor determinations, or government endorsement.
 
 The next step is a short pilot scope review to confirm success criteria and kickoff timing.
 

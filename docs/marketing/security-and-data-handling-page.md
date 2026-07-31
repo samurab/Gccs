@@ -12,13 +12,13 @@ Security and data handling for No-CUI compliance management.
 
 ### Supporting copy
 
-GCCS helps small government contractors manage compliance workflows, obligations, tasks, evidence metadata, reports, and audit history under a No-CUI MVP posture. The product is designed for compliance management using synthetic, redacted, or non-sensitive data unless a future separately approved data posture is implemented.
+FeDril helps small government contractors manage compliance workflows, obligations, tasks, evidence metadata, reports, and audit history under a No-CUI MVP posture. The product is designed for compliance management using synthetic, redacted, or non-sensitive data unless a future separately approved data posture is implemented.
 
 ## Current MVP Data Posture
 
-GCCS is currently No-CUI / compliance management only.
+FeDril is currently No-CUI / compliance management only.
 
-Customers may use GCCS to manage:
+Customers may use FeDril to manage:
 
 - Company compliance profile metadata.
 - Contract metadata.
@@ -39,7 +39,7 @@ Customers must not upload, paste, import, attach, or process:
 - Payroll records, SSNs, bank data, tax data, health data, disability data, or sensitive incident details.
 - Production customer data unless separately approved as non-sensitive and in scope.
 
-## What GCCS Does
+## What FeDril Does
 
 - Tracks compliance work in tenant-scoped workspaces.
 - Supports role-based access to protected tenant workflows.
@@ -49,7 +49,7 @@ Customers must not upload, paste, import, attach, or process:
 - Keeps obligation content source-backed and reviewable.
 - Helps users organize evidence metadata and readiness status.
 
-## What GCCS Does Not Do In The MVP
+## What FeDril Does Not Do In The MVP
 
 - Store or process real CUI.
 - Store classified information or export-controlled technical data.
@@ -62,7 +62,7 @@ Customers must not upload, paste, import, attach, or process:
 
 Customers are responsible for:
 
-- Confirming that data entered into GCCS is allowed under the No-CUI posture.
+- Confirming that data entered into FeDril is allowed under the No-CUI posture.
 - Keeping prohibited data out of notes, filenames, descriptions, uploads, tickets, screenshots, and support messages.
 - Reviewing generated reports before external distribution.
 - Involving qualified advisors where legal, contracting, cybersecurity, labor, SBA, or accounting judgment is required.
@@ -70,7 +70,7 @@ Customers are responsible for:
 
 ## Evidence Handling
 
-GCCS can be used to track evidence metadata and allowed non-sensitive evidence for readiness workflows. Upload-related workflows require the current No-CUI acknowledgement and applicable attestation before accepted evidence file metadata or files are processed.
+FeDril can be used to track evidence metadata and allowed non-sensitive evidence for readiness workflows. Upload-related workflows require the current No-CUI acknowledgement and applicable attestation before accepted evidence file metadata or files are processed.
 
 Acceptable examples:
 
@@ -94,7 +94,7 @@ If prohibited data is suspected:
 
 1. Stop adding data to the affected workflow.
 2. Do not paste prohibited information into support tickets, email, screenshots, or chat messages.
-3. Contact GCCS support with a non-sensitive description of the issue.
+3. Contact FeDril support with a non-sensitive description of the issue.
 4. Follow the documented support escalation process.
 
 ## Future CUI-Ready Operation
@@ -107,4 +107,4 @@ The current Reports tab supports Compliance Status, CMMC Readiness, Subcontracto
 
 ## Required Footer Disclaimer
 
-GCCS is a compliance management and readiness workflow tool. It does not provide legal advice, CMMC certification, assessment determinations, contracting-officer determinations, accounting advice, labor determinations, or government endorsement. The current MVP is No-CUI / compliance management only.
+FeDril is a compliance management and readiness workflow tool. It does not provide legal advice, CMMC certification, assessment determinations, contracting-officer determinations, accounting advice, labor determinations, or government endorsement. The current MVP is No-CUI / compliance management only.

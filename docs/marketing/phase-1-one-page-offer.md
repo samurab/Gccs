@@ -10,7 +10,7 @@ Replace one fragile compliance readiness spreadsheet with a controlled No-CUI re
 
 ## Who It Is For
 
-GCCS is for small government contractors and subcontractors that need a practical way to organize readiness work across contract metadata, source-backed obligations, ownership, evidence metadata, reports, and audit history.
+FeDril is for small government contractors and subcontractors that need a practical way to organize readiness work across contract metadata, source-backed obligations, ownership, evidence metadata, reports, and audit history.
 
 Best fit:
 
@@ -27,7 +27,7 @@ Readiness work often fails because the tracker is not connected to the source re
 
 ### 30-Day Guided Readiness Pilot
 
-GCCS will guide one No-CUI readiness workflow from setup to report artifact:
+FeDril will guide one No-CUI readiness workflow from setup to report artifact:
 
 1. Confirm No-CUI pilot boundary.
 2. Set up company profile and contract metadata.
@@ -68,7 +68,7 @@ The pilot fee is credited toward the first annual subscription if the customer c
 
 ## Required Boundary
 
-The current GCCS MVP is No-CUI / compliance management only. Do not upload, paste, import, attach, store, or process real CUI, classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, sensitive incident details, or other prohibited sensitive data.
+The current FeDril MVP is No-CUI / compliance management only. Do not upload, paste, import, attach, store, or process real CUI, classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, sensitive incident details, or other prohibited sensitive data.
 
 ## Call To Action
 

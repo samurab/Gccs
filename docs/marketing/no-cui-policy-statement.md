@@ -6,7 +6,7 @@ Review requirement: legal, contracting, and security owner review required befor
 
 ## Policy Summary
 
-GCCS currently operates under a No-CUI / compliance management only MVP posture. Customers may use GCCS to organize compliance workflows, obligations, task ownership, evidence metadata, reports, and audit history, but must not upload, paste, import, attach, store, or process real Controlled Unclassified Information in GCCS.
+FeDril currently operates under a No-CUI / compliance management only MVP posture. Customers may use FeDril to organize compliance workflows, obligations, task ownership, evidence metadata, reports, and audit history, but must not upload, paste, import, attach, store, or process real Controlled Unclassified Information in FeDril.
 
 ## Scope
 
@@ -47,11 +47,11 @@ Customers may use:
 
 Before evidence upload or contract document upload is enabled, customers must acknowledge the current No-CUI notice in the application. The acknowledgement is also displayed in contract and evidence workflows so customers see the data boundary before discussing or organizing evidence.
 
-> I understand that GCCS is currently No-CUI / compliance management only. I will not upload, paste, import, attach, store, or process real CUI, classified information, ITAR/export-controlled data, sensitive government-furnished information, credentials, payroll records, SSNs, health data, disability data, sensitive incident details, or other prohibited sensitive information in GCCS.
+> I understand that FeDril is currently No-CUI / compliance management only. I will not upload, paste, import, attach, store, or process real CUI, classified information, ITAR/export-controlled data, sensitive government-furnished information, credentials, payroll records, SSNs, health data, disability data, sensitive incident details, or other prohibited sensitive information in FeDril.
 
 ## Product Handling
 
-GCCS should maintain user-facing guardrails that:
+FeDril should maintain user-facing guardrails that:
 
 - State the No-CUI posture during onboarding.
 - Display the No-CUI acknowledgement in contract and evidence workflows.
@@ -67,7 +67,7 @@ Customers must not send prohibited data to support. If a customer suspects prohi
 1. Stop using the affected workflow.
 2. Do not include the prohibited content in support messages.
 3. Notify support using a non-sensitive description.
-4. Follow GCCS support instructions for containment and disposition.
+4. Follow FeDril support instructions for containment and disposition.
 
 ## Future Posture
 
@@ -75,4 +75,4 @@ Any future CUI-ready operation must be separately approved and must include appr
 
 ## Required Disclaimer
 
-This policy statement describes the current GCCS MVP data posture. It is not legal advice, a government determination, or a certification of compliance. Customers remain responsible for determining their data-handling obligations with qualified advisors.
+This policy statement describes the current FeDril MVP data posture. It is not legal advice, a government determination, or a certification of compliance. Customers remain responsible for determining their data-handling obligations with qualified advisors.

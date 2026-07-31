@@ -43,12 +43,21 @@ public sealed class AzureCommunicationAssignmentEmailSender : IAssignmentEmailSe
             throw new InvalidOperationException("Assignment email delivery is not configured.");
         }
 
+        var content = CreateContent(message);
+        var recipients = new EmailRecipients([new EmailAddress(message.RecipientEmail, message.RecipientDisplayName)]);
+        var email = new EmailMessage(_options.SenderAddress, recipients, content);
+        var operation = await _client.SendAsync(WaitUntil.Completed, email, cancellationToken);
+        return new AssignmentEmailSendResult(operation.Id);
+    }
+
+    public static EmailContent CreateContent(AssignmentEmailMessage message)
+    {
         var recipientName = WebUtility.HtmlEncode(message.RecipientDisplayName);
         var assignmentUrl = WebUtility.HtmlEncode(message.AssignmentUrl);
         var html = $"""
             <html><body>
             <p>Hello {recipientName},</p>
-            <p>A GCCS obligation task has been assigned to you.</p>
+            <p>A FeDril obligation task has been assigned to you.</p>
             <p><a href="{assignmentUrl}">Open assigned task</a></p>
             <p>This message contains workflow metadata only. Do not reply with or upload CUI, classified information, export-controlled data, or other prohibited sensitive data.</p>
             </body></html>
@@ -56,19 +65,15 @@ public sealed class AzureCommunicationAssignmentEmailSender : IAssignmentEmailSe
         var plainText = $"""
             Hello {message.RecipientDisplayName},
 
-            A GCCS obligation task has been assigned to you.
+            A FeDril obligation task has been assigned to you.
             Open assigned task: {message.AssignmentUrl}
 
             This message contains workflow metadata only. Do not reply with or upload CUI, classified information, export-controlled data, or other prohibited sensitive data.
             """;
-        var content = new EmailContent("GCCS obligation task assigned")
+        return new EmailContent("FeDril obligation task assigned")
         {
             Html = html,
             PlainText = plainText
         };
-        var recipients = new EmailRecipients([new EmailAddress(message.RecipientEmail, message.RecipientDisplayName)]);
-        var email = new EmailMessage(_options.SenderAddress, recipients, content);
-        var operation = await _client.SendAsync(WaitUntil.Completed, email, cancellationToken);
-        return new AssignmentEmailSendResult(operation.Id);
     }
 }

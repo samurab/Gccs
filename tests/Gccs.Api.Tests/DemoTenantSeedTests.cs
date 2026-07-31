@@ -76,6 +76,41 @@ public sealed class DemoTenantSeedTests
         Assert.Contains(await dbContext.Subcontractors.Where(subcontractor => subcontractor.TenantId == tenantId).ToArrayAsync(), subcontractor => subcontractor.Name.Contains("Synthetic demo data", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(await dbContext.Reports.Where(report => report.TenantId == tenantId).ToArrayAsync(), report => report.Classification == ContentClassification.SyntheticCui);
         Assert.Contains(await dbContext.ExpertReviewItems.Where(item => item.TenantId == tenantId).ToArrayAsync(), item => item.SourceType == "SyntheticDemoSeed");
+
+        var clause = await dbContext.Clauses.SingleAsync(item => item.Id == "demo-synthetic-far-52-204-21");
+        var obligation = await dbContext.Obligations.SingleAsync(item => item.Id == "demo-synthetic-cui-safeguarding");
+        var mapping = await dbContext.ClauseObligationMappings.SingleAsync(item =>
+            item.ClauseId == clause.Id && item.ObligationId == obligation.Id);
+        var contractClause = await dbContext.Set<ContractClauseEntity>().SingleAsync(item =>
+            item.ContractId == Guid.Parse("1a030002-0000-4000-8000-000000000001"));
+        var control = await dbContext.Controls.SingleAsync(item => item.Id == "DEMO.AC.L1-3.1.1");
+
+        Assert.Equal("FeDril synthetic demo dataset", clause.SourceName);
+        Assert.Equal("https://example.invalid/fedril/synthetic-demo", clause.SourceUrl);
+        Assert.Equal("FeDril Synthetic Demo", obligation.Source);
+        Assert.Equal("FeDril synthetic demo dataset", obligation.SourceName);
+        Assert.Equal("https://example.invalid/fedril/synthetic-demo", obligation.SourceUrl);
+        Assert.Equal("https://example.invalid/fedril/synthetic-demo", mapping.SourceUrl);
+        Assert.Equal("https://example.invalid/fedril/synthetic-demo", contractClause.SourceUrl);
+        Assert.Equal("FeDril synthetic demo dataset", control.SourceName);
+        Assert.Equal("https://example.invalid/fedril/synthetic-demo", control.SourceUrl);
+
+        foreach (var controlledDemoValue in new[]
+                 {
+                     clause.SourceName,
+                     clause.SourceUrl,
+                     obligation.Source,
+                     obligation.SourceName,
+                     obligation.SourceUrl,
+                     mapping.SourceUrl,
+                     contractClause.SourceUrl,
+                     control.SourceName,
+                     control.SourceUrl
+                 })
+        {
+            Assert.NotNull(controlledDemoValue);
+            Assert.False(controlledDemoValue.Contains("gccs", StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     [Fact]

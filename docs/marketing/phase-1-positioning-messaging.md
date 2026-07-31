@@ -4,20 +4,20 @@ Document type: positioning guide for sales calls, website copy, and demo languag
 
 ## Positioning Statement
 
-GCCS is a No-CUI compliance readiness workspace for small government contractors that need to replace scattered spreadsheets with source-backed obligations, ownership, evidence metadata, current report artifacts, and audit history.
+FeDril is a No-CUI compliance readiness workspace for small government contractors that need to replace scattered spreadsheets with source-backed obligations, ownership, evidence metadata, current report artifacts, and audit history.
 
 ## Short Version
 
-GCCS helps small GovCon teams organize what applies, assign who owns it, track allowed evidence metadata, and generate readiness workflow artifacts without using the MVP as a CUI repository.
+FeDril helps small GovCon teams organize what applies, assign who owns it, track allowed evidence metadata, and generate readiness workflow artifacts without using the MVP as a CUI repository.
 
-## What GCCS Is
+## What FeDril Is
 
 - A compliance management and readiness workflow tool.
 - A No-CUI MVP workspace.
 - A way to organize contract metadata, attached clauses, source-backed obligations, evidence metadata, reports, and audit history.
 - A tool for internal readiness discipline and pilot discovery.
 
-## What GCCS Is Not
+## What FeDril Is Not
 
 - Not a CMMC certification tool.
 - Not legal, accounting, labor, or contracting advice.
@@ -37,7 +37,7 @@ GCCS helps small GovCon teams organize what applies, assign who owns it, track a
 
 ## One-Sentence Demo Opening
 
-"This is a synthetic No-CUI demo showing how GCCS turns one contract readiness workflow into source-backed obligations, ownership, evidence metadata, report artifacts, and audit history."
+"This is a synthetic No-CUI demo showing how FeDril turns one contract readiness workflow into source-backed obligations, ownership, evidence metadata, report artifacts, and audit history."
 
 ## One-Sentence Demo Close
 
