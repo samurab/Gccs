@@ -2081,6 +2081,33 @@ public sealed class ProductionReadinessChecklistTests
         Assert.False(gateJson.RootElement.GetProperty("containsCui").GetBoolean());
     }
 
+    [Fact]
+    public void TC_MVP_Completion_determination_separates_pilot_completion_from_broader_launch_and_future_phases()
+    {
+        var determination = ReadText("docs", "mvp-completion-determination.md");
+        var openApi = ReadText("docs", "api", "openapi.yaml");
+        var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
+        var monitoring = ReadText("docs", "production-readiness-pilot-monitoring.md");
+
+        Assert.Contains("Scope: Phase 1 No-CUI MVP only.", determination);
+        Assert.Contains("Complete for No-CUI MVP controlled pilot", determination);
+        Assert.Contains("Not complete; production separation-of-duties approval remains required before broader launch.", determination);
+        Assert.Contains("DOD-GAP-001", determination);
+        Assert.Contains("Only `launch-candidate-2026-07-28-1` is approved by the manifest", determination);
+        Assert.Contains("Phase 2 Govcon Intelligence | Planned / gated", determination);
+        Assert.Contains("Phase 3 Advanced Compliance | Planned", determination);
+        Assert.Contains("Phase 4 Regulated Deployment | Planned", determination);
+        Assert.Contains("do not claim CUI-ready production", determination);
+
+        Assert.Contains("/api/contract-obligations/assignment-candidates", openApi);
+        Assert.Contains("Requires the ManageObligations permission", openApi);
+        Assert.Contains("Full tenant membership administration remains limited to the ManageUsers", openApi);
+        Assert.Contains("ObligationAssignmentCandidate", openApi);
+
+        Assert.Contains("| DOD-GAP-001 |", riskLog);
+        Assert.Contains("| 2026-07-29 |", monitoring);
+    }
+
     private static void AssertRequiredString(JsonElement element, string propertyName)
     {
         Assert.True(element.TryGetProperty(propertyName, out var property), $"Missing required property '{propertyName}'.");
