@@ -119,8 +119,11 @@ public sealed class ProductionReadinessChecklistTests
         using var review = JsonDocument.Parse(ReadText("output", "production-readiness", "customer-claims-review.json"));
 
         Assert.Equal("PR-5.2", review.RootElement.GetProperty("story").GetString());
-        Assert.Equal("completed-with-launch-approval-pending", review.RootElement.GetProperty("reviewStatus").GetString());
-        Assert.True(review.RootElement.GetProperty("launchApprovalBlocker").GetBoolean());
+        Assert.Equal(
+            "completed-for-solo-controlled-no-cui-pilot-with-broader-launch-approval-pending",
+            review.RootElement.GetProperty("reviewStatus").GetString());
+        Assert.False(review.RootElement.GetProperty("launchApprovalBlocker").GetBoolean());
+        Assert.True(review.RootElement.GetProperty("broaderCustomerLaunchBlocker").GetBoolean());
 
         var surfaces = review.RootElement
             .GetProperty("customerFacingSurfaces")
@@ -139,6 +142,17 @@ public sealed class ProductionReadinessChecklistTests
             {
                 Assert.DoesNotContain(forbiddenClaim, content, StringComparison.OrdinalIgnoreCase);
             }
+        }
+
+        foreach (var externalBrandingDocument in new[]
+        {
+            new[] { "docs", "production-readiness-release-notes.md" },
+            new[] { "docs", "production-readiness-pilot-onboarding.md" }
+        })
+        {
+            var content = ReadText(externalBrandingDocument);
+            Assert.Contains("FeDril", content, StringComparison.Ordinal);
+            Assert.DoesNotContain("GCCS", content, StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -322,7 +336,7 @@ public sealed class ProductionReadinessChecklistTests
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
         var closure = ReadText("docs", "production-readiness-launch-closure-evidence.md");
 
-        Assert.Contains("Review status: launch-ready draft", onboarding);
+        Assert.Contains("Review status: approved by the combined-role approver for solo-controlled No-CUI pilot use only", onboarding);
         Assert.Contains("Release note status: launch-ready draft", releaseNotes);
         Assert.Contains("Review status: support runbooks finalized", runbooks);
         Assert.Contains("Known-Risk Acceptance Log", riskLog);
@@ -1074,7 +1088,7 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Decision target: 10 minutes", checklist);
         Assert.Contains("Recovery target: 30 minutes", checklist);
         Assert.Contains("Simulation result: documented.", checklist);
-        Assert.Contains("Production launch gate: remains blocked", checklist);
+        Assert.Contains("Current candidate disposition: satisfied for the solo-controlled No-CUI pilot", checklist);
     }
 
     [Fact]
@@ -1406,7 +1420,12 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains($"Launch candidate tag: `{manifest.ApprovedLaunchCandidateTag}`.", tagRecord);
         Assert.Contains($"Tagged commit: `{manifest.ApprovedCommitSha}`.", tagRecord);
         Assert.Contains("Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.", tagRecord);
-        Assert.Contains("GitHub Actions staging workflow run `28635229630` completed successfully", tagRecord);
+        Assert.Contains("staging workflow run `30642453797`", tagRecord);
+        Assert.Contains("Static Web Apps run `30642453771`", tagRecord);
+        Assert.Contains("Main CI run `30642453749`", tagRecord);
+        Assert.Contains(manifest.ApprovedCommitSha, tagRecord);
+        Assert.Contains("Delta from prior production candidate", tagRecord);
+        Assert.Contains("No EF Core migration path changed", tagRecord);
         Assert.Contains("Required launch approvals complete | Passed for solo-controlled pilot testing", tagRecord);
         Assert.Contains("Evidence package gathered | Passed", tagRecord);
         Assert.Contains("Approved build and deployment path passed | Passed", tagRecord);
@@ -1468,7 +1487,9 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Production environment configuration | Passed", deployment);
         Assert.Contains("Production secrets source | Passed as contract", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
-        Assert.Contains("Passed in workflow run `28746053336`; deployment evidence artifact records migration, API deploy, web deploy, and `/health` pass", checklist);
+        Assert.Contains(
+            $"CI/CD path passed historically in workflow run `28746053336`; candidate `{manifest.ApprovedLaunchCandidateTag}` remains pending",
+            checklist);
         Assert.Contains("docs/production-readiness-production-deployment-evidence.md", closure);
         Assert.Contains(".github/workflows/production.yml", closure);
         Assert.Contains("Closed on 2026-07-03 by `.github/workflows/production.yml`", riskLog);
@@ -2223,6 +2244,8 @@ public sealed class ProductionReadinessChecklistTests
 
         yield return new[] { "docs", "production-readiness-customer-claims-review.md" };
         yield return new[] { "docs", "production-readiness-launch-closure-evidence.md" };
+        yield return new[] { "docs", "production-readiness-release-notes.md" };
+        yield return new[] { "docs", "production-readiness-pilot-onboarding.md" };
         yield return new[] { "apps", "web", "src", "App.tsx" };
         yield return new[] { "apps", "web", "src", "lib", "api.ts" };
         yield return new[] { "packages", "compliance-content", "data-handling-notices", "notices.json" };

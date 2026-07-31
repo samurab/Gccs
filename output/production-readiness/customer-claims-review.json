@@ -4,8 +4,9 @@
   "reviewDate": "2026-07-02",
   "reviewOwner": "product-owner",
   "requiredReviewer": "legal-or-contracting-advisor",
-  "reviewStatus": "completed-with-launch-approval-pending",
-  "launchApprovalBlocker": true,
+  "reviewStatus": "completed-for-solo-controlled-no-cui-pilot-with-broader-launch-approval-pending",
+  "launchApprovalBlocker": false,
+  "broaderCustomerLaunchBlocker": true,
   "customerFacingSurfaces": [
     {
       "surface": "product_copy",
@@ -71,9 +72,7 @@
     {
       "surface": "release_notes",
       "evidence": [
-        "docs/product-readiness-note.md",
-        "docs/production-readiness-checklist.md",
-        "docs/production-readiness-launch-closure-evidence.md"
+        "docs/production-readiness-release-notes.md"
       ],
       "noCuiLimitPresent": true,
       "prohibitedDataExamplesPresent": true,
@@ -83,9 +82,7 @@
     {
       "surface": "pilot_onboarding",
       "evidence": [
-        "docs/product-readiness-note.md",
-        "docs/production-readiness-plan.md",
-        "apps/web/src/App.tsx"
+        "docs/production-readiness-pilot-onboarding.md"
       ],
       "noCuiLimitPresent": true,
       "prohibitedDataExamplesPresent": true,
@@ -114,10 +111,32 @@
   ],
   "blockers": [
     {
-      "id": "PR52-CLAIM-APPROVAL-001",
+      "id": "PR52-BROADER-LAUNCH-APPROVAL-001",
       "owner": "legal-or-contracting-advisor",
-      "targetDate": "2026-07-15",
-      "mitigation": "Do not approve the launch candidate until advisor signoff covers product copy, onboarding, upload warnings, reports, support materials, release notes, and pilot onboarding."
+      "targetDate": "before-broader-customer-launch",
+      "mitigation": "Do not approve broader customer launch until independent advisor signoff covers product copy, onboarding, upload warnings, reports, support materials, release notes, and pilot onboarding."
     }
-  ]
+  ],
+  "candidateReReview": {
+    "candidateTag": "launch-candidate-2026-07-31-1",
+    "candidateSha": "1af3296b9b92ae650087dd5ce15471b98354b787",
+    "reviewDate": "2026-07-31",
+    "reviewStatus": "approved-for-solo-controlled-no-cui-pilot-only",
+    "approver": "samurab-combined-role-solo-pilot-approver",
+    "independentReview": false,
+    "broaderCustomerLaunchApproved": false,
+    "cuiProcessingApproved": false,
+    "evidence": [
+      "https://github.com/samurab/Gccs/pull/23",
+      "https://github.com/samurab/Gccs/actions/runs/30642453749",
+      "https://github.com/samurab/Gccs/actions/runs/30642453797",
+      "https://github.com/samurab/Gccs/actions/runs/30642453771",
+      "docs/production-readiness-customer-claims-review.md"
+    ],
+    "limitations": [
+      "Existing persisted demo-seed rows are not rewritten.",
+      "Internal planning and implementation surfaces retaining GCCS are not approved external demo assets.",
+      "Independent production separation-of-duties approval remains required before broader customer launch."
+    ]
+  }
 }

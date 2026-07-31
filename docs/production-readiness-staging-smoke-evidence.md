@@ -8,6 +8,14 @@ Evidence date: 2026-07-01.
 
 Evidence owner: Engineering lead.
 
+## FeDril Candidate Refresh - 2026-07-31
+
+The merged candidate source `1af3296b9b92ae650087dd5ce15471b98354b787` was deployed through the approved staging workflow in GitHub Actions run `30642453797`; the parallel main Static Web Apps deployment run `30642453771` also completed successfully.
+
+The staging smoke artifact recorded `status = ok`, `service = gccs-api`, `dataPosture = No-CUI / compliance management only`, and healthy `postgresql`, `redis`, `object-storage`, and `background-jobs` dependencies. A fresh live health request returned the same posture and dependency results. The staging landing page returned the title `FeDril | GovCon Compliance Readiness Software`.
+
+This refresh proves deployment and public landing-page branding for the exact merge candidate. It does not rewrite previously persisted demo-seed rows or prove broader customer-launch approval.
+
 Approved deployment path: `.github/workflows/staging.yml`.
 
 Expected environment: GitHub Actions `staging` environment.

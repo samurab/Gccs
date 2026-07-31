@@ -2,9 +2,11 @@
 
 Story: PR-6.1 - Collect Required Launch Approvals.
 
-Record status: approved for solo-controlled pilot launch-candidate tagging and project completion with accepted restore-rehearsal exception at the time of approval.
+Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with candidate-specific FeDril branding reapproval recorded on 2026-07-31.
 
 Record date: 2026-07-03.
+
+Latest candidate-specific reapproval date: 2026-07-31.
 
 Record owner: Product owner.
 
@@ -20,9 +22,28 @@ Missing, pending, or incomplete approval metadata blocks PR-6.2 launch candidate
 
 ## Solo-Controlled Pilot Approval Clarification
 
-The user approved the rows below as the accountable solo-controlled pilot approver for a non-production governance exercise. The approval is valid for testing, project completion, and No-CUI pilot evidence only.
+The user approved the rows below as the accountable solo-controlled pilot approver for the constrained pilot and its governance exercise. With an explicit candidate-specific approval, this scope includes deployment to the protected production environment for solo-controlled No-CUI pilot verification using synthetic, redacted, or non-sensitive data only. It remains invalid for broader customer production use.
 
 This approval does not replace production separation of duties, does not authorize broader customer launch, does not authorize CUI processing, and does not weaken future production approval requirements.
+
+## FeDril Branding Candidate Reapproval - 2026-07-31
+
+The repository owner and deployment operator, `samurab`, explicitly approved the merged FeDril branding candidate as a **solo-controlled No-CUI pilot production deployment only**. Under the controlling approval posture addendum, this is a combined-role pilot approval covering product, engineering, security, compliance content, customer success/support, and legal-or-contracting scope for this constrained deployment.
+
+This approval is not independent legal, security, compliance, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, unsupported certification or government-endorsement claims, or publication of withheld high-risk compliance content.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-07-31 |
+| Candidate | `launch-candidate-2026-07-31-1` at `1af3296b9b92ae650087dd5ce15471b98354b787` |
+| Scope | Full 57-path delta from `launch-candidate-2026-07-29-1`: PR #21 release-control synchronization; PR #22 repository-only governance, marketing, OpenAPI, test, and monitoring artifacts; and PR #23 FeDril presentation-boundary branding in UI, notifications, fresh synthetic demo seed data, and controlled sales/demo artifacts. Internal identifiers remain unchanged. |
+| Evidence reviewed in the release task | Commit inventory for PRs #21-#23; exact-candidate main CI run `30642453749`; main staging run `30642453797`; Static Web Apps run `30642453771`; live staging `/health`; No-CUI dependency signals; live FeDril landing-page title; and confirmation that the candidate delta contains no EF Core migration file changes |
+| Final gate evidence | Main CI run `30642453749` completed successfully for the exact candidate SHA before tag creation |
+| Unresolved limitations | Existing persisted demo-seed rows are not rewritten; internal planning/source documents may retain GCCS and are not approved external demo assets; `DOD-GAP-001` remains a broader-launch evidence gap |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch or independent professional approval is claimed |
+
+The approval is invalid if the candidate SHA changes, main CI fails, staging evidence regresses, the No-CUI posture changes, or release-facing claims expand beyond the reviewed candidate scope.
 
 ## Evidence Package Reviewed
 
