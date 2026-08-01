@@ -4,7 +4,10 @@
     "exclude": [
       "/assets/*",
       "/landing/compliance-operations-hero.png",
+      "/F.png",
+      "/F.svg",
       "/company-logo.svg",
+      "/favicon.png",
       "/favicon.svg"
     ]
   }

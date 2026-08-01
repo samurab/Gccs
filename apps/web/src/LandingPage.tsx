@@ -114,7 +114,7 @@ export function LandingPage() {
       <section className="landing-hero" aria-label="FeDril landing page">
         <div className="landing-nav" aria-label="Primary">
           <a className="landing-brand" href="/landing" aria-label="FeDril landing page">
-            <img className="landing-brand__logo" src="/company-logo.svg" alt="" aria-hidden="true" />
+            <img className="landing-brand__logo" src="/F.svg" alt="" aria-hidden="true" />
             <span>
               <strong>FeDril</strong>
               <small>GovCon compliance workspace</small>
