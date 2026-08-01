@@ -41,7 +41,7 @@ const renderInputFiles = [
   "src/Root.tsx",
   "src/index.ts",
   "src/types.ts",
-  "../../apps/web/public/company-logo.svg"
+  "public/brand/F.svg"
 ] as const;
 
 const renderInputDirectories = ["public/captures", "public/narration"] as const;
