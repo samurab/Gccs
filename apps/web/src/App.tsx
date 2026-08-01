@@ -422,7 +422,7 @@ const navigationItems: NavigationItem[] = [
   {
     route: "reports",
     label: "Reports",
-    description: "Audit-ready exports",
+    description: "Readiness reports and evidence packages",
     group: "Assurance",
     icon: ScrollText,
     permissions: ["ViewReports", "ManageReports"]
@@ -570,7 +570,12 @@ function emptyStringsToUndefined(filters: CalendarFilters): Omit<CalendarEventQu
   };
 }
 
+function isDemoCaptureMode() {
+  return import.meta.env.VITE_DEMO_CAPTURE === "true";
+}
+
 export function App() {
+  const demoCaptureMode = isDemoCaptureMode();
   const [overview, setOverview] = useState(fallbackOverview);
   const [access, setAccess] = useState<CurrentUserAccess>(fallbackAccess);
   const [members, setMembers] = useState<TenantMember[]>([]);
@@ -2215,7 +2220,7 @@ export function App() {
   }
 
   return (
-    <div className="workspace-shell">
+    <div className={`workspace-shell${demoCaptureMode ? " workspace-shell--demo-capture" : ""}`}>
       <a className="skip-link" href="#workspace-content">
         Skip to workspace content
       </a>
@@ -2228,14 +2233,14 @@ export function App() {
           </div>
         </div>
         <div className="sidebar-posture" aria-label="Workspace compliance posture">
-          {import.meta.env.DEV ? (
+          {import.meta.env.DEV && !demoCaptureMode ? (
             <DevelopmentTestingContextSelector currentTenantId={currentTenant?.id ?? access.tenantId} />
-          ) : (
+          ) : !import.meta.env.DEV ? (
             <TenantWorkspaceSelector
               currentTenantId={currentTenant?.id ?? access.tenantId}
               onInitialized={handleWorkspaceInitialized}
             />
-          )}
+          ) : null}
           <div>
             <span>Tenant</span>
             <strong>{activeTenantName}</strong>
@@ -2262,13 +2267,15 @@ export function App() {
                       <li key={item.route}>
                         <a
                           href={`#/${item.route}`}
+                          aria-describedby={`workspace-nav-${item.route}-description`}
+                          aria-label={item.label}
                           aria-current={activeRoute === item.route ? "page" : undefined}
                           onClick={() => handleRouteClick(item.route)}
                         >
                           <Icon size={18} aria-hidden="true" />
                           <span>
                             <strong>{item.label}</strong>
-                            <small>{item.description}</small>
+                            <small id={`workspace-nav-${item.route}-description`}>{item.description}</small>
                           </span>
                         </a>
                       </li>
@@ -2279,10 +2286,12 @@ export function App() {
             ))
           )}
         </nav>
-        <div className="workspace-sidebar__footer" aria-label="Signed-in workspace context">
-          <span>Signed in</span>
-          <strong>{userDisplay}</strong>
-        </div>
+        {!demoCaptureMode ? (
+          <div className="workspace-sidebar__footer" aria-label="Signed-in workspace context">
+            <span>Signed in</span>
+            <strong>{userDisplay}</strong>
+          </div>
+        ) : null}
       </aside>
 
       <main id="workspace-content" className="workspace-main" tabIndex={-1}>
@@ -2661,7 +2670,7 @@ function CalendarView({
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [events]);
   const scrollToCalendarSection = (target: RefObject<HTMLElement | null>) => {
-    target.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    target.current?.scrollIntoView?.({ behavior: isDemoCaptureMode() ? "auto" : "smooth", block: "start" });
     target.current?.focus?.();
   };
 
@@ -3097,6 +3106,7 @@ function subcontractorQualityWarnings(subcontractor: Subcontractor, flowDowns: S
 }
 
 function DashboardView({ overview }: { overview: ComplianceOverview }) {
+  const demoCaptureMode = isDemoCaptureMode();
   const hasModules = overview.modules.length > 0;
   const hasPriorityObligations = overview.priorityObligations.length > 0;
   const hasAlerts = overview.alerts.length > 0;
@@ -3107,7 +3117,11 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
         <div>
           <p className="eyebrow">Workspace overview</p>
           <h2>GovCon obligations, evidence, and readiness in one operating view.</h2>
-          <p className="hero-copy">{overview.productPromise}</p>
+          <p className="hero-copy">
+            {demoCaptureMode
+              ? "Centralize readiness activities, ownership, evidence metadata, gaps, and remediation in one operating view."
+              : overview.productPromise}
+          </p>
         </div>
         <div className="hero-panel" aria-label="MVP platform posture">
           <span>Current data posture</span>
@@ -3117,9 +3131,14 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
 
       <section className="metrics-grid" aria-label="Workspace metrics">
         <MetricTile className="metric" label="Priority obligations" tone="success" value={overview.priorityObligations.length} />
-        <MetricTile className="metric" label="MVP modules" tone="success" value={overview.modules.length} />
+        <MetricTile
+          className="metric"
+          label={demoCaptureMode ? "Readiness scope" : "MVP modules"}
+          tone="success"
+          value={demoCaptureMode ? "Current" : overview.modules.length}
+        />
         <MetricTile className="metric" label="Evidence posture" tone="success" value="No-CUI" />
-        <MetricTile className="metric" label="Source status" tone="success" value="Seeded" />
+        <MetricTile className="metric" label="Source status" tone="success" value={demoCaptureMode ? "Source-backed" : "Seeded"} />
       </section>
 
       <section className="work-grid" aria-label="Dashboard alerts">
@@ -3141,7 +3160,7 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
                     { label: "Type", value: formatEnumLabel(alert.alertType) },
                     { label: "Detected", value: alert.detectedUtc }
                   ]}
-                  summary={alert.message}
+                  summary={demoCaptureMode ? sanitizeDemoCaptureText(alert.message) : alert.message}
                   title={alert.title}
                 />
               ))
@@ -3155,7 +3174,7 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
         </div>
       </section>
 
-      <section className="work-grid" aria-label="Compliance operations">
+      {!demoCaptureMode ? <section className="work-grid" aria-label="Compliance operations">
         <div>
           <div className="section-heading">
             <p className="eyebrow">MVP modules</p>
@@ -3206,7 +3225,7 @@ function DashboardView({ overview }: { overview: ComplianceOverview }) {
             )}
           </div>
         </aside>
-      </section>
+      </section> : null}
     </>
   );
 }
@@ -3431,7 +3450,7 @@ function ObligationsView({
 
     window.requestAnimationFrame(() => {
       if (typeof detailPanelRef.current?.scrollIntoView === "function") {
-        detailPanelRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        detailPanelRef.current.scrollIntoView({ behavior: isDemoCaptureMode() ? "auto" : "smooth", block: "start" });
       }
       detailPanelRef.current?.focus({ preventScroll: true });
     });
@@ -3585,61 +3604,62 @@ function ObligationsView({
             }${item.isHighRisk ? " obligation-dashboard-item--high-risk" : ""}`;
 
             return (
-              <TaskCard
-                actions={
-                  <button
-                    className="secondary-action obligation-detail-button"
-                    type="button"
-                    aria-pressed={item.id === selectedDetailId}
-                    onClick={() => {
-                      setRequestedDetailId(item.id);
-                      void onDetailSelect(item);
-                    }}
-                  >
-                    {detailStatus === "loading" && item.id === requestedDetailId ? "Loading details" : "View details"}
-                  </button>
-                }
-                badges={
-                  <>
-                    <span aria-label={`${item.riskLevel} risk obligation`}>
-                      <RiskBadge level={item.riskLevel} />
-                    </span>
-                    {item.isOverdue ? (
-                      <span className="status status--overdue" aria-label="Overdue obligation">
-                        <AlertTriangle size={14} aria-hidden="true" />
-                        Overdue
+              <div className="obligation-capture-entity" data-testid="obligation-card" key={item.id}>
+                <TaskCard
+                  actions={
+                    <button
+                      className="secondary-action obligation-detail-button"
+                      type="button"
+                      aria-pressed={item.id === selectedDetailId}
+                      onClick={() => {
+                        setRequestedDetailId(item.id);
+                        void onDetailSelect(item);
+                      }}
+                    >
+                      {detailStatus === "loading" && item.id === requestedDetailId ? "Loading details" : "View details"}
+                    </button>
+                  }
+                  badges={
+                    <>
+                      <span aria-label={`${item.riskLevel} risk obligation`}>
+                        <RiskBadge level={item.riskLevel} />
                       </span>
-                    ) : null}
-                    <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
-                    <StatusPill label={`${formatEnumLabel(item.confidence)} confidence`} tone={confidenceTone(item.confidence)} />
-                  </>
-                }
-                className={itemClasses}
-                key={item.id}
-                meta={[
-                  { label: "Contract", value: item.contractNumber },
-                  { label: "Owner", value: formatOwnerLabel(item.ownerFunction) },
-                  { label: "Due", value: item.dueAt ?? "No date", tone: item.isOverdue ? "danger" : "neutral" },
-                  { label: "Module", value: item.module },
-                  {
-                    label: "Source",
-                    value: (
-                      <a href={item.sourceUrl} target="_blank" rel="noreferrer">
-                        {item.source}
-                      </a>
-                    )
-                  },
-                  { label: "Reviewed", value: item.lastReviewedAt },
-                  { label: "Evidence", value: `${item.evidenceExamples.length} required` },
-                  { label: "Review gate", value: item.requiresExpertReview ? "Expert review" : "Workflow guidance" }
-                ]}
-                summary={item.plainEnglishSummary}
-                title={item.title}
-              >
-                <p className="obligation-required-action">{item.requiredAction}</p>
-                <EvidenceRequirementChips items={item.evidenceExamples} />
-                <DataQualityWarnings warnings={obligationQualityWarnings(item)} />
-              </TaskCard>
+                      {item.isOverdue ? (
+                        <span className="status status--overdue" aria-label="Overdue obligation">
+                          <AlertTriangle size={14} aria-hidden="true" />
+                          Overdue
+                        </span>
+                      ) : null}
+                      <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
+                      <StatusPill label={`${formatEnumLabel(item.confidence)} confidence`} tone={confidenceTone(item.confidence)} />
+                    </>
+                  }
+                  className={itemClasses}
+                  meta={[
+                    { label: "Contract", value: item.contractNumber },
+                    { label: "Owner", value: formatOwnerLabel(item.ownerFunction) },
+                    { label: "Due", value: item.dueAt ?? "No date", tone: item.isOverdue ? "danger" : "neutral" },
+                    { label: "Module", value: item.module },
+                    {
+                      label: "Source",
+                      value: (
+                        <a href={item.sourceUrl} target="_blank" rel="noreferrer">
+                          {item.source}
+                        </a>
+                      )
+                    },
+                    { label: "Reviewed", value: item.lastReviewedAt },
+                    { label: "Evidence", value: `${item.evidenceExamples.length} required` },
+                    { label: "Review gate", value: item.requiresExpertReview ? "Expert review" : "Workflow guidance" }
+                  ]}
+                  summary={item.plainEnglishSummary}
+                  title={item.title}
+                >
+                  <p className="obligation-required-action">{item.requiredAction}</p>
+                  <EvidenceRequirementChips items={item.evidenceExamples} />
+                  <DataQualityWarnings warnings={obligationQualityWarnings(item)} />
+                </TaskCard>
+              </div>
             );
           })}
         </div>
@@ -3895,6 +3915,7 @@ function ObligationDetailPanel({
         <label>
           Assign by
           <select
+            data-testid="obligation-owner-kind"
             value={ownerKind}
             onChange={(event) => {
               const nextKind = event.target.value as "user" | "role";
@@ -3916,6 +3937,7 @@ function ObligationDetailPanel({
           <label>
             Tenant member
             <select
+              data-testid="obligation-owner-member"
               name="userId"
               value={selectedUserId}
               onChange={(event) => setSelectedUserId(event.target.value)}
@@ -3960,7 +3982,7 @@ function ObligationDetailPanel({
             ? "The member always receives an in-app notification. Email follows their assignment-email preference."
             : "Active members of this role receive an in-app notification. Role-assignment email is not sent."}
         </small>
-        <button type="submit" disabled={!canManageObligations || status === "saving"}>
+        <button data-testid="obligation-owner-submit" type="submit" disabled={!canManageObligations || status === "saving"}>
           <UserPlus size={16} aria-hidden="true" />
           Assign owner
         </button>
@@ -4054,10 +4076,12 @@ function ClauseLibraryView({
                 <h3>{clause.title}</h3>
                 <p>{clause.plainEnglishSummary}</p>
                 <dl>
-                  <div>
-                    <dt>Published clause ID</dt>
-                    <dd>{clause.id}</dd>
-                  </div>
+                  {!isDemoCaptureMode() ? (
+                    <div>
+                      <dt>Published clause ID</dt>
+                      <dd>{clause.id}</dd>
+                    </div>
+                  ) : null}
                   <div>
                     <dt>Source URL</dt>
                     <dd>
@@ -4457,7 +4481,7 @@ function ContractsView({
                         { label: "Review state", value: formatEnumLabel(clause.reviewState) },
                         { label: "Confidence", value: formatEnumLabel(clause.confidence) },
                         { label: "Last reviewed", value: clause.lastReviewedAt },
-                        ...(clause.reviewedByUserId
+                        ...(!isDemoCaptureMode() && clause.reviewedByUserId
                           ? [{ label: "Reviewed by", value: clause.reviewedByUserId }]
                           : []),
                         ...(clause.nextReviewDueAt
@@ -7148,6 +7172,7 @@ function ReportsView({
                 <button
                   aria-pressed={selectedReport?.id === report.id}
                   className="evidence-list__item report-artifact-card"
+                  data-testid="report-card"
                   key={report.id}
                   onClick={() => void onGeneratedReportSelect(report)}
                   type="button"
@@ -7174,6 +7199,7 @@ function ReportsView({
                 <button
                   aria-pressed={selectedReport?.id === report.reportId}
                   className="evidence-list__item report-artifact-card"
+                  data-testid="report-card"
                   key={report.reportId}
                   onClick={() => void onApprovedEvidencePackageSelect(report.reportId)}
                   type="button"
@@ -7267,7 +7293,7 @@ function ReportDetailPanel({
       return;
     }
 
-    panel.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    panel.scrollIntoView?.({ behavior: isDemoCaptureMode() ? "auto" : "smooth", block: "start" });
     panel.focus({ preventScroll: true });
   }, [report.id]);
 
@@ -7342,9 +7368,11 @@ function ReportDetailPanel({
         )}
       </div>
 
-      <p className="report-detail__identifier">
-        Report ID <code>{report.id}</code>
-      </p>
+      {!isDemoCaptureMode() ? (
+        <p className="report-detail__identifier">
+          Report ID <code>{report.id}</code>
+        </p>
+      ) : null}
 
       {canArchive ? (
         <form className="evidence-form" onSubmit={(event) => void handleLifecycleSubmit(event)}>
@@ -7479,7 +7507,7 @@ function recordText(record: Record<string, unknown>, key: string): string {
 
 function PostureNotice({ currentTenant }: { currentTenant: Tenant | null }) {
   const mode = currentTenant?.dataHandlingMode ?? "Unknown";
-  const details = getPostureDetails(mode);
+  const details = getPostureDetails(mode, isDemoCaptureMode());
 
   return (
     <section className={`posture-notice posture-notice--${details.tone}`} aria-label="MVP data handling posture">
@@ -7497,7 +7525,7 @@ function PostureNotice({ currentTenant }: { currentTenant: Tenant | null }) {
   );
 }
 
-function getPostureDetails(mode: string) {
+function getPostureDetails(mode: string, demoCaptureMode = false) {
   if (mode === "CuiReady") {
     return {
       tone: "ready",
@@ -7522,9 +7550,12 @@ function getPostureDetails(mode: string) {
     return {
       tone: "restricted",
       title: "No-CUI compliance management only",
-      body:
-        "This MVP posture blocks real CUI workflows. Use FCI, unclassified, and synthetic non-sensitive records only unless the tenant is formally moved through the CUI-ready approval gate.",
-      limit: "Real CUI, classified, and export-controlled data are blocked."
+      body: demoCaptureMode
+        ? "Use fictional, redacted, or non-sensitive information for this demonstration. Do not enter or upload CUI, classified information, or prohibited sensitive content."
+        : "This MVP posture blocks real CUI workflows. Use FCI, unclassified, and synthetic non-sensitive records only unless the tenant is formally moved through the CUI-ready approval gate.",
+      limit: demoCaptureMode
+        ? "Current posture: No-CUI readiness and compliance-management workflows."
+        : "Real CUI, classified, and export-controlled data are blocked."
     };
   }
 
@@ -7535,6 +7566,13 @@ function getPostureDetails(mode: string) {
       "Data handling controls depend on the active tenant. Avoid upload, evidence, report, and extraction actions until the tenant context is available.",
     limit: "Refresh the app or restart the API if this state persists."
   };
+}
+
+function sanitizeDemoCaptureText(value: string) {
+  return value.replace(
+    /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
+    "a tenant user"
+  );
 }
 
 function NotificationPreferencesPanel({
@@ -8094,6 +8132,7 @@ function EvidenceMetadataPanel({
               evidenceItems.map((item) => (
                 <button
                   className={`evidence-list__item${selectedEvidence?.id === item.id ? " evidence-list__item--active" : ""}`}
+                  data-testid="evidence-item"
                   key={item.id}
                   type="button"
                   onClick={() => onSelectEvidence(item.id)}
@@ -8456,7 +8495,9 @@ function CuiReadyChecklistPanel({
               Supersede
             </button>
           </form>
-          {latest.state === "Approved" ? <p className="form-status form-status--ok">Approved checklist ID: {latest.id}</p> : null}
+          {latest.state === "Approved" && !isDemoCaptureMode() ? (
+            <p className="form-status form-status--ok">Approved checklist ID: {latest.id}</p>
+          ) : null}
           {latest.rejectionReason ? <p className="form-status form-status--error">{latest.rejectionReason}</p> : null}
         </div>
       ) : (
@@ -8650,10 +8691,12 @@ function TenantModePanel({
           <span>Active tenant: </span>
           <strong>{currentTenant?.displayName ?? "Not loaded"}</strong>
         </div>
-        <div className="metric-card">
-          <span>Tenant ID: </span>
-          <strong>{currentTenant?.id ?? "Not loaded"}</strong>
-        </div>
+        {!isDemoCaptureMode() ? (
+          <div className="metric-card">
+            <span>Tenant ID: </span>
+            <strong>{currentTenant?.id ?? "Not loaded"}</strong>
+          </div>
+        ) : null}
         <div className="metric-card">
           <span>Current mode: </span>
           <strong>{currentTenant?.dataHandlingMode ?? "Unknown"}</strong>
@@ -8675,7 +8718,11 @@ function TenantModePanel({
             onChange={(event) => setReason(event.target.value)}
             required
             maxLength={600}
-            placeholder="Example: UAT CUI-ready gate validation after approved checklist."
+            placeholder={
+              isDemoCaptureMode()
+                ? "Document the approved reason for this mode change."
+                : "Example: UAT CUI-ready gate validation after approved checklist."
+            }
           />
         </label>
         <label>
@@ -8801,6 +8848,7 @@ function InvitationListItem({
 }) {
   const [isConfirming, setIsConfirming] = useState(false);
   const [reason, setReason] = useState("");
+  const invitationLabel = isDemoCaptureMode() ? "Pending invitation" : invitation.email;
 
   async function handleRevoke(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -8818,7 +8866,7 @@ function InvitationListItem({
           <UserPlus size={17} />
         </span>
         <span>
-          <strong>{invitation.email}</strong>
+          <strong>{invitationLabel}</strong>
           <small>{invitation.roleName}</small>
         </span>
       </div>
@@ -8826,7 +8874,7 @@ function InvitationListItem({
         <span className={`status status--${invitation.status.toLowerCase()}`}>{invitation.status}</span>
         {invitation.status === "Pending" ? (
           <Button
-            aria-label={`Revoke invitation for ${invitation.email}`}
+            aria-label={`Revoke invitation for ${invitationLabel}`}
             disabled={isBusy}
             icon={<Ban size={15} />}
             onClick={() => setIsConfirming(true)}
@@ -8838,7 +8886,7 @@ function InvitationListItem({
         ) : null}
       </div>
       <span className="invitation-date">Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
-      <small className="notification-placeholder">{invitation.notificationPlaceholder}</small>
+      {!isDemoCaptureMode() ? <small className="notification-placeholder">{invitation.notificationPlaceholder}</small> : null}
       {isConfirming ? (
         <form className="invitation-revoke-form" onSubmit={handleRevoke}>
           <label>
@@ -9000,13 +9048,15 @@ function SettingsView({
             onUpdate={onTenantModeUpdate}
             status={tenantModeStatus}
           />
-          <DemoSandboxSeedPanel
-            canSeedDemoDataset={canSeedDemoDataset}
-            currentTenant={currentTenant}
-            message={demoSeedMessage}
-            onSeed={onDemoTenantSeed}
-            status={demoSeedStatus}
-          />
+          {!isDemoCaptureMode() ? (
+            <DemoSandboxSeedPanel
+              canSeedDemoDataset={canSeedDemoDataset}
+              currentTenant={currentTenant}
+              message={demoSeedMessage}
+              onSeed={onDemoTenantSeed}
+              status={demoSeedStatus}
+            />
+          ) : null}
           <SharedResponsibilityMatrixPanel
             acknowledgements={sharedResponsibilityMatrixAcknowledgements}
             matrix={sharedResponsibilityMatrix}
@@ -9067,7 +9117,7 @@ function SettingsView({
                         </span>
                         <span>
                           <strong>{member.displayName}</strong>
-                          <small>{member.email}</small>
+                          {!isDemoCaptureMode() ? <small>{member.email}</small> : null}
                         </span>
                       </span>
                       <span role="cell">{member.roleName}</span>
@@ -9174,13 +9224,15 @@ function SettingsView({
               </p>
             </div>
             <form className="audit-filter-form" onSubmit={onAuditLogFilterSubmit}>
-              <label>
-                <span>Actor ID</span>
-                <input
-                  value={auditLogFilters.actorUserId}
-                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, actorUserId: event.target.value })}
-                />
-              </label>
+              {!isDemoCaptureMode() ? (
+                <label>
+                  <span>Actor ID</span>
+                  <input
+                    value={auditLogFilters.actorUserId}
+                    onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, actorUserId: event.target.value })}
+                  />
+                </label>
+              ) : null}
               <label>
                 <span>Action</span>
                 <select
@@ -9216,7 +9268,11 @@ function SettingsView({
                 <input
                   type="datetime-local"
                   value={auditLogFilters.from}
-                  title="Optional. Leave blank for UAT-22 unless you need to narrow the date range."
+                  title={
+                    isDemoCaptureMode()
+                      ? "Optional date filter."
+                      : "Optional. Leave blank for UAT-22 unless you need to narrow the date range."
+                  }
                   onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, from: event.target.value })}
                 />
               </label>
@@ -9225,7 +9281,11 @@ function SettingsView({
                 <input
                   type="datetime-local"
                   value={auditLogFilters.to}
-                  title="Optional. Leave blank for UAT-22 unless you need to narrow the date range."
+                  title={
+                    isDemoCaptureMode()
+                      ? "Optional date filter."
+                      : "Optional. Leave blank for UAT-22 unless you need to narrow the date range."
+                  }
                   onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, to: event.target.value })}
                 />
               </label>
@@ -9250,9 +9310,9 @@ function SettingsView({
                   <span role="columnheader">Summary</span>
                 </div>
                 {auditLogs.items.map((entry) => (
-                  <article className="member-row" role="row" key={entry.id}>
+                  <article className="member-row" data-testid="audit-row" role="row" key={entry.id}>
                     <span role="cell">{new Date(entry.occurredAt).toLocaleString()}</span>
-                    <span role="cell">{entry.actorUserId ?? "System"}</span>
+                    <span role="cell">{isDemoCaptureMode() && entry.actorUserId ? "Tenant user" : (entry.actorUserId ?? "System")}</span>
                     <span role="cell">{entry.action}</span>
                     <span role="cell">{entry.entityType}</span>
                     <span role="cell">{entry.summary}</span>

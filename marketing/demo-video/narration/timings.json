@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "generatedAt": "2026-07-31T19:08:49.294Z",
+  "compositions": [
+    {
+      "id": "Flagship",
+      "transitionMs": 500,
+      "totalDurationMs": 214000,
+      "scenes": [
+        {
+          "id": "scene-01-opening",
+          "startMs": 0,
+          "leadInMs": 900,
+          "audioDurationMs": 18100,
+          "tailMs": 1000,
+          "durationMs": 20000,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "scene-02-dashboard",
+          "startMs": 19500,
+          "leadInMs": 800,
+          "audioDurationMs": 24200,
+          "tailMs": 1000,
+          "durationMs": 26000,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "scene-03-gap-review",
+          "startMs": 45000,
+          "leadInMs": 800,
+          "audioDurationMs": 24200,
+          "tailMs": 1000,
+          "durationMs": 26000,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "scene-04-remediation",
+          "startMs": 70500,
+          "leadInMs": 800,
+          "audioDurationMs": 27200,
+          "tailMs": 1000,
+          "durationMs": 29000,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "scene-05-evidence",
+          "startMs": 99000,
+          "leadInMs": 800,
+          "audioDurationMs": 23200,
+          "tailMs": 1000,
+          "durationMs": 25000,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "scene-06-no-cui-boundary",
+          "startMs": 123500,
+          "leadInMs": 800,
+          "audioDurationMs": 24200,
+          "tailMs": 1000,
+          "durationMs": 26000,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "scene-07-auditability",
+          "startMs": 149000,
+          "leadInMs": 800,
+          "audioDurationMs": 23200,
+          "tailMs": 1000,
+          "durationMs": 25000,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "scene-08-reporting",
+          "startMs": 173500,
+          "leadInMs": 800,
+          "audioDurationMs": 22200,
+          "tailMs": 1000,
+          "durationMs": 24000,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "scene-09-call-to-action",
+          "startMs": 197000,
+          "leadInMs": 900,
+          "audioDurationMs": 15100,
+          "tailMs": 1000,
+          "durationMs": 17000,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        }
+      ]
+    },
+    {
+      "id": "Homepage60",
+      "transitionMs": 500,
+      "totalDurationMs": 60000,
+      "scenes": [
+        {
+          "id": "homepage-01-opening",
+          "startMs": 0,
+          "leadInMs": 800,
+          "audioDurationMs": 10600,
+          "tailMs": 1000,
+          "durationMs": 12400,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "homepage-02-gap",
+          "startMs": 11900,
+          "leadInMs": 800,
+          "audioDurationMs": 10600,
+          "tailMs": 1000,
+          "durationMs": 12400,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "homepage-03-evidence",
+          "startMs": 23800,
+          "leadInMs": 800,
+          "audioDurationMs": 10600,
+          "tailMs": 1000,
+          "durationMs": 12400,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "homepage-04-audit",
+          "startMs": 35700,
+          "leadInMs": 800,
+          "audioDurationMs": 10600,
+          "tailMs": 1000,
+          "durationMs": 12400,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "homepage-05-cta",
+          "startMs": 47600,
+          "leadInMs": 800,
+          "audioDurationMs": 10600,
+          "tailMs": 1000,
+          "durationMs": 12400,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        }
+      ]
+    },
+    {
+      "id": "Social30",
+      "transitionMs": 500,
+      "totalDurationMs": 30000,
+      "scenes": [
+        {
+          "id": "social-01-opening",
+          "startMs": 0,
+          "leadInMs": 700,
+          "audioDurationMs": 6175,
+          "tailMs": 1000,
+          "durationMs": 7875,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "social-02-gap",
+          "startMs": 7375,
+          "leadInMs": 700,
+          "audioDurationMs": 6175,
+          "tailMs": 1000,
+          "durationMs": 7875,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "social-03-summary",
+          "startMs": 14750,
+          "leadInMs": 700,
+          "audioDurationMs": 6175,
+          "tailMs": 1000,
+          "durationMs": 7875,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        },
+        {
+          "id": "social-04-cta",
+          "startMs": 22125,
+          "leadInMs": 700,
+          "audioDurationMs": 6175,
+          "tailMs": 1000,
+          "durationMs": 7875,
+          "audioAvailable": false,
+          "generationStatus": "placeholder-silent"
+        }
+      ]
+    }
+  ]
+}

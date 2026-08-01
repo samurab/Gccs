@@ -1437,6 +1437,7 @@ describe("App", () => {
   });
 
   it("lists every tenant and role in the local development testing context", async () => {
+    vi.stubEnv("VITE_DEMO_CAPTURE", "false");
     getDevelopmentTestingContextMock.mockResolvedValueOnce({
       tenants: [
         {
@@ -1491,6 +1492,89 @@ describe("App", () => {
     const userSelector = screen.getByRole("combobox", { name: "Switch user" });
     expect(userSelector).toHaveValue("cccccccc-cccc-cccc-cccc-ccccccccccc1");
     expect(within(userSelector).getByRole("option", { name: "Compliance Manager (Compliance Manager)" })).toBeEnabled();
+    expect(screen.getByLabelText("Signed-in workspace context")).toHaveTextContent("admin@example.com");
+  });
+
+  it("hides capture-unsafe development chrome and raw identifiers only in demo capture mode", async () => {
+    vi.stubEnv("DEV", true);
+    vi.stubEnv("VITE_DEMO_CAPTURE", "true");
+    const captureAccess = {
+      ...allWorkflowAccess,
+      permissions: [...allWorkflowAccess.permissions, "ManageTenant"]
+    };
+    const report = {
+      id: "33333333-3333-3333-3333-333333333330",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      type: "ComplianceStatus",
+      status: "Complete",
+      title: "Leadership readiness summary",
+      generatedAt: "2026-07-27T21:00:00Z",
+      generatedByUserId: allWorkflowAccess.userId,
+      disclaimer: reportDisclaimer
+    };
+    getCurrentUserAccessMock.mockResolvedValueOnce(captureAccess);
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getRecentReportsMock.mockResolvedValueOnce([report]);
+    getReportArtifactMock.mockResolvedValueOnce({
+      ...report,
+      snapshot: {
+        totalObligations: 12,
+        highRiskObligations: 3,
+        overdueTasks: 2,
+        cmmcAssessments: 1,
+        cmmcControlsImplemented: 2,
+        cmmcControlsTotal: 5,
+        subcontractorGaps: 1,
+        highRiskItems: []
+      }
+    });
+    getAuditLogsMock.mockResolvedValueOnce({
+      items: [
+        {
+          id: "51515151-5151-5151-5151-515151515100",
+          tenantId: captureAccess.tenantId,
+          actorUserId: captureAccess.userId,
+          action: "Updated",
+          entityType: "ComplianceTask",
+          entityId: "16131613-1613-1613-1613-161316131632",
+          occurredAt: "2026-07-27T21:00:00Z",
+          ipAddress: "203.0.113.10",
+          userAgent: "test",
+          correlationId: "capture-safe-audit",
+          summary: "Remediation ownership was updated.",
+          metadata: {}
+        }
+      ],
+      page: 1,
+      pageSize: 5,
+      totalCount: 1,
+      hasNextPage: false,
+      hasPreviousPage: false
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Switch tenant" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Signed-in workspace context")).not.toBeInTheDocument();
+    expect(screen.queryByText("admin@example.com")).not.toBeInTheDocument();
+    expect(document.querySelector(".workspace-shell")).toHaveClass("workspace-shell--demo-capture");
+    expect(getCurrentUserAccessMock).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("link", { name: /reports/i }));
+    await user.click(await screen.findByTestId("report-card"));
+    const reportDetail = within(await screen.findByLabelText("Generated report detail"));
+    expect(reportDetail.queryByText(/Report ID/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: /settings/i }));
+    expect(await screen.findByTestId("audit-row")).toHaveTextContent("Tenant user");
+    expect(screen.queryByLabelText("Actor ID")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tenant ID:/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Demo sandbox seed" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/UAT/i)).not.toBeInTheDocument();
   });
 
   it("TC-3.2.1 lands authenticated users in the workspace dashboard", async () => {
@@ -1515,6 +1599,11 @@ describe("App", () => {
     expect(screen.getByText(/missing access review evidence/i)).toBeInTheDocument();
     expect(screen.queryByText(/marketing/i)).not.toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: /primary workspace navigation/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Reports" })).toHaveAccessibleDescription(
+      "Readiness reports and evidence packages"
+    );
+    expect(screen.getByText("Readiness reports and evidence packages")).toBeInTheDocument();
+    expect(screen.queryByText("Audit-ready exports")).not.toBeInTheDocument();
   });
 
   it("TC-16.3 renders assignment notifications and marks them read", async () => {
@@ -2191,6 +2280,7 @@ describe("App", () => {
     await user.click(await screen.findByRole("link", { name: /obligations/i }));
     expect(await screen.findByText("Obligation work queue")).toBeInTheDocument();
     expect(screen.getByText("Apply FCI safeguards")).toBeInTheDocument();
+    expect(screen.getByTestId("obligation-card")).toHaveTextContent("Apply FCI safeguards");
     expect(screen.getByLabelText("High risk obligation")).toBeInTheDocument();
     expect(screen.getByLabelText("Overdue obligation")).toBeInTheDocument();
 
@@ -2779,6 +2869,7 @@ describe("App", () => {
     await user.click(await screen.findByRole("link", { name: /settings/i }));
     expect(await screen.findByRole("table", { name: /tenant audit logs/i })).toBeInTheDocument();
     expect(screen.getByText("Invitation was created.")).toBeInTheDocument();
+    expect(screen.getByTestId("audit-row")).toHaveTextContent("Invitation was created.");
     expect(screen.getByText(/Page 1 of 2/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /next/i }));
@@ -2851,6 +2942,7 @@ describe("App", () => {
     await user.click(await screen.findByRole("link", { name: /evidence/i }));
     expect(await screen.findByText("Evidence metadata")).toBeInTheDocument();
     expect(screen.getByText("Access control policy")).toBeInTheDocument();
+    expect(screen.getByTestId("evidence-item")).toHaveTextContent("Access control policy");
     expect(screen.getByDisplayValue("obligation-fci-safeguards")).toBeInTheDocument();
     expect(within(screen.getByLabelText("Classification review queue")).getByText("Needs classification")).toBeInTheDocument();
     expect(within(screen.getByLabelText("Classification review queue")).getByText("Unknown")).toBeInTheDocument();
@@ -2861,7 +2953,7 @@ describe("App", () => {
     await user.type(screen.getByLabelText("Title"), "Quarterly access review");
     await user.selectOptions(screen.getByLabelText("Type"), "AccessReview");
     await user.type(screen.getByLabelText("Tags"), "access-review, quarterly");
-    await user.type(screen.getByLabelText("Obligations"), "obligation-access-review");
+    await user.type(screen.getByLabelText("Obligations", { selector: "input" }), "obligation-access-review");
     await user.click(screen.getByRole("button", { name: /create metadata/i }));
 
     expect(createEvidenceMetadataMock).toHaveBeenCalledWith(
@@ -3292,6 +3384,7 @@ describe("App", () => {
 
     await user.click(await screen.findByRole("link", { name: /reports/i }));
     expect(screen.getByRole("heading", { name: "Recent generated reports" })).toBeInTheDocument();
+    expect(screen.getByTestId("report-card")).toHaveTextContent("Compliance status report");
     await user.click(screen.getByRole("button", { name: /Compliance status report.*Persisted report artifact/i }));
 
     expect(getRecentReportsMock).toHaveBeenCalledWith();

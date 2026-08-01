@@ -494,6 +494,80 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
         Assert.False(await dbContext.AssignmentEmailDeliveries.AnyAsync());
     }
 
+    [Fact]
+    public async Task Identical_non_notifying_user_assignment_is_a_no_op_and_changed_role_still_updates()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-310310310310");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("assignment-user-idempotency", dbContext => SeedScenario(dbContext, scenario));
+        using var client = factory.CreateClient();
+        var assignment = new AssignContractObligationOwnerRequest(scenario.AssigneeUserId, null, Notify: false);
+
+        await PatchOwnerAsync(client, scenario, assignment);
+        var afterInitialAssignment = await ReadAssignmentSnapshotAsync(factory, scenario);
+
+        var repeatedDetail = await PatchOwnerAsync(client, scenario, assignment);
+        var afterRepeatedAssignment = await ReadAssignmentSnapshotAsync(factory, scenario);
+
+        Assert.Equal(scenario.AssigneeUserId, repeatedDetail.AssignedUserId);
+        Assert.Equal(afterInitialAssignment, afterRepeatedAssignment);
+
+        var changedDetail = await PatchOwnerAsync(
+            client,
+            scenario,
+            new AssignContractObligationOwnerRequest(null, RoleCatalog.ComplianceManager, Notify: false));
+        var afterChangedAssignment = await ReadAssignmentSnapshotAsync(factory, scenario);
+
+        Assert.Null(changedDetail.AssignedUserId);
+        Assert.Equal(RoleCatalog.ComplianceManager, changedDetail.AssignedRoleName);
+        Assert.Equal(afterInitialAssignment.AuditCount + 1, afterChangedAssignment.AuditCount);
+        Assert.NotEqual(afterInitialAssignment.UpdatedByUserId, afterChangedAssignment.UpdatedByUserId);
+        Assert.Equal(RoleCatalog.ComplianceManager, afterChangedAssignment.OwnerFunction);
+    }
+
+    [Fact]
+    public async Task Identical_non_notifying_role_assignment_is_a_no_op_and_changed_user_still_updates()
+    {
+        var tenantId = Guid.Parse("10310310-3103-1031-0310-310310310311");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("assignment-role-idempotency", dbContext =>
+        {
+            SeedScenario(dbContext, scenario);
+            var membership = dbContext.TenantMemberships.Local.Single(item =>
+                item.TenantId == tenantId && item.UserId == scenario.AssigneeUserId);
+            membership.RoleName = RoleCatalog.ComplianceManager;
+        });
+        using var client = factory.CreateClient();
+
+        await PatchOwnerAsync(
+            client,
+            scenario,
+            new AssignContractObligationOwnerRequest(null, "ComplianceManager", Notify: false));
+        var afterInitialAssignment = await ReadAssignmentSnapshotAsync(factory, scenario);
+
+        var repeatedDetail = await PatchOwnerAsync(
+            client,
+            scenario,
+            new AssignContractObligationOwnerRequest(null, $" {RoleCatalog.ComplianceManager} ", Notify: false));
+        var afterRepeatedAssignment = await ReadAssignmentSnapshotAsync(factory, scenario);
+
+        Assert.Null(repeatedDetail.AssignedUserId);
+        Assert.Equal(RoleCatalog.ComplianceManager, repeatedDetail.AssignedRoleName);
+        Assert.Equal(afterInitialAssignment, afterRepeatedAssignment);
+
+        var changedDetail = await PatchOwnerAsync(
+            client,
+            scenario,
+            new AssignContractObligationOwnerRequest(scenario.AssigneeUserId, null, Notify: false));
+        var afterChangedAssignment = await ReadAssignmentSnapshotAsync(factory, scenario);
+
+        Assert.Equal(scenario.AssigneeUserId, changedDetail.AssignedUserId);
+        Assert.Equal(afterInitialAssignment.AuditCount + 1, afterChangedAssignment.AuditCount);
+        Assert.Equal(afterInitialAssignment.NotificationCount + 1, afterChangedAssignment.NotificationCount);
+        Assert.NotEqual(afterInitialAssignment.UpdatedByUserId, afterChangedAssignment.UpdatedByUserId);
+        Assert.Equal(scenario.AssigneeUserId, afterChangedAssignment.AssignedUserId);
+    }
+
     private async Task<ContractObligationDetailDto> GetDetailAsync(HttpClient client, DetailScenario scenario)
     {
         using var request = CreateRequest(
@@ -554,6 +628,25 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await response.Content.ReadFromJsonAsync<ObligationDashboardItemDto[]>(JsonOptions) ?? [];
+    }
+
+    private static async Task<AssignmentSnapshot> ReadAssignmentSnapshotAsync(
+        WebApplicationFactory<Program> factory,
+        DetailScenario scenario)
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var task = await dbContext.ComplianceTasks
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == scenario.TaskId);
+        return new AssignmentSnapshot(
+            task.AssignedToUserId,
+            task.OwnerFunction,
+            task.UpdatedAt,
+            task.UpdatedByUserId,
+            await dbContext.AuditLogEntries.CountAsync(audit => audit.TenantId == scenario.TenantId),
+            await dbContext.NotificationDeliveries.CountAsync(notification => notification.TenantId == scenario.TenantId),
+            await dbContext.AssignmentEmailDeliveries.CountAsync());
     }
 
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
@@ -758,4 +851,13 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
                 Guid.NewGuid(),
                 Guid.NewGuid());
     }
+
+    private sealed record AssignmentSnapshot(
+        Guid? AssignedUserId,
+        string OwnerFunction,
+        DateTimeOffset? UpdatedAt,
+        Guid? UpdatedByUserId,
+        int AuditCount,
+        int NotificationCount,
+        int EmailDeliveryCount);
 }

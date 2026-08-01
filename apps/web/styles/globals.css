@@ -2414,6 +2414,16 @@ main {
   overflow-x: hidden;
 }
 
+.workspace-shell--demo-capture,
+.workspace-shell--demo-capture * {
+  scroll-behavior: auto !important;
+}
+
+.workspace-shell--demo-capture * {
+  animation: none !important;
+  transition: none !important;
+}
+
 .skip-link {
   background: var(--ink);
   border-radius: 0 0 6px 0;
@@ -4654,6 +4664,11 @@ textarea:required:user-invalid {
 .obligation-dashboard-list {
   display: grid;
   gap: 12px;
+}
+
+.obligation-capture-entity {
+  display: grid;
+  min-width: 0;
 }
 
 .obligation-dashboard-item {
