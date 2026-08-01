@@ -70,6 +70,16 @@ public sealed class ObligationDetailService(
         var normalized = NormalizeAssignment(request);
         ValidateAssignment(normalized);
         var before = await repository.FindCurrentTenantAsync(contractClauseId, obligationId, cancellationToken);
+        if (before is null)
+        {
+            return null;
+        }
+
+        if (!normalized.Notify && AssignmentMatches(before.Detail, normalized))
+        {
+            return before.Detail;
+        }
+
         var updated = await repository.AssignOwnerAsync(contractClauseId, obligationId, normalized, actorUserId, cancellationToken);
 
         if (updated is null)
@@ -169,6 +179,14 @@ public sealed class ObligationDetailService(
             throw new ObligationAssignmentValidationException("Assign either a tenant user or a role, but not both.");
         }
     }
+
+    private static bool AssignmentMatches(
+        ContractObligationDetailDto detail,
+        AssignContractObligationOwnerRequest request) =>
+        request.UserId.HasValue
+            ? detail.AssignedUserId == request.UserId && detail.AssignedRoleName is null
+            : detail.AssignedUserId is null &&
+              string.Equals(detail.AssignedRoleName, request.RoleName, StringComparison.Ordinal);
 }
 
 public sealed class ObligationAssignmentValidationException(string message) : InvalidOperationException(message);
