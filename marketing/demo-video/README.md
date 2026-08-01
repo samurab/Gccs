@@ -23,10 +23,10 @@ See [`AUDIT.md`](./AUDIT.md) for the repository and capability audit, [`STORYBOA
 The pipeline keeps product behavior and media production separate:
 
 1. The API starts in `Development` with an explicit `MarketingDemo__Enabled=true` gate.
-2. Dedicated loopback ports and dedicated Docker volumes isolate the demo from normal development and production systems.
+2. Dedicated loopback ports and a stable worktree-specific Compose project isolate the demo containers and named volumes from normal development, production systems, and other Git worktrees.
 3. The development bootstrap creates the Northstar tenant, fictional members, metadata-only evidence, an overdue gap, and audit history.
 4. The idempotent seed script adds the source-backed fictional contract workflow and verifies the expected high-priority item.
-5. Playwright always starts the isolated stack, blocks non-loopback browser requests before transmission, and rejects visible credentials, raw identifiers, local addresses, internal branding, unexpected API errors, and unexpected error notices. A capture-only presentation cursor moves to semantic UI targets and displays click feedback only when the verified workflow performs that interaction.
+5. Playwright always starts the isolated stack, blocks non-loopback browser requests before transmission, and rejects visible credentials, raw identifiers, local addresses, internal branding, unexpected API errors, and unexpected error notices. A capture-only presentation cursor moves to semantic UI targets and displays click feedback only when the verified workflow performs that interaction. Global teardown stops the API, web server, and worktree-specific Compose services after both successful and failed capture runs while preserving the isolated database volume.
 6. Remotion combines the approved recordings, source-generated captions, narration, callouts, branded cards, progressive focus movement, and animated caption/callout entrances.
 
 The seed does not weaken tenant membership enforcement, permission checks, audit behavior, or the No-CUI boundary. Runtime credentials are generated locally in `.runtime/demo.env`; the environment file and launcher logs use restrictive permissions, are ignored by Git, and must not be copied into tickets, recordings, or documentation.
@@ -188,7 +188,7 @@ The clean command removes generated captures, narration WAV files, render output
 - Repeated non-notifying owner assignment is idempotent, but simultaneous competing owner changes remain last-write-wins because this aggregate has no concurrency token.
 - Concurrent first-read notification-preference creation is handled and was verified with real PostgreSQL. A simultaneous first-time preference update still uses the existing read-then-create path and is outside this demo-pipeline fix.
 - The notification-preference race recovery depends on PostgreSQL unique-violation metadata and the current tenant/user constraint name; a persistence migration that renames that constraint must update and rerun the concurrency tests.
-- Earlier pipeline iterations left isolated `fedril-marketing-demo` and `fedril-marketing-demo-v2` Docker volumes on this workstation. They contain demo-only local state and were not deleted because volume removal is destructive; review them explicitly before any manual cleanup.
+- Earlier pipeline iterations left isolated fixed-name `fedril-marketing-demo`, `fedril-marketing-demo-v2`, and `fedril-marketing-demo-v3` Docker volumes on this workstation. They contain demo-only local state and were not deleted because volume removal is destructive; review them explicitly before any manual cleanup. Current runs derive a stable Compose project name from the worktree path so separate worktrees cannot reuse a database volume with different generated credentials.
 
 ## Publication disclosure
 

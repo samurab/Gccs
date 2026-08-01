@@ -5,12 +5,14 @@ umask 077
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 repository_root="$(cd "${project_root}/../.." && pwd)"
 runtime_env="$(bash "${project_root}/scripts/prepare-runtime.sh")"
+compose_project_name="$(bash "${project_root}/scripts/compose-project-name.sh")"
 
 set -a
 source "${runtime_env}"
 set +a
 
 docker compose \
+  --project-name "${compose_project_name}" \
   --env-file "${runtime_env}" \
   -f "${project_root}/infra/docker-compose.yml" \
   up -d --wait >/dev/null
@@ -39,7 +41,7 @@ export MarketingDemo__Enabled=true
 export Security__DevelopmentAuth__Enabled=true
 export Security__DevelopmentAuth__DefaultTenantId=11111111-1111-1111-1111-111111111113
 export Security__DevelopmentAuth__DefaultUserId=22222222-2222-2222-2222-222222222243
-export Security__DevelopmentAuth__DefaultEmail=priya.shah@northstar.example
+export Security__DevelopmentAuth__DefaultEmail=priya.shah.northstar@example.com
 export Security__DevelopmentTesting__Enabled=true
 export Security__MembershipAuthorization__Enforce=true
 export Logging__LogLevel__Default=Warning
