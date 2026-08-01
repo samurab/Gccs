@@ -154,6 +154,7 @@ jobs:
 
       - name: Run production health checks
         run: |
+          set -o pipefail
           test -n "$PRODUCTION_API_BASE_URL"
           for attempt in {1..12}; do
             if curl --fail --show-error --silent "$PRODUCTION_API_BASE_URL/health" | tee "$RUNNER_TEMP/production-health.json"; then
