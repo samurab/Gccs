@@ -34,11 +34,12 @@ The seed does not weaken tenant membership enforcement, permission checks, audit
 ## Prerequisites
 
 - macOS with Node.js, npm, .NET SDK, Docker Desktop, and Docker Compose.
+- Full FFmpeg with the `afade`, `areverse`, `loudnorm`, and `silenceremove` audio filters. On macOS, install it with `brew install ffmpeg`.
 - Repository dependencies installed with `npm install` at the repository root.
 - Playwright Chromium installed. If it is absent, run `npx playwright install chromium`.
 - Optional: an approved `OPENAI_API_KEY` in the current shell for real narration.
 
-System FFmpeg is not required by the scripts after the Remotion dependency is installed; narration processing and media inspection use Remotion's bundled media commands. Do not substitute GUI capture tools unless the structured capture has a verified blocker.
+Remotion's bundled FFmpeg is intentionally reduced and does not contain every narration-normalization filter. The generator verifies filter capability and prefers a full system FFmpeg; when those filters are unavailable, generated speech is retained without normalization and strict narration validation rejects it. Do not substitute GUI capture tools unless the structured capture has a verified blocker.
 
 ## End-to-end run
 
