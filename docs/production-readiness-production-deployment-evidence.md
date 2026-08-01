@@ -4,13 +4,13 @@ Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
 Deployment status: passed through approved CI/CD path.
 
-Current candidate execution status: `launch-candidate-2026-07-31-1` deployed successfully through the protected production CI/CD path in workflow run `30645647404`.
+Current candidate execution status: `launch-candidate-2026-08-01-1` is approved but not yet deployed. Historical successful runs below prove the CI/CD path; candidate-specific production evidence must be appended after the workflow completes.
 
 Latest evidence date: 2026-07-31. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-07-31-1`.
+Approved launch candidate tag: `launch-candidate-2026-08-01-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -36,7 +36,7 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-07-31-1` at `1af3296b9b92ae650087dd5ce15471b98354b787`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-01-1` at `77cf94ec1c130b5b094822e95995101fa38e0af0`; see `docs/production-readiness-launch-candidate-tag.md`. |
 | Approved production CI/CD path | Passed | `.github/workflows/production.yml` requires `workflow_dispatch`, reads the approved launch candidate manifest, checks the input tag and tag commit against it, and runs in GitHub environment `production`; run `30645647404` passed this validation. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services; protected environment `Production` approved only the solo-controlled No-CUI pilot deployment. |
 | Production secrets source | Passed through protected workflow | Run `30645647404` resolved the required production environment secrets without exposing their values. Secret values are not stored in this evidence or the repository. |
