@@ -4,9 +4,9 @@ Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
 Deployment status: passed through approved CI/CD path.
 
-Current candidate execution status: `launch-candidate-2026-08-01-1` is approved but not yet deployed. Historical successful runs below prove the CI/CD path; candidate-specific production evidence must be appended after the workflow completes.
+Current candidate execution status: `launch-candidate-2026-08-01-1` deployed successfully through the protected production CI/CD path in workflow run `30723228364`.
 
-Latest evidence date: 2026-07-31. Historical evidence dates are retained below.
+Latest evidence date: 2026-08-01. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
@@ -37,14 +37,14 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-01-1` at `77cf94ec1c130b5b094822e95995101fa38e0af0`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Passed | `.github/workflows/production.yml` requires `workflow_dispatch`, reads the approved launch candidate manifest, checks the input tag and tag commit against it, and runs in GitHub environment `production`; run `30645647404` passed this validation. |
+| Approved production CI/CD path | Passed | `.github/workflows/production.yml` requires `workflow_dispatch`, reads the approved launch candidate manifest, checks the input tag and tag commit against it, and runs in GitHub environment `production`; run `30723228364` passed this validation. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services; protected environment `Production` approved only the solo-controlled No-CUI pilot deployment. |
-| Production secrets source | Passed through protected workflow | Run `30645647404` resolved the required production environment secrets without exposing their values. Secret values are not stored in this evidence or the repository. |
-| Production No-CUI posture validation | Passed | Run `30645647404` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`; the deployment artifact and live health response record the same posture. |
-| Production migrations | Passed | Run `30645647404` generated and applied the idempotent EF Core migration script before application deployment. The candidate delta from the prior production tag contains no EF Core migration file changes. |
+| Production secrets source | Passed through protected workflow | Run `30723228364` resolved the required production environment secrets without exposing their values. Secret values are not stored in this evidence or the repository. |
+| Production No-CUI posture validation | Passed | Run `30723228364` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`; the deployment artifact and independent live health response record the same posture. |
+| Production migrations | Passed | Run `30723228364` generated and applied the idempotent EF Core migration script before application deployment. The candidate delta from the prior production tag contains no EF Core migration file changes. |
 | Production storage, cache, queue, and background jobs | Passed | The run's health artifact and an independent live `/health` request returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
-| Production health checks, logs, and alerts | Health passed; logs and alerts remain contract-backed | Run `30645647404` passed `/health` for the API and four dependencies. Terraform continues to declare `logs` and `alerts`; this deployment did not repeat the separate alert-delivery exercise. |
-| Deployment evidence capture | Passed | Run `30645647404` uploaded artifact `8799397884` with deployment time, artifact tag/SHA, operator, environment, workflow run URL, No-CUI posture, result, health output, and migration script. |
+| Production health checks, logs, and alerts | Health passed; logs and alerts remain contract-backed | Run `30723228364` passed `/health` for the API and four dependencies. An independent post-run request confirmed the same signals. Terraform continues to declare `logs` and `alerts`; this deployment did not repeat the separate alert-delivery exercise. |
+| Deployment evidence capture | Passed | Run `30723228364` uploaded artifact `8825546199` with deployment time, artifact tag/SHA, operator, environment, workflow run URL, No-CUI posture, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
@@ -67,10 +67,30 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | --- | --- | --- |
 | TC-PR-7.1.1 | Passed | Production workflow checks `launch_candidate_tag` against `docs/release/approved-launch-candidate.json`, verifies the tag commit, and checks out that tag. |
 | TC-PR-7.1.2 | Passed | Production deployment path is `.github/workflows/production.yml` using GitHub environment `production`; manual ad hoc deployment remains prohibited. |
-| TC-PR-7.1.3 | Passed for deployment runtime and repository contract | Run `30645647404` passed secrets resolution, migration application, dependency health, and No-CUI checks; workflow and Terraform retain logs/alerts contracts. |
-| TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `8799397884` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
+| TC-PR-7.1.3 | Passed for deployment runtime and repository contract | Run `30723228364` passed secrets resolution, migration application, dependency health, and No-CUI checks; workflow and Terraform retain logs/alerts contracts. |
+| TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `8825546199` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
 
 ## Deployment Execution Record
+
+### 2026-08-01 application release deployment
+
+Production workflow run `30723228364` completed successfully in 4 minutes 19 seconds. Release controls ran from merged main commit `9da5d5de532cca967994081a6315b66367e7021f`; the workflow validated and deployed immutable runtime tag `launch-candidate-2026-08-01-1` at `77cf94ec1c130b5b094822e95995101fa38e0af0`.
+
+Run results:
+
+- Approved tag/SHA validation, production controls, and No-CUI guardrails passed.
+- Production API and web builds passed.
+- Idempotent migration generation and PostgreSQL application passed. No EF Core migration file changed relative to `launch-candidate-2026-07-31-1`.
+- Azure login, API App Service deployment, Static Web App deployment, production health checks, evidence recording, and evidence upload passed.
+- Evidence artifact `8825546199` records deployment time `2026-08-01T23:27:43Z`, runtime tag and SHA, operator `samurab`, environment `production`, `customer_data_mode=no-cui-only`, and `result=deployment-and-health-checks-passed`.
+- The workflow health artifact and an independent live request returned `status=ok`; PostgreSQL, Redis, object storage, and background jobs each returned `status=ok`.
+- The production web endpoint returned HTTP `200` with title `FeDril | GovCon Compliance Readiness Software` and referenced the deployed favicon.
+
+Verification limits and environmental differences:
+
+- The deployment did not use real customer data or CUI and does not authorize broader customer launch, CUI processing, certification, government approval, legal advice, or independent professional approval.
+- Authenticated workspace, tenant-role, upload, report, and alert-delivery scenarios were not repeated during this deployment. Earlier production smoke evidence remains historical coverage.
+- Database rollback is not automatic. No destructive rollback or production restore exercise was performed during this deployment.
 
 ### 2026-07-31 FeDril solo-controlled No-CUI pilot deployment
 
