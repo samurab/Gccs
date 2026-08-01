@@ -1499,14 +1499,14 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Production secrets source | Passed through protected workflow", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
         Assert.Contains(
-            $"Current candidate execution status: `{manifest.ApprovedLaunchCandidateTag}` is approved but not yet deployed.",
+            $"Current candidate execution status: `{manifest.ApprovedLaunchCandidateTag}` deployed successfully through the protected production CI/CD path in workflow run `30723228364`.",
             deployment);
         Assert.Contains(
-            "Candidate `launch-candidate-2026-07-31-1` passed protected production workflow run `30645647404`",
+            $"Candidate `{manifest.ApprovedLaunchCandidateTag}` passed protected production workflow run `30723228364`",
             checklist);
-        Assert.Contains("Production workflow run `30645647404` completed successfully", deployment);
+        Assert.Contains("Production workflow run `30723228364` completed successfully", deployment);
         Assert.Contains(manifest.ApprovedCommitSha, deployment);
-        Assert.Contains("artifact `8799397884`", deployment);
+        Assert.Contains("artifact `8825546199`", deployment);
         Assert.Contains("FeDril | GovCon Compliance Readiness Software", deployment);
         Assert.Contains("no visible `GCCS` text", deployment);
         Assert.Contains("Authenticated workspace, tenant-role, upload, report, and alert-delivery scenarios were not repeated", deployment);
