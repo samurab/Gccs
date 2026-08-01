@@ -1104,17 +1104,17 @@ a {
 .landing-brand__logo {
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   display: block;
   filter:
-    drop-shadow(-4px -5px 4px rgb(255 241 184 / 0.5))
-    drop-shadow(0 10px 16px rgb(78 48 6 / 0.34))
+    drop-shadow(0 6px 14px rgb(36 79 58 / 0.22))
     contrast(1.06)
     saturate(1.04);
-  height: 88px;
+  height: 50px;
   object-fit: contain;
   padding: 0;
-  width: 78px;
+  transform: translateY(-4px);
+  width: 50px;
 }
 
 .landing-brand__mark,
@@ -2414,6 +2414,16 @@ main {
   overflow-x: hidden;
 }
 
+.workspace-shell--demo-capture,
+.workspace-shell--demo-capture * {
+  scroll-behavior: auto !important;
+}
+
+.workspace-shell--demo-capture * {
+  animation: none !important;
+  transition: none !important;
+}
+
 .skip-link {
   background: var(--ink);
   border-radius: 0 0 6px 0;
@@ -2467,18 +2477,18 @@ main {
 .brand-logo {
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   display: block;
   flex: 0 0 auto;
   filter:
-    drop-shadow(-3px -4px 3px rgb(255 241 184 / 0.45))
-    drop-shadow(0 8px 13px rgb(78 48 6 / 0.32))
+    drop-shadow(0 5px 12px rgb(36 79 58 / 0.22))
     contrast(1.06)
     saturate(1.04);
-  height: 68px;
+  height: 42px;
   object-fit: contain;
   padding: 0;
-  width: 60px;
+  transform: translateY(-4px);
+  width: 42px;
 }
 
 .brand-mark svg {
@@ -4654,6 +4664,11 @@ textarea:required:user-invalid {
 .obligation-dashboard-list {
   display: grid;
   gap: 12px;
+}
+
+.obligation-capture-entity {
+  display: grid;
+  min-width: 0;
 }
 
 .obligation-dashboard-item {

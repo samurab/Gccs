@@ -3,11 +3,14 @@ using Gccs.Domain.Identity;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Gccs.Infrastructure.Notifications;
 
 public sealed class EfNotificationPreferenceRepository(GccsDbContext dbContext) : INotificationPreferenceRepository
 {
+    private const string TenantUserUniqueConstraint = "IX_notification_preferences_tenant_id_user_id";
+
     public async Task<NotificationPreferenceDto> GetOrCreateAsync(
         Guid tenantId,
         Guid userId,
@@ -37,8 +40,22 @@ public sealed class EfNotificationPreferenceRepository(GccsDbContext dbContext) 
             CreatedByUserId = userId
         };
         dbContext.NotificationPreferences.Add(entity);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return ToDto(entity);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return ToDto(entity);
+        }
+        catch (DbUpdateException exception) when (IsConcurrentCreateConflict(exception))
+        {
+            dbContext.Entry(entity).State = EntityState.Detached;
+            var persistedEntity = await FindAsync(tenantId, userId, cancellationToken);
+            if (persistedEntity is null)
+            {
+                throw;
+            }
+
+            return ToDto(persistedEntity);
+        }
     }
 
     public async Task<NotificationPreferenceDto> UpdateAsync(
@@ -108,6 +125,13 @@ public sealed class EfNotificationPreferenceRepository(GccsDbContext dbContext) 
 
     private static string NormalizeRoleName(string roleName) =>
         RoleCatalog.TryNormalizeRoleName(roleName, out var normalized) ? normalized : RoleCatalog.Contributor;
+
+    private static bool IsConcurrentCreateConflict(DbUpdateException exception) =>
+        exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: TenantUserUniqueConstraint
+        };
 
     private static NotificationPreferenceDto ToDto(NotificationPreferenceEntity entity) =>
         new(

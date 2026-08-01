@@ -54,6 +54,28 @@ public sealed class DevelopmentTenantBootstrapper(
         Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb4"),
         Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb5"));
 
+    private static readonly LocalSeedTenant Northstar = new(
+        Guid.Parse("11111111-1111-1111-1111-111111111113"),
+        "Northstar Precision Systems",
+        "northstar",
+        Guid.Parse("22222222-2222-2222-2222-222222222242"),
+        Guid.Parse("22222222-2222-2222-2222-222222222243"),
+        Guid.Parse("22222222-2222-2222-2222-222222222244"),
+        Guid.Parse("22222222-2222-2222-2222-222222222245"),
+        Guid.Parse("cccccccc-cccc-cccc-cccc-ccccccccccc1"),
+        Guid.Parse("cccccccc-cccc-cccc-cccc-ccccccccccc2"),
+        Guid.Parse("cccccccc-cccc-cccc-cccc-ccccccccccc3"),
+        Guid.Parse("cccccccc-cccc-cccc-cccc-ccccccccccc4"),
+        Guid.Parse("cccccccc-cccc-cccc-cccc-ccccccccccc5"),
+        IsMarketingDemo: true,
+        Users:
+        [
+            new(Guid.Parse("22222222-2222-2222-2222-222222222242"), "TenantAdmin", RoleCatalog.Admin, "alex.morgan.northstar@example.com", "Alex Morgan"),
+            new(Guid.Parse("22222222-2222-2222-2222-222222222243"), "ComplianceManager", RoleCatalog.ComplianceManager, "priya.shah.northstar@example.com", "Priya Shah"),
+            new(Guid.Parse("22222222-2222-2222-2222-222222222244"), "Contributor", RoleCatalog.Contributor, "daniel.brooks.northstar@example.com", "Daniel Brooks"),
+            new(Guid.Parse("22222222-2222-2222-2222-222222222245"), "ReadOnlyAuditor", RoleCatalog.Auditor, "elena.ortiz.northstar@example.com", "Elena Ortiz")
+        ]);
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (!environment.IsDevelopment())
@@ -101,9 +123,19 @@ public sealed class DevelopmentTenantBootstrapper(
                 return;
             }
 
+            var marketingDemoEnabled = configuration.GetValue("MarketingDemo:Enabled", false);
+            if (marketingDemoEnabled)
+            {
+                ValidateMarketingDemoPreflight(dbContext, Northstar);
+            }
+
             EnsureControls(dbContext);
             EnsureTenantSeed(dbContext, Alpha);
             EnsureTenantSeed(dbContext, Beta);
+            if (marketingDemoEnabled)
+            {
+                EnsureTenantSeed(dbContext, Northstar);
+            }
 
             await dbContext.SaveChangesAsync(cancellationToken);
             logger.LogInformation(
@@ -112,6 +144,12 @@ public sealed class DevelopmentTenantBootstrapper(
                 Beta.TenantId,
                 tenantId,
                 userId);
+            if (marketingDemoEnabled)
+            {
+                logger.LogInformation(
+                    "FeDril marketing demonstration data ensured for Northstar Precision Systems {NorthstarTenantId}.",
+                    Northstar.TenantId);
+            }
         }
         catch (Exception exception)
         {
@@ -133,6 +171,216 @@ public sealed class DevelopmentTenantBootstrapper(
         EnsureChecklist(dbContext, seed);
     }
 
+    private static void ValidateMarketingDemoPreflight(GccsDbContext dbContext, LocalSeedTenant seed)
+    {
+        if (!seed.IsMarketingDemo || seed.Users is null)
+        {
+            throw new InvalidOperationException("Marketing demonstration preflight requires an explicit marketing seed definition.");
+        }
+
+        ValidateExistingIdentifier(
+            dbContext.Tenants.AsNoTracking().SingleOrDefault(tenant => tenant.Id == seed.TenantId),
+            tenant =>
+                tenant.Name == seed.Name &&
+                tenant.Status == TenantStatus.Active &&
+                tenant.DataPosture == TenantDataPosture.NoCui &&
+                tenant.TrialEndsAt == null &&
+                tenant.CreatedAt == SeededAt &&
+                tenant.CreatedByUserId == seed.AdminUserId,
+            "tenant",
+            seed.TenantId);
+
+        foreach (var user in seed.Users)
+        {
+            var expectedEmail = user.Email ?? $"{seed.Slug}.{user.Label.ToLowerInvariant()}@gccs.local";
+            var expectedDisplayName = user.DisplayName ?? $"{seed.Name} {user.Label}";
+            ValidateExistingIdentifier(
+                dbContext.Users.AsNoTracking().SingleOrDefault(candidate => candidate.Id == user.UserId),
+                candidate =>
+                    candidate.TenantId == seed.TenantId &&
+                    string.Equals(candidate.Email, expectedEmail, StringComparison.OrdinalIgnoreCase) &&
+                    candidate.DisplayName == expectedDisplayName &&
+                    candidate.Status == UserStatus.Active &&
+                    candidate.MfaEnabled &&
+                    candidate.CreatedAt == SeededAt &&
+                    candidate.CreatedByUserId == seed.AdminUserId,
+                "user",
+                user.UserId);
+
+            var userWithExpectedEmail = dbContext.Users
+                .AsNoTracking()
+                .Where(candidate => candidate.TenantId == seed.TenantId)
+                .AsEnumerable()
+                .SingleOrDefault(candidate => string.Equals(candidate.Email, expectedEmail, StringComparison.OrdinalIgnoreCase));
+            if (userWithExpectedEmail is not null && userWithExpectedEmail.Id != user.UserId)
+            {
+                ThrowMarketingDemoCollision("user email", userWithExpectedEmail.Id);
+            }
+
+            var roleId = SeedGuid(seed.Prefix, RoleOffset(user.RoleName));
+            ValidateExistingIdentifier(
+                dbContext.Roles.AsNoTracking().SingleOrDefault(role => role.Id == roleId),
+                role =>
+                    role.TenantId == seed.TenantId &&
+                    role.Name == user.RoleName &&
+                    role.CreatedAt == SeededAt &&
+                    role.CreatedByUserId == seed.AdminUserId,
+                "role",
+                roleId);
+
+            var roleWithExpectedName = dbContext.Roles
+                .AsNoTracking()
+                .SingleOrDefault(role => role.TenantId == seed.TenantId && role.Name == user.RoleName);
+            if (roleWithExpectedName is not null && roleWithExpectedName.Id != roleId)
+            {
+                ThrowMarketingDemoCollision("role name", roleWithExpectedName.Id);
+            }
+
+            var membershipId = SeedGuid(seed.Prefix, MembershipOffset(user.Label));
+            ValidateExistingIdentifier(
+                dbContext.TenantMemberships.AsNoTracking().SingleOrDefault(membership => membership.Id == membershipId),
+                membership =>
+                    membership.TenantId == seed.TenantId &&
+                    membership.UserId == user.UserId &&
+                    membership.Status == MembershipStatus.Active &&
+                    membership.RoleName == user.RoleName &&
+                    membership.CreatedAt == SeededAt &&
+                    membership.CreatedByUserId == seed.AdminUserId,
+                "tenant membership",
+                membershipId);
+
+            var existingMembership = dbContext.TenantMemberships
+                .AsNoTracking()
+                .SingleOrDefault(membership => membership.TenantId == seed.TenantId && membership.UserId == user.UserId);
+            if (existingMembership is not null && existingMembership.Id != membershipId)
+            {
+                ThrowMarketingDemoCollision("tenant membership", existingMembership.Id);
+            }
+        }
+
+        var modeHistoryId = SeedGuid(seed.Prefix, 11);
+        var expectedModeHistory = dbContext.TenantDataHandlingModeHistory
+            .AsNoTracking()
+            .SingleOrDefault(history => history.Id == modeHistoryId);
+        ValidateExistingIdentifier(
+            expectedModeHistory,
+            history =>
+                history.TenantId == seed.TenantId &&
+                history.PreviousMode == null &&
+                history.NewMode == TenantDataPosture.NoCui &&
+                history.ActorUserId == seed.AdminUserId &&
+                history.ChangedAt == SeededAt &&
+                history.Reason == $"FeDril marketing demonstration seed created {seed.Name} as a No-CUI tenant." &&
+                history.ApprovalRecordReference == "fedril-marketing-demo-seed",
+            "data-handling mode history",
+            modeHistoryId);
+
+        if (expectedModeHistory is null &&
+            dbContext.TenantDataHandlingModeHistory.AsNoTracking().Any(history => history.TenantId == seed.TenantId))
+        {
+            ThrowMarketingDemoCollision("data-handling mode history", modeHistoryId);
+        }
+
+        ValidateExistingIdentifier(
+            dbContext.EvidenceItems.AsNoTracking().SingleOrDefault(evidence => evidence.Id == seed.EvidenceItemId),
+            evidence =>
+                evidence.TenantId == seed.TenantId &&
+                evidence.Name == "Northstar quarterly access review summary" &&
+                evidence.OriginalFileName == "northstar-quarterly-access-review-summary.pdf" &&
+                evidence.StorageUri == null &&
+                evidence.UploadValidationStatus == "metadata-only" &&
+                evidence.MalwareScanStatus == "not-applicable-metadata-only" &&
+                evidence.Classification == ContentClassification.Unclassified &&
+                evidence.ClassificationIsApprovedDemoContent &&
+                evidence.CreatedAt == SeededAt &&
+                evidence.CreatedByUserId == seed.ContributorUserId,
+            "evidence item",
+            seed.EvidenceItemId);
+
+        ValidateExistingIdentifier(
+            dbContext.Assessments.AsNoTracking().SingleOrDefault(assessment => assessment.Id == seed.AssessmentId),
+            assessment =>
+                assessment.TenantId == seed.TenantId &&
+                assessment.Name == $"{seed.Name} Level 1 readiness" &&
+                assessment.Type == AssessmentType.Readiness &&
+                assessment.Level == CmmcLevel.Level1 &&
+                assessment.Framework == "CMMC Level 1 / FAR 52.204-21" &&
+                assessment.CreatedAt == SeededAt &&
+                assessment.CreatedByUserId == seed.ComplianceManagerUserId,
+            "assessment",
+            seed.AssessmentId);
+
+        ValidateExistingIdentifier(
+            dbContext.PoamItems.AsNoTracking().SingleOrDefault(poam => poam.Id == seed.PoamItemId),
+            poam =>
+                poam.TenantId == seed.TenantId &&
+                poam.AssessmentId == seed.AssessmentId &&
+                poam.ControlId == "IA.L1-3.5.1" &&
+                poam.Weakness == "Quarterly privileged-access review evidence is incomplete" &&
+                poam.CreatedAt == SeededAt &&
+                poam.CreatedByUserId == seed.ComplianceManagerUserId,
+            "POA&M item",
+            seed.PoamItemId);
+
+        ValidateExistingIdentifier(
+            dbContext.AuditLogEntries.AsNoTracking().SingleOrDefault(audit => audit.Id == seed.AuditLogId),
+            audit =>
+                audit.TenantId == seed.TenantId &&
+                audit.ActorUserId == seed.ComplianceManagerUserId &&
+                audit.Action == AuditAction.Created &&
+                audit.EntityType == "MarketingDemoSeed" &&
+                audit.EntityId == seed.TenantId.ToString() &&
+                audit.OccurredAt == SeededAt &&
+                audit.CorrelationId == $"fedril-demo-seed-{seed.Slug}",
+            "audit log entry",
+            seed.AuditLogId);
+
+        ValidateExistingIdentifier(
+            dbContext.CuiReadyApprovalChecklists.AsNoTracking().SingleOrDefault(checklist => checklist.Id == seed.ChecklistId),
+            checklist =>
+                checklist.TenantId == seed.TenantId &&
+                checklist.Version == 1 &&
+                checklist.State == CuiReadyChecklistState.Draft &&
+                checklist.CreatedAt == SeededAt &&
+                checklist.CreatedByUserId == seed.AdminUserId,
+            "CUI-ready approval checklist",
+            seed.ChecklistId);
+
+        ValidateExistingIdentifier(
+            dbContext.CuiReadyApprovalChecklistItems.AsNoTracking().SingleOrDefault(item => item.Id == SeedGuid(seed.Prefix, 401)),
+            item =>
+                item.ChecklistId == seed.ChecklistId &&
+                item.ItemKey == "data-handling-notice" &&
+                item.Section == "Data handling notice",
+            "CUI-ready approval checklist item",
+            SeedGuid(seed.Prefix, 401));
+        ValidateExistingIdentifier(
+            dbContext.CuiReadyApprovalChecklistItems.AsNoTracking().SingleOrDefault(item => item.Id == SeedGuid(seed.Prefix, 402)),
+            item =>
+                item.ChecklistId == seed.ChecklistId &&
+                item.ItemKey == "audit-logging" &&
+                item.Section == "Audit logging",
+            "CUI-ready approval checklist item",
+            SeedGuid(seed.Prefix, 402));
+    }
+
+    private static void ValidateExistingIdentifier<TEntity>(
+        TEntity? existing,
+        Func<TEntity, bool> isExpectedRecord,
+        string entityType,
+        Guid identifier)
+        where TEntity : class
+    {
+        if (existing is not null && !isExpectedRecord(existing))
+        {
+            ThrowMarketingDemoCollision(entityType, identifier);
+        }
+    }
+
+    private static void ThrowMarketingDemoCollision(string entityType, Guid identifier) =>
+        throw new InvalidOperationException(
+            $"FeDril marketing demonstration seed identifier collision for {entityType} '{identifier}'.");
+
     private static void EnsureTenant(GccsDbContext dbContext, LocalSeedTenant seed)
     {
         var tenant = dbContext.Tenants.Local.SingleOrDefault(item => item.Id == seed.TenantId) ??
@@ -149,6 +397,11 @@ public sealed class DevelopmentTenantBootstrapper(
                 CreatedAt = SeededAt,
                 CreatedByUserId = seed.AdminUserId
             });
+            return;
+        }
+
+        if (seed.IsMarketingDemo)
+        {
             return;
         }
 
@@ -172,20 +425,22 @@ public sealed class DevelopmentTenantBootstrapper(
             NewMode = TenantDataPosture.NoCui,
             ActorUserId = seed.AdminUserId,
             ChangedAt = SeededAt,
-            Reason = $"Local development seed created {seed.Name} as a No-CUI tenant.",
-            ApprovalRecordReference = "local-development-seed"
+            Reason = seed.IsMarketingDemo
+                ? $"FeDril marketing demonstration seed created {seed.Name} as a No-CUI tenant."
+                : $"Local development seed created {seed.Name} as a No-CUI tenant.",
+            ApprovalRecordReference = seed.IsMarketingDemo ? "fedril-marketing-demo-seed" : "local-development-seed"
         });
     }
 
     private static void EnsureUsersAndRoles(GccsDbContext dbContext, LocalSeedTenant seed)
     {
-        var users = new[]
-        {
+        var users = seed.Users ??
+        [
             new LocalSeedUser(seed.AdminUserId, "TenantAdmin", RoleCatalog.Admin),
             new LocalSeedUser(seed.ComplianceManagerUserId, "ComplianceManager", RoleCatalog.ComplianceManager),
             new LocalSeedUser(seed.ContributorUserId, "Contributor", RoleCatalog.Contributor),
             new LocalSeedUser(seed.AuditorUserId, "ReadOnlyAuditor", RoleCatalog.Auditor)
-        };
+        ];
 
         foreach (var user in users)
         {
@@ -207,8 +462,8 @@ public sealed class DevelopmentTenantBootstrapper(
         {
             Id = user.UserId,
             TenantId = seed.TenantId,
-            Email = $"{seed.Slug}.{user.Label.ToLowerInvariant()}@gccs.local",
-            DisplayName = $"{seed.Name} {user.Label}",
+            Email = user.Email ?? $"{seed.Slug}.{user.Label.ToLowerInvariant()}@gccs.local",
+            DisplayName = user.DisplayName ?? $"{seed.Name} {user.Label}",
             Status = UserStatus.Active,
             MfaEnabled = true,
             LastSignedInAt = SeededAt,
@@ -268,6 +523,11 @@ public sealed class DevelopmentTenantBootstrapper(
                 CreatedAt = SeededAt,
                 CreatedByUserId = seed.AdminUserId
             });
+            return;
+        }
+
+        if (seed.IsMarketingDemo)
+        {
             return;
         }
 
@@ -346,20 +606,30 @@ public sealed class DevelopmentTenantBootstrapper(
         {
             Id = seed.EvidenceItemId,
             TenantId = seed.TenantId,
-            Name = $"{seed.Name} access control policy",
-            Description = "Synthetic No-CUI local development evidence metadata. No file content is stored.",
+            Name = seed.IsMarketingDemo
+                ? "Northstar quarterly access review summary"
+                : $"{seed.Name} access control policy",
+            Description = seed.IsMarketingDemo
+                ? "Fictional, non-sensitive FeDril demonstration evidence metadata. No file content is stored."
+                : "Synthetic No-CUI local development evidence metadata. No file content is stored.",
             Type = EvidenceType.Policy,
             OwnerFunction = "Security",
             Status = EvidenceStatus.Approved,
-            StorageUri = $"local-dev://{seed.Slug}/evidence/access-control-policy.pdf",
-            OriginalFileName = $"{seed.Slug}-access-control-policy.pdf",
+            StorageUri = seed.IsMarketingDemo ? null : $"local-dev://{seed.Slug}/evidence/access-control-policy.pdf",
+            OriginalFileName = seed.IsMarketingDemo
+                ? "northstar-quarterly-access-review-summary.pdf"
+                : $"{seed.Slug}-access-control-policy.pdf",
             ContentType = "application/pdf",
-            SizeBytes = 42000,
-            UploadValidationStatus = "accepted",
-            MalwareScanStatus = "clean",
+            SizeBytes = seed.IsMarketingDemo ? 18432 : 42000,
+            UploadValidationStatus = seed.IsMarketingDemo ? "metadata-only" : "accepted",
+            MalwareScanStatus = seed.IsMarketingDemo ? "not-applicable-metadata-only" : "clean",
             EffectiveAt = SeededDate,
             ExpiresAt = ExpirationDate,
-            TagsJson = JsonSerializer.Serialize(new[] { "local-dev", seed.Slug, "no-cui", "access-control" }, JsonOptions),
+            TagsJson = JsonSerializer.Serialize(
+                seed.IsMarketingDemo
+                    ? new[] { "fictional-demo", "northstar", "no-cui", "access-review" }
+                    : new[] { "local-dev", seed.Slug, "no-cui", "access-control" },
+                JsonOptions),
             ApprovedByUserId = seed.ComplianceManagerUserId,
             ApprovedAt = SeededAt,
             Classification = ContentClassification.Unclassified,
@@ -367,7 +637,9 @@ public sealed class DevelopmentTenantBootstrapper(
             ClassificationConfidence = 1.0m,
             ClassificationReviewedByUserId = seed.ComplianceManagerUserId,
             ClassificationReviewedAt = SeededAt,
-            ClassificationReason = "Synthetic local development No-CUI evidence metadata.",
+            ClassificationReason = seed.IsMarketingDemo
+                ? "Fictional, non-sensitive No-CUI evidence metadata for a FeDril marketing demonstration."
+                : "Synthetic local development No-CUI evidence metadata.",
             ClassificationIsApprovedDemoContent = true,
             CreatedAt = SeededAt,
             CreatedByUserId = seed.ContributorUserId
@@ -408,7 +680,9 @@ public sealed class DevelopmentTenantBootstrapper(
             ControlImplementationStatus.Implemented,
             AssessmentResult.Met,
             [seed.EvidenceItemId],
-            "Reviewed local-development evidence supports this control.",
+            seed.IsMarketingDemo
+                ? "Reviewed fictional demonstration evidence supports this readiness record."
+                : "Reviewed local-development evidence supports this control.",
             seed.ComplianceManagerUserId,
             SeededDate);
         EnsureControlAssessment(
@@ -418,7 +692,9 @@ public sealed class DevelopmentTenantBootstrapper(
             ControlImplementationStatus.PartiallyImplemented,
             AssessmentResult.NotMet,
             [],
-            "Local-development seed leaves an identity evidence gap for POA&M testing.",
+            seed.IsMarketingDemo
+                ? "Fictional demonstration data leaves an identity evidence gap for remediation tracking."
+                : "Local-development seed leaves an identity evidence gap for POA&M testing.",
             null,
             null);
     }
@@ -471,9 +747,13 @@ public sealed class DevelopmentTenantBootstrapper(
             TenantId = seed.TenantId,
             AssessmentId = seed.AssessmentId,
             ControlId = "IA.L1-3.5.1",
-            Weakness = $"{seed.Name} identity evidence gap",
-            PlannedRemediation = "Collect synthetic identity provider configuration evidence for local workflow testing.",
-            RiskLevel = RiskLevel.Medium,
+            Weakness = seed.IsMarketingDemo
+                ? "Quarterly privileged-access review evidence is incomplete"
+                : $"{seed.Name} identity evidence gap",
+            PlannedRemediation = seed.IsMarketingDemo
+                ? "Complete the fictional access review, document the reviewer decision, and associate the approved evidence metadata."
+                : "Collect synthetic identity provider configuration evidence for local workflow testing.",
+            RiskLevel = seed.IsMarketingDemo ? RiskLevel.High : RiskLevel.Medium,
             Status = PoamStatus.Open,
             OwnerUserId = seed.ComplianceManagerUserId,
             OwnerFunction = "Security",
@@ -496,18 +776,20 @@ public sealed class DevelopmentTenantBootstrapper(
             TenantId = seed.TenantId,
             ActorUserId = seed.ComplianceManagerUserId,
             Action = AuditAction.Created,
-            EntityType = "LocalDevelopmentSeed",
+            EntityType = seed.IsMarketingDemo ? "MarketingDemoSeed" : "LocalDevelopmentSeed",
             EntityId = seed.TenantId.ToString(),
             OccurredAt = SeededAt,
             IpAddress = "127.0.0.1",
-            UserAgent = "Gccs local development seed",
-            CorrelationId = $"local-dev-seed-{seed.Slug}",
-            Summary = $"{seed.Name} local development data was seeded.",
+            UserAgent = seed.IsMarketingDemo ? "FeDril marketing demonstration seed" : "Gccs local development seed",
+            CorrelationId = seed.IsMarketingDemo ? $"fedril-demo-seed-{seed.Slug}" : $"local-dev-seed-{seed.Slug}",
+            Summary = seed.IsMarketingDemo
+                ? $"Fictional FeDril demonstration data was seeded for {seed.Name}."
+                : $"{seed.Name} local development data was seeded.",
             OldValue = null,
             NewValue = JsonSerializer.Serialize(new { seed.TenantId, seed.Name }, JsonOptions),
             MetadataJson = JsonSerializer.Serialize(new Dictionary<string, string>
             {
-                ["seed"] = "local-development",
+                ["seed"] = seed.IsMarketingDemo ? "fedril-marketing-demo" : "local-development",
                 ["tenant"] = seed.Name,
                 ["dataPosture"] = TenantDataPosture.NoCui.ToString()
             }, JsonOptions)
@@ -592,12 +874,23 @@ public sealed class DevelopmentTenantBootstrapper(
         Guid EvidenceItemId,
         Guid PoamItemId,
         Guid AuditLogId,
-        Guid ChecklistId)
+        Guid ChecklistId,
+        bool IsMarketingDemo = false,
+        IReadOnlyList<LocalSeedUser>? Users = null)
     {
-        public string Prefix => Slug == "alpha"
-            ? "aaaaaaaa-aaaa-aaaa-aaaa-"
-            : "bbbbbbbb-bbbb-bbbb-bbbb-";
+        public string Prefix => Slug switch
+        {
+            "alpha" => "aaaaaaaa-aaaa-aaaa-aaaa-",
+            "beta" => "bbbbbbbb-bbbb-bbbb-bbbb-",
+            "northstar" => "cccccccc-cccc-cccc-cccc-",
+            _ => throw new InvalidOperationException($"Unsupported local seed tenant slug '{Slug}'.")
+        };
     }
 
-    private sealed record LocalSeedUser(Guid UserId, string Label, string RoleName);
+    private sealed record LocalSeedUser(
+        Guid UserId,
+        string Label,
+        string RoleName,
+        string? Email = null,
+        string? DisplayName = null);
 }
