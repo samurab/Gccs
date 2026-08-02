@@ -12,8 +12,8 @@ The demonstration uses only the fictional organization **Northstar Precision Sys
 | Deterministic 1920x1080 walkthrough capture | Implemented and executed | Seven completed scenes are recorded under `public/captures/`; the source and execution log are [`capture/walkthrough.spec.ts`](./capture/walkthrough.spec.ts) and [`assets/capture/execution-log.json`](./assets/capture/execution-log.json). |
 | Flagship, homepage, and social compositions | Implemented and rendered as drafts | Remotion source under [`src/`](./src/); all three draft files passed automated duration, resolution, frame-rate, audio-stream, blank-segment, branding, disclosure, and claim checks. |
 | Narration scripts, captions, and timing model | Implemented | [`narration/script.json`](./narration/script.json), [`narration/timings.json`](./narration/timings.json), and [`captions/`](./captions/) |
-| AI narration | Partially implemented | All 18 scene files currently have `placeholder-silent` status because no approved API credential was available. See [`narration/manifest.json`](./narration/manifest.json). |
-| Rendered MP4 drafts | Implemented with intentional silent-placeholder audio | Generated under `out/`; technically validated, but not publishable until real narration and manual review pass. |
+| AI narration | Implemented | All 18 scene files use one `coral` voice and have `generated` and `normalized` status in [`narration/manifest.json`](./narration/manifest.json). |
+| Rendered MP4 drafts | Implemented with AI narration | Generated under `out/`; automated narration and media validation must pass again after any source, timing, caption, logo, or audio change. |
 | Background music | Not implemented | Intentionally deferred until the narration-only version passes review. |
 
 See [`AUDIT.md`](./AUDIT.md) for the repository and capability audit, [`STORYBOARD.md`](./STORYBOARD.md) for the approved content, and [`QA-CHECKLIST.md`](./QA-CHECKLIST.md) for the release gates.
@@ -155,13 +155,11 @@ The clean command removes generated captures, narration WAV files, render output
 
 ## Manual steps that remain
 
-1. Review the three real voice auditions and approve one voice.
-2. Generate real narration with an approved credential and run strict narration validation.
-3. Preview the complete duration of all three compositions at full size and verify every caption, capture transition, and visual beat; representative frames and capture stills have been inspected, but this editorial pass is not automated.
-4. Regenerate and rerender after real narration so measured speech durations replace placeholder timing, then rerun strict narration and media validation.
-5. Complete the manual narration, product-claim, accessibility, and pre-publication checks.
-6. Obtain product/compliance review before publishing the videos or description.
-7. Add only properly licensed, restrained music after narration-only approval, if music is still desired.
+1. Record formal approval of the selected `coral` voice if the existing generated narration is retained.
+2. Preview the complete duration of all three compositions at full size and verify every caption, capture transition, and visual beat; representative frames and capture stills have been inspected, but this editorial pass is not automated.
+3. Complete the manual narration, product-claim, accessibility, and pre-publication checks.
+4. Obtain product/compliance review before publishing the videos or description.
+5. Add only properly licensed, restrained music after narration-only approval, if music is still desired.
 
 ## Assumptions and dependencies
 
@@ -177,7 +175,7 @@ The clean command removes generated captures, narration WAV files, render output
 
 ## Known incomplete items and hidden risks
 
-- The seven product captures and three draft MP4s passed their automated checks. They remain non-publishable because the audio manifest contains silent placeholders and full-duration editorial review has not been signed off.
+- The seven product captures and three narrated MP4s passed automated checks. Automated validation does not substitute for the full-duration editorial, accessibility, product-claim, and compliance review recorded in `QA-CHECKLIST.md`.
 - A generated report can become stale after later changes. Re-seed or regenerate the snapshot immediately before capture.
 - Browser recording timing depends on the local machine. A resource-constrained host can produce uneven video despite deterministic holds.
 - Real speech duration can change the flagship duration from the current 3:34 timing. The generator updates scene timing, preserves exact 60/30-second short cuts by extending only the closing hold, and refuses overlong short-form narration; recapture and rerender after every narration change.

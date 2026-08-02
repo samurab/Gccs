@@ -1,8 +1,11 @@
 import { lazy, Suspense } from "react";
-import { shouldRenderLandingPage } from "./routing";
+import { shouldRenderDemoPage, shouldRenderLandingPage } from "./routing";
 
 const LandingPage = lazy(() =>
   import("./LandingPage").then((module) => ({ default: module.LandingPage }))
+);
+const DemoPage = lazy(() =>
+  import("./DemoPage").then((module) => ({ default: module.DemoPage }))
 );
 const AuthenticatedWorkspace = lazy(() =>
   import("./AuthenticatedWorkspace").then((module) => ({ default: module.AuthenticatedWorkspace }))
@@ -11,7 +14,7 @@ const AuthenticatedWorkspace = lazy(() =>
 export function Root() {
   return (
     <Suspense fallback={<main role="status">Loading FeDril…</main>}>
-      {shouldRenderLandingPage() ? <LandingPage /> : <AuthenticatedWorkspace />}
+      {shouldRenderDemoPage() ? <DemoPage /> : shouldRenderLandingPage() ? <LandingPage /> : <AuthenticatedWorkspace />}
     </Suspense>
   );
 }

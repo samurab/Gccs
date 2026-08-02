@@ -2226,7 +2226,7 @@ export function App() {
       </a>
       <aside className="workspace-sidebar">
         <div className="workspace-brand">
-          <img className="brand-logo" src="/company-logo.svg" alt="" aria-hidden="true" />
+          <img className="brand-logo" src="/F.svg" alt="" aria-hidden="true" />
           <div>
             <strong>FeDril</strong>
             <span>No-CUI workspace</span>

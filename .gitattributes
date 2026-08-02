@@ -1,1 +1,3 @@
 *.pdf binary
+*.mp4 binary
+*.vtt text eol=lf

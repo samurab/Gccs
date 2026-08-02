@@ -3,9 +3,16 @@
     "rewrite": "/index.html",
     "exclude": [
       "/assets/*",
+      "/captions/*",
       "/landing/compliance-operations-hero.png",
+      "/videos/*",
       "/company-logo.svg",
+      "/F.svg",
       "/favicon.svg"
     ]
+  },
+  "mimeTypes": {
+    ".mp4": "video/mp4",
+    ".vtt": "text/vtt"
   }
 }

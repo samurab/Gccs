@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getWorkspaceUrl, shouldRenderLandingPage } from "./routing";
+import { getWorkspaceUrl, shouldRenderDemoPage, shouldRenderLandingPage } from "./routing";
 
 function locationStub(pathname: string, search = "", hash = ""): Pick<Location, "pathname" | "search" | "hash"> {
   return { pathname, search, hash };
@@ -25,5 +25,11 @@ describe("routing", () => {
 
   it("uses /app as the shared workspace redirect URL", () => {
     expect(getWorkspaceUrl("https://gccs.example")).toBe("https://gccs.example/app");
+  });
+
+  it("renders the dedicated public demo only at /demo", () => {
+    expect(shouldRenderDemoPage(locationStub("/demo"))).toBe(true);
+    expect(shouldRenderDemoPage(locationStub("/"))).toBe(false);
+    expect(shouldRenderDemoPage(locationStub("/app"))).toBe(false);
   });
 });

@@ -1104,17 +1104,17 @@ a {
 .landing-brand__logo {
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   display: block;
   filter:
-    drop-shadow(-4px -5px 4px rgb(255 241 184 / 0.5))
-    drop-shadow(0 10px 16px rgb(78 48 6 / 0.34))
+    drop-shadow(0 6px 14px rgb(36 79 58 / 0.22))
     contrast(1.06)
     saturate(1.04);
-  height: 88px;
+  height: 50px;
   object-fit: contain;
   padding: 0;
-  width: 78px;
+  transform: translateY(-4px);
+  width: 50px;
 }
 
 .landing-brand__mark,
@@ -2287,6 +2287,246 @@ a {
   margin-top: 18px;
 }
 
+.landing-demo-preview {
+  padding-top: 72px;
+}
+
+.landing-demo-preview .landing-section__heading {
+  max-width: 820px;
+}
+
+.marketing-video {
+  background: #101820;
+  border: 1px solid #263849;
+  border-radius: 12px;
+  box-shadow: 0 28px 72px rgb(16 24 32 / 0.2);
+  margin-top: 34px;
+  overflow: hidden;
+}
+
+.marketing-video video {
+  aspect-ratio: 16 / 9;
+  background: #081522;
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.marketing-video__details {
+  align-items: center;
+  color: #d8e4d2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-between;
+  min-height: 66px;
+  padding: 14px 18px;
+}
+
+.marketing-video__details p {
+  line-height: 1.45;
+  margin: 0;
+}
+
+.marketing-video__details a {
+  align-items: center;
+  color: #ffffff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-weight: 800;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.marketing-video__actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 14px;
+}
+
+.marketing-video__actions button {
+  align-items: center;
+  background: #ffffff;
+  border: 0;
+  border-radius: 7px;
+  color: #101820;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 850;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 12px;
+}
+
+.marketing-video__actions button:hover {
+  background: #e7f0ea;
+  color: #244f3a;
+}
+
+.marketing-video__status {
+  color: #d7eadf;
+  flex-basis: 100%;
+  font-size: 0.82rem;
+  margin: 0;
+  width: 100%;
+}
+
+.marketing-video__details a:hover {
+  color: #b7d7aa;
+}
+
+.demo-page {
+  background:
+    radial-gradient(circle at 88% 8%, rgb(49 95 124 / 0.2), transparent 32%),
+    linear-gradient(180deg, #f8faf7 0%, #eef4ef 65%, #f7f9f5 100%);
+  color: #101820;
+  min-height: 100vh;
+  padding-top: 22px;
+}
+
+.demo-nav {
+  align-items: center;
+  background: rgb(255 255 255 / 0.9);
+  border: 1px solid #d7ddd3;
+  border-radius: 8px;
+  box-shadow: 0 16px 44px rgb(16 24 32 / 0.08);
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 10px 12px;
+  width: calc(100% - 36px);
+}
+
+.demo-nav__links {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.demo-nav__links a {
+  align-items: center;
+  border-radius: 6px;
+  display: inline-flex;
+  font-weight: 750;
+  gap: 7px;
+  padding: 9px 11px;
+  text-decoration: none;
+}
+
+.demo-nav__links a:hover {
+  background: #e7f0ea;
+  color: #244f3a;
+}
+
+.demo-nav__links .landing-nav__cta {
+  background: #244f3a;
+  color: #ffffff;
+}
+
+.demo-hero {
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 76px clamp(18px, 4vw, 64px) 62px;
+}
+
+.demo-hero__copy {
+  max-width: 940px;
+}
+
+.demo-hero h1 {
+  color: #101820;
+  font-size: clamp(2.6rem, 5vw, 5rem);
+  line-height: 0.98;
+  margin: 0;
+  max-width: 940px;
+}
+
+.demo-hero__copy > p:not(.landing-eyebrow) {
+  color: #42505f;
+  font-size: clamp(1.05rem, 1.7vw, 1.25rem);
+  line-height: 1.62;
+  max-width: 880px;
+}
+
+.demo-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.demo-facts span {
+  background: #ffffff;
+  border: 1px solid #d7ddd3;
+  border-radius: 999px;
+  color: #2d4532;
+  font-size: 0.88rem;
+  font-weight: 750;
+  padding: 8px 12px;
+}
+
+.marketing-video--flagship {
+  margin-top: 44px;
+}
+
+.demo-boundary,
+.demo-cta {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1052px;
+}
+
+.demo-boundary {
+  align-items: start;
+  background: #fff3cf;
+  border: 1px solid #ead38d;
+  border-radius: 10px;
+  color: #4d3b0c;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 24px;
+}
+
+.demo-boundary h2,
+.demo-cta h2 {
+  margin: 0;
+}
+
+.demo-boundary p,
+.demo-cta p {
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+
+.demo-cta {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dce6d5;
+  border-radius: 10px;
+  box-shadow: 0 18px 44px rgb(16 24 32 / 0.08);
+  display: flex;
+  gap: 34px;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding: 32px;
+}
+
+.demo-cta .landing-eyebrow {
+  margin-bottom: 10px;
+}
+
+.demo-cta .landing-button {
+  flex: 0 0 auto;
+}
+
+.demo-footer {
+  margin-top: 80px;
+}
+
 @media (max-width: 980px) {
   .landing-hero {
     min-height: auto;
@@ -2316,6 +2556,12 @@ a {
     grid-column: auto;
     grid-row: auto;
     order: -1;
+  }
+
+  .demo-boundary,
+  .demo-cta {
+    margin-left: 18px;
+    margin-right: 18px;
   }
 }
 
@@ -2382,6 +2628,34 @@ a {
   .landing-footer {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .marketing-video__details,
+  .marketing-video__actions,
+  .demo-nav,
+  .demo-cta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .demo-nav__links {
+    flex-wrap: wrap;
+  }
+
+  .demo-hero {
+    padding-top: 54px;
+  }
+
+  .demo-hero h1 {
+    font-size: 2.65rem;
+  }
+
+  .demo-boundary {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-cta .landing-button {
+    width: 100%;
   }
 }
 
@@ -2477,18 +2751,18 @@ main {
 .brand-logo {
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   display: block;
   flex: 0 0 auto;
   filter:
-    drop-shadow(-3px -4px 3px rgb(255 241 184 / 0.45))
-    drop-shadow(0 8px 13px rgb(78 48 6 / 0.32))
+    drop-shadow(0 5px 12px rgb(36 79 58 / 0.22))
     contrast(1.06)
     saturate(1.04);
-  height: 68px;
+  height: 42px;
   object-fit: contain;
   padding: 0;
-  width: 60px;
+  transform: translateY(-4px);
+  width: 42px;
 }
 
 .brand-mark svg {
