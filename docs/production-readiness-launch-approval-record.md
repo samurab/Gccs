@@ -2,11 +2,11 @@
 
 Story: PR-6.1 - Collect Required Launch Approvals.
 
-Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with candidate-specific FeDril branding reapproval recorded on 2026-07-31.
+Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with candidate-specific FeDril demo-video publication reapproval recorded on 2026-08-02.
 
 Record date: 2026-07-03.
 
-Latest candidate-specific reapproval date: 2026-07-31.
+Latest candidate-specific reapproval date: 2026-08-02.
 
 Record owner: Product owner.
 
@@ -44,6 +44,26 @@ This approval is not independent legal, security, compliance, or separation-of-d
 | Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch or independent professional approval is claimed |
 
 The approval is invalid if the candidate SHA changes, main CI fails, staging evidence regresses, the No-CUI posture changes, or release-facing claims expand beyond the reviewed candidate scope.
+
+## FeDril Demo-Video Candidate Reapproval - 2026-08-02
+
+The repository owner and deployment operator, `samurab`, accepted the rendered FeDril videos in the review thread and then explicitly instructed Codex to apply the documented release solution and deploy. This records combined-role approval for `launch-candidate-2026-08-02-1` within the existing solo-controlled No-CUI pilot production scope.
+
+This approval relies on the repository owner's direct creative review; it is not independent narration, accessibility, legal, security, compliance, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, unsupported compliance claims, or publication of withheld high-risk compliance content.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-02 |
+| Candidate | `launch-candidate-2026-08-02-1` at `85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94` |
+| Scope | PR #26 FeDril demo-video pipeline and public integration: deterministic fictional demo workflow, generated narration, captions, three rendered campaign videos, landing-page and `/demo` embeds, mobile media source, and related focused backend/frontend fixes and tests. Internal namespaces and service identifiers remain unchanged. |
+| Exact-candidate automated evidence | Main CI run `30757029213`; staging deployment run `30757029225`; Static Web Apps run `30757029209`; strict narration/media validation; 84 frontend tests; backend, extraction, secret-scan, migration, Terraform, and real-stack RBAC checks |
+| Exact-candidate hosted evidence | Staging desktop and mobile landing playback was visible, unmuted, advancing, and error-free; mobile selected `fedril-homepage-60-mobile.mp4`; `/demo` loaded the 203.33-second flagship with no media or console error |
+| Creative approval evidence | The repository owner stated that the videos were good in the review thread and explicitly authorized application of the release solution and deployment on 2026-08-02 |
+| Unresolved limitations | Review is solo-controlled rather than independent; the 86.41 MB flagship exceeds GitHub's recommended 50 MB threshold; broader customer publication still requires the organization's normal specialist and separation-of-duties review |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch or independent professional approval is claimed |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, hosted media regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed material.
 
 ## Evidence Package Reviewed
 

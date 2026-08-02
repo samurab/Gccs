@@ -2,15 +2,15 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: passed through approved CI/CD path.
+Deployment status: approved candidate pending execution through the protected production CI/CD path; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-08-01-1` deployed successfully through the protected production CI/CD path in workflow run `30723228364`.
+Current candidate execution status: `launch-candidate-2026-08-02-1` is approved and pending production workflow execution.
 
-Latest evidence date: 2026-08-01. Historical evidence dates are retained below.
+Latest evidence date: 2026-08-02. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-08-01-1`.
+Approved launch candidate tag: `launch-candidate-2026-08-02-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -36,15 +36,15 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-01-1` at `77cf94ec1c130b5b094822e95995101fa38e0af0`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Passed | `.github/workflows/production.yml` requires `workflow_dispatch`, reads the approved launch candidate manifest, checks the input tag and tag commit against it, and runs in GitHub environment `production`; run `30723228364` passed this validation. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-02-1` at `85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved production CI/CD path | Ready; exact-candidate execution pending | `.github/workflows/production.yml` requires `workflow_dispatch`, reads the approved launch candidate manifest, checks the input tag and tag commit against it, and runs in GitHub environment `production`; prior run `30723228364` passed this path for the previous candidate. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services; protected environment `Production` approved only the solo-controlled No-CUI pilot deployment. |
-| Production secrets source | Passed through protected workflow | Run `30723228364` resolved the required production environment secrets without exposing their values. Secret values are not stored in this evidence or the repository. |
-| Production No-CUI posture validation | Passed | Run `30723228364` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`; the deployment artifact and independent live health response record the same posture. |
-| Production migrations | Passed | Run `30723228364` generated and applied the idempotent EF Core migration script before application deployment. The candidate delta from the prior production tag contains no EF Core migration file changes. |
-| Production storage, cache, queue, and background jobs | Passed | The run's health artifact and an independent live `/health` request returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
-| Production health checks, logs, and alerts | Health passed; logs and alerts remain contract-backed | Run `30723228364` passed `/health` for the API and four dependencies. An independent post-run request confirmed the same signals. Terraform continues to declare `logs` and `alerts`; this deployment did not repeat the separate alert-delivery exercise. |
-| Deployment evidence capture | Passed | Run `30723228364` uploaded artifact `8825546199` with deployment time, artifact tag/SHA, operator, environment, workflow run URL, No-CUI posture, result, health output, and migration script. |
+| Production secrets source | Exact-candidate execution pending; historical path passed | Prior run `30723228364` resolved the required production environment secrets without exposing their values. Secret values are not stored in this evidence or the repository. |
+| Production No-CUI posture validation | Exact-candidate execution pending; workflow guardrail retained | Prior run `30723228364` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`; the new candidate must pass the same checks before this status is changed to passed. |
+| Production migrations | Exact-candidate execution pending | The candidate delta from the prior production tag contains no EF Core migration file changes. The protected workflow must still generate and apply the idempotent script. |
+| Production storage, cache, queue, and background jobs | Exact-candidate health pending; historical path passed | The prior run's health artifact returned `ok` for PostgreSQL, Redis, object storage, and background jobs. The new candidate must repeat these health checks. |
+| Production health checks, logs, and alerts | Exact-candidate health pending; logs and alerts remain contract-backed | Terraform continues to declare `logs` and `alerts`; the new deployment must pass `/health`. This deployment does not repeat the separate alert-delivery exercise. |
+| Deployment evidence capture | Pending | The new workflow run must upload deployment time, artifact tag/SHA, operator, environment, workflow run URL, No-CUI posture, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
