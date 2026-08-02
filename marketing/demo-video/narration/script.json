@@ -1,0 +1,263 @@
+{
+  "version": 1,
+  "brand": "FeDril",
+  "organization": "Northstar Precision Systems",
+  "disclosure": "Narration generated using AI voice technology.",
+  "compositions": [
+    {
+      "id": "Flagship",
+      "title": "FeDril readiness workflow",
+      "targetSeconds": 214,
+      "scenes": [
+        {
+          "id": "scene-01-opening",
+          "title": "One operating view",
+          "section": "The readiness problem",
+          "narration": "Compliance work often lives across spreadsheets, inboxes, and disconnected folders. That makes it difficult to see who owns the work, what evidence exists, and which gaps need attention. FeDril brings those readiness activities into one organized, No-CUI workspace.",
+          "onScreenCaption": "Centralize readiness work without storing CUI",
+          "callout": "Fictional demonstration · Northstar Precision Systems",
+          "visual": "Branded opening card followed by an approved dashboard capture.",
+          "captureAsset": null,
+          "leadInMs": 900,
+          "plannedSpeechDurationMs": 18100,
+          "tailMs": 1000
+        },
+        {
+          "id": "scene-02-dashboard",
+          "title": "Readiness at a glance",
+          "section": "Readiness dashboard",
+          "narration": "Northstar Precision Systems is a fictional company used only for this demonstration. Its dashboard brings together the current readiness signal, overdue work, high-priority obligations, and evidence status. Teams can start with the items that need attention instead of reconciling several trackers before every review.",
+          "onScreenCaption": "Visibility into readiness, gaps, and overdue work",
+          "callout": "Implemented: tenant-scoped readiness overview",
+          "visual": "Dashboard with Northstar tenant context and No-CUI posture visible.",
+          "captureAsset": "scene-02-dashboard.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 24200,
+          "tailMs": 1000
+        },
+        {
+          "id": "scene-03-gap-review",
+          "title": "Review the source-backed gap",
+          "section": "Requirement requiring attention",
+          "narration": "The obligation queue highlights a high-priority item tied to FAR 52.204-21. Opening the detail view keeps the plain-language action, source reference, expected evidence, current status, and related work together. FeDril supports the review process; it does not replace qualified compliance or legal judgment.",
+          "onScreenCaption": "Trace readiness work to its source",
+          "callout": "High priority · FAR 52.204-21",
+          "visual": "Filtered obligation queue and expanded obligation detail.",
+          "captureAsset": "scene-03-gap-review.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 24200,
+          "tailMs": 1000
+        },
+        {
+          "id": "scene-04-remediation",
+          "title": "Make ownership visible",
+          "section": "Ownership and remediation",
+          "narration": "This readiness item is assigned to Northstar's compliance manager, Priya Shah. A linked remediation task identifies the expected action and the due date. The overdue state is visible in the work queue, so the team can discuss the gap, confirm the owner, and move the work forward through the implemented workflow.",
+          "onScreenCaption": "Connect an owner, task, priority, and due date",
+          "callout": "Owner: Priya Shah · Overdue remediation",
+          "visual": "Obligation detail showing the assigned tenant member and linked overdue task; no due-date edit is simulated.",
+          "captureAsset": "scene-04-remediation.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 27200,
+          "tailMs": 1000
+        },
+        {
+          "id": "scene-05-evidence",
+          "title": "Associate evidence metadata",
+          "section": "Evidence traceability",
+          "narration": "Northstar's fictional quarterly access-review summary is represented as non-sensitive evidence metadata. It is associated with the selected obligation and can be reviewed alongside the requirement. No customer document or file content is used in this demonstration, and the association does not imply that an assessor has accepted the evidence.",
+          "onScreenCaption": "Link non-sensitive evidence metadata to readiness work",
+          "callout": "Metadata only · No file content stored",
+          "visual": "Evidence list and obligation detail showing the linked metadata record; no upload is performed.",
+          "captureAsset": "scene-05-evidence.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 23200,
+          "tailMs": 1000
+        },
+        {
+          "id": "scene-06-no-cui-boundary",
+          "title": "Keep the No-CUI boundary explicit",
+          "section": "No-CUI posture",
+          "narration": "FeDril's current product posture is compliance management only. The evidence workspace presents a No-CUI notice and identifies prohibited sensitive content before the upload area. This demonstration does not upload a file. Teams should use synthetic, redacted, or non-sensitive information and follow their own approved handling procedures.",
+          "onScreenCaption": "Current posture: No-CUI compliance management",
+          "callout": "Do not upload CUI or prohibited sensitive content",
+          "visual": "No-CUI acknowledgement and upload boundary shown without interacting with the file control.",
+          "captureAsset": "scene-06-no-cui-boundary.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 24200,
+          "tailMs": 1000
+        },
+        {
+          "id": "scene-07-auditability",
+          "title": "Review accountable activity",
+          "section": "Auditability and access",
+          "narration": "Server-authoritative permissions determine which actions each tenant member can perform. Compliance-relevant changes also create tenant-scoped audit events. The audit view gives reviewers a chronological record of activity without exposing another tenant's information. These controls support accountability; they do not certify an organization's compliance.",
+          "onScreenCaption": "Tenant-scoped permissions and audit history",
+          "callout": "What changed, and when",
+          "visual": "Settings audit log showing sanitized tenant activity and no raw identifiers.",
+          "captureAsset": "scene-07-auditability.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 23200,
+          "tailMs": 1000
+        },
+        {
+          "id": "scene-08-reporting",
+          "title": "Give leadership a readiness summary",
+          "section": "Leadership visibility",
+          "narration": "A generated compliance-status snapshot brings the current obligation, task, evidence, and risk signals into a reviewable summary. Leadership can use that snapshot to focus the next readiness conversation and follow up on outstanding work. The report is workflow guidance, not legal advice, certification, or a guarantee of assessment results.",
+          "onScreenCaption": "A reviewable leadership readiness summary",
+          "callout": "Snapshot current readiness signals",
+          "visual": "Persisted compliance-status report card and report detail.",
+          "captureAsset": "scene-08-reporting.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 22200,
+          "tailMs": 1000
+        },
+        {
+          "id": "scene-09-call-to-action",
+          "title": "Build a repeatable process",
+          "section": "Next step",
+          "narration": "FeDril helps teams organize CMMC readiness work, connect ownership and evidence metadata, and keep remediation visible. If your team is replacing fragmented trackers with a repeatable compliance-management process, schedule a FeDril demonstration.",
+          "onScreenCaption": "Schedule a FeDril demonstration",
+          "callout": "Compliance management · No-CUI posture",
+          "visual": "Branded closing card with product limitations and AI narration disclosure.",
+          "captureAsset": null,
+          "leadInMs": 900,
+          "plannedSpeechDurationMs": 15100,
+          "tailMs": 1000
+        }
+      ]
+    },
+    {
+      "id": "Homepage60",
+      "title": "FeDril in sixty seconds",
+      "targetSeconds": 60,
+      "scenes": [
+        {
+          "id": "homepage-01-opening",
+          "title": "Replace fragmented trackers",
+          "section": "Readiness work",
+          "narration": "Compliance readiness can become scattered across spreadsheets and inboxes. FeDril brings the work into one No-CUI operating view.",
+          "onScreenCaption": "One view for readiness work",
+          "callout": "Fictional Northstar demonstration",
+          "visual": "Branded open and dashboard.",
+          "captureAsset": "scene-02-dashboard.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 10600,
+          "tailMs": 1000
+        },
+        {
+          "id": "homepage-02-gap",
+          "title": "See what needs attention",
+          "section": "Gaps",
+          "narration": "Teams can see high-priority obligations, ownership, due dates, and overdue remediation without rebuilding the status picture by hand.",
+          "onScreenCaption": "See gaps, owners, and due dates",
+          "callout": "Source-backed obligation detail",
+          "visual": "Obligation queue and detail.",
+          "captureAsset": "scene-03-gap-review.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 10600,
+          "tailMs": 1000
+        },
+        {
+          "id": "homepage-03-evidence",
+          "title": "Keep evidence traceable",
+          "section": "Evidence",
+          "narration": "Non-sensitive evidence metadata can be associated with readiness work while the product keeps its current No-CUI boundary visible.",
+          "onScreenCaption": "Trace evidence metadata without storing CUI",
+          "callout": "Metadata only in this demonstration",
+          "visual": "Evidence metadata and No-CUI notice.",
+          "captureAsset": "scene-05-evidence.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 10600,
+          "tailMs": 1000
+        },
+        {
+          "id": "homepage-04-audit",
+          "title": "Support accountable work",
+          "section": "Auditability",
+          "narration": "Tenant-scoped permissions and audit history help reviewers understand relevant activity and keep follow-up work accountable.",
+          "onScreenCaption": "Permissions and tenant-scoped audit history",
+          "callout": "Review what changed and when",
+          "visual": "Audit log.",
+          "captureAsset": "scene-07-auditability.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 10600,
+          "tailMs": 1000
+        },
+        {
+          "id": "homepage-05-cta",
+          "title": "Start the conversation",
+          "section": "Next step",
+          "narration": "Give leadership a reviewable readiness summary and keep the next action visible. Schedule a FeDril demonstration.",
+          "onScreenCaption": "Schedule a FeDril demonstration",
+          "callout": "Workflow guidance, not certification",
+          "visual": "Report snapshot and branded close.",
+          "captureAsset": "scene-08-reporting.webm",
+          "leadInMs": 800,
+          "plannedSpeechDurationMs": 10600,
+          "tailMs": 1000
+        }
+      ]
+    },
+    {
+      "id": "Social30",
+      "title": "FeDril readiness visibility",
+      "targetSeconds": 30,
+      "scenes": [
+        {
+          "id": "social-01-opening",
+          "title": "Readiness without fragmented trackers",
+          "section": "FeDril",
+          "narration": "Bring fragmented compliance readiness work into one organized, No-CUI view.",
+          "onScreenCaption": "Organize readiness work",
+          "callout": "FeDril",
+          "visual": "Brand and dashboard.",
+          "captureAsset": "scene-02-dashboard.webm",
+          "leadInMs": 700,
+          "plannedSpeechDurationMs": 6175,
+          "tailMs": 1000
+        },
+        {
+          "id": "social-02-gap",
+          "title": "Focus the next action",
+          "section": "Visibility",
+          "narration": "See high-priority gaps, owners, due dates, and evidence metadata together.",
+          "onScreenCaption": "Gaps · Owners · Due dates · Evidence",
+          "callout": "Fictional Northstar demonstration",
+          "visual": "Obligation detail.",
+          "captureAsset": "scene-04-remediation.webm",
+          "leadInMs": 700,
+          "plannedSpeechDurationMs": 6175,
+          "tailMs": 1000
+        },
+        {
+          "id": "social-03-summary",
+          "title": "Support repeatable reviews",
+          "section": "Leadership",
+          "narration": "Review a current leadership readiness summary and keep follow-up work visible.",
+          "onScreenCaption": "Readiness visibility for leadership",
+          "callout": "Workflow guidance, not certification",
+          "visual": "Compliance-status report capture.",
+          "captureAsset": "scene-08-reporting.webm",
+          "leadInMs": 700,
+          "plannedSpeechDurationMs": 6175,
+          "tailMs": 1000
+        },
+        {
+          "id": "social-04-cta",
+          "title": "Schedule a demonstration",
+          "section": "Next step",
+          "narration": "Build a more repeatable compliance-management process with FeDril.",
+          "onScreenCaption": "Schedule a FeDril demonstration",
+          "callout": "No-CUI compliance management",
+          "visual": "Branded close and AI narration disclosure.",
+          "captureAsset": null,
+          "leadInMs": 700,
+          "plannedSpeechDurationMs": 6175,
+          "tailMs": 1000
+        }
+      ]
+    }
+  ]
+}

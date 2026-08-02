@@ -2,7 +2,8 @@
   "name": "gccs",
   "private": true,
   "workspaces": [
-    "apps/web"
+    "apps/web",
+    "marketing/demo-video"
   ],
   "scripts": {
     "dev": "node tools/dev/start-local.mjs",
@@ -16,6 +17,19 @@
     "test:e2e:debug": "PWDEBUG=1 playwright test --debug --workers=1",
     "test:e2e:ui": "playwright test --ui",
     "test:web": "npm --workspace apps/web run test:run",
+    "demo:video:start": "npm --workspace marketing/demo-video run demo:start",
+    "demo:video:stop": "npm --workspace marketing/demo-video run demo:stop",
+    "demo:video:seed": "npm --workspace marketing/demo-video run demo:seed",
+    "demo:video:capture": "npm --workspace marketing/demo-video run capture",
+    "narration:auditions": "npm --workspace marketing/demo-video run narration:auditions",
+    "narration:generate": "npm --workspace marketing/demo-video run narration:generate",
+    "narration:validate": "npm --workspace marketing/demo-video run narration:validate",
+    "captions:generate": "npm --workspace marketing/demo-video run captions:generate",
+    "video:preview": "npm --workspace marketing/demo-video run video:preview",
+    "video:render": "npm --workspace marketing/demo-video run video:render",
+    "video:validate:draft": "npm --workspace marketing/demo-video run media:validate -- --require-render",
+    "video:validate": "npm --workspace marketing/demo-video run validate",
+    "demo:video:clean": "npm --workspace marketing/demo-video run clean",
     "sync:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --write",
     "check:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --check",
     "test": "npm run test:api && npm run test:web",

@@ -136,6 +136,7 @@ jobs:
 
       - name: Run staging smoke tests
         run: |
+          set -o pipefail
           test -n "$STAGING_API_BASE_URL"
           for attempt in {1..12}; do
             if curl --fail --show-error --silent "$STAGING_API_BASE_URL/health" | tee "$RUNNER_TEMP/staging-health.json"; then

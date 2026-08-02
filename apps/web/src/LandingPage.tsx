@@ -14,9 +14,10 @@ import {
   SearchCheck,
   ShieldCheck,
   Sparkles,
-  UsersRound
+  UsersRound,
+  Volume2
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const workflowSteps = [
   {
@@ -93,6 +94,9 @@ const featureTiles = [
 ];
 
 export function LandingPage() {
+  const homepageVideoRef = useRef<HTMLVideoElement>(null);
+  const [homepageVideoStatus, setHomepageVideoStatus] = useState<string | null>(null);
+
   useEffect(() => {
     document.title = "FeDril | GovCon Compliance Readiness Software";
 
@@ -108,6 +112,33 @@ export function LandingPage() {
 
     metaDescription.content = description;
   }, []);
+
+  async function playHomepageVideoWithNarration() {
+    const video = homepageVideoRef.current;
+    if (!video) {
+      setHomepageVideoStatus("The video player is unavailable.");
+      return;
+    }
+
+    video.muted = false;
+    video.volume = 1;
+
+    if (
+      video.ended ||
+      (Number.isFinite(video.duration) && video.currentTime >= video.duration - 0.25)
+    ) {
+      video.currentTime = 0;
+    }
+
+    try {
+      await video.play();
+      setHomepageVideoStatus("Narration is playing.");
+    } catch {
+      setHomepageVideoStatus(
+        "Playback was blocked by the browser. Use the player controls to start the video.",
+      );
+    }
+  }
 
   return (
     <main className="landing-page">
@@ -138,7 +169,7 @@ export function LandingPage() {
               can see what is missing before reviews, renewals, and contract deliverables.
             </p>
             <div className="landing-actions">
-              <a className="landing-button landing-button--primary" href="mailto:hello@fedril.example?subject=FeDril%20pilot%20demo">
+              <a className="landing-button landing-button--primary" href="/demo">
                 <span>Request a pilot demo</span>
                 <ArrowRight size={18} />
               </a>
@@ -216,6 +247,63 @@ export function LandingPage() {
                 <span role="cell">Due soon</span>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-section landing-demo-preview" aria-labelledby="demo-preview-title">
+        <div className="landing-section__heading">
+          <p className="landing-eyebrow">One-minute product walkthrough</p>
+          <h2 id="demo-preview-title">See how FeDril organizes readiness work.</h2>
+          <p>
+            Follow a fictional team as it reviews gaps, ownership, evidence metadata, audit history, and reporting in a
+            No-CUI compliance-management workspace.
+          </p>
+        </div>
+        <div className="marketing-video marketing-video--homepage">
+          <video
+            aria-label="FeDril one-minute product walkthrough"
+            controls
+            playsInline
+            poster="/landing/compliance-operations-hero.png"
+            preload="metadata"
+            ref={homepageVideoRef}
+          >
+            <source
+              media="(max-width: 720px)"
+              src="/videos/fedril-homepage-60-mobile.mp4"
+              type="video/mp4"
+            />
+            <source src="/videos/fedril-homepage-60.mp4" type="video/mp4" />
+            <track
+              kind="captions"
+              label="English"
+              src="/captions/fedril-homepage-60.vtt"
+              srcLang="en"
+            />
+            Your browser does not support embedded video. You can
+            {" "}<a href="/videos/fedril-homepage-60.mp4">open the one-minute walkthrough directly</a>.
+          </video>
+          <div className="marketing-video__details">
+            <p>Fictional demonstration · Northstar Precision Systems · No real CUI or customer data</p>
+            <div className="marketing-video__actions">
+              <button
+                type="button"
+                onClick={() => void playHomepageVideoWithNarration()}
+              >
+                <Volume2 size={18} />
+                Play with narration
+              </button>
+              <a href="/demo">
+                Watch the full product walkthrough
+                <ArrowRight size={18} />
+              </a>
+            </div>
+            {homepageVideoStatus ? (
+              <p className="marketing-video__status" role="status">
+                {homepageVideoStatus}
+              </p>
+            ) : null}
           </div>
         </div>
       </section>

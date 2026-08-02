@@ -1,5 +1,6 @@
 const workspacePath = "/app";
 const landingPath = "/landing";
+const demoPath = "/demo";
 const platformTenantAdminPath = "/platform/tenants/new";
 const invitationAcceptancePath = "/invitations/accept";
 
@@ -23,6 +24,10 @@ export function shouldRenderLandingPage(location: Pick<Location, "pathname" | "s
   }
 
   return false;
+}
+
+export function shouldRenderDemoPage(location: Pick<Location, "pathname"> = window.location) {
+  return location.pathname === demoPath;
 }
 
 export function shouldRenderPlatformTenantAdminPage(

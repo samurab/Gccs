@@ -1,0 +1,247 @@
+[
+  {
+    "text": "Compliance work often lives across spreadsheets, inboxes, and disconnected folders.",
+    "startMs": 900,
+    "endMs": 5739,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "That makes it difficult to see who owns the work, what evidence exists, and which gaps need attention.",
+    "startMs": 5739,
+    "endMs": 13250,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "FeDril brings those readiness activities into one organized, No-CUI workspace.",
+    "startMs": 13250,
+    "endMs": 18090,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Northstar Precision Systems is a fictional company used only for this demonstration.",
+    "startMs": 19390,
+    "endMs": 24874,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Its dashboard brings together the current readiness signal, overdue work, high-priority obligations,",
+    "startMs": 24874,
+    "endMs": 30358,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "and evidence status.",
+    "startMs": 30358,
+    "endMs": 32854,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Teams can start with the items that need attention instead of reconciling several trackers before every review.",
+    "startMs": 32854,
+    "endMs": 39997,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The obligation queue highlights a high-priority item tied to FAR 52.204-21.",
+    "startMs": 41297,
+    "endMs": 46987,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Opening the detail view keeps the plain-language action, source reference, expected evidence, current status,",
+    "startMs": 46987,
+    "endMs": 53820,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "and related work together.",
+    "startMs": 53820,
+    "endMs": 56844,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "FeDril supports the review process; it does not replace qualified compliance or legal judgment.",
+    "startMs": 56844,
+    "endMs": 63678,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "This readiness item is assigned to Northstar's compliance manager, Priya Shah.",
+    "startMs": 64978,
+    "endMs": 69501,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "A linked remediation task identifies the expected action and the due date.",
+    "startMs": 69501,
+    "endMs": 74299,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The overdue state is visible in the work queue, so the team can discuss the gap, confirm the owner,",
+    "startMs": 74299,
+    "endMs": 81021,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "and move the work forward through the implemented workflow.",
+    "startMs": 81021,
+    "endMs": 84996,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Northstar's fictional quarterly access-review summary is represented as non-sensitive evidence metadata.",
+    "startMs": 86296,
+    "endMs": 91328,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "It is associated with the selected obligation and can be reviewed alongside the requirement.",
+    "startMs": 91328,
+    "endMs": 97323,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "No customer document or file content is used in this demonstration,",
+    "startMs": 97323,
+    "endMs": 102355,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "and the association does not imply that an assessor has accepted the evidence.",
+    "startMs": 102355,
+    "endMs": 108028,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "FeDril's current product posture is compliance management only.",
+    "startMs": 109328,
+    "endMs": 113892,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The evidence workspace presents a No-CUI notice and identifies prohibited sensitive content before the upload area.",
+    "startMs": 113892,
+    "endMs": 121520,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "This demonstration does not upload a file.",
+    "startMs": 121520,
+    "endMs": 125701,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Teams should use synthetic, redacted, or non-sensitive information and follow their own approved handling procedures.",
+    "startMs": 125701,
+    "endMs": 132946,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Server-authoritative permissions determine which actions each tenant member can perform.",
+    "startMs": 134246,
+    "endMs": 139667,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Compliance-relevant changes also create tenant-scoped audit events.",
+    "startMs": 139667,
+    "endMs": 143912,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The audit view gives reviewers a chronological record of activity without exposing another tenant's information.",
+    "startMs": 143912,
+    "endMs": 151294,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "These controls support accountability; they do not certify an organization's compliance.",
+    "startMs": 151294,
+    "endMs": 157107,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "A generated compliance-status snapshot brings the current obligation, task, evidence,",
+    "startMs": 158407,
+    "endMs": 164001,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "and risk signals into a reviewable summary.",
+    "startMs": 164001,
+    "endMs": 168367,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Leadership can use that snapshot to focus the next readiness conversation and follow up on outstanding work.",
+    "startMs": 168367,
+    "endMs": 176828,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The report is workflow guidance, not legal advice, certification, or a guarantee of assessment results.",
+    "startMs": 176828,
+    "endMs": 184470,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "FeDril helps teams organize CMMC readiness work, connect ownership and evidence metadata,",
+    "startMs": 185870,
+    "endMs": 191293,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "and keep remediation visible.",
+    "startMs": 191293,
+    "endMs": 194101,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "If your team is replacing fragmented trackers with a repeatable compliance-management process,",
+    "startMs": 194101,
+    "endMs": 199524,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "schedule a FeDril demonstration.",
+    "startMs": 199524,
+    "endMs": 202332,
+    "timestampMs": null,
+    "confidence": null
+  }
+]
