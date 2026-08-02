@@ -2,9 +2,9 @@
 
 Story: PR-5.4 - Prepare Pilot Onboarding, Release Notes, And Known-Risk Log.
 
-Release note status: launch-ready draft for broader customer launch; approved for the 2026-08-01 solo-controlled No-CUI pilot candidate under the combined-role approval posture. Independent production separation-of-duties approval remains required before broader customer launch.
+Release note status: launch-ready draft for broader customer launch; approved for the 2026-08-02 solo-controlled No-CUI pilot candidate under the combined-role approval posture. Independent production separation-of-duties approval remains required before broader customer launch.
 
-Launch candidate tag: `launch-candidate-2026-08-01-1`.
+Launch candidate tag: `launch-candidate-2026-08-02-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -22,7 +22,8 @@ Included MVP workflows:
 - Repeated non-notifying obligation-owner assignments are idempotent; changed assignments retain the existing audit and notification behavior.
 - Concurrent creation of a tenant user's default notification preferences resolves to the tenant-scoped persisted record instead of surfacing the expected PostgreSQL uniqueness race.
 - Marketing demonstration seed and capture presentation behavior remain development/build-time gated and do not enable a production demo seed endpoint or change the No-CUI posture.
-
+- Public FeDril marketing pages include a narrated 60-second homepage overview, a dedicated flagship walkthrough, captions, an AI-narration disclosure, and a mobile-compatible media source. All demonstrated organization, user, evidence, requirement, task, date, and activity data is fictional.
+- Editable Playwright, Remotion, narration, caption, render, and validation sources are retained under `marketing/demo-video`; the externally published materials remain limited to verified FeDril presentation branding and defensible readiness-workflow language.
 - Tenant access, RBAC, and audit logging.
 - Company profile and contract metadata workflows.
 - Source-backed obligation content and task workflows.
@@ -38,6 +39,7 @@ Included MVP workflows:
 - Legal, accounting, labor, certification, assessor, contracting-officer, or government-endorsement determinations.
 - Customer-facing publication of high-risk obligations that are not in the `published` review state.
 - Broader customer launch without independent production separation-of-duties approval.
+- Real customer documents or file contents in the published demonstration; evidence shown in the video is fictional metadata only.
 
 ## Known Risks
 
@@ -75,3 +77,5 @@ Launch obligation content is source-backed through `packages/compliance-content/
 ## Candidate Approval Status
 
 Release notes, pilot onboarding, support runbooks, customer-facing claim review, known-risk log, restore evidence, malware scanning evidence, and the combined-role candidate approval are linked for this solo-controlled No-CUI pilot. Independent production separation-of-duties and professional approvals remain required before broader customer launch.
+
+Candidate-specific demo publication evidence is recorded in `marketing/demo-video/QA-CHECKLIST.md`. The 86.41 MB flagship video is accepted for this controlled release but should move to durable media/object storage before frequent revisions.

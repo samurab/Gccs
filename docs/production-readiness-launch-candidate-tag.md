@@ -4,20 +4,20 @@ Story: PR-6.2 - Tag Launch Candidate With Evidence Links.
 
 Tag status: created.
 
-Tag date: 2026-08-01.
+Tag date: 2026-08-02.
 
 Tag owner: Engineering lead.
 
-Launch candidate tag: `launch-candidate-2026-08-01-1`.
+Launch candidate tag: `launch-candidate-2026-08-02-1`.
 
-Tagged commit: `77cf94ec1c130b5b094822e95995101fa38e0af0`.
+Tagged commit: `85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
 Tag command:
 
 ```bash
-git tag launch-candidate-2026-08-01-1 77cf94ec1c130b5b094822e95995101fa38e0af0
+git tag launch-candidate-2026-08-02-1 85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94
 ```
 
 This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testing and project completion. It is not a production deployment approval, production separation-of-duties approval, legal advice, certification evidence, government endorsement, broader customer launch approval, or authorization to accept real CUI.
@@ -29,33 +29,33 @@ This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testi
 | Required launch approvals complete | Passed for solo-controlled pilot testing | `docs/production-readiness-launch-approval-record.md` records product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approval scopes under `docs/production-readiness-approval-posture-addendum.md`. |
 | Accepted exceptions recorded | Passed | `docs/production-readiness-launch-gap-decisions.md` records `PR41-RESTORE-001`, `PR43-MALWARE-001`, `PR51-HIGH-RISK-001`, `PR52-CLAIM-001`, and `PR53-SUPPORT-001`. |
 | Evidence package gathered | Passed | This artifact links launch approval, closure evidence, staging smoke, staging workflow, staging security, upload/report controls, backup/restore disposition, rollback, content review, support runbooks, release notes, pilot onboarding, and known-risk log. |
-| Approved build and deployment path passed | Passed | Main CI run `30721966312`, staging workflow run `30721966329`, and Static Web Apps run `30721966352` completed successfully for exact candidate commit `77cf94ec1c130b5b094822e95995101fa38e0af0`. |
+| Approved build and deployment path passed | Passed | Main CI run `30757029213`, staging workflow run `30757029225`, and Static Web Apps run `30757029209` completed successfully for exact candidate commit `85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94`. |
 | Missing-evidence tag block rule retained | Passed | If any required approval, evidence link, build artifact, deployment artifact, release note, known limitation, support path, staging evidence, rollback plan, or content-scope link is removed, tag creation must be blocked or the tag must be superseded. |
 
 ## Build And Deployment Artifacts
 
-### 2026-08-01 application candidate refresh
+### 2026-08-02 FeDril demo-video candidate refresh
 
-The candidate-specific approval is recorded in `docs/production-readiness-launch-approval-record.md`. Main staging run `30721966329` and Static Web Apps run `30721966352` deployed merge commit `77cf94ec1c130b5b094822e95995101fa38e0af0` successfully. Main CI run `30721966312` completed successfully and satisfied the blocking pre-tag gate.
+The candidate-specific approval is recorded in `docs/production-readiness-launch-approval-record.md` and `marketing/demo-video/QA-CHECKLIST.md`. Main staging run `30757029225` and Static Web Apps run `30757029209` deployed merge commit `85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94` successfully. Main CI run `30757029213` completed successfully and satisfied the blocking pre-tag gate.
 
 | Refreshed artifact | Location |
 | --- | --- |
-| Candidate source | PR #27 squash merge `77cf94ec1c130b5b094822e95995101fa38e0af0` |
-| Delta from prior production candidate | 16 paths from `launch-candidate-2026-07-31-1`: development-gated demonstration data/capture support, FeDril logo assets, idempotent obligation assignment behavior, tenant-scoped notification-preference concurrency handling, and focused tests. No EF Core migration path changed; the demo-video package/workflow tree is excluded. |
-| Main CI | GitHub Actions run `30721966312` |
-| Staging deployment | GitHub Actions run `30721966329` |
-| Static Web Apps deployment | GitHub Actions run `30721966352` |
-| Staging smoke artifact | Run `30721966329`, artifact `staging-smoke-test-results` |
-| Claims re-review | `docs/production-readiness-customer-claims-review.md` and `output/production-readiness/customer-claims-review.json` |
+| Candidate source | PR #26 squash merge `85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94` |
+| Delta from prior production candidate | 90 paths from `launch-candidate-2026-08-01-1`: editable Playwright/Remotion demo pipeline, fictional Northstar Development seed support, generated narration/captions, flagship/homepage/social media, public landing and `/demo` integration, mobile playback source, and focused frontend/backend fixes and tests. No EF Core migration file changed. |
+| Main CI | GitHub Actions run `30757029213` |
+| Staging deployment | GitHub Actions run `30757029225` |
+| Static Web Apps deployment | GitHub Actions run `30757029209` |
+| Staging smoke artifact | Run `30757029225`, artifact `staging-smoke-test-results` |
+| Demo publication review | `marketing/demo-video/QA-CHECKLIST.md`, strict narration/media validation, and exact-candidate hosted desktop/mobile Playwright verification |
 
 | Artifact | Location |
 | --- | --- |
-| Build artifact source | Exact-candidate staging run `30721966329`, job `Deploy staging`, step `Build staging artifacts`; main CI run `30721966312` independently built and tested the same commit. |
-| API deployment artifact | Exact-candidate staging run `30721966329`, job `Deploy staging`, step `Deploy staging API App Service`. |
-| Web deployment artifact | Exact-candidate staging run `30721966329`, job `Deploy staging`, step `Deploy staging Static Web App`; Static Web Apps run `30721966352` independently built and deployed the same web commit. |
-| Migration artifact | Exact-candidate staging run `30721966329`, step `Generate idempotent migration script`; the delta from `launch-candidate-2026-07-31-1` contains no EF Core migration file change. |
-| Smoke artifact | Exact-candidate staging run `30721966329`, artifact `staging-smoke-test-results`, file `staging-health.json`. |
-| Deployment run URL | `https://github.com/samurab/Gccs/actions/runs/30721966329` |
+| Build artifact source | Exact-candidate staging run `30757029225`, job `Deploy staging`, step `Build staging artifacts`; main CI run `30757029213` independently built and tested the same commit. |
+| API deployment artifact | Exact-candidate staging run `30757029225`, job `Deploy staging`, step `Deploy staging API App Service`. |
+| Web deployment artifact | Exact-candidate staging run `30757029225`, job `Deploy staging`, step `Deploy staging Static Web App`; Static Web Apps run `30757029209` independently built and deployed the same web commit. |
+| Migration artifact | Exact-candidate staging run `30757029225`, step `Generate idempotent migration script`; the delta from `launch-candidate-2026-08-01-1` contains no EF Core migration file change. |
+| Smoke artifact | Exact-candidate staging run `30757029225`, artifact `staging-smoke-test-results`, file `staging-health.json`. |
+| Deployment run URL | `https://github.com/samurab/Gccs/actions/runs/30757029225` |
 
 ## Evidence Package
 
@@ -76,6 +76,7 @@ The candidate-specific approval is recorded in `docs/production-readiness-launch
 | Deployment, migration, and rollback evidence | `docs/production-readiness-deployment-migration-rollback-evidence.md` |
 | Malware scanning decision | `docs/production-readiness-malware-scanning-decision.md` |
 | Customer-facing claims review | `docs/production-readiness-customer-claims-review.md` and `output/production-readiness/customer-claims-review.json` |
+| Demo-video publication review | `marketing/demo-video/QA-CHECKLIST.md` |
 | Content review evidence | `output/production-readiness/expert-content/staging-content-review-summary.json` and `output/production-readiness/expert-content/high-risk-obligation-review.json` |
 | Content scope | `packages/compliance-content/obligations/mvp.json` |
 
@@ -93,5 +94,6 @@ The candidate-specific approval is recorded in `docs/production-readiness-launch
 - The same user approved all six PR-6.1 role scopes for solo-controlled pilot testing and project completion only. This is not production separation-of-duties approval.
 - `PR41-RESTORE-001` was closed by the 2026-07-05 staging point-in-time restore rehearsal. That evidence supports only the tested staging path; it does not prove geo-disaster recovery or production customer-data restore.
 - Production scanner evidence is attached for the private ClamAV-compatible path. A single scanner instance is accepted only for this controlled No-CUI pilot and remains a broader-launch hardening limitation.
-- The tag points to the PR #27 application merge commit. The demo-video package/workflow tree and generated marketing media are excluded. No database migration is introduced by this delta.
+- The tag points to the PR #26 application merge commit and includes the demo-video package, generated marketing media, and public web integration. No database migration is introduced by this delta.
+- The 86.41 MB flagship MP4 is below GitHub's hard file-size limit but above its recommended 50 MB threshold; durable object/media storage remains the correct scaling path for future revisions.
 - If release notes, support runbooks, claim language, content scope, or accepted risks change after this tag, the tag must be superseded or re-approved under the same solo-controlled pilot posture or under a future production separation-of-duties approval model.
