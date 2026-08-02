@@ -1488,25 +1488,25 @@ public sealed class ProductionReadinessChecklistTests
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
         var workflow = ReadText(".github", "workflows", "production.yml");
 
-        Assert.Contains("Deployment status: approved candidate pending execution through the protected production CI/CD path", deployment);
+        Assert.Contains("Deployment status: approved candidate deployed successfully through the protected production CI/CD path", deployment);
         Assert.Contains($"Approved launch candidate tag: `{manifest.ApprovedLaunchCandidateTag}`.", deployment);
         Assert.Contains("Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.", deployment);
         Assert.Contains($"approves tag `{manifest.ApprovedLaunchCandidateTag}` at `{manifest.ApprovedCommitSha}`", deployment);
         Assert.Contains("Approved production workflow: `.github/workflows/production.yml`.", deployment);
         Assert.Contains("Production environment contract: `infra/terraform/environments/production/main.tf`.", deployment);
-        Assert.Contains("Approved production CI/CD path | Ready; exact-candidate execution pending", deployment);
+        Assert.Contains("Approved production CI/CD path | Passed", deployment);
         Assert.Contains("Production environment configuration | Passed", deployment);
-        Assert.Contains("Production secrets source | Exact-candidate execution pending; historical path passed", deployment);
+        Assert.Contains("Production secrets source | Passed", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
         Assert.Contains(
-            $"Current candidate execution status: `{manifest.ApprovedLaunchCandidateTag}` is approved and pending production workflow execution.",
+            $"Current candidate execution status: `{manifest.ApprovedLaunchCandidateTag}` was deployed successfully by production workflow run `30759094821`.",
             deployment);
         Assert.Contains(
-            $"Candidate `{manifest.ApprovedLaunchCandidateTag}` is approved and pending protected production workflow execution",
+            $"Candidate `{manifest.ApprovedLaunchCandidateTag}` deployed successfully in protected production workflow run `30759094821`",
             checklist);
-        Assert.Contains("Production workflow run `30723228364` completed successfully", deployment);
+        Assert.Contains("Production workflow run `30759094821` completed successfully", deployment);
         Assert.Contains(manifest.ApprovedCommitSha, deployment);
-        Assert.Contains("artifact `8825546199`", deployment);
+        Assert.Contains("artifact `8836923471`", deployment);
         Assert.Contains("FeDril | GovCon Compliance Readiness Software", deployment);
         Assert.Contains("no visible `GCCS` text", deployment);
         Assert.Contains("Authenticated workspace, tenant-role, upload, report, and alert-delivery scenarios were not repeated", deployment);
