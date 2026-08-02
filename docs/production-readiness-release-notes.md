@@ -2,9 +2,9 @@
 
 Story: PR-5.4 - Prepare Pilot Onboarding, Release Notes, And Known-Risk Log.
 
-Release note status: launch-ready draft for broader customer launch; approved for the 2026-07-31 solo-controlled No-CUI pilot candidate under the combined-role approval posture. Independent production separation-of-duties approval remains required before broader customer launch.
+Release note status: launch-ready draft for broader customer launch; approved for the 2026-08-01 solo-controlled No-CUI pilot candidate under the combined-role approval posture. Independent production separation-of-duties approval remains required before broader customer launch.
 
-Launch candidate tag: `launch-candidate-2026-07-31-1`.
+Launch candidate tag: `launch-candidate-2026-08-01-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -19,6 +19,9 @@ This launch candidate is No-CUI / compliance management only. Real customer CUI,
 Included MVP workflows:
 
 - External presentation-boundary branding uses FeDril while internal namespaces, service identifiers, schema, API headers, storage keys, telemetry, and deployment identifiers remain unchanged and excluded from external display.
+- Repeated non-notifying obligation-owner assignments are idempotent; changed assignments retain the existing audit and notification behavior.
+- Concurrent creation of a tenant user's default notification preferences resolves to the tenant-scoped persisted record instead of surfacing the expected PostgreSQL uniqueness race.
+- Marketing demonstration seed and capture presentation behavior remain development/build-time gated and do not enable a production demo seed endpoint or change the No-CUI posture.
 
 - Tenant access, RBAC, and audit logging.
 - Company profile and contract metadata workflows.

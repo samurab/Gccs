@@ -1431,9 +1431,9 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains($"Launch candidate tag: `{manifest.ApprovedLaunchCandidateTag}`.", tagRecord);
         Assert.Contains($"Tagged commit: `{manifest.ApprovedCommitSha}`.", tagRecord);
         Assert.Contains("Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.", tagRecord);
-        Assert.Contains("staging workflow run `30642453797`", tagRecord);
-        Assert.Contains("Static Web Apps run `30642453771`", tagRecord);
-        Assert.Contains("Main CI run `30642453749`", tagRecord);
+        Assert.Contains("staging workflow run `30721966329`", tagRecord);
+        Assert.Contains("Static Web Apps run `30721966352`", tagRecord);
+        Assert.Contains("Main CI run `30721966312`", tagRecord);
         Assert.Contains(manifest.ApprovedCommitSha, tagRecord);
         Assert.Contains("Delta from prior production candidate", tagRecord);
         Assert.Contains("No EF Core migration path changed", tagRecord);
@@ -1499,11 +1499,14 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains("Production secrets source | Passed through protected workflow", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
         Assert.Contains(
-            $"Candidate `{manifest.ApprovedLaunchCandidateTag}` passed protected production workflow run `30645647404`",
+            $"Current candidate execution status: `{manifest.ApprovedLaunchCandidateTag}` deployed successfully through the protected production CI/CD path in workflow run `30723228364`.",
+            deployment);
+        Assert.Contains(
+            $"Candidate `{manifest.ApprovedLaunchCandidateTag}` passed protected production workflow run `30723228364`",
             checklist);
-        Assert.Contains("Production workflow run `30645647404` completed successfully", deployment);
+        Assert.Contains("Production workflow run `30723228364` completed successfully", deployment);
         Assert.Contains(manifest.ApprovedCommitSha, deployment);
-        Assert.Contains("artifact `8799397884`", deployment);
+        Assert.Contains("artifact `8825546199`", deployment);
         Assert.Contains("FeDril | GovCon Compliance Readiness Software", deployment);
         Assert.Contains("no visible `GCCS` text", deployment);
         Assert.Contains("Authenticated workspace, tenant-role, upload, report, and alert-delivery scenarios were not repeated", deployment);
