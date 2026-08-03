@@ -55,6 +55,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
     public DbSet<NotificationDeliveryEntity> NotificationDeliveries => Set<NotificationDeliveryEntity>();
     public DbSet<AssignmentEmailDeliveryEntity> AssignmentEmailDeliveries => Set<AssignmentEmailDeliveryEntity>();
+    public DbSet<DemoRequestEntity> DemoRequests => Set<DemoRequestEntity>();
+    public DbSet<DemoRequestDeliveryEntity> DemoRequestDeliveries => Set<DemoRequestDeliveryEntity>();
     public DbSet<RoleEntity> Roles => Set<RoleEntity>();
     public DbSet<CompanyProfileEntity> CompanyProfiles => Set<CompanyProfileEntity>();
     public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
@@ -181,6 +183,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         modelBuilder.HasDefaultSchema("gccs");
 
         ConfigureCore(modelBuilder);
+        ConfigureMarketing(modelBuilder);
         ConfigureComplianceContent(modelBuilder);
         ConfigureContracts(modelBuilder);
         ConfigureEvidence(modelBuilder);
@@ -192,6 +195,41 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 
         ConfigureTenantForeignKeys(modelBuilder);
         ApplyPostgresConventions(modelBuilder);
+    }
+
+    private static void ConfigureMarketing(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<DemoRequestEntity>(entity =>
+        {
+            entity.ToTable("demo_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.DeduplicationKey).IsUnique();
+            entity.HasIndex(x => x.ReceivedAt);
+            entity.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.LastName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.Phone).HasMaxLength(40);
+            entity.Property(x => x.Company).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ReferralSource).HasMaxLength(200);
+            entity.Property(x => x.EmployeeCount).HasMaxLength(20);
+            entity.Property(x => x.Message).HasMaxLength(2000);
+            entity.Property(x => x.PreferredTimeZone).HasMaxLength(100);
+            entity.Property(x => x.ConsentNoticeVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.DeduplicationKey).HasMaxLength(64).IsRequired();
+        });
+
+        modelBuilder.Entity<DemoRequestDeliveryEntity>(entity =>
+        {
+            entity.ToTable("demo_request_deliveries");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.DemoRequestId, x.DeliveryKind }).IsUnique();
+            entity.HasIndex(x => new { x.Status, x.NextAttemptAt, x.LeaseUntil });
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.DeliveryKind).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ProviderMessageId).HasMaxLength(300);
+            entity.Property(x => x.FailureCode).HasMaxLength(120);
+            entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
+        });
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

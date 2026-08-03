@@ -16,7 +16,11 @@ describe("LandingPage", () => {
         /FeDril tracks obligations, evidence, deadlines, and readiness gaps in one No-CUI workspace, so your team can see what is missing before reviews, renewals, and contract deliverables/i
       )
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /request a pilot demo/i })).toHaveAttribute("href", "/demo");
+    const requestDemoButton = screen.getByRole("button", { name: /request a pilot demo/i });
+    expect(requestDemoButton).toBeInTheDocument();
+    fireEvent.click(requestDemoButton);
+    expect(screen.getByRole("dialog", { name: /schedule a live demo/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/first name/i)).toHaveFocus();
     expect(screen.getAllByRole("link", { name: /open workspace/i })).toHaveLength(2);
     for (const link of screen.getAllByRole("link", { name: /open workspace/i })) {
       expect(link).toHaveAttribute("href", "/app#/dashboard");
@@ -24,6 +28,7 @@ describe("LandingPage", () => {
     expect(screen.getByText(/No-CUI \/ compliance management only/i)).toBeInTheDocument();
     expect(screen.getByText(/does not certify compliance, provide legal advice, or provide government approval/i)).toBeInTheDocument();
     expect(screen.getByText(/30-day guided readiness pilot/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /discuss pilot fit/i })).toBeInTheDocument();
     const primaryNavigation = screen.getByText("Platform").closest(".landing-nav__links");
     expect(primaryNavigation).not.toBeNull();
     expect(within(primaryNavigation as HTMLElement).getByRole("link", { name: /platform/i })).toHaveAttribute("href", "#platform");

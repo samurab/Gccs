@@ -10,6 +10,7 @@ using Gccs.Application.Demo;
 using Gccs.Application.Evidence;
 using Gccs.Application.Identity;
 using Gccs.Application.Labor;
+using Gccs.Application.Marketing;
 using Gccs.Application.NoCui;
 using Gccs.Application.Notifications;
 using Gccs.Application.Portals;
@@ -33,6 +34,7 @@ using Gccs.Infrastructure.Demo;
 using Gccs.Infrastructure.Evidence;
 using Gccs.Infrastructure.Identity;
 using Gccs.Infrastructure.Labor;
+using Gccs.Infrastructure.Marketing;
 using Gccs.Infrastructure.NoCui;
 using Gccs.Infrastructure.Notifications;
 using Gccs.Infrastructure.Persistence;
@@ -167,6 +169,33 @@ public static class DependencyInjection
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         services.AddScoped<SimpleReportExportService>();
+        services.AddScoped<DemoRequestService>();
+        services.AddScoped<DemoRequestResponseService>();
+        services.AddSingleton(TimeProvider.System);
+        services.Configure<DemoRequestOptions>(options =>
+        {
+            if (configuration is null) return;
+            var prefix = DemoRequestOptions.SectionName;
+            options.Enabled = ReadBool(configuration, $"{prefix}:Enabled", options.Enabled);
+            options.Provider = configuration[$"{prefix}:Provider"] ?? options.Provider;
+            options.Endpoint = configuration[$"{prefix}:Endpoint"] ?? options.Endpoint;
+            options.ConnectionString = configuration[$"{prefix}:ConnectionString"] ?? options.ConnectionString;
+            options.UseManagedIdentity = ReadBool(configuration, $"{prefix}:UseManagedIdentity", options.UseManagedIdentity);
+            options.SenderAddress = configuration[$"{prefix}:SenderAddress"] ?? options.SenderAddress;
+            options.RecipientAddress = configuration[$"{prefix}:RecipientAddress"] ?? options.RecipientAddress;
+            options.PollIntervalSeconds = ReadInt(configuration, $"{prefix}:PollIntervalSeconds", options.PollIntervalSeconds);
+            options.LeaseMinutes = ReadInt(configuration, $"{prefix}:LeaseMinutes", options.LeaseMinutes);
+            options.MaximumAttempts = ReadInt(configuration, $"{prefix}:MaximumAttempts", options.MaximumAttempts);
+            options.RetentionDays = ReadInt(configuration, $"{prefix}:RetentionDays", options.RetentionDays);
+        });
+        services.AddScoped<IDemoRequestEmailSender, AzureCommunicationDemoRequestEmailSender>();
+        services.AddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<DemoRequestOptions>>().Value;
+            return new DemoRequestDeliverySettings(
+                TimeSpan.FromMinutes(Math.Clamp(options.LeaseMinutes, 1, 30)),
+                Math.Clamp(options.MaximumAttempts, 1, 10));
+        });
         services.Configure<InvitationEmailOptions>(options =>
         {
             if (configuration is null)
@@ -293,6 +322,8 @@ public static class DependencyInjection
             services.AddScoped<IAssignmentEmailDeliveryRepository, EfAssignmentEmailDeliveryRepository>();
             services.AddScoped<AssignmentEmailDeliveryService>();
             services.AddScoped<AssignmentNotificationService>();
+            services.AddScoped<IDemoRequestRepository, EfDemoRequestRepository>();
+            services.AddScoped<DemoRequestDeliveryService>();
             services.AddScoped<IReportRepository, EfReportRepository>();
             services.AddScoped<ISimpleReportExportRepository, EfSimpleReportExportRepository>();
             services.AddScoped<IContractObligationMatrixRepository, EfContractObligationMatrixRepository>();
@@ -436,6 +467,9 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Content classification review persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IDemoTenantSeedRepository>(_ =>
                 throw new InvalidOperationException("Demo tenant seed persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IDemoRequestRepository>(_ =>
+                throw new InvalidOperationException("Demo request persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<DemoRequestDeliveryService>();
         }
 
         return services;

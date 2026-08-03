@@ -140,6 +140,9 @@ public static class ApiSecurityExtensions
             options.AddPolicy(PlatformAuthorization.ProvisionTenantsPolicy, policy =>
                 policy.RequireAuthenticatedUser()
                     .RequireAssertion(context => PlatformAuthorization.CanProvisionTenants(context.User)));
+            options.AddPolicy(PlatformAuthorization.ManageDemoRequestsPolicy, policy =>
+                policy.RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanManageDemoRequests(context.User)));
         });
         services.AddTransient<IClaimsTransformation, RolePermissionClaimsTransformation>();
         services.AddSingleton<IAuthorizationMiddlewareResultHandler, ProblemDetailsAuthorizationResultHandler>();
@@ -179,6 +182,17 @@ public static class ApiSecurityExtensions
                     PermitLimit = configuration.GetValue("Security:RateLimiting:PermitLimit", 120),
                     QueueLimit = 0,
                     Window = TimeSpan.FromMinutes(configuration.GetValue("Security:RateLimiting:WindowMinutes", 1))
+                });
+            });
+            options.AddPolicy("demoRequests", httpContext =>
+            {
+                var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = configuration.GetValue("Security:DemoRequestRateLimiting:PermitLimit", 5),
+                    QueueLimit = 0,
+                    Window = TimeSpan.FromMinutes(configuration.GetValue("Security:DemoRequestRateLimiting:WindowMinutes", 10))
                 });
             });
         });

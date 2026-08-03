@@ -24,9 +24,13 @@ jobs:
       ASPNETCORE_ENVIRONMENT: Staging
       Gccs__DataPosture: No-CUI / compliance management only
       STAGING_API_APP_NAME: gccs-api-staging-19984
+      STAGING_RESOURCE_GROUP: gccs-staging-rg
       STAGING_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
       STAGING_WEB_BASE_URL: ${{ vars.STAGING_WEB_BASE_URL }}
       STAGING_CUSTOMER_DATA_MODE: synthetic-only
+      DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}
+      DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
+      DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -73,6 +77,9 @@ jobs:
       - name: Validate staging No-CUI and no production data guardrails
         run: |
           test "$STAGING_CUSTOMER_DATA_MODE" = "synthetic-only"
+          test -n "$DEMO_REQUESTS_ENDPOINT"
+          test -n "$DEMO_REQUESTS_SENDER_ADDRESS"
+          test -n "$DEMO_REQUESTS_RECIPIENT_ADDRESS"
           grep -R "No-CUI" docs/staging-environment.md
           grep -R "no production customer data" docs/staging-environment.md
 
@@ -105,6 +112,24 @@ jobs:
         uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_STAGING }}
+
+      - name: Configure staging demo-request delivery
+        run: |
+          az webapp config appsettings set \
+            --resource-group "$STAGING_RESOURCE_GROUP" \
+            --name "$STAGING_API_APP_NAME" \
+            --settings \
+              DemoRequests__Enabled=true \
+              DemoRequests__Provider=AzureCommunicationServices \
+              DemoRequests__Endpoint="$DEMO_REQUESTS_ENDPOINT" \
+              DemoRequests__UseManagedIdentity=true \
+              DemoRequests__SenderAddress="$DEMO_REQUESTS_SENDER_ADDRESS" \
+              DemoRequests__RecipientAddress="$DEMO_REQUESTS_RECIPIENT_ADDRESS" \
+              DemoRequests__PollIntervalSeconds=5 \
+              DemoRequests__LeaseMinutes=5 \
+              DemoRequests__MaximumAttempts=5 \
+              DemoRequests__RetentionDays=365 \
+            --output none
 
       - name: Deploy staging API App Service
         uses: azure/webapps-deploy@v3

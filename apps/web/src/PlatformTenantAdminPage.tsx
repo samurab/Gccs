@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
-  ArrowLeft,
   BadgeDollarSign,
   Ban,
   Building2,
@@ -28,6 +27,7 @@ import {
   type PlatformTenantProvisioningRequest,
   type PlatformTenantProvisioningResult
 } from "./lib/api";
+import { PlatformAdminNav } from "./PlatformAdminNav";
 
 type FormState = {
   onboardingType: "Pilot" | "Paid";
@@ -219,16 +219,13 @@ export function PlatformTenantAdminPage() {
 
   return (
     <main className="platform-admin-page">
+      <PlatformAdminNav access={access} active="tenant-onboarding" />
       <header className="platform-admin-header">
         <div>
           <p className="platform-admin-kicker">FeDril platform operations</p>
           <h1>Tenant onboarding</h1>
           <p className="platform-admin-operator">Signed in as {access.userEmail ?? access.userId}</p>
         </div>
-        <a className="platform-admin-link" href="/app">
-          <ArrowLeft aria-hidden="true" size={17} />
-          Workspace
-        </a>
       </header>
 
       <section className="platform-posture-band" aria-label="Data handling boundary">
