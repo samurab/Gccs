@@ -13,6 +13,7 @@ using Gccs.Application.Contracts;
 using Gccs.Application.Demo;
 using Gccs.Application.Evidence;
 using Gccs.Application.Identity;
+using Gccs.Application.Marketing;
 using Gccs.Application.NoCui;
 using Gccs.Application.Notifications;
 using Gccs.Application.Repositories;
@@ -27,6 +28,7 @@ using Gccs.Domain.Contracts;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure;
+using Gccs.Infrastructure.Marketing;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,6 +51,19 @@ if (invitationDeliveryEnabled)
     {
         throw new InvalidOperationException(
             "Enabled invitation delivery requires a valid public web URL, sender address, and Azure Communication Services credential configuration.");
+    }
+}
+
+var demoRequestsEnabled = builder.Configuration.GetValue("DemoRequests:Enabled", false);
+if (demoRequestsEnabled && !builder.Environment.IsDevelopment())
+{
+    var demoOptions = builder.Configuration.GetSection(DemoRequestOptions.SectionName).Get<DemoRequestOptions>() ?? new DemoRequestOptions();
+    if (string.IsNullOrWhiteSpace(demoOptions.RecipientAddress) ||
+        string.IsNullOrWhiteSpace(demoOptions.SenderAddress) ||
+        (demoOptions.UseManagedIdentity && !Uri.TryCreate(demoOptions.Endpoint, UriKind.Absolute, out _)) ||
+        (!demoOptions.UseManagedIdentity && string.IsNullOrWhiteSpace(demoOptions.ConnectionString)))
+    {
+        throw new InvalidOperationException("Enabled demo requests require recipient, sender, and Azure Communication Services credential configuration.");
     }
 }
 
@@ -92,6 +107,7 @@ builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSect
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<DemoRequestDeliveryWorker>();
 builder.Services.Configure<ExtractionProcessingOptions>(
     builder.Configuration.GetSection(ExtractionProcessingOptions.SectionName));
 if (builder.Environment.IsDevelopment() &&
@@ -156,6 +172,40 @@ app.MapGet("/health", async (LocalDependencyHealthService healthService, Cancell
 .AllowAnonymous()
 .WithName("Health");
 
+app.MapPost("/api/public/demo-requests", async (
+    SubmitDemoRequest request,
+    DemoRequestService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!demoRequestsEnabled)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Demo requests unavailable",
+            "Online demo requests are temporarily unavailable.",
+            StatusCodes.Status503ServiceUnavailable,
+            "demo_requests_unavailable");
+    }
+
+    try
+    {
+        return Results.Accepted(value: await service.SubmitAsync(request, cancellationToken));
+    }
+    catch (DemoRequestValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Demo request invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.AllowAnonymous()
+.RequireRateLimiting("demoRequests")
+.WithMetadata(new RequestSizeLimitAttribute(16_384))
+.WithName("SubmitPublicDemoRequest");
+
 var platformApi = app.MapGroup("/api/platform")
     .RequireAuthorization()
     .RequireRateLimiting("api")
@@ -168,6 +218,7 @@ platformApi.MapGet("/me/access", (ClaimsPrincipal user) =>
         userId = user.FindFirstValue(ClaimTypes.NameIdentifier),
         userEmail = user.FindFirstValue(ClaimTypes.Email),
         canProvisionTenants = PlatformAuthorization.CanProvisionTenants(user),
+        canManageDemoRequests = PlatformAuthorization.CanManageDemoRequests(user),
         permissions = user
             .FindAll(PlatformAuthorization.PermissionClaimType)
             .Select(claim => claim.Value)
@@ -177,6 +228,31 @@ platformApi.MapGet("/me/access", (ClaimsPrincipal user) =>
     });
 })
 .WithName("GetPlatformAccess");
+
+platformApi.MapGet("/demo-requests", async (
+    int page, int pageSize, IDemoRequestRepository repository, CancellationToken cancellationToken) =>
+    Results.Ok(await repository.ListAsync(page == 0 ? 1 : page, pageSize == 0 ? 25 : pageSize, cancellationToken)))
+    .RequireDemoRequestManagementPermission()
+    .WithName("ListPlatformDemoRequests");
+
+platformApi.MapPost("/demo-requests/{requestId:guid}/responses", async (
+    Guid requestId, QueueDemoRequestResponse request, DemoRequestResponseService service,
+    ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId))
+        return ApiProblemDetails.Create(httpContext, "Invalid platform operator identity", "The authenticated platform operator identity is missing or invalid.", StatusCodes.Status401Unauthorized, "invalid_platform_operator_identity");
+    try
+    {
+        var receipt = await service.QueueAsync(requestId, request, actorUserId, cancellationToken);
+        return receipt is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The demo request was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Accepted(value: receipt);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["templateKey"] = [exception.Message] });
+    }
+}).RequireDemoRequestManagementPermission().WithName("QueuePlatformDemoRequestResponse");
 
 platformApi.MapPost("/tenants", async (
     PlatformTenantProvisioningRequest request,

@@ -1,0 +1,106 @@
+WEBVTT
+
+00:00:00.900 --> 00:00:05.979
+Compliance work often lives across spreadsheets, inboxes, and disconnected folders.
+
+00:00:05.979 --> 00:00:13.921
+That makes it difficult to see who owns the work, what evidence exists, and which gaps need attention.
+
+00:00:13.921 --> 00:00:19.000
+FeDril brings those readiness activities into one organized, No-CUI workspace.
+
+00:00:20.300 --> 00:00:26.764
+Northstar Precision Systems is a fictional company used only for this demonstration.
+
+00:00:26.764 --> 00:00:33.228
+Its dashboard brings together the current readiness signal, overdue work, high-priority obligations,
+
+00:00:33.228 --> 00:00:35.969
+and evidence status.
+
+00:00:35.969 --> 00:00:44.500
+Teams can start with the items that need attention instead of reconciling several trackers before every review.
+
+00:00:45.800 --> 00:00:51.956
+The obligation queue highlights a high-priority item tied to FAR 52.204-21.
+
+00:00:51.956 --> 00:00:59.382
+Opening the detail view keeps the plain-language action, source reference, expected evidence, current status,
+
+00:00:59.382 --> 00:01:02.575
+and related work together.
+
+00:01:02.575 --> 00:01:10.000
+FeDril supports the review process; it does not replace qualified compliance or legal judgment.
+
+00:01:11.300 --> 00:01:17.373
+This readiness item is assigned to Northstar's compliance manager, Priya Shah.
+
+00:01:17.373 --> 00:01:23.861
+A linked remediation task identifies the expected action and the due date.
+
+00:01:23.861 --> 00:01:33.259
+The overdue state is visible in the work queue, so the team can discuss the gap, confirm the owner,
+
+00:01:33.259 --> 00:01:38.500
+and move the work forward through the implemented workflow.
+
+00:01:39.800 --> 00:01:45.161
+Northstar's fictional quarterly access-review summary is represented as non-sensitive evidence metadata.
+
+00:01:45.161 --> 00:01:51.575
+It is associated with the selected obligation and can be reviewed alongside the requirement.
+
+00:01:51.575 --> 00:01:56.936
+No customer document or file content is used in this demonstration,
+
+00:01:56.936 --> 00:02:03.000
+and the association does not imply that an assessor has accepted the evidence.
+
+00:02:04.300 --> 00:02:08.965
+FeDril's current product posture is compliance management only.
+
+00:02:08.965 --> 00:02:16.795
+The evidence workspace presents a No-CUI notice and identifies prohibited sensitive content before the upload area.
+
+00:02:16.795 --> 00:02:21.065
+This demonstration does not upload a file.
+
+00:02:21.065 --> 00:02:28.500
+Teams should use synthetic, redacted, or non-sensitive information and follow their own approved handling procedures.
+
+00:02:29.800 --> 00:02:35.300
+Server-authoritative permissions determine which actions each tenant member can perform.
+
+00:02:35.300 --> 00:02:39.600
+Compliance-relevant changes also create tenant-scoped audit events.
+
+00:02:39.600 --> 00:02:47.100
+The audit view gives reviewers a chronological record of activity without exposing another tenant's information.
+
+00:02:47.100 --> 00:02:53.000
+These controls support accountability; they do not certify an organization's compliance.
+
+00:02:54.300 --> 00:02:59.106
+A generated compliance-status snapshot brings the current obligation, task, evidence,
+
+00:02:59.106 --> 00:03:02.920
+and risk signals into a reviewable summary.
+
+00:03:02.920 --> 00:03:10.040
+Leadership can use that snapshot to focus the next readiness conversation and follow up on outstanding work.
+
+00:03:10.040 --> 00:03:16.500
+The report is workflow guidance, not legal advice, certification, or a guarantee of assessment results.
+
+00:03:17.900 --> 00:03:22.813
+FeDril helps teams organize CMMC readiness work, connect ownership and evidence metadata,
+
+00:03:22.813 --> 00:03:25.451
+and keep remediation visible.
+
+00:03:25.451 --> 00:03:30.364
+If your team is replacing fragmented trackers with a repeatable compliance-management process,
+
+00:03:30.364 --> 00:03:33.000
+schedule a FeDril demonstration.

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-31T18:19:24.404Z",
+  "entries": [
+    {
+      "sceneId": "audition-cedar",
+      "compositionId": "VoiceAuditions",
+      "sourceNarrationText": "FeDril helps teams organize CMMC readiness work by bringing ownership, evidence metadata, gaps, and remediation into one No-CUI workspace. Leadership can see what needs attention without relying on disconnected spreadsheets, email threads, or shared folders before each readiness review.",
+      "narrationFriendlyText": "FeDril helps teams organize C-M-M-C readiness work by bringing ownership, evidence metadata, gaps, and remediation into one No-C-U-I workspace. Leadership can see what needs attention without relying on disconnected spreadsheets, email threads, or shared folders before each readiness review.",
+      "voice": "cedar",
+      "model": "gpt-4o-mini-tts",
+      "voiceInstructions": "Speak in a calm, professional, credible, and conversational tone. Use a neutral American accent and a measured pace suitable for a B2B software demonstration. Sound confident but not theatrical, exaggerated, or overly promotional. Use brief natural pauses between ideas. Clearly pronounce technical compliance terminology and acronyms. Maintain consistent volume, tone, pace, and delivery across all scenes.",
+      "outputFilename": "narration/auditions/cedar.wav",
+      "audioDurationSeconds": 16.138,
+      "sourceTextHash": "d255ba83a0cb19c3c3c4e08d8347a3d711a2738148f0ac58c3b84a460bbdc923",
+      "configHash": "d22c24017e390971b31e19e8ec6400767863065dc361b3a39cd1bb6424adaefd",
+      "generationDate": "2026-07-31T18:18:03.558Z",
+      "generationStatus": "placeholder-silent",
+      "normalizationStatus": "not-applicable"
+    },
+    {
+      "sceneId": "audition-marin",
+      "compositionId": "VoiceAuditions",
+      "sourceNarrationText": "FeDril helps teams organize CMMC readiness work by bringing ownership, evidence metadata, gaps, and remediation into one No-CUI workspace. Leadership can see what needs attention without relying on disconnected spreadsheets, email threads, or shared folders before each readiness review.",
+      "narrationFriendlyText": "FeDril helps teams organize C-M-M-C readiness work by bringing ownership, evidence metadata, gaps, and remediation into one No-C-U-I workspace. Leadership can see what needs attention without relying on disconnected spreadsheets, email threads, or shared folders before each readiness review.",
+      "voice": "marin",
+      "model": "gpt-4o-mini-tts",
+      "voiceInstructions": "Speak in a calm, professional, credible, and conversational tone. Use a neutral American accent and a measured pace suitable for a B2B software demonstration. Sound confident but not theatrical, exaggerated, or overly promotional. Use brief natural pauses between ideas. Clearly pronounce technical compliance terminology and acronyms. Maintain consistent volume, tone, pace, and delivery across all scenes.",
+      "outputFilename": "narration/auditions/marin.wav",
+      "audioDurationSeconds": 16.138,
+      "sourceTextHash": "d255ba83a0cb19c3c3c4e08d8347a3d711a2738148f0ac58c3b84a460bbdc923",
+      "configHash": "a24b08b130c51507a3e660c9463762e5534df35fa18f69a9e3559f2c24240791",
+      "generationDate": "2026-07-31T18:18:03.560Z",
+      "generationStatus": "placeholder-silent",
+      "normalizationStatus": "not-applicable"
+    },
+    {
+      "sceneId": "audition-coral",
+      "compositionId": "VoiceAuditions",
+      "sourceNarrationText": "FeDril helps teams organize CMMC readiness work by bringing ownership, evidence metadata, gaps, and remediation into one No-CUI workspace. Leadership can see what needs attention without relying on disconnected spreadsheets, email threads, or shared folders before each readiness review.",
+      "narrationFriendlyText": "FeDril helps teams organize C-M-M-C readiness work by bringing ownership, evidence metadata, gaps, and remediation into one No-C-U-I workspace. Leadership can see what needs attention without relying on disconnected spreadsheets, email threads, or shared folders before each readiness review.",
+      "voice": "coral",
+      "model": "gpt-4o-mini-tts",
+      "voiceInstructions": "Speak in a calm, professional, credible, and conversational tone. Use a neutral American accent and a measured pace suitable for a B2B software demonstration. Sound confident but not theatrical, exaggerated, or overly promotional. Use brief natural pauses between ideas. Clearly pronounce technical compliance terminology and acronyms. Maintain consistent volume, tone, pace, and delivery across all scenes.",
+      "outputFilename": "narration/auditions/coral.wav",
+      "audioDurationSeconds": 16.138,
+      "sourceTextHash": "d255ba83a0cb19c3c3c4e08d8347a3d711a2738148f0ac58c3b84a460bbdc923",
+      "configHash": "cbcca82fb600ba725ac951225a84d584a7ede0ca4913daec3ad31fa42cb56865",
+      "generationDate": "2026-07-31T18:18:03.562Z",
+      "generationStatus": "placeholder-silent",
+      "normalizationStatus": "not-applicable"
+    }
+  ]
+}

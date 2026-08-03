@@ -1,6 +1,9 @@
 const workspacePath = "/app";
 const landingPath = "/landing";
+const demoPath = "/demo";
+const platformAdminPath = "/platform";
 const platformTenantAdminPath = "/platform/tenants/new";
+const platformDemoRequestsPath = "/platform/demo-requests";
 const invitationAcceptancePath = "/invitations/accept";
 
 export function getWorkspaceUrl(origin = window.location.origin) {
@@ -25,10 +28,22 @@ export function shouldRenderLandingPage(location: Pick<Location, "pathname" | "s
   return false;
 }
 
+export function shouldRenderDemoPage(location: Pick<Location, "pathname"> = window.location) {
+  return location.pathname === demoPath;
+}
+
+export function shouldRenderPlatformAdminPage(location: Pick<Location, "pathname"> = window.location) {
+  return location.pathname === platformAdminPath;
+}
+
 export function shouldRenderPlatformTenantAdminPage(
   location: Pick<Location, "pathname"> = window.location
 ) {
   return location.pathname === platformTenantAdminPath;
+}
+
+export function shouldRenderPlatformDemoRequestsPage(location: Pick<Location, "pathname"> = window.location) {
+  return location.pathname === platformDemoRequestsPath;
 }
 
 export function shouldRenderInvitationAcceptancePage(

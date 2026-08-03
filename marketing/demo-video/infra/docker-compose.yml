@@ -1,0 +1,57 @@
+name: fedril-marketing-demo-v3
+
+services:
+  postgres:
+    image: postgres:17@sha256:2203e6282d9e7de7c24d7da234e2a744fb325df366a3fd8ed940e8abbee39527
+    environment:
+      POSTGRES_DB: fedril_demo
+      POSTGRES_USER: fedril_demo
+      POSTGRES_PASSWORD: ${FEDRIL_DEMO_DB_PASSWORD:?Create the untracked runtime environment with scripts/prepare-runtime.sh}
+    ports:
+      - "127.0.0.1:15434:5432"
+    volumes:
+      - fedril_demo_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fedril_demo -d fedril_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:8@sha256:0a972391db0b24ec336e35d1bc98b237237e26f82bf5120cf2f6b1688d1df973
+    ports:
+      - "127.0.0.1:16381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0@sha256:647c63a91102a9d8e8000aab803436e1fc85fbb285e7ce830a82ee5d6661cf37
+    command: azurite-blob --blobHost 0.0.0.0 --location /data
+    environment:
+      AZURITE_ACCOUNTS: fedrildemo:${FEDRIL_DEMO_STORAGE_KEY:?Create the untracked runtime environment with scripts/prepare-runtime.sh}
+    ports:
+      - "127.0.0.1:19002:10000"
+    volumes:
+      - fedril_demo_azurite:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(10000,'127.0.0.1').on('connect',function(){this.end();process.exit(0)}).on('error',()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  clamav:
+    image: clamav/clamav-debian:stable@sha256:fa5d11521f64327f99152285e1b3a0e78c0b8890adc7942790baa335c9304059
+    ports:
+      - "127.0.0.1:13312:3310"
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --version >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 30
+
+volumes:
+  fedril_demo_postgres:
+  fedril_demo_azurite:

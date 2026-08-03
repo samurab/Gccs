@@ -152,8 +152,24 @@ export type PlatformAccess = {
   userId: string | null;
   userEmail: string | null;
   canProvisionTenants: boolean;
+  canManageDemoRequests: boolean;
   permissions: string[];
 };
+
+export type PlatformDemoRequest = {
+  id: string; firstName: string; lastName: string; email: string; phone: string | null;
+  company: string; referralSource: string | null; employeeCount: string | null; message: string | null;
+  preferredStartAt: string | null; preferredTimeZone: string | null;
+  receivedAt: string; deliveryStatus: string; deliveryAttemptCount: number;
+  nextDeliveryAttemptAt: string | null; sentAt: string | null; deliveryFailureCode: string | null;
+  acknowledgementStatus: string;
+};
+
+export type PlatformDemoRequestPage = {
+  items: PlatformDemoRequest[]; page: number; pageSize: number; totalCount: number;
+  hasNextPage: boolean; hasPreviousPage: boolean;
+};
+export type DemoRequestResponseReceipt = { status: "Queued" | "AlreadyQueued"; templateKey: string; queuedAt: string };
 
 export type PlatformTenantProvisioningRequest = {
   onboardingType: "Pilot" | "Paid";
@@ -1719,6 +1735,13 @@ export async function getDevelopmentTestingContext(): Promise<DevelopmentTesting
 
 export async function getPlatformAccess(): Promise<PlatformAccess> {
   return getRequiredJson<PlatformAccess>("/api/platform/me/access");
+}
+
+export async function getPlatformDemoRequests(page = 1, pageSize = 25): Promise<PlatformDemoRequestPage> {
+  return getRequiredJson<PlatformDemoRequestPage>(`/api/platform/demo-requests?page=${page}&pageSize=${pageSize}`);
+}
+export async function queuePlatformDemoRequestResponse(requestId: string, templateKey: string): Promise<ApiMutationResult<DemoRequestResponseReceipt>> {
+  return postJsonResult<DemoRequestResponseReceipt>(`/api/platform/demo-requests/${requestId}/responses`, { templateKey });
 }
 
 export async function provisionPlatformTenant(

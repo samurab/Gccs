@@ -32,3 +32,9 @@ infra/**/*.tfstate.*
 
 # Generated PDF and Fontconfig temporary files
 tmp/pdfs/fontcache/
+# Local generated artifacts
+tmp/deploy-evidence/
+tmp/pdfs/*-review/
+tmp/phase2-keynote-build/
+tmp/phase2-keynote-existing/
+tmp/exports/
