@@ -1,7 +1,7 @@
 {
-  "approvedLaunchCandidateTag": "launch-candidate-2026-08-02-1",
-  "approvedCommitSha": "85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94",
-  "approvedDate": "2026-08-02",
+  "approvedLaunchCandidateTag": "launch-candidate-2026-08-03-1",
+  "approvedCommitSha": "7f6ed7f6c4bad1b2962291b5b4984fb92265acb8",
+  "approvedDate": "2026-08-03",
   "approvalScope": "Solo-controlled No-CUI pilot production deployment candidate",
   "dataPosture": "no-cui-only"
 }
