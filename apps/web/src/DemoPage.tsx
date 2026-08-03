@@ -1,5 +1,6 @@
-import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { useEffect } from "react";
+import { DemoRequestButton } from "./DemoRequestButton";
 
 export function DemoPage() {
   useEffect(() => {
@@ -94,10 +95,7 @@ export function DemoPage() {
           <h2 id="demo-cta-title">Schedule a live FeDril demonstration.</h2>
           <p>Discuss how FeDril could support a repeatable compliance-management process for your team.</p>
         </div>
-        <a className="landing-button landing-button--primary" href="mailto:hello@fedril.example?subject=FeDril%20live%20demo">
-          Schedule a live demo
-          <ArrowRight size={18} />
-        </a>
+        <DemoRequestButton label="Schedule a live demo" />
       </section>
 
       <footer className="landing-footer demo-footer">
