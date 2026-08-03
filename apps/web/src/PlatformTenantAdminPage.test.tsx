@@ -40,6 +40,7 @@ describe("PlatformTenantAdminPage", () => {
       userId: "22222222-2222-2222-2222-222222222222",
       userEmail: "operator@gccs.local",
       canProvisionTenants: true,
+      canManageDemoRequests: false,
       permissions: ["ProvisionTenants"]
     });
     getPlatformTenantOnboardingsMock.mockResolvedValue({
@@ -135,6 +136,7 @@ describe("PlatformTenantAdminPage", () => {
       userId: "dddddddd-dddd-dddd-dddd-ddddddddddd1",
       userEmail: "owner@example.com",
       canProvisionTenants: false,
+      canManageDemoRequests: false,
       permissions: []
     });
 

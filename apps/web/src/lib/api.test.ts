@@ -4,6 +4,7 @@ import {
   archiveReport,
   getCurrentUserAccess,
   getEvidencePackage,
+  getPlatformAccess,
   getRecentReports,
   getReportArtifact,
   revokeTenantInvitation,
@@ -73,6 +74,49 @@ describe("FeDril API client", () => {
         })
       }
     );
+  });
+
+  it("adds platform permissions only when explicitly configured for local development", async () => {
+    vi.stubEnv("DEV", true);
+    vi.stubEnv("VITE_GCCS_DEV_PLATFORM_PERMISSIONS", "ManageDemoRequests");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+        userEmail: "operator@example.com",
+        canProvisionTenants: false,
+        canManageDemoRequests: true,
+        permissions: ["ManageDemoRequests"]
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getPlatformAccess();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:5062/api/platform/me/access",
+      { headers: expect.objectContaining({ "X-Gccs-Dev-Platform-Permissions": "ManageDemoRequests" }) }
+    );
+  });
+
+  it("does not grant platform permissions to every local development persona by default", async () => {
+    vi.stubEnv("DEV", true);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+        userEmail: "operator@example.com",
+        canProvisionTenants: false,
+        canManageDemoRequests: false,
+        permissions: []
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getPlatformAccess();
+
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    expect(headers).not.toHaveProperty("X-Gccs-Dev-Platform-Permissions");
   });
 
   it("uses an invited development email without reusing the selected persona user id", async () => {

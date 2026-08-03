@@ -18,6 +18,7 @@ import {
   Volume2
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { DemoRequestButton } from "./DemoRequestButton";
 
 const workflowSteps = [
   {
@@ -169,10 +170,7 @@ export function LandingPage() {
               can see what is missing before reviews, renewals, and contract deliverables.
             </p>
             <div className="landing-actions">
-              <a className="landing-button landing-button--primary" href="/demo">
-                <span>Request a pilot demo</span>
-                <ArrowRight size={18} />
-              </a>
+              <DemoRequestButton label="Request a pilot demo" />
               <a className="landing-button landing-button--secondary" href="#security">
                 <LockKeyhole size={18} />
                 <span>View No-CUI policy</span>
@@ -464,10 +462,7 @@ export function LandingPage() {
           <span>Founder pilot</span>
           <strong>$500-$1,500</strong>
           <p>Flat fee hypothesis. Credit toward annual subscription if converted.</p>
-          <a className="landing-button landing-button--primary" href="mailto:hello@fedril.example?subject=FeDril%20founder%20pilot">
-            <span>Discuss pilot fit</span>
-            <ArrowRight size={18} />
-          </a>
+          <DemoRequestButton label="Discuss pilot fit" />
         </div>
       </section>
 

@@ -3,6 +3,7 @@ using System;
 using Gccs.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Gccs.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GccsDbContext))]
-    partial class GccsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802210241_AddPublicDemoRequests")]
+    partial class AddPublicDemoRequests
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2590,12 +2593,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("DeliveryKind")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)")
-                        .HasColumnName("delivery_kind");
-
                     b.Property<Guid>("DemoRequestId")
                         .HasColumnType("uuid")
                         .HasColumnName("demo_request_id");
@@ -2618,10 +2615,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(300)")
                         .HasColumnName("provider_message_id");
 
-                    b.Property<Guid?>("RequestedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("requested_by_user_id");
-
                     b.Property<DateTimeOffset?>("SentAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("sent_at");
@@ -2638,7 +2631,7 @@ namespace Gccs.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DemoRequestId", "DeliveryKind")
+                    b.HasIndex("DemoRequestId")
                         .IsUnique();
 
                     b.HasIndex("Status", "NextAttemptAt", "LeaseUntil");
@@ -2703,15 +2696,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)")
                         .HasColumnName("phone");
-
-                    b.Property<DateTimeOffset?>("PreferredStartAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("preferred_start_at");
-
-                    b.Property<string>("PreferredTimeZone")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("preferred_time_zone");
 
                     b.Property<DateTimeOffset>("ReceivedAt")
                         .HasColumnType("timestamp with time zone")
@@ -7836,8 +7820,8 @@ namespace Gccs.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.DemoRequestDeliveryEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.DemoRequestEntity", "DemoRequest")
-                        .WithMany()
-                        .HasForeignKey("DemoRequestId")
+                        .WithOne()
+                        .HasForeignKey("Gccs.Infrastructure.Persistence.Models.DemoRequestDeliveryEntity", "DemoRequestId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 

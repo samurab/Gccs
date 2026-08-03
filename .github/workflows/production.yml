@@ -28,10 +28,14 @@ jobs:
       ASPNETCORE_ENVIRONMENT: Production
       Gccs__DataPosture: No-CUI / compliance management only
       PRODUCTION_API_APP_NAME: ${{ vars.PRODUCTION_API_APP_NAME }}
+      PRODUCTION_RESOURCE_GROUP: ${{ vars.PRODUCTION_RESOURCE_GROUP }}
       PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
       PRODUCTION_WEB_BASE_URL: ${{ vars.PRODUCTION_WEB_BASE_URL }}
       PRODUCTION_CUSTOMER_DATA_MODE: no-cui-only
       APPROVED_LAUNCH_CANDIDATE_MANIFEST: docs/release/approved-launch-candidate.json
+      DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}
+      DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
+      DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
     steps:
       - name: Checkout production deployment controls
         uses: actions/checkout@v7
@@ -56,8 +60,12 @@ jobs:
           test "$PRODUCTION_CUSTOMER_DATA_MODE" = "no-cui-only"
           test "$Gccs__DataPosture" = "No-CUI / compliance management only"
           test -n "$PRODUCTION_API_APP_NAME"
+          test -n "$PRODUCTION_RESOURCE_GROUP"
           test -n "$PRODUCTION_API_BASE_URL"
           test -n "$PRODUCTION_WEB_BASE_URL"
+          test -n "$DEMO_REQUESTS_ENDPOINT"
+          test -n "$DEMO_REQUESTS_SENDER_ADDRESS"
+          test -n "$DEMO_REQUESTS_RECIPIENT_ADDRESS"
           test -f infra/terraform/environments/production/main.tf
           grep -R "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
           grep -R "database" infra/terraform/environments/production/main.tf
@@ -130,6 +138,24 @@ jobs:
         uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_PRODUCTION }}
+
+      - name: Configure production demo-request delivery
+        run: |
+          az webapp config appsettings set \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --name "$PRODUCTION_API_APP_NAME" \
+            --settings \
+              DemoRequests__Enabled=true \
+              DemoRequests__Provider=AzureCommunicationServices \
+              DemoRequests__Endpoint="$DEMO_REQUESTS_ENDPOINT" \
+              DemoRequests__UseManagedIdentity=true \
+              DemoRequests__SenderAddress="$DEMO_REQUESTS_SENDER_ADDRESS" \
+              DemoRequests__RecipientAddress="$DEMO_REQUESTS_RECIPIENT_ADDRESS" \
+              DemoRequests__PollIntervalSeconds=5 \
+              DemoRequests__LeaseMinutes=5 \
+              DemoRequests__MaximumAttempts=5 \
+              DemoRequests__RetentionDays=365 \
+            --output none
 
       - name: Deploy production API App Service
         uses: azure/webapps-deploy@v3
