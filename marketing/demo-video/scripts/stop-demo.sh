@@ -3,6 +3,7 @@ set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 runtime_env="${project_root}/.runtime/demo.env"
+compose_project_name="$(bash "${project_root}/scripts/compose-project-name.sh")"
 
 stop_recorded_process() {
   local pid_file="$1"
@@ -27,7 +28,11 @@ stop_recorded_process "${project_root}/.runtime/web.pid"
 stop_recorded_process "${project_root}/.runtime/api.pid"
 
 if [[ -f "${runtime_env}" ]]; then
-  docker compose --env-file "${runtime_env}" -f "${project_root}/infra/docker-compose.yml" down >/dev/null
+  docker compose \
+    --project-name "${compose_project_name}" \
+    --env-file "${runtime_env}" \
+    -f "${project_root}/infra/docker-compose.yml" \
+    down >/dev/null
 fi
 
 printf 'FeDril demo services stopped. The isolated database volume was preserved.\n'

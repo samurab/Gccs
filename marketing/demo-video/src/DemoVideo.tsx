@@ -10,7 +10,6 @@ import {
   useCurrentFrame,
   useVideoConfig
 } from "remotion";
-import companyLogo from "../../../apps/web/public/F.svg";
 import type {
   CaptionCue,
   CompositionDefinition,
@@ -424,16 +423,7 @@ const CardCaption = ({
 
 const BrandLockup = ({compact = false}: {compact?: boolean}) => (
   <div style={{display: "inline-flex", alignItems: "center", gap: compact ? 16 : 24}}>
-    <Img
-      src={companyLogo}
-      style={{
-        borderRadius: "50%",
-        filter: "drop-shadow(0 8px 18px rgba(54, 106, 72, 0.24))",
-        height: compact ? 62 : 110,
-        objectFit: "contain",
-        width: compact ? 62 : 110
-      }}
-    />
+    <Img src={staticFile("brand/F.svg")} style={{height: compact ? 62 : 110, width: compact ? 54 : 96, objectFit: "contain"}} />
     <span style={{fontSize: compact ? 40 : 72, fontWeight: 780, letterSpacing: -1.5, color: palette.white}}>FeDril</span>
   </div>
 );

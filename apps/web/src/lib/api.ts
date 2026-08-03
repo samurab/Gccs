@@ -3064,6 +3064,7 @@ function getDevelopmentHeaders(): HeadersInit | undefined {
   const role = getSelectedDevelopmentRole();
   const email = getSelectedDevelopmentUserEmail() ?? import.meta.env.VITE_GCCS_DEV_EMAIL;
   const userId = getSelectedDevelopmentUserId() ?? import.meta.env.VITE_GCCS_DEV_USER_ID;
+  const platformPermissions = import.meta.env.VITE_GCCS_DEV_PLATFORM_PERMISSIONS;
   const selectedTenantId = getSelectedTenantId();
 
   return import.meta.env.DEV
@@ -3072,6 +3073,7 @@ function getDevelopmentHeaders(): HeadersInit | undefined {
         ...(role ? { "X-Gccs-Dev-Role": role } : {}),
         ...(email ? { "X-Gccs-Dev-Email": email } : {}),
         ...(userId ? { "X-Gccs-Dev-User": userId } : {}),
+        ...(platformPermissions ? { "X-Gccs-Dev-Platform-Permissions": platformPermissions } : {}),
         ...(selectedTenantId
           ? {
               "X-Gccs-Dev-Tenant": selectedTenantId,

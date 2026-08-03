@@ -58,9 +58,11 @@ var demoRequestsEnabled = builder.Configuration.GetValue("DemoRequests:Enabled",
 if (demoRequestsEnabled && !builder.Environment.IsDevelopment())
 {
     var demoOptions = builder.Configuration.GetSection(DemoRequestOptions.SectionName).Get<DemoRequestOptions>() ?? new DemoRequestOptions();
-    if (string.IsNullOrWhiteSpace(demoOptions.RecipientAddress) ||
-        string.IsNullOrWhiteSpace(demoOptions.SenderAddress) ||
-        (demoOptions.UseManagedIdentity && !Uri.TryCreate(demoOptions.Endpoint, UriKind.Absolute, out _)) ||
+    if (!string.Equals(demoOptions.Provider, "AzureCommunicationServices", StringComparison.OrdinalIgnoreCase) ||
+        !System.Net.Mail.MailAddress.TryCreate(demoOptions.RecipientAddress, out _) ||
+        !System.Net.Mail.MailAddress.TryCreate(demoOptions.SenderAddress, out _) ||
+        (demoOptions.UseManagedIdentity &&
+            (!Uri.TryCreate(demoOptions.Endpoint, UriKind.Absolute, out var endpointUri) || endpointUri.Scheme != Uri.UriSchemeHttps)) ||
         (!demoOptions.UseManagedIdentity && string.IsNullOrWhiteSpace(demoOptions.ConnectionString)))
     {
         throw new InvalidOperationException("Enabled demo requests require recipient, sender, and Azure Communication Services credential configuration.");

@@ -12,6 +12,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: true,
+  globalTeardown: resolve(projectRoot, "capture/global-teardown.ts"),
   reporter: [["line"]],
   outputDir: resolve(projectRoot, "capture/results"),
   use: {

@@ -20,7 +20,7 @@ const privateHeaders = {
   "X-Gccs-Dev-Tenant": tenantId,
   "X-Gccs-Tenant": tenantId,
   "X-Gccs-Dev-User": managerUserId,
-  "X-Gccs-Dev-Email": "priya.shah@northstar.example",
+  "X-Gccs-Dev-Email": "priya.shah.northstar@example.com",
   "X-Gccs-Dev-Role": "ComplianceManager"
 };
 
@@ -232,7 +232,7 @@ async function assertMarketingDemoApi() {
     northstar?.displayName !== "Northstar Precision Systems" ||
     northstar.dataHandlingMode !== "NoCui" ||
     northstar.isSelectable !== true ||
-    manager?.email !== "priya.shah@northstar.example" ||
+    manager?.email !== "priya.shah.northstar@example.com" ||
     manager.roleName !== "Compliance Manager"
   ) {
     throw new Error("FeDril demo setup refused an API without the expected Development-only Northstar marker.");

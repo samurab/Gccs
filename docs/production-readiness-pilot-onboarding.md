@@ -1,14 +1,16 @@
-# Production Readiness Pilot Onboarding
+# FeDril No-CUI Pilot Onboarding
 
 Story: PR-5.4 - Prepare Pilot Onboarding, Release Notes, And Known-Risk Log.
 
-Review date: 2026-07-02.
+Initial review date: 2026-07-02.
 
-Review status: launch-ready draft; product owner and customer success/support owner approval remain required before pilot use.
+Candidate review date: 2026-07-31.
+
+Review status: approved by the combined-role approver for solo-controlled No-CUI pilot use only; independent product, support, security, compliance, and legal or contracting approval remains required before broader customer launch.
 
 ## Pilot Scope
 
-GCCS pilot tenants are limited to the MVP No-CUI / compliance management only posture. Pilot users may manage company profile metadata, contract metadata, source-backed obligations, tasks, evidence metadata, allowed non-sensitive evidence, CMMC readiness workflow records, subcontractor records, and reports using synthetic, redacted, or non-sensitive data only.
+FeDril pilot tenants are limited to the MVP No-CUI / compliance management only posture. Pilot users may manage company profile metadata, contract metadata, source-backed obligations, tasks, evidence metadata, allowed non-sensitive evidence, CMMC readiness workflow records, subcontractor records, and reports using synthetic, redacted, or non-sensitive data only.
 
 Synthetic demo workflows may show CUI-aware concepts for training, but they do not authorize production storage, upload, processing, reporting, extraction, export, or support handling of real customer CUI.
 
@@ -36,11 +38,11 @@ Use `docs/production-readiness-support-runbooks.md` for support routing. Require
 
 ## Known Limitations
 
-- Restore rehearsal evidence remains a launch approval blocker until completed or formally dispositioned.
-- Production scanner evidence is attached for PR-7.2 using private ClamAV container `gccs-clamav-production`; a single ACI scanner is acceptable only for controlled No-CUI pilot scope and must be hardened before broader production use.
-- Alert owner notification receipt remains pending because `gccs-api-production-http5xx` has no attached action-group receiver; do not claim alert notification routing is complete until receiver evidence is attached.
+- The 2026-07-05 staging restore rehearsal passed for the tested point-in-time restore path; it does not prove geo-disaster recovery or production customer-data restore.
+- Production scanner evidence is attached for PR-7.2 using a private ClamAV-compatible service; a single scanner instance is acceptable only for controlled No-CUI pilot scope and must be hardened before broader production use.
+- Alert owner notification receipt is attached for the tested production alert route; this evidence does not prove every incident path or broader support readiness.
 - High-risk obligations that are not `published` remain withheld from customer-facing production views.
-- Customer-facing claims and support materials require final accountable owner approvals before PR-6.1 launch approval.
+- Customer-facing claims and support materials are approved by the combined-role approver only for this solo-controlled pilot; independent accountable-owner approvals remain required before broader customer launch.
 - Reports are workflow guidance only, not legal advice, certification decisions, assessor determinations, contracting-officer determinations, or government endorsements.
 
 ## Pilot Exit Criteria

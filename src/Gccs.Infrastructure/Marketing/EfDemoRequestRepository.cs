@@ -137,7 +137,9 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
         var requestIds = await dbContext.DemoRequests
             .Where(request => request.ReceivedAt < receivedBefore &&
                 dbContext.DemoRequestDeliveries.Any(delivery =>
-                    delivery.DemoRequestId == request.Id && (delivery.Status == "Sent" || delivery.Status == "Failed")))
+                    delivery.DemoRequestId == request.Id) &&
+                !dbContext.DemoRequestDeliveries.Any(delivery =>
+                    delivery.DemoRequestId == request.Id && delivery.Status != "Sent" && delivery.Status != "Failed"))
             .Select(request => request.Id)
             .ToListAsync(cancellationToken);
         await dbContext.DemoRequestDeliveries.Where(delivery => requestIds.Contains(delivery.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);

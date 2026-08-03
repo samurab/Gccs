@@ -7,7 +7,7 @@ repository_root="$(cd "${project_root}/../.." && pwd)"
 
 export VITE_API_BASE_URL=http://127.0.0.1:5064
 export VITE_DEMO_CAPTURE=true
-export VITE_GCCS_DEV_EMAIL=priya.shah@northstar.example
+export VITE_GCCS_DEV_EMAIL=priya.shah.northstar@example.com
 export VITE_GCCS_DEV_ROLE=ComplianceManager
 export VITE_GCCS_DEV_USER_ID=22222222-2222-2222-2222-222222222243
 

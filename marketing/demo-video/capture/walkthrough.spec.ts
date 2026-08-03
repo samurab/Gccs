@@ -31,12 +31,12 @@ const demoTenantId = "11111111-1111-1111-1111-111111111113";
 const complianceManager: DemoActor = {
   role: "ComplianceManager",
   userId: "22222222-2222-2222-2222-222222222243",
-  email: "priya.shah@northstar.example"
+  email: "priya.shah.northstar@example.com"
 };
 const auditReviewer: DemoActor = {
   role: "Admin",
   userId: "22222222-2222-2222-2222-222222222242",
-  email: "alex.morgan@northstar.example"
+  email: "alex.morgan.northstar@example.com"
 };
 
 const scenes = [

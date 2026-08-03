@@ -63,6 +63,20 @@ type NarrationManifest = {
   entries: ManifestEntry[];
 };
 
+type FfmpegInvocation = {
+  command: string;
+  prefixArguments: string[];
+};
+
+class NarrationGenerationError extends Error {
+  public readonly code: string;
+
+  constructor(code: string) {
+    super(code);
+    this.code = code;
+  }
+}
+
 const moduleDirectory = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(moduleDirectory, "..");
 const scriptPath = join(moduleDirectory, "script.json");
@@ -75,6 +89,8 @@ const publicNarrationDirectory = join(projectRoot, "public", "narration");
 const runtimeDirectory = join(projectRoot, ".runtime", "narration");
 const auditionDirectory = join(moduleDirectory, "auditions");
 const transitionMs = 500;
+const requiredNormalizationFilters = ["afade", "areverse", "loudnorm", "silenceremove"] as const;
+let cachedFfmpegInvocation: FfmpegInvocation | null | undefined;
 
 const mode = readMode(process.argv.slice(2));
 const [script, voiceConfig, pronunciations] = await Promise.all([
@@ -346,6 +362,7 @@ async function generateAuditions(
   const sourceTextHash = sha256(config.auditionExcerpt);
   const entries: ManifestEntry[] = [];
   let failures = 0;
+  const failureCodes = new Set<string>();
 
   for (const auditionVoice of config.auditionVoices) {
     const sceneId = `audition-${auditionVoice}`;
@@ -399,6 +416,8 @@ async function generateAuditions(
       writeStatus(sceneId, key ? "generated" : "placeholder-silent");
     } catch (error) {
       failures += 1;
+      const errorCode = safeErrorCode(error);
+      failureCodes.add(errorCode);
       await fs.rm(outputPath, {force: true});
       entries.push({
         sceneId,
@@ -415,8 +434,9 @@ async function generateAuditions(
         generationDate: new Date().toISOString(),
         generationStatus: "failed",
         normalizationStatus: "not-applicable",
-        errorCode: safeErrorCode(error)
+        errorCode
       });
+      writeStatus(sceneId, `failed (${errorCode})`);
     }
   }
 
@@ -439,7 +459,10 @@ async function generateAuditions(
   }
 
   if (failures > 0) {
-    throw new Error(`${failures} audition(s) failed. See narration/auditions/manifest.json for sanitized status codes.`);
+    throw new Error(
+      `${failures} audition(s) failed with sanitized code(s): ${[...failureCodes].join(", ")}. ` +
+      "See narration/auditions/manifest.json for per-voice status."
+    );
   }
 }
 
@@ -587,20 +610,47 @@ async function normalizeWav(rawPath: string, outputPath: string, config: VoiceCo
   return "normalized" as const;
 }
 
-function findFfmpegInvocation(): {command: string; prefixArguments: string[]} | null {
+function findFfmpegInvocation(): FfmpegInvocation | null {
+  if (cachedFfmpegInvocation !== undefined) {
+    return cachedFfmpegInvocation;
+  }
+
+  const candidates: FfmpegInvocation[] = [
+    {command: "ffmpeg", prefixArguments: []}
+  ];
   const remotionCandidates = [
     join(projectRoot, "node_modules", ".bin", "remotion"),
     resolve(projectRoot, "..", "..", "node_modules", ".bin", "remotion")
   ];
   for (const remotionBinary of remotionCandidates) {
-    const localResult = spawnSync(remotionBinary, ["ffmpeg", "-version"], {stdio: "ignore"});
-    if (localResult.status === 0) {
-      return {command: remotionBinary, prefixArguments: ["ffmpeg"]};
+    candidates.push({command: remotionBinary, prefixArguments: ["ffmpeg"]});
+  }
+
+  for (const candidate of candidates) {
+    if (supportsNormalizationFilters(candidate)) {
+      cachedFfmpegInvocation = candidate;
+      return candidate;
     }
   }
 
-  const systemResult = spawnSync("ffmpeg", ["-version"], {stdio: "ignore"});
-  return systemResult.status === 0 ? {command: "ffmpeg", prefixArguments: []} : null;
+  cachedFfmpegInvocation = null;
+  return null;
+}
+
+function supportsNormalizationFilters(invocation: FfmpegInvocation) {
+  const result = spawnSync(invocation.command, [
+    ...invocation.prefixArguments,
+    "-hide_banner",
+    "-filters"
+  ], {encoding: "utf8"});
+  if (result.status !== 0) {
+    return false;
+  }
+
+  const filterList = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  return requiredNormalizationFilters.every((filter) => (
+    new RegExp(`^\\s*[TSC.]{2,3}\\s+${filter}\\s`, "m").test(filterList)
+  ));
 }
 
 async function generateSilentPlaceholder(outputPath: string, durationMs: number, sampleRateHz: number) {
@@ -790,13 +840,4 @@ async function readOptionalJson<T>(path: string): Promise<T | null> {
 async function writeJson(path: string, value: unknown) {
   await fs.mkdir(dirname(path), {recursive: true});
   await fs.writeFile(path, `${JSON.stringify(value, null, 2)}\n`, {encoding: "utf8", mode: 0o644});
-}
-
-class NarrationGenerationError extends Error {
-  public readonly code: string;
-
-  constructor(code: string) {
-    super(code);
-    this.code = code;
-  }
 }

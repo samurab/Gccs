@@ -225,6 +225,11 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
             await verification.DemoRequests.Where(item => item.Id == requestId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.ReceivedAt, DateTimeOffset.UtcNow.AddDays(-400)));
             await verification.DemoRequestDeliveries.Where(item => item.DemoRequestId == requestId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Status, item => item.DeliveryKind == "RequesterAcknowledgement" ? "Queued" : "Sent"));
+            Assert.Equal(0, await new EfDemoRequestRepository(verification).DeleteExpiredAsync(DateTimeOffset.UtcNow.AddDays(-365)));
+            Assert.True(await verification.DemoRequests.AnyAsync(item => item.Id == requestId));
+
+            await verification.DemoRequestDeliveries.Where(item => item.DemoRequestId == requestId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Status, "Sent"));
             Assert.Equal(1, await new EfDemoRequestRepository(verification).DeleteExpiredAsync(DateTimeOffset.UtcNow.AddDays(-365)));
             Assert.False(await verification.DemoRequests.AnyAsync(item => item.Id == requestId));

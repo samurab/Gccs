@@ -1,101 +1,101 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-31T19:08:49.294Z",
+  "generatedAt": "2026-08-01T03:11:01.790Z",
   "compositions": [
     {
       "id": "Flagship",
       "transitionMs": 500,
-      "totalDurationMs": 214000,
+      "totalDurationMs": 203332,
       "scenes": [
         {
           "id": "scene-01-opening",
           "startMs": 0,
           "leadInMs": 900,
-          "audioDurationMs": 18100,
+          "audioDurationMs": 17190,
           "tailMs": 1000,
-          "durationMs": 20000,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 19090,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "scene-02-dashboard",
-          "startMs": 19500,
+          "startMs": 18590,
           "leadInMs": 800,
-          "audioDurationMs": 24200,
+          "audioDurationMs": 20607,
           "tailMs": 1000,
-          "durationMs": 26000,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 22407,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "scene-03-gap-review",
-          "startMs": 45000,
+          "startMs": 40497,
           "leadInMs": 800,
-          "audioDurationMs": 24200,
+          "audioDurationMs": 22381,
           "tailMs": 1000,
-          "durationMs": 26000,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 24181,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "scene-04-remediation",
-          "startMs": 70500,
+          "startMs": 64178,
           "leadInMs": 800,
-          "audioDurationMs": 27200,
+          "audioDurationMs": 20018,
           "tailMs": 1000,
-          "durationMs": 29000,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 21818,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "scene-05-evidence",
-          "startMs": 99000,
+          "startMs": 85496,
           "leadInMs": 800,
-          "audioDurationMs": 23200,
+          "audioDurationMs": 21732,
           "tailMs": 1000,
-          "durationMs": 25000,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 23532,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "scene-06-no-cui-boundary",
-          "startMs": 123500,
+          "startMs": 108528,
           "leadInMs": 800,
-          "audioDurationMs": 24200,
+          "audioDurationMs": 23618,
           "tailMs": 1000,
-          "durationMs": 26000,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 25418,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "scene-07-auditability",
-          "startMs": 149000,
+          "startMs": 133446,
           "leadInMs": 800,
-          "audioDurationMs": 23200,
+          "audioDurationMs": 22861,
           "tailMs": 1000,
-          "durationMs": 25000,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 24661,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "scene-08-reporting",
-          "startMs": 173500,
+          "startMs": 157607,
           "leadInMs": 800,
-          "audioDurationMs": 22200,
+          "audioDurationMs": 26063,
           "tailMs": 1000,
-          "durationMs": 24000,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 27863,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "scene-09-call-to-action",
-          "startMs": 197000,
+          "startMs": 184970,
           "leadInMs": 900,
-          "audioDurationMs": 15100,
+          "audioDurationMs": 16462,
           "tailMs": 1000,
-          "durationMs": 17000,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 18362,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         }
       ]
     },
@@ -108,51 +108,51 @@
           "id": "homepage-01-opening",
           "startMs": 0,
           "leadInMs": 800,
-          "audioDurationMs": 10600,
+          "audioDurationMs": 8005,
           "tailMs": 1000,
-          "durationMs": 12400,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 9805,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "homepage-02-gap",
-          "startMs": 11900,
+          "startMs": 9305,
           "leadInMs": 800,
-          "audioDurationMs": 10600,
+          "audioDurationMs": 9793,
           "tailMs": 1000,
-          "durationMs": 12400,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 11593,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "homepage-03-evidence",
-          "startMs": 23800,
+          "startMs": 20398,
           "leadInMs": 800,
-          "audioDurationMs": 10600,
+          "audioDurationMs": 9374,
           "tailMs": 1000,
-          "durationMs": 12400,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 11174,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "homepage-04-audit",
-          "startMs": 35700,
+          "startMs": 31072,
           "leadInMs": 800,
-          "audioDurationMs": 10600,
+          "audioDurationMs": 8472,
           "tailMs": 1000,
-          "durationMs": 12400,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 10272,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "homepage-05-cta",
-          "startMs": 47600,
+          "startMs": 40844,
           "leadInMs": 800,
-          "audioDurationMs": 10600,
-          "tailMs": 1000,
-          "durationMs": 12400,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "audioDurationMs": 7001,
+          "tailMs": 11355,
+          "durationMs": 19156,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         }
       ]
     },
@@ -165,41 +165,41 @@
           "id": "social-01-opening",
           "startMs": 0,
           "leadInMs": 700,
-          "audioDurationMs": 6175,
+          "audioDurationMs": 5651,
           "tailMs": 1000,
-          "durationMs": 7875,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 7351,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "social-02-gap",
-          "startMs": 7375,
+          "startMs": 6851,
           "leadInMs": 700,
-          "audioDurationMs": 6175,
+          "audioDurationMs": 5874,
           "tailMs": 1000,
-          "durationMs": 7875,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 7574,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "social-03-summary",
-          "startMs": 14750,
+          "startMs": 13925,
           "leadInMs": 700,
-          "audioDurationMs": 6175,
+          "audioDurationMs": 4870,
           "tailMs": 1000,
-          "durationMs": 7875,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "durationMs": 6570,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         },
         {
           "id": "social-04-cta",
-          "startMs": 22125,
+          "startMs": 19995,
           "leadInMs": 700,
-          "audioDurationMs": 6175,
-          "tailMs": 1000,
-          "durationMs": 7875,
-          "audioAvailable": false,
-          "generationStatus": "placeholder-silent"
+          "audioDurationMs": 4437,
+          "tailMs": 4868,
+          "durationMs": 10005,
+          "audioAvailable": true,
+          "generationStatus": "generated"
         }
       ]
     }

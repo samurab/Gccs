@@ -12,8 +12,8 @@ The demonstration uses only the fictional organization **Northstar Precision Sys
 | Deterministic 1920x1080 walkthrough capture | Implemented and executed | Seven completed scenes are recorded under `public/captures/`; the source and execution log are [`capture/walkthrough.spec.ts`](./capture/walkthrough.spec.ts) and [`assets/capture/execution-log.json`](./assets/capture/execution-log.json). |
 | Flagship, homepage, and social compositions | Implemented and rendered as drafts | Remotion source under [`src/`](./src/); all three draft files passed automated duration, resolution, frame-rate, audio-stream, blank-segment, branding, disclosure, and claim checks. |
 | Narration scripts, captions, and timing model | Implemented | [`narration/script.json`](./narration/script.json), [`narration/timings.json`](./narration/timings.json), and [`captions/`](./captions/) |
-| AI narration | Partially implemented | All 18 scene files currently have `placeholder-silent` status because no approved API credential was available. See [`narration/manifest.json`](./narration/manifest.json). |
-| Rendered MP4 drafts | Implemented with intentional silent-placeholder audio | Generated under `out/`; technically validated, but not publishable until real narration and manual review pass. |
+| AI narration | Implemented | All 18 scene files use one `coral` voice and have `generated` and `normalized` status in [`narration/manifest.json`](./narration/manifest.json). |
+| Rendered MP4 drafts | Implemented with AI narration | Generated under `out/`; automated narration and media validation must pass again after any source, timing, caption, logo, or audio change. |
 | Background music | Not implemented | Intentionally deferred until the narration-only version passes review. |
 
 See [`AUDIT.md`](./AUDIT.md) for the repository and capability audit, [`STORYBOARD.md`](./STORYBOARD.md) for the approved content, and [`QA-CHECKLIST.md`](./QA-CHECKLIST.md) for the release gates.
@@ -23,10 +23,10 @@ See [`AUDIT.md`](./AUDIT.md) for the repository and capability audit, [`STORYBOA
 The pipeline keeps product behavior and media production separate:
 
 1. The API starts in `Development` with an explicit `MarketingDemo__Enabled=true` gate.
-2. Dedicated loopback ports and dedicated Docker volumes isolate the demo from normal development and production systems.
+2. Dedicated loopback ports and a stable worktree-specific Compose project isolate the demo containers and named volumes from normal development, production systems, and other Git worktrees.
 3. The development bootstrap creates the Northstar tenant, fictional members, metadata-only evidence, an overdue gap, and audit history.
 4. The idempotent seed script adds the source-backed fictional contract workflow and verifies the expected high-priority item.
-5. Playwright always starts the isolated stack, blocks non-loopback browser requests before transmission, and rejects visible credentials, raw identifiers, local addresses, internal branding, unexpected API errors, and unexpected error notices. A capture-only presentation cursor moves to semantic UI targets and displays click feedback only when the verified workflow performs that interaction.
+5. Playwright always starts the isolated stack, blocks non-loopback browser requests before transmission, and rejects visible credentials, raw identifiers, local addresses, internal branding, unexpected API errors, and unexpected error notices. A capture-only presentation cursor moves to semantic UI targets and displays click feedback only when the verified workflow performs that interaction. Global teardown stops the API, web server, and worktree-specific Compose services after both successful and failed capture runs while preserving the isolated database volume.
 6. Remotion combines the approved recordings, source-generated captions, narration, callouts, branded cards, progressive focus movement, and animated caption/callout entrances.
 
 The seed does not weaken tenant membership enforcement, permission checks, audit behavior, or the No-CUI boundary. Runtime credentials are generated locally in `.runtime/demo.env`; the environment file and launcher logs use restrictive permissions, are ignored by Git, and must not be copied into tickets, recordings, or documentation.
@@ -34,11 +34,12 @@ The seed does not weaken tenant membership enforcement, permission checks, audit
 ## Prerequisites
 
 - macOS with Node.js, npm, .NET SDK, Docker Desktop, and Docker Compose.
+- Full FFmpeg with the `afade`, `areverse`, `loudnorm`, and `silenceremove` audio filters. On macOS, install it with `brew install ffmpeg`.
 - Repository dependencies installed with `npm install` at the repository root.
 - Playwright Chromium installed. If it is absent, run `npx playwright install chromium`.
 - Optional: an approved `OPENAI_API_KEY` in the current shell for real narration.
 
-System FFmpeg is not required by the scripts after the Remotion dependency is installed; narration processing and media inspection use Remotion's bundled media commands. Do not substitute GUI capture tools unless the structured capture has a verified blocker.
+Remotion's bundled FFmpeg is intentionally reduced and does not contain every narration-normalization filter. The generator verifies filter capability and prefers a full system FFmpeg; when those filters are unavailable, generated speech is retained without normalization and strict narration validation rejects it. Do not substitute GUI capture tools unless the structured capture has a verified blocker.
 
 ## End-to-end run
 
@@ -154,13 +155,11 @@ The clean command removes generated captures, narration WAV files, render output
 
 ## Manual steps that remain
 
-1. Review the three real voice auditions and approve one voice.
-2. Generate real narration with an approved credential and run strict narration validation.
-3. Preview the complete duration of all three compositions at full size and verify every caption, capture transition, and visual beat; representative frames and capture stills have been inspected, but this editorial pass is not automated.
-4. Regenerate and rerender after real narration so measured speech durations replace placeholder timing, then rerun strict narration and media validation.
-5. Complete the manual narration, product-claim, accessibility, and pre-publication checks.
-6. Obtain product/compliance review before publishing the videos or description.
-7. Add only properly licensed, restrained music after narration-only approval, if music is still desired.
+1. Record formal approval of the selected `coral` voice if the existing generated narration is retained.
+2. Preview the complete duration of all three compositions at full size and verify every caption, capture transition, and visual beat; representative frames and capture stills have been inspected, but this editorial pass is not automated.
+3. Complete the manual narration, product-claim, accessibility, and pre-publication checks.
+4. Obtain product/compliance review before publishing the videos or description.
+5. Add only properly licensed, restrained music after narration-only approval, if music is still desired.
 
 ## Assumptions and dependencies
 
@@ -176,7 +175,7 @@ The clean command removes generated captures, narration WAV files, render output
 
 ## Known incomplete items and hidden risks
 
-- The seven product captures and three draft MP4s passed their automated checks. They remain non-publishable because the audio manifest contains silent placeholders and full-duration editorial review has not been signed off.
+- The seven product captures and three narrated MP4s passed automated checks. Automated validation does not substitute for the full-duration editorial, accessibility, product-claim, and compliance review recorded in `QA-CHECKLIST.md`.
 - A generated report can become stale after later changes. Re-seed or regenerate the snapshot immediately before capture.
 - Browser recording timing depends on the local machine. A resource-constrained host can produce uneven video despite deterministic holds.
 - Real speech duration can change the flagship duration from the current 3:34 timing. The generator updates scene timing, preserves exact 60/30-second short cuts by extending only the closing hold, and refuses overlong short-form narration; recapture and rerender after every narration change.
@@ -187,7 +186,7 @@ The clean command removes generated captures, narration WAV files, render output
 - Repeated non-notifying owner assignment is idempotent, but simultaneous competing owner changes remain last-write-wins because this aggregate has no concurrency token.
 - Concurrent first-read notification-preference creation is handled and was verified with real PostgreSQL. A simultaneous first-time preference update still uses the existing read-then-create path and is outside this demo-pipeline fix.
 - The notification-preference race recovery depends on PostgreSQL unique-violation metadata and the current tenant/user constraint name; a persistence migration that renames that constraint must update and rerun the concurrency tests.
-- Earlier pipeline iterations left isolated `fedril-marketing-demo` and `fedril-marketing-demo-v2` Docker volumes on this workstation. They contain demo-only local state and were not deleted because volume removal is destructive; review them explicitly before any manual cleanup.
+- Earlier pipeline iterations left isolated fixed-name `fedril-marketing-demo`, `fedril-marketing-demo-v2`, and `fedril-marketing-demo-v3` Docker volumes on this workstation. They contain demo-only local state and were not deleted because volume removal is destructive; review them explicitly before any manual cleanup. Current runs derive a stable Compose project name from the worktree path so separate worktrees cannot reuse a database volume with different generated credentials.
 
 ## Publication disclosure
 
