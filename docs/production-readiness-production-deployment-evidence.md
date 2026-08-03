@@ -4,13 +4,13 @@ Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
 Deployment status: approved candidate pending execution through the protected production CI/CD path; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-08-02-1` is approved and pending production workflow execution.
+Current candidate execution status: `launch-candidate-2026-08-03-1` is approved and pending production workflow execution.
 
-Latest evidence date: 2026-08-02. Historical evidence dates are retained below.
+Latest evidence date: 2026-08-03. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-08-02-1`.
+Approved launch candidate tag: `launch-candidate-2026-08-03-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -36,12 +36,12 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-02-1` at `85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-03-1` at `7f6ed7f6c4bad1b2962291b5b4984fb92265acb8`; see `docs/production-readiness-launch-candidate-tag.md`. |
 | Approved production CI/CD path | Ready; exact-candidate execution pending | `.github/workflows/production.yml` requires `workflow_dispatch`, reads the approved launch candidate manifest, checks the input tag and tag commit against it, and runs in GitHub environment `production`; prior run `30723228364` passed this path for the previous candidate. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services; protected environment `Production` approved only the solo-controlled No-CUI pilot deployment. |
 | Production secrets source | Exact-candidate execution pending; historical path passed | Prior run `30723228364` resolved the required production environment secrets without exposing their values. Secret values are not stored in this evidence or the repository. |
 | Production No-CUI posture validation | Exact-candidate execution pending; workflow guardrail retained | Prior run `30723228364` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`; the new candidate must pass the same checks before this status is changed to passed. |
-| Production migrations | Exact-candidate execution pending | The candidate delta from the prior production tag contains no EF Core migration file changes. The protected workflow must still generate and apply the idempotent script. |
+| Production migrations | Exact-candidate execution pending | The candidate adds three EF Core migrations for demo requests, scheduling/acknowledgements, and operator responses. The protected workflow must generate and apply the idempotent script before application deployment. |
 | Production storage, cache, queue, and background jobs | Exact-candidate health pending; historical path passed | The prior run's health artifact returned `ok` for PostgreSQL, Redis, object storage, and background jobs. The new candidate must repeat these health checks. |
 | Production health checks, logs, and alerts | Exact-candidate health pending; logs and alerts remain contract-backed | Terraform continues to declare `logs` and `alerts`; the new deployment must pass `/health`. This deployment does not repeat the separate alert-delivery exercise. |
 | Deployment evidence capture | Pending | The new workflow run must upload deployment time, artifact tag/SHA, operator, environment, workflow run URL, No-CUI posture, result, health output, and migration script. |
@@ -52,11 +52,15 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Input | Source | Purpose |
 | --- | --- | --- |
 | `PRODUCTION_API_APP_NAME` | GitHub production environment variable | Azure App Service target. |
+| `PRODUCTION_RESOURCE_GROUP` | GitHub production environment variable | Azure resource-group target for application settings and deployment. |
 | `PRODUCTION_API_BASE_URL` | GitHub production environment variable | API health and frontend build target. |
 | `PRODUCTION_WEB_BASE_URL` | GitHub production environment variable | GitHub environment URL and deployed web URL. |
 | `PRODUCTION_MSAL_CLIENT_ID` | GitHub production environment variable | Production web authentication configuration. |
 | `PRODUCTION_MSAL_TENANT_ID` | GitHub production environment variable | Production web authentication configuration. |
 | `PRODUCTION_MSAL_API_SCOPE` | GitHub production environment variable | Production API scope. |
+| `DEMO_REQUESTS_ENDPOINT` | GitHub production environment variable | Production-only Azure Communication Services endpoint. |
+| `DEMO_REQUESTS_SENDER_ADDRESS` | GitHub production environment variable | Sender on the linked production Azure-managed domain. |
+| `DEMO_REQUESTS_RECIPIENT_ADDRESS` | GitHub production environment variable | Internal demo-request notification recipient. |
 | `AZURE_CREDENTIALS_GCCS_PRODUCTION` | GitHub production environment secret | Azure deployment identity. |
 | `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION` | GitHub production environment secret | Static Web App deployment token. |
 | `PRODUCTION_DATABASE_URL` | GitHub production environment secret | Database migration target. |

@@ -2,11 +2,11 @@
 
 Story: PR-6.1 - Collect Required Launch Approvals.
 
-Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with candidate-specific FeDril demo-video publication reapproval recorded on 2026-08-02.
+Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with candidate-specific demo-request operations reapproval recorded on 2026-08-03.
 
 Record date: 2026-07-03.
 
-Latest candidate-specific reapproval date: 2026-08-02.
+Latest candidate-specific reapproval date: 2026-08-03.
 
 Record owner: Product owner.
 
@@ -64,6 +64,26 @@ This approval relies on the repository owner's direct creative review; it is not
 | Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch or independent professional approval is claimed |
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, hosted media regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed material.
+
+## Demo-Request Operations Candidate Reapproval - 2026-08-03
+
+The repository owner and deployment operator, `samurab`, requested implementation of the documented correct solution and deployment to staging/production. This records combined-role approval for `launch-candidate-2026-08-03-1` within the existing solo-controlled No-CUI pilot production scope.
+
+This approval is not independent legal, security, privacy, compliance, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-03 |
+| Candidate | `launch-candidate-2026-08-03-1` at `7f6ed7f6c4bad1b2962291b5b4984fb92265acb8` |
+| Scope | PR #32 public scheduled-demo intake; transactional request/outbox persistence; internal, acknowledgement, and operator-response email deliveries; permission-aware `/platform` demo-request operations; onboarding integration; production fail-closed email configuration; route-level web code splitting; and three additive EF Core migrations. |
+| Exact-candidate automated evidence | PR CI run `30778171865`: backend, frontend, secret scan, migration validation, Terraform validation, dependency audits, and real-stack RBAC passed. Main staging deployment run `30778907557` passed build, No-CUI guardrails, migration application, deployment, and smoke checks. |
+| Exact-candidate staging evidence | Synthetic No-CUI request `6b842e32-4370-4d09-9812-055dfc0461ad` persisted the requested time and time zone. Its requester acknowledgement and internal notification both reached `Sent` on attempt 1 with no failure code. |
+| Production dependency evidence | Separate `gccs-email-production` and `gccs-acs-production` resources are linked to an Azure-managed domain. The production API managed identity has a production-scoped email-sender role; no staging email resource or connection string is reused. |
+| Unresolved limitations | Review is solo-controlled rather than independent; customer mailbox placement depends on external recipient filtering; operator inbox and response-template actions still require the `Gccs.PlatformOperator` app role; broader customer launch requires normal specialist review. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited workflow is not successful, staging delivery evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed scope.
 
 ## Evidence Package Reviewed
 
