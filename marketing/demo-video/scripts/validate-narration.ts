@@ -123,7 +123,7 @@ function validateDisclosure(document: ScriptDocument) {
 
 function validatePronunciationDictionary(dictionary: Record<string, string>) {
   const required: Record<string, string> = {
-    "GCCS": "G-C-C-S",
+    "FeDril": "Fee-drill",
     "CMMC": "C-M-M-C",
     "CUI": "C-U-I",
     "FCI": "F-C-I",

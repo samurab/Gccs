@@ -4,6 +4,18 @@ Document type: customer-facing pricing page draft.
 
 Review requirement: founder, finance, and counsel review required before publication.
 
+Publication status: draft pricing hypothesis. Do not publish or invoice from this page until finance and counsel approve the pilot terms, refund policy, payment mechanics, tax handling, and conversion credit language.
+
+## Current-State Verification
+
+| Pricing or offer claim | Status | Evidence |
+| --- | --- | --- |
+| 30-day guided pilot is the recommended first offer. | Planned business process | Documented in Phase 1 and Phase 4 guides; not a product feature. |
+| `$750` flat pilot fee and conversion credit. | Planned pricing hypothesis | Requires finance/counsel approval and buyer validation. |
+| Core workflow can show contract metadata, clauses, obligations, evidence metadata, reports, and audit history. | Implemented product capability | Current app exposes these tabs and flows with permission boundaries. |
+| Evidence upload is No-CUI-gated. | Implemented for upload workflows | No-CUI acknowledgement and upload tests verify blocking before acknowledgement. |
+| Payment processing, order form, refund policy, or annual subscription conversion. | Planned | No payment/order-form implementation or counsel-approved terms were verified for this page. |
+
 ## Page Hero
 
 ### Headline
@@ -99,3 +111,14 @@ No. FeDril supports readiness workflow tracking and evidence organization. It do
 ## Required Disclaimer
 
 Pricing, pilot scope, and product availability are subject to written agreement. FeDril is a No-CUI compliance management and readiness workflow tool. FeDril does not provide legal advice, accounting advice, labor determinations, CMMC certification, assessment determinations, contracting-officer determinations, or government endorsement.
+
+## Pre-Publication Checklist
+
+| Check | Pass condition |
+| --- | --- |
+| Founder approval | Confirms offer, scope, and qualification requirements. |
+| Finance approval | Confirms price, invoice handling, refund position, taxes, and conversion-credit treatment. |
+| Counsel approval | Confirms terms, disclaimers, refund/conversion wording, and subscription transition language. |
+| Product verification | Pilot includes only workflows the product currently supports or explicitly labels as guided/manual. |
+| No-CUI boundary | Page excludes real CUI handling and prohibits sensitive data. |
+| Buyer validation | Pricing remains a hypothesis until at least one qualified buyer pays. |

@@ -4,6 +4,19 @@ Document type: customer-facing policy statement draft.
 
 Review requirement: legal, contracting, and security owner review required before publication or contract attachment.
 
+Publication status: draft policy statement. It is not approved contract language.
+
+## Current-State Verification
+
+| Policy claim | Status | Evidence |
+| --- | --- | --- |
+| No-CUI acknowledgement status can be read by contract/evidence users. | Implemented | `/api/no-cui-acknowledgement` GET requires contract or evidence view/manage permissions. |
+| No-CUI acknowledgement can be saved by contract/evidence managers. | Implemented | `/api/no-cui-acknowledgement` POST requires `ManageContracts` or `ManageEvidence`; acknowledgement service validates current notice version. |
+| Contract document upload is blocked before acknowledgement. | Implemented | Contract document service checks acknowledgement; API test proves `428` and no document persistence before acknowledgement. |
+| Evidence upload intent is blocked before acknowledgement. | Implemented | No-CUI and evidence upload tests prove `428` before acknowledgement. |
+| Contract metadata entry is blocked before acknowledgement. | Do not claim | Current enforcement is upload-related; contract intake displays the boundary but not all metadata entry is blocked. |
+| FeDril handles real CUI. | Do not claim | MVP posture prohibits real CUI handling. |
+
 ## Policy Summary
 
 FeDril currently operates under a No-CUI / compliance management only MVP posture. Customers may use FeDril to organize compliance workflows, obligations, task ownership, evidence metadata, reports, and audit history, but must not upload, paste, import, attach, store, or process real Controlled Unclassified Information in FeDril.
@@ -76,3 +89,14 @@ Any future CUI-ready operation must be separately approved and must include appr
 ## Required Disclaimer
 
 This policy statement describes the current FeDril MVP data posture. It is not legal advice, a government determination, or a certification of compliance. Customers remain responsible for determining their data-handling obligations with qualified advisors.
+
+## Pre-Publication Checklist
+
+| Check | Pass condition |
+| --- | --- |
+| Counsel review | Counsel approves prohibited-data definitions and customer responsibility wording. |
+| Security review | Security owner confirms upload, support, and escalation language. |
+| Product verification | No-CUI acknowledgement behavior is rechecked against current UI/API/tests. |
+| Enforcement accuracy | The policy does not claim contract metadata entry is blocked before acknowledgement. |
+| Support process | The support escalation path for suspected prohibited data exists before customers are directed to use it. |
+| Versioning | Notice version and policy date are recorded before attaching to pilot terms. |

@@ -18,7 +18,7 @@ Small U.S. government contractors and subcontractors that manage compliance read
 
 ## Buyer Personas
 
-| Persona | Pain | GCCS angle |
+| Persona | Pain | FeDril angle |
 | --- | --- | --- |
 | Owner / founder | Needs readiness visibility without becoming the compliance project manager. | Show dashboard, open obligations, owner assignment, and reports. |
 | Operations lead | Tracks work across spreadsheets and people. | Show obligation work queue, status, due dates, and evidence metadata. |
@@ -29,7 +29,7 @@ Small U.S. government contractors and subcontractors that manage compliance read
 ## Disqualifiers
 
 - Requires real CUI upload or processing in the MVP.
-- Expects GCCS to certify CMMC compliance.
+- Expects FeDril to certify CMMC compliance.
 - Wants legal, accounting, labor, contracting-officer, or assessor determinations.
 - Needs custom integrations before proving value.
 - Cannot commit a named internal pilot owner.

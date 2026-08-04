@@ -6,6 +6,8 @@ Status: not approved for external use.
 
 Required action: counsel must review and approve before this language is used in contracts, order forms, pricing pages, public marketing pages, pilot agreements, onboarding flows, or customer communications.
 
+Implementation status: planned legal/commercial control. This document is a counsel review packet, not evidence that counsel has approved the language.
+
 ## Purpose
 
 This document gives counsel a starting point for FeDril customer-facing terms and disclaimers. It is not legal advice and must not be treated as final contract language.
@@ -23,6 +25,17 @@ Counsel should review:
 - Support handling for suspected prohibited data.
 - Liability, indemnity, warranty, privacy, data-processing, and security terms.
 - State law, venue, payment, renewal, termination, and refund language.
+
+## Current-State Verification For Counsel
+
+| Product/legal claim | Status | Evidence or limitation |
+| --- | --- | --- |
+| FeDril is a software workspace for obligation tracking, task ownership, evidence metadata, readiness workflow tracking, reporting, and audit history. | Implemented product scope | Current UI and API expose these workflow areas. |
+| No-CUI acknowledgement is enforced before contract document upload and evidence upload intent. | Implemented for upload workflows | Application services and focused tests prove upload-related server-side blocking. |
+| Reports are workflow guidance only. | Implemented in UI and required in docs | `Reports` tab includes no-legal-advice/no-certification disclaimer. |
+| Tenant isolation and permission checks exist for protected API routes. | Implemented pattern | Routes require permissions and tenant context; this packet does not replace a full security review. |
+| Payment processing, refund policy, conversion credit, testimonials, partner referral terms. | Planned | Requires counsel/finance approval and implementation before public use. |
+| Real CUI handling, secure CUI storage, CMMC certification, government approval. | Do not claim | Outside current MVP posture. |
 
 ## Draft Product Description
 
@@ -96,3 +109,14 @@ Customer-facing materials must not state or imply that FeDril:
 | TBD | Counsel | Pending | TBD | Required before external use. |
 | TBD | Security owner | Pending | TBD | Required before external use. |
 | TBD | Product owner | Pending | TBD | Required before external use. |
+
+## Pre-Publication Checklist
+
+| Check | Pass condition |
+| --- | --- |
+| Counsel approval | Approval record is complete with date, decision, and approved version. |
+| Security approval | Security owner confirms No-CUI, prohibited-data, support, incident, and upload language. |
+| Product approval | Product owner confirms all product claims match implemented behavior. |
+| Finance approval | Finance confirms pilot fee, refund, credit, taxes, and subscription transition. |
+| Public-copy alignment | Pricing page, No-CUI policy, security page, demo script, and pilot offer use the approved terms. |
+| Version control | Approved language is tagged or otherwise traceable before real sales use. |

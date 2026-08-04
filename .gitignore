@@ -38,3 +38,5 @@ tmp/pdfs/*-review/
 tmp/phase2-keynote-build/
 tmp/phase2-keynote-existing/
 tmp/exports/
+
+.playwright-mcp/

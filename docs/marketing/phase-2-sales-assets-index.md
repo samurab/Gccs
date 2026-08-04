@@ -30,8 +30,8 @@ Status: draft package. Customer-facing use requires founder, product owner, secu
 | Phase 6 90-day tracker | `docs/marketing/phase-6-90-day-roadmap-tracker.csv` | Weekly execution metrics and blocker tracking | Founder review |
 | Controlled customer-discovery roadmap | `docs/marketing/controlled-customer-discovery-roadmap.md` | Master pipeline guide tying Phases 1-6 to verified product behavior and phase gates | Founder, product, security, finance, counsel review where applicable |
 | Controlled customer-discovery tracker | `docs/marketing/controlled-customer-discovery-pipeline-tracker.csv` | Master weekly pipeline, gate, claims-risk, and conversion tracker | Founder review |
-| 10-slide sales deck | `docs/marketing/gccs-phase-2-sales-deck.pptx` | Discovery calls, advisor meetings, pilot sales calls | Founder, product, claims review |
-| Sales deck source | `docs/marketing/gccs-phase-2-sales-deck.md` | Reviewable slide copy | Founder, product, claims review |
+| 10-slide sales deck | `docs/marketing/fedril-phase-2-sales-deck.pptx` | Discovery calls, advisor meetings, pilot sales calls | Founder, product, claims review |
+| Sales deck source | `docs/marketing/fedril-phase-2-sales-deck.md` | Reviewable slide copy | Founder, product, claims review |
 | Sample readiness report source | `docs/marketing/sample-readiness-report.md` | Demo report copy and PDF source | Product, security, claims review |
 | Sample readiness report PDF | `docs/marketing/sample-readiness-report.pdf` | Demo leave-behind and sales attachment | Product, security, claims review before external use |
 | Sample obligation/evidence workflow | `docs/marketing/sample-obligation-evidence-workflow.md` | Demo workflow and pilot setup guide | Product, security, claims review |
@@ -45,12 +45,24 @@ Status: draft package. Customer-facing use requires founder, product owner, secu
 
 Every Phase 2 sales asset must preserve these boundaries:
 
-- GCCS is No-CUI / compliance management only in the MVP.
+- FeDril is No-CUI / compliance management only in the MVP.
 - Real CUI is prohibited.
 - Classified information, ITAR/export-controlled data, sensitive government-furnished information, credentials, payroll, SSNs, health data, disability data, sensitive incident details, and unrestricted security logs are prohibited.
-- GCCS does not provide legal advice, accounting advice, labor determinations, CMMC certification, assessor determinations, contracting-officer determinations, or government endorsement.
+- FeDril does not provide legal advice, accounting advice, labor determinations, CMMC certification, assessor determinations, contracting-officer determinations, or government endorsement.
 - Reports and readiness labels are workflow guidance, not pass/fail or assessment-success determinations.
 - Source-backed content remains reviewable and subject to qualified expert review where required.
+
+## Requested Phase 2 Asset Completion Status
+
+These assets are complete as controlled drafts for founder-led discovery and demo preparation. They are not approved for unrestricted public use.
+
+| Requested task | Status | Output | Remaining gate |
+| --- | --- | --- | --- |
+| Sample obligation/evidence workflow | Complete controlled draft | `docs/marketing/sample-obligation-evidence-workflow.md` | Product/security/claims review before external use. |
+| Security and data-handling page | Complete draft page copy | `docs/marketing/security-and-data-handling-page.md` | Security owner, product owner, and counsel approval before publication. |
+| No-CUI policy statement | Complete draft policy statement | `docs/marketing/no-cui-policy-statement.md` | Counsel/security approval before customer attachment or publication. |
+| Pricing page with founder-friendly pilot option | Complete pricing hypothesis draft | `docs/marketing/pricing-page-founder-pilot.md` | Founder, finance, and counsel approval before invoicing or publication. |
+| Terms/disclaimer language reviewed by counsel before real sales | Counsel review packet complete; counsel review still required | `docs/marketing/terms-disclaimer-counsel-review.md` | Actual counsel approval before real sales, contracts, order forms, pricing pages, or public claims. |
 
 ## Recommended Usage Sequence
 

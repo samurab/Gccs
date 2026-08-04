@@ -37,9 +37,9 @@ The buyer does not only need a list. They need an operating view of:
 
 ## Claims To Avoid
 
-- "GCCS proves compliance."
-- "GCCS certifies CMMC readiness."
-- "GCCS stores CUI."
-- "GCCS replaces an assessor or attorney."
-- "GCCS automatically determines contract obligations without review."
+- "FeDril proves compliance."
+- "FeDril certifies CMMC readiness."
+- "FeDril stores CUI."
+- "FeDril replaces an assessor or attorney."
+- "FeDril automatically determines contract obligations without review."
 

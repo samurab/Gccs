@@ -4,7 +4,7 @@ Document type: founder-led offer definition and customer-discovery guide.
 
 Status: internal working document. Use for controlled discovery only until founder, product, security, and counsel review are complete.
 
-Required boundary: GCCS is a No-CUI / compliance management MVP. Do not claim legal advice, CMMC certification, assessor determinations, government endorsement, or permission to upload real CUI.
+Required boundary: FeDril is a No-CUI / compliance management MVP. Do not claim legal advice, CMMC certification, assessor determinations, government endorsement, or permission to upload real CUI.
 
 ## Phase Goal
 
@@ -36,7 +36,7 @@ The offer should answer:
 
 ### 30-Day Guided Readiness Pilot
 
-GCCS helps a small government contractor organize one No-CUI readiness workflow by setting up contract metadata, attaching or reviewing relevant clauses, generating source-backed obligations, assigning ownership, linking allowed evidence metadata, and generating a current report artifact.
+FeDril helps a small government contractor organize one No-CUI readiness workflow by setting up contract metadata, attaching or reviewing relevant clauses, generating source-backed obligations, assigning ownership, linking allowed evidence metadata, and generating a current report artifact.
 
 ### Pilot Price
 
@@ -57,7 +57,7 @@ Conversion credit: credit the pilot fee toward the first annual subscription if 
 ### Poor-Fit Customer
 
 - Requires real CUI handling immediately.
-- Wants GCCS to certify compliance.
+- Wants FeDril to certify compliance.
 - Needs legal, accounting, labor, or contracting determinations.
 - Requires GovCloud, FedRAMP, SSO, SCIM, custom integrations, or enterprise procurement before any pilot.
 - Cannot assign an internal owner for the pilot.

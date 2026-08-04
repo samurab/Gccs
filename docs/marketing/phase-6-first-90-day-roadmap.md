@@ -4,16 +4,16 @@ Document type: founder-led 90-day execution roadmap.
 
 Status: internal working document. Use to coordinate product readiness, sales assets, discovery, distribution, pilots, and first-customer conversion.
 
-Required boundary: GCCS is a No-CUI / compliance management MVP. The 90-day roadmap must not expand the product into real CUI handling, formal assessment work, legal advice, accounting advice, CMMC certification, assessor determinations, contracting-officer determinations, or government endorsement claims.
+Required boundary: FeDril is a No-CUI / compliance management MVP. The 90-day roadmap must not expand the product into real CUI handling, formal assessment work, legal advice, accounting advice, CMMC certification, assessor determinations, contracting-officer determinations, or government endorsement claims.
 
 ## Phase Goal
 
-Get from MVP completion to one contractor who trusts GCCS enough to use it for a real No-CUI compliance workflow and pay for it.
+Get from MVP completion to one contractor who trusts FeDril enough to use it for a real No-CUI compliance workflow and pay for it.
 
 The first milestone is not traffic, impressions, followers, or a long feature backlog. The first milestone is one qualified customer who:
 
 - Pays for the guided pilot or subscription.
-- Uses GCCS for a real workflow with synthetic, redacted, or non-sensitive data.
+- Uses FeDril for a real workflow with synthetic, redacted, or non-sensitive data.
 - Gives weekly feedback.
 - Provides usable objection and workflow data.
 - Either converts or gives a precise reason for not converting.
@@ -233,7 +233,7 @@ Choose the niche with the strongest evidence, not the largest theoretical market
 
 | Niche | Choose if the evidence shows |
 | --- | --- |
-| CMMC readiness | Buyers repeatedly need readiness workflow support but understand GCCS is not a certifier or assessor. |
+| CMMC readiness | Buyers repeatedly need readiness workflow support but understand FeDril is not a certifier or assessor. |
 | General GovCon compliance tracking | Buyers have broad recurring task/evidence/reporting pain across contracts and programs. |
 | Subcontractor readiness | Primes or subcontractors repeatedly ask for proof, flow-down tracking, or subcontractor status evidence. |
 | Evidence management | Buyers repeatedly lose evidence metadata, owners, dates, or report-ready proof. |
@@ -367,7 +367,7 @@ Your first milestone is not traffic. It is one contractor who trusts the product
 - Compliance content must stay source-backed, reviewable, and governed by qualified subject-matter review.
 - CMMC-related positioning must be precise: readiness support, not certification, assessor determination, or assessment success.
 - Small contractors may want services more than software; early revenue may require guided onboarding while the software motion matures.
-- Advisors may become the strongest channel only if GCCS makes them look better to clients and reduces follow-through burden.
+- Advisors may become the strongest channel only if FeDril makes them look better to clients and reduces follow-through burden.
 - Pricing is unproven until buyers pay. Interviews alone do not validate willingness to pay.
 - A first converted pilot does not prove scalable acquisition. Track founder time, support burden, and manual work so the next phase can remove bottlenecks.
 

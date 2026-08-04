@@ -6,7 +6,7 @@ Status: controlled internal guide. Do not use as public marketing copy, order-fo
 
 Last verification pass: July 29, 2026.
 
-Product posture: GCCS is a No-CUI / compliance management MVP for small U.S. government contractors. It supports readiness workflows, obligation tracking, evidence metadata, reporting artifacts, and auditability. It must not be positioned as legal advice, accounting advice, labor determinations, CMMC certification, assessor determinations, contracting-officer determinations, government approval, government endorsement, or secure CUI storage.
+Product posture: FeDril is a No-CUI / compliance management MVP for small U.S. government contractors. It supports readiness workflows, obligation tracking, evidence metadata, reporting artifacts, and auditability. It must not be positioned as legal advice, accounting advice, labor determinations, CMMC certification, assessor determinations, contracting-officer determinations, government approval, government endorsement, or secure CUI storage.
 
 ## Critique And Flaws
 
@@ -131,7 +131,7 @@ Create sales and demo assets that describe current app behavior accurately.
 
 | Asset | Status | File |
 | --- | --- | --- |
-| Sales deck | Implemented as document artifact; requires review before external use. | [gccs-phase-2-sales-deck.md](./gccs-phase-2-sales-deck.md), [gccs-phase-2-sales-deck.pptx](./gccs-phase-2-sales-deck.pptx) |
+| Sales deck | Implemented as document artifact; requires review before external use. | [fedril-phase-2-sales-deck.md](./fedril-phase-2-sales-deck.md), [fedril-phase-2-sales-deck.pptx](./fedril-phase-2-sales-deck.pptx) |
 | Minimum demo structure | Implemented as guide; product claims must stay tied to exact tabs. | [minimum-demo-structure.md](./minimum-demo-structure.md) |
 | Sample readiness report | Implemented as sample artifact; not a compliance determination. | [sample-readiness-report.md](./sample-readiness-report.md), [sample-readiness-report.pdf](./sample-readiness-report.pdf) |
 | Sample obligation/evidence workflow | Implemented as guide; must match UI tab names. | [sample-obligation-evidence-workflow.md](./sample-obligation-evidence-workflow.md) |
@@ -310,7 +310,7 @@ Create qualified pilot pipeline through manual, trust-building channels before p
 
 Use SAM.gov for market research: opportunities, awards, subcontract reports, agencies, NAICS patterns, set-asides, and niche selection.
 
-Do not use SAM.gov to spam buyers, imply government endorsement, scrape indiscriminately, or copy sensitive information into GCCS.
+Do not use SAM.gov to spam buyers, imply government endorsement, scrape indiscriminately, or copy sensitive information into FeDril.
 
 ### Phase 5 Gate
 

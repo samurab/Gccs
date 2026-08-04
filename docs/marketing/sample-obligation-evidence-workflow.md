@@ -6,6 +6,20 @@ Data status: synthetic, redacted, or non-sensitive data only.
 
 Required boundary: FeDril tracks readiness workflow, obligation ownership, and evidence metadata. It does not determine legal compliance, certify CMMC status, or authorize real CUI handling in the MVP.
 
+Publication status: controlled internal / demo-prep draft. Do not send externally until the pre-publication checklist in this document is complete.
+
+## Current-State Verification
+
+| Claim | Status | Evidence |
+| --- | --- | --- |
+| Contract metadata can be entered in the `Contracts` tab. | Implemented | UI labels verified in `apps/web/src/App.tsx`; API contract routes require `ManageContracts`. |
+| Contract document upload requires current No-CUI acknowledgement. | Implemented | `ContractDocumentFileService.UploadAsync` checks acknowledgement before upload; `ContractRecordTests.TC_8_2_1` proves a `428` response before acknowledgement. |
+| Evidence upload requires current No-CUI acknowledgement and user attestation. | Implemented | `EvidenceFileUploadTests.TC_12_2_1` and `NoCuiAcknowledgementTests.TC_4_1_2` prove server-side blocking before acknowledgement. |
+| Evidence metadata can be created and linked to obligations or controls. | Implemented | `Evidence` tab exposes `Evidence metadata`, `Obligations (optional)`, and `Controls`; evidence API routes require evidence permissions. |
+| Reports are workflow guidance only. | Implemented in UI | `Reports` tab includes the no-legal-advice/no-certification disclaimer. |
+| Paid pilot delivery, conversion credit, and customer testimonial workflow. | Planned | Business process only; not an implemented product capability. |
+| Real CUI upload or processing. | Do not claim | MVP posture prohibits real CUI handling. |
+
 ## Workflow Goal
 
 Show a buyer how one contract requirement becomes a managed readiness workflow:
@@ -240,3 +254,14 @@ Audit history should capture compliance-relevant changes:
 - Clause handling creates reviewer dependency; do not imply extraction candidates or generated obligations are final compliance determinations without review.
 - Evidence metadata can still leak sensitive information if users paste prohibited details into descriptions.
 - Advisor or counsel review is required before using this workflow as external customer-facing guidance.
+
+## Pre-Publication Checklist
+
+| Check | Pass condition |
+| --- | --- |
+| UI flow verified | The demo still matches `Contracts`, `Obligations`, `Evidence`, `Reports`, and `Settings` tab labels. |
+| API enforcement verified | Any word such as `required`, `blocked`, or `disabled` maps to upload-related API enforcement or UI state. |
+| Test evidence checked | No-CUI upload gating tests and contract document upload tests still pass or have been reviewed. |
+| No-CUI posture preserved | Demo data is synthetic, redacted, or non-sensitive only. |
+| Claims reviewed | No legal advice, CMMC certification, compliance guarantee, government endorsement, or secure CUI storage claim appears. |
+| Counsel/product/security review | Required before sending this workflow as customer-facing guidance. |
