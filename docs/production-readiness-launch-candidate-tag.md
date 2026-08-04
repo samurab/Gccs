@@ -8,16 +8,16 @@ Tag date: 2026-08-03.
 
 Tag owner: Engineering lead.
 
-Launch candidate tag: `launch-candidate-2026-08-03-1`.
+Launch candidate tag: `launch-candidate-2026-08-03-2`.
 
-Tagged commit: `7f6ed7f6c4bad1b2962291b5b4984fb92265acb8`.
+Tagged commit: `fec0276b6d2cba3629a874f9cf76cd6e5f6a36da`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
 Tag command:
 
 ```bash
-git tag launch-candidate-2026-08-03-1 7f6ed7f6c4bad1b2962291b5b4984fb92265acb8
+git tag launch-candidate-2026-08-03-2 fec0276b6d2cba3629a874f9cf76cd6e5f6a36da
 ```
 
 This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testing and project completion. It is not a production deployment approval, production separation-of-duties approval, legal advice, certification evidence, government endorsement, broader customer launch approval, or authorization to accept real CUI.
@@ -29,10 +29,23 @@ This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testi
 | Required launch approvals complete | Passed for solo-controlled pilot testing | `docs/production-readiness-launch-approval-record.md` records product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approval scopes under `docs/production-readiness-approval-posture-addendum.md`. |
 | Accepted exceptions recorded | Passed | `docs/production-readiness-launch-gap-decisions.md` records `PR41-RESTORE-001`, `PR43-MALWARE-001`, `PR51-HIGH-RISK-001`, `PR52-CLAIM-001`, and `PR53-SUPPORT-001`. |
 | Evidence package gathered | Passed | This artifact links launch approval, closure evidence, staging smoke, staging workflow, staging security, upload/report controls, backup/restore disposition, rollback, content review, support runbooks, release notes, pilot onboarding, and known-risk log. |
-| Approved build and deployment path passed | Passed | Main CI run `30757029213`, staging workflow run `30757029225`, and Static Web Apps run `30757029209` completed successfully for exact candidate commit `85fb7a7c2d9fcfbaf5aef5abbbaed019032bbd94`. |
+| Approved build and deployment path passed | Passed | PR #35 CI run `30863257848` and exact-candidate staging workflow run `30864030411` completed successfully for candidate commit `fec0276b6d2cba3629a874f9cf76cd6e5f6a36da`; exact-candidate main CI run `30864030400` is the final blocking validation before production dispatch. |
 | Missing-evidence tag block rule retained | Passed | If any required approval, evidence link, build artifact, deployment artifact, release note, known limitation, support path, staging evidence, rollback plan, or content-scope link is removed, tag creation must be blocked or the tag must be superseded. |
 
 ## Build And Deployment Artifacts
+
+### 2026-08-03 demo-scheduler and discovery-asset candidate refresh
+
+The candidate-specific approval is recorded in `docs/production-readiness-launch-approval-record.md`. PR #36 CI run `30862127900`, PR #35 CI run `30863257848`, and exact-candidate staging run `30864030411` completed successfully. The candidate reuses the existing scheduled-demo workflow on the post-video `/demo` call to action and adds reviewed discovery/UAT assets; it introduces no EF Core migration file changes.
+
+| Refreshed artifact | Location |
+| --- | --- |
+| Candidate source | PR #36 squash merge `17616fb139762812185e93c50ef6a59ea68e0294` plus PR #35 squash merge `fec0276b6d2cba3629a874f9cf76cd6e5f6a36da` |
+| Delta from prior production candidate | Post-video scheduler CTA and focused interaction test; frontend transitive dependency audit updates; two reviewed marketing PDFs; UAT acceptance instructions; browser-artifact ignore rule. No EF Core migration file changed. |
+| Pull-request CI | GitHub Actions runs `30862127900` and `30863257848` |
+| Exact-candidate staging deployment | GitHub Actions run `30864030411` |
+| Staging smoke artifact | Run `30864030411`, artifact `staging-smoke-test-results` |
+| Hosted interaction review | Exact-candidate staging `/demo`: one scheduler dialog opened, first-name focus transferred, and one `datetime-local` field exposed; no request was submitted. |
 
 ### 2026-08-02 FeDril demo-video candidate refresh
 
@@ -94,6 +107,6 @@ The candidate-specific approval is recorded in `docs/production-readiness-launch
 - The same user approved all six PR-6.1 role scopes for solo-controlled pilot testing and project completion only. This is not production separation-of-duties approval.
 - `PR41-RESTORE-001` was closed by the 2026-07-05 staging point-in-time restore rehearsal. That evidence supports only the tested staging path; it does not prove geo-disaster recovery or production customer-data restore.
 - Production scanner evidence is attached for the private ClamAV-compatible path. A single scanner instance is accepted only for this controlled No-CUI pilot and remains a broader-launch hardening limitation.
-- The tag points to the PR #26 application merge commit and includes the demo-video package, generated marketing media, and public web integration. No database migration is introduced by this delta.
+- The tag points to the PR #35 merge commit, includes the PR #36 scheduler fix and reviewed PR #35 discovery/UAT assets, and introduces no EF Core migration file changes.
 - The 86.41 MB flagship MP4 is below GitHub's hard file-size limit but above its recommended 50 MB threshold; durable object/media storage remains the correct scaling path for future revisions.
 - If release notes, support runbooks, claim language, content scope, or accepted risks change after this tag, the tag must be superseded or re-approved under the same solo-controlled pilot posture or under a future production separation-of-duties approval model.

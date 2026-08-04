@@ -2,15 +2,15 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate is awaiting protected production CI/CD execution; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-08-03-1` deployed successfully in production workflow run `30780409892`.
+Current candidate execution status: `launch-candidate-2026-08-03-2` is approved but not yet deployed. The prior candidate `launch-candidate-2026-08-03-1` deployed successfully in production workflow run `30780409892`.
 
 Latest evidence date: 2026-08-03. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-08-03-1`.
+Approved launch candidate tag: `launch-candidate-2026-08-03-2`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -36,15 +36,15 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-03-1` at `7f6ed7f6c4bad1b2962291b5b4984fb92265acb8`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Passed | Run `30780409892` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-03-2` at `fec0276b6d2cba3629a874f9cf76cd6e5f6a36da`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved production CI/CD path | Ready; exact-candidate execution pending | The workflow contract validates the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Historical run `30780409892` proved this path for the prior candidate. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services; protected environment `Production` approved only the solo-controlled No-CUI pilot deployment. |
-| Production secrets source | Passed | Run `30780409892` resolved the required production environment secrets without exposing their values. Secret values are not stored in this evidence or the repository. |
-| Production No-CUI posture validation | Passed | Run `30780409892` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
-| Production migrations | Passed | Run `30780409892` generated and successfully applied the idempotent script containing the three additive demo-request migrations before application deployment. |
-| Production storage, cache, queue, and background jobs | Passed | The exact-candidate production health response returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
-| Production health checks, logs, and alerts | Passed for exact-candidate health and telemetry; historical alert exercise retained | Run `30780409892` passed `/health`; post-deploy Application Insights recorded both ACS email sends as successful dependencies. This deployment did not repeat the separate alert-delivery exercise. |
-| Deployment evidence capture | Passed | Artifact `8843490287` records deployment time, artifact tag/SHA, operator, environment, workflow run URL, No-CUI posture, result, health output, and migration script. |
+| Production secrets source | Historical path passed; current execution pending | Run `30780409892` resolved the required production environment secrets for the prior candidate without exposing their values. Secret values are not stored in this evidence or the repository. |
+| Production No-CUI posture validation | Historical path passed; current execution pending | Run `30780409892` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only` for the prior candidate. |
+| Production migrations | Historical path passed; current execution pending | Run `30780409892` generated and applied the prior candidate's idempotent migration script. The current candidate introduces no EF Core migration file changes but must still execute the migration gate. |
+| Production storage, cache, queue, and background jobs | Historical path passed; current execution pending | The prior candidate's production health response returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
+| Production health checks, logs, and alerts | Historical health and telemetry passed; current execution pending | Run `30780409892` passed `/health`; post-deploy Application Insights recorded both ACS email sends as successful dependencies for the prior candidate. The current presentation-only verification did not exercise email delivery. |
+| Deployment evidence capture | Historical path passed; current execution pending | Artifact `8843490287` records the prior deployment. A new exact-candidate artifact is required before this candidate can be described as deployed. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs

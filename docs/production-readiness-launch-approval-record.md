@@ -85,6 +85,25 @@ This approval is not independent legal, security, privacy, compliance, or separa
 
 The approval is invalid if the candidate SHA changes, any cited workflow is not successful, staging delivery evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed scope.
 
+## Demo Scheduler and Discovery-Asset Candidate Reapproval - 2026-08-03
+
+The repository owner and deployment operator, `samurab`, explicitly requested that the respective branches be committed and pushed, then deployed to staging and production. This records combined-role approval for `launch-candidate-2026-08-03-2` within the existing solo-controlled No-CUI pilot production scope.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, marketing, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-03 |
+| Candidate | `launch-candidate-2026-08-03-2` at `fec0276b6d2cba3629a874f9cf76cd6e5f6a36da` |
+| Scope | PR #36 replaces the post-video placeholder email link with the existing scheduled-demo dialog and adds interaction coverage; PR #35 publishes the reviewed customer-discovery roadmap and sales-deck PDFs, updates UAT acceptance instructions, and ignores local browser artifacts. |
+| Exact-candidate automated evidence | PR #36 CI run `30862127900`; PR #35 CI run `30863257848`; exact-main staging deployment run `30864030411`. Backend, frontend, dependency audit, secret scan, migration validation, Terraform validation, real-stack RBAC, deployment, and staging smoke checks passed. |
+| Exact-candidate hosted evidence | On the exact-candidate staging `/demo` route, the post-video call to action opened one scheduled-demo dialog, focused the first-name field, and exposed one `datetime-local` field. No form was submitted and no customer data was created. |
+| Unresolved limitations | Review is solo-controlled rather than independent; the 86.41 MB flagship video remains above GitHub's recommended 50 MB threshold; provider delivery and mailbox placement were not exercised by this presentation-only browser check; broader customer publication requires the organization's normal specialist review. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited workflow is not successful, the scheduler interaction regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed material.
+
 ## Evidence Package Reviewed
 
 Required approval reviewers must inspect these artifacts before approval can be recorded:
