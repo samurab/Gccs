@@ -1,4 +1,4 @@
-# AGENTS.md — Gccs Project Instructions
+# AGENTS.md — FeDril Project Instructions
 
 Use these instructions for work in this repository. Apply verification in
 proportion to the task's risk; do not run release-grade investigation or test
@@ -6,13 +6,17 @@ suites for low-risk work.
 
 ## Product Invariants
 
-Gccs is a multi-tenant compliance-management SaaS for small U.S. government
+FeDril is a multi-tenant compliance-management SaaS for small U.S. government
 contractors.
 
+- The external product and customer-facing brand name is FeDril.
+- Preserve internal `Gccs.*` code namespaces, project paths, headers, storage
+  keys, migration names, and compatibility identifiers unless an explicit
+  technical rename/migration is requested.
 - The MVP posture is No-CUI / compliance management only.
 - The product supports readiness workflows, evidence and obligation tracking,
   reporting, and auditability.
-- Do not claim that Gccs provides CMMC certification, legal advice, accounting
+- Do not claim that FeDril provides CMMC certification, legal advice, accounting
   advice, labor determinations, government approval, or government endorsement.
 - Production compliance content must be source-backed, reviewable, and governed
   by qualified subject-matter review.

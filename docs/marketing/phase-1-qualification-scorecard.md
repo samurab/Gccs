@@ -33,7 +33,7 @@ Score each item from 0 to 2.
 Disqualify even if the score is high when the prospect:
 
 - Requires real CUI handling in the MVP.
-- Requires GCCS to certify compliance.
+- Requires FeDril to certify compliance.
 - Requires legal, accounting, labor, contracting, government, or assessor determinations.
 - Cannot identify a pilot owner.
 - Requires custom integrations before any value can be proven.

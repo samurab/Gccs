@@ -4,6 +4,19 @@ Document type: customer-facing web page draft.
 
 Review requirement: legal, contracting, and security owner review required before publication.
 
+Publication status: draft page copy. Do not publish until security owner, product owner, and counsel approve the exact wording.
+
+## Current-State Verification
+
+| Claim | Status | Evidence |
+| --- | --- | --- |
+| FeDril is currently No-CUI / compliance management only. | Implemented posture | No-CUI notice, upload guardrails, and marketing asset boundary all use this posture. |
+| Tenant-scoped workspaces and role-based access are part of the product model. | Implemented | API routes require permissions such as `ManageContracts`, `ManageEvidence`, `ManageReports`, and `ViewAuditLog`; tenant context is server-side. |
+| No-CUI acknowledgement appears in contract and evidence workflows. | Implemented | `NoCuiAcknowledgementPanel` is rendered in current UI flows. |
+| Upload-related workflows require acknowledgement and attestation where supported. | Implemented for contract document and evidence upload paths | Contract/evidence upload services and tests prove server-side blocking before acknowledgement. |
+| Evidence metadata and report artifacts are supported. | Implemented | `Evidence` and `Reports` tabs expose these workflows. |
+| Public security warranties, formal compliance status, or CUI-ready operation. | Do not claim | Not verified and outside MVP posture. |
+
 ## Page Hero
 
 ### Headline
@@ -108,3 +121,14 @@ The current Reports tab supports Compliance Status, CMMC Readiness, Subcontracto
 ## Required Footer Disclaimer
 
 FeDril is a compliance management and readiness workflow tool. It does not provide legal advice, CMMC certification, assessment determinations, contracting-officer determinations, accounting advice, labor determinations, or government endorsement. The current MVP is No-CUI / compliance management only.
+
+## Pre-Publication Checklist
+
+| Check | Pass condition |
+| --- | --- |
+| Security owner review | Confirms data-handling, upload, support, and incident language is accurate. |
+| Counsel review | Confirms disclaimers, customer responsibility, prohibited-data language, and liability-related language are acceptable. |
+| Product verification | Confirms page claims match current UI/API behavior. |
+| Enforcement language | `Requires`, `blocks`, `enforces`, and `guardrails` are used only for verified upload-related controls. |
+| No-CUI posture | Page does not imply real CUI storage, secure CUI handling, or CUI-ready operation. |
+| Public launch approval | Page is approved for publication before being placed on the landing page or shared externally. |

@@ -6,7 +6,7 @@ Status: internal working document. Use for controlled distribution experiments o
 
 Verified source date: July 13, 2026.
 
-Required boundary: GCCS is a No-CUI / compliance management MVP. Distribution messages must not claim legal advice, accounting advice, labor determinations, CMMC certification, assessor determinations, contracting-officer determinations, government endorsement, formal assessment outcomes, or permission to upload real CUI.
+Required boundary: FeDril is a No-CUI / compliance management MVP. Distribution messages must not claim legal advice, accounting advice, labor determinations, CMMC certification, assessor determinations, contracting-officer determinations, government endorsement, formal assessment outcomes, or permission to upload real CUI.
 
 ## Phase Goal
 
@@ -30,7 +30,7 @@ Prioritize channels in this order:
 | ---: | --- | --- | --- |
 | 1 | Direct founder-led outbound to small contractors | Book qualified discovery, demo, and pilot calls. | Immediately after Phase 3 signal and Phase 4 pilot offer are ready. |
 | 2 | Partnerships with APEX counselors and GovCon advisors | Earn trusted introductions and validate education topics. | After you can clearly explain the No-CUI pilot boundary. |
-| 3 | MSP/compliance consultant referral partnerships | Build advisor-led referral pipeline. | After you know which advisor pain GCCS reduces. |
+| 3 | MSP/compliance consultant referral partnerships | Build advisor-led referral pipeline. | After you know which advisor pain FeDril reduces. |
 | 4 | LinkedIn authority content | Create visible proof of expertise and warm up outbound. | Run in parallel with direct outbound. |
 | 5 | Webinars with practical topics | Convert education demand into discovery and pilot calls. | After at least one painful workflow is repeatedly validated. |
 | 6 | GovCon newsletters/podcasts | Borrow audience trust and test founder narrative. | After the offer and pilot story are clear. |
@@ -91,7 +91,7 @@ Use SAM.gov to:
 Do not use SAM.gov to:
 
 - Spam vendors.
-- Copy sensitive data into GCCS.
+- Copy sensitive data into FeDril.
 - Treat public award data as permission to contact aggressively.
 - Claim government endorsement.
 - Build automated outreach lists without reviewing terms, privacy, and reputational risk.
@@ -152,7 +152,7 @@ Track these weekly:
 
 ### Purpose
 
-APEX counselors and GovCon advisors can help you understand market pain, identify education topics, and earn warm introductions. They should not be asked to endorse GCCS improperly.
+APEX counselors and GovCon advisors can help you understand market pain, identify education topics, and earn warm introductions. They should not be asked to endorse FeDril improperly.
 
 ### Partner Targets
 
@@ -204,7 +204,7 @@ Each partner conversation should produce one of these:
 
 ### Purpose
 
-MSPs and compliance consultants see the recurring operational burden after initial advisory or technical setup. GCCS can become a workflow layer they refer into when clients need task ownership, evidence metadata, and report artifacts.
+MSPs and compliance consultants see the recurring operational burden after initial advisory or technical setup. FeDril can become a workflow layer they refer into when clients need task ownership, evidence metadata, and report artifacts.
 
 ### Best-Fit Referral Partners
 
@@ -220,9 +220,9 @@ MSPs and compliance consultants see the recurring operational burden after initi
 | Requirement | Why it matters |
 | --- | --- |
 | Serves small GovCon clients | Keeps distribution aligned with the ICP. |
-| Sees repeated evidence/task tracking pain | Ensures GCCS reduces real advisor burden. |
+| Sees repeated evidence/task tracking pain | Ensures FeDril reduces real advisor burden. |
 | Accepts No-CUI MVP posture | Prevents unsafe referrals. |
-| Understands GCCS is not a certifier | Prevents false claims. |
+| Understands FeDril is not a certifier | Prevents false claims. |
 | Can refer one specific client workflow | Keeps the first referral concrete. |
 
 ### Referral Partner Offer

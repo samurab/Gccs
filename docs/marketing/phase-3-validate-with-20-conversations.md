@@ -6,11 +6,11 @@ Status: internal working document. Use for controlled discovery only. Do not use
 
 Verified source date: July 12, 2026.
 
-Required boundary: GCCS is a No-CUI / compliance management MVP. Discovery conversations must not ask prospects to share real CUI, classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, sensitive incident details, or customer documents.
+Required boundary: FeDril is a No-CUI / compliance management MVP. Discovery conversations must not ask prospects to share real CUI, classified information, ITAR/export-controlled data, credentials, payroll records, SSNs, health data, sensitive incident details, or customer documents.
 
 ## Phase Goal
 
-Validate whether small government contractors and their advisors have a painful, repeated readiness workflow that GCCS can solve before spending money on ads, broad content, sponsorships, or paid lead generation.
+Validate whether small government contractors and their advisors have a painful, repeated readiness workflow that FeDril can solve before spending money on ads, broad content, sponsorships, or paid lead generation.
 
 The goal is not to sell first. The goal is to learn:
 
@@ -93,7 +93,7 @@ Run these searches manually and record every target in the tracker before outrea
 
 - Do not say you are looking for customers in the first message.
 - Do not ask them to upload, share, or send contract documents.
-- Do not claim GCCS handles CUI.
+- Do not claim FeDril handles CUI.
 - Do not pitch certification, legal advice, accounting advice, or assessment outcomes.
 - Do not use automated bulk outreach until the manual message converts.
 - Ask for 20 minutes, not 45 or 60.
@@ -178,7 +178,7 @@ Use this structure for every call so the answers can be compared.
 | --- | --- | --- |
 | 0-2 min | Boundary | State that the call is discovery only, not a sales call, and that no CUI or sensitive data should be shared. |
 | 2-5 min | Context | Ask about their role, company type, contract stage, and whether they are founder, advisor, MSP, accountant, or consultant. |
-| 5-18 min | Workflow discovery | Ask the core questions below. Let them describe the workflow before showing or describing GCCS. |
+| 5-18 min | Workflow discovery | Ask the core questions below. Let them describe the workflow before showing or describing FeDril. |
 | 18-22 min | Pain ranking | Ask which problem is most painful, most frequent, and most expensive to ignore. |
 | 22-26 min | Willingness to pay | Ask what would make a narrow readiness workflow worth `$99-$499/month` or a `$750` guided pilot. |
 | 26-29 min | Referrals | Ask who else sees this problem repeatedly. |
@@ -309,7 +309,7 @@ After 20 calls, write a one-page summary using this structure:
 | Founders repeatedly mention lost evidence and proof requests | Keep offer focused on obligation/evidence workflow and readiness reports. |
 | Advisors repeatedly mention client follow-through burden | Build advisor/referral motion before ads. |
 | Prospects reject No-CUI | Do not force the sale. Route to future CUI-ready roadmap only if appropriate. |
-| Buyers want certification guarantees | Disqualify. GCCS must not claim certification, assessor, legal, or government determinations. |
+| Buyers want certification guarantees | Disqualify. FeDril must not claim certification, assessor, legal, or government determinations. |
 | Price resistance is high but pain is real | Keep paid pilot but narrow scope, not price first. |
 | No one accepts a follow-up demo | Rework positioning before building more sales assets. |
 | At least 2 prospects show paid pilot intent | Move to Phase 4: guided demo and pilot close. |
@@ -336,7 +336,7 @@ Use this at the start of each call:
 - Advisors may protect client confidentiality. Do not ask for client names or documents.
 - Cyber AB Marketplace listings are useful for ecosystem discovery, but RPO/RP status is not a blanket endorsement of an advisor.
 - GovCon accounting conversations can drift into accounting advice. Keep discovery focused on workflow pain and proof tracking.
-- Proposal consultants may push toward proposal automation. GCCS should not reposition around proposal automation unless the evidence from 20 calls clearly supports it.
+- Proposal consultants may push toward proposal automation. FeDril should not reposition around proposal automation unless the evidence from 20 calls clearly supports it.
 - High interest without willingness to schedule a demo or discuss a paid pilot is not validation.
 - No-CUI refusal is a product-scope signal, not a sales objection to overcome during MVP discovery.
 

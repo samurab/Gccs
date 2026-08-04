@@ -4,7 +4,7 @@ Document type: founder-led first-customer pilot close guide.
 
 Status: internal working document. Counsel review is required before this becomes an order form, pilot agreement, invoice language, public pricing page, or customer-facing contract.
 
-Required boundary: GCCS is a No-CUI / compliance management MVP. The pilot must not include real CUI, classified information, ITAR/export-controlled data, sensitive government-furnished information, credentials, payroll records, SSNs, health data, sensitive incident details, formal assessment work, legal advice, accounting advice, CMMC certification, assessor determinations, contracting-officer determinations, or government endorsement claims.
+Required boundary: FeDril is a No-CUI / compliance management MVP. The pilot must not include real CUI, classified information, ITAR/export-controlled data, sensitive government-furnished information, credentials, payroll records, SSNs, health data, sensitive incident details, formal assessment work, legal advice, accounting advice, CMMC certification, assessor determinations, contracting-officer determinations, or government endorsement claims.
 
 ## Phase Goal
 
@@ -18,7 +18,7 @@ The correct first sale is a managed pilot.
 
 - Selling a broad subscription first will likely fail because the buyer has not yet proven which workflow is worth recurring payment.
 - Accepting an "interesting" prospect wastes founder time. Interest without money, workflow access, feedback, and conversion intent is not customer validation.
-- Running an unpaid pilot creates weak commitment and increases the risk that GCCS becomes free consulting instead of a validated SaaS workflow.
+- Running an unpaid pilot creates weak commitment and increases the risk that FeDril becomes free consulting instead of a validated SaaS workflow.
 - Expanding scope to CUI, certification, legal advice, custom integrations, or formal assessment work would violate the MVP boundary and create security, legal, and delivery risk.
 - Letting the customer define success after kickoff creates scope creep. Success criteria must be agreed before payment.
 
@@ -69,7 +69,7 @@ The first paid customer must be willing to provide all of the following:
 | Requirement | Required proof before kickoff | Why it matters |
 | --- | --- | --- |
 | Money | Paid pilot fee or signed order form with payment date. | Validates urgency and separates buyers from curious prospects. |
-| Real workflow data | Synthetic, redacted, or non-sensitive version of one real workflow. | Lets GCCS validate actual task, obligation, evidence, owner, and report behavior without handling prohibited data. |
+| Real workflow data | Synthetic, redacted, or non-sensitive version of one real workflow. | Lets FeDril validate actual task, obligation, evidence, owner, and report behavior without handling prohibited data. |
 | Weekly feedback | Named attendee for weekly check-ins. | Prevents silent failure and creates learning cadence. |
 | Permission to use anonymized learnings | Written permission to use non-identifying workflow learnings. | Enables future marketing, onboarding, and product decisions without exposing customer details. |
 | Testimonial if successful | Agreement to consider a testimonial, reference quote, or anonymized case note after success. | Creates evidence for the next customer. |
@@ -206,7 +206,7 @@ The final session should produce a decision, not vague interest.
 ### Conversion Session Agenda
 
 1. Review the original workflow pain.
-2. Review what GCCS configured.
+2. Review what FeDril configured.
 3. Review the report artifact.
 4. Review what worked.
 5. Review what failed or remained manual.
