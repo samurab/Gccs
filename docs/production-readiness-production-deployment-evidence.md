@@ -2,15 +2,15 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate is awaiting protected production CI/CD execution; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-08-03-2` deployed successfully in production workflow run `30866422228`.
+Current candidate execution status: `launch-candidate-2026-08-04-1` is approved but not yet deployed.
 
 Latest evidence date: 2026-08-03. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-08-03-2`.
+Approved launch candidate tag: `launch-candidate-2026-08-04-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -36,10 +36,10 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-03-2` at `fec0276b6d2cba3629a874f9cf76cd6e5f6a36da`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Passed | Run `30866422228` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-04-1` at `4a8885279a38d024e74daec881e30b13f853cabf`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved production CI/CD path | Ready; exact-candidate execution pending | Historical run `30866422228` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-04-1` still requires protected production workflow execution after this launch-candidate gate merges. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services; protected environment `Production` approved only the solo-controlled No-CUI pilot deployment. |
-| Production secrets source | Passed | Run `30866422228` resolved the required production environment secrets without exposing their values. Secret values are not stored in this evidence or the repository. |
+| Production secrets source | Historical path passed; current execution pending | Historical run `30866422228` resolved the required production environment secrets without exposing their values. Current candidate `launch-candidate-2026-08-04-1` still requires protected production workflow execution. Secret values are not stored in this evidence or the repository. |
 | Production No-CUI posture validation | Passed | Run `30866422228` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
 | Production migrations | Passed | Run `30866422228` generated and successfully applied the idempotent migration script. The candidate introduces no EF Core migration file changes. |
 | Production storage, cache, queue, and background jobs | Passed | The exact-candidate production health response returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
