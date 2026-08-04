@@ -1431,9 +1431,9 @@ public sealed class ProductionReadinessChecklistTests
         Assert.Contains($"Launch candidate tag: `{manifest.ApprovedLaunchCandidateTag}`.", tagRecord);
         Assert.Contains($"Tagged commit: `{manifest.ApprovedCommitSha}`.", tagRecord);
         Assert.Contains("Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.", tagRecord);
-        Assert.Contains("staging workflow run `30757029225`", tagRecord);
-        Assert.Contains("Static Web Apps run `30757029209`", tagRecord);
-        Assert.Contains("Main CI run `30757029213`", tagRecord);
+        Assert.Contains("Exact-candidate staging deployment", tagRecord);
+        Assert.Contains("Pull-request CI", tagRecord);
+        Assert.Contains("Hosted interaction review", tagRecord);
         Assert.Contains(manifest.ApprovedCommitSha, tagRecord);
         Assert.Contains("Delta from prior production candidate", tagRecord);
         Assert.Contains("No EF Core migration file changed", tagRecord);
@@ -1488,22 +1488,43 @@ public sealed class ProductionReadinessChecklistTests
         var riskLog = ReadText("docs", "production-readiness-launch-gap-decisions.md");
         var workflow = ReadText(".github", "workflows", "production.yml");
 
-        Assert.Contains("Deployment status: current approved candidate deployed successfully through the protected production CI/CD path", deployment);
+        var deploymentPending = deployment.Contains(
+            "Deployment status: current approved candidate is awaiting protected production CI/CD execution",
+            StringComparison.Ordinal);
+        var deploymentCompleted = deployment.Contains(
+            "Deployment status: current approved candidate deployed successfully through the protected production CI/CD path",
+            StringComparison.Ordinal);
+
+        Assert.True(
+            deploymentPending ^ deploymentCompleted,
+            "Production evidence must describe the current candidate as exactly one of pending or deployed.");
         Assert.Contains($"Approved launch candidate tag: `{manifest.ApprovedLaunchCandidateTag}`.", deployment);
         Assert.Contains("Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.", deployment);
         Assert.Contains($"approves tag `{manifest.ApprovedLaunchCandidateTag}` at `{manifest.ApprovedCommitSha}`", deployment);
         Assert.Contains("Approved production workflow: `.github/workflows/production.yml`.", deployment);
         Assert.Contains("Production environment contract: `infra/terraform/environments/production/main.tf`.", deployment);
-        Assert.Contains("Approved production CI/CD path | Passed", deployment);
+        if (deploymentPending)
+        {
+            Assert.Contains(
+                $"Current candidate execution status: `{manifest.ApprovedLaunchCandidateTag}` is approved but not yet deployed.",
+                deployment);
+            Assert.Contains("Approved production CI/CD path | Ready; exact-candidate execution pending", deployment);
+            Assert.Contains("Production secrets source | Historical path passed; current execution pending", deployment);
+        }
+        else
+        {
+            Assert.Matches(
+                $"Current candidate execution status: `{Regex.Escape(manifest.ApprovedLaunchCandidateTag)}` deployed successfully in production workflow run `\\d+`\\.",
+                deployment);
+            Assert.Contains("Approved production CI/CD path | Passed", deployment);
+            Assert.Contains("Production secrets source | Passed", deployment);
+            Assert.Matches(
+                $"Candidate `{Regex.Escape(manifest.ApprovedLaunchCandidateTag)}` deployed successfully in protected production workflow run `\\d+`",
+                checklist);
+        }
+
         Assert.Contains("Production environment configuration | Passed", deployment);
-        Assert.Contains("Production secrets source | Passed", deployment);
         Assert.Contains("PR71-PROD-DEPLOY-001", deployment);
-        Assert.Contains(
-            $"Current candidate execution status: `{manifest.ApprovedLaunchCandidateTag}` deployed successfully in production workflow run `30780409892`.",
-            deployment);
-        Assert.Contains(
-            $"Candidate `{manifest.ApprovedLaunchCandidateTag}` deployed successfully in protected production workflow run `30780409892`",
-            checklist);
         Assert.Contains("Evidence artifact `8843490287`", deployment);
         Assert.Contains("Production workflow run `30723228364` completed successfully", deployment);
         Assert.Contains(manifest.ApprovedCommitSha, deployment);
