@@ -10,7 +10,7 @@ Latest evidence date: 2026-08-03. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-08-03-2`.
+Approved launch candidate tag: `launch-candidate-2026-08-04-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -36,7 +36,7 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-03-2` at `fec0276b6d2cba3629a874f9cf76cd6e5f6a36da`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-04-1` at `4a8885279a38d024e74daec881e30b13f853cabf`; see `docs/production-readiness-launch-candidate-tag.md`. |
 | Approved production CI/CD path | Passed | Run `30866422228` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services; protected environment `Production` approved only the solo-controlled No-CUI pilot deployment. |
 | Production secrets source | Passed | Run `30866422228` resolved the required production environment secrets without exposing their values. Secret values are not stored in this evidence or the repository. |
