@@ -104,6 +104,25 @@ This approval is not independent legal, security, privacy, compliance, accessibi
 
 The approval is invalid if the candidate SHA changes, any cited workflow is not successful, the scheduler interaction regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed material.
 
+## MVP UAT Tightening Candidate Reapproval - 2026-08-09
+
+The repository owner and deployment operator, `samurab`, explicitly requested creation of a new approved launch-candidate tag and manifest followed by production deployment. This records combined-role approval for `launch-candidate-2026-08-09-1` within the existing solo-controlled No-CUI pilot production scope.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, or separation-of-duties review. The UAT document is workflow acceptance guidance, not certification evidence. This approval does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-09 |
+| Candidate | `launch-candidate-2026-08-09-1` at `11bfd3d5f7bfbf0294c783f2730a7ed889470261` |
+| Scope | PR #41 tightens MVP UAT guidance and implemented readiness workflows, improves company-profile and CMMC interactions, and adds focused authorization and profile coverage; PR #42 removes a duplicate development-context request race discovered by the main release gate. |
+| Exact-candidate automated evidence | Main CI run `31325663995`; main staging deployment run `31325663973`; Static Web Apps run `31325663974`; 1,493 backend tests, 98 frontend tests, dependency audits, secret scan, EF migration validation, Terraform 1.9.8 validation, extraction evaluation, and real-stack report RBAC passed. |
+| Exact-candidate staging evidence | Run `31325663973` passed No-CUI guardrails, production-shaped build, idempotent migration generation and application, API and web deployment, dependency smoke checks, and staging health checks. |
+| Unresolved limitations | Review is solo-controlled rather than independent; the UAT document does not prove every external identity-provider, customer-data, browser, or production operational scenario; broader customer use requires the organization's normal specialist and separation-of-duties review. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
+
 ## Evidence Package Reviewed
 
 Required approval reviewers must inspect these artifacts before approval can be recorded:

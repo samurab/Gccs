@@ -60,8 +60,12 @@ const files = [
     rule("launch gap decision", /(PR-6\.2 created launch candidate tag `)[^`]+(`)/, (match) => `${match[1]}${tag}${match[2]}`)
   ]),
   syncFile("docs/production-readiness-production-deployment-evidence.md", [
+    rule("current candidate execution status", /^(Current candidate execution status: `)[^`]+(` is approved but not yet deployed\.)$/m, (match) => `${match[1]}${tag}${match[2]}`),
+    rule("latest evidence date", /^(Latest evidence date: )[0-9]{4}-[0-9]{2}-[0-9]{2}(\. Historical evidence dates are retained below\.)$/m, (match) => `${match[1]}${approvedDate}${match[2]}`),
     rule("deployment evidence candidate", /^(Approved launch candidate tag: `)[^`]+(`\.)$/m, (match) => `${match[1]}${tag}${match[2]}`),
-    rule("deployment precondition candidate", /(Manifest `docs\/release\/approved-launch-candidate\.json` approves tag `)[^`]+(` at `)[0-9a-f]+(`)/, (match) => `${match[1]}${tag}${match[2]}${sha}${match[3]}`)
+    rule("deployment precondition candidate", /(Manifest `docs\/release\/approved-launch-candidate\.json` approves tag `)[^`]+(` at `)[0-9a-f]+(`)/, (match) => `${match[1]}${tag}${match[2]}${sha}${match[3]}`),
+    rule("pending CI/CD candidate", /(Current candidate `)[^`]+(` still requires protected production workflow execution after this launch-candidate gate merges\.)/, (match) => `${match[1]}${tag}${match[2]}`),
+    rule("pending production secrets candidate", /(Current candidate `)[^`]+(` still requires protected production workflow execution\.)/, (match) => `${match[1]}${tag}${match[2]}`)
   ]),
   syncFile("docs/production-readiness-release-notes.md", [
     rule("release note candidate", /^(Launch candidate tag: `)[^`]+(`\.)$/m, (match) => `${match[1]}${tag}${match[2]}`)

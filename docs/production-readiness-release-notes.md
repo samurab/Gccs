@@ -4,7 +4,7 @@ Story: PR-5.4 - Prepare Pilot Onboarding, Release Notes, And Known-Risk Log.
 
 Release note status: launch-ready draft for broader customer launch; approved for the 2026-08-03 solo-controlled No-CUI pilot candidate under the combined-role approval posture. Independent production separation-of-duties approval remains required before broader customer launch.
 
-Launch candidate tag: `launch-candidate-2026-08-04-1`.
+Launch candidate tag: `launch-candidate-2026-08-09-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
