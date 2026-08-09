@@ -2,11 +2,11 @@
 
 Story: PR-6.1 - Collect Required Launch Approvals.
 
-Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with candidate-specific demo-request operations reapproval recorded on 2026-08-03.
+Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with corrective production-authentication-copy reapproval recorded on 2026-08-09.
 
 Record date: 2026-07-03.
 
-Latest candidate-specific reapproval date: 2026-08-03.
+Latest candidate-specific reapproval date: 2026-08-09.
 
 Record owner: Product owner.
 
@@ -122,6 +122,25 @@ This approval is not independent legal, security, privacy, compliance, accessibi
 | Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, or independent professional approval is claimed. |
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Corrective Production Authentication Copy Candidate Reapproval - 2026-08-09
+
+The first `launch-candidate-2026-08-09-1` production deployment completed successfully, but unauthenticated production browser smoke testing found that the sign-in screen still described the workspace as staging. PR #44 removed that environment-specific copy and added focused regression coverage. The repository owner and deployment operator, `samurab`, requested creation of a new approved launch-candidate tag and production deployment, which records combined-role approval for `launch-candidate-2026-08-09-2` within the existing solo-controlled No-CUI pilot production scope.
+
+This corrective approval is not independent legal, security, privacy, compliance, accessibility, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-09 |
+| Candidate | `launch-candidate-2026-08-09-2` at `e0d04a454854949f66287af5245bdd03c684d5fb` |
+| Scope | PR #44 replaces hard-coded staging terminology on the authenticated-entry screen with environment-neutral FeDril workspace copy and adds a focused authentication presentation regression test. No authentication, authorization, tenant, API, persistence, or No-CUI policy behavior changed. |
+| Exact-candidate automated evidence | Main CI run `31329001738`; main staging deployment run `31329001739`; Static Web Apps run `31329001750`; 1,493 backend tests, 99 frontend tests, dependency audits, secret scan, EF migration validation, Terraform 1.9.8 validation, extraction evaluation, and real-stack report RBAC passed. |
+| Production finding addressed | Production unauthenticated smoke after deployment run `31327806583` showed the stale staging label and instruction. PR #44 removes both strings and tests that the sign-in guidance is environment-neutral. |
+| Unresolved limitations | Review is solo-controlled rather than independent. The corrective change has exact-candidate staging and public-host evidence, but authenticated production tenant, RBAC, upload, report, and audit workflows still require a valid production smoke identity to execute after deployment. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, the corrected production sign-in copy regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
 
 ## Evidence Package Reviewed
 
