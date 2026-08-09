@@ -2,9 +2,9 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate is awaiting protected production CI/CD execution; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-08-09-2` is approved but not yet deployed.
+Current candidate execution status: `launch-candidate-2026-08-09-2` deployed successfully in production workflow run `31331760629`.
 
 Latest evidence date: 2026-08-09. Historical evidence dates are retained below.
 
@@ -37,14 +37,14 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-09-2` at `e0d04a454854949f66287af5245bdd03c684d5fb`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Ready; exact-candidate execution pending | Historical run `30866422228` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-09-2` still requires protected production workflow execution after this launch-candidate gate merges. |
+| Approved production CI/CD path | Passed | Run `31331760629` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-09-2` completed protected production workflow execution in run `31331760629`. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services; protected environment `Production` approved only the solo-controlled No-CUI pilot deployment. |
-| Production secrets source | Historical path passed; current execution pending | Historical run `30866422228` resolved the required production environment secrets without exposing their values. Current candidate `launch-candidate-2026-08-09-2` still requires protected production workflow execution. Secret values are not stored in this evidence or the repository. |
-| Production No-CUI posture validation | Passed | Run `30866422228` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
-| Production migrations | Passed | Run `30866422228` generated and successfully applied the idempotent migration script. The candidate introduces no EF Core migration file changes. |
+| Production secrets source | Passed | Current candidate `launch-candidate-2026-08-09-2` resolved the required production environment secrets in run `31331760629` without exposing their values. Secret values are not stored in this evidence or the repository. |
+| Production No-CUI posture validation | Passed | Run `31331760629` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
+| Production migrations | Passed | Run `31331760629` generated and successfully applied the idempotent migration script. The corrective candidate introduces no EF Core migration file changes relative to `launch-candidate-2026-08-09-1`. |
 | Production storage, cache, queue, and background jobs | Passed | The exact-candidate production health response returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
-| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `30866422228` passed `/health`. This presentation-only deployment did not repeat the alert-delivery or email-delivery exercises. |
-| Deployment evidence capture | Passed | Artifact `8876352569` records deployment time, artifact tag/SHA, operator, environment, workflow URL, No-CUI posture, result, health output, and migration script. |
+| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `31331760629` and an independent request passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. This corrective deployment did not repeat alert-delivery or email-delivery exercises. |
+| Deployment evidence capture | Passed | Artifact `9043177041` records deployment time, artifact tag/SHA, operator, environment, workflow URL, No-CUI posture, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
@@ -75,6 +75,26 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `8825546199` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
 
 ## Deployment Execution Record
+
+### 2026-08-09 corrective production-authentication-copy deployment
+
+Production workflow run `31331760629` completed successfully. Release controls ran from merged main commit `b63b80f8dbbbf883840fc453ce115022beb61c9d`; the workflow validated and deployed immutable runtime tag `launch-candidate-2026-08-09-2` at `e0d04a454854949f66287af5245bdd03c684d5fb`.
+
+Run results:
+
+- Approved tag/SHA validation, protected-environment review, production controls, and No-CUI guardrails passed.
+- Production API and web builds, idempotent migration generation/application, API App Service deployment, Static Web App deployment, `/health`, and evidence upload passed.
+- Evidence artifact `9043177041` records deployment time `2026-08-09T19:33:27Z`, the runtime tag and SHA, operator `samurab`, `customer_data_mode=no-cui-only`, and `result=deployment-and-health-checks-passed`.
+- Workflow and independent health checks returned `status=ok`; PostgreSQL, Redis, object storage, and background jobs each returned `status=ok`.
+- The live production bundle contains `FeDril workspace` and `access your FeDril workspace`. A cache-busted in-app browser check rendered both corrected strings on the sign-in screen.
+
+Verification limits and environmental differences:
+
+- The first browser navigation reused an older cached bundle and displayed stale staging copy. Direct live-asset inspection and a cache-busted navigation confirmed the deployed bundle is corrected; cache behavior remains a client-side operational consideration during releases.
+- No production sign-in was performed for this corrective verification. Tenant access, RBAC, upload, report, audit, alert-delivery, and email-delivery workflows were not re-executed because no production smoke credential or active authenticated session was available.
+- Historical authenticated PR-7.2 smoke remains evidence for its tested candidate and environment state; it does not prove those workflows for this corrective candidate.
+- The deployment used no real customer data or CUI and does not authorize broader customer launch, CUI processing, certification, government approval, legal advice, or independent professional approval.
+- Database rollback is not automatic. No destructive rollback or production restore exercise was performed during this deployment.
 
 ### 2026-08-03 demo-scheduler and discovery-asset deployment
 
