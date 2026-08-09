@@ -1511,6 +1511,7 @@ describe("App", () => {
     expect(userSelector).toHaveValue("cccccccc-cccc-cccc-cccc-ccccccccccc1");
     expect(within(userSelector).getByRole("option", { name: "Compliance Manager (Compliance Manager)" })).toBeEnabled();
     expect(screen.getByLabelText("Signed-in workspace context")).toHaveTextContent("admin@example.com");
+    expect(getDevelopmentTestingContextMock).toHaveBeenCalledTimes(1);
   });
 
   it("uses the active access tenant for the local development selector when no tenant is stored", async () => {

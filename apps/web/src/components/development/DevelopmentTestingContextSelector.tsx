@@ -1,5 +1,5 @@
 import { LoaderCircle, RefreshCw, SlidersHorizontal } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useEffectEvent, useState } from "react";
 import { Button } from "@/components/ui";
 import {
   getDevelopmentTestingContext,
@@ -24,6 +24,7 @@ export function DevelopmentTestingContextSelector({
   const [role, setRole] = useState(getSelectedDevelopmentRole());
   const [status, setStatus] = useState<"loading" | "ready" | "applying" | "error">("loading");
   const [message, setMessage] = useState("");
+  const getCurrentTenantId = useEffectEvent(() => currentTenantId);
 
   useEffect(() => {
     let isMounted = true;
@@ -34,7 +35,7 @@ export function DevelopmentTestingContextSelector({
 
         const storedTenantId = getSelectedTenantId();
         const storedTenant = context.tenants.find((tenant) => tenant.tenantId === storedTenantId);
-        const currentTenant = context.tenants.find((tenant) => tenant.tenantId === currentTenantId);
+        const currentTenant = context.tenants.find((tenant) => tenant.tenantId === getCurrentTenantId());
         const fallbackTenant = context.tenants.find((tenant) => tenant.isSelectable);
         const selectedTenantId = storedTenant?.isSelectable
           ? storedTenant.tenantId
@@ -83,7 +84,7 @@ export function DevelopmentTestingContextSelector({
     return () => {
       isMounted = false;
     };
-  }, [currentTenantId]);
+  }, []);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
