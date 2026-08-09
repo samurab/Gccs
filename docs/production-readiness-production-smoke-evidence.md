@@ -12,7 +12,7 @@ Prerequisite deployment record: `docs/production-readiness-production-deployment
 
 Approved production workflow: `.github/workflows/production.yml`.
 
-Latest execution attempt: 2026-07-05.
+Latest execution attempt: 2026-08-09.
 
 ## Architectural Assessment
 
@@ -116,6 +116,14 @@ Current health status: `postgresql`, `redis`, `background-jobs`, and `object-sto
 Run `28746053336`: passed launch-candidate validation, production control validation, artifact checkout, restore, build, migration generation, production migration application, Azure login, API App Service deployment, Static Web App deployment, production health checks, evidence recording, and evidence upload. The `production-deployment-evidence` artifact records `result=deployment-and-health-checks-passed`. The `production-health.json` artifact records `status = ok`, `dataPosture = No-CUI / compliance management only`, and dependency statuses `ok` for `background-jobs`, `object-storage`, `postgresql`, and `redis`.
 
 Current disposition: PR-7.2 production health smoke and authenticated workflow smoke passed after production scanner setup. The prior byte-level evidence upload blocker was reproduced as `503 malware_scanner_unavailable`, then resolved by provisioning a private ClamAV-compatible scanner endpoint and configuring the production API App Service scanner settings.
+
+## 2026-08-09 Corrective Candidate Smoke
+
+Production workflow run `31331760629` deployed `launch-candidate-2026-08-09-2` at `e0d04a454854949f66287af5245bdd03c684d5fb` and passed its automated health gate. Artifact `9043177041` and an independent request returned `status=ok`, `dataPosture=No-CUI / compliance management only`, and dependency statuses `ok` for PostgreSQL, Redis, object storage, and background jobs.
+
+Unauthenticated browser verification passed for the corrected sign-in presentation. Direct inspection of the live production bundle and a cache-busted navigation both showed `FeDril workspace` and `Use your Microsoft Entra account to access your FeDril workspace.` The initial browser navigation reused an older cached bundle and displayed stale staging copy; that observation was not treated as a pass until the live bundle and cache-busted page agreed.
+
+Authenticated production smoke was not repeated for this corrective candidate because no production smoke credential or active authenticated session was available. The 2026-07-05 tenant-access, RBAC-denial, upload, report, audit, logging, and alert evidence below remains historical coverage only. It must not be represented as candidate-specific execution for `launch-candidate-2026-08-09-2`.
 
 ## 2026-07-05 Authenticated Production Smoke
 
