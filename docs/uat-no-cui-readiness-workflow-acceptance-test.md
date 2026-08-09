@@ -1,6 +1,6 @@
-# GCCS UAT: No-CUI Readiness Workflow
+# FeDril UAT: No-CUI Readiness Workflow
 
-Status basis: Implemented UI tabs and API behavior were checked against `apps/web/src/App.tsx`, `apps/api/Program.cs`, and focused API tests for company profiles, contracts, contract deliverables, clauses, obligations, evidence metadata, reports, audit logs, tenant isolation, and RBAC.
+Status basis: Implemented UI tabs and API behavior were checked against `apps/web/src/App.tsx`, `apps/api/Program.cs`, and focused API tests for company profiles, contracts, contract deliverables, clauses, obligations, evidence metadata, CMMC readiness, POA&M records, reports, audit logs, tenant isolation, and RBAC.
 
 Do not use real customer CUI, classified information, export-controlled technical data, credentials, payroll records, private keys, or production customer evidence in this UAT.
 
@@ -15,6 +15,7 @@ Do not use real customer CUI, classified information, export-controlled technica
 | Generated obligations | UAT-07 | Implemented |
 | Owner/status tracking | UAT-08 through UAT-09 | Implemented |
 | Allowed evidence metadata | UAT-10 through UAT-12 | Implemented |
+| CMMC readiness module | UAT-C01 through UAT-C04 | Implemented |
 | A current report artifact | UAT-13 | Implemented |
 | Audit history | UAT-14 through UAT-15 | Implemented |
 
@@ -90,6 +91,21 @@ Note: In local development, the React app uses development authentication header
 | Evidence | Classification | `FCI` |
 | Evidence | Classification reason | `User confirmed synthetic FCI-only evidence for No-CUI UAT.` |
 | Report | Package title | `Prime review evidence package - No-CUI UAT` |
+| CMMC | Assessment name | `No-CUI Level 1 readiness workspace` |
+| CMMC | Target level | `Level 1` |
+| CMMC | Framework | `FAR basic safeguarding` |
+| CMMC | Status | `In progress` |
+| CMMC | Started | `2026-06-15` |
+| CMMC | Affirmation due | `2027-06-15` |
+| CMMC | Owner | `Security` |
+| CMMC | Control for readiness review | `AC.L1-3.1.1` |
+| CMMC POA&M | Control | `AC.L1-3.1.1` |
+| CMMC POA&M | Risk | `High` |
+| CMMC POA&M | Status | `Open` |
+| CMMC POA&M | Owner | `Security` |
+| CMMC POA&M | Due date | `2026-07-15` |
+| CMMC POA&M | Gap | `Synthetic UAT gap: document annual access review evidence.` |
+| CMMC POA&M | Remediation plan | `Upload synthetic access review summary and link it to the control.` |
 
 ## Pre-Publication Checklist
 
@@ -97,7 +113,7 @@ Before using this UAT as a sales, demo, or customer-facing asset, confirm:
 
 | Check | Required Evidence |
 | --- | --- |
-| Does the UI expose this flow? | `Dashboard`, `Profile`, `Settings`, `Contracts`, `Calendar`, `Obligations`, `Evidence`, and `Reports` tabs are visible for the role under test |
+| Does the UI expose this flow? | `Dashboard`, `Profile`, `Settings`, `Contracts`, `Calendar`, `Obligations`, `Evidence`, `CMMC`, and `Reports` tabs are visible for the role under test |
 | Does the API enforce this rule? | Endpoint returns expected success, `403`, `404`, or validation error |
 | Is there a test proving it? | Relevant API test exists for the behavior |
 | Does wording avoid overclaims? | No claim of certification, official compliance status, legal advice, government approval, guaranteed security, or audit-ready status |
@@ -113,7 +129,7 @@ Tab: `Settings`.
 
 Steps:
 
-1. Open the GCCS app in local development.
+1. Open the FeDril app in local development.
 2. Click the `Settings` tab.
 3. Find `Data handling mode`.
 4. Confirm the displayed mode is `NoCui`.
@@ -148,6 +164,47 @@ Steps:
 Expected result: UAT actors are assigned to roles that match the work they perform.
 
 Reason: A UAT result is not meaningful if the actor has excessive privileges. This step separates operator behavior from reviewer behavior.
+
+## UAT-02A: Verify MVP Access-Control Enforcement
+
+Category: Authorized users and authorized transactions/functions.
+
+Role: Owner or Admin for setup; Auditor and Compliance Manager for role checks.
+
+Tabs: `CMMC`, `Reports`, and `Settings`.
+
+Current-state label: Implemented for tenant-scoped API permission gates; partially implemented as UI affordances.
+
+Implementation evidence: Protected API routes require authentication, active tenant context, and endpoint permissions such as `ViewCmmc`, `ManageCmmc`, `ViewReports`, and `ManageReports`. Tenant membership authorization is enforced outside local development. Local development uses explicit development authentication headers and should not be treated as production identity proof.
+
+Steps:
+
+1. Sign in or switch local development context to `Auditor`.
+2. Click the `CMMC` tab.
+3. Confirm CMMC readiness data can be viewed.
+4. Confirm create/update controls such as `Create assessment`, `Save assessment`, `Create POA&M`, or equivalent mutation controls are unavailable or disabled for `Auditor`.
+5. Click the `Reports` tab.
+6. Confirm existing report cards can be opened and read.
+7. Confirm report generation and archive controls are unavailable or disabled for `Auditor`.
+8. If an authorized API harness is available, call `GET /api/me/access` as the Auditor and inspect the top-level `permissions` array for the active user. Confirm that `permissions` includes `ViewCmmc` and `ViewReports`, but does not include `ManageCmmc` or `ManageReports`.
+   - Do not use `rolePermissionMatrix` for this pass/fail check. That matrix lists permissions for every role in the system, so it can contain `ManageCmmc` and `ManageReports` even when the active Auditor does not have those permissions.
+   - Expected Auditor pass condition: the response may include `rolePermissionMatrix.Owner`, `rolePermissionMatrix.Admin`, `rolePermissionMatrix.Compliance Manager`, or `rolePermissionMatrix.Advisor` entries with management permissions, but the top-level `permissions` array for the active Auditor must not contain `ManageCmmc` or `ManageReports`.
+   - If `ManageCmmc` or `ManageReports` appears in the top-level `permissions` array, the request is not using a clean Auditor context. Confirm `roles` contains only `Auditor`, remove any `X-Gccs-Dev-Permissions` header from Postman, and confirm the local development selector is set to `Auditor`.
+9. If an authorized API harness is available, attempt:
+   - `POST /api/cmmc/assessments`.
+   - `PATCH /api/cmmc/assessments/{assessmentId}/controls/{controlId}`.
+   - `POST /api/reports/cmmc-readiness?assessmentId={assessmentId}`.
+10. Confirm each unauthorized mutation returns `403` and does not create, update, archive, or generate records.
+11. Switch local development context to `Compliance Manager` or `Owner`.
+12. Confirm the same CMMC/report actions are available when the role has the required permissions.
+13. If an authorized API harness is available, repeat `GET /api/me/access` and confirm the response includes the permissions required for the action under test.
+14. If tenant A and tenant B test contexts are available, attempt to access a tenant B resource while sending tenant A context.
+15. Confirm the cross-tenant request returns `403` or `404` and does not disclose tenant B data.
+16. Return to `Settings`, find `Audit log`, and confirm successful allowed mutations create audit events. Do not expect audit events for every rejected authorization attempt unless the endpoint explicitly records them.
+
+Expected result: Signed-in users can access only tenant records and application functions authorized by their active tenant role. Direct API calls are rejected when the role lacks the required permission.
+
+Reason: This verifies the MVP implementation of "authorized users" and "authorized transactions/functions" without claiming full CMMC certification or complete customer control satisfaction.
 
 ## Profile Module UAT
 
@@ -609,6 +666,169 @@ Expected result: The workflow is rejected or blocked by the No-CUI policy.
 
 Reason: A positive-only UAT misses the main safety guarantee. This negative test proves that No-CUI mode does not silently accept CUI-labeled evidence.
 
+## CMMC Module UAT
+
+Current-state label: Implemented.
+
+Implementation evidence: The `CMMC` tab exposes `CMMC and NIST workspace`, `Readiness assessments`, `Control readiness`, and `POA&M remediation`. The API exposes tenant-scoped CMMC assessment, control, POA&M, affirmation, and readiness report routes under `/api/cmmc/...` and `/api/reports/cmmc-readiness`. Focused tests cover Level 1 and Level 2 assessment creation, control baseline loading, control status updates, evidence/task/asset/POA&M links, traceability validation, POA&M calendar linkage, affirmation calendar/reminder behavior, CMMC readiness report language, RBAC, and tenant isolation.
+
+Important posture limit: This module tracks CMMC readiness work only. It does not certify CMMC compliance, provide an assessor determination, authorize real CUI storage, or replace qualified CMMC/security review.
+
+### UAT-C01: Create A No-CUI CMMC Readiness Assessment
+
+Category: CMMC readiness module.
+
+Role: Compliance Manager.
+
+Tab: `CMMC`.
+
+Steps:
+
+1. Click the `CMMC` tab under the `Assurance` navigation group.
+2. Confirm the page heading is `CMMC and NIST workspace`.
+3. Confirm the `MVP posture` banner says the current tenant is `NoCui` and that real CUI, classified, and export-controlled data are blocked.
+4. In the assessment form, enter the CMMC values from the `Test Data` section:
+   - `Assessment name`: `No-CUI Level 1 readiness workspace`.
+   - `Target level`: `Level 1`.
+   - `Framework`: `FAR basic safeguarding`.
+   - `Status`: `In progress`.
+   - `Started`: `2026-06-15`.
+   - `Affirmation due`: `2027-06-15`.
+   - `Owner`: `Security`.
+   - `Contract link`: `DEMO-NC-26-0007`, if that contract appears in the selector; otherwise leave `No contract selected`.
+5. Click `Create assessment`.
+6. Confirm the assessment appears under `Readiness assessments`.
+7. Confirm the assessment card shows:
+   - `Level 1`.
+   - `In Progress`.
+   - `Owner`: `Security`.
+   - `Affirmation due`: `2027-06-15`.
+   - `Complete`: a percentage value.
+   - `Implemented`: implemented count over total control count.
+   - `Open POA&M`: a count.
+
+Expected result: A Level 1 CMMC readiness assessment is created and displayed with owner, dates, progress summary, and POA&M summary.
+
+Reason: This verifies the CMMC module is part of the No-CUI readiness workflow without claiming CMMC certification or CUI-ready operation.
+
+### UAT-C02: Review The CMMC Control Readiness Baseline
+
+Category: CMMC readiness module.
+
+Role: Compliance Manager or Auditor.
+
+Tab: `CMMC`.
+
+Prerequisite: UAT-C01 is complete and at least one CMMC readiness assessment is listed.
+
+Steps:
+
+1. Stay on the `CMMC` tab.
+2. Find `Control readiness`.
+3. Locate control `AC.L1-3.1.1` or another visible Level 1 control.
+4. Confirm each visible control card includes:
+   - Control ID and title.
+   - Status, such as `Not Started`, `Implemented`, `Partially Implemented`, `Not Applicable`, or `Needs Review`.
+   - Assessment result, such as `Not Assessed`, `Met`, or `Not Met`.
+   - Source confidence.
+   - `Family`.
+   - `Source`.
+   - `Reviewed`.
+   - `Evidence`.
+   - `Tasks`.
+   - `Assets`.
+   - `Open POA&M`.
+5. If a control has no linked evidence, confirm a `Data quality` warning appears.
+6. API-harness-only step: if an authorized API test harness is available, retrieve the `assessmentId` from `GET /api/cmmc/assessments`. The assessment ID is not currently displayed in the UI.
+7. API-harness-only step: call `GET /api/me/access` and confirm the test actor has `ManageCmmc` before attempting a control-status update.
+8. API-harness-only step: update a control status through `PATCH /api/cmmc/assessments/{assessmentId}/controls/{controlId}` and confirm the assessment completion percentage changes after reloading the UI or calling `GET /api/cmmc/assessments/{assessmentId}`.
+9. API-harness-only step: attempt to mark a control `Implemented` with `Met` result but no linked reviewed evidence through the API.
+10. Confirm the API rejects the request with a validation error referencing linked evidence.
+11. API-harness-only step: attempt to link evidence from another tenant through the same control-status endpoint.
+12. Confirm the API rejects the cross-tenant evidence link and does not change the control.
+
+Postman/local development note: local API calls must send the same tenant and development-auth context as the app, including `X-Gccs-Dev-Auth`, `X-Gccs-Tenant`, `X-Gccs-Dev-Tenant`, `X-Gccs-Dev-User`, `X-Gccs-Dev-Email`, and `X-Gccs-Dev-Role`. A `403` means the caller is authenticated but not authorized for the requested tenant or permission.
+
+Expected result: The control baseline is visible in the UI, and the API enforces traceability checks for implemented controls and cross-tenant evidence links.
+
+Reason: CMMC readiness is not just a checklist label. Control status must stay tied to source metadata, evidence traceability, and tenant isolation.
+
+### UAT-C03: Create A CMMC POA&M Remediation Item
+
+Category: CMMC readiness module.
+
+Role: Compliance Manager.
+
+Tab: `CMMC`, then `Calendar`.
+
+Prerequisite: UAT-C01 is complete and `Control readiness` has loaded controls.
+
+Steps:
+
+1. Stay on the `CMMC` tab.
+2. Find `POA&M remediation`.
+3. In the POA&M form, enter:
+   - `Control`: `AC.L1-3.1.1`.
+   - `Risk`: `High`.
+   - `Status`: `Open`.
+   - `Owner`: `Security`.
+   - `Due date`: `2026-07-15`.
+   - `Gap`: `Synthetic UAT gap: document annual access review evidence.`
+   - `Remediation plan`: `Upload synthetic access review summary and link it to the control.`
+4. Click `Create POA&M`.
+5. Confirm the POA&M item appears under `POA&M remediation`.
+6. Confirm the item shows:
+   - Control `AC.L1-3.1.1`.
+   - Risk `High`.
+   - Status `Open`.
+   - Owner `Security`.
+   - Due date `2026-07-15`.
+   - `Task`: `Linked`, when displayed.
+7. Click the `Calendar` tab.
+8. Set the calendar date range so it includes `2026-07-15`.
+9. Confirm a CMMC/POA&M-related calendar task appears for the remediation item.
+10. If other calendar items appear for contracts or deliverables, ignore them for this CMMC test.
+11. Confirm the relevant calendar item shows `Module`: `CMMC`.
+
+Expected result: The POA&M item is created, linked to the selected control, and appears as CMMC remediation work on the calendar.
+
+Reason: A readiness workspace must create owner-tracked remediation work, not just display static gaps.
+
+### UAT-C04: Generate A CMMC Readiness Report
+
+Category: CMMC readiness module.
+
+Role: Compliance Manager.
+
+Tab: `Reports`.
+
+Prerequisite: UAT-C01 is complete. UAT-C03 is recommended so the report has POA&M content.
+
+Steps:
+
+1. Click the `Reports` tab.
+2. Find `CMMC readiness`.
+3. In `Assessment`, choose `No-CUI Level 1 readiness workspace` or the CMMC assessment created in UAT-C01.
+4. Click `Generate readiness`.
+5. Confirm a generated report appears under `Recent generated reports`.
+6. Click the generated CMMC readiness report card to open the report detail panel.
+7. Confirm the report detail metric cards include CMMC readiness values:
+   - `Assessment`.
+   - `Target level`.
+   - `Control rows`.
+   - `Open gaps`.
+   - `Open POA&M`.
+   - `Evidence links`.
+8. Confirm the section below the metric cards is named `Report content`. Do not expect a literal `Readiness summary` heading in the current UI.
+9. Confirm the report wording says it is workflow guidance only and does not claim legal advice, certification decision, assessor determination, contracting-officer determination, government approval, or government endorsement.
+10. API-harness-only step: if an authorized API test harness is available, generate the same report through `POST /api/reports/cmmc-readiness?assessmentId={assessmentId}`. Retrieve `assessmentId` from `GET /api/cmmc/assessments`; it is not currently displayed in the UI.
+11. Confirm the API creates a tenant-scoped report for an authorized report manager and returns `403` for a user without report-generation permission.
+12. Confirm the API rejects a report that would include `Unknown`, `Prohibited`, or real `CUI` evidence in a No-CUI tenant.
+
+Expected result: A CMMC readiness report is generated as a tenant-scoped workflow artifact and preserves No-CUI/report-language boundaries.
+
+Reason: The CMMC module is incomplete without a report handoff. The report must communicate readiness status without overclaiming certification, legal, assessor, contracting-officer, or government determinations.
+
 ## UAT-13: Generate Current Report Artifact
 
 Category: A current report artifact.
@@ -663,11 +883,17 @@ Steps:
 16. Change `Entity` to `EvidenceItem`.
 17. Click `Filter`.
 18. Confirm a created event exists for `MFA configuration summary - synthetic`.
-19. Change `Entity` to `Report`.
+19. Change `Entity` to `CmmcAssessment`.
 20. Click `Filter`.
-21. Confirm a created event exists for the generated report.
+21. Confirm a created event exists for `No-CUI Level 1 readiness workspace`.
+22. Change `Entity` to `CmmcPoamItem`.
+23. Click `Filter`.
+24. Confirm a created event exists for the synthetic CMMC POA&M item.
+25. Change `Entity` to `Report`.
+26. Click `Filter`.
+27. Confirm created events exist for the generated compliance status, evidence package, and CMMC readiness reports.
 
-Expected result: The audit log shows tenant-scoped history for the company profile, contract, deliverable, clause, evidence, and report actions.
+Expected result: The audit log shows tenant-scoped history for the company profile, contract, deliverable, clause, evidence, CMMC assessment, CMMC POA&M, and report actions.
 
 Reason: Audit history is the accountability trail. It should show who did what, when, and to which tenant-scoped entity.
 
@@ -707,10 +933,13 @@ The UAT passes only if all of these conditions are true:
 9. Obligation status and owner assignment can be updated by an authorized role.
 10. Allowed synthetic FCI evidence metadata can be created.
 11. CUI classification or upload is blocked in No-CUI mode.
-12. A current report or evidence package artifact is generated.
-13. Report language avoids certification, legal, compliance, government-approval, and audit-readiness overclaims.
-14. Audit history shows the tested profile, contract, deliverable, clause, evidence, and report events.
-15. Unauthorized roles cannot mutate restricted workflow records.
+12. A CMMC readiness assessment is created and shows owner, dates, progress, and control-readiness information.
+13. CMMC control readiness preserves source metadata and traceability warnings.
+14. A CMMC POA&M item is created and appears as CMMC remediation work on the calendar.
+15. A current report, evidence package, and CMMC readiness report artifact are generated.
+16. Report language avoids certification, legal, compliance, government-approval, and audit-readiness overclaims.
+17. Audit history shows the tested profile, contract, deliverable, clause, evidence, CMMC, and report events.
+18. Unauthorized roles cannot mutate restricted workflow records.
 
 ## Hidden Risks, Edge Cases, And Dependencies
 
@@ -726,6 +955,9 @@ The UAT passes only if all of these conditions are true:
 | Clause IDs | Clause search returns implementation-specific IDs; testers should copy the actual published IDs from the current environment. |
 | Obligation generation timing | Some obligations may generate automatically on clause attachment; others may require an explicit generate action. |
 | Evidence linking | Evidence can be accepted without an obligation link if the obligation ID is not visible; this reduces report package completeness. |
+| CMMC readiness scope | CMMC module results are readiness workflow records only. They do not prove CMMC certification, assessment success, legal compliance, or authorization to store real CUI. |
+| CMMC controls | Available controls depend on the seeded control library and selected assessment level. A Level 1 assessment will not show every Level 2 control. |
+| CMMC POA&M dates | The fixed POA&M due date is intentionally synthetic. If the date is in the past when UAT runs, the item may display `Overdue`; that is acceptable for this fixture. |
 | Report scope | Evidence packages include only evidence matching selected scope and status rules. Draft/rejected evidence requires authorization. |
 | Audit filters | Audit records may be easier to find by `Entity` than by exact actor when local development uses generated user IDs. |
 | No-CUI enforcement | Do not use real CUI to test blocking. Use synthetic classification labels and allowed synthetic text only. |

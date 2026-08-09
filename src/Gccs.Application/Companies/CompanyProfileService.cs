@@ -11,7 +11,7 @@ public sealed class CompanyProfileService(
     public async Task<CompanyProfileDto?> GetCurrentTenantProfileAsync(CancellationToken cancellationToken = default)
     {
         var profile = await repository.FindCurrentTenantProfileAsync(cancellationToken);
-        return profile is null ? null : WithCompletion(profile);
+        return profile is null ? null : WithCompletion(profile, exposeValidationErrors: false);
     }
 
     public async Task<CompanyProfileDto> SaveCurrentTenantProfileAsync(
@@ -28,7 +28,7 @@ public sealed class CompanyProfileService(
         }
 
         var saved = await repository.UpsertCurrentTenantProfileAsync(normalized, actorUserId, cancellationToken);
-        var completed = WithCompletion(saved);
+        var completed = WithCompletion(saved, exposeValidationErrors: request.CompleteProfile);
         var wasCreated = completed.UpdatedAt is null;
 
         await auditEventWriter.WriteAsync(
@@ -66,49 +66,52 @@ public sealed class CompanyProfileService(
         return completed;
     }
 
-    private static CompanyProfileDto WithCompletion(CompanyProfileDto profile)
+    private static CompanyProfileDto WithCompletion(
+        CompanyProfileDto profile,
+        bool exposeValidationErrors)
     {
-        var errors = Validate(ToRequest(profile));
+        var request = ToRequest(profile);
+        var errors = Validate(request);
         var completionPercentage = CalculateCompletionPercentage(profile);
         return profile with
         {
             CompletionPercentage = completionPercentage,
             IsComplete = errors.Count == 0,
-            ValidationErrors = errors
+            ValidationErrors = exposeValidationErrors ? errors : ValidateDraftVisibleGaps(request)
         };
     }
 
     private static UpsertCompanyProfileRequest Normalize(UpsertCompanyProfileRequest request) =>
         request with
         {
-            LegalEntityName = request.LegalEntityName.Trim(),
+            LegalEntityName = NormalizeRequired(request.LegalEntityName),
             DoingBusinessAs = NormalizeOptional(request.DoingBusinessAs),
             Uei = NormalizeOptional(request.Uei)?.ToUpperInvariant(),
             CageCode = NormalizeOptional(request.CageCode)?.ToUpperInvariant(),
-            ProductsAndServices = request.ProductsAndServices.Trim(),
+            ProductsAndServices = NormalizeRequired(request.ProductsAndServices),
             NaicsCodes = NormalizeNaicsCodes(request.NaicsCodes),
             Certifications = NormalizeCertifications(request.Certifications),
             AgencyCustomers = request.AgencyCustomers
-                .Select(customer => customer.Trim())
+                .Select(NormalizeRequired)
                 .Where(customer => !string.IsNullOrWhiteSpace(customer))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
             Locations = request.Locations.Select(location => location with
             {
-                Name = location.Name.Trim(),
-                Street1 = location.Street1.Trim(),
+                Name = NormalizeRequired(location.Name),
+                Street1 = NormalizeRequired(location.Street1),
                 Street2 = NormalizeOptional(location.Street2),
-                City = location.City.Trim(),
-                StateOrProvince = location.StateOrProvince.Trim(),
-                PostalCode = location.PostalCode.Trim(),
-                Country = location.Country.Trim()
+                City = NormalizeRequired(location.City),
+                StateOrProvince = NormalizeRequired(location.StateOrProvince),
+                PostalCode = NormalizeRequired(location.PostalCode),
+                Country = NormalizeRequired(location.Country)
             }).Where(location => !string.IsNullOrWhiteSpace(location.Name)).ToArray(),
             ItEnvironment = request.ItEnvironment with
             {
-                Description = request.ItEnvironment.Description.Trim(),
+                Description = NormalizeRequired(request.ItEnvironment.Description),
                 ExternalServiceProviderName = NormalizeOptional(request.ItEnvironment.ExternalServiceProviderName),
                 KeySystems = request.ItEnvironment.KeySystems
-                    .Select(system => system.Trim())
+                    .Select(NormalizeRequired)
                     .Where(system => !string.IsNullOrWhiteSpace(system))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray()
@@ -134,6 +137,13 @@ public sealed class CompanyProfileService(
         AddIf(errors, string.IsNullOrWhiteSpace(request.ItEnvironment.Description), "itEnvironment.description", "IT environment summary is required before profile completion.");
         AddIf(errors, request.DataHandlingPosture is DataHandlingPosture.Unknown, "dataHandlingPosture", "FCI/CUI posture is required before profile completion.");
 
+        return errors;
+    }
+
+    private static IReadOnlyDictionary<string, string[]> ValidateDraftVisibleGaps(UpsertCompanyProfileRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        AddNaicsSizeStatusGaps(errors, request.NaicsCodes);
         return errors;
     }
 
@@ -181,13 +191,16 @@ public sealed class CompanyProfileService(
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static string NormalizeRequired(string? value) =>
+        value?.Trim() ?? string.Empty;
+
     private static IReadOnlyList<CompanyNaicsCodeDto> NormalizeNaicsCodes(IReadOnlyList<CompanyNaicsCodeDto> naicsCodes)
     {
         var normalized = naicsCodes
             .Select(naics => naics with
             {
-                Code = naics.Code.Trim(),
-                Title = naics.Title.Trim(),
+                Code = NormalizeRequired(naics.Code),
+                Title = NormalizeRequired(naics.Title),
                 SizeStandard = NormalizeOptional(naics.SizeStandard)
             })
             .Where(naics => !string.IsNullOrWhiteSpace(naics.Code))
@@ -230,7 +243,7 @@ public sealed class CompanyProfileService(
                 return certification with
                 {
                     Status = status,
-                    Issuer = certification.Issuer.Trim(),
+                    Issuer = NormalizeRequired(certification.Issuer),
                     ReferenceNumber = NormalizeOptional(certification.ReferenceNumber)
                 };
             })
