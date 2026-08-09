@@ -81,14 +81,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
 
   if (state.status === "initializing") {
-    return <AuthShell title="Connecting to FeDril" body="Preparing the secure staging workspace." />;
+    return <AuthShell title="Connecting to FeDril" body="Preparing your FeDril workspace." />;
   }
 
   if (state.status === "signedOut") {
     return (
       <AuthShell
         title="Sign in to FeDril"
-        body="Use your Microsoft Entra account to access the staging workspace."
+        body="Use your Microsoft Entra account to access your FeDril workspace."
         actionLabel="Sign in"
         onAction={() => {
           void msalInstance!.loginRedirect(tokenRequest);
@@ -144,7 +144,7 @@ function AuthShell({
   return (
     <main className="auth-shell">
       <section className="auth-panel" aria-label={title}>
-        <p className="auth-kicker">FeDril staging</p>
+        <p className="auth-kicker">FeDril workspace</p>
         <h1>{title}</h1>
         <p>{body}</p>
         {actionLabel && onAction ? (
