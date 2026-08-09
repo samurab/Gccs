@@ -3881,6 +3881,18 @@ main {
   padding: 14px;
 }
 
+.ui-task-card--interactive {
+  cursor: pointer;
+}
+
+.ui-task-card--interactive:hover,
+.ui-task-card--interactive:focus-visible,
+.ui-task-card--selected {
+  border-color: rgb(12 118 111 / 0.46);
+  box-shadow: 0 0 0 3px rgb(12 118 111 / 0.12);
+  outline: none;
+}
+
 .ui-task-card__header {
   align-items: flex-start;
   display: flex;

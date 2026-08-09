@@ -34,8 +34,13 @@ export function DevelopmentTestingContextSelector({
 
         const storedTenantId = getSelectedTenantId();
         const storedTenant = context.tenants.find((tenant) => tenant.tenantId === storedTenantId);
+        const currentTenant = context.tenants.find((tenant) => tenant.tenantId === currentTenantId);
         const fallbackTenant = context.tenants.find((tenant) => tenant.isSelectable);
-        const selectedTenantId = storedTenant?.isSelectable ? storedTenant.tenantId : (fallbackTenant?.tenantId ?? "");
+        const selectedTenantId = storedTenant?.isSelectable
+          ? storedTenant.tenantId
+          : currentTenant?.isSelectable
+            ? currentTenant.tenantId
+            : (fallbackTenant?.tenantId ?? "");
         const availablePersonas = context.personas ?? [];
         const storedUserId = getSelectedDevelopmentUserId();
         const selectedPersona =
@@ -63,7 +68,7 @@ export function DevelopmentTestingContextSelector({
         setRoles(context.roles);
         setTenantId((selected) => {
           const selectedTenant = context.tenants.find((tenant) => tenant.tenantId === selected);
-          return selectedTenant?.isSelectable ? selected : (fallbackTenant?.tenantId ?? "");
+          return selectedTenant?.isSelectable ? selected : selectedTenantId;
         });
         setUserId(selectedPersona?.userId ?? "");
         setRole(normalizedRole);
@@ -78,7 +83,7 @@ export function DevelopmentTestingContextSelector({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [currentTenantId]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

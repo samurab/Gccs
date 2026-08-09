@@ -626,7 +626,10 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains(RoleCatalog.Auditor, roles);
         Assert.Contains(Permission.ViewReports.ToString(), permissions);
+        Assert.Contains(Permission.ViewCmmc.ToString(), permissions);
         Assert.Contains(Permission.AuditorReadOnly.ToString(), permissions);
+        Assert.DoesNotContain(Permission.ManageCmmc.ToString(), permissions);
+        Assert.DoesNotContain(Permission.ManageReports.ToString(), permissions);
         Assert.DoesNotContain(Permission.ManageUsers.ToString(), permissions);
         Assert.True(payload.RootElement.GetProperty("rolePermissionMatrix").TryGetProperty(RoleCatalog.Owner, out _));
     }

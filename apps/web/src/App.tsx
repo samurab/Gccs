@@ -130,6 +130,7 @@ import {
   updateNotificationPreferences,
   updateCuiReadyApprovalChecklistItem,
   updateTenantDataHandlingMode,
+  updateCmmcAssessment,
   updateContractObligationStatus,
   updateContract,
   updateContractDeliverable,
@@ -606,6 +607,7 @@ export function App() {
   const [evidenceItems, setEvidenceItems] = useState<EvidenceMetadata[]>([]);
   const [classificationReviewItems, setClassificationReviewItems] = useState<ContentClassificationReviewItem[]>([]);
   const [cmmcAssessments, setCmmcAssessments] = useState<CmmcAssessment[]>([]);
+  const [selectedCmmcAssessmentId, setSelectedCmmcAssessmentId] = useState<string | null>(null);
   const [cmmcControlLibrary, setCmmcControlLibrary] = useState<CmmcControlLibrary[]>([]);
   const [cmmcControls, setCmmcControls] = useState<CmmcControlStatus[]>([]);
   const [cmmcPoamItems, setCmmcPoamItems] = useState<CmmcPoamItem[]>([]);
@@ -938,6 +940,7 @@ export function App() {
           setEvidenceItems(nextEvidenceItems);
           setClassificationReviewItems(nextClassificationReviewItems);
           setCmmcAssessments(nextCmmcAssessments);
+          setSelectedCmmcAssessmentId(nextCmmcAssessments[0]?.id ?? null);
           setCmmcControlLibrary(nextCmmcControlLibrary);
           setCmmcControls(nextCmmcControls);
           setCmmcPoamItems(nextCmmcPoamItems);
@@ -991,6 +994,7 @@ export function App() {
           setEvidenceItems([]);
           setClassificationReviewItems([]);
           setCmmcAssessments([]);
+          setSelectedCmmcAssessmentId(null);
           setCmmcControls([]);
           setCmmcPoamItems([]);
           setSubcontractors([]);
@@ -1163,6 +1167,7 @@ export function App() {
     setContracts(nextContracts);
     setObligationDashboardItems(nextObligationDashboardItems);
     setCmmcAssessments(nextCmmcAssessments);
+    setSelectedCmmcAssessmentId(nextCmmcAssessments[0]?.id ?? null);
     setCmmcControlLibrary(nextCmmcControlLibrary);
     setCmmcControls(nextCmmcControls);
     setCmmcPoamItems(nextCmmcPoamItems);
@@ -1868,34 +1873,67 @@ export function App() {
     setEvidenceMetadataMessage(result.error ?? "Classification could not be updated.");
   }
 
-  async function handleCmmcAssessmentCreate(request: UpsertCmmcAssessmentRequest) {
+  async function handleCmmcAssessmentSave(assessmentId: string | null, request: UpsertCmmcAssessmentRequest) {
     setCmmcStatus("saving");
     setCmmcMessage("");
-    const result = await createCmmcAssessment(request);
+    const result = assessmentId
+      ? await updateCmmcAssessment(assessmentId, request)
+      : await createCmmcAssessment(request);
 
     if (result.data) {
-      const createdAssessment = result.data;
+      const savedAssessment = result.data;
       const [nextControls, nextPoamItems] = await Promise.all([
-        getCmmcControlStatuses(createdAssessment.id),
-        getCmmcPoamItems(createdAssessment.id)
+        getCmmcControlStatuses(savedAssessment.id),
+        getCmmcPoamItems(savedAssessment.id)
       ]);
-      setCmmcAssessments((currentAssessments) => [createdAssessment, ...currentAssessments]);
+      setCmmcAssessments((currentAssessments) => {
+        const exists = currentAssessments.some((assessment) => assessment.id === savedAssessment.id);
+        return exists
+          ? currentAssessments.map((assessment) => (assessment.id === savedAssessment.id ? savedAssessment : assessment))
+          : [savedAssessment, ...currentAssessments];
+      });
+      setSelectedCmmcAssessmentId(savedAssessment.id);
       setCmmcControls(nextControls);
       setCmmcPoamItems(nextPoamItems);
       setCmmcStatus("saved");
-      setCmmcMessage("CMMC readiness assessment created.");
+      setCmmcMessage(assessmentId ? "CMMC readiness assessment updated." : "CMMC readiness assessment created.");
       return;
     }
 
     setCmmcStatus("failed");
-    setCmmcMessage(result.error ?? "CMMC assessment could not be created.");
+    setCmmcMessage(result.error ?? "CMMC assessment could not be saved.");
+  }
+
+  async function handleCmmcAssessmentSelect(assessmentId: string) {
+    setSelectedCmmcAssessmentId(assessmentId);
+    setCmmcStatus("saving");
+    setCmmcMessage("");
+
+    const [nextControls, nextPoamItems] = await Promise.all([
+      getCmmcControlStatuses(assessmentId),
+      getCmmcPoamItems(assessmentId)
+    ]);
+
+    setCmmcControls(nextControls);
+    setCmmcPoamItems(nextPoamItems);
+    setCmmcStatus("idle");
+  }
+
+  function handleCmmcAssessmentNew() {
+    setSelectedCmmcAssessmentId(null);
+    setCmmcControls([]);
+    setCmmcPoamItems([]);
+    setCmmcStatus("idle");
+    setCmmcMessage("");
+    setCmmcPoamStatus("idle");
+    setCmmcPoamMessage("");
   }
 
   async function handleCmmcPoamCreate(request: UpsertCmmcPoamItemRequest) {
-    const assessment = cmmcAssessments[0];
+    const assessment = cmmcAssessments.find((candidate) => candidate.id === selectedCmmcAssessmentId);
     if (!assessment) {
       setCmmcPoamStatus("failed");
-      setCmmcPoamMessage("Create a CMMC assessment before adding POA&M items.");
+      setCmmcPoamMessage("Select or create a CMMC assessment before adding POA&M items.");
       return;
     }
 
@@ -1908,6 +1946,7 @@ export function App() {
       const nextAssessments = await getCmmcAssessments();
       const nextControls = await getCmmcControlStatuses(assessment.id);
       setCmmcAssessments(nextAssessments);
+      setSelectedCmmcAssessmentId(assessment.id);
       setCmmcControls(nextControls);
       setCmmcPoamStatus("saved");
       setCmmcPoamMessage("POA&M item created.");
@@ -2427,6 +2466,7 @@ export function App() {
             />
           ) : activeRoute === "cmmc" ? (
             <CmmcView
+              key={selectedCmmcAssessmentId ?? "new-assessment"}
               assessments={cmmcAssessments}
               canManageCmmc={canManageCmmc}
               controls={cmmcControls}
@@ -2435,9 +2475,12 @@ export function App() {
               poamItems={cmmcPoamItems}
               poamMessage={cmmcPoamMessage}
               poamStatus={cmmcPoamStatus}
+              selectedAssessmentId={selectedCmmcAssessmentId}
               status={cmmcStatus}
-              onCreate={handleCmmcAssessmentCreate}
+              onSave={handleCmmcAssessmentSave}
               onCreatePoam={handleCmmcPoamCreate}
+              onNewAssessment={handleCmmcAssessmentNew}
+              onSelectAssessment={handleCmmcAssessmentSelect}
             />
           ) : activeRoute === "subcontractors" ? (
             <SubcontractorsView
@@ -5574,15 +5617,53 @@ type CmmcAssessmentFormState = {
 };
 
 const defaultCmmcAssessmentForm: CmmcAssessmentFormState = {
-  name: "CMMC readiness workspace",
+  name: "",
   level: "Level1",
   framework: "FarBasicSafeguarding",
   status: "Planned",
-  startedAt: "2026-06-15",
-  affirmationDueAt: "2027-06-15",
-  ownerFunction: "Security",
+  startedAt: "",
+  affirmationDueAt: "",
+  ownerFunction: "",
   contractId: ""
 };
+
+function cmmcAssessmentToForm(assessment: CmmcAssessment): CmmcAssessmentFormState {
+  return {
+    name: assessment.name,
+    level: assessment.level === "Level2" ? "Level2" : "Level1",
+    framework: normalizeCmmcFrameworkForForm(assessment.framework, assessment.level),
+    status: assessment.status,
+    startedAt: assessment.startedAt,
+    affirmationDueAt: assessment.affirmationDueAt ?? "",
+    ownerFunction: assessment.ownerFunction,
+    contractId: assessment.contractIds[0] ?? ""
+  };
+}
+
+function normalizeCmmcFrameworkForForm(framework: string, level: string) {
+  const normalized = framework.trim().toLowerCase();
+  if (normalized === "far-52.204-21" || normalized === "farbasicsafeguarding" || normalized.includes("52.204-21")) {
+    return "FarBasicSafeguarding";
+  }
+
+  if (normalized === "nistsp800171revision2" || normalized.includes("800-171 rev. 2") || normalized.includes("800-171 revision 2")) {
+    return "NistSp800171Revision2";
+  }
+
+  if (normalized === "nistsp800171revision3" || normalized.includes("800-171 rev. 3") || normalized.includes("800-171 revision 3")) {
+    return "NistSp800171Revision3";
+  }
+
+  if (normalized === "nistsp800172" || normalized.includes("800-172")) {
+    return "NistSp800172";
+  }
+
+  if (normalized === "cmmc") {
+    return "Cmmc";
+  }
+
+  return level === "Level2" ? "NistSp800171Revision2" : "FarBasicSafeguarding";
+}
 
 type CmmcPoamFormState = {
   controlId: string;
@@ -5598,8 +5679,8 @@ const defaultCmmcPoamForm: CmmcPoamFormState = {
   controlId: "",
   weakness: "",
   plannedRemediation: "",
-  ownerFunction: "Security",
-  targetCompletionAt: "2026-07-15",
+  ownerFunction: "",
+  targetCompletionAt: "",
   riskLevel: "High",
   status: "Open"
 };
@@ -5613,8 +5694,11 @@ function CmmcView({
   poamItems,
   poamMessage,
   poamStatus,
-  onCreate,
+  selectedAssessmentId,
+  onSave,
   onCreatePoam,
+  onNewAssessment,
+  onSelectAssessment,
   status
 }: {
   assessments: CmmcAssessment[];
@@ -5625,15 +5709,23 @@ function CmmcView({
   poamItems: CmmcPoamItem[];
   poamMessage: string;
   poamStatus: "idle" | "saving" | "saved" | "failed";
-  onCreate: (request: UpsertCmmcAssessmentRequest) => Promise<void>;
+  selectedAssessmentId: string | null;
+  onSave: (assessmentId: string | null, request: UpsertCmmcAssessmentRequest) => Promise<void>;
   onCreatePoam: (request: UpsertCmmcPoamItemRequest) => Promise<void>;
+  onNewAssessment: () => void;
+  onSelectAssessment: (assessmentId: string) => Promise<void>;
   status: "idle" | "saving" | "saved" | "failed";
 }) {
-  const [form, setForm] = useState<CmmcAssessmentFormState>(defaultCmmcAssessmentForm);
+  const selectedAssessment = assessments.find((assessment) => assessment.id === selectedAssessmentId) ?? null;
+  const [form, setForm] = useState<CmmcAssessmentFormState>(() =>
+    selectedAssessment ? cmmcAssessmentToForm(selectedAssessment) : defaultCmmcAssessmentForm
+  );
   const [poamForm, setPoamForm] = useState<CmmcPoamFormState>(defaultCmmcPoamForm);
-  const controlsNeedingReview = controls.filter((control) => control.status === "NeedsReview" || control.result === "NotMet").length;
-  const linkedEvidenceCount = controls.reduce((total, control) => total + control.evidenceItemIds.length, 0);
-  const overduePoamCount = poamItems.filter((item) => item.isOverdue).length;
+  const activeControls = selectedAssessment ? controls : [];
+  const activePoamItems = selectedAssessment ? poamItems : [];
+  const controlsNeedingReview = activeControls.filter((control) => control.status === "NeedsReview" || control.result === "NotMet").length;
+  const linkedEvidenceCount = activeControls.reduce((total, control) => total + control.evidenceItemIds.length, 0);
+  const overduePoamCount = activePoamItems.filter((item) => item.isOverdue).length;
 
   function updateField<TKey extends keyof CmmcAssessmentFormState>(field: TKey, value: CmmcAssessmentFormState[TKey]) {
     setForm((current) => ({
@@ -5647,7 +5739,7 @@ function CmmcView({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void onCreate({
+    void onSave(selectedAssessment?.id ?? null, {
       name: form.name.trim(),
       type: "Readiness",
       level: form.level,
@@ -5660,6 +5752,12 @@ function CmmcView({
       companyProfileId: null,
       contractIds: form.contractId ? [form.contractId] : []
     });
+  }
+
+  function startNewAssessment() {
+    setForm(defaultCmmcAssessmentForm);
+    setPoamForm(defaultCmmcPoamForm);
+    onNewAssessment();
   }
 
   function updatePoamField<TKey extends keyof CmmcPoamFormState>(field: TKey, value: CmmcPoamFormState[TKey]) {
@@ -5708,6 +5806,25 @@ function CmmcView({
       />
 
       <form className="cmmc-create" onSubmit={submit}>
+        <div className="section-heading section-heading--split">
+          <div>
+            <h3>{selectedAssessment ? "Edit readiness assessment" : "Create readiness assessment"}</h3>
+            <p className="section-summary">
+              {selectedAssessment
+                ? "The selected readiness assessment is loaded into this form. Save changes to update the existing record."
+                : "Create a Level 1 or Level 2 readiness workspace before tracking control status and POA&M work."}
+            </p>
+          </div>
+          <Button
+            disabled={!canManageCmmc || status === "saving"}
+            onClick={startNewAssessment}
+            size="sm"
+            type="button"
+            variant="secondary"
+          >
+            New assessment
+          </Button>
+        </div>
         <fieldset disabled={!canManageCmmc || status === "saving"}>
           <div className="form-grid">
             <label>
@@ -5781,7 +5898,7 @@ function CmmcView({
         <div className="form-actions">
           <button type="submit" disabled={!canManageCmmc || status === "saving"}>
             <ShieldCheck size={16} aria-hidden="true" />
-            <span>{status === "saving" ? "Creating" : "Create assessment"}</span>
+            <span>{status === "saving" ? "Saving" : selectedAssessment ? "Save assessment" : "Create assessment"}</span>
           </button>
         </div>
         {!canManageCmmc ? <p className="form-status">ManageCmmc permission is required to create assessments.</p> : null}
@@ -5807,9 +5924,11 @@ function CmmcView({
                   <>
                     <StatusPill label={formatCmmcLevel(assessment.level)} tone="info" />
                     <StatusPill label={formatEnumLabel(assessment.status)} tone={statusTone(assessment.status)} />
+                    {assessment.id === selectedAssessmentId ? <StatusPill label="Selected" tone="success" /> : null}
                     {assessment.overduePoamItemCount > 0 ? <StatusPill label={`${assessment.overduePoamItemCount} overdue POA&M`} tone="danger" /> : null}
                   </>
                 }
+                className={assessment.id === selectedAssessmentId ? "ui-task-card--selected" : undefined}
                 key={assessment.id}
                 meta={[
                   { label: "Owner", value: formatOwnerLabel(assessment.ownerFunction) },
@@ -5818,6 +5937,7 @@ function CmmcView({
                   { label: "Affirmation due", value: assessment.affirmationDueAt ?? "Not scheduled" },
                   { label: "Open POA&M", value: assessment.openPoamItemCount, tone: assessment.openPoamItemCount > 0 ? "warning" : "success" }
                 ]}
+                onClick={status === "saving" ? undefined : () => void onSelectAssessment(assessment.id)}
                 title={assessment.name}
               >
                 <span className="legacy-summary">
@@ -5836,9 +5956,9 @@ function CmmcView({
         title="Control readiness"
         description="Source baseline, readiness status, and linked work items for the selected assessment."
       >
-        {controls.length > 0 ? (
+        {activeControls.length > 0 ? (
           <div className="evidence-list">
-            {controls.map((control) => {
+            {activeControls.map((control) => {
               const linkedEvidence = control.linkedEvidence ?? [];
               const openPoams = control.openPoamItems ?? [];
 
@@ -5900,13 +6020,13 @@ function CmmcView({
         description="Track control gaps, remediation owners, due dates, risk, and task-backed calendar work."
       >
         <form className="cmmc-create" onSubmit={submitPoam}>
-          <fieldset disabled={!canManageCmmc || poamStatus === "saving" || assessments.length === 0 || controls.length === 0}>
+          <fieldset disabled={!canManageCmmc || poamStatus === "saving" || !selectedAssessment || activeControls.length === 0}>
             <div className="form-grid">
               <label>
                 <span>Control</span>
                 <select value={poamForm.controlId} onChange={(event) => updatePoamField("controlId", event.target.value)} required>
                   <option value="">Select control</option>
-                  {controls.map((control) => (
+                  {activeControls.map((control) => (
                     <option key={control.controlId} value={control.controlId}>
                       {control.controlId} · {control.title}
                     </option>
@@ -5974,13 +6094,13 @@ function CmmcView({
           <div className="form-actions">
             <button
               type="submit"
-              disabled={!canManageCmmc || poamStatus === "saving" || assessments.length === 0 || controls.length === 0 || !poamForm.controlId}
+              disabled={!canManageCmmc || poamStatus === "saving" || !selectedAssessment || activeControls.length === 0 || !poamForm.controlId}
             >
               <ClipboardCheck size={16} aria-hidden="true" />
               <span>{poamStatus === "saving" ? "Creating" : "Create POA&M"}</span>
             </button>
           </div>
-          {assessments.length > 0 && controls.length === 0 ? (
+          {selectedAssessment && activeControls.length === 0 ? (
             <p className="form-status form-status--error">Load a CMMC control baseline before creating POA&M items.</p>
           ) : null}
           {poamStatus === "failed" ? (
@@ -5991,9 +6111,9 @@ function CmmcView({
             <p className="form-status form-status--ok">{poamMessage}</p>
           ) : null}
         </form>
-        {poamItems.length > 0 ? (
+        {activePoamItems.length > 0 ? (
           <div className="evidence-list">
-            {poamItems.map((item) => (
+            {activePoamItems.map((item) => (
               <TaskCard
                 badges={
                   <>

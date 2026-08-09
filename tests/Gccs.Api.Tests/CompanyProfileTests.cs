@@ -88,10 +88,12 @@ public sealed class CompanyProfileTests : IClassFixture<WebApplicationFactory<Pr
         Assert.NotNull(saved);
         Assert.False(saved.IsComplete);
         Assert.InRange(saved.CompletionPercentage, 1, 99);
+        Assert.Empty(saved.ValidationErrors);
         Assert.NotNull(fetched);
         Assert.Equal(saved.Id, fetched.Id);
         Assert.Equal("Acme Federal Services", fetched.LegalEntityName);
         Assert.False(fetched.IsComplete);
+        Assert.Empty(fetched.ValidationErrors);
     }
 
     [Fact]
@@ -164,8 +166,69 @@ public sealed class CompanyProfileTests : IClassFixture<WebApplicationFactory<Pr
             $"Expected completed profile score to exceed draft score. Draft={draft.CompletionPercentage}, Complete={complete.CompletionPercentage}");
         Assert.True(complete.IsComplete);
         Assert.Equal(100, complete.CompletionPercentage);
+        Assert.Empty(complete.ValidationErrors);
         Assert.False(reduced.IsComplete);
         Assert.True(reduced.CompletionPercentage < complete.CompletionPercentage);
+        Assert.Empty(reduced.ValidationErrors);
+    }
+
+    [Fact]
+    public async Task UAT_P03_Completing_synthetic_profile_returns_complete_100_percent()
+    {
+        var tenantId = Guid.Parse("71717171-7171-7171-7171-7171717171a5");
+        await using var factory = CreateFactory("uat-p03-profile-complete", dbContext => SeedTenant(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var actorUserId = Guid.NewGuid();
+
+        using var draftRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateRequestBody(completeProfile: false) with
+            {
+                LegalEntityName = "Blue Ridge Federal Support LLC",
+                DoingBusinessAs = "Blue Ridge Support",
+                Uei = null,
+                CageCode = null,
+                SamRegistrationExpiresAt = null,
+                NaicsCodes = [],
+                Certifications = [],
+                AgencyCustomers = [],
+                ContractorRole = ContractorRole.Unknown,
+                ProductsAndServices = "",
+                EmployeeRange = CompanyRange.Unknown,
+                RevenueRange = CompanyRange.Unknown,
+                Locations = [],
+                ItEnvironment = new ItEnvironmentSummaryDto("", false, null, []),
+                DataHandlingPosture = DataHandlingPosture.Unknown
+            },
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var draftResponse = await client.SendAsync(draftRequest);
+        var draft = await draftResponse.Content.ReadFromJsonAsync<CompanyProfileDto>(JsonOptions);
+
+        using var completeRequest = CreateRequest(
+            HttpMethod.Put,
+            "/api/company-profile",
+            CreateUatP03RequestBody(),
+            tenantId,
+            actorUserId,
+            Permission.ManageCompanyProfile);
+        var completeResponse = await client.SendAsync(completeRequest);
+        var completeBody = await completeResponse.Content.ReadAsStringAsync();
+        var complete = JsonSerializer.Deserialize<CompanyProfileDto>(completeBody, JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, draftResponse.StatusCode);
+        Assert.NotNull(draft);
+        Assert.False(draft.IsComplete);
+        Assert.Equal(8, draft.CompletionPercentage);
+        Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+        Assert.NotNull(complete);
+        Assert.True(complete.IsComplete, completeBody);
+        Assert.Equal(100, complete.CompletionPercentage);
+        Assert.Empty(complete.ValidationErrors);
+        Assert.Equal("Blue Ridge Federal Support LLC", complete.LegalEntityName);
+        Assert.Equal("541512", Assert.Single(complete.NaicsCodes).Code);
     }
 
     [Fact]
@@ -513,6 +576,29 @@ public sealed class CompanyProfileTests : IClassFixture<WebApplicationFactory<Pr
             new ItEnvironmentSummaryDto("Microsoft 365 GCC High with managed endpoints.", true, "Trusted MSP", ["Microsoft 365", "Intune"]),
             DataHandlingPosture.FciOnly,
             completeProfile);
+
+    private static UpsertCompanyProfileRequest CreateUatP03RequestBody() =>
+        new(
+            "Blue Ridge Federal Support LLC",
+            "Blue Ridge Support",
+            "UAT123ABC456",
+            "7UAT1",
+            new DateOnly(2027, 7, 31),
+            [new CompanyNaicsCodeDto("541512", "Computer Systems Design Services", true, "UAT synthetic value - not an SBA determination", true, null)],
+            [],
+            ["DHS synthetic UAT customer"],
+            ContractorRole.Subcontractor,
+            "Synthetic non-CUI help desk and compliance support services.",
+            CompanyRange.Small,
+            CompanyRange.Small,
+            [new CompanyLocationDto("UAT Headquarters", "100 Test Plaza", null, "Arlington", "VA", "22201", "USA", true)],
+            new ItEnvironmentSummaryDto(
+                "Synthetic Microsoft 365 and managed endpoint environment used only for No-CUI UAT.",
+                false,
+                null,
+                ["Microsoft 365", "synthetic help desk"]),
+            DataHandlingPosture.FciOnly,
+            true);
 
     private static HttpRequestMessage CreateRequest<TContent>(
         HttpMethod method,

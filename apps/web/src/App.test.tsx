@@ -109,6 +109,7 @@ const {
   supersedeCuiReadyApprovalChecklistMock,
   submitCuiReadyApprovalChecklistMock,
   updateCuiReadyApprovalChecklistItemMock,
+  updateCmmcAssessmentMock,
   updateContractDeliverableMock,
   updateContractObligationStatusMock,
   updateContractMock,
@@ -202,6 +203,7 @@ const {
   supersedeCuiReadyApprovalChecklistMock: vi.fn(),
   submitCuiReadyApprovalChecklistMock: vi.fn(),
   updateCuiReadyApprovalChecklistItemMock: vi.fn(),
+  updateCmmcAssessmentMock: vi.fn(),
   updateContractDeliverableMock: vi.fn(),
   updateContractObligationStatusMock: vi.fn(),
   updateContractMock: vi.fn(),
@@ -860,6 +862,7 @@ vi.mock("@/lib/api", () => ({
   supersedeCuiReadyApprovalChecklist: supersedeCuiReadyApprovalChecklistMock,
   submitCuiReadyApprovalChecklist: submitCuiReadyApprovalChecklistMock,
   updateCuiReadyApprovalChecklistItem: updateCuiReadyApprovalChecklistItemMock,
+  updateCmmcAssessment: updateCmmcAssessmentMock,
   updateContractDeliverable: updateContractDeliverableMock,
   updateContractObligationStatus: updateContractObligationStatusMock,
   updateContract: updateContractMock,
@@ -964,6 +967,7 @@ describe("App", () => {
     supersedeCuiReadyApprovalChecklistMock.mockReset();
     submitCuiReadyApprovalChecklistMock.mockReset();
     updateCuiReadyApprovalChecklistItemMock.mockReset();
+    updateCmmcAssessmentMock.mockReset();
     getComplianceOverviewMock.mockReset();
     getCurrentUserAccessMock.mockReset();
     getDevelopmentTestingContextMock.mockReset();
@@ -1178,7 +1182,7 @@ describe("App", () => {
           tenantId: profile.tenantId,
           completionPercentage: request.completeProfile ? 100 : 62,
           isComplete: request.completeProfile,
-          validationErrors: request.completeProfile ? {} : { uei: ["UEI is required before profile completion."] },
+          validationErrors: {},
           createdAt: profile.createdAt,
           updatedAt: "2026-06-15T13:00:00Z"
         },
@@ -1220,6 +1224,20 @@ describe("App", () => {
           controlSummary: cmmcAssessment.controlSummary,
           createdAt: cmmcAssessment.createdAt,
           updatedAt: "2026-06-15T13:30:00Z"
+        },
+        error: null
+      })
+    );
+    updateCmmcAssessmentMock.mockImplementation((assessmentId, request) =>
+      Promise.resolve({
+        data: {
+          ...cmmcAssessment,
+          ...request,
+          id: assessmentId,
+          tenantId: cmmcAssessment.tenantId,
+          controlSummary: cmmcAssessment.controlSummary,
+          createdAt: cmmcAssessment.createdAt,
+          updatedAt: "2026-06-15T14:00:00Z"
         },
         error: null
       })
@@ -1495,6 +1513,48 @@ describe("App", () => {
     expect(screen.getByLabelText("Signed-in workspace context")).toHaveTextContent("admin@example.com");
   });
 
+  it("uses the active access tenant for the local development selector when no tenant is stored", async () => {
+    vi.stubEnv("VITE_DEMO_CAPTURE", "false");
+    getDevelopmentTestingContextMock.mockResolvedValueOnce({
+      tenants: [
+        {
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+          displayName: "Earlier listed workspace",
+          tenantStatus: "Active",
+          dataHandlingMode: "NoCui",
+          isSelectable: true,
+          unavailableReason: null
+        },
+        {
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          displayName: "Current access workspace",
+          tenantStatus: "Active",
+          dataHandlingMode: "NoCui",
+          isSelectable: true,
+          unavailableReason: null
+        }
+      ],
+      personas: [
+        {
+          tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          userId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+          email: "owner@example.test",
+          displayName: "Workspace Owner",
+          roleName: "Owner"
+        }
+      ],
+      roles: ["Owner", "Admin", "Compliance Manager", "Contributor", "Auditor", "Advisor"]
+    });
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+
+    render(<App />);
+
+    const tenantSelector = await screen.findByRole("combobox", { name: "Switch tenant" });
+    expect(tenantSelector).toHaveValue("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1");
+    expect(within(tenantSelector).getByRole("option", { name: "Earlier listed workspace (Active)" })).toBeEnabled();
+  });
+
   it("hides capture-unsafe development chrome and raw identifiers only in demo capture mode", async () => {
     vi.stubEnv("DEV", true);
     vi.stubEnv("VITE_DEMO_CAPTURE", "true");
@@ -1702,9 +1762,141 @@ describe("App", () => {
     );
     expect(await screen.findByText("Draft saved.")).toBeInTheDocument();
     expect(screen.getByText("62%")).toBeInTheDocument();
-    expect(screen.getByText(/UEI is required before profile completion/i).closest(".validation-summary")).toHaveClass(
-      "validation-summary--error"
+    expect(screen.queryByText(/UEI is required before profile completion/i)).not.toBeInTheDocument();
+  });
+
+  it("UAT-P02 shows completion validation only after Complete profile is attempted", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    saveCompanyProfileMock.mockResolvedValueOnce({
+      data: null,
+      error:
+        "Company profile is missing required completion fields. UEI is required before profile completion. CAGE code is required before profile completion. SAM expiration date is required before profile completion."
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /profile/i }));
+    await user.clear(await screen.findByLabelText("UEI"));
+    await user.clear(screen.getByLabelText("CAGE"));
+    await user.clear(screen.getByLabelText("SAM expires"));
+    await user.click(screen.getByRole("button", { name: /complete profile/i }));
+
+    expect(saveCompanyProfileMock).toHaveBeenCalledWith(expect.objectContaining({ completeProfile: true }));
+    expect(await screen.findByText(/UEI is required before profile completion/i)).toBeInTheDocument();
+    expect(screen.queryByText("Draft saved.")).not.toBeInTheDocument();
+  });
+
+  it("UAT-P03 completes the synthetic company profile from Draft 8% to Complete 100%", async () => {
+    const draftProfile = {
+      ...profile,
+      legalEntityName: "Blue Ridge Federal Support LLC",
+      doingBusinessAs: "Blue Ridge Support",
+      uei: null,
+      cageCode: null,
+      samRegistrationExpiresAt: null,
+      naicsCodes: [],
+      certifications: [],
+      agencyCustomers: [],
+      contractorRole: "Unknown",
+      productsAndServices: "",
+      employeeRange: "Unknown",
+      revenueRange: "Unknown",
+      locations: [],
+      itEnvironment: {
+        description: "",
+        usesExternalServiceProvider: false,
+        externalServiceProviderName: null,
+        keySystems: []
+      },
+      dataHandlingPosture: "Unknown",
+      completionPercentage: 8,
+      isComplete: false,
+      validationErrors: {}
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getCompanyProfileMock.mockResolvedValueOnce(draftProfile);
+    saveCompanyProfileMock.mockImplementationOnce((request) =>
+      Promise.resolve({
+        data: {
+          ...draftProfile,
+          ...request,
+          id: draftProfile.id,
+          tenantId: draftProfile.tenantId,
+          completionPercentage: 100,
+          isComplete: true,
+          validationErrors: {},
+          createdAt: draftProfile.createdAt,
+          updatedAt: "2026-08-04T21:00:00Z"
+        },
+        error: null
+      })
     );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /profile/i }));
+    expect(await screen.findByText("8%")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("UEI"), "UAT123ABC456");
+    await user.type(screen.getByLabelText("CAGE"), "7UAT1");
+    await user.type(screen.getByLabelText("SAM expires"), "2027-07-31");
+    await user.selectOptions(screen.getByLabelText("Role"), "Subcontractor");
+    await user.type(screen.getByLabelText("Agency customers"), "DHS synthetic UAT customer");
+    await user.type(screen.getByLabelText("Code"), "541512");
+    await user.type(screen.getByLabelText("Title"), "Computer Systems Design Services");
+    await user.type(screen.getByLabelText("Size basis"), "UAT synthetic value - not an SBA determination");
+    await user.selectOptions(screen.getByLabelText("Status"), "true");
+    await user.type(screen.getByLabelText("Products and services"), "Synthetic non-CUI help desk and compliance support services.");
+    await user.selectOptions(screen.getByLabelText("Employees"), "Small");
+    await user.selectOptions(screen.getByLabelText("Revenue"), "Small");
+    await user.type(screen.getByLabelText("Location"), "UAT Headquarters");
+    await user.type(screen.getByLabelText("Street"), "100 Test Plaza");
+    await user.type(screen.getByLabelText("City"), "Arlington");
+    await user.type(screen.getByLabelText("State"), "VA");
+    await user.type(screen.getByLabelText("Postal code"), "22201");
+    await user.type(screen.getByLabelText("IT summary"), "Synthetic Microsoft 365 and managed endpoint environment used only for No-CUI UAT.");
+    await user.selectOptions(screen.getByLabelText("FCI/CUI posture"), "FciOnly");
+    await user.type(screen.getByLabelText("Key systems"), "Microsoft 365, synthetic help desk");
+    await user.click(screen.getByRole("button", { name: /complete profile/i }));
+
+    expect(saveCompanyProfileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        legalEntityName: "Blue Ridge Federal Support LLC",
+        uei: "UAT123ABC456",
+        cageCode: "7UAT1",
+        samRegistrationExpiresAt: "2027-07-31",
+        completeProfile: true,
+        naicsCodes: [
+          expect.objectContaining({
+            code: "541512",
+            title: "Computer Systems Design Services",
+            isPrimary: true,
+            sizeStandard: "UAT synthetic value - not an SBA determination",
+            qualifiesAsSmall: true
+          })
+        ],
+        locations: [
+          expect.objectContaining({
+            name: "UAT Headquarters",
+            street1: "100 Test Plaza",
+            city: "Arlington",
+            stateOrProvince: "VA",
+            postalCode: "22201"
+          })
+        ],
+        dataHandlingPosture: "FciOnly"
+      })
+    );
+    expect(await screen.findByText("Profile complete.")).toBeInTheDocument();
+    expect(screen.getByText("Complete")).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
   });
 
   it("TC-7.3.1 submits company certification rows from the profile form", async () => {
@@ -3176,6 +3368,7 @@ describe("App", () => {
 
     await user.click(await screen.findByRole("link", { name: /cmmc/i }));
     expect(await screen.findByText("Level 1 workspace")).toBeInTheDocument();
+    expect(screen.getByLabelText("Assessment name")).toHaveValue("Level 1 workspace");
     expect(screen.getByText("POA&M 1 open · 1 overdue")).toBeInTheDocument();
     const controlsRegion = screen.getByRole("region", { name: /cmmc control readiness/i });
     expect(within(controlsRegion).getByText("AC.L1-3.1.1 · Authorized access control")).toBeInTheDocument();
@@ -3183,9 +3376,39 @@ describe("App", () => {
     expect(within(controlsRegion).getByText("Evidence: Access control policy (Approved)")).toBeInTheDocument();
     expect(within(controlsRegion).getByText("Open POA&M: MFA evidence gap (Open, due 2026-07-15)")).toBeInTheDocument();
     expect(screen.getByText("AC.L1-3.1.1 · MFA evidence gap")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Assessment name"));
+    await user.type(screen.getByLabelText("Assessment name"), "Level 1 workspace updated");
+    await user.click(screen.getByRole("button", { name: /save assessment/i }));
+
+    expect(updateCmmcAssessmentMock).toHaveBeenCalledWith(
+      cmmcAssessment.id,
+      expect.objectContaining({
+        name: "Level 1 workspace updated",
+        level: "Level1",
+        framework: "FarBasicSafeguarding",
+        ownerFunction: "Security"
+      })
+    );
+    expect(await screen.findByText("CMMC readiness assessment updated.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /new assessment/i }));
+    expect(screen.getByText("Create readiness assessment")).toBeInTheDocument();
+    expect(screen.getByLabelText("Assessment name")).toHaveValue("");
+    expect(screen.getByLabelText("Started")).toHaveValue("");
+    expect(screen.getByLabelText("Affirmation due")).toHaveValue("");
+    expect(screen.getAllByLabelText(/Owner/)[0]).toHaveValue("");
+    expect(screen.queryByText("Selected")).not.toBeInTheDocument();
+    expect(within(controlsRegion).queryByText("AC.L1-3.1.1 · Authorized access control")).not.toBeInTheDocument();
+    expect(screen.queryByText("AC.L1-3.1.1 · MFA evidence gap")).not.toBeInTheDocument();
+    expect(screen.getByText("No controls loaded yet")).toBeInTheDocument();
+    expect(screen.getByText("No POA&M items yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /create assessment/i })).toBeInTheDocument();
     await user.clear(screen.getByLabelText("Assessment name"));
     await user.type(screen.getByLabelText("Assessment name"), "Level 2 workspace");
     await user.selectOptions(screen.getByLabelText("Target level"), "Level2");
+    await user.type(screen.getByLabelText("Started"), "2026-06-15");
+    await user.type(screen.getAllByLabelText(/Owner/)[0], "Security");
     await user.selectOptions(screen.getByLabelText("Contract link"), contract.id);
     await user.click(screen.getByRole("button", { name: /create assessment/i }));
 
@@ -3206,6 +3429,8 @@ describe("App", () => {
     await user.type(within(poamRegion).getByLabelText("Gap"), "MFA evidence gap");
     await user.clear(within(poamRegion).getByLabelText("Remediation plan"));
     await user.type(within(poamRegion).getByLabelText("Remediation plan"), "Collect configuration export and validate access review.");
+    await user.type(within(poamRegion).getByLabelText("Due date"), "2026-07-15");
+    await user.type(within(poamRegion).getByLabelText(/Owner/), "Security");
     await user.click(within(poamRegion).getByRole("button", { name: /create poa&m/i }));
 
     expect(createCmmcPoamItemMock).toHaveBeenCalledWith(

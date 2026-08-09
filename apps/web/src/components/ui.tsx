@@ -1,4 +1,4 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, KeyboardEvent, ReactNode, SelectHTMLAttributes } from "react";
 
 type Tone = "neutral" | "success" | "warning" | "danger" | "info";
 type Size = "sm" | "md";
@@ -155,6 +155,7 @@ export function TaskCard({
   children,
   className,
   meta,
+  onClick,
   summary,
   title
 }: {
@@ -163,13 +164,28 @@ export function TaskCard({
   children?: ReactNode;
   className?: string;
   meta?: Array<{ label: string; value: ReactNode; tone?: Tone }>;
+  onClick?: () => void;
   summary?: ReactNode;
   title: ReactNode;
 }) {
-  const classes = ["ui-task-card", className].filter(Boolean).join(" ");
+  const classes = ["ui-task-card", onClick ? "ui-task-card--interactive" : undefined, className].filter(Boolean).join(" ");
+  const handleKeyDown = onClick
+    ? (event: KeyboardEvent<HTMLElement>) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }
+    : undefined;
 
   return (
-    <article className={classes}>
+    <article
+      className={classes}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
       <div className="ui-task-card__header">
         <div>
           {badges ? <div className="ui-task-card__badges">{badges}</div> : null}

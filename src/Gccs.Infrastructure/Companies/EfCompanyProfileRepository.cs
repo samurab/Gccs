@@ -80,49 +80,40 @@ public sealed class EfCompanyProfileRepository(GccsDbContext dbContext, ICurrent
 
         await SyncCertificationRenewalTasksAsync(request.Certifications, actorUserId, now, cancellationToken);
 
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException) when (dbContext.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
-        {
-            dbContext.ChangeTracker.Clear();
-            dbContext.CompanyProfiles.Add(entity);
-            try
-            {
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
-            catch (ArgumentException)
-            {
-                // EF InMemory can report a false concurrency miss after a tracked aggregate update.
-                // If the key already exists, return the composed aggregate used for the attempted save.
-                dbContext.ChangeTracker.Clear();
-            }
-        }
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return ToDto(entity);
     }
 
     private IQueryable<CompanyProfileEntity> QueryProfiles() =>
         dbContext.CompanyProfiles
+            .AsSplitQuery()
             .Include(profile => profile.NaicsCodes)
             .Include(profile => profile.Certifications)
             .Include(profile => profile.Locations);
 
-    private static void SyncNaics(CompanyProfileEntity entity, IReadOnlyList<CompanyNaicsCodeDto> requested)
+    private void SyncNaics(CompanyProfileEntity entity, IReadOnlyList<CompanyNaicsCodeDto> requested)
     {
         var requestedCodes = requested.Select(naics => naics.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var removed in entity.NaicsCodes.Where(naics => !requestedCodes.Contains(naics.Code)).ToArray())
+        var currentByCode = CollapseCurrentRows(
+            entity.NaicsCodes,
+            naics => naics.Code,
+            out var duplicateNaicsIds);
+
+        foreach (var removed in entity.NaicsCodes
+                     .Where(naics => !requestedCodes.Contains(naics.Code) || duplicateNaicsIds.Contains(naics.Id))
+                     .ToArray())
         {
             entity.NaicsCodes.Remove(removed);
         }
 
         foreach (var requestedNaics in requested)
         {
-            var existing = entity.NaicsCodes.FirstOrDefault(naics => string.Equals(naics.Code, requestedNaics.Code, StringComparison.OrdinalIgnoreCase));
-            if (existing is null)
+            if (!currentByCode.TryGetValue(requestedNaics.Code, out var existing))
             {
-                entity.NaicsCodes.Add(CreateNaics(entity.Id, requestedNaics));
+                var created = CreateNaics(entity.Id, requestedNaics);
+                entity.NaicsCodes.Add(created);
+                dbContext.Entry(created).State = EntityState.Added;
                 continue;
             }
 
@@ -134,10 +125,17 @@ public sealed class EfCompanyProfileRepository(GccsDbContext dbContext, ICurrent
         }
     }
 
-    private static void SyncCertifications(CompanyProfileEntity entity, IReadOnlyList<CompanyCertificationDto> requested)
+    private void SyncCertifications(CompanyProfileEntity entity, IReadOnlyList<CompanyCertificationDto> requested)
     {
         var requestedKeys = requested.Select(CertificationKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var removed in entity.Certifications.Where(certification => !requestedKeys.Contains(CertificationKey(certification))).ToArray())
+        var currentByKey = CollapseCurrentRows(
+            entity.Certifications,
+            CertificationKey,
+            out var duplicateCertificationIds);
+
+        foreach (var removed in entity.Certifications
+                     .Where(certification => !requestedKeys.Contains(CertificationKey(certification)) || duplicateCertificationIds.Contains(certification.Id))
+                     .ToArray())
         {
             entity.Certifications.Remove(removed);
         }
@@ -145,10 +143,11 @@ public sealed class EfCompanyProfileRepository(GccsDbContext dbContext, ICurrent
         foreach (var requestedCertification in requested)
         {
             var key = CertificationKey(requestedCertification);
-            var existing = entity.Certifications.FirstOrDefault(certification => string.Equals(CertificationKey(certification), key, StringComparison.OrdinalIgnoreCase));
-            if (existing is null)
+            if (!currentByKey.TryGetValue(key, out var existing))
             {
-                entity.Certifications.Add(CreateCertification(entity.Id, requestedCertification));
+                var created = CreateCertification(entity.Id, requestedCertification);
+                entity.Certifications.Add(created);
+                dbContext.Entry(created).State = EntityState.Added;
                 continue;
             }
 
@@ -160,30 +159,38 @@ public sealed class EfCompanyProfileRepository(GccsDbContext dbContext, ICurrent
         }
     }
 
-    private static void SyncLocations(CompanyProfileEntity entity, IReadOnlyList<CompanyLocationDto> requested)
+    private void SyncLocations(CompanyProfileEntity entity, IReadOnlyList<CompanyLocationDto> requested)
     {
+        if (entity.Locations.Count == 1 && requested.Count == 1)
+        {
+            UpdateLocation(entity.Locations.Single(), requested[0]);
+            return;
+        }
+
         var requestedNames = requested.Select(location => location.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var removed in entity.Locations.Where(location => !requestedNames.Contains(location.Name)).ToArray())
+        var currentByName = CollapseCurrentRows(
+            entity.Locations,
+            location => location.Name,
+            out var duplicateLocationIds);
+
+        foreach (var removed in entity.Locations
+                     .Where(location => !requestedNames.Contains(location.Name) || duplicateLocationIds.Contains(location.Id))
+                     .ToArray())
         {
             entity.Locations.Remove(removed);
         }
 
         foreach (var requestedLocation in requested)
         {
-            var existing = entity.Locations.FirstOrDefault(location => string.Equals(location.Name, requestedLocation.Name, StringComparison.OrdinalIgnoreCase));
-            if (existing is null)
+            if (!currentByName.TryGetValue(requestedLocation.Name, out var existing))
             {
-                entity.Locations.Add(CreateLocation(entity.Id, requestedLocation));
+                var created = CreateLocation(entity.Id, requestedLocation);
+                entity.Locations.Add(created);
+                dbContext.Entry(created).State = EntityState.Added;
                 continue;
             }
 
-            existing.Street1 = requestedLocation.Street1;
-            existing.Street2 = requestedLocation.Street2;
-            existing.City = requestedLocation.City;
-            existing.StateOrProvince = requestedLocation.StateOrProvince;
-            existing.PostalCode = requestedLocation.PostalCode;
-            existing.Country = requestedLocation.Country;
-            existing.IsPlaceOfPerformance = requestedLocation.IsPlaceOfPerformance;
+            UpdateLocation(existing, requestedLocation);
         }
     }
 
@@ -226,6 +233,48 @@ public sealed class EfCompanyProfileRepository(GccsDbContext dbContext, ICurrent
             PostalCode = location.PostalCode,
             Country = location.Country,
             IsPlaceOfPerformance = location.IsPlaceOfPerformance
+        };
+
+    private static void UpdateLocation(CompanyLocationEntity existing, CompanyLocationDto requested)
+    {
+        existing.Name = requested.Name;
+        existing.Street1 = requested.Street1;
+        existing.Street2 = requested.Street2;
+        existing.City = requested.City;
+        existing.StateOrProvince = requested.StateOrProvince;
+        existing.PostalCode = requested.PostalCode;
+        existing.Country = requested.Country;
+        existing.IsPlaceOfPerformance = requested.IsPlaceOfPerformance;
+    }
+
+    private static Dictionary<string, TEntity> CollapseCurrentRows<TEntity>(
+        IEnumerable<TEntity> current,
+        Func<TEntity, string> keySelector,
+        out HashSet<Guid> duplicateIds)
+        where TEntity : class
+    {
+        var currentByKey = new Dictionary<string, TEntity>(StringComparer.OrdinalIgnoreCase);
+        duplicateIds = [];
+
+        foreach (var row in current.OrderBy(GetEntityId))
+        {
+            var key = keySelector(row);
+            if (!currentByKey.TryAdd(key, row))
+            {
+                duplicateIds.Add(GetEntityId(row));
+            }
+        }
+
+        return currentByKey;
+    }
+
+    private static Guid GetEntityId(object entity) =>
+        entity switch
+        {
+            CompanyNaicsCodeEntity naics => naics.Id,
+            CompanyCertificationEntity certification => certification.Id,
+            CompanyLocationEntity location => location.Id,
+            _ => throw new ArgumentOutOfRangeException(nameof(entity), entity.GetType().Name, "Unsupported company profile child entity.")
         };
 
     private static string CertificationKey(CompanyCertificationDto certification) =>

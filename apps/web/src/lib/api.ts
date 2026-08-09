@@ -2635,6 +2635,13 @@ export async function createCmmcAssessment(
   return postJsonResult<CmmcAssessment>("/api/cmmc/assessments", request);
 }
 
+export async function updateCmmcAssessment(
+  assessmentId: string,
+  request: UpsertCmmcAssessmentRequest
+): Promise<ApiMutationResult<CmmcAssessment>> {
+  return putJsonResult<CmmcAssessment>(`/api/cmmc/assessments/${assessmentId}`, request);
+}
+
 export async function createCmmcPoamItem(
   assessmentId: string,
   request: UpsertCmmcPoamItemRequest
