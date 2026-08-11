@@ -2,9 +2,9 @@
 
 Story: PR-5.4 - Prepare Pilot Onboarding, Release Notes, And Known-Risk Log.
 
-Release note status: launch-ready draft for broader customer launch; approved for the 2026-08-03 solo-controlled No-CUI pilot candidate under the combined-role approval posture. Independent production separation-of-duties approval remains required before broader customer launch.
+Release note status: approved for the 2026-08-11 solo-controlled No-CUI pilot candidate under the combined-role approval posture. Independent production separation-of-duties approval remains required before broader customer launch.
 
-Launch candidate tag: `launch-candidate-2026-08-09-2`.
+Launch candidate tag: `launch-candidate-2026-08-11-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -26,7 +26,9 @@ Included MVP workflows:
 - Editable Playwright, Remotion, narration, caption, render, and validation sources are retained under `marketing/demo-video`; the externally published materials remain limited to verified FeDril presentation branding and defensible readiness-workflow language.
 - Public visitors can request a scheduled demo with a preferred date, time, and IANA time zone. Accepted requests are persisted with transactional internal-notification and requester-acknowledgement delivery records.
 - Authorized platform operators can review demo requests, see delivery state, queue approved response templates, and access tenant-onboarding administration. `/platform` permissions fail closed when server-provided permission data is absent or malformed.
+- Authorized platform operators can organize requested demo times in a bounded calendar view. The view is not an availability engine and does not confirm reservations.
 - Demo-request email uses environment-isolated Azure Communication Services resources and App Service managed identity. Non-development startup fails closed when required provider, endpoint, sender, or recipient settings are invalid.
+- Demo-request delivery state distinguishes local capture and provider acceptance from confirmed mailbox delivery; provider acceptance does not guarantee inbox placement.
 - Tenant access, RBAC, and audit logging.
 - Company profile and contract metadata workflows.
 - Source-backed obligation content and task workflows.
