@@ -88,7 +88,7 @@ describe("DemoPage", () => {
     }));
     render(<DemoPage />);
     fireEvent.click(screen.getByRole("button", { name: /schedule a live demo/i }));
-    completeRequiredDemoFields("2026-08-11T15:00");
+    completeRequiredDemoFields(screen.getByLabelText<HTMLInputElement>(/date and time/i).min);
 
     await act(async () => {
       fireEvent.submit(screen.getByLabelText(/date and time/i).closest("form")!);
@@ -108,7 +108,7 @@ describe("DemoPage", () => {
     }));
     render(<DemoPage />);
     fireEvent.click(screen.getByRole("button", { name: /schedule a live demo/i }));
-    completeRequiredDemoFields("2026-08-11T15:00");
+    completeRequiredDemoFields(screen.getByLabelText<HTMLInputElement>(/date and time/i).min);
 
     await act(async () => {
       fireEvent.submit(screen.getByLabelText(/date and time/i).closest("form")!);
