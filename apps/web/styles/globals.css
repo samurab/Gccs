@@ -3078,12 +3078,36 @@ textarea {
 .platform-demo-card,.platform-demo-empty { background:#fff; border:1px solid #d7ddd3; border-radius:10px; margin:16px auto; max-width:1050px; padding:24px; }
 .platform-demo-card > div:first-child { align-items:center; display:flex; gap:12px; justify-content:space-between; }
 .platform-demo-status { background:#e8edf0; border-radius:999px; font-size:.78rem; font-weight:850; padding:6px 10px; text-transform:uppercase; }
-.platform-demo-status--sent { background:#dff2e5; color:#195b35; }.platform-demo-status--failed { background:#f9dfdb; color:#842c23; }.platform-demo-status--queued,.platform-demo-status--retryscheduled { background:#fff0c7; color:#704d08; }
+.platform-demo-status--sent { background:#dff2e5; color:#195b35; }.platform-demo-status--captured { background:#dceaf3; color:#24536d; }.platform-demo-status--failed { background:#f9dfdb; color:#842c23; }.platform-demo-status--queued,.platform-demo-status--retryscheduled { background:#fff0c7; color:#704d08; }
 .platform-demo-card dl { display:grid; gap:14px; grid-template-columns:repeat(3,minmax(0,1fr)); }.platform-demo-card dl div { border-left:3px solid #315f7c; padding-left:10px; }.platform-demo-card dt { color:#5b6670; font-size:.78rem; font-weight:800; text-transform:uppercase; }.platform-demo-card dd { margin:4px 0 0; }
 .platform-demo-card blockquote { background:#f4f7f2; border-left:4px solid #244f3a; margin:18px 0 0; padding:14px; white-space:pre-wrap; }
 .platform-demo-response { align-items:end; background:#eef4ef; border:1px solid #c9d7cb; border-radius:8px; display:grid; gap:10px; grid-template-columns:minmax(0,1fr) auto; margin-top:18px; padding:16px; }.platform-demo-response label { display:grid; font-weight:800; gap:6px; }.platform-demo-response select { background:#fff; border:1px solid #9ba79e; border-radius:6px; min-height:42px; padding:8px 10px; }.platform-demo-response button { background:#244f3a; border:0; border-radius:7px; color:#fff; cursor:pointer; font-weight:800; min-height:42px; padding:9px 14px; }.platform-demo-response button:disabled { cursor:not-allowed; opacity:.6; }.platform-demo-response p,.platform-demo-response small { grid-column:1/-1; margin:0; }.platform-demo-response small { color:#53615a; line-height:1.4; }
 .platform-demo-pagination { align-items:center; display:flex; gap:14px; justify-content:center; margin:26px auto; }.platform-demo-pagination button:disabled { cursor:not-allowed; opacity:.5; }
+.platform-demo-calendar { background:#fff; border:1px solid #d7ddd3; border-radius:10px; margin:16px auto 28px; max-width:1050px; padding:24px; }
+.platform-demo-calendar > header { align-items:center; display:flex; gap:20px; justify-content:space-between; }
+.platform-demo-calendar > header h2 { margin:4px 0 0; }
+.platform-demo-calendar > header nav { display:flex; gap:8px; }
+.platform-demo-calendar > header button { align-items:center; background:#fff; border:1px solid #b9c4ba; border-radius:7px; cursor:pointer; display:inline-flex; min-height:40px; padding:8px 11px; }
+.platform-demo-calendar__notice { align-items:center; background:#eef4ef; border-radius:7px; color:#294b38; display:flex; gap:8px; margin:18px 0; padding:11px 13px; }
+.platform-demo-calendar__weekdays,.platform-demo-calendar__grid { display:grid; gap:7px; grid-template-columns:repeat(7,minmax(0,1fr)); }
+.platform-demo-calendar__weekdays { color:#68736b; font-size:.76rem; font-weight:850; margin-bottom:7px; text-align:center; text-transform:uppercase; }
+.platform-demo-calendar__blank { min-height:76px; }
+.platform-demo-calendar__day { align-items:flex-start; background:#f2f3f1; border:1px solid transparent; border-radius:7px; color:#667068; cursor:pointer; display:flex; flex-direction:column; gap:8px; min-height:76px; padding:9px; text-align:left; }
+.platform-demo-calendar__day strong { color:#263129; font-size:1rem; }
+.platform-demo-calendar__day span { font-size:.75rem; line-height:1.2; }
+.platform-demo-calendar__day--has-requests { background:#fff0a8; color:#4a3a00; }
+.platform-demo-calendar__day--has-requests strong { color:#2f2800; }
+.platform-demo-calendar__day[aria-pressed="true"] { border-color:#244f3a; box-shadow:0 0 0 2px rgb(36 79 58 / .16); }
+.platform-demo-agenda { border-top:1px solid #d7ddd3; margin-top:22px; padding-top:18px; }
+.platform-demo-agenda h3 { margin:0 0 12px; }
+.platform-demo-agenda > p { color:#5a665e; }
+.platform-demo-agenda article { align-items:center; border-top:1px solid #e3e8e1; display:grid; gap:14px; grid-template-columns:90px minmax(0,1fr) auto; padding:13px 0; }
+.platform-demo-agenda article time { font-weight:850; }
+.platform-demo-agenda article div { display:grid; gap:3px; }
+.platform-demo-agenda article div span { color:#5a665e; }
+.platform-demo-status--requested { background:#fff0c7; color:#704d08; }
 @media(max-width:720px){.platform-console-nav,.platform-console-hero{align-items:flex-start;flex-direction:column}.platform-console-grid{grid-template-columns:1fr}.platform-demo-inbox > header{flex-direction:column;padding:0 24px}.platform-demo-card,.platform-demo-empty{margin-left:24px;margin-right:24px}.platform-demo-card dl,.platform-demo-response{grid-template-columns:1fr}.platform-demo-card > div:first-child{align-items:flex-start;flex-direction:column}.platform-demo-response button{width:100%}}
+@media(max-width:720px){.platform-demo-calendar{margin-left:24px;margin-right:24px;overflow-x:auto}.platform-demo-calendar > header{align-items:flex-start;flex-direction:column}.platform-demo-calendar__weekdays,.platform-demo-calendar__grid{min-width:560px}.platform-demo-agenda article{align-items:flex-start;grid-template-columns:1fr}.platform-demo-agenda .platform-demo-status{justify-self:start}}
 
 button:focus-visible,
 a:focus-visible,
@@ -4937,7 +4961,7 @@ label:has(:required) > span:first-child::after {
   font-weight: 900;
 }
 
-label:has(:required:user-invalid)::after {
+label:has(:required:user-invalid):not(.demo-request-form__explicit-validation)::after {
   color: var(--red);
   content: "This field is required.";
   display: block;

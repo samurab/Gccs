@@ -1,6 +1,6 @@
 # FeDril UAT: No-CUI Readiness Workflow
 
-Status basis: Implemented UI tabs and API behavior were checked against `apps/web/src/App.tsx`, `apps/api/Program.cs`, and focused API tests for company profiles, contracts, contract deliverables, clauses, obligations, evidence metadata, CMMC readiness, POA&M records, reports, audit logs, tenant isolation, and RBAC.
+Status basis: Implemented UI tabs and API behavior were checked against `apps/web/src/App.tsx`, `apps/web/src/PlatformTenantAdminPage.tsx`, `apps/web/src/InvitationAcceptancePage.tsx`, `apps/api/Program.cs`, and focused API tests for platform tenant onboarding, invitation acceptance, company profiles, contracts, contract deliverables, clauses, obligations, evidence metadata, CMMC readiness, POA&M records, reports, audit logs, tenant isolation, and RBAC.
 
 Do not use real customer CUI, classified information, export-controlled technical data, credentials, payroll records, private keys, or production customer evidence in this UAT.
 
@@ -8,6 +8,7 @@ Do not use real customer CUI, classified information, export-controlled technica
 
 | Category | UAT Coverage | Current-State Label |
 | --- | --- | --- |
+| Pilot and paid tenant onboarding | UAT-T01 through UAT-T04 | Implemented for pending provisioning and Owner activation; paid billing verification is partially implemented |
 | Company profile | UAT-P01 through UAT-P04 | Implemented |
 | One configured No-CUI readiness workflow that shows contract metadata | UAT-01 through UAT-04 | Implemented |
 | Contract deliverables | UAT-D01 through UAT-D04 | Implemented |
@@ -23,6 +24,9 @@ Do not use real customer CUI, classified information, export-controlled technica
 
 | Role | UAT Actor | Use In This Test | Permission Expectation |
 | --- | --- | --- | --- |
+| Platform Operator | Casey Morgan, `casey.morgan+platform-uat@example.com` | Internal Pilot and Paid tenant onboarding | Can open the platform console and provision, list, resend, or cancel pending onboarding only when assigned `ProvisionTenants` or `Gccs.PlatformOperator` |
+| Pilot Tenant Owner | Riley Chen, `riley.chen+pilot-uat@example.com` | Accept the Pilot Owner invitation | Becomes `Owner` only after accepting the invitation with the exact invited email |
+| Paid Tenant Owner | Taylor Reed, `taylor.reed+paid-uat@example.com` | Accept the Paid Owner invitation | Becomes `Owner` only after accepting the invitation with the exact invited email |
 | Owner | Morgan Lane, `morgan.lane+uat@example.com` | Tenant setup, No-CUI mode, audit review | Can manage the profile, contracts, deliverables, tenant settings, and audit review |
 | Admin | Jordan Miles, `jordan.miles+uat@example.com` | User setup and operational fallback | Can manage the profile, contracts, deliverables, users, and workflow records, but not tenant ownership |
 | Compliance Manager | Priya Shah, `priya.shah+uat@example.com` | Profile, contract, deliverable, clause, obligation, evidence, reports | Can manage the core compliance workflow, including the profile and contract deliverables |
@@ -32,10 +36,28 @@ Do not use real customer CUI, classified information, export-controlled technica
 
 Note: In local development, the React app uses development authentication headers. Treat the names above as test personas unless separate login accounts are configured. `Switch user` lists only active users with an active membership in the selected tenant. Before UAT-09, confirm Priya Shah and Devin Brooks have active memberships; an invitation that has not been accepted is not sufficient.
 
+Tenant-onboarding prerequisite: `Tenant onboarding` is an internal platform-operations page, not a tab inside a customer tenant. A normal tenant `Owner` or a user with `ManageTenant` cannot provision tenants. In staging or production, use an approved internal account assigned the `Gccs.PlatformOperator` application role. For local development, start the web app with `VITE_GCCS_DEV_PLATFORM_PERMISSIONS=ProvisionTenants` before opening `/platform`; the default local configuration does not grant this permission.
+
 ## Test Data
 
 | Data Type | Field | Value |
 | --- | --- | --- |
+| Pilot onboarding | Customer reference | `PILOT-UAT-026-A` |
+| Pilot onboarding | Tenant display name | `Blue Ridge Pilot Workspace - Synthetic` |
+| Pilot onboarding | Pilot end date | `2027-01-31` |
+| Pilot onboarding | Setup reason | `Provision approved synthetic No-CUI pilot for UAT; no customer files.` |
+| Pilot onboarding | Owner email | `riley.chen+pilot-uat@example.com` |
+| Pilot onboarding | Owner display name | `Riley Chen` |
+| Paid onboarding | Customer reference | `CUSTOMER-UAT-026-A` |
+| Paid onboarding | Tenant display name | `Blue Ridge Paid Workspace - Synthetic` |
+| Paid onboarding | Plan code | `FOUNDATION-ANNUAL` |
+| Paid onboarding | Subscription reference | `SUB-UAT-00026-A` |
+| Paid onboarding | Setup reason | `Provision approved synthetic No-CUI paid workspace for UAT; billing reference checked manually.` |
+| Paid onboarding | Owner email | `taylor.reed+paid-uat@example.com` |
+| Paid onboarding | Owner display name | `Taylor Reed` |
+| Cancellation fixture | Customer reference | `PILOT-UAT-CANCEL-026-A` |
+| Cancellation fixture | Tenant display name | `Blue Ridge Cancelled Pilot - Synthetic` |
+| Cancellation fixture | Cancellation reason | `Duplicate synthetic onboarding created for cancellation UAT.` |
 | Tenant | Active tenant | `GCCS Development Tenant` |
 | Tenant mode | Data handling mode | `NoCui` |
 | Profile | Legal entity | `Blue Ridge Federal Support LLC` |
@@ -113,7 +135,7 @@ Before using this UAT as a sales, demo, or customer-facing asset, confirm:
 
 | Check | Required Evidence |
 | --- | --- |
-| Does the UI expose this flow? | `Dashboard`, `Profile`, `Settings`, `Contracts`, `Calendar`, `Obligations`, `Evidence`, `CMMC`, and `Reports` tabs are visible for the role under test |
+| Does the UI expose this flow? | The platform `Overview` and `Tenant onboarding` navigation items, Owner invitation-acceptance page, and tenant `Dashboard`, `Profile`, `Settings`, `Contracts`, `Calendar`, `Obligations`, `Evidence`, `CMMC`, and `Reports` tabs are visible for the role under test |
 | Does the API enforce this rule? | Endpoint returns expected success, `403`, `404`, or validation error |
 | Is there a test proving it? | Relevant API test exists for the behavior |
 | Does wording avoid overclaims? | No claim of certification, official compliance status, legal advice, government approval, guaranteed security, or audit-ready status |
@@ -205,6 +227,192 @@ Steps:
 Expected result: Signed-in users can access only tenant records and application functions authorized by their active tenant role. Direct API calls are rejected when the role lacks the required permission.
 
 Reason: This verifies the MVP implementation of "authorized users" and "authorized transactions/functions" without claiming full CMMC certification or complete customer control satisfaction.
+
+## Tenant Onboarding UAT
+
+Current-state label: Implemented for internal platform-operator provisioning, pending Owner invitations, invitation acceptance, and tenant activation. Partially implemented for paid commercial lifecycle because FeDril records an operator-confirmed subscription reference but does not call a billing provider.
+
+Implementation evidence: The internal route `/platform/tenants/new` calls platform-scoped endpoints under `/api/platform`. The API requires `ProvisionTenants` or the `Gccs.PlatformOperator` application role, creates Pilot and Paid tenants in `NoCui`, keeps them `PendingActivation` until the invited Owner accepts, records audit and mode-history entries, and protects retries with an idempotency key. Focused tests cover platform authorization, Pilot creation, Paid-field validation, duplicate requests, cancellation, and Pilot Owner activation. Invitation email delivery requires separately configured provider infrastructure.
+
+Local setup for these cases:
+
+1. Stop any existing local FeDril web process that was started without platform permissions.
+2. From the repository root, start the local stack with:
+
+```bash
+VITE_GCCS_DEV_PLATFORM_PERMISSIONS=ProvisionTenants npm run dev
+```
+
+3. Open `http://127.0.0.1:5173/platform`.
+4. Confirm the `Overview` page loads and the platform navigation shows `Tenant onboarding`.
+5. If `Provisioning access denied` appears, stop and restart the web app with the environment variable above. Do not substitute a tenant `Owner`, `Admin`, or `ManageTenant` permission.
+6. Before repeating these cases, change the final synthetic reference suffix from `A` to `B`, `C`, or another unused value. Customer and subscription references are intentionally unique.
+
+### UAT-T01: Create A Pending Pilot Tenant
+
+Category: Pilot and paid tenant onboarding.
+
+Role: Platform Operator.
+
+Navigation: `Platform operations` -> `Tenant onboarding`.
+
+Page: `Tenant onboarding`.
+
+Form sections: `Onboarding type`, `Tenant record`, `Initial Owner`, and `Operator confirmations`.
+
+Steps:
+
+1. On the platform `Overview` page, click `Tenant onboarding`.
+2. Confirm the page shows `Signed in as` with the Platform Operator identity.
+3. Confirm the `No-CUI product boundary` band states that tenant creation does not authorize CUI, classified, ITAR, or sensitive government data.
+4. Under `Pending tenant onboardings`, confirm the list loads or shows `No tenant onboardings are awaiting Owner acceptance.`
+5. In `Onboarding type`, select `Pilot`.
+6. Confirm `Pilot end date` is visible and `Plan code`, `Subscription reference`, and `Commercial approval confirmed` are not visible.
+7. In `Tenant record`, enter:
+   - `Customer reference`: `PILOT-UAT-026-A`.
+   - `Tenant display name`: `Blue Ridge Pilot Workspace - Synthetic`.
+   - `Pilot end date`: `2027-01-31`.
+   - `Setup reason`: `Provision approved synthetic No-CUI pilot for UAT; no customer files.`
+8. In `Initial Owner`, enter:
+   - `Owner email`: `riley.chen+pilot-uat@example.com`.
+   - `Owner display name`: `Riley Chen`.
+9. In `Operator confirmations`, select `No-CUI boundary confirmed`.
+10. Record the displayed `Request key` without changing it.
+11. Click `Create pending tenant` once.
+12. Confirm the success panel heading is `Blue Ridge Pilot Workspace - Synthetic` and its kicker says `Pilot onboarding created`.
+13. Confirm the labeled values show:
+   - `Customer reference`: `PILOT-UAT-026-A`.
+   - `Onboarding status`: `PendingOwnerAcceptance`.
+   - `Tenant status`: `PendingActivation`.
+   - `Invitation`: `Pending`.
+   - `Email delivery`: `Queued` or `Sent`.
+   - `Data handling`: `NoCui`.
+14. Record `Tenant ID` and `Onboarding ID`. Do not record or request an invitation token.
+15. Confirm the pending-onboarding list contains the tenant display name, customer reference, Owner email, and delivery status.
+
+Expected result: One synthetic Pilot onboarding is created as a pending `NoCui` tenant with a pending Owner invitation. No customer user or membership becomes active before invitation acceptance. `Queued` passes pending creation; invitation activation cannot be tested until delivery reaches `Sent` and the activation link is available.
+
+Reason: Pilot onboarding is a time-bound commercial path, but it does not weaken the No-CUI boundary or activate the tenant before the invited Owner proves control of the invited identity.
+
+### UAT-T02: Create A Pending Paid Tenant
+
+Category: Pilot and paid tenant onboarding.
+
+Role: Platform Operator.
+
+Navigation: `Platform operations` -> `Tenant onboarding`.
+
+Page: `Tenant onboarding`.
+
+Form sections: `Onboarding type`, `Tenant record`, `Initial Owner`, and `Operator confirmations`.
+
+Steps:
+
+1. If the Pilot success panel is still displayed, click `Provision another tenant`.
+2. In `Onboarding type`, select `Paid`.
+3. Confirm `Plan code`, `Subscription reference`, and `Commercial approval confirmed` appear, and `Pilot end date` is removed.
+4. In `Tenant record`, enter:
+   - `Customer reference`: `CUSTOMER-UAT-026-A`.
+   - `Tenant display name`: `Blue Ridge Paid Workspace - Synthetic`.
+   - `Plan code`: `FOUNDATION-ANNUAL`.
+   - `Subscription reference`: `SUB-UAT-00026-A`.
+   - `Setup reason`: `Provision approved synthetic No-CUI paid workspace for UAT; billing reference checked manually.`
+5. In `Initial Owner`, enter:
+   - `Owner email`: `taylor.reed+paid-uat@example.com`.
+   - `Owner display name`: `Taylor Reed`.
+6. Select `No-CUI boundary confirmed`.
+7. Leave `Commercial approval confirmed` clear and click `Create pending tenant`.
+8. Confirm the browser does not submit the form and identifies the missing required confirmation.
+9. Select `Commercial approval confirmed` only for this synthetic UAT after confirming the subscription reference matches the test data above.
+10. Record the displayed `Request key` and click `Create pending tenant` once.
+11. Confirm the success panel heading is `Blue Ridge Paid Workspace - Synthetic` and its kicker says `Paid onboarding created`.
+12. Confirm the labeled values show:
+   - `Customer reference`: `CUSTOMER-UAT-026-A`.
+   - `Onboarding status`: `PendingOwnerAcceptance`.
+   - `Tenant status`: `PendingActivation`.
+   - `Invitation`: `Pending`.
+   - `Email delivery`: `Queued` or `Sent`.
+   - `Data handling`: `NoCui`.
+13. Record `Tenant ID` and `Onboarding ID` without recording an invitation token.
+14. Confirm the pending-onboarding list contains the paid tenant and labels it `Paid`.
+
+Expected result: One synthetic Paid onboarding is created as a pending `NoCui` tenant only after the paid-only fields and commercial confirmation are present. This confirms that FeDril records the operator's commercial approval; it does not prove payment, subscription validity, renewal, cancellation, or billing-provider synchronization.
+
+Reason: Paid status changes the commercial onboarding fields, not the product's data-handling authorization.
+
+### UAT-T03: Accept Pilot And Paid Owner Invitations
+
+Category: Pilot and paid tenant onboarding.
+
+Roles: Pilot Tenant Owner and Paid Tenant Owner.
+
+Page: `FeDril account activation`, opened from the single-use invitation link.
+
+Form: `Tenant invitation` or the tenant display name.
+
+Environment dependency: Invitation delivery must be configured and the Owner must have the actual activation link. If delivery remains `Queued` or `Failed`, record this case as `Blocked by environment`; do not retrieve a token from the database or ask the Platform Operator to disclose one.
+
+Repeat these steps once for the Pilot invitation and once for the Paid invitation:
+
+1. Confirm the Platform Operator result shows `Email delivery` = `Sent`. If it shows `Failed`, correct the provider configuration before using `Resend invitation`; do not resend while delivery is still `Queued`.
+2. Open the activation link from the synthetic Owner mailbox.
+3. In staging or production, sign in through Microsoft Entra using the exact invited email address.
+4. In local development, if the page shows `Use invited test identity`, enter the exact value in `Invited email` and click `Continue as invitee`:
+   - Pilot: `riley.chen+pilot-uat@example.com`.
+   - Paid: `taylor.reed+paid-uat@example.com`.
+5. Confirm the activation page shows the expected tenant display name.
+6. Confirm the summary labels show `Account` = the invited email and `Role` = `Owner`.
+7. In `Display name`, enter `Riley Chen` for Pilot or `Taylor Reed` for Paid.
+8. Click `Accept invitation`.
+9. Confirm the page shows `Workspace activated` and an `Open workspace` link.
+10. Click `Open workspace` and confirm the activated tenant is selected for the current browser.
+11. Confirm the Pilot tenant status is `Trialing` and the Paid tenant status is `Active`. If status is not visible in the workspace selector, use an authorized `GET /api/me/tenants` request and match the recorded `Tenant ID`.
+12. Confirm the active user has one `Owner` membership for the matching tenant and cannot see the other synthetic tenant unless separately invited.
+13. Reopen the same activation link and confirm it is unavailable because the invitation is already accepted.
+
+Expected result: The exact invited identity accepts each single-use invitation. Pilot activation produces a `Trialing` tenant; Paid activation produces an `Active` tenant. The accepted Owner receives only the matching tenant membership.
+
+Reason: Tenant creation and tenant activation are separate security events. The initial Owner must prove control of the invited email before FeDril creates the active membership.
+
+### UAT-T04: Verify Onboarding Authorization, Safe Retry, And Cancellation
+
+Category: Pilot and paid tenant onboarding.
+
+Roles: Platform Operator and a normal tenant Owner.
+
+Navigation: `Platform operations` -> `Tenant onboarding`.
+
+Steps:
+
+1. Sign in as a normal tenant `Owner` who does not have `ProvisionTenants` or `Gccs.PlatformOperator`.
+2. Open `/platform/tenants/new` directly.
+3. Confirm the page shows `Provisioning access denied` and does not show `Create pending tenant`.
+4. If an authorized API harness is available, call `POST /api/platform/tenants` with only tenant `ManageTenant`; confirm it returns `403` and creates no tenant, invitation, onboarding, mode-history, or audit record.
+5. Return to the Platform Operator context and create a disposable Pilot record using:
+   - `Customer reference`: `PILOT-UAT-CANCEL-026-A`.
+   - `Tenant display name`: `Blue Ridge Cancelled Pilot - Synthetic`.
+   - `Pilot end date`: `2027-01-31`.
+   - `Setup reason`: `Create synthetic pending tenant for cancellation UAT.`
+   - `Owner email`: `cancelled.owner+uat@example.com`.
+   - `Owner display name`: `Cancelled UAT Owner`.
+   - `No-CUI boundary confirmed`: selected.
+6. Do not accept this invitation.
+7. Under `Pending tenant onboardings`, locate `Blue Ridge Cancelled Pilot - Synthetic`.
+8. Click the cancel icon whose accessible name is `Cancel onboarding for Blue Ridge Cancelled Pilot - Synthetic`.
+9. Confirm `Confirm cancellation` is disabled while `Cancellation reason` is empty.
+10. Enter `Duplicate synthetic onboarding created for cancellation UAT.` in `Cancellation reason`.
+11. Click `Confirm cancellation`.
+12. Confirm the record disappears from the pending list.
+13. If an authorized API harness is available, confirm the preserved record has onboarding status `Cancelled`, tenant status `Archived`, invitation status `Revoked`, and email delivery `Cancelled`.
+14. Confirm the revoked activation link cannot be accepted.
+15. Verify the audit history records the Platform Operator, cancellation reason, timestamp, onboarding transition, and invitation revocation. Do not expect the platform page itself to display tenant audit entries.
+16. For API idempotency verification, repeat a successful provisioning request with the same `Idempotency-Key` and identical payload; confirm it returns the original tenant with `200` and `isReplay` = `true`.
+17. Reuse that same key with a changed display name; confirm it returns `409 Tenant provisioning conflict` and creates no second tenant.
+18. Submit a new request key with a previously used customer reference or paid subscription reference; confirm it returns `409` and does not disclose unrelated tenant details.
+
+Expected result: Customer tenant permissions cannot reach platform provisioning. Identical retries are idempotent, conflicting or duplicate requests are rejected, and only a still-pending onboarding can be cancelled with a recorded reason. Activated onboarding is not cancellable through this operation.
+
+Reason: These controls prevent customer self-provisioning, duplicate tenants, unsafe retries, and deletion of compliance-relevant onboarding history.
 
 ## Profile Module UAT
 
@@ -922,29 +1130,40 @@ Reason: Audit logs can expose sensitive operational metadata. Access should be r
 
 The UAT passes only if all of these conditions are true:
 
-1. Tenant mode is `NoCui`.
-2. The synthetic company profile can be saved as a draft, rejects premature completion, and reaches `Complete` and `100%` only after required fields are present.
-3. Contributor, Auditor, and Advisor can view but cannot modify the company profile, and cross-tenant profile data is not disclosed.
-4. Contract `DEMO-NC-26-0007` exists and displays the expected metadata.
-5. The synthetic deliverables persist, appear on the calendar, display overdue state correctly, and retain authorized status updates.
-6. Contributor and Auditor cannot mutate deliverables, while Advisor behavior matches the current `ManageContracts` permission, and cross-tenant deliverable data is not disclosed.
-7. Published clauses are found and attached with source references.
-8. At least one obligation is generated or visible from the attached clause mapping.
-9. Obligation status and owner assignment can be updated by an authorized role.
-10. Allowed synthetic FCI evidence metadata can be created.
-11. CUI classification or upload is blocked in No-CUI mode.
-12. A CMMC readiness assessment is created and shows owner, dates, progress, and control-readiness information.
-13. CMMC control readiness preserves source metadata and traceability warnings.
-14. A CMMC POA&M item is created and appears as CMMC remediation work on the calendar.
-15. A current report, evidence package, and CMMC readiness report artifact are generated.
-16. Report language avoids certification, legal, compliance, government-approval, and audit-readiness overclaims.
-17. Audit history shows the tested profile, contract, deliverable, clause, evidence, CMMC, and report events.
-18. Unauthorized roles cannot mutate restricted workflow records.
+1. Only an authorized Platform Operator can open and submit `Tenant onboarding`; a normal tenant Owner receives an authorization denial.
+2. Pilot and Paid onboarding both begin as `PendingOwnerAcceptance`, `PendingActivation`, and `NoCui`, with the correct mode-specific fields.
+3. The exact invited Owner identity activates the Pilot as `Trialing` and the Paid tenant as `Active`. If invitation delivery is unavailable, record UAT-T03 and the tenant-onboarding category as `Blocked by environment`, not `Passed`.
+4. Identical onboarding retries are idempotent, conflicting or duplicate requests are rejected, and pending cancellation preserves an archived, audited record.
+5. Tenant mode is `NoCui`.
+6. The synthetic company profile can be saved as a draft, rejects premature completion, and reaches `Complete` and `100%` only after required fields are present.
+7. Contributor, Auditor, and Advisor can view but cannot modify the company profile, and cross-tenant profile data is not disclosed.
+8. Contract `DEMO-NC-26-0007` exists and displays the expected metadata.
+9. The synthetic deliverables persist, appear on the calendar, display overdue state correctly, and retain authorized status updates.
+10. Contributor and Auditor cannot mutate deliverables, while Advisor behavior matches the current `ManageContracts` permission, and cross-tenant deliverable data is not disclosed.
+11. Published clauses are found and attached with source references.
+12. At least one obligation is generated or visible from the attached clause mapping.
+13. Obligation status and owner assignment can be updated by an authorized role.
+14. Allowed synthetic FCI evidence metadata can be created.
+15. CUI classification or upload is blocked in No-CUI mode.
+16. A CMMC readiness assessment is created and shows owner, dates, progress, and control-readiness information.
+17. CMMC control readiness preserves source metadata and traceability warnings.
+18. A CMMC POA&M item is created and appears as CMMC remediation work on the calendar.
+19. A current report, evidence package, and CMMC readiness report artifact are generated.
+20. Report language avoids certification, legal, compliance, government-approval, and audit-readiness overclaims.
+21. Audit history shows the tested onboarding, profile, contract, deliverable, clause, evidence, CMMC, and report events.
+22. Unauthorized roles cannot mutate restricted onboarding or tenant workflow records.
 
 ## Hidden Risks, Edge Cases, And Dependencies
 
 | Item | Risk |
 | --- | --- |
+| Platform authorization | Tenant onboarding is internal platform operations. `Owner`, `Admin`, and `ManageTenant` do not imply `ProvisionTenants`; staging and production require the controlled `Gccs.PlatformOperator` application role. |
+| Local platform permission | Local `DefaultPlatformPermissions` is empty. Start Vite with `VITE_GCCS_DEV_PLATFORM_PERMISSIONS=ProvisionTenants`; an already-running web process will not acquire the variable until restarted. |
+| Unique onboarding references | Customer and subscription references are duplicate-protected. Increment the synthetic suffix for each rerun instead of editing or deleting prior onboarding records. |
+| Invitation delivery | Azure Communication Services, sender-domain configuration, managed-identity permission, and worker settings are external dependencies. `Queued` proves pending creation, not email receipt or Owner activation. |
+| Paid billing lifecycle | FeDril stores an operator-confirmed plan and subscription reference but does not verify payment or automate renewal, delinquency, cancellation, suspension, or archival. Do not claim billing-system enforcement. |
+| Invitation identity | The invitation token is single-use and not exposed on the platform result. Activation requires the exact invited email; do not retrieve tokens from storage or logs for UAT convenience. |
+| Pending cancellation | Cancellation is limited to `PendingOwnerAcceptance` plus `PendingActivation`. Activated Pilot and Paid tenants require a separate lifecycle process and cannot be cancelled through the pending-onboarding action. |
 | Local development auth | Role switching may require API header changes or manual test setup; the default UI does not present a production sign-in flow. |
 | Existing profile data | A tenant has one current company profile. Run these steps in a dedicated UAT tenant so the synthetic profile does not overwrite customer metadata. |
 | Profile completion | `100%` reflects presence of the implemented profile fields. It is not verification of SAM registration, SBA size status, eligibility, certification, or legal compliance. |

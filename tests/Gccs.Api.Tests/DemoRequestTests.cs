@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Gccs.Api;
 using Gccs.Application.Marketing;
 using Gccs.Infrastructure.Marketing;
 using Gccs.Infrastructure.Persistence;
@@ -36,6 +37,10 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         Assert.Equal("Avery", repository.Created.FirstName);
         Assert.Equal("Northstar Systems", repository.Created.Company);
         Assert.Equal(DemoRequestService.ConsentNoticeVersion, repository.Created.ConsentNoticeVersion);
+        using var scope = factory.Services.CreateScope();
+        var transport = scope.ServiceProvider.GetRequiredService<IDemoRequestDeliveryTransport>();
+        Assert.IsType<DevelopmentCaptureDemoRequestDeliveryTransport>(transport);
+        Assert.True(transport.IsConfigured);
     }
 
     [Fact]
@@ -61,6 +66,18 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         Assert.True(payload.RootElement.GetProperty("errors").TryGetProperty("preferredStartAt", out _));
         Assert.True(payload.RootElement.GetProperty("errors").TryGetProperty("preferredTimeZone", out _));
         Assert.Null(repository.Created);
+    }
+
+    [Fact]
+    public async Task Preferred_time_exactly_two_hours_ahead_is_accepted()
+    {
+        var now = new DateTimeOffset(2026, 8, 11, 16, 0, 0, TimeSpan.Zero);
+        var repository = new StubRepository();
+        var service = new DemoRequestService(repository, new FixedTimeProvider(now));
+
+        await service.SubmitAsync(ValidRequest() with { PreferredStartAt = now.AddHours(2) });
+
+        Assert.Equal(now.AddHours(2), repository.Created?.PreferredStartAt);
     }
 
     [Fact]
@@ -114,6 +131,71 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
     }
 
     [Fact]
+    public async Task Platform_access_reports_the_server_configured_development_capture_mode()
+    {
+        await using var factory = CreateFactory(new StubRepository());
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/platform/me/access");
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", "none");
+        request.Headers.Add("X-Gccs-Dev-Platform-Permissions", "ManageDemoRequests");
+
+        using var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"demoRequestDeliveryMode\":\"DevelopmentCapture\"", responseBody);
+    }
+
+    [Fact]
+    public async Task Requested_time_calendar_requires_permission_and_enforces_a_bounded_half_open_range()
+    {
+        var requestId = Guid.NewGuid();
+        var start = new DateTimeOffset(2026, 8, 10, 14, 0, 0, TimeSpan.Zero);
+        var repository = new StubRepository
+        {
+            CalendarItems =
+            [
+                new DemoRequestCalendarItem(
+                    requestId, "Avery", "Ng", "Northstar Systems", start,
+                    "America/New_York", start.AddDays(-2), "Sent", "Requested")
+            ]
+        };
+        await using var factory = CreateFactory(repository);
+        using var client = factory.CreateClient();
+        var path = "/api/platform/demo-requests/calendar?from=2026-08-01T00%3A00%3A00Z&to=2026-09-01T00%3A00%3A00Z";
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
+        using var denied = new HttpRequestMessage(HttpMethod.Get, path);
+        denied.Headers.Add("X-Gccs-Dev-Auth", "true");
+        denied.Headers.Add("X-Gccs-Dev-Tenant", "none");
+        denied.Headers.Add("X-Gccs-Dev-Platform-Permissions", "ProvisionTenants");
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(denied)).StatusCode);
+
+        using var allowed = new HttpRequestMessage(HttpMethod.Get, path);
+        allowed.Headers.Add("X-Gccs-Dev-Auth", "true");
+        allowed.Headers.Add("X-Gccs-Dev-Tenant", "none");
+        allowed.Headers.Add("X-Gccs-Dev-Platform-Permissions", "ManageDemoRequests");
+        using var response = await client.SendAsync(allowed);
+        var responseBody = await response.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(requestId.ToString(), responseBody);
+        Assert.Contains("\"schedulingStatus\":\"Requested\"", responseBody);
+        Assert.Equal(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero), repository.CalendarFrom);
+        Assert.Equal(new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero), repository.CalendarTo);
+
+        using var invalid = new HttpRequestMessage(
+            HttpMethod.Get,
+            "/api/platform/demo-requests/calendar?from=2026-01-01T00%3A00%3A00Z&to=2026-06-01T00%3A00%3A00Z");
+        invalid.Headers.Add("X-Gccs-Dev-Auth", "true");
+        invalid.Headers.Add("X-Gccs-Dev-Tenant", "none");
+        invalid.Headers.Add("X-Gccs-Dev-Platform-Permissions", "ManageDemoRequests");
+        using var invalidResponse = await client.SendAsync(invalid);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidResponse.StatusCode);
+        Assert.Contains("calendar_range_invalid", await invalidResponse.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task Operator_response_requires_permission_and_allowlisted_template()
     {
         var repository = new StubRepository { QueueResponseResult = true };
@@ -150,6 +232,24 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
 
         repository.Claim = claim with { AttemptNumber = 2 };
         await service.ProcessNextAsync();
+        Assert.Null(repository.RetryAt);
+    }
+
+    [Fact]
+    public async Task Development_capture_completes_without_claiming_email_was_sent()
+    {
+        var claim = CreateClaim(attempt: 1);
+        var repository = new StubRepository { Claim = claim };
+        var transport = new StubSender(result: new DemoRequestDeliveryResult(DemoRequestDeliveryDisposition.Captured));
+        var service = new DemoRequestDeliveryService(
+            repository,
+            transport,
+            new DemoRequestDeliverySettings(TimeSpan.FromMinutes(5), 2),
+            TimeProvider.System);
+
+        Assert.True(await service.ProcessNextAsync());
+        Assert.Equal(DemoRequestDeliveryDisposition.Captured, repository.Completion?.Disposition);
+        Assert.Null(repository.Completion?.ProviderMessageId);
         Assert.Null(repository.RetryAt);
     }
 
@@ -273,13 +373,20 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         id, "Avery", "Ng", "avery@example.com", null, "Northstar Systems", null, "11-50",
         "Evidence readiness workflow", DateTimeOffset.UtcNow.AddDays(2), "America/New_York", DemoRequestService.ConsentNoticeVersion, DateTimeOffset.UtcNow, key);
 
-    private sealed class StubSender(Exception? exception = null) : IDemoRequestEmailSender
+    private sealed class StubSender(
+        Exception? exception = null,
+        DemoRequestDeliveryResult? result = null) : IDemoRequestDeliveryTransport
     {
         public bool IsConfigured => true;
-        public Task<DemoRequestEmailSendResult> SendAsync(ClaimedDemoRequestDelivery request, CancellationToken cancellationToken = default) =>
+        public Task<DemoRequestDeliveryResult> DeliverAsync(ClaimedDemoRequestDelivery request, CancellationToken cancellationToken = default) =>
             exception is null
-                ? Task.FromResult(new DemoRequestEmailSendResult("provider-id"))
-                : Task.FromException<DemoRequestEmailSendResult>(exception);
+                ? Task.FromResult(result ?? new DemoRequestDeliveryResult(DemoRequestDeliveryDisposition.Sent, "provider-id"))
+                : Task.FromException<DemoRequestDeliveryResult>(exception);
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 
     private sealed class StubRepository : IDemoRequestRepository
@@ -290,6 +397,10 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         public bool? QueueResponseResult { get; set; }
         public string? QueuedTemplateKey { get; private set; }
         public Guid? QueuedByUserId { get; private set; }
+        public IReadOnlyList<DemoRequestCalendarItem> CalendarItems { get; set; } = [];
+        public DateTimeOffset? CalendarFrom { get; private set; }
+        public DateTimeOffset? CalendarTo { get; private set; }
+        public DemoRequestDeliveryResult? Completion { get; private set; }
 
         public Task CreateIfNewAsync(DemoRequestRecord request, CancellationToken cancellationToken = default)
         {
@@ -298,7 +409,11 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         }
 
         public Task<ClaimedDemoRequestDelivery?> TryClaimNextDeliveryAsync(DateTimeOffset now, TimeSpan leaseDuration, CancellationToken cancellationToken = default) => Task.FromResult(Claim);
-        public Task MarkDeliverySentAsync(Guid deliveryId, string providerMessageId, DateTimeOffset sentAt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task MarkDeliveryCompletedAsync(Guid deliveryId, DemoRequestDeliveryResult result, DateTimeOffset completedAt, CancellationToken cancellationToken = default)
+        {
+            Completion = result;
+            return Task.CompletedTask;
+        }
         public Task MarkDeliveryFailedAsync(Guid deliveryId, string failureCode, DateTimeOffset attemptedAt, DateTimeOffset? retryAt, CancellationToken cancellationToken = default)
         {
             RetryAt = retryAt;
@@ -307,6 +422,12 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         public Task<int> DeleteExpiredAsync(DateTimeOffset receivedBefore, CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task<DemoRequestOperationsPage> ListAsync(int page, int pageSize, CancellationToken cancellationToken = default) =>
             Task.FromResult(new DemoRequestOperationsPage([], page, pageSize, 0, false, page > 1));
+        public Task<IReadOnlyList<DemoRequestCalendarItem>> ListCalendarAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+        {
+            CalendarFrom = from;
+            CalendarTo = to;
+            return Task.FromResult(CalendarItems);
+        }
         public Task<bool?> QueueOperatorResponseAsync(Guid requestId, string templateKey, Guid actorUserId, DateTimeOffset now, CancellationToken cancellationToken = default)
         {
             QueuedTemplateKey = templateKey; QueuedByUserId = actorUserId; return Task.FromResult(QueueResponseResult);
