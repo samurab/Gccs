@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DemoPage } from "./DemoPage";
@@ -6,6 +6,7 @@ import { DemoPage } from "./DemoPage";
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -76,8 +77,7 @@ describe("DemoPage", () => {
   });
 
   it("maps an API preferred-time validation error back to the scheduler field", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-11T12:00:00-04:00"));
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-08-11T12:00:00-04:00").getTime());
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: false,
       json: vi.fn().mockResolvedValue({
@@ -95,14 +95,13 @@ describe("DemoPage", () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText("Please correct the preferred demo time.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Please correct the preferred demo time.")).toBeInTheDocument());
     expect(screen.getByText(/^Value must be .+ or later\.$/)).toBeInTheDocument();
     expect(screen.queryByText("The demo request is invalid.")).not.toBeInTheDocument();
   });
 
   it("explains local capture and links developers to the operator calendar after submission", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-11T12:00:00-04:00"));
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-08-11T12:00:00-04:00").getTime());
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ status: "Received", receivedAt: "2026-08-11T16:00:00Z" }),
@@ -116,7 +115,7 @@ describe("DemoPage", () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText(/local development capture transport/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/local development capture transport/i)).toBeInTheDocument());
     expect(screen.getByText(/no email was sent/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open the local operator calendar/i })).toHaveAttribute("href", "/platform/demo-requests");
   });
