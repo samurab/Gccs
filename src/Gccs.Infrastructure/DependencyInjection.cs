@@ -171,6 +171,7 @@ public static class DependencyInjection
         services.AddScoped<SimpleReportExportService>();
         services.AddScoped<DemoRequestService>();
         services.AddScoped<DemoRequestResponseService>();
+        services.AddScoped<DemoRequestCalendarService>();
         services.AddSingleton(TimeProvider.System);
         services.Configure<DemoRequestOptions>(options =>
         {
@@ -188,7 +189,7 @@ public static class DependencyInjection
             options.MaximumAttempts = ReadInt(configuration, $"{prefix}:MaximumAttempts", options.MaximumAttempts);
             options.RetentionDays = ReadInt(configuration, $"{prefix}:RetentionDays", options.RetentionDays);
         });
-        services.AddScoped<IDemoRequestEmailSender, AzureCommunicationDemoRequestEmailSender>();
+        services.AddScoped<IDemoRequestDeliveryTransport, AzureCommunicationDemoRequestEmailSender>();
         services.AddSingleton(provider =>
         {
             var options = provider.GetRequiredService<IOptions<DemoRequestOptions>>().Value;

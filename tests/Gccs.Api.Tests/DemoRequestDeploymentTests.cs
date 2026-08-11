@@ -1,10 +1,68 @@
 using System.Text.Json;
+using Gccs.Infrastructure.Marketing;
 using Xunit;
 
 namespace Gccs.Api.Tests;
 
 public sealed class DemoRequestDeploymentTests
 {
+    [Fact]
+    public void Development_uses_capture_transport_without_external_delivery_configuration()
+    {
+        using var document = JsonDocument.Parse(ReadText("apps", "api", "appsettings.Development.json"));
+        var demoRequests = document.RootElement.GetProperty("DemoRequests");
+
+        Assert.True(demoRequests.GetProperty("Enabled").GetBoolean());
+        Assert.Equal(DemoRequestOptions.DevelopmentCaptureProvider, demoRequests.GetProperty("Provider").GetString());
+
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.DevelopmentCaptureProvider
+        };
+        DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: true);
+    }
+
+    [Fact]
+    public void Development_capture_transport_is_rejected_outside_development()
+    {
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.DevelopmentCaptureProvider
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: false));
+
+        Assert.Contains("only in the Development environment", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Azure_communication_delivery_remains_valid_outside_development()
+    {
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.AzureCommunicationServicesProvider,
+            Endpoint = "https://fedril-test.communication.azure.com",
+            UseManagedIdentity = true,
+            SenderAddress = "donotreply@example.com",
+            RecipientAddress = "sales@example.com"
+        };
+
+        DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: false);
+    }
+
+    [Fact]
+    public void Enabled_unknown_delivery_provider_is_rejected()
+    {
+        var options = new DemoRequestOptions { Enabled = true, Provider = "UnknownProvider" };
+
+        Assert.Throws<InvalidOperationException>(() =>
+            DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: true));
+    }
+
     [Fact]
     public void Development_does_not_grant_platform_permissions_to_every_persona()
     {

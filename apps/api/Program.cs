@@ -30,6 +30,8 @@ using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure;
 using Gccs.Infrastructure.Marketing;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,20 +56,9 @@ if (invitationDeliveryEnabled)
     }
 }
 
-var demoRequestsEnabled = builder.Configuration.GetValue("DemoRequests:Enabled", false);
-if (demoRequestsEnabled && !builder.Environment.IsDevelopment())
-{
-    var demoOptions = builder.Configuration.GetSection(DemoRequestOptions.SectionName).Get<DemoRequestOptions>() ?? new DemoRequestOptions();
-    if (!string.Equals(demoOptions.Provider, "AzureCommunicationServices", StringComparison.OrdinalIgnoreCase) ||
-        !System.Net.Mail.MailAddress.TryCreate(demoOptions.RecipientAddress, out _) ||
-        !System.Net.Mail.MailAddress.TryCreate(demoOptions.SenderAddress, out _) ||
-        (demoOptions.UseManagedIdentity &&
-            (!Uri.TryCreate(demoOptions.Endpoint, UriKind.Absolute, out var endpointUri) || endpointUri.Scheme != Uri.UriSchemeHttps)) ||
-        (!demoOptions.UseManagedIdentity && string.IsNullOrWhiteSpace(demoOptions.ConnectionString)))
-    {
-        throw new InvalidOperationException("Enabled demo requests require recipient, sender, and Azure Communication Services credential configuration.");
-    }
-}
+var demoOptions = builder.Configuration.GetSection(DemoRequestOptions.SectionName).Get<DemoRequestOptions>() ?? new DemoRequestOptions();
+DemoRequestOptions.ValidateEnabledConfiguration(demoOptions, builder.Environment.IsDevelopment());
+var demoRequestsEnabled = demoOptions.Enabled;
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -109,6 +100,14 @@ builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSect
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
+if (string.Equals(
+    demoOptions.Provider,
+    DemoRequestOptions.DevelopmentCaptureProvider,
+    StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.RemoveAll<IDemoRequestDeliveryTransport>();
+    builder.Services.AddScoped<IDemoRequestDeliveryTransport, DevelopmentCaptureDemoRequestDeliveryTransport>();
+}
 builder.Services.AddHostedService<DemoRequestDeliveryWorker>();
 builder.Services.Configure<ExtractionProcessingOptions>(
     builder.Configuration.GetSection(ExtractionProcessingOptions.SectionName));
@@ -213,14 +212,23 @@ var platformApi = app.MapGroup("/api/platform")
     .RequireRateLimiting("api")
     .AllowWithoutTenantMembership();
 
-platformApi.MapGet("/me/access", (ClaimsPrincipal user) =>
+platformApi.MapGet("/me/access", (ClaimsPrincipal user, IOptions<DemoRequestOptions> demoRequestOptions) =>
 {
+    var deliveryMode = !demoRequestOptions.Value.Enabled
+        ? "Disabled"
+        : string.Equals(
+            demoRequestOptions.Value.Provider,
+            DemoRequestOptions.DevelopmentCaptureProvider,
+            StringComparison.OrdinalIgnoreCase)
+            ? "DevelopmentCapture"
+            : "ExternalEmail";
     return Results.Ok(new
     {
         userId = user.FindFirstValue(ClaimTypes.NameIdentifier),
         userEmail = user.FindFirstValue(ClaimTypes.Email),
         canProvisionTenants = PlatformAuthorization.CanProvisionTenants(user),
         canManageDemoRequests = PlatformAuthorization.CanManageDemoRequests(user),
+        demoRequestDeliveryMode = deliveryMode,
         permissions = user
             .FindAll(PlatformAuthorization.PermissionClaimType)
             .Select(claim => claim.Value)
@@ -236,6 +244,30 @@ platformApi.MapGet("/demo-requests", async (
     Results.Ok(await repository.ListAsync(page == 0 ? 1 : page, pageSize == 0 ? 25 : pageSize, cancellationToken)))
     .RequireDemoRequestManagementPermission()
     .WithName("ListPlatformDemoRequests");
+
+platformApi.MapGet("/demo-requests/calendar", async (
+    DateTimeOffset from,
+    DateTimeOffset to,
+    DemoRequestCalendarService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ListAsync(from, to, cancellationToken));
+    }
+    catch (ArgumentException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Calendar range invalid",
+            exception.Message,
+            StatusCodes.Status400BadRequest,
+            "calendar_range_invalid");
+    }
+})
+    .RequireDemoRequestManagementPermission()
+    .WithName("ListPlatformDemoRequestCalendar");
 
 platformApi.MapPost("/demo-requests/{requestId:guid}/responses", async (
     Guid requestId, QueueDemoRequestResponse request, DemoRequestResponseService service,

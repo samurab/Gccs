@@ -101,6 +101,7 @@ describe("FeDril API client", () => {
 
   it("does not grant platform permissions to every local development persona by default", async () => {
     vi.stubEnv("DEV", true);
+    vi.stubEnv("VITE_GCCS_DEV_PLATFORM_PERMISSIONS", "");
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({

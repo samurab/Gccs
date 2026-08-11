@@ -64,15 +64,49 @@ public sealed record DemoRequestOperationsPage(
     IReadOnlyList<DemoRequestOperationsItem> Items, int Page, int PageSize, int TotalCount,
     bool HasNextPage, bool HasPreviousPage);
 
+public sealed record DemoRequestCalendarItem(
+    Guid Id, string FirstName, string LastName, string Company, DateTimeOffset PreferredStartAt,
+    string? PreferredTimeZone, DateTimeOffset ReceivedAt, string DeliveryStatus, string SchedulingStatus);
+
+public sealed record DemoRequestCalendarRange(
+    IReadOnlyList<DemoRequestCalendarItem> Items, DateTimeOffset From, DateTimeOffset To);
+
 public interface IDemoRequestRepository
 {
     Task CreateIfNewAsync(DemoRequestRecord request, CancellationToken cancellationToken = default);
     Task<ClaimedDemoRequestDelivery?> TryClaimNextDeliveryAsync(DateTimeOffset now, TimeSpan leaseDuration, CancellationToken cancellationToken = default);
-    Task MarkDeliverySentAsync(Guid deliveryId, string providerMessageId, DateTimeOffset sentAt, CancellationToken cancellationToken = default);
+    Task MarkDeliveryCompletedAsync(Guid deliveryId, DemoRequestDeliveryResult result, DateTimeOffset completedAt, CancellationToken cancellationToken = default);
     Task MarkDeliveryFailedAsync(Guid deliveryId, string failureCode, DateTimeOffset attemptedAt, DateTimeOffset? retryAt, CancellationToken cancellationToken = default);
     Task<int> DeleteExpiredAsync(DateTimeOffset receivedBefore, CancellationToken cancellationToken = default);
     Task<DemoRequestOperationsPage> ListAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DemoRequestCalendarItem>> ListCalendarAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
     Task<bool?> QueueOperatorResponseAsync(Guid requestId, string templateKey, Guid actorUserId, DateTimeOffset now, CancellationToken cancellationToken = default);
+}
+
+public sealed class DemoRequestCalendarService(IDemoRequestRepository repository)
+{
+    public async Task<DemoRequestCalendarRange> ListAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken = default)
+    {
+        if (to <= from)
+        {
+            throw new ArgumentException("The calendar end must be after its start.");
+        }
+
+        if (to - from > TimeSpan.FromDays(93))
+        {
+            throw new ArgumentException("The calendar range cannot exceed 93 days.");
+        }
+
+        var normalizedFrom = from.ToUniversalTime();
+        var normalizedTo = to.ToUniversalTime();
+        return new DemoRequestCalendarRange(
+            await repository.ListCalendarAsync(normalizedFrom, normalizedTo, cancellationToken),
+            normalizedFrom,
+            normalizedTo);
+    }
 }
 
 public sealed record QueueDemoRequestResponse(string TemplateKey);
@@ -163,7 +197,7 @@ public sealed class DemoRequestService(IDemoRequestRepository repository, TimePr
         OptionalLength(request.Phone, "phone", 40, errors);
         OptionalLength(request.ReferralSource, "referralSource", 200, errors);
         OptionalLength(request.Message, "message", 2000, errors);
-        if (request.PreferredStartAt is null || request.PreferredStartAt <= receivedAt.AddHours(2) || request.PreferredStartAt > receivedAt.AddDays(90))
+        if (request.PreferredStartAt is null || request.PreferredStartAt < receivedAt.AddHours(2) || request.PreferredStartAt > receivedAt.AddDays(90))
             errors["preferredStartAt"] = ["Select a demo time between two hours and 90 days from now."];
         if (string.IsNullOrWhiteSpace(request.PreferredTimeZone) || !IsValidTimeZone(request.PreferredTimeZone))
             errors["preferredTimeZone"] = ["A valid IANA time zone is required."];
@@ -217,25 +251,33 @@ public sealed class DemoRequestService(IDemoRequestRepository repository, TimePr
     private static bool IsValidTimeZone(string value) { try { _ = TimeZoneInfo.FindSystemTimeZoneById(value); return value.Length <= 100; } catch { return false; } }
 }
 
-public sealed record DemoRequestEmailSendResult(string ProviderMessageId);
+public enum DemoRequestDeliveryDisposition
+{
+    Sent,
+    Captured
+}
 
-public interface IDemoRequestEmailSender
+public sealed record DemoRequestDeliveryResult(
+    DemoRequestDeliveryDisposition Disposition,
+    string? ProviderMessageId = null);
+
+public interface IDemoRequestDeliveryTransport
 {
     bool IsConfigured { get; }
-    Task<DemoRequestEmailSendResult> SendAsync(ClaimedDemoRequestDelivery request, CancellationToken cancellationToken = default);
+    Task<DemoRequestDeliveryResult> DeliverAsync(ClaimedDemoRequestDelivery request, CancellationToken cancellationToken = default);
 }
 
 public sealed record DemoRequestDeliverySettings(TimeSpan LeaseDuration, int MaximumAttempts);
 
 public sealed class DemoRequestDeliveryService(
     IDemoRequestRepository repository,
-    IDemoRequestEmailSender sender,
+    IDemoRequestDeliveryTransport transport,
     DemoRequestDeliverySettings settings,
     TimeProvider timeProvider)
 {
     public async Task<bool> ProcessNextAsync(CancellationToken cancellationToken = default)
     {
-        if (!sender.IsConfigured)
+        if (!transport.IsConfigured)
         {
             return false;
         }
@@ -248,8 +290,8 @@ public sealed class DemoRequestDeliveryService(
 
         try
         {
-            var result = await sender.SendAsync(request, cancellationToken);
-            await repository.MarkDeliverySentAsync(request.DeliveryId, result.ProviderMessageId, timeProvider.GetUtcNow(), cancellationToken);
+            var result = await transport.DeliverAsync(request, cancellationToken);
+            await repository.MarkDeliveryCompletedAsync(request.DeliveryId, result, timeProvider.GetUtcNow(), cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

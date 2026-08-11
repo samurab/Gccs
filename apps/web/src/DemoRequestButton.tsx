@@ -9,6 +9,29 @@ type DemoRequestButtonProps = {
   className?: string;
 };
 
+function createSchedulerBounds() {
+  const toLocalInput = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  const now = Date.now();
+  const minimum = new Date(Math.ceil((now + 2 * 60 * 60 * 1000) / 60_000) * 60_000);
+  const maximum = new Date(Math.floor((now + 90 * 24 * 60 * 60 * 1000) / 60_000) * 60_000);
+  return { minimum: toLocalInput(minimum), maximum: toLocalInput(maximum) };
+}
+
+function formatSchedulerBoundary(value: string) {
+  const boundary = new Date(value);
+  return Number.isNaN(boundary.getTime())
+    ? value.replace("T", " ")
+    : new Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle: "short" }).format(boundary);
+}
+
+function getSchedulerValidationMessage(input: HTMLInputElement) {
+  input.setCustomValidity("");
+  if (input.validity.valueMissing) return "Select a date and time.";
+  if (input.validity.rangeUnderflow) return `Value must be ${formatSchedulerBoundary(input.min)} or later.`;
+  if (input.validity.rangeOverflow) return `Value must be ${formatSchedulerBoundary(input.max)} or earlier.`;
+  return "";
+}
+
 export function DemoRequestButton({ label, className = "" }: DemoRequestButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -18,12 +41,10 @@ export function DemoRequestButton({ label, className = "" }: DemoRequestButtonPr
   const dialogRef = useRef<HTMLElement>(null);
   const titleId = useId();
   const descriptionId = useId();
+  const schedulerErrorId = useId();
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  const [schedulerBounds] = useState(() => {
-    const toLocalInput = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-    const now = Date.now();
-    return { minimum: toLocalInput(new Date(now + 2 * 60 * 60 * 1000)), maximum: toLocalInput(new Date(now + 90 * 24 * 60 * 60 * 1000)) };
-  });
+  const [schedulerBounds, setSchedulerBounds] = useState(createSchedulerBounds);
+  const [schedulerError, setSchedulerError] = useState("");
 
   useEffect(() => {
     if (!isOpen) {
@@ -52,13 +73,35 @@ export function DemoRequestButton({ label, className = "" }: DemoRequestButtonPr
     setIsOpen(false);
     setStatus("idle");
     setError("");
+    setSchedulerError("");
     window.requestAnimationFrame(() => openButtonRef.current?.focus());
+  };
+
+  const open = () => {
+    setSchedulerBounds(createSchedulerBounds());
+    setSchedulerError("");
+    setIsOpen(true);
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (status === "submitting") return;
     const form = event.currentTarget;
+    const preferredStart = form.elements.namedItem("preferredLocalStart") as HTMLInputElement;
+    const currentBounds = createSchedulerBounds();
+    preferredStart.min = currentBounds.minimum;
+    preferredStart.max = currentBounds.maximum;
+    setSchedulerBounds(currentBounds);
+    const currentSchedulerError = getSchedulerValidationMessage(preferredStart);
+    if (currentSchedulerError) {
+      preferredStart.setCustomValidity(currentSchedulerError);
+      setSchedulerError(currentSchedulerError);
+      setError("");
+      setStatus("idle");
+      preferredStart.focus();
+      preferredStart.reportValidity();
+      return;
+    }
     const values = new FormData(form);
     const optional = (name: string) => String(values.get(name) ?? "").trim() || null;
     setStatus("submitting");
@@ -78,7 +121,22 @@ export function DemoRequestButton({ label, className = "" }: DemoRequestButtonPr
       website: optional("website"),
     });
     if (result.error) {
-      setError(result.error);
+      const preferredStartError = result.fieldErrors.preferredStartAt?.[0];
+      if (preferredStartError) {
+        const refreshedBounds = createSchedulerBounds();
+        preferredStart.min = refreshedBounds.minimum;
+        preferredStart.max = refreshedBounds.maximum;
+        setSchedulerBounds(refreshedBounds);
+        const message = getSchedulerValidationMessage(preferredStart) || (
+          preferredStart.value > refreshedBounds.maximum
+            ? `Value must be ${formatSchedulerBoundary(refreshedBounds.maximum)} or earlier.`
+            : `Value must be ${formatSchedulerBoundary(refreshedBounds.minimum)} or later.`
+        );
+        preferredStart.setCustomValidity(message);
+        setSchedulerError(message);
+        preferredStart.focus();
+      }
+      setError(preferredStartError ? "Please correct the preferred demo time." : result.error);
       setStatus("error");
       return;
     }
@@ -112,7 +170,7 @@ export function DemoRequestButton({ label, className = "" }: DemoRequestButtonPr
     <>
       <button
         className={`landing-button landing-button--primary demo-cta__button ${className}`.trim()}
-        onClick={() => setIsOpen(true)}
+        onClick={open}
         ref={openButtonRef}
         type="button"
       >
@@ -153,7 +211,14 @@ export function DemoRequestButton({ label, className = "" }: DemoRequestButtonPr
               <div className="demo-request-success" role="status">
                 <CheckCircle2 aria-hidden="true" size={42} />
                 <h3>Demo request received</h3>
-                <p>Your preferred demo time was recorded. An acknowledgement will be sent to the work email you provided when email delivery is configured. FeDril will confirm availability separately.</p>
+                {import.meta.env.DEV ? (
+                  <>
+                    <p>Your preferred demo time was recorded by the local development capture transport. No email was sent. FeDril will confirm availability separately.</p>
+                    <a href="/platform/demo-requests">Open the local operator calendar</a>
+                  </>
+                ) : (
+                  <p>Your preferred demo time was recorded. An acknowledgement will be sent to the work email you provided when email delivery is configured. FeDril will confirm availability separately.</p>
+                )}
                 <button className="landing-button landing-button--primary" onClick={close} type="button">Close</button>
               </div>
             ) : <form className="demo-request-form" onSubmit={submit}>
@@ -203,7 +268,27 @@ export function DemoRequestButton({ label, className = "" }: DemoRequestButtonPr
                 </label>
                 <fieldset className="demo-request-scheduler demo-request-form__wide">
                   <legend>Preferred demo time <b aria-hidden="true">*</b></legend>
-                  <label><span>Date and time</span><input max={schedulerBounds.maximum} min={schedulerBounds.minimum} name="preferredLocalStart" required type="datetime-local" /></label>
+                  <label className="demo-request-form__explicit-validation">
+                    <span>Date and time</span>
+                    <input
+                      aria-describedby={schedulerError ? schedulerErrorId : undefined}
+                      max={schedulerBounds.maximum}
+                      min={schedulerBounds.minimum}
+                      name="preferredLocalStart"
+                      onInput={(event) => {
+                        event.currentTarget.setCustomValidity("");
+                        setSchedulerError("");
+                      }}
+                      onInvalid={(event) => {
+                        const message = getSchedulerValidationMessage(event.currentTarget);
+                        event.currentTarget.setCustomValidity(message);
+                        setSchedulerError(message);
+                      }}
+                      required
+                      type="datetime-local"
+                    />
+                  </label>
+                  {schedulerError ? <p className="demo-request-form__error" id={schedulerErrorId} role="alert">{schedulerError}</p> : null}
                   <p>Time zone: <strong>{timeZone}</strong></p>
                   <small>This is a requested 30-minute time, not a confirmed reservation. FeDril will confirm availability separately.</small>
                 </fieldset>

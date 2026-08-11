@@ -205,6 +205,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.DeduplicationKey).IsUnique();
             entity.HasIndex(x => x.ReceivedAt);
+            entity.HasIndex(x => x.PreferredStartAt);
             entity.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
             entity.Property(x => x.LastName).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Email).HasMaxLength(320).IsRequired();

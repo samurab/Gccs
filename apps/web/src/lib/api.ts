@@ -153,6 +153,7 @@ export type PlatformAccess = {
   userEmail: string | null;
   canProvisionTenants: boolean;
   canManageDemoRequests: boolean;
+  demoRequestDeliveryMode?: "DevelopmentCapture" | "ExternalEmail" | "Disabled";
   permissions: string[];
 };
 
@@ -168,6 +169,14 @@ export type PlatformDemoRequest = {
 export type PlatformDemoRequestPage = {
   items: PlatformDemoRequest[]; page: number; pageSize: number; totalCount: number;
   hasNextPage: boolean; hasPreviousPage: boolean;
+};
+export type PlatformDemoRequestCalendarItem = {
+  id: string; firstName: string; lastName: string; company: string;
+  preferredStartAt: string; preferredTimeZone: string | null; receivedAt: string;
+  deliveryStatus: string; schedulingStatus: "Requested";
+};
+export type PlatformDemoRequestCalendarRange = {
+  items: PlatformDemoRequestCalendarItem[]; from: string; to: string;
 };
 export type DemoRequestResponseReceipt = { status: "Queued" | "AlreadyQueued"; templateKey: string; queuedAt: string };
 
@@ -1739,6 +1748,10 @@ export async function getPlatformAccess(): Promise<PlatformAccess> {
 
 export async function getPlatformDemoRequests(page = 1, pageSize = 25): Promise<PlatformDemoRequestPage> {
   return getRequiredJson<PlatformDemoRequestPage>(`/api/platform/demo-requests?page=${page}&pageSize=${pageSize}`);
+}
+export async function getPlatformDemoRequestCalendar(from: string, to: string): Promise<PlatformDemoRequestCalendarRange> {
+  const parameters = new URLSearchParams({ from, to });
+  return getRequiredJson<PlatformDemoRequestCalendarRange>(`/api/platform/demo-requests/calendar?${parameters}`);
 }
 export async function queuePlatformDemoRequestResponse(requestId: string, templateKey: string): Promise<ApiMutationResult<DemoRequestResponseReceipt>> {
   return postJsonResult<DemoRequestResponseReceipt>(`/api/platform/demo-requests/${requestId}/responses`, { templateKey });

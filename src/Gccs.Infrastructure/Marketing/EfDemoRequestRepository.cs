@@ -38,6 +38,29 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
         return new DemoRequestOperationsPage(items, page, pageSize, totalCount, page * pageSize < totalCount, page > 1);
     }
 
+    public async Task<IReadOnlyList<DemoRequestCalendarItem>> ListCalendarAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken = default) =>
+        await dbContext.DemoRequests.AsNoTracking()
+            .Where(request => request.PreferredStartAt >= from && request.PreferredStartAt < to)
+            .OrderBy(request => request.PreferredStartAt)
+            .ThenBy(request => request.ReceivedAt)
+            .Select(request => new DemoRequestCalendarItem(
+                request.Id,
+                request.FirstName,
+                request.LastName,
+                request.Company,
+                request.PreferredStartAt!.Value,
+                request.PreferredTimeZone,
+                request.ReceivedAt,
+                dbContext.DemoRequestDeliveries
+                    .Where(delivery => delivery.DemoRequestId == request.Id && delivery.DeliveryKind == "InternalNotification")
+                    .Select(delivery => delivery.Status)
+                    .Single(),
+                "Requested"))
+            .ToListAsync(cancellationToken);
+
     public async Task CreateIfNewAsync(DemoRequestRecord request, CancellationToken cancellationToken = default)
     {
         var entity = new DemoRequestEntity
@@ -125,8 +148,12 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
         return null;
     }
 
-    public Task MarkDeliverySentAsync(Guid deliveryId, string providerMessageId, DateTimeOffset sentAt, CancellationToken cancellationToken = default) =>
-        UpdateAsync(deliveryId, "Sent", sentAt, null, providerMessageId, null, cancellationToken);
+    public Task MarkDeliveryCompletedAsync(
+        Guid deliveryId,
+        DemoRequestDeliveryResult result,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken = default) =>
+        UpdateAsync(deliveryId, result.Disposition.ToString(), completedAt, null, result.ProviderMessageId, null, cancellationToken);
 
     public Task MarkDeliveryFailedAsync(Guid deliveryId, string failureCode, DateTimeOffset attemptedAt, DateTimeOffset? retryAt, CancellationToken cancellationToken = default) =>
         UpdateAsync(deliveryId, retryAt.HasValue ? "RetryScheduled" : "Failed", attemptedAt, retryAt, null, failureCode, cancellationToken);
@@ -139,7 +166,7 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
                 dbContext.DemoRequestDeliveries.Any(delivery =>
                     delivery.DemoRequestId == request.Id) &&
                 !dbContext.DemoRequestDeliveries.Any(delivery =>
-                    delivery.DemoRequestId == request.Id && delivery.Status != "Sent" && delivery.Status != "Failed"))
+                    delivery.DemoRequestId == request.Id && delivery.Status != "Sent" && delivery.Status != "Captured" && delivery.Status != "Failed"))
             .Select(request => request.Id)
             .ToListAsync(cancellationToken);
         await dbContext.DemoRequestDeliveries.Where(delivery => requestIds.Contains(delivery.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);

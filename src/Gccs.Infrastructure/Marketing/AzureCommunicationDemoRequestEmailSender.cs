@@ -10,6 +10,8 @@ namespace Gccs.Infrastructure.Marketing;
 public sealed class DemoRequestOptions
 {
     public const string SectionName = "DemoRequests";
+    public const string AzureCommunicationServicesProvider = "AzureCommunicationServices";
+    public const string DevelopmentCaptureProvider = "DevelopmentCapture";
     public bool Enabled { get; set; }
     public string Provider { get; set; } = "AzureCommunicationServices";
     public string Endpoint { get; set; } = string.Empty;
@@ -21,9 +23,34 @@ public sealed class DemoRequestOptions
     public int LeaseMinutes { get; set; } = 5;
     public int MaximumAttempts { get; set; } = 5;
     public int RetentionDays { get; set; } = 365;
+
+    public static void ValidateEnabledConfiguration(DemoRequestOptions options, bool isDevelopment)
+    {
+        if (!options.Enabled) return;
+
+        if (string.Equals(options.Provider, DevelopmentCaptureProvider, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!isDevelopment)
+            {
+                throw new InvalidOperationException("The DevelopmentCapture demo-request provider is permitted only in the Development environment.");
+            }
+
+            return;
+        }
+
+        if (!string.Equals(options.Provider, AzureCommunicationServicesProvider, StringComparison.OrdinalIgnoreCase) ||
+            !System.Net.Mail.MailAddress.TryCreate(options.RecipientAddress, out _) ||
+            !System.Net.Mail.MailAddress.TryCreate(options.SenderAddress, out _) ||
+            (options.UseManagedIdentity &&
+                (!Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var endpointUri) || endpointUri.Scheme != Uri.UriSchemeHttps)) ||
+            (!options.UseManagedIdentity && string.IsNullOrWhiteSpace(options.ConnectionString)))
+        {
+            throw new InvalidOperationException("Enabled demo requests require a supported provider and valid delivery configuration.");
+        }
+    }
 }
 
-public sealed class AzureCommunicationDemoRequestEmailSender : IDemoRequestEmailSender
+public sealed class AzureCommunicationDemoRequestEmailSender : IDemoRequestDeliveryTransport
 {
     private readonly DemoRequestOptions _options;
     private readonly EmailClient? _client;
@@ -40,12 +67,12 @@ public sealed class AzureCommunicationDemoRequestEmailSender : IDemoRequestEmail
     }
 
     public bool IsConfigured => _options.Enabled &&
-        string.Equals(_options.Provider, "AzureCommunicationServices", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(_options.Provider, DemoRequestOptions.AzureCommunicationServicesProvider, StringComparison.OrdinalIgnoreCase) &&
         !string.IsNullOrWhiteSpace(_options.SenderAddress) &&
         !string.IsNullOrWhiteSpace(_options.RecipientAddress) &&
         (_options.UseManagedIdentity ? Uri.TryCreate(_options.Endpoint, UriKind.Absolute, out _) : !string.IsNullOrWhiteSpace(_options.ConnectionString));
 
-    public async Task<DemoRequestEmailSendResult> SendAsync(ClaimedDemoRequestDelivery request, CancellationToken cancellationToken = default)
+    public async Task<DemoRequestDeliveryResult> DeliverAsync(ClaimedDemoRequestDelivery request, CancellationToken cancellationToken = default)
     {
         if (_client is null) throw new InvalidOperationException("Demo-request email delivery is not configured.");
         var isRequesterEmail = request.DeliveryKind == "RequesterAcknowledgement" || request.DeliveryKind.StartsWith("OperatorResponse:", StringComparison.Ordinal);
@@ -57,7 +84,7 @@ public sealed class AzureCommunicationDemoRequestEmailSender : IDemoRequestEmail
         var recipient = isRequesterEmail ? request.Email : _options.RecipientAddress;
         var recipients = new EmailRecipients([new EmailAddress(recipient)]);
         var operation = await _client.SendAsync(WaitUntil.Completed, new EmailMessage(_options.SenderAddress, recipients, content), cancellationToken);
-        return new DemoRequestEmailSendResult(operation.Id);
+        return new DemoRequestDeliveryResult(DemoRequestDeliveryDisposition.Sent, operation.Id);
     }
 
     public static EmailContent CreateContent(ClaimedDemoRequestDelivery request)
