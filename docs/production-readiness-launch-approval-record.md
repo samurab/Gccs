@@ -2,11 +2,11 @@
 
 Story: PR-6.1 - Collect Required Launch Approvals.
 
-Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with corrective production-authentication-copy reapproval recorded on 2026-08-09.
+Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with demo-scheduling-delivery reapproval recorded on 2026-08-11.
 
 Record date: 2026-07-03.
 
-Latest candidate-specific reapproval date: 2026-08-09.
+Latest candidate-specific reapproval date: 2026-08-11.
 
 Record owner: Product owner.
 
@@ -141,6 +141,25 @@ This corrective approval is not independent legal, security, privacy, compliance
 | Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, or independent professional approval is claimed. |
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, the corrected production sign-in copy regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Demo Scheduling Delivery Candidate Reapproval - 2026-08-11
+
+The repository owner and deployment operator, `samurab`, explicitly requested that the worktree be pushed and deployed to staging and production. This records combined-role approval for `launch-candidate-2026-08-11-1` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, email-deliverability, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-11 |
+| Candidate | `launch-candidate-2026-08-11-1` at `4bcda833236bb448da561f7c2637bf8eb35cd265` |
+| Scope | PR #47 adds an indexed requested-time operator calendar, preserves permission-gated platform operations, makes the two-hour scheduling error explicit, distinguishes provider acceptance from delivery, enables safe local development capture, updates UAT guidance, and adds one additive EF Core migration with focused backend and frontend coverage. |
+| Exact-candidate automated evidence | Main CI run `31543993484`; staging deployment run `31543993493`; Static Web Apps run `31543993556`; 1,501 backend tests, 106 frontend tests, dependency audits, secret scan, EF migration validation, Terraform validation, extraction evaluation at precision 1.0 and recall 1.0, and real-stack report RBAC passed. |
+| Exact-candidate staging evidence | Run `31543993493` applied the additive calendar-index migration and passed deployment and dependency smoke checks. Live `/health` reported PostgreSQL, Redis, object storage, and background jobs healthy. Live App Service settings remained `Staging` for both environment keys with development auth explicitly `false`; authentication authority and audience were configured; the development-auth header-spoof probe returned `401`. The hosted public scheduler dialog exposed the preferred date/time control without submitting customer data. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No live demo request or email was sent during the read-only post-deployment smoke, so provider acceptance and external mailbox placement were not re-proven. The authenticated operator calendar was not browser-tested because no staging operator identity was supplied. The calendar organizes requested times; it is not an availability engine or confirmed reservation system. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, guaranteed email delivery, confirmed reservation, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
 
 ## Evidence Package Reviewed
 

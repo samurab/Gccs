@@ -2,15 +2,15 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate is awaiting protected production CI/CD execution; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-08-09-2` deployed successfully in production workflow run `31331760629`.
+Current candidate execution status: `launch-candidate-2026-08-11-1` is approved but not yet deployed.
 
-Latest evidence date: 2026-08-09. Historical evidence dates are retained below.
+Latest evidence date: 2026-08-11. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-08-09-2`.
+Approved launch candidate tag: `launch-candidate-2026-08-11-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -36,15 +36,15 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-09-2` at `e0d04a454854949f66287af5245bdd03c684d5fb`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Passed | Run `31331760629` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-09-2` completed protected production workflow execution in run `31331760629`. |
-| Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production environment contract and required services; protected environment `Production` approved only the solo-controlled No-CUI pilot deployment. |
-| Production secrets source | Passed | Current candidate `launch-candidate-2026-08-09-2` resolved the required production environment secrets in run `31331760629` without exposing their values. Secret values are not stored in this evidence or the repository. |
-| Production No-CUI posture validation | Passed | Run `31331760629` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
-| Production migrations | Passed | Run `31331760629` generated and successfully applied the idempotent migration script. The corrective candidate introduces no EF Core migration file changes relative to `launch-candidate-2026-08-09-1`. |
-| Production storage, cache, queue, and background jobs | Passed | The exact-candidate production health response returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
-| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `31331760629` and an independent request passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. This corrective deployment did not repeat alert-delivery or email-delivery exercises. |
-| Deployment evidence capture | Passed | Artifact `9043177041` records deployment time, artifact tag/SHA, operator, environment, workflow URL, No-CUI posture, result, health output, and migration script. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-11-1` at `4bcda833236bb448da561f7c2637bf8eb35cd265`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved production CI/CD path | Ready; exact-candidate execution pending | Historical run `31331760629` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-11-1` still requires protected production workflow execution after this launch-candidate gate merges. |
+| Production environment configuration | Passed pre-deployment read-only check | `infra/terraform/environments/production/main.tf` declares the production contract. Live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
+| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-08-11-1` still requires protected production workflow execution. Secret values are not stored in this evidence or the repository. |
+| Production No-CUI posture validation | Pending workflow validation | Pre-deployment `/health` reported the No-CUI posture, but the current-candidate workflow must validate `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
+| Production migrations | Pending current-candidate execution | The candidate adds `20260811013351_AddDemoRequestPreferredStartCalendarIndex`; exact-candidate staging applied it successfully, but production application remains pending. |
+| Production storage, cache, queue, and background jobs | Passed pre-deployment health; post-deployment pending | Pre-deployment production `/health` returned `ok` for PostgreSQL, Redis, object storage, and background jobs. The exact candidate has not yet been deployed. |
+| Production health checks, logs, and alerts | Pre-deployment health passed; post-deployment pending | An independent pre-deployment request passed `/health`; the protected workflow must repeat health checks after deploying the exact candidate. Historical alert-delivery evidence is retained and is not candidate-specific proof. |
+| Deployment evidence capture | Pending | The current-candidate workflow must upload a new evidence artifact containing deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
