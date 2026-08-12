@@ -2,9 +2,9 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate is awaiting protected production CI/CD execution; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-08-11-1` is approved but not yet deployed.
+Current candidate execution status: `launch-candidate-2026-08-11-1` deployed successfully in production workflow run `31549410176`.
 
 Latest evidence date: 2026-08-11. Historical evidence dates are retained below.
 
@@ -37,14 +37,14 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-11-1` at `4bcda833236bb448da561f7c2637bf8eb35cd265`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Ready; exact-candidate execution pending | Historical run `31331760629` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-11-1` still requires protected production workflow execution after this launch-candidate gate merges. |
-| Production environment configuration | Passed pre-deployment read-only check | `infra/terraform/environments/production/main.tf` declares the production contract. Live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-08-11-1` still requires protected production workflow execution. Secret values are not stored in this evidence or the repository. |
-| Production No-CUI posture validation | Pending workflow validation | Pre-deployment `/health` reported the No-CUI posture, but the current-candidate workflow must validate `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
-| Production migrations | Pending current-candidate execution | The candidate adds `20260811013351_AddDemoRequestPreferredStartCalendarIndex`; exact-candidate staging applied it successfully, but production application remains pending. |
-| Production storage, cache, queue, and background jobs | Passed pre-deployment health; post-deployment pending | Pre-deployment production `/health` returned `ok` for PostgreSQL, Redis, object storage, and background jobs. The exact candidate has not yet been deployed. |
-| Production health checks, logs, and alerts | Pre-deployment health passed; post-deployment pending | An independent pre-deployment request passed `/health`; the protected workflow must repeat health checks after deploying the exact candidate. Historical alert-delivery evidence is retained and is not candidate-specific proof. |
-| Deployment evidence capture | Pending | The current-candidate workflow must upload a new evidence artifact containing deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
+| Approved production CI/CD path | Passed | Run `31549410176` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-11-1` completed protected production workflow execution in run `31549410176`. |
+| Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
+| Production secrets source | Passed | Current candidate `launch-candidate-2026-08-11-1` resolved the required production environment secrets in run `31549410176` without exposing their values. Secret values are not stored in this evidence or the repository. |
+| Production No-CUI posture validation | Passed | Run `31549410176` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
+| Production migrations | Passed | Run `31549410176` generated and successfully applied the idempotent migration script, including `20260811013351_AddDemoRequestPreferredStartCalendarIndex`. |
+| Production storage, cache, queue, and background jobs | Passed | Exact-candidate workflow and independent post-deployment `/health` checks returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
+| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `31549410176` and an independent request passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. Alert delivery and email delivery were not repeated for this candidate. |
+| Deployment evidence capture | Passed | Artifact `9123767294` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
@@ -75,6 +75,27 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `8825546199` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
 
 ## Deployment Execution Record
+
+### 2026-08-11 demo-scheduling-delivery deployment
+
+Production workflow run `31549410176` completed successfully. Release controls ran from merged main commit `a09baefdfbfd3b6ca1d0c27542edd48f60c15ceb`; the workflow validated and deployed immutable runtime tag `launch-candidate-2026-08-11-1` at `4bcda833236bb448da561f7c2637bf8eb35cd265`.
+
+Run results:
+
+- Approved tag/SHA validation, protected-environment review, production controls, and No-CUI guardrails passed.
+- Production API and web builds, idempotent migration generation/application, API App Service deployment, Static Web App deployment, `/health`, and evidence upload passed.
+- Evidence artifact `9123767294` records deployment evidence at `2026-08-12T00:18:16Z`, runtime tag/SHA, operator `samurab`, `customer_data_mode=no-cui-only`, and `result=deployment-and-health-checks-passed`.
+- Workflow and independent health checks returned `status=ok`; PostgreSQL, Redis, object storage, and background jobs each returned `status=ok`.
+- Independent live configuration inspection found no production deployment slots, `ASPNETCORE_ENVIRONMENT=Production`, `DOTNET_ENVIRONMENT=Production`, and `Security__DevelopmentAuth__Enabled=false`; authentication authority and audience were configured. A development-auth header-spoof request returned `401`.
+- An unauthenticated production browser check rendered the public `Schedule a live demo` dialog, preferred date/time input, time-zone text, and submit control. No form was submitted.
+
+Verification limits and environmental differences:
+
+- No production sign-in was performed. The authenticated platform-operator calendar, tenant access, RBAC, upload, report, and audit workflows were not re-executed because no production smoke identity was supplied.
+- No live demo request or operator response was created, so Azure Communication Services provider acceptance and external mailbox placement were not re-proven. Provider acceptance would not guarantee inbox delivery.
+- Historical authenticated PR-7.2 and alert-route smoke remains evidence only for its tested candidate and environment state; it is not candidate-specific execution for this release.
+- The deployment used no real customer data or CUI and does not authorize broader customer launch, CUI processing, certification, government approval, legal advice, or independent professional approval.
+- Database rollback is not automatic. No destructive rollback or production restore exercise was performed during this deployment.
 
 ### 2026-08-09 corrective production-authentication-copy deployment
 
