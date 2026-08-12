@@ -32,8 +32,29 @@ public sealed class DemoRequestDeliveryWorker(
                     if (removed > 0) logger.LogInformation("Expired demo requests removed. Count={Count}", removed);
                     nextRetentionRun = DateTimeOffset.UtcNow.AddDays(1);
                 }
-                var processed = await scope.ServiceProvider.GetRequiredService<DemoRequestDeliveryService>().ProcessNextAsync(stoppingToken);
-                if (!processed) await Task.Delay(interval, stoppingToken);
+                var result = await scope.ServiceProvider.GetRequiredService<DemoRequestDeliveryService>()
+                    .ProcessNextWithResultAsync(stoppingToken);
+                if (result.Status == DemoRequestDeliveryProcessingStatus.Completed)
+                {
+                    logger.LogInformation(
+                        "Demo request delivery processed. DeliveryId={DeliveryId} RequestId={RequestId} DeliveryKind={DeliveryKind} Status={Status}",
+                        result.DeliveryId,
+                        result.RequestId,
+                        result.DeliveryKind,
+                        result.Status);
+                }
+                else if (result.Status == DemoRequestDeliveryProcessingStatus.Failed)
+                {
+                    logger.LogWarning(
+                        "Demo request delivery failed. DeliveryId={DeliveryId} RequestId={RequestId} DeliveryKind={DeliveryKind} FailureCode={FailureCode} RetryAt={RetryAt}",
+                        result.DeliveryId,
+                        result.RequestId,
+                        result.DeliveryKind,
+                        result.FailureCode,
+                        result.RetryAt);
+                }
+
+                if (!result.Processed) await Task.Delay(interval, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception exception)
