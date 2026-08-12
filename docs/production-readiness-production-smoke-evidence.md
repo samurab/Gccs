@@ -12,7 +12,7 @@ Prerequisite deployment record: `docs/production-readiness-production-deployment
 
 Approved production workflow: `.github/workflows/production.yml`.
 
-Latest execution attempt: 2026-08-09.
+Latest execution attempt: 2026-08-11.
 
 ## Architectural Assessment
 
@@ -116,6 +116,14 @@ Current health status: `postgresql`, `redis`, `background-jobs`, and `object-sto
 Run `28746053336`: passed launch-candidate validation, production control validation, artifact checkout, restore, build, migration generation, production migration application, Azure login, API App Service deployment, Static Web App deployment, production health checks, evidence recording, and evidence upload. The `production-deployment-evidence` artifact records `result=deployment-and-health-checks-passed`. The `production-health.json` artifact records `status = ok`, `dataPosture = No-CUI / compliance management only`, and dependency statuses `ok` for `background-jobs`, `object-storage`, `postgresql`, and `redis`.
 
 Current disposition: PR-7.2 production health smoke and authenticated workflow smoke passed after production scanner setup. The prior byte-level evidence upload blocker was reproduced as `503 malware_scanner_unavailable`, then resolved by provisioning a private ClamAV-compatible scanner endpoint and configuring the production API App Service scanner settings.
+
+## 2026-08-11 Demo Scheduling Delivery Candidate Smoke
+
+Production workflow run `31549410176` deployed `launch-candidate-2026-08-11-1` at `4bcda833236bb448da561f7c2637bf8eb35cd265` and passed its automated health gate. Artifact `9123767294` and an independent request returned `status=ok`, `dataPosture=No-CUI / compliance management only`, and dependency statuses `ok` for PostgreSQL, Redis, object storage, and background jobs.
+
+Independent live App Service inspection found `ASPNETCORE_ENVIRONMENT=Production`, `DOTNET_ENVIRONMENT=Production`, `Security__DevelopmentAuth__Enabled=false`, configured authentication authority and audience, and no deployment slots. An unauthenticated request carrying development-auth spoof headers returned `401` from `/api/platform/me/access`.
+
+An unauthenticated browser check rendered the production FeDril landing page and opened the public `Schedule a live demo` dialog with the preferred date/time input. No form was submitted. Authenticated production smoke was not repeated because no production smoke identity was supplied; the operator calendar, tenant access, RBAC, upload, report, audit, alert-delivery, provider-acceptance, and mailbox-placement paths therefore remain untested for this candidate. Historical authenticated evidence below must not be represented as candidate-specific execution for `launch-candidate-2026-08-11-1`.
 
 ## 2026-08-09 Corrective Candidate Smoke
 
