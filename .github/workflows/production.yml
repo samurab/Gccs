@@ -36,6 +36,7 @@ jobs:
       DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}
       DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
       DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
+      DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
     steps:
       - name: Checkout production deployment controls
         uses: actions/checkout@v7
@@ -66,6 +67,8 @@ jobs:
           test -n "$DEMO_REQUESTS_ENDPOINT"
           test -n "$DEMO_REQUESTS_SENDER_ADDRESS"
           test -n "$DEMO_REQUESTS_RECIPIENT_ADDRESS"
+          test -n "$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY"
+          test "${#DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY}" -ge 32
           test -f infra/terraform/environments/production/main.tf
           grep -R "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
           grep -R "database" infra/terraform/environments/production/main.tf
@@ -151,6 +154,9 @@ jobs:
               DemoRequests__UseManagedIdentity=true \
               DemoRequests__SenderAddress="$DEMO_REQUESTS_SENDER_ADDRESS" \
               DemoRequests__RecipientAddress="$DEMO_REQUESTS_RECIPIENT_ADDRESS" \
+              DemoRequests__PublicWebBaseUrl="$PRODUCTION_WEB_BASE_URL" \
+              DemoRequests__FollowUpTokenSigningKey="$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY" \
+              DemoRequests__FollowUpTokenLifetimeHours=72 \
               DemoRequests__PollIntervalSeconds=5 \
               DemoRequests__LeaseMinutes=5 \
               DemoRequests__MaximumAttempts=5 \

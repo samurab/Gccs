@@ -59,6 +59,7 @@ This register identifies the known GCCS dependencies for local development, test
 | `Storage:*` | API | Blob endpoint/account, managed identity choice, and private container names. |
 | `LocalDependencies:MalwareScanner:*` | Local/dev API | Malware scanner host and port. |
 | `InvitationDelivery:*` | API background workers | Shared Azure Communication Services transport, public web URL, retry, and lease settings for invitation and assignment emails. Disabled by default in local development. |
+| `DemoRequests:*` | Public demo intake, follow-up form, and API background worker | Azure Communication Services transport, monitored operations inbox, public web URL, retention, retry/lease settings, and a stable 32-character-or-longer follow-up token signing secret. Rotating the signing secret invalidates outstanding follow-up links. |
 | `VITE_API_BASE_URL` | Web app | API base URL for frontend calls. |
 
 ## Source And Compliance Content Dependencies

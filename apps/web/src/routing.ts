@@ -1,6 +1,7 @@
 const workspacePath = "/app";
 const landingPath = "/landing";
 const demoPath = "/demo";
+const demoRequestDetailsPath = "/demo-request-details";
 const platformAdminPath = "/platform";
 const platformTenantAdminPath = "/platform/tenants/new";
 const platformDemoRequestsPath = "/platform/demo-requests";
@@ -30,6 +31,10 @@ export function shouldRenderLandingPage(location: Pick<Location, "pathname" | "s
 
 export function shouldRenderDemoPage(location: Pick<Location, "pathname"> = window.location) {
   return location.pathname === demoPath;
+}
+
+export function shouldRenderDemoRequestDetailsPage(location: Pick<Location, "pathname"> = window.location) {
+  return location.pathname === demoRequestDetailsPath;
 }
 
 export function shouldRenderPlatformAdminPage(location: Pick<Location, "pathname"> = window.location) {

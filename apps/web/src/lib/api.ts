@@ -164,6 +164,28 @@ export type PlatformDemoRequest = {
   receivedAt: string; deliveryStatus: string; deliveryAttemptCount: number;
   nextDeliveryAttemptAt: string | null; sentAt: string | null; deliveryFailureCode: string | null;
   acknowledgementStatus: string;
+  schedulingStatus: "Requested" | "Confirmed" | string;
+  confirmedStartAt: string | null; confirmedEndAt: string | null; confirmedTimeZone: string | null;
+  durationMinutes: number | null; meetingMethod: string | null; meetingJoinUrl: string | null;
+  appointmentConfirmationStatus: string;
+  followUpRequests?: DemoFollowUpOperationsItem[];
+};
+
+export type DemoFollowUpOperationsItem = {
+  id: string;
+  status: "Pending" | "Responded" | "Expired" | string;
+  requestedAt: string;
+  expiresAt: string;
+  requestedByUserId: string;
+  deliveryStatus: string;
+  respondedAt: string | null;
+  workflows: string[];
+  otherWorkflow: string | null;
+  goals: string | null;
+  challenges: string | null;
+  currentProcess: string | null;
+  additionalContext: string | null;
+  noCuiNoticeVersion: string;
 };
 
 export type PlatformDemoRequestPage = {
@@ -173,12 +195,31 @@ export type PlatformDemoRequestPage = {
 export type PlatformDemoRequestCalendarItem = {
   id: string; firstName: string; lastName: string; company: string;
   preferredStartAt: string; preferredTimeZone: string | null; receivedAt: string;
-  deliveryStatus: string; schedulingStatus: "Requested";
+  deliveryStatus: string; schedulingStatus: "Requested" | "Confirmed" | string;
+  confirmedStartAt: string | null; confirmedEndAt: string | null; confirmedTimeZone: string | null;
+  durationMinutes: number | null; meetingMethod: string | null;
 };
 export type PlatformDemoRequestCalendarRange = {
   items: PlatformDemoRequestCalendarItem[]; from: string; to: string;
 };
-export type DemoRequestResponseReceipt = { status: "Queued" | "AlreadyQueued"; templateKey: string; queuedAt: string };
+export type DemoRequestResponseReceipt = {
+  status: "Queued" | "AlreadyQueued" | "AlreadyPending";
+  templateKey: string;
+  queuedAt: string;
+  followUpRequestId?: string | null;
+  expiresAt?: string | null;
+};
+export type ConfirmDemoAppointmentRequest = {
+  confirmedLocalStart: string;
+  timeZone: string;
+  meetingMethod: "ConnectionDetailsToFollow" | "MicrosoftTeams" | "Zoom" | "GoogleMeet" | "Phone";
+  meetingJoinUrl: string | null;
+};
+export type DemoAppointmentConfirmationReceipt = {
+  appointmentId: string; demoRequestId: string; schedulingStatus: "Confirmed";
+  confirmedStartAt: string; confirmedEndAt: string; timeZone: string; durationMinutes: number;
+  meetingMethod: string; emailStatus: "Queued"; confirmedAt: string;
+};
 
 export type PlatformTenantProvisioningRequest = {
   onboardingType: "Pilot" | "Paid";
@@ -1755,6 +1796,9 @@ export async function getPlatformDemoRequestCalendar(from: string, to: string): 
 }
 export async function queuePlatformDemoRequestResponse(requestId: string, templateKey: string): Promise<ApiMutationResult<DemoRequestResponseReceipt>> {
   return postJsonResult<DemoRequestResponseReceipt>(`/api/platform/demo-requests/${requestId}/responses`, { templateKey });
+}
+export async function confirmPlatformDemoAppointment(requestId: string, request: ConfirmDemoAppointmentRequest): Promise<ApiMutationResult<DemoAppointmentConfirmationReceipt>> {
+  return postJsonResult<DemoAppointmentConfirmationReceipt>(`/api/platform/demo-requests/${requestId}/appointment-confirmation`, request);
 }
 
 export async function provisionPlatformTenant(

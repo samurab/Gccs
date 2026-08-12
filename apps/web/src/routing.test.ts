@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getWorkspaceUrl, shouldRenderDemoPage, shouldRenderLandingPage, shouldRenderPlatformAdminPage, shouldRenderPlatformDemoRequestsPage } from "./routing";
+import { getWorkspaceUrl, shouldRenderDemoPage, shouldRenderDemoRequestDetailsPage, shouldRenderLandingPage, shouldRenderPlatformAdminPage, shouldRenderPlatformDemoRequestsPage } from "./routing";
 
 function locationStub(pathname: string, search = "", hash = ""): Pick<Location, "pathname" | "search" | "hash"> {
   return { pathname, search, hash };
@@ -31,6 +31,12 @@ describe("routing", () => {
     expect(shouldRenderDemoPage(locationStub("/demo"))).toBe(true);
     expect(shouldRenderDemoPage(locationStub("/"))).toBe(false);
     expect(shouldRenderDemoPage(locationStub("/app"))).toBe(false);
+  });
+
+  it("renders the public demo-detail form only at its dedicated path", () => {
+    expect(shouldRenderDemoRequestDetailsPage(locationStub("/demo-request-details"))).toBe(true);
+    expect(shouldRenderDemoRequestDetailsPage(locationStub("/demo"))).toBe(false);
+    expect(shouldRenderDemoRequestDetailsPage(locationStub("/app"))).toBe(false);
   });
 
   it("routes the protected platform demo-request inbox explicitly", () => {

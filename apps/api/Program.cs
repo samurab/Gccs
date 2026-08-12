@@ -207,6 +207,89 @@ app.MapPost("/api/public/demo-requests", async (
 .WithMetadata(new RequestSizeLimitAttribute(16_384))
 .WithName("SubmitPublicDemoRequest");
 
+app.MapPost("/api/public/demo-request-details/context", async (
+    DemoFollowUpTokenRequest request,
+    DemoFollowUpService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!demoRequestsEnabled)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Demo follow-up unavailable",
+            "Online demo follow-up is temporarily unavailable.",
+            StatusCodes.Status503ServiceUnavailable,
+            "demo_follow_up_unavailable");
+    }
+
+    var context = await service.GetContextAsync(request.Token, cancellationToken);
+    return context is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Follow-up link unavailable",
+            "This demo follow-up link is invalid or unavailable.",
+            StatusCodes.Status404NotFound,
+            "demo_follow_up_not_found")
+        : Results.Ok(context);
+})
+.AllowAnonymous()
+.RequireRateLimiting("demoRequests")
+.WithMetadata(new RequestSizeLimitAttribute(1_024))
+.WithName("GetPublicDemoFollowUpContext");
+
+app.MapPost("/api/public/demo-request-details/responses", async (
+    SubmitDemoFollowUpResponse request,
+    DemoFollowUpService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!demoRequestsEnabled)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Demo follow-up unavailable",
+            "Online demo follow-up is temporarily unavailable.",
+            StatusCodes.Status503ServiceUnavailable,
+            "demo_follow_up_unavailable");
+    }
+
+    try
+    {
+        var receipt = await service.SubmitAsync(request, cancellationToken);
+        return receipt is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Follow-up link unavailable",
+                "This demo follow-up link is invalid or unavailable.",
+                StatusCodes.Status404NotFound,
+                "demo_follow_up_not_found")
+            : Results.Ok(receipt);
+    }
+    catch (DemoFollowUpValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Demo follow-up response invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (DemoFollowUpStateException exception)
+    {
+        var expired = exception.Disposition == DemoFollowUpSubmissionDisposition.Expired;
+        return ApiProblemDetails.Create(
+            httpContext,
+            expired ? "Follow-up link expired" : "Follow-up already answered",
+            exception.Message,
+            expired ? StatusCodes.Status410Gone : StatusCodes.Status409Conflict,
+            expired ? "demo_follow_up_expired" : "demo_follow_up_already_responded");
+    }
+})
+.AllowAnonymous()
+.RequireRateLimiting("demoRequests")
+.WithMetadata(new RequestSizeLimitAttribute(12_288))
+.WithName("SubmitPublicDemoFollowUpResponse");
+
 var platformApi = app.MapGroup("/api/platform")
     .RequireAuthorization()
     .RequireRateLimiting("api")
@@ -287,6 +370,43 @@ platformApi.MapPost("/demo-requests/{requestId:guid}/responses", async (
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["templateKey"] = [exception.Message] });
     }
 }).RequireDemoRequestManagementPermission().WithName("QueuePlatformDemoRequestResponse");
+
+platformApi.MapPost("/demo-requests/{requestId:guid}/appointment-confirmation", async (
+    Guid requestId,
+    ConfirmDemoAppointment request,
+    DemoAppointmentService service,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId))
+        return ApiProblemDetails.Create(httpContext, "Invalid platform operator identity", "The authenticated platform operator identity is missing or invalid.", StatusCodes.Status401Unauthorized, "invalid_platform_operator_identity");
+
+    try
+    {
+        var receipt = await service.ConfirmAsync(requestId, request, actorUserId, cancellationToken);
+        return receipt is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The demo request was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(receipt);
+    }
+    catch (DemoAppointmentValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Appointment confirmation invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (DemoAppointmentConflictException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Appointment confirmation conflict",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "appointment_confirmation_conflict");
+    }
+}).RequireDemoRequestManagementPermission().WithName("ConfirmPlatformDemoAppointment");
 
 platformApi.MapPost("/tenants", async (
     PlatformTenantProvisioningRequest request,
