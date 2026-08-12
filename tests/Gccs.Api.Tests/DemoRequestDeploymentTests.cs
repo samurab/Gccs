@@ -48,7 +48,9 @@ public sealed class DemoRequestDeploymentTests
             Endpoint = "https://fedril-test.communication.azure.com",
             UseManagedIdentity = true,
             SenderAddress = "donotreply@example.com",
-            RecipientAddress = "sales@example.com"
+            RecipientAddress = "sales@example.com",
+            PublicWebBaseUrl = "https://fedril.example",
+            FollowUpTokenSigningKey = string.Concat(Enumerable.Repeat("demo-follow-up-test-", 3))
         };
 
         DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: false);
@@ -89,14 +91,19 @@ public sealed class DemoRequestDeploymentTests
             "DEMO_REQUESTS_ENDPOINT: ${{ vars.DEMO_REQUESTS_ENDPOINT }}",
             "DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}",
             "DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}",
+            "DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}",
             "test -n \"$DEMO_REQUESTS_ENDPOINT\"",
             "test -n \"$DEMO_REQUESTS_SENDER_ADDRESS\"",
             "test -n \"$DEMO_REQUESTS_RECIPIENT_ADDRESS\"",
+            "test -n \"$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY\"",
             "DemoRequests__Enabled=true",
             "DemoRequests__UseManagedIdentity=true",
             "DemoRequests__Endpoint=\"$DEMO_REQUESTS_ENDPOINT\"",
             "DemoRequests__SenderAddress=\"$DEMO_REQUESTS_SENDER_ADDRESS\"",
-            "DemoRequests__RecipientAddress=\"$DEMO_REQUESTS_RECIPIENT_ADDRESS\""
+            "DemoRequests__RecipientAddress=\"$DEMO_REQUESTS_RECIPIENT_ADDRESS\"",
+            "DemoRequests__PublicWebBaseUrl=",
+            "DemoRequests__FollowUpTokenSigningKey=\"$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY\"",
+            "DemoRequests__FollowUpTokenLifetimeHours=72"
         })
         {
             Assert.Contains(signal, workflow);

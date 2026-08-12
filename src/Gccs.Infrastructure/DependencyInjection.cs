@@ -170,8 +170,10 @@ public static class DependencyInjection
         services.AddScoped<SubcontractorComplianceReportService>();
         services.AddScoped<SimpleReportExportService>();
         services.AddScoped<DemoRequestService>();
+        services.AddScoped<DemoFollowUpService>();
         services.AddScoped<DemoRequestResponseService>();
         services.AddScoped<DemoRequestCalendarService>();
+        services.AddScoped<DemoAppointmentService>();
         services.AddSingleton(TimeProvider.System);
         services.Configure<DemoRequestOptions>(options =>
         {
@@ -184,12 +186,34 @@ public static class DependencyInjection
             options.UseManagedIdentity = ReadBool(configuration, $"{prefix}:UseManagedIdentity", options.UseManagedIdentity);
             options.SenderAddress = configuration[$"{prefix}:SenderAddress"] ?? options.SenderAddress;
             options.RecipientAddress = configuration[$"{prefix}:RecipientAddress"] ?? options.RecipientAddress;
+            options.PublicWebBaseUrl = configuration[$"{prefix}:PublicWebBaseUrl"] ?? options.PublicWebBaseUrl;
+            options.FollowUpTokenSigningKey = configuration[$"{prefix}:FollowUpTokenSigningKey"] ?? options.FollowUpTokenSigningKey;
+            options.FollowUpTokenLifetimeHours = ReadInt(configuration, $"{prefix}:FollowUpTokenLifetimeHours", options.FollowUpTokenLifetimeHours);
             options.PollIntervalSeconds = ReadInt(configuration, $"{prefix}:PollIntervalSeconds", options.PollIntervalSeconds);
             options.LeaseMinutes = ReadInt(configuration, $"{prefix}:LeaseMinutes", options.LeaseMinutes);
             options.MaximumAttempts = ReadInt(configuration, $"{prefix}:MaximumAttempts", options.MaximumAttempts);
             options.RetentionDays = ReadInt(configuration, $"{prefix}:RetentionDays", options.RetentionDays);
         });
         services.AddScoped<IDemoRequestDeliveryTransport, AzureCommunicationDemoRequestEmailSender>();
+        services.AddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<DemoRequestOptions>>().Value;
+            var isDevelopmentCapture = string.Equals(
+                options.Provider,
+                DemoRequestOptions.DevelopmentCaptureProvider,
+                StringComparison.OrdinalIgnoreCase);
+            var publicWebBaseUrl = string.IsNullOrWhiteSpace(options.PublicWebBaseUrl) && isDevelopmentCapture
+                ? "http://127.0.0.1:5173"
+                : options.PublicWebBaseUrl.TrimEnd('/');
+            var signingKey = string.IsNullOrWhiteSpace(options.FollowUpTokenSigningKey) && isDevelopmentCapture
+                ? System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("FeDril local development follow-up token key"))
+                : System.Text.Encoding.UTF8.GetBytes(options.FollowUpTokenSigningKey);
+            return new DemoFollowUpSecuritySettings(
+                publicWebBaseUrl,
+                signingKey,
+                TimeSpan.FromHours(Math.Clamp(options.FollowUpTokenLifetimeHours, 1, 168)));
+        });
+        services.AddSingleton<DemoFollowUpTokenCodec>();
         services.AddSingleton(provider =>
         {
             var options = provider.GetRequiredService<IOptions<DemoRequestOptions>>().Value;
@@ -324,6 +348,8 @@ public static class DependencyInjection
             services.AddScoped<AssignmentEmailDeliveryService>();
             services.AddScoped<AssignmentNotificationService>();
             services.AddScoped<IDemoRequestRepository, EfDemoRequestRepository>();
+            services.AddScoped<IDemoAppointmentRepository, EfDemoAppointmentRepository>();
+            services.AddScoped<IDemoFollowUpRepository, EfDemoFollowUpRepository>();
             services.AddScoped<DemoRequestDeliveryService>();
             services.AddScoped<IReportRepository, EfReportRepository>();
             services.AddScoped<ISimpleReportExportRepository, EfSimpleReportExportRepository>();
@@ -470,6 +496,10 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Demo tenant seed persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IDemoRequestRepository>(_ =>
                 throw new InvalidOperationException("Demo request persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IDemoAppointmentRepository>(_ =>
+                throw new InvalidOperationException("Demo appointment persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IDemoFollowUpRepository>(_ =>
+                throw new InvalidOperationException("Demo follow-up persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<DemoRequestDeliveryService>();
         }
 

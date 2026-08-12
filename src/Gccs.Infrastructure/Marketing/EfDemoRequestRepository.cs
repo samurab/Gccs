@@ -3,6 +3,7 @@ using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using System.Text.Json;
 
 namespace Gccs.Infrastructure.Marketing;
 
@@ -22,6 +23,7 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
     {
         if (page < 1) throw new ArgumentOutOfRangeException(nameof(page));
         if (pageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(pageSize));
+        var now = DateTimeOffset.UtcNow;
         var query = dbContext.DemoRequests.AsNoTracking().OrderByDescending(item => item.ReceivedAt);
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
@@ -33,9 +35,54 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
                 dbContext.DemoRequestDeliveries.Where(d => d.DemoRequestId == request.Id && d.DeliveryKind == "InternalNotification").Select(d => d.NextAttemptAt).Single(),
                 dbContext.DemoRequestDeliveries.Where(d => d.DemoRequestId == request.Id && d.DeliveryKind == "InternalNotification").Select(d => d.SentAt).Single(),
                 dbContext.DemoRequestDeliveries.Where(d => d.DemoRequestId == request.Id && d.DeliveryKind == "InternalNotification").Select(d => d.FailureCode).Single(),
-                dbContext.DemoRequestDeliveries.Where(d => d.DemoRequestId == request.Id && d.DeliveryKind == "RequesterAcknowledgement").Select(d => d.Status).SingleOrDefault() ?? "NotQueued"))
+                dbContext.DemoRequestDeliveries.Where(d => d.DemoRequestId == request.Id && d.DeliveryKind == "RequesterAcknowledgement").Select(d => d.Status).SingleOrDefault() ?? "NotQueued",
+                dbContext.DemoAppointments.Where(a => a.DemoRequestId == request.Id).Select(a => a.Status).SingleOrDefault() ?? "Requested",
+                dbContext.DemoAppointments.Where(a => a.DemoRequestId == request.Id).Select(a => (DateTimeOffset?)a.ConfirmedStartAt).SingleOrDefault(),
+                dbContext.DemoAppointments.Where(a => a.DemoRequestId == request.Id).Select(a => (DateTimeOffset?)a.ConfirmedEndAt).SingleOrDefault(),
+                dbContext.DemoAppointments.Where(a => a.DemoRequestId == request.Id).Select(a => a.ConfirmedTimeZone).SingleOrDefault(),
+                dbContext.DemoAppointments.Where(a => a.DemoRequestId == request.Id).Select(a => (int?)a.DurationMinutes).SingleOrDefault(),
+                dbContext.DemoAppointments.Where(a => a.DemoRequestId == request.Id).Select(a => a.MeetingMethod).SingleOrDefault(),
+                dbContext.DemoAppointments.Where(a => a.DemoRequestId == request.Id).Select(a => a.MeetingJoinUrl).SingleOrDefault(),
+                dbContext.DemoRequestDeliveries.Where(d => d.DemoRequestId == request.Id && d.DemoAppointmentEventId != null).OrderByDescending(d => d.CreatedAt).Select(d => d.Status).FirstOrDefault() ?? "NotQueued"))
             .ToListAsync(cancellationToken);
-        return new DemoRequestOperationsPage(items, page, pageSize, totalCount, page * pageSize < totalCount, page > 1);
+        var requestIds = items.Select(item => item.Id).ToArray();
+        var followUpRows = await dbContext.DemoFollowUpRequests.AsNoTracking()
+            .Where(request => requestIds.Contains(request.DemoRequestId))
+            .OrderByDescending(request => request.RequestedAt)
+            .Select(request => new FollowUpRow(
+                request.Id,
+                request.DemoRequestId,
+                request.Status == DemoFollowUpCatalog.Pending && request.ExpiresAt <= now
+                    ? DemoFollowUpCatalog.Expired
+                    : request.Status,
+                request.RequestedAt,
+                request.ExpiresAt,
+                request.RequestedByUserId,
+                dbContext.DemoRequestDeliveries
+                    .Where(delivery => delivery.DemoFollowUpRequestId == request.Id)
+                    .Select(delivery => delivery.Status)
+                    .SingleOrDefault() ?? "NotQueued",
+                request.RespondedAt,
+                dbContext.DemoFollowUpResponses.Where(response => response.DemoFollowUpRequestId == request.Id).Select(response => response.WorkflowsJson).SingleOrDefault(),
+                dbContext.DemoFollowUpResponses.Where(response => response.DemoFollowUpRequestId == request.Id).Select(response => response.OtherWorkflow).SingleOrDefault(),
+                dbContext.DemoFollowUpResponses.Where(response => response.DemoFollowUpRequestId == request.Id).Select(response => response.Goals).SingleOrDefault(),
+                dbContext.DemoFollowUpResponses.Where(response => response.DemoFollowUpRequestId == request.Id).Select(response => response.Challenges).SingleOrDefault(),
+                dbContext.DemoFollowUpResponses.Where(response => response.DemoFollowUpRequestId == request.Id).Select(response => response.CurrentProcess).SingleOrDefault(),
+                dbContext.DemoFollowUpResponses.Where(response => response.DemoFollowUpRequestId == request.Id).Select(response => response.AdditionalContext).SingleOrDefault(),
+                request.NoCuiNoticeVersion))
+            .ToListAsync(cancellationToken);
+        var followUpsByRequest = followUpRows
+            .GroupBy(row => row.DemoRequestId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<DemoFollowUpOperationsItem>)group.Select(ToOperationsItem).ToArray());
+        var enrichedItems = items
+            .Select(item => item with
+            {
+                FollowUpRequests = followUpsByRequest.GetValueOrDefault(item.Id) ?? []
+            })
+            .ToArray();
+        return new DemoRequestOperationsPage(enrichedItems, page, pageSize, totalCount, page * pageSize < totalCount, page > 1);
     }
 
     public async Task<IReadOnlyList<DemoRequestCalendarItem>> ListCalendarAsync(
@@ -43,8 +90,16 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
         DateTimeOffset to,
         CancellationToken cancellationToken = default) =>
         await dbContext.DemoRequests.AsNoTracking()
-            .Where(request => request.PreferredStartAt >= from && request.PreferredStartAt < to)
-            .OrderBy(request => request.PreferredStartAt)
+            .Where(request =>
+                dbContext.DemoAppointments.Any(appointment =>
+                    appointment.DemoRequestId == request.Id &&
+                    appointment.ConfirmedStartAt >= from && appointment.ConfirmedStartAt < to) ||
+                (!dbContext.DemoAppointments.Any(appointment => appointment.DemoRequestId == request.Id) &&
+                    request.PreferredStartAt >= from && request.PreferredStartAt < to))
+            .OrderBy(request => dbContext.DemoAppointments
+                .Where(appointment => appointment.DemoRequestId == request.Id)
+                .Select(appointment => (DateTimeOffset?)appointment.ConfirmedStartAt)
+                .SingleOrDefault() ?? request.PreferredStartAt)
             .ThenBy(request => request.ReceivedAt)
             .Select(request => new DemoRequestCalendarItem(
                 request.Id,
@@ -58,7 +113,12 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
                     .Where(delivery => delivery.DemoRequestId == request.Id && delivery.DeliveryKind == "InternalNotification")
                     .Select(delivery => delivery.Status)
                     .Single(),
-                "Requested"))
+                dbContext.DemoAppointments.Where(appointment => appointment.DemoRequestId == request.Id).Select(appointment => appointment.Status).SingleOrDefault() ?? "Requested",
+                dbContext.DemoAppointments.Where(appointment => appointment.DemoRequestId == request.Id).Select(appointment => (DateTimeOffset?)appointment.ConfirmedStartAt).SingleOrDefault(),
+                dbContext.DemoAppointments.Where(appointment => appointment.DemoRequestId == request.Id).Select(appointment => (DateTimeOffset?)appointment.ConfirmedEndAt).SingleOrDefault(),
+                dbContext.DemoAppointments.Where(appointment => appointment.DemoRequestId == request.Id).Select(appointment => appointment.ConfirmedTimeZone).SingleOrDefault(),
+                dbContext.DemoAppointments.Where(appointment => appointment.DemoRequestId == request.Id).Select(appointment => (int?)appointment.DurationMinutes).SingleOrDefault(),
+                dbContext.DemoAppointments.Where(appointment => appointment.DemoRequestId == request.Id).Select(appointment => appointment.MeetingMethod).SingleOrDefault()))
             .ToListAsync(cancellationToken);
 
     public async Task CreateIfNewAsync(DemoRequestRecord request, CancellationToken cancellationToken = default)
@@ -141,7 +201,15 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
                     delivery.DemoRequest.PreferredTimeZone,
                     delivery.DemoRequest.ReceivedAt,
                     delivery.AttemptCount,
-                    delivery.DeliveryKind))
+                    delivery.DeliveryKind,
+                    delivery.DemoAppointmentEvent == null ? null : delivery.DemoAppointmentEvent.ConfirmedStartAt,
+                    delivery.DemoAppointmentEvent == null ? null : delivery.DemoAppointmentEvent.ConfirmedEndAt,
+                    delivery.DemoAppointmentEvent == null ? null : delivery.DemoAppointmentEvent.ConfirmedTimeZone,
+                    delivery.DemoAppointmentEvent == null ? null : delivery.DemoAppointmentEvent.DurationMinutes,
+                    delivery.DemoAppointmentEvent == null ? null : delivery.DemoAppointmentEvent.MeetingMethod,
+                    delivery.DemoAppointmentEvent == null ? null : delivery.DemoAppointmentEvent.MeetingJoinUrl,
+                    delivery.DemoFollowUpRequestId,
+                    delivery.DemoFollowUpRequest == null ? null : delivery.DemoFollowUpRequest.ExpiresAt))
                 .SingleAsync(cancellationToken);
         }
 
@@ -170,6 +238,10 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
             .Select(request => request.Id)
             .ToListAsync(cancellationToken);
         await dbContext.DemoRequestDeliveries.Where(delivery => requestIds.Contains(delivery.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.DemoFollowUpResponses.Where(item => requestIds.Contains(item.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.DemoFollowUpRequests.Where(item => requestIds.Contains(item.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.DemoAppointmentEvents.Where(item => requestIds.Contains(item.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.DemoAppointments.Where(item => requestIds.Contains(item.DemoRequestId)).ExecuteDeleteAsync(cancellationToken);
         var deleted = await dbContext.DemoRequests.Where(request => requestIds.Contains(request.Id)).ExecuteDeleteAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return deleted;
@@ -190,4 +262,53 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
     }
 
     private static string? Truncate(string? value, int length) => value is null || value.Length <= length ? value : value[..length];
+
+    private static DemoFollowUpOperationsItem ToOperationsItem(FollowUpRow row)
+    {
+        IReadOnlyList<string> workflows = [];
+        if (!string.IsNullOrWhiteSpace(row.WorkflowsJson))
+        {
+            try
+            {
+                workflows = JsonSerializer.Deserialize<string[]>(row.WorkflowsJson) ?? [];
+            }
+            catch (JsonException)
+            {
+                workflows = ["Unavailable"];
+            }
+        }
+
+        return new DemoFollowUpOperationsItem(
+            row.Id,
+            row.Status,
+            row.RequestedAt,
+            row.ExpiresAt,
+            row.RequestedByUserId,
+            row.DeliveryStatus,
+            row.RespondedAt,
+            workflows,
+            row.OtherWorkflow,
+            row.Goals,
+            row.Challenges,
+            row.CurrentProcess,
+            row.AdditionalContext,
+            row.NoCuiNoticeVersion);
+    }
+
+    private sealed record FollowUpRow(
+        Guid Id,
+        Guid DemoRequestId,
+        string Status,
+        DateTimeOffset RequestedAt,
+        DateTimeOffset ExpiresAt,
+        Guid RequestedByUserId,
+        string DeliveryStatus,
+        DateTimeOffset? RespondedAt,
+        string? WorkflowsJson,
+        string? OtherWorkflow,
+        string? Goals,
+        string? Challenges,
+        string? CurrentProcess,
+        string? AdditionalContext,
+        string NoCuiNoticeVersion);
 }
