@@ -36,7 +36,7 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-12-1` at `e968951ce4369457c798ebe65d3d099a7fd25ced`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-12-1` at `9db3f8b4a87b810541c988e214dfba3cb10f73b2`; see `docs/production-readiness-launch-candidate-tag.md`. |
 | Approved production CI/CD path | Passed | Run `31549410176` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-12-1` still requires protected production workflow execution after this launch-candidate gate merges. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
 | Production secrets source | Passed | Current candidate `launch-candidate-2026-08-12-1` still requires protected production workflow execution. Secret values are not stored in this evidence or the repository. |

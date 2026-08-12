@@ -37,7 +37,7 @@ Verify these values before every deployment. They reflect the production readine
 | Approved workflow | `.github/workflows/production.yml` |
 | Approved launch candidate manifest | `docs/release/approved-launch-candidate.json` |
 | Approved launch candidate tag | `launch-candidate-2026-08-12-1` |
-| Launch candidate commit | `e968951ce4369457c798ebe65d3d099a7fd25ced` |
+| Launch candidate commit | `9db3f8b4a87b810541c988e214dfba3cb10f73b2` |
 | API App Service | `gccs-api-production` |
 | API base URL | `https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net` |
 | Web base URL | `https://lemon-pond-093710c0f.7.azurestaticapps.net` |
