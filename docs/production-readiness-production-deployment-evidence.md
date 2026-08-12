@@ -2,7 +2,7 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate is awaiting protected production CI/CD execution; historical successful deployment evidence is retained below.
 
 Current candidate execution status: `launch-candidate-2026-08-12-1` is approved but not yet deployed.
 
@@ -37,9 +37,9 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-12-1` at `9db3f8b4a87b810541c988e214dfba3cb10f73b2`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Passed | Run `31549410176` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-12-1` still requires protected production workflow execution after this launch-candidate gate merges. |
+| Approved production CI/CD path | Ready; exact-candidate execution pending | Run `31549410176` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-12-1` still requires protected production workflow execution after this launch-candidate gate merges. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Passed | Current candidate `launch-candidate-2026-08-12-1` still requires protected production workflow execution. Secret values are not stored in this evidence or the repository. |
+| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-08-12-1` still requires protected production workflow execution. Secret values are not stored in this evidence or the repository. |
 | Production No-CUI posture validation | Passed | Run `31549410176` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
 | Production migrations | Passed | Run `31549410176` generated and successfully applied the idempotent migration script, including `20260811013351_AddDemoRequestPreferredStartCalendarIndex`. |
 | Production storage, cache, queue, and background jobs | Passed | Exact-candidate workflow and independent post-deployment `/health` checks returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
