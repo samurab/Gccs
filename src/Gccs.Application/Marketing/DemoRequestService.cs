@@ -51,14 +51,26 @@ public sealed record ClaimedDemoRequestDelivery(
     string? PreferredTimeZone,
     DateTimeOffset ReceivedAt,
     int AttemptNumber,
-    string DeliveryKind);
+    string DeliveryKind,
+    DateTimeOffset? ConfirmedStartAt = null,
+    DateTimeOffset? ConfirmedEndAt = null,
+    string? ConfirmedTimeZone = null,
+    int? DurationMinutes = null,
+    string? MeetingMethod = null,
+    string? MeetingJoinUrl = null,
+    Guid? FollowUpRequestId = null,
+    DateTimeOffset? FollowUpExpiresAt = null);
 
 public sealed record DemoRequestOperationsItem(
     Guid Id, string FirstName, string LastName, string Email, string? Phone, string Company,
     string? ReferralSource, string? EmployeeCount, string? Message, DateTimeOffset? PreferredStartAt,
     string? PreferredTimeZone, DateTimeOffset ReceivedAt,
     string DeliveryStatus, int DeliveryAttemptCount, DateTimeOffset? NextDeliveryAttemptAt,
-    DateTimeOffset? SentAt, string? DeliveryFailureCode, string AcknowledgementStatus);
+    DateTimeOffset? SentAt, string? DeliveryFailureCode, string AcknowledgementStatus,
+    string SchedulingStatus, DateTimeOffset? ConfirmedStartAt, DateTimeOffset? ConfirmedEndAt,
+    string? ConfirmedTimeZone, int? DurationMinutes, string? MeetingMethod, string? MeetingJoinUrl,
+    string AppointmentConfirmationStatus,
+    IReadOnlyList<DemoFollowUpOperationsItem>? FollowUpRequests = null);
 
 public sealed record DemoRequestOperationsPage(
     IReadOnlyList<DemoRequestOperationsItem> Items, int Page, int PageSize, int TotalCount,
@@ -66,7 +78,9 @@ public sealed record DemoRequestOperationsPage(
 
 public sealed record DemoRequestCalendarItem(
     Guid Id, string FirstName, string LastName, string Company, DateTimeOffset PreferredStartAt,
-    string? PreferredTimeZone, DateTimeOffset ReceivedAt, string DeliveryStatus, string SchedulingStatus);
+    string? PreferredTimeZone, DateTimeOffset ReceivedAt, string DeliveryStatus, string SchedulingStatus,
+    DateTimeOffset? ConfirmedStartAt = null, DateTimeOffset? ConfirmedEndAt = null,
+    string? ConfirmedTimeZone = null, int? DurationMinutes = null, string? MeetingMethod = null);
 
 public sealed record DemoRequestCalendarRange(
     IReadOnlyList<DemoRequestCalendarItem> Items, DateTimeOffset From, DateTimeOffset To);
@@ -110,9 +124,17 @@ public sealed class DemoRequestCalendarService(IDemoRequestRepository repository
 }
 
 public sealed record QueueDemoRequestResponse(string TemplateKey);
-public sealed record DemoRequestResponseReceipt(string Status, string TemplateKey, DateTimeOffset QueuedAt);
+public sealed record DemoRequestResponseReceipt(
+    string Status,
+    string TemplateKey,
+    DateTimeOffset QueuedAt,
+    Guid? FollowUpRequestId = null,
+    DateTimeOffset? ExpiresAt = null);
 
-public sealed class DemoRequestResponseService(IDemoRequestRepository repository, TimeProvider timeProvider)
+public sealed class DemoRequestResponseService(
+    IDemoRequestRepository repository,
+    DemoFollowUpService followUpService,
+    TimeProvider timeProvider)
 {
     public static readonly IReadOnlySet<string> AllowedTemplates = new HashSet<string>(StringComparer.Ordinal)
     { "ReviewingRequestedTime", "RequestMoreDetails", "RequestedTimeUnavailable" };
@@ -120,6 +142,19 @@ public sealed class DemoRequestResponseService(IDemoRequestRepository repository
     public async Task<DemoRequestResponseReceipt?> QueueAsync(Guid requestId, QueueDemoRequestResponse request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
         if (!AllowedTemplates.Contains(request.TemplateKey)) throw new ArgumentException("Select a supported response template.", nameof(request));
+        if (request.TemplateKey == "RequestMoreDetails")
+        {
+            var followUp = await followUpService.QueueAsync(requestId, actorUserId, cancellationToken);
+            return followUp is null
+                ? null
+                : new DemoRequestResponseReceipt(
+                    followUp.Status,
+                    request.TemplateKey,
+                    followUp.QueuedAt,
+                    followUp.FollowUpRequestId,
+                    followUp.ExpiresAt);
+        }
+
         var now = timeProvider.GetUtcNow();
         var created = await repository.QueueOperatorResponseAsync(requestId, request.TemplateKey, actorUserId, now, cancellationToken);
         return created is null ? null : new DemoRequestResponseReceipt(created.Value ? "Queued" : "AlreadyQueued", request.TemplateKey, now);

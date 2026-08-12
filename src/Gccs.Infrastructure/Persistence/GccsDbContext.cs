@@ -57,6 +57,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<AssignmentEmailDeliveryEntity> AssignmentEmailDeliveries => Set<AssignmentEmailDeliveryEntity>();
     public DbSet<DemoRequestEntity> DemoRequests => Set<DemoRequestEntity>();
     public DbSet<DemoRequestDeliveryEntity> DemoRequestDeliveries => Set<DemoRequestDeliveryEntity>();
+    public DbSet<DemoAppointmentEntity> DemoAppointments => Set<DemoAppointmentEntity>();
+    public DbSet<DemoAppointmentEventEntity> DemoAppointmentEvents => Set<DemoAppointmentEventEntity>();
+    public DbSet<DemoFollowUpRequestEntity> DemoFollowUpRequests => Set<DemoFollowUpRequestEntity>();
+    public DbSet<DemoFollowUpResponseEntity> DemoFollowUpResponses => Set<DemoFollowUpResponseEntity>();
     public DbSet<RoleEntity> Roles => Set<RoleEntity>();
     public DbSet<CompanyProfileEntity> CompanyProfiles => Set<CompanyProfileEntity>();
     public DbSet<ClauseEntity> Clauses => Set<ClauseEntity>();
@@ -229,6 +233,92 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.DeliveryKind).HasMaxLength(80).IsRequired();
             entity.Property(x => x.ProviderMessageId).HasMaxLength(300);
             entity.Property(x => x.FailureCode).HasMaxLength(120);
+            entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.DemoAppointmentEvent).WithMany().HasForeignKey(x => x.DemoAppointmentEventId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.DemoFollowUpRequest).WithMany()
+                .HasForeignKey(x => new { x.DemoFollowUpRequestId, x.DemoRequestId })
+                .HasPrincipalKey(x => new { x.Id, x.DemoRequestId })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DemoAppointmentEntity>(entity =>
+        {
+            entity.ToTable("demo_appointments", table =>
+            {
+                table.HasCheckConstraint("ck_demo_appointments_duration", "duration_minutes = 30");
+                table.HasCheckConstraint("ck_demo_appointments_time_range", "confirmed_end_at > confirmed_start_at");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.DemoRequestId).IsUnique();
+            entity.HasIndex(x => new { x.HostUserId, x.Status, x.ConfirmedStartAt, x.ConfirmedEndAt });
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired().IsConcurrencyToken();
+            entity.Property(x => x.ConfirmedTimeZone).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.MeetingMethod).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.MeetingJoinUrl).HasMaxLength(2048);
+            entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DemoAppointmentEventEntity>(entity =>
+        {
+            entity.ToTable("demo_appointment_events", table =>
+            {
+                table.HasCheckConstraint("ck_demo_appointment_events_duration", "duration_minutes = 30");
+                table.HasCheckConstraint("ck_demo_appointment_events_time_range", "confirmed_end_at > confirmed_start_at");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.DemoAppointmentId, x.OccurredAt });
+            entity.HasIndex(x => new { x.DemoRequestId, x.OccurredAt });
+            entity.Property(x => x.EventType).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.PreviousStatus).HasMaxLength(40);
+            entity.Property(x => x.NewStatus).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.ConfirmedTimeZone).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.MeetingMethod).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.MeetingJoinUrl).HasMaxLength(2048);
+            entity.Property(x => x.IpAddress).HasMaxLength(120);
+            entity.Property(x => x.UserAgent).HasMaxLength(500);
+            entity.Property(x => x.CorrelationId).HasMaxLength(120);
+            entity.HasOne(x => x.DemoAppointment).WithMany().HasForeignKey(x => x.DemoAppointmentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DemoFollowUpRequestEntity>(entity =>
+        {
+            entity.ToTable("demo_follow_up_requests");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.Id, x.DemoRequestId });
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => new { x.DemoRequestId, x.RequestedAt });
+            entity.HasIndex(x => new { x.DemoRequestId, x.Status })
+                .IsUnique()
+                .HasFilter("status = 'Pending'");
+            entity.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired().IsConcurrencyToken();
+            entity.Property(x => x.TemplateVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.NoCuiNoticeVersion).HasMaxLength(80).IsRequired();
+            entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DemoFollowUpResponseEntity>(entity =>
+        {
+            entity.ToTable("demo_follow_up_responses", table =>
+                table.HasCheckConstraint("ck_demo_follow_up_responses_no_cui", "no_cui_confirmed = TRUE"));
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.DemoFollowUpRequestId).IsUnique();
+            entity.HasIndex(x => new { x.DemoRequestId, x.SubmittedAt });
+            entity.Property(x => x.WorkflowsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.OtherWorkflow).HasMaxLength(200);
+            entity.Property(x => x.Goals).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.Challenges).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.CurrentProcess).HasMaxLength(1000);
+            entity.Property(x => x.AdditionalContext).HasMaxLength(2000);
+            entity.Property(x => x.NoCuiNoticeVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.IpAddress).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.UserAgent).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.CorrelationId).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.DemoFollowUpRequest).WithOne(x => x.Response)
+                .HasForeignKey<DemoFollowUpResponseEntity>(x => new { x.DemoFollowUpRequestId, x.DemoRequestId })
+                .HasPrincipalKey<DemoFollowUpRequestEntity>(x => new { x.Id, x.DemoRequestId })
+                .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.DemoRequest).WithMany().HasForeignKey(x => x.DemoRequestId).OnDelete(DeleteBehavior.Restrict);
         });
     }
@@ -1534,6 +1624,26 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         if (invalidAuditLogMutations.Length > 0)
         {
             throw new InvalidOperationException("Audit log entries are append-only and cannot be updated or deleted.");
+        }
+
+        var invalidAppointmentEventMutations = ChangeTracker
+            .Entries<DemoAppointmentEventEntity>()
+            .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
+            .ToArray();
+
+        if (invalidAppointmentEventMutations.Length > 0)
+        {
+            throw new InvalidOperationException("Demo appointment events are append-only and cannot be updated or deleted.");
+        }
+
+        var invalidFollowUpResponseMutations = ChangeTracker
+            .Entries<DemoFollowUpResponseEntity>()
+            .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
+            .ToArray();
+
+        if (invalidFollowUpResponseMutations.Length > 0)
+        {
+            throw new InvalidOperationException("Demo follow-up responses are append-only and cannot be updated or deleted.");
         }
     }
 

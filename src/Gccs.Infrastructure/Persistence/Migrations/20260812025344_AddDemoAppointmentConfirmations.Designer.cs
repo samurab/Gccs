@@ -3,6 +3,7 @@ using System;
 using Gccs.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Gccs.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GccsDbContext))]
-    partial class GccsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260812025344_AddDemoAppointmentConfirmations")]
+    partial class AddDemoAppointmentConfirmations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2758,171 +2761,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.DemoFollowUpRequestEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("DemoRequestId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("demo_request_id");
-
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_at");
-
-                    b.Property<string>("NoCuiNoticeVersion")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)")
-                        .HasColumnName("no_cui_notice_version");
-
-                    b.Property<DateTimeOffset>("RequestedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("requested_at");
-
-                    b.Property<Guid>("RequestedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("requested_by_user_id");
-
-                    b.Property<DateTimeOffset?>("RespondedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("responded_at");
-
-                    b.Property<string>("Status")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("status");
-
-                    b.Property<string>("TemplateVersion")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)")
-                        .HasColumnName("template_version");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("token_hash");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
-
-                    b.HasIndex("DemoRequestId", "RequestedAt");
-
-                    b.HasIndex("DemoRequestId", "Status")
-                        .IsUnique()
-                        .HasFilter("status = 'Pending'");
-
-                    b.ToTable("demo_follow_up_requests", "gccs");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.DemoFollowUpResponseEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("AdditionalContext")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("additional_context");
-
-                    b.Property<string>("Challenges")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("challenges");
-
-                    b.Property<string>("CorrelationId")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("correlation_id");
-
-                    b.Property<string>("CurrentProcess")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("current_process");
-
-                    b.Property<Guid>("DemoFollowUpRequestId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("demo_follow_up_request_id");
-
-                    b.Property<Guid>("DemoRequestId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("demo_request_id");
-
-                    b.Property<string>("Goals")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("goals");
-
-                    b.Property<string>("IpAddress")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("ip_address");
-
-                    b.Property<bool>("NoCuiConfirmed")
-                        .HasColumnType("boolean")
-                        .HasColumnName("no_cui_confirmed");
-
-                    b.Property<string>("NoCuiNoticeVersion")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)")
-                        .HasColumnName("no_cui_notice_version");
-
-                    b.Property<string>("OtherWorkflow")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("other_workflow");
-
-                    b.Property<DateTimeOffset>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("submitted_at");
-
-                    b.Property<string>("UserAgent")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("user_agent");
-
-                    b.Property<string>("WorkflowsJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("workflows_json");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DemoFollowUpRequestId")
-                        .IsUnique();
-
-                    b.HasIndex("DemoFollowUpRequestId", "DemoRequestId")
-                        .IsUnique();
-
-                    b.HasIndex("DemoRequestId", "SubmittedAt");
-
-                    b.ToTable("demo_follow_up_responses", "gccs", t =>
-                        {
-                            t.HasCheckConstraint("ck_demo_follow_up_responses_no_cui", "no_cui_confirmed = TRUE");
-                        });
-                });
-
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.DemoRequestDeliveryEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2947,10 +2785,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DemoAppointmentEventId")
                         .HasColumnType("uuid")
                         .HasColumnName("demo_appointment_event_id");
-
-                    b.Property<Guid?>("DemoFollowUpRequestId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("demo_follow_up_request_id");
 
                     b.Property<Guid>("DemoRequestId")
                         .HasColumnType("uuid")
@@ -2995,8 +2829,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DemoAppointmentEventId");
-
-                    b.HasIndex("DemoFollowUpRequestId", "DemoRequestId");
 
                     b.HasIndex("DemoRequestId", "DeliveryKind")
                         .IsUnique();
@@ -8225,37 +8057,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("DemoRequest");
                 });
 
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.DemoFollowUpRequestEntity", b =>
-                {
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.DemoRequestEntity", "DemoRequest")
-                        .WithMany()
-                        .HasForeignKey("DemoRequestId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DemoRequest");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.DemoFollowUpResponseEntity", b =>
-                {
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.DemoRequestEntity", "DemoRequest")
-                        .WithMany()
-                        .HasForeignKey("DemoRequestId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.DemoFollowUpRequestEntity", "DemoFollowUpRequest")
-                        .WithOne("Response")
-                        .HasForeignKey("Gccs.Infrastructure.Persistence.Models.DemoFollowUpResponseEntity", "DemoFollowUpRequestId", "DemoRequestId")
-                        .HasPrincipalKey("Gccs.Infrastructure.Persistence.Models.DemoFollowUpRequestEntity", "Id", "DemoRequestId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DemoFollowUpRequest");
-
-                    b.Navigation("DemoRequest");
-                });
-
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.DemoRequestDeliveryEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.DemoAppointmentEventEntity", "DemoAppointmentEvent")
@@ -8269,15 +8070,7 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.DemoFollowUpRequestEntity", "DemoFollowUpRequest")
-                        .WithMany()
-                        .HasForeignKey("DemoFollowUpRequestId", "DemoRequestId")
-                        .HasPrincipalKey("Id", "DemoRequestId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("DemoAppointmentEvent");
-
-                    b.Navigation("DemoFollowUpRequest");
 
                     b.Navigation("DemoRequest");
                 });
@@ -9299,11 +9092,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.CuiSupportEscalationEntity", b =>
                 {
                     b.Navigation("Resolutions");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.DemoFollowUpRequestEntity", b =>
-                {
-                    b.Navigation("Response");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.EvidenceItemEntity", b =>
