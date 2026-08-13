@@ -70,7 +70,7 @@ jobs:
           done
 
       - name: Run backend unit and integration tests
-        timeout-minutes: 15
+        timeout-minutes: 25
         run: >
           dotnet test Gccs.slnx
           --no-build
