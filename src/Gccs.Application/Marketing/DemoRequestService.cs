@@ -304,29 +304,58 @@ public interface IDemoRequestDeliveryTransport
 
 public sealed record DemoRequestDeliverySettings(TimeSpan LeaseDuration, int MaximumAttempts);
 
+public enum DemoRequestDeliveryProcessingStatus
+{
+    NotConfigured,
+    NoWork,
+    Completed,
+    Failed
+}
+
+public sealed record DemoRequestDeliveryProcessingResult(
+    DemoRequestDeliveryProcessingStatus Status,
+    Guid? DeliveryId = null,
+    Guid? RequestId = null,
+    string? DeliveryKind = null,
+    string? FailureCode = null,
+    DateTimeOffset? RetryAt = null)
+{
+    public bool Processed =>
+        Status is DemoRequestDeliveryProcessingStatus.Completed or DemoRequestDeliveryProcessingStatus.Failed;
+}
+
 public sealed class DemoRequestDeliveryService(
     IDemoRequestRepository repository,
     IDemoRequestDeliveryTransport transport,
     DemoRequestDeliverySettings settings,
     TimeProvider timeProvider)
 {
-    public async Task<bool> ProcessNextAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> ProcessNextAsync(CancellationToken cancellationToken = default) =>
+        (await ProcessNextWithResultAsync(cancellationToken)).Processed;
+
+    public async Task<DemoRequestDeliveryProcessingResult> ProcessNextWithResultAsync(
+        CancellationToken cancellationToken = default)
     {
         if (!transport.IsConfigured)
         {
-            return false;
+            return new DemoRequestDeliveryProcessingResult(DemoRequestDeliveryProcessingStatus.NotConfigured);
         }
 
         var request = await repository.TryClaimNextDeliveryAsync(timeProvider.GetUtcNow(), settings.LeaseDuration, cancellationToken);
         if (request is null)
         {
-            return false;
+            return new DemoRequestDeliveryProcessingResult(DemoRequestDeliveryProcessingStatus.NoWork);
         }
 
         try
         {
             var result = await transport.DeliverAsync(request, cancellationToken);
             await repository.MarkDeliveryCompletedAsync(request.DeliveryId, result, timeProvider.GetUtcNow(), cancellationToken);
+            return new DemoRequestDeliveryProcessingResult(
+                DemoRequestDeliveryProcessingStatus.Completed,
+                request.DeliveryId,
+                request.RequestId,
+                request.DeliveryKind);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -334,9 +363,15 @@ public sealed class DemoRequestDeliveryService(
             var retryAt = request.AttemptNumber >= settings.MaximumAttempts
                 ? (DateTimeOffset?)null
                 : attemptedAt.AddMinutes(Math.Min(Math.Pow(2, Math.Max(0, request.AttemptNumber - 1)), 60));
-            await repository.MarkDeliveryFailedAsync(request.DeliveryId, exception.GetType().Name, attemptedAt, retryAt, cancellationToken);
+            var failureCode = exception.GetType().Name;
+            await repository.MarkDeliveryFailedAsync(request.DeliveryId, failureCode, attemptedAt, retryAt, cancellationToken);
+            return new DemoRequestDeliveryProcessingResult(
+                DemoRequestDeliveryProcessingStatus.Failed,
+                request.DeliveryId,
+                request.RequestId,
+                request.DeliveryKind,
+                failureCode,
+                retryAt);
         }
-
-        return true;
     }
 }

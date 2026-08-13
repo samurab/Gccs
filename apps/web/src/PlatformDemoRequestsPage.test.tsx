@@ -22,7 +22,7 @@ describe("PlatformDemoRequestsPage", () => {
     vi.mocked(api.getPlatformDemoRequests).mockResolvedValue({ page: 1, pageSize: 25, totalCount: 1, hasNextPage: false, hasPreviousPage: false, items: [{ id: "r1", firstName: "Avery", lastName: "Ng", email: "avery@example.com", phone: null, company: "Northstar Systems", referralSource: null, employeeCount: "11-50", message: "Readiness workflow", preferredStartAt: "2026-08-04T18:00:00Z", preferredTimeZone: "America/New_York", receivedAt: "2026-08-02T22:00:00Z", deliveryStatus: "Captured", deliveryAttemptCount: 1, nextDeliveryAttemptAt: null, sentAt: null, deliveryFailureCode: null, acknowledgementStatus: "Captured", schedulingStatus: "Requested", confirmedStartAt: null, confirmedEndAt: null, confirmedTimeZone: null, durationMinutes: null, meetingMethod: null, meetingJoinUrl: null, appointmentConfirmationStatus: "NotQueued", followUpRequests: [{ id: "f1", status: "Responded", requestedAt: "2026-08-02T23:00:00Z", expiresAt: "2026-08-05T23:00:00Z", requestedByUserId: "u1", deliveryStatus: "Sent", respondedAt: "2026-08-03T12:00:00Z", workflows: ["EvidenceManagement", "CmmcReadiness"], otherWorkflow: null, goals: "Prepare an evidence-focused demo.", challenges: "Evidence is spread across shared drives.", currentProcess: "Spreadsheets", additionalContext: "Use synthetic examples.", noCuiNoticeVersion: "demo-follow-up-no-cui-2026-08-12" }] }] });
     render(<PlatformDemoRequestsPage />);
     expect(await screen.findByRole("heading", { name: "Northstar Systems" })).toBeInTheDocument();
-    expect(screen.getAllByText("Captured")).toHaveLength(2);
+    expect(screen.getAllByText("Captured locally")).toHaveLength(1);
     expect(screen.getByText("Readiness workflow")).toBeInTheDocument();
     expect(screen.getByText("Prepare an evidence-focused demo.")).toBeInTheDocument();
     expect(screen.getByText("Evidence is spread across shared drives.")).toBeInTheDocument();
@@ -49,7 +49,9 @@ describe("PlatformDemoRequestsPage", () => {
     vi.mocked(api.queuePlatformDemoRequestResponse).mockResolvedValue({ data: { status: "Queued", templateKey: "ReviewingRequestedTime", queuedAt: "2026-08-02T23:00:00Z" }, error: null });
 
     render(<PlatformDemoRequestsPage />);
-    expect(await screen.findByText(/without sending email/i)).toBeInTheDocument();
+    expect(await screen.findByText(/local development records acknowledgement and response messages/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Northstar Systems" })).toBeInTheDocument();
+    expect(screen.getByText(/without sending email/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /capture response/i }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(/no email will be sent/i);
@@ -114,5 +116,15 @@ describe("PlatformDemoRequestsPage", () => {
     await waitFor(() => expect(api.getPlatformDemoRequestCalendar).toHaveBeenCalledTimes(2));
     expect(api.getPlatformDemoRequests).toHaveBeenCalledTimes(1);
     expect(api.getPlatformAccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("explains that the calendar and inbox auto-refresh while the operator page remains open", async () => {
+    vi.mocked(api.getPlatformAccess).mockResolvedValue({ userId: "1", userEmail: "operator@example.com", canProvisionTenants: false, canManageDemoRequests: true, demoRequestDeliveryMode: "ExternalEmail", permissions: ["ManageDemoRequests"] });
+    vi.mocked(api.getPlatformDemoRequests).mockResolvedValue({ page: 1, pageSize: 25, totalCount: 0, hasNextPage: false, hasPreviousPage: false, items: [] });
+
+    render(<PlatformDemoRequestsPage />);
+    expect(await screen.findByText(/auto-refresh every 30 seconds/i)).toBeInTheDocument();
+    expect(api.getPlatformDemoRequests).toHaveBeenCalledTimes(1);
+    expect(api.getPlatformDemoRequestCalendar).toHaveBeenCalledTimes(1);
   });
 });

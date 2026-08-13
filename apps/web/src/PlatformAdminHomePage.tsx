@@ -83,7 +83,7 @@ export function PlatformAdminHomePage() {
         {access.canManageDemoRequests ? (
           <OperationCard
             count={demoRequests.count}
-            description="Review requester details, preferred demo times, delivery state, and queue a server-owned response template."
+            description="Review requester details, preferred demo times, the requested-time calendar, delivery state, and server-owned response templates."
             error={demoRequests.error}
             href="/platform/demo-requests"
             icon={Inbox}

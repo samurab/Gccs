@@ -42,7 +42,23 @@ function dateTimeLocalInZone(value: string | null, timeZone: string) {
 }
 
 function emailDeliveryLabel(status: string) {
-  return status === "Sent" ? "Provider accepted" : status;
+  return status === "Sent" ? "Provider accepted" :
+    status === "Captured" ? "Captured locally" :
+    status === "Queued" ? "Queued" :
+    status === "RetryScheduled" ? "Retry scheduled" :
+    status === "Failed" ? "Failed" :
+    status === "NotQueued" ? "Not queued" :
+    status;
+}
+
+function deliveryStatusDetail(status: string) {
+  return status === "Sent" ? "The email provider accepted this message. Inbox delivery can still be affected by recipient filtering or spam controls." :
+    status === "Captured" ? "Development capture mode recorded this message locally; no external email was sent." :
+    status === "Queued" ? "The outbox row exists, but the background worker has not yet recorded provider acceptance." :
+    status === "RetryScheduled" ? "The provider call failed and the worker scheduled another attempt." :
+    status === "Failed" ? "The provider call failed and no further automatic retry is scheduled." :
+    status === "NotQueued" ? "No outbox row exists for this message type." :
+    status;
 }
 
 function meetingMethodLabel(value: string | null) {
@@ -256,6 +272,7 @@ export function PlatformDemoRequestsPage() {
   const [calendar, setCalendar] = useState<PlatformDemoRequestCalendarRange | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const [autoRefreshVersion, setAutoRefreshVersion] = useState(0);
   const calendarQuery = useMemo(() => monthRange(calendarMonth), [calendarMonth]);
   useEffect(() => {
     let active = true;
@@ -280,7 +297,7 @@ export function PlatformDemoRequestsPage() {
       if (active) setError(reason instanceof Error ? reason.message : "Demo requests could not be loaded.");
     });
     return () => { active = false; };
-  }, [access?.canManageDemoRequests, page, refreshVersion]);
+  }, [access?.canManageDemoRequests, page, refreshVersion, autoRefreshVersion]);
   useEffect(() => {
     if (!access?.canManageDemoRequests) return;
     let active = true;
@@ -290,13 +307,30 @@ export function PlatformDemoRequestsPage() {
       if (active) setError(reason instanceof Error ? reason.message : "Requested-time calendar could not be loaded.");
     });
     return () => { active = false; };
-  }, [access?.canManageDemoRequests, calendarQuery.from, calendarQuery.to, refreshVersion]);
+  }, [access?.canManageDemoRequests, calendarQuery.from, calendarQuery.to, refreshVersion, autoRefreshVersion]);
+  useEffect(() => {
+    if (!access?.canManageDemoRequests) return;
+    const timer = window.setInterval(() => {
+      setAutoRefreshVersion(value => value + 1);
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [access?.canManageDemoRequests]);
 
   if (access === null && !error) return <main className="platform-demo-inbox"><LoaderCircle className="spin" /> Loading demo requests…</main>;
   if (access && !access.canManageDemoRequests) return <main className="platform-demo-inbox"><LockKeyhole /><h1>Demo-request access denied</h1><p>Your account lacks the ManageDemoRequests platform permission.</p></main>;
+  const isDevelopmentCapture = access?.demoRequestDeliveryMode === "DevelopmentCapture";
   return <main className="platform-demo-inbox">
     {access ? <PlatformAdminNav access={access} active="demo-requests" /> : null}
     <header><div><p className="landing-eyebrow">FeDril operations</p><h1>Demo requests</h1><p>Durable intake records and notification-delivery status. This view is platform-scoped, not tenant-scoped.</p></div><button onClick={() => { setError(""); setCalendar(null); setRefreshVersion(value => value + 1); }} type="button"><RefreshCw size={17} /> Refresh</button></header>
+    <section className="platform-demo-delivery-note" aria-label="Demo request delivery mode">
+      <strong>{isDevelopmentCapture ? "Development capture mode" : access?.demoRequestDeliveryMode === "ExternalEmail" ? "External email mode" : "Delivery disabled"}</strong>
+      <span>{isDevelopmentCapture
+        ? "Local development records acknowledgement and response messages in the outbox as captured. It does not send requester emails unless the DemoRequests provider is configured for external email."
+        : access?.demoRequestDeliveryMode === "ExternalEmail"
+          ? "Requester acknowledgements, detail requests, and appointment confirmations are sent by the server-side outbox worker. Provider accepted means Azure Communication Services accepted the message, not that the requester opened it."
+          : "Demo-request delivery is disabled for this environment."}</span>
+      <span>Calendar and inbox data auto-refresh every 30 seconds while this page is open.</span>
+    </section>
     {error ? <p className="form-status form-status--error" role="alert">{error}</p> : null}
     {access?.canManageDemoRequests && !calendar && !error ? <section className="platform-demo-empty"><LoaderCircle className="spin" /><h2>Loading requested-time calendar</h2></section> : null}
     {calendar ? <DemoRequestCalendar month={calendarMonth} onMonthChange={month => { setCalendar(null); setSelectedDate(null); setCalendarMonth(month); }} onSelectDate={setSelectedDate} range={calendar} selectedDate={selectedDate} /> : null}
@@ -304,7 +338,7 @@ export function PlatformDemoRequestsPage() {
     {data?.items.map(item => <article className="platform-demo-card" key={item.id}>
       <div><span className={`platform-demo-status platform-demo-status--${item.deliveryStatus.toLowerCase()}`}>{item.deliveryStatus}</span><time dateTime={item.receivedAt}>{new Date(item.receivedAt).toLocaleString()}</time></div>
       <h2>{item.company}</h2><p><strong>{item.firstName} {item.lastName}</strong> · <a href={`mailto:${item.email}`}>{item.email}</a>{item.phone ? ` · ${item.phone}` : ""}</p>
-      <dl><div><dt>Requested time</dt><dd>{item.preferredStartAt ? new Date(item.preferredStartAt).toLocaleString(undefined, { timeZone: item.preferredTimeZone ?? undefined }) : "Not provided"}{item.preferredTimeZone ? ` (${item.preferredTimeZone})` : ""}</dd></div><div><dt>Scheduling status</dt><dd>{item.schedulingStatus}</dd></div><div><dt>Confirmed appointment</dt><dd>{item.confirmedStartAt ? `${new Date(item.confirmedStartAt).toLocaleString(undefined, { timeZone: item.confirmedTimeZone ?? undefined })} (${item.confirmedTimeZone}) · ${item.durationMinutes} minutes · ${meetingMethodLabel(item.meetingMethod)}` : "Not confirmed"}</dd></div><div><dt>Confirmation email</dt><dd>{emailDeliveryLabel(item.appointmentConfirmationStatus)}</dd></div><div><dt>Internal notification</dt><dd>{emailDeliveryLabel(item.deliveryStatus)} · {item.deliveryAttemptCount} attempts</dd></div><div><dt>Requester acknowledgement</dt><dd>{emailDeliveryLabel(item.acknowledgementStatus)}</dd></div></dl>
+      <dl><div><dt>Requested time</dt><dd>{item.preferredStartAt ? new Date(item.preferredStartAt).toLocaleString(undefined, { timeZone: item.preferredTimeZone ?? undefined }) : "Not provided"}{item.preferredTimeZone ? ` (${item.preferredTimeZone})` : ""}</dd></div><div><dt>Scheduling status</dt><dd>{item.schedulingStatus}</dd></div><div><dt>Confirmed appointment</dt><dd>{item.confirmedStartAt ? `${new Date(item.confirmedStartAt).toLocaleString(undefined, { timeZone: item.confirmedTimeZone ?? undefined })} (${item.confirmedTimeZone}) · ${item.durationMinutes} minutes · ${meetingMethodLabel(item.meetingMethod)}` : "Not confirmed"}</dd></div><div><dt>Confirmation email</dt><dd title={deliveryStatusDetail(item.appointmentConfirmationStatus)}>{emailDeliveryLabel(item.appointmentConfirmationStatus)}</dd></div><div><dt>Internal notification</dt><dd title={deliveryStatusDetail(item.deliveryStatus)}>{emailDeliveryLabel(item.deliveryStatus)} · {item.deliveryAttemptCount} attempts</dd></div><div><dt>Requester acknowledgement</dt><dd title={deliveryStatusDetail(item.acknowledgementStatus)}>{emailDeliveryLabel(item.acknowledgementStatus)}</dd></div></dl>
       {item.message ? <blockquote>{item.message}</blockquote> : null}
       <FollowUpHistory items={item.followUpRequests ?? []} />
       {item.deliveryFailureCode ? <p className="form-status form-status--error">Delivery failure: {item.deliveryFailureCode}</p> : null}

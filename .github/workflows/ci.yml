@@ -17,6 +17,7 @@ jobs:
   backend:
     name: Backend validation
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -69,6 +70,7 @@ jobs:
           done
 
       - name: Run backend unit and integration tests
+        timeout-minutes: 15
         run: >
           dotnet test Gccs.slnx
           --no-build
@@ -76,6 +78,9 @@ jobs:
           --filter "Category!=LocalDocker&Category!=PostgresIntegration"
           --logger "trx;LogFileName=gccs-backend-tests.trx"
           --results-directory TestResults/backend
+          --blame-hang
+          --blame-hang-timeout 10m
+          --blame-hang-dump-type mini
 
       - name: Run extraction precision and recall evaluation
         run: >

@@ -395,11 +395,18 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
             new DemoRequestDeliverySettings(TimeSpan.FromMinutes(5), 2),
             TimeProvider.System);
 
-        Assert.True(await service.ProcessNextAsync());
+        var retryResult = await service.ProcessNextWithResultAsync();
+        Assert.True(retryResult.Processed);
+        Assert.Equal(DemoRequestDeliveryProcessingStatus.Failed, retryResult.Status);
+        Assert.Equal(claim.DeliveryId, retryResult.DeliveryId);
+        Assert.Equal(claim.RequestId, retryResult.RequestId);
+        Assert.Equal(claim.DeliveryKind, retryResult.DeliveryKind);
+        Assert.Equal(nameof(InvalidOperationException), retryResult.FailureCode);
         Assert.NotNull(repository.RetryAt);
 
         repository.Claim = claim with { AttemptNumber = 2 };
-        await service.ProcessNextAsync();
+        var terminalResult = await service.ProcessNextWithResultAsync();
+        Assert.Equal(DemoRequestDeliveryProcessingStatus.Failed, terminalResult.Status);
         Assert.Null(repository.RetryAt);
     }
 
@@ -415,7 +422,10 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
             new DemoRequestDeliverySettings(TimeSpan.FromMinutes(5), 2),
             TimeProvider.System);
 
-        Assert.True(await service.ProcessNextAsync());
+        var result = await service.ProcessNextWithResultAsync();
+        Assert.True(result.Processed);
+        Assert.Equal(DemoRequestDeliveryProcessingStatus.Completed, result.Status);
+        Assert.Equal(claim.DeliveryKind, result.DeliveryKind);
         Assert.Equal(DemoRequestDeliveryDisposition.Captured, repository.Completion?.Disposition);
         Assert.Null(repository.Completion?.ProviderMessageId);
         Assert.Null(repository.RetryAt);
