@@ -243,7 +243,7 @@ Local setup for these cases:
 VITE_GCCS_DEV_PLATFORM_PERMISSIONS=ProvisionTenants npm run dev
 ```
 
-3. Open `http://127.0.0.1:5173/platform`.
+3. Open `http://localhost:5173/platform`.
 4. Confirm the `Overview` page loads and the platform navigation shows `Tenant onboarding`.
 5. If `Provisioning access denied` appears, stop and restart the web app with the environment variable above. Do not substitute a tenant `Owner`, `Admin`, or `ManageTenant` permission.
 6. Before repeating these cases, change the final synthetic reference suffix from `A` to `B`, `C`, or another unused value. Customer and subscription references are intentionally unique.

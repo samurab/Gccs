@@ -6,7 +6,10 @@ using Gccs.Domain.Tenancy;
 
 namespace Gccs.Application.Tenancy;
 
-public sealed class PlatformTenantProvisioningService(IPlatformTenantProvisioningRepository repository)
+public sealed class PlatformTenantProvisioningService(
+    IPlatformTenantProvisioningRepository repository,
+    TimeProvider timeProvider,
+    TenantSubscriptionSettings subscriptionSettings)
 {
     private const int MaximumPageSize = 100;
 
@@ -68,7 +71,7 @@ public sealed class PlatformTenantProvisioningService(IPlatformTenantProvisionin
         return repository.CancelAsync(onboardingId, reason, actorUserId, cancellationToken);
     }
 
-    private static NormalizedRequest NormalizeAndValidate(
+    private NormalizedRequest NormalizeAndValidate(
         PlatformTenantProvisioningRequest request,
         string idempotencyKey)
     {
@@ -97,6 +100,19 @@ public sealed class PlatformTenantProvisioningService(IPlatformTenantProvisionin
             if (planCode is not null || subscriptionReference is not null || request.CommercialApprovalConfirmed)
             {
                 throw new ArgumentException("Pilot onboarding must not include paid subscription fields.", nameof(request));
+            }
+
+            var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+            if (request.TrialEndsAt <= today)
+            {
+                throw new ArgumentException("Pilot onboarding requires a future trial end date.", nameof(request));
+            }
+
+            if (request.TrialEndsAt > today.AddDays(subscriptionSettings.MaximumPilotDays))
+            {
+                throw new ArgumentException(
+                    $"Pilot onboarding cannot exceed {subscriptionSettings.MaximumPilotDays} days.",
+                    nameof(request));
             }
         }
         else
@@ -244,6 +260,7 @@ public sealed record PlatformTenantProvisioningResultDto(
     DateTimeOffset? CancelledAt,
     Guid? CancelledByUserId,
     string? CancellationReason,
+    TenantSubscriptionDto? Subscription,
     bool IsReplay = false);
 
 public sealed record CancelPlatformTenantOnboardingRequest(string Reason);

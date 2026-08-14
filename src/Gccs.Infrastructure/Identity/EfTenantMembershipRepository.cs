@@ -1,6 +1,7 @@
 using Gccs.Application.Identity;
 using Gccs.Application.Security;
 using Gccs.Domain.Identity;
+using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -43,12 +44,13 @@ public sealed class EfTenantMembershipRepository(
                 membership => membership.TenantId == tenantContext.TenantId && membership.UserId == userId,
                 cancellationToken);
 
-    public async Task<TenantMemberDto?> FindActiveCurrentUserMembershipAsync(CancellationToken cancellationToken = default)
+    public async Task<TenantAuthorizationContextDto?> FindActiveCurrentUserAuthorizationAsync(CancellationToken cancellationToken = default)
     {
         var membership = await dbContext.TenantMemberships
             .AsNoTracking()
             .Include(candidate => candidate.User)
             .Include(candidate => candidate.Tenant)
+                .ThenInclude(tenant => tenant!.Subscription)
             .SingleOrDefaultAsync(
                 candidate =>
                     candidate.TenantId == tenantContext.TenantId &&
@@ -61,8 +63,30 @@ public sealed class EfTenantMembershipRepository(
                      candidate.Tenant.Status == Gccs.Domain.Tenancy.TenantStatus.Trialing),
                 cancellationToken);
 
-        return membership is null ? null : ToDto(membership);
+        return membership is null
+            ? null
+            : new TenantAuthorizationContextDto(
+                ToDto(membership),
+                ToSubscription(membership.Tenant!.Subscription));
     }
+
+    private static TenantSubscription? ToSubscription(TenantSubscriptionEntity? entity) =>
+        entity is null
+            ? null
+            : new TenantSubscription(
+                entity.Id,
+                entity.TenantId,
+                entity.TenantKind,
+                entity.Plan,
+                entity.PlanCode,
+                entity.Status,
+                entity.StartsAt,
+                entity.EndsAt,
+                entity.GraceEndsAt,
+                entity.ExternalCustomerReference,
+                entity.ExternalSubscriptionReference,
+                entity.StatusReason,
+                entity.Version);
 
     public async Task<TenantMemberDto> AddToCurrentTenantAsync(
         User user,

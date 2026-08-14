@@ -1774,7 +1774,21 @@ describe("App", () => {
     saveCompanyProfileMock.mockResolvedValueOnce({
       data: null,
       error:
-        "Company profile is missing required completion fields. UEI is required before profile completion. CAGE code is required before profile completion. SAM expiration date is required before profile completion."
+        "Company profile is missing required completion fields.",
+      errorSummary: "Company profile is missing required completion fields. Correlation ID: profile-validation-correlation.",
+      errors: {
+        uei: ["UEI is required before profile completion."],
+        cageCode: ["CAGE code is required before profile completion."],
+        samRegistrationExpiresAt: ["SAM expiration date is required before profile completion."],
+        naicsCodes: ["At least one NAICS code is required before profile completion."],
+        contractorRole: ["Contractor role is required before profile completion."],
+        productsAndServices: ["Products and services are required before profile completion."],
+        employeeRange: ["Employee range is required before profile completion."],
+        revenueRange: ["Revenue range is required before profile completion."],
+        locations: ["At least one location is required before profile completion."],
+        "itEnvironment.description": ["IT environment summary is required before profile completion."],
+        dataHandlingPosture: ["FCI/CUI posture is required before profile completion."]
+      }
     });
     const user = userEvent.setup();
 
@@ -1788,6 +1802,29 @@ describe("App", () => {
 
     expect(saveCompanyProfileMock).toHaveBeenCalledWith(expect.objectContaining({ completeProfile: true }));
     expect(await screen.findByText(/UEI is required before profile completion/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/UEI is required before profile completion/i)).toHaveLength(1);
+    expect(screen.getByText(/Company profile is missing required completion fields.*profile-validation-correlation/i)).toBeInTheDocument();
+    expect(screen.getByText("uei")).toBeInTheDocument();
+    expect(screen.getByText("cageCode")).toBeInTheDocument();
+    expect(screen.getByText("samRegistrationExpiresAt")).toBeInTheDocument();
+    expect(screen.getByLabelText("UEI")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("UEI")).toHaveAttribute("aria-required", "true");
+    expect(screen.getByLabelText("UEI")).toHaveAccessibleDescription("UEI is required before profile completion.");
+    expect(screen.getByLabelText("CAGE")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("SAM expires")).toHaveAttribute("aria-invalid", "true");
+    for (const label of [
+      "Role",
+      "Code",
+      "Products and services",
+      "Employees",
+      "Revenue",
+      "Location",
+      "IT summary",
+      "FCI/CUI posture"
+    ]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByLabelText(label)).toHaveAttribute("aria-required", "true");
+    }
     expect(screen.queryByText("Draft saved.")).not.toBeInTheDocument();
   });
 

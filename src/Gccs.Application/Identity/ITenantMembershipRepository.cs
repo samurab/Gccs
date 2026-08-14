@@ -1,4 +1,5 @@
 using Gccs.Domain.Identity;
+using Gccs.Domain.Tenancy;
 
 namespace Gccs.Application.Identity;
 
@@ -8,7 +9,7 @@ public interface ITenantMembershipRepository
 
     Task<bool> CurrentTenantMembershipExistsAsync(Guid userId, CancellationToken cancellationToken = default);
 
-    Task<TenantMemberDto?> FindActiveCurrentUserMembershipAsync(CancellationToken cancellationToken = default);
+    Task<TenantAuthorizationContextDto?> FindActiveCurrentUserAuthorizationAsync(CancellationToken cancellationToken = default);
 
     Task<TenantMemberDto> AddToCurrentTenantAsync(
         User user,
@@ -21,3 +22,7 @@ public interface ITenantMembershipRepository
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record TenantAuthorizationContextDto(
+    TenantMemberDto Membership,
+    TenantSubscription? Subscription);

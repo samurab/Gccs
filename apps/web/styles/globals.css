@@ -4987,7 +4987,10 @@ label:has(:required:user-invalid):not(.demo-request-form__explicit-validation)::
 
 input:required:user-invalid,
 select:required:user-invalid,
-textarea:required:user-invalid {
+textarea:required:user-invalid,
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
   border-color: var(--red);
   box-shadow: 0 0 0 3px rgb(163 58 50 / 0.14);
 }

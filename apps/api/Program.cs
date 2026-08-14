@@ -531,6 +531,96 @@ platformApi.MapPost("/tenant-onboardings/{onboardingId:guid}/cancel", async (
 .RequireTenantProvisioningPermission()
 .WithName("CancelPlatformTenantOnboarding");
 
+platformApi.MapGet("/tenant-subscriptions/{tenantId:guid}", async (
+    Guid tenantId,
+    TenantSubscriptionService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var subscription = await service.FindAsync(tenantId, cancellationToken);
+    return subscription is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Tenant subscription was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(subscription);
+})
+.RequireTenantProvisioningPermission()
+.WithName("GetPlatformTenantSubscription");
+
+platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/extend", async (
+    Guid tenantId,
+    ExtendPilotSubscriptionRequest request,
+    TenantSubscriptionService service,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+    await ExecuteSubscriptionTransition(
+        user,
+        httpContext,
+        actorUserId => service.ExtendPilotAsync(
+            tenantId,
+            request,
+            httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty,
+            actorUserId,
+            cancellationToken)))
+.RequireTenantProvisioningPermission()
+.WithName("ExtendPlatformPilotSubscription");
+
+platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/expire", async (
+    Guid tenantId,
+    ChangePilotSubscriptionStatusRequest request,
+    TenantSubscriptionService service,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+    await ExecuteSubscriptionTransition(
+        user,
+        httpContext,
+        actorUserId => service.ExpirePilotAsync(
+            tenantId,
+            request,
+            httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty,
+            actorUserId,
+            cancellationToken)))
+.RequireTenantProvisioningPermission()
+.WithName("ExpirePlatformPilotSubscription");
+
+platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/cancel", async (
+    Guid tenantId,
+    ChangePilotSubscriptionStatusRequest request,
+    TenantSubscriptionService service,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+    await ExecuteSubscriptionTransition(
+        user,
+        httpContext,
+        actorUserId => service.CancelPilotAsync(
+            tenantId,
+            request,
+            httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty,
+            actorUserId,
+            cancellationToken)))
+.RequireTenantProvisioningPermission()
+.WithName("CancelPlatformPilotSubscription");
+
+platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/convert", async (
+    Guid tenantId,
+    ConvertPilotSubscriptionRequest request,
+    TenantSubscriptionService service,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+    await ExecuteSubscriptionTransition(
+        user,
+        httpContext,
+        actorUserId => service.ConvertPilotAsync(
+            tenantId,
+            request,
+            httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty,
+            actorUserId,
+            cancellationToken)))
+.RequireTenantProvisioningPermission()
+.WithName("ConvertPlatformPilotSubscription");
+
 platformApi.MapPost("/tenant-invitations/{invitationId:guid}/resend", async (
     Guid invitationId,
     TenantInvitationService service,
@@ -6662,6 +6752,46 @@ api.MapGet("/tenants/{tenantId:guid}/data-handling-mode/history", async (
 })
 .RequirePermission(Permission.ManageTenant)
 .WithName("ListTenantDataHandlingModeHistory");
+
+static async Task<IResult> ExecuteSubscriptionTransition(
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    Func<Guid, Task<TenantSubscriptionDto?>> transition)
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Invalid platform operator identity",
+            "The authenticated platform operator identity is missing or invalid.",
+            StatusCodes.Status401Unauthorized,
+            "invalid_platform_operator_identity");
+    }
+
+    try
+    {
+        var subscription = await transition(actorUserId);
+        return subscription is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Tenant subscription was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(subscription);
+    }
+    catch (TenantSubscriptionConflictException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Tenant subscription conflict",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "tenant_subscription_conflict");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["tenantSubscription"] = [exception.Message]
+        });
+    }
+}
 
 static async Task<IResult> ReviewCuiReadyChecklistAsync(
     Guid tenantId,

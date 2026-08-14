@@ -8,6 +8,7 @@ import {
   getRecentReports,
   getReportArtifact,
   revokeTenantInvitation,
+  saveCompanyProfile,
   restoreReport,
   selectDevelopmentInvitationIdentity,
   selectDevelopmentTestingContext
@@ -244,6 +245,40 @@ describe("FeDril API client", () => {
     const access = await getCurrentUserAccess();
 
     expect(access.permissions).toEqual([]);
+  });
+
+  it("preserves field-keyed company profile validation errors", async () => {
+    const errors = {
+      uei: ["UEI is required before profile completion."],
+      cageCode: ["CAGE code is required before profile completion."],
+      samRegistrationExpiresAt: ["SAM expiration date is required before profile completion."]
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({
+          title: "Company profile incomplete",
+          detail: "Company profile is missing required completion fields.",
+          status: 400,
+          correlationId: "profile-validation-correlation",
+          errors
+        })
+      })
+    );
+
+    const result = await saveCompanyProfile({} as Parameters<typeof saveCompanyProfile>[0]);
+
+    expect(result.data).toBeNull();
+    expect(result.errors).toEqual(errors);
+    expect(result.errorSummary).toBe(
+      "Company profile is missing required completion fields. Correlation ID: profile-validation-correlation."
+    );
+    expect(result.error).toContain("uei: UEI is required before profile completion.");
+    expect(result.error).toContain("cageCode: CAGE code is required before profile completion.");
+    expect(result.error).toContain(
+      "samRegistrationExpiresAt: SAM expiration date is required before profile completion."
+    );
   });
 
   it("uses a freshly acquired bearer token for API requests", async () => {

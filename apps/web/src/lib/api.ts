@@ -260,7 +260,26 @@ export type PlatformTenantProvisioningResult = {
   cancelledAt: string | null;
   cancelledByUserId: string | null;
   cancellationReason: string | null;
+  subscription: TenantSubscription | null;
   isReplay: boolean;
+};
+
+export type TenantSubscription = {
+  id: string;
+  tenantId: string;
+  tenantKind: "ContractorWorkspace" | "PartnerOrganization" | "Internal";
+  plan: "PilotEvaluation" | "CommercialStandard" | "Partner" | "Internal";
+  planCode: string;
+  status: "Pending" | "Active" | "GracePeriod" | "Expired" | "Cancelled" | "Converted";
+  effectiveStatus: "Pending" | "Active" | "GracePeriod" | "Expired" | "Cancelled" | "Converted";
+  accessLevel: "Full" | "ReadOnly" | "Denied";
+  startsAt: string;
+  endsAt: string | null;
+  graceEndsAt: string | null;
+  externalCustomerReference: string | null;
+  externalSubscriptionReference: string | null;
+  statusReason: string;
+  version: number;
 };
 
 export type PlatformTenantOnboardingPage = {
@@ -1704,6 +1723,8 @@ export type AuditLogQueryParams = {
 export type ApiMutationResult<T> = {
   data: T | null;
   error: string | null;
+  errorSummary?: string;
+  errors?: Record<string, string[]>;
 };
 
 export const fallbackOverview: ComplianceOverview = {
@@ -1857,6 +1878,53 @@ export async function cancelPlatformTenantOnboarding(
     `/api/platform/tenant-onboardings/${onboardingId}/cancel`,
     { reason }
   );
+}
+
+export async function extendPlatformPilotSubscription(
+  tenantId: string,
+  newEndsOn: string,
+  reason: string,
+  expectedVersion: number,
+  idempotencyKey: string
+): Promise<ApiMutationResult<TenantSubscription>> {
+  return postJsonResult<TenantSubscription>(`/api/platform/tenant-subscriptions/${tenantId}/extend`, {
+    newEndsOn, reason, expectedVersion
+  }, { "Idempotency-Key": idempotencyKey });
+}
+
+export async function expirePlatformPilotSubscription(
+  tenantId: string,
+  reason: string,
+  expectedVersion: number,
+  idempotencyKey: string
+): Promise<ApiMutationResult<TenantSubscription>> {
+  return postJsonResult<TenantSubscription>(`/api/platform/tenant-subscriptions/${tenantId}/expire`, {
+    reason, expectedVersion
+  }, { "Idempotency-Key": idempotencyKey });
+}
+
+export async function cancelPlatformPilotSubscription(
+  tenantId: string,
+  reason: string,
+  expectedVersion: number,
+  idempotencyKey: string
+): Promise<ApiMutationResult<TenantSubscription>> {
+  return postJsonResult<TenantSubscription>(`/api/platform/tenant-subscriptions/${tenantId}/cancel`, {
+    reason, expectedVersion
+  }, { "Idempotency-Key": idempotencyKey });
+}
+
+export async function convertPlatformPilotSubscription(
+  tenantId: string,
+  planCode: string,
+  externalSubscriptionReference: string,
+  reason: string,
+  expectedVersion: number,
+  idempotencyKey: string
+): Promise<ApiMutationResult<TenantSubscription>> {
+  return postJsonResult<TenantSubscription>(`/api/platform/tenant-subscriptions/${tenantId}/convert`, {
+    planCode, externalSubscriptionReference, reason, expectedVersion
+  }, { "Idempotency-Key": idempotencyKey });
 }
 
 export async function getInvitationAcceptanceContext(token: string): Promise<InvitationAcceptanceContext> {
@@ -2946,7 +3014,11 @@ export async function supersedeCuiReadyApprovalChecklist(
   return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists/${checklistId}/supersede`, request);
 }
 
-async function postJsonResult<T>(path: string, body: unknown): Promise<ApiMutationResult<T>> {
+async function postJsonResult<T>(
+  path: string,
+  body: unknown,
+  additionalHeaders: Record<string, string> = {}
+): Promise<ApiMutationResult<T>> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
 
   try {
@@ -2955,7 +3027,8 @@ async function postJsonResult<T>(path: string, body: unknown): Promise<ApiMutati
       method: "POST",
       headers: {
         ...(apiHeaders ?? {}),
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...additionalHeaders
       },
       body: JSON.stringify(body)
     });
@@ -3005,7 +3078,7 @@ async function putJsonResult<T>(path: string, body: unknown): Promise<ApiMutatio
     });
 
     if (!response.ok) {
-      return { data: null, error: await readErrorMessage(response) };
+      return { data: null, ...(await readErrorDetails(response)) };
     }
 
     return { data: await response.json(), error: null };
@@ -3165,14 +3238,38 @@ async function getApiHeaders(): Promise<HeadersInit | undefined> {
 }
 
 async function readErrorMessage(response: Response): Promise<string> {
+  return (await readErrorDetails(response)).error;
+}
+
+async function readErrorDetails(
+  response: Response
+): Promise<{ error: string; errorSummary?: string; errors?: Record<string, string[]> }> {
   try {
     const problem = await response.json();
-    const errors = problem.errors ? Object.values(problem.errors).flat().filter(Boolean) : [];
-    const parts = [problem.detail, ...errors].filter(Boolean);
+    const errors = Object.fromEntries(
+      Object.entries(problem.errors ?? {}).map(([field, messages]) => [
+        field,
+        (Array.isArray(messages) ? messages : [messages])
+          .filter((message): message is string => typeof message === "string" && message.trim().length > 0)
+      ])
+    );
+    const fieldMessages = Object.entries(errors).flatMap(([field, messages]) =>
+      messages.map((message) => `${field}: ${message}`)
+    );
+    const parts = [problem.detail, ...fieldMessages].filter(
+      (part): part is string => typeof part === "string" && part.trim().length > 0
+    );
     const uniqueParts = Array.from(new Set(parts));
     const message = uniqueParts.join(" ") || problem.title || "The request was rejected.";
-    return problem.correlationId ? `${message} Correlation ID: ${problem.correlationId}.` : message;
+    const summary = problem.detail || problem.title || "The request was rejected.";
+    const withCorrelationId = (value: string) =>
+      problem.correlationId ? `${value} Correlation ID: ${problem.correlationId}.` : value;
+    return {
+      error: withCorrelationId(message),
+      errorSummary: withCorrelationId(summary),
+      ...(Object.keys(errors).length > 0 ? { errors } : {})
+    };
   } catch {
-    return "The request was rejected.";
+    return { error: "The request was rejected." };
   }
 }

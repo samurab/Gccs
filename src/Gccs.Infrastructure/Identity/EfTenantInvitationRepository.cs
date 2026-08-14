@@ -260,6 +260,37 @@ public sealed class EfTenantInvitationRepository(
             tenant.UpdatedAt = now;
             tenant.UpdatedByUserId = actorUserId;
 
+            var subscription = await dbContext.TenantSubscriptions
+                .SingleOrDefaultAsync(candidate => candidate.TenantId == invitation.TenantId, cancellationToken);
+            if (subscription is not null && subscription.Status is SubscriptionStatus.Pending)
+            {
+                subscription.Status = SubscriptionStatus.Active;
+                subscription.StatusReason = "Initial Owner accepted the tenant invitation.";
+                subscription.Version++;
+                subscription.UpdatedAt = now;
+                subscription.UpdatedByUserId = actorUserId;
+                dbContext.AuditLogEntries.Add(new AuditLogEntryEntity
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    ActorUserId = actorUserId,
+                    Action = AuditAction.Updated,
+                    EntityType = "TenantSubscription",
+                    EntityId = subscription.Id.ToString(),
+                    OccurredAt = now,
+                    IpAddress = requestMetadata.IpAddress,
+                    UserAgent = requestMetadata.UserAgent,
+                    CorrelationId = requestMetadata.CorrelationId,
+                    Summary = "Tenant subscription was activated after Owner invitation acceptance.",
+                    MetadataJson = JsonSerializer.Serialize(new Dictionary<string, string>
+                    {
+                        ["plan"] = subscription.Plan.ToString(),
+                        ["status"] = subscription.Status.ToString(),
+                        ["version"] = subscription.Version.ToString()
+                    }, JsonOptions)
+                });
+            }
+
             var metadata = new Dictionary<string, string>
             {
                 ["onboardingId"] = onboarding.Id.ToString(),
