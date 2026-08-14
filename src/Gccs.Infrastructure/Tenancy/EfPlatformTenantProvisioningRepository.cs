@@ -13,7 +13,9 @@ namespace Gccs.Infrastructure.Tenancy;
 
 public sealed class EfPlatformTenantProvisioningRepository(
     GccsDbContext dbContext,
-    IAuditRequestMetadata requestMetadata) : IPlatformTenantProvisioningRepository
+    IAuditRequestMetadata requestMetadata,
+    TimeProvider timeProvider,
+    TenantSubscriptionSettings subscriptionSettings) : IPlatformTenantProvisioningRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private const int InvitationLifetimeDays = 7;
@@ -40,7 +42,7 @@ public sealed class EfPlatformTenantProvisioningRepository(
         CancellationToken cancellationToken = default)
     {
         var onboardingType = Enum.Parse<TenantOnboardingType>(request.OnboardingType, true);
-        var now = DateTimeOffset.UtcNow;
+        var now = timeProvider.GetUtcNow();
         var tenantId = Guid.NewGuid();
         var onboardingId = Guid.NewGuid();
         var invitationId = Guid.NewGuid();
@@ -97,12 +99,52 @@ public sealed class EfPlatformTenantProvisioningRepository(
             Invitation = invitation
         };
 
+        var isPilot = onboardingType is TenantOnboardingType.Pilot;
+        DateTimeOffset? subscriptionEndsAt = request.TrialEndsAt is null
+            ? null
+            : TenantSubscriptionService.EndExclusive(request.TrialEndsAt.Value);
+        var subscription = new TenantSubscriptionEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            TenantKind = TenantKind.ContractorWorkspace,
+            Plan = isPilot ? SubscriptionPlan.PilotEvaluation : SubscriptionPlan.CommercialStandard,
+            PlanCode = isPilot ? "PILOT-EVALUATION" : request.PlanCode!,
+            Status = SubscriptionStatus.Pending,
+            StartsAt = now,
+            EndsAt = subscriptionEndsAt,
+            GraceEndsAt = subscriptionEndsAt?.AddDays(subscriptionSettings.GracePeriodDays),
+            ExternalCustomerReference = request.CustomerReference,
+            ExternalSubscriptionReference = request.SubscriptionReference,
+            StatusReason = request.SetupReason,
+            Version = 1,
+            CreatedAt = now,
+            CreatedByUserId = actorUserId,
+            Tenant = tenant
+        };
+
         dbContext.Tenants.Add(tenant);
         dbContext.TenantInvitations.Add(invitation);
         dbContext.PlatformTenantOnboardings.Add(onboarding);
+        dbContext.TenantSubscriptions.Add(subscription);
         AddOwnerRole(tenantId, actorUserId, now);
         AddModeHistory(tenantId, actorUserId, request.SetupReason, now);
         AddAuditEntries(onboarding, tenant, invitation, actorUserId, now);
+        AddAudit(
+            tenantId,
+            actorUserId,
+            AuditAction.Created,
+            "TenantSubscription",
+            subscription.Id.ToString(),
+            $"{subscription.Plan} subscription was created pending Owner activation.",
+            new Dictionary<string, string>
+            {
+                ["plan"] = subscription.Plan.ToString(),
+                ["status"] = subscription.Status.ToString(),
+                ["endsAt"] = subscription.EndsAt?.ToString("O") ?? string.Empty,
+                ["graceEndsAt"] = subscription.GraceEndsAt?.ToString("O") ?? string.Empty
+            },
+            now);
 
         try
         {
@@ -281,6 +323,7 @@ public sealed class EfPlatformTenantProvisioningRepository(
         dbContext.PlatformTenantOnboardings
             .AsNoTracking()
             .Include(candidate => candidate.Tenant)
+                .ThenInclude(tenant => tenant!.Subscription)
             .Include(candidate => candidate.Invitation);
 
     private void AddOwnerRole(Guid tenantId, Guid actorUserId, DateTimeOffset now)
@@ -391,7 +434,7 @@ public sealed class EfPlatformTenantProvisioningRepository(
         });
     }
 
-    private static PlatformTenantProvisioningResultDto ToResult(
+    private PlatformTenantProvisioningResultDto ToResult(
         PlatformTenantOnboardingEntity onboarding,
         bool isReplay)
     {
@@ -423,6 +466,29 @@ public sealed class EfPlatformTenantProvisioningRepository(
             onboarding.CancelledAt,
             onboarding.CancelledByUserId,
             onboarding.CancellationReason,
+            ToSubscriptionDto(tenant.Subscription, timeProvider.GetUtcNow()),
             isReplay);
     }
+
+    private static TenantSubscriptionDto? ToSubscriptionDto(
+        TenantSubscriptionEntity? entity,
+        DateTimeOffset now) =>
+        entity is null
+            ? null
+            : TenantSubscriptionService.Map(
+                new TenantSubscription(
+                    entity.Id,
+                    entity.TenantId,
+                    entity.TenantKind,
+                    entity.Plan,
+                    entity.PlanCode,
+                    entity.Status,
+                    entity.StartsAt,
+                    entity.EndsAt,
+                    entity.GraceEndsAt,
+                    entity.ExternalCustomerReference,
+                    entity.ExternalSubscriptionReference,
+                    entity.StatusReason,
+                    entity.Version),
+                now);
 }

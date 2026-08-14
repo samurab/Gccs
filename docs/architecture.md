@@ -17,6 +17,18 @@ Known runtime, local infrastructure, test, source-content, and deferred integrat
 - `src/Gccs.Infrastructure`: database, object storage, queue, search, AI, and external API adapters.
 - `packages/compliance-content`: source-backed obligation seed data reviewed by compliance experts before production use.
 
+## Subscription Boundary
+
+Current state: **Implemented for provider-independent pilot lifecycle enforcement; partially implemented for commercial billing**.
+
+- Tenant identity, tenant status, data-handling posture, organization relationship, subscription plan, and subscription lifecycle are separate concepts.
+- New platform-onboarded pilots receive a `PilotEvaluation` subscription. Paid onboarding receives a commercial subscription record, but FeDril does not independently verify billing-provider state.
+- The tenant-membership authorization middleware evaluates subscription access on every authenticated tenant-scoped API request. Active and converted subscriptions allow normal access, grace-period subscriptions allow safe HTTP reads, and expired or cancelled subscriptions deny access.
+- Request-time evaluation is authoritative; access does not depend on a background expiration worker running successfully.
+- Platform lifecycle transitions use optimistic concurrency and write the subscription mutation and append-only audit entry in the same database transaction.
+- Partner organizations do not receive implicit access to contractor tenants. Cross-tenant partner access continues to require explicit tenant membership and server-authoritative permissions.
+- Subscription changes never modify or elevate `TenantDataPosture`; pilot or commercial status does not authorize CUI processing.
+
 ## Project Architecture Design Diagram
 
 ```mermaid

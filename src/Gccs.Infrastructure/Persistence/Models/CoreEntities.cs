@@ -32,6 +32,42 @@ public sealed class TenantEntity : AuditedEntity
     public ICollection<RoleEntity> Roles { get; set; } = [];
     public ICollection<TenantDataHandlingModeHistoryEntity> DataHandlingModeHistory { get; set; } = [];
     public PlatformTenantOnboardingEntity? PlatformOnboarding { get; set; }
+    public TenantSubscriptionEntity? Subscription { get; set; }
+}
+
+public sealed class TenantSubscriptionEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public TenantKind TenantKind { get; set; }
+    public SubscriptionPlan Plan { get; set; }
+    public string PlanCode { get; set; } = string.Empty;
+    public SubscriptionStatus Status { get; set; }
+    public DateTimeOffset StartsAt { get; set; }
+    public DateTimeOffset? EndsAt { get; set; }
+    public DateTimeOffset? GraceEndsAt { get; set; }
+    public string? ExternalCustomerReference { get; set; }
+    public string? ExternalSubscriptionReference { get; set; }
+    public string StatusReason { get; set; } = string.Empty;
+    public long Version { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public ICollection<TenantSubscriptionTransitionEntity> Transitions { get; set; } = [];
+}
+
+public sealed class TenantSubscriptionTransitionEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid SubscriptionId { get; set; }
+    public string IdempotencyKey { get; set; } = string.Empty;
+    public string RequestFingerprint { get; set; } = string.Empty;
+    public string Transition { get; set; } = string.Empty;
+    public string ResultJson { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid ActorUserId { get; set; }
+
+    public TenantSubscriptionEntity? Subscription { get; set; }
 }
 
 public sealed class PlatformTenantOnboardingEntity : AuditedEntity

@@ -645,6 +645,7 @@ export function App() {
   const [revokingInvitationId, setRevokingInvitationId] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [profileMessage, setProfileMessage] = useState("");
+  const [profileValidationErrors, setProfileValidationErrors] = useState<Record<string, string[]>>({});
   const [contractStatus, setContractStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [contractMessage, setContractMessage] = useState("");
   const [contractClauseStatus, setContractClauseStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -1291,17 +1292,20 @@ export function App() {
   async function handleCompanyProfileSave(request: UpsertCompanyProfileRequest) {
     setProfileStatus("saving");
     setProfileMessage("");
+    setProfileValidationErrors({});
 
     const result = await saveCompanyProfile(request);
     if (result.data) {
       setCompanyProfile(result.data);
       setProfileStatus("saved");
       setProfileMessage(result.data.isComplete ? "Profile complete." : "Draft saved.");
+      setProfileValidationErrors({});
       return;
     }
 
     setProfileStatus("failed");
-    setProfileMessage(result.error ?? "Profile could not be saved.");
+    setProfileMessage(result.errorSummary ?? result.error ?? "Profile could not be saved.");
+    setProfileValidationErrors(result.errors ?? {});
   }
 
   async function handleContractSave(contractId: string | null, request: UpsertContractRequest) {
@@ -2364,6 +2368,7 @@ export function App() {
               profile={companyProfile}
               profileMessage={profileMessage}
               profileStatus={profileStatus}
+              profileValidationErrors={profileValidationErrors}
               onProfileApplied={setCompanyProfile}
               onSave={handleCompanyProfileSave}
             />
@@ -5119,7 +5124,8 @@ function ProfileView({
   onSave,
   profile,
   profileMessage,
-  profileStatus
+  profileStatus,
+  profileValidationErrors
 }: {
   canManageCompanyProfile: boolean;
   onProfileApplied: (profile: CompanyProfile) => void;
@@ -5127,12 +5133,39 @@ function ProfileView({
   profile: CompanyProfile | null;
   profileMessage: string;
   profileStatus: "idle" | "saving" | "saved" | "failed";
+  profileValidationErrors: Record<string, string[]>;
 }) {
   const [form, setForm] = useState<ProfileFormState>(() => profileToForm(profile));
   const [lookupQuery, setLookupQuery] = useState({ uei: "", legalBusinessName: "" });
   const [lookupResults, setLookupResults] = useState<CompanyEntityLookupResult[]>([]);
   const [lookupStatus, setLookupStatus] = useState<"idle" | "searching" | "applying" | "failed" | "applied">("idle");
   const [lookupMessage, setLookupMessage] = useState("");
+  const visibleValidationErrors =
+    Object.keys(profileValidationErrors).length > 0 ? profileValidationErrors : profile?.validationErrors ?? {};
+
+  function validationId(field: string) {
+    return `profile-validation-${field.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+  }
+
+  function validationProps(field: string, label: string) {
+    return visibleValidationErrors[field]?.length
+      ? {
+          "aria-describedby": validationId(field),
+          "aria-invalid": true as const,
+          "aria-label": label,
+          "aria-required": true as const
+        }
+      : {};
+  }
+
+  function fieldValidation(field: string) {
+    const messages = visibleValidationErrors[field];
+    return messages?.length ? (
+      <span className="field-error" id={validationId(field)}>
+        {messages.join(" ")}
+      </span>
+    ) : null;
+  }
 
   function updateField<TKey extends keyof ProfileFormState>(field: TKey, value: ProfileFormState[TKey]) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -5274,13 +5307,14 @@ function ProfileView({
         </p>
       ) : null}
 
-      {profile && Object.keys(profile.validationErrors).length > 0 ? (
-        <div className="validation-summary validation-summary--error" role="status">
-          {Object.entries(profile.validationErrors).map(([field, messages]) => (
-            <p key={field}>
-              <strong>{field}</strong> {messages.join(" ")}
-            </p>
-          ))}
+      {Object.keys(visibleValidationErrors).length > 0 ? (
+        <div className="validation-summary validation-summary--error" role="alert">
+          <p>Correct the following fields before completing the profile:</p>
+          <ul>
+            {Object.keys(visibleValidationErrors).map((field) => (
+              <li key={field}>{field}</li>
+            ))}
+          </ul>
         </div>
       ) : null}
 
@@ -5342,7 +5376,12 @@ function ProfileView({
           <div className="form-grid">
             <label>
               <span>Legal entity</span>
-              <input value={form.legalEntityName} onChange={(event) => updateField("legalEntityName", event.target.value)} />
+              <input
+                {...validationProps("legalEntityName", "Legal entity")}
+                value={form.legalEntityName}
+                onChange={(event) => updateField("legalEntityName", event.target.value)}
+              />
+              {fieldValidation("legalEntityName")}
             </label>
             <label>
               <span>DBA</span>
@@ -5350,28 +5389,41 @@ function ProfileView({
             </label>
             <label>
               <span>UEI</span>
-              <input value={form.uei} onChange={(event) => updateField("uei", event.target.value)} />
+              <input {...validationProps("uei", "UEI")} value={form.uei} onChange={(event) => updateField("uei", event.target.value)} />
+              {fieldValidation("uei")}
             </label>
             <label>
               <span>CAGE</span>
-              <input value={form.cageCode} onChange={(event) => updateField("cageCode", event.target.value)} />
+              <input
+                {...validationProps("cageCode", "CAGE")}
+                value={form.cageCode}
+                onChange={(event) => updateField("cageCode", event.target.value)}
+              />
+              {fieldValidation("cageCode")}
             </label>
             <label>
               <span>SAM expires</span>
               <input
+                {...validationProps("samRegistrationExpiresAt", "SAM expires")}
                 type="date"
                 value={form.samRegistrationExpiresAt}
                 onChange={(event) => updateField("samRegistrationExpiresAt", event.target.value)}
               />
+              {fieldValidation("samRegistrationExpiresAt")}
             </label>
             <label>
               <span>Role</span>
-              <select value={form.contractorRole} onChange={(event) => updateField("contractorRole", event.target.value)}>
+              <select
+                {...validationProps("contractorRole", "Role")}
+                value={form.contractorRole}
+                onChange={(event) => updateField("contractorRole", event.target.value)}
+              >
                 <option value="Unknown">Unknown</option>
                 <option value="Prime">Prime</option>
                 <option value="Subcontractor">Subcontractor</option>
                 <option value="Both">Both</option>
               </select>
+              {fieldValidation("contractorRole")}
             </label>
             <div className="naics-editor span-2">
               <div className="naics-editor__header">
@@ -5380,6 +5432,7 @@ function ProfileView({
                   Add NAICS
                 </button>
               </div>
+              {fieldValidation("naicsCodes")}
               {form.naicsRows.map((naics, index) => (
                 <div className="naics-row" key={index}>
                   <label>
@@ -5393,7 +5446,11 @@ function ProfileView({
                   </label>
                   <label>
                     <span>Code</span>
-                    <input value={naics.code} onChange={(event) => updateNaicsRow(index, "code", event.target.value)} />
+                    <input
+                      {...(index === 0 ? validationProps("naicsCodes", "Code") : {})}
+                      value={naics.code}
+                      onChange={(event) => updateNaicsRow(index, "code", event.target.value)}
+                    />
                   </label>
                   <label>
                     <span>Title</span>
@@ -5402,6 +5459,7 @@ function ProfileView({
                   <label>
                     <span>Size basis</span>
                     <input
+                      {...validationProps(`naicsCodes[${index}].sizeStatus`, "Size basis")}
                       value={naics.sizeStandard}
                       onChange={(event) => updateNaicsRow(index, "sizeStandard", event.target.value)}
                     />
@@ -5409,6 +5467,7 @@ function ProfileView({
                   <label>
                     <span>Status</span>
                     <select
+                      {...validationProps(`naicsCodes[${index}].sizeStatus`, "Status")}
                       value={naics.qualifiesAsSmall}
                       onChange={(event) => updateNaicsRow(index, "qualifiesAsSmall", event.target.value)}
                     >
@@ -5416,6 +5475,7 @@ function ProfileView({
                       <option value="true">Small</option>
                       <option value="false">Other than small</option>
                     </select>
+                    {fieldValidation(`naicsCodes[${index}].sizeStatus`)}
                   </label>
                   <button type="button" onClick={() => removeNaicsRow(index)} disabled={form.naicsRows.length === 1}>
                     Remove
@@ -5507,31 +5567,51 @@ function ProfileView({
             </div>
             <label className="span-2">
               <span>Products and services</span>
-              <textarea value={form.productsAndServices} onChange={(event) => updateField("productsAndServices", event.target.value)} />
+              <textarea
+                {...validationProps("productsAndServices", "Products and services")}
+                value={form.productsAndServices}
+                onChange={(event) => updateField("productsAndServices", event.target.value)}
+              />
+              {fieldValidation("productsAndServices")}
             </label>
             <label>
               <span>Employees</span>
-              <select value={form.employeeRange} onChange={(event) => updateField("employeeRange", event.target.value)}>
+              <select
+                {...validationProps("employeeRange", "Employees")}
+                value={form.employeeRange}
+                onChange={(event) => updateField("employeeRange", event.target.value)}
+              >
                 <option value="Unknown">Unknown</option>
                 <option value="Micro">Micro</option>
                 <option value="Small">Small</option>
                 <option value="MidSize">Mid-size</option>
                 <option value="Large">Large</option>
               </select>
+              {fieldValidation("employeeRange")}
             </label>
             <label>
               <span>Revenue</span>
-              <select value={form.revenueRange} onChange={(event) => updateField("revenueRange", event.target.value)}>
+              <select
+                {...validationProps("revenueRange", "Revenue")}
+                value={form.revenueRange}
+                onChange={(event) => updateField("revenueRange", event.target.value)}
+              >
                 <option value="Unknown">Unknown</option>
                 <option value="Micro">Micro</option>
                 <option value="Small">Small</option>
                 <option value="MidSize">Mid-size</option>
                 <option value="Large">Large</option>
               </select>
+              {fieldValidation("revenueRange")}
             </label>
             <label>
               <span>Location</span>
-              <input value={form.locationName} onChange={(event) => updateField("locationName", event.target.value)} />
+              <input
+                {...validationProps("locations", "Location")}
+                value={form.locationName}
+                onChange={(event) => updateField("locationName", event.target.value)}
+              />
+              {fieldValidation("locations")}
             </label>
             <label>
               <span>Street</span>
@@ -5555,11 +5635,17 @@ function ProfileView({
             </label>
             <label className="span-2">
               <span>IT summary</span>
-              <textarea value={form.itDescription} onChange={(event) => updateField("itDescription", event.target.value)} />
+              <textarea
+                {...validationProps("itEnvironment.description", "IT summary")}
+                value={form.itDescription}
+                onChange={(event) => updateField("itDescription", event.target.value)}
+              />
+              {fieldValidation("itEnvironment.description")}
             </label>
             <label>
               <span>FCI/CUI posture</span>
               <select
+                {...validationProps("dataHandlingPosture", "FCI/CUI posture")}
                 value={form.dataHandlingPosture}
                 onChange={(event) => updateField("dataHandlingPosture", event.target.value)}
               >
@@ -5570,6 +5656,7 @@ function ProfileView({
                 <option value="Classified">Classified</option>
                 <option value="ExportControlled">Export-controlled</option>
               </select>
+              {fieldValidation("dataHandlingPosture")}
             </label>
             <label>
               <span>Key systems</span>

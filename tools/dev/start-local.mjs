@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const apiHealthUrl = "http://127.0.0.1:5062/health";
-const webUrl = "http://127.0.0.1:5173/";
+const webUrl = "http://localhost:5173/";
 const managedProcesses = [];
 let shuttingDown = false;
 let healthMonitor;
@@ -46,7 +46,7 @@ async function startLocalStack() {
   if (await isFeDrilWebAvailable()) {
     console.log(`Reusing FeDril web app at ${webUrl}.`);
   } else {
-    startManaged("Web", "npm", ["--workspace", "apps/web", "run", "dev", "--", "--host", "127.0.0.1"]);
+    startManaged("Web", "npm", ["--workspace", "apps/web", "run", "dev", "--", "--host", "localhost"]);
     await waitFor("FeDril web app", isFeDrilWebAvailable, 30_000);
   }
 

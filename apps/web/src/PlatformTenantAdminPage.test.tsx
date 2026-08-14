@@ -5,12 +5,14 @@ import { PlatformTenantAdminPage } from "./PlatformTenantAdminPage";
 
 const {
   cancelPlatformTenantOnboardingMock,
+  extendPlatformPilotSubscriptionMock,
   getPlatformAccessMock,
   getPlatformTenantOnboardingsMock,
   provisionPlatformTenantMock,
   resendPlatformTenantInvitationMock
 } = vi.hoisted(() => ({
   cancelPlatformTenantOnboardingMock: vi.fn(),
+  extendPlatformPilotSubscriptionMock: vi.fn(),
   getPlatformAccessMock: vi.fn(),
   getPlatformTenantOnboardingsMock: vi.fn(),
   provisionPlatformTenantMock: vi.fn(),
@@ -22,6 +24,7 @@ vi.mock("./lib/api", async () => {
   return {
     ...actual,
     cancelPlatformTenantOnboarding: cancelPlatformTenantOnboardingMock,
+    extendPlatformPilotSubscription: extendPlatformPilotSubscriptionMock,
     getPlatformAccess: getPlatformAccessMock,
     getPlatformTenantOnboardings: getPlatformTenantOnboardingsMock,
     provisionPlatformTenant: provisionPlatformTenantMock,
@@ -32,6 +35,7 @@ vi.mock("./lib/api", async () => {
 describe("PlatformTenantAdminPage", () => {
   beforeEach(() => {
     cancelPlatformTenantOnboardingMock.mockReset();
+    extendPlatformPilotSubscriptionMock.mockReset();
     getPlatformAccessMock.mockReset();
     getPlatformTenantOnboardingsMock.mockReset();
     provisionPlatformTenantMock.mockReset();
@@ -173,6 +177,7 @@ describe("PlatformTenantAdminPage", () => {
       cancelledAt: null,
       cancelledByUserId: null,
       cancellationReason: null,
+      subscription: null,
       isReplay: false
     };
     getPlatformTenantOnboardingsMock.mockResolvedValue({
@@ -192,7 +197,8 @@ describe("PlatformTenantAdminPage", () => {
         invitationDeliveryStatus: "Cancelled",
         cancelledAt: "2026-07-23T12:00:00Z",
         cancelledByUserId: "22222222-2222-2222-2222-222222222222",
-        cancellationReason: "Duplicate pilot onboarding."
+        cancellationReason: "Duplicate pilot onboarding.",
+        subscription: null
       },
       error: null
     });
@@ -211,5 +217,80 @@ describe("PlatformTenantAdminPage", () => {
       pending.onboardingId,
       "Duplicate pilot onboarding."
     );
+  });
+
+  it("extends an active pilot using the current subscription version", async () => {
+    const user = userEvent.setup();
+    const activePilot = {
+      onboardingId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+      displayName: "Lifecycle Pilot",
+      onboardingType: "Pilot",
+      onboardingStatus: "Active",
+      tenantStatus: "Trialing",
+      dataHandlingMode: "NoCui",
+      customerReference: "PILOT-LIFECYCLE",
+      ownerEmail: "owner@example.com",
+      ownerDisplayName: "Pilot Owner",
+      ownerRoleName: "Owner",
+      invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+      invitationStatus: "Accepted",
+      invitationDeliveryStatus: "Sent",
+      invitationNotificationSentAt: "2026-08-01T12:00:00Z",
+      invitationExpiresAt: "2026-08-08T12:00:00Z",
+      trialEndsAt: "2026-08-31",
+      planCode: null,
+      subscriptionReference: null,
+      setupReason: "Approved pilot.",
+      createdAt: "2026-08-01T12:00:00Z",
+      cancelledAt: null,
+      cancelledByUserId: null,
+      cancellationReason: null,
+      subscription: {
+        id: "dddddddd-dddd-dddd-dddd-ddddddddddd2",
+        tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+        tenantKind: "ContractorWorkspace",
+        plan: "PilotEvaluation",
+        planCode: "PILOT-EVALUATION",
+        status: "Active",
+        effectiveStatus: "Active",
+        accessLevel: "Full",
+        startsAt: "2026-08-01T12:00:00Z",
+        endsAt: "2026-09-01T00:00:00Z",
+        graceEndsAt: "2026-09-08T00:00:00Z",
+        externalCustomerReference: "PILOT-LIFECYCLE",
+        externalSubscriptionReference: null,
+        statusReason: "Approved pilot.",
+        version: 1
+      },
+      isReplay: false
+    };
+    getPlatformTenantOnboardingsMock.mockImplementation((_page, _pageSize, status) => Promise.resolve({
+      items: status === "Active" ? [activePilot] : [],
+      page: 1,
+      pageSize: 25,
+      totalCount: status === "Active" ? 1 : 0,
+      hasNextPage: false,
+      hasPreviousPage: false
+    }));
+    extendPlatformPilotSubscriptionMock.mockResolvedValue({
+      data: { ...activePilot.subscription, endsAt: "2026-09-16T00:00:00Z", graceEndsAt: "2026-09-23T00:00:00Z", version: 2 },
+      error: null
+    });
+
+    render(<PlatformTenantAdminPage />);
+    await user.click(await screen.findByText(/Lifecycle Pilot/));
+    await user.type(screen.getByLabelText("New pilot end date"), "2026-09-15");
+    await user.type(screen.getByLabelText("Required reason"), "Approved extension.");
+    await user.click(screen.getByRole("button", { name: "Extend" }));
+
+    expect(extendPlatformPilotSubscriptionMock).toHaveBeenCalledWith(
+      activePilot.tenantId,
+      "2026-09-15",
+      "Approved extension.",
+      1,
+      expect.stringMatching(/^[0-9a-f-]{36}$/i)
+    );
+    expect(await screen.findByText("Subscription extend completed.")).toBeInTheDocument();
   });
 });

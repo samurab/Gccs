@@ -64,7 +64,11 @@ public sealed class PlatformTenantProvisioningTests : IClassFixture<WebApplicati
         Assert.True(await dbContext.Roles.AnyAsync(role => role.TenantId == result.TenantId && role.Name == RoleCatalog.Owner));
         Assert.True(await dbContext.TenantDataHandlingModeHistory.AnyAsync(history =>
             history.TenantId == result.TenantId && history.NewMode == TenantDataPosture.NoCui));
-        Assert.Equal(2, await dbContext.AuditLogEntries.CountAsync(audit => audit.TenantId == result.TenantId));
+        var subscription = await dbContext.TenantSubscriptions.SingleAsync(item => item.TenantId == result.TenantId);
+        Assert.Equal(SubscriptionPlan.PilotEvaluation, subscription.Plan);
+        Assert.Equal(SubscriptionStatus.Pending, subscription.Status);
+        Assert.Equal("PILOT-EVALUATION", subscription.PlanCode);
+        Assert.Equal(3, await dbContext.AuditLogEntries.CountAsync(audit => audit.TenantId == result.TenantId));
     }
 
     [Fact]
@@ -323,12 +327,41 @@ public sealed class PlatformTenantProvisioningTests : IClassFixture<WebApplicati
         var dbContext = verificationScope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.Equal(TenantStatus.Trialing, (await dbContext.Tenants.SingleAsync()).Status);
         Assert.Equal(TenantOnboardingStatus.Active, (await dbContext.PlatformTenantOnboardings.SingleAsync()).Status);
+        Assert.Equal(SubscriptionStatus.Active, (await dbContext.TenantSubscriptions.SingleAsync()).Status);
         Assert.True(await dbContext.TenantMemberships.AnyAsync(membership =>
             membership.TenantId == provisioned.TenantId &&
             membership.UserId == ownerUserId &&
             membership.RoleName == RoleCatalog.Owner));
         Assert.Contains(await dbContext.AuditLogEntries.ToArrayAsync(), audit =>
             audit.EntityType == "PlatformTenantOnboarding" && audit.Action == AuditAction.Updated);
+        Assert.Contains(await dbContext.AuditLogEntries.ToArrayAsync(), audit =>
+            audit.EntityType == "TenantSubscription" && audit.Action == AuditAction.Updated);
+    }
+
+    [Fact]
+    public async Task Pilot_end_date_must_be_future_and_within_configured_maximum_without_partial_writes()
+    {
+        await using var factory = CreateFactory("platform-pilot-date-validation");
+        using var client = factory.CreateClient();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        using var pastRequest = CreateProvisionRequest(
+            PilotRequest() with { TrialEndsAt = today },
+            "pilot-past-date",
+            true);
+        using var excessiveRequest = CreateProvisionRequest(
+            PilotRequest() with { CustomerReference = "PILOT-LONG", TrialEndsAt = today.AddDays(91) },
+            "pilot-excessive-date",
+            true);
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(pastRequest)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(excessiveRequest)).StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Tenants.ToArrayAsync());
+        Assert.Empty(await dbContext.TenantSubscriptions.ToArrayAsync());
+        Assert.Empty(await dbContext.AuditLogEntries.ToArrayAsync());
     }
 
     private WebApplicationFactory<Program> CreateFactory(string databaseName, bool enforceMembership = false) =>
@@ -407,7 +440,7 @@ public sealed class PlatformTenantProvisioningTests : IClassFixture<WebApplicati
             "Aegis Pilot Workspace",
             "pilot.owner@example.com",
             "Pilot Owner",
-            new DateOnly(2026, 8, 31),
+            DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30),
             null,
             null,
             "Provision approved No-CUI pilot PILOT-003.",

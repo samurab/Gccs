@@ -7,6 +7,7 @@ using Gccs.Application.Identity;
 using Gccs.Application.Security;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Identity;
+using Gccs.Domain.Tenancy;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -269,8 +270,8 @@ public static class ApiSecurityExtensions
                 return;
             }
 
-            var membership = await repository.FindActiveCurrentUserMembershipAsync(context.RequestAborted);
-            if (membership is null)
+            var authorizationContext = await repository.FindActiveCurrentUserAuthorizationAsync(context.RequestAborted);
+            if (authorizationContext is null)
             {
                 await ApiProblemDetails
                     .Create(
@@ -283,7 +284,34 @@ public static class ApiSecurityExtensions
                 return;
             }
 
-            ReplaceRoleAndPermissionClaims(context.User, membership.RoleName);
+            var subscription = authorizationContext.Subscription;
+            if (subscription is not null)
+            {
+                var accessLevel = subscription.AccessLevel(
+                    context.RequestServices.GetRequiredService<TimeProvider>().GetUtcNow());
+                var safeMethod = HttpMethods.IsGet(context.Request.Method) ||
+                    HttpMethods.IsHead(context.Request.Method) ||
+                    HttpMethods.IsOptions(context.Request.Method);
+
+                if (accessLevel is SubscriptionAccessLevel.Denied ||
+                    (accessLevel is SubscriptionAccessLevel.ReadOnly && !safeMethod))
+                {
+                    var readOnly = accessLevel is SubscriptionAccessLevel.ReadOnly;
+                    await ApiProblemDetails
+                        .Create(
+                            context,
+                            readOnly ? "Subscription is read-only" : "Subscription is inactive",
+                            readOnly
+                                ? "The pilot is in its grace period. Review and export remain available, but mutations are blocked."
+                                : "The subscription does not permit access to this tenant workspace.",
+                            StatusCodes.Status403Forbidden,
+                            readOnly ? "subscription_read_only" : "subscription_inactive")
+                        .ExecuteAsync(context);
+                    return;
+                }
+            }
+
+            ReplaceRoleAndPermissionClaims(context.User, authorizationContext.Membership.RoleName);
             await next();
         });
     }

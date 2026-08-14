@@ -1,6 +1,6 @@
 # Tenant Onboarding Guide
 
-Review date: 2026-07-24.
+Review date: 2026-08-13.
 
 Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator runbook, not customer self-service.
 
@@ -18,6 +18,8 @@ Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator
 | Dedicated internal admin route | Implemented | `/platform/tenants/new` |
 | Platform-only tenant provisioning authorization | Implemented | `Platform.ProvisionTenants` policy; customer roles do not receive it |
 | Pilot and Paid form modes with conditional fields | Implemented | Paid mode requires plan, subscription reference, and commercial approval confirmation |
+| Provider-independent pilot subscription lifecycle | Implemented | Provisioning creates a versioned subscription; activation, extension, grace-period entry, cancellation, and commercial conversion are audited |
+| Request-time pilot enforcement | Implemented | Active pilots have full access; grace-period pilots retain safe reads and GET-based exports while tenant mutations are rejected; expired or cancelled pilots are rejected |
 | Explicit No-CUI confirmation | Implemented | Enforced in the UI and application service |
 | Pending tenant, Owner role, invitation, mode history, and audit entries | Implemented | Created in one EF Core save transaction |
 | Idempotent submission and duplicate reference protection | Implemented | Unique request key, request fingerprint, customer reference, and subscription reference |
@@ -28,6 +30,7 @@ Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator
 | Membership-based tenant selection after sign-in | Implemented | `GET /api/me/tenants` returns only the authenticated user's memberships; `POST /api/me/tenant-selection` revalidates active user, membership, and tenant state before persisting the preference |
 | Workspace selector | Implemented | The sidebar selector shows the user's memberships, disables unavailable tenants, and reloads tenant-scoped state after a successful switch |
 | Automated billing verification and paid lifecycle | Partially implemented | The form records a confirmed subscription reference; no billing provider validates or updates it |
+| Legacy tenant subscription classification | Partially implemented | The migration backfills platform-onboarded tenants; older tenants without a platform onboarding remain temporarily grandfathered until explicitly classified |
 
 ## Roles
 
@@ -50,6 +53,19 @@ Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator
 7. Confirm API, database, audit logging, authentication, alerts, and support ownership are operational.
 8. Stop if the customer requires CUI, classified information, ITAR/export-controlled data, sensitive government-furnished information, secrets, payroll data, SSNs, health data, or unrestricted security logs.
 
+Pilot dates use UTC end-exclusive semantics: a displayed end date remains active through that calendar date and enters the configured grace period at `00:00:00Z` on the following day. The default maximum pilot duration is 90 days and the default grace period is 7 days; deployment configuration can adjust them within the implemented guardrails.
+
+## Pilot Subscription Operations
+
+The internal tenant administration page lists active pilot subscriptions and exposes four platform-operator actions:
+
+1. **Extend** moves the end date later, recalculates the grace-period end, and requires a reason.
+2. **Start grace period** ends full access immediately and retains safe reads and GET-based exports for the configured grace period.
+3. **Cancel pilot** denies workspace access immediately without deleting tenant data or audit history.
+4. **Convert to commercial** removes the pilot dates, records the approved commercial plan and external subscription reference, and preserves tenant data, memberships, audit history, and `NoCui` posture.
+
+Each request includes the displayed subscription version and an `Idempotency-Key` header. Replaying the same key and payload returns the original transition result without another mutation or audit event; reusing the key for different input or submitting a stale version returns `409 Conflict`. Only a platform operator with `ProvisionTenants` can use these operations.
+
 ## Local Development Procedure
 
 ### 1. Start the application
@@ -64,7 +80,7 @@ npm run dev
 Expected services:
 
 - API: `http://localhost:5062`
-- Web: `http://127.0.0.1:5173`
+- Web: `http://localhost:5173`
 
 Verify health:
 
@@ -79,7 +95,7 @@ Expected result: `200 OK`.
 Open:
 
 ```text
-http://127.0.0.1:5173/platform/tenants/new
+http://localhost:5173/platform/tenants/new
 ```
 
 Local development grants the seeded operator `ProvisionTenants` through `Security:DevelopmentAuth:DefaultPlatformPermissions`. Development authentication must remain disabled outside local development.

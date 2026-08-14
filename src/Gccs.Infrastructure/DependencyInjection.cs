@@ -83,6 +83,7 @@ public static class DependencyInjection
         services.AddScoped<ContractSizeCheckService>();
         services.AddScoped<TenantService>();
         services.AddScoped<PlatformTenantProvisioningService>();
+        services.AddScoped<TenantSubscriptionService>();
         services.AddScoped<GovernmentCloudEnvironmentService>();
         services.AddScoped<RegulatedTenantProvisioningService>();
         services.AddScoped<GovernmentCloudReleaseReadinessService>();
@@ -175,6 +176,9 @@ public static class DependencyInjection
         services.AddScoped<DemoRequestCalendarService>();
         services.AddScoped<DemoAppointmentService>();
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(new TenantSubscriptionSettings(
+            Math.Clamp(configuration is null ? 90 : ReadInt(configuration, "Subscriptions:MaximumPilotDays", 90), 1, 365),
+            Math.Clamp(configuration is null ? 7 : ReadInt(configuration, "Subscriptions:GracePeriodDays", 7), 0, 30)));
         services.Configure<DemoRequestOptions>(options =>
         {
             if (configuration is null) return;
@@ -203,7 +207,7 @@ public static class DependencyInjection
                 DemoRequestOptions.DevelopmentCaptureProvider,
                 StringComparison.OrdinalIgnoreCase);
             var publicWebBaseUrl = string.IsNullOrWhiteSpace(options.PublicWebBaseUrl) && isDevelopmentCapture
-                ? "http://127.0.0.1:5173"
+                ? "http://localhost:5173"
                 : options.PublicWebBaseUrl.TrimEnd('/');
             var signingKey = string.IsNullOrWhiteSpace(options.FollowUpTokenSigningKey) && isDevelopmentCapture
                 ? System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("FeDril local development follow-up token key"))
@@ -325,6 +329,7 @@ public static class DependencyInjection
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
             services.AddScoped<IPlatformTenantProvisioningRepository, EfPlatformTenantProvisioningRepository>();
+            services.AddScoped<ITenantSubscriptionRepository, EfTenantSubscriptionRepository>();
             services.AddScoped<IGovernmentCloudEnvironmentRepository, EfGovernmentCloudEnvironmentRepository>();
             services.AddScoped<IRegulatedTenantProvisioningRepository, EfRegulatedTenantProvisioningRepository>();
             services.AddScoped<IGovernmentCloudReleaseReadinessRepository, EfGovernmentCloudReleaseReadinessRepository>();
@@ -396,6 +401,7 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Tenant persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IPlatformTenantProvisioningRepository>(_ =>
                 throw new InvalidOperationException("Platform tenant provisioning requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddSingleton<ITenantSubscriptionRepository, UnconfiguredTenantSubscriptionRepository>();
             services.AddScoped<IGovernmentCloudEnvironmentRepository>(_ =>
                 throw new InvalidOperationException("Government cloud environment persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IRegulatedTenantProvisioningRepository>(_ =>

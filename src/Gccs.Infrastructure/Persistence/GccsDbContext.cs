@@ -24,6 +24,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 {
     public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
     public DbSet<PlatformTenantOnboardingEntity> PlatformTenantOnboardings => Set<PlatformTenantOnboardingEntity>();
+    public DbSet<TenantSubscriptionEntity> TenantSubscriptions => Set<TenantSubscriptionEntity>();
+    public DbSet<TenantSubscriptionTransitionEntity> TenantSubscriptionTransitions => Set<TenantSubscriptionTransitionEntity>();
     public DbSet<TenantDataHandlingModeHistoryEntity> TenantDataHandlingModeHistory => Set<TenantDataHandlingModeHistoryEntity>();
     public DbSet<GovernmentCloudEnvironmentEntity> GovernmentCloudEnvironments => Set<GovernmentCloudEnvironmentEntity>();
     public DbSet<GovernmentCloudEnvironmentStatusHistoryEntity> GovernmentCloudEnvironmentStatusHistory => Set<GovernmentCloudEnvironmentStatusHistoryEntity>();
@@ -174,6 +176,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantOnboardingStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantOnboardingType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<TenantKind>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SubscriptionPlan>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SubscriptionStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TrainingStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TrainingType>().HaveConversion<string>().HaveMaxLength(64);
@@ -370,6 +375,37 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasOne(x => x.Tenant).WithOne(x => x.PlatformOnboarding).HasForeignKey<PlatformTenantOnboardingEntity>(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Invitation).WithMany().HasForeignKey(x => x.InvitationId).OnDelete(DeleteBehavior.Restrict);
             ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantSubscriptionEntity>(entity =>
+        {
+            entity.ToTable("tenant_subscriptions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TenantId).IsUnique();
+            entity.HasIndex(x => x.ExternalSubscriptionReference).IsUnique();
+            entity.Property(x => x.PlanCode).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ExternalCustomerReference).HasMaxLength(160);
+            entity.Property(x => x.ExternalSubscriptionReference).HasMaxLength(160);
+            entity.Property(x => x.StatusReason).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithOne(x => x.Subscription)
+                .HasForeignKey<TenantSubscriptionEntity>(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<TenantSubscriptionTransitionEntity>(entity =>
+        {
+            entity.ToTable("tenant_subscription_transitions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique();
+            entity.Property(x => x.IdempotencyKey).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.RequestFingerprint).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Transition).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.ResultJson).IsRequired();
+            entity.HasOne(x => x.Subscription).WithMany(x => x.Transitions)
+                .HasForeignKey(x => x.SubscriptionId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<TenantDataHandlingModeHistoryEntity>(entity =>
@@ -1644,6 +1680,16 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         if (invalidFollowUpResponseMutations.Length > 0)
         {
             throw new InvalidOperationException("Demo follow-up responses are append-only and cannot be updated or deleted.");
+        }
+
+        var invalidSubscriptionTransitionMutations = ChangeTracker
+            .Entries<TenantSubscriptionTransitionEntity>()
+            .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
+            .ToArray();
+
+        if (invalidSubscriptionTransitionMutations.Length > 0)
+        {
+            throw new InvalidOperationException("Tenant subscription transitions are append-only and cannot be updated or deleted.");
         }
     }
 
