@@ -4,20 +4,20 @@ Story: PR-6.2 - Tag Launch Candidate With Evidence Links.
 
 Tag status: created.
 
-Tag date: 2026-08-14.
+Tag date: 2026-08-15.
 
 Tag owner: Engineering lead.
 
-Launch candidate tag: `launch-candidate-2026-08-14-1`.
+Launch candidate tag: `launch-candidate-2026-08-15-1`.
 
-Tagged commit: `7c18da518ab8bd21acd42a59c4747431298c1e29`.
+Tagged commit: `50b2dd279f216f816b92fdbaf2c4d4be025ce4ea`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
 Tag command:
 
 ```bash
-git tag launch-candidate-2026-08-14-1 7c18da518ab8bd21acd42a59c4747431298c1e29
+git tag launch-candidate-2026-08-15-1 50b2dd279f216f816b92fdbaf2c4d4be025ce4ea
 ```
 
 This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testing and project completion. It is not a production deployment approval, production separation-of-duties approval, legal advice, certification evidence, government endorsement, broader customer launch approval, or authorization to accept real CUI.
@@ -29,10 +29,33 @@ This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testi
 | Required launch approvals complete | Passed for solo-controlled pilot testing | `docs/production-readiness-launch-approval-record.md` records product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approval scopes under `docs/production-readiness-approval-posture-addendum.md`. |
 | Accepted exceptions recorded | Passed | `docs/production-readiness-launch-gap-decisions.md` records `PR41-RESTORE-001`, `PR43-MALWARE-001`, `PR51-HIGH-RISK-001`, `PR52-CLAIM-001`, and `PR53-SUPPORT-001`. |
 | Evidence package gathered | Passed | This artifact links launch approval, closure evidence, staging smoke, staging workflow, staging security, upload/report controls, backup/restore disposition, rollback, content review, support runbooks, release notes, pilot onboarding, and known-risk log. |
-| Approved build and deployment path passed | Passed | PR #35 CI run `30863257848`, exact-candidate staging workflow run `30864030411`, and exact-candidate main CI run `30864030400` completed successfully for candidate commit `fec0276b6d2cba3629a874f9cf76cd6e5f6a36da`. |
+| Approved build and deployment path passed | Passed | PR #57 CI run `31907508233`, exact-candidate main CI run `31910692965`, exact-candidate staging workflow run `31910692946`, and Static Web Apps run `31910692991` completed successfully for candidate commit `50b2dd279f216f816b92fdbaf2c4d4be025ce4ea`. |
 | Missing-evidence tag block rule retained | Passed | If any required approval, evidence link, build artifact, deployment artifact, release note, known limitation, support path, staging evidence, rollback plan, or content-scope link is removed, tag creation must be blocked or the tag must be superseded. |
 
 ## Build And Deployment Artifacts
+
+### 2026-08-15 audit-workspace candidate refresh
+
+The candidate-specific approval is recorded in `docs/production-readiness-launch-approval-record.md`. PR #57 CI run `31907508233`, exact-candidate main CI run `31910692965`, staging run `31910692946`, and Static Web Apps run `31910692991` completed successfully. The candidate improves tenant-scoped audit discovery and display, authenticated workspace links, active tenant-member assignee resolution, responsive audit UI behavior, and focused regression coverage; it introduces no EF Core model or migration change.
+
+| Refreshed artifact | Location |
+| --- | --- |
+| Candidate source | PR #57 merge commit `50b2dd279f216f816b92fdbaf2c4d4be025ce4ea` |
+| Delta from prior production candidate | Audit entity-type endpoint/catalog, descriptive audit metadata, authenticated-workspace notification links, active tenant-membership assignee lookup, responsive audit filter UI, local development host binding, and focused backend/frontend tests. No EF Core migration file changed. |
+| Pull-request CI | GitHub Actions run `31907508233` |
+| Exact-candidate main CI | GitHub Actions run `31910692965` |
+| Exact-candidate staging deployment | GitHub Actions run `31910692946` |
+| Static Web Apps deployment | GitHub Actions run `31910692991` |
+| Staging smoke artifact | Run `31910692946`, artifact `9253616864` (`staging-smoke-test-results`) |
+
+| Artifact | Location |
+| --- | --- |
+| Build artifact source | Exact-candidate staging run `31910692946`, job `Deploy staging`, step `Build staging artifacts`; main CI run `31910692965` independently built and tested the same commit. |
+| API deployment artifact | Exact-candidate staging run `31910692946`, job `Deploy staging`, step `Deploy staging API App Service`. |
+| Web deployment artifact | Exact-candidate staging run `31910692946`, job `Deploy staging`, step `Deploy staging Static Web App`; Static Web Apps run `31910692991` independently processed the same web commit. |
+| Migration artifact | Exact-candidate staging run `31910692946`, step `Generate idempotent migration script`; EF migration validation passed and the candidate contains no EF Core migration file change. |
+| Smoke artifact | Exact-candidate staging run `31910692946`, artifact `9253616864`, file `staging-health.json`. |
+| Deployment run URL | `https://github.com/samurab/Gccs/actions/runs/31910692946` |
 
 ### 2026-08-03 demo-scheduler and discovery-asset candidate refresh
 
@@ -107,6 +130,6 @@ The candidate-specific approval is recorded in `docs/production-readiness-launch
 - The same user approved all six PR-6.1 role scopes for solo-controlled pilot testing and project completion only. This is not production separation-of-duties approval.
 - `PR41-RESTORE-001` was closed by the 2026-07-05 staging point-in-time restore rehearsal. That evidence supports only the tested staging path; it does not prove geo-disaster recovery or production customer-data restore.
 - Production scanner evidence is attached for the private ClamAV-compatible path. A single scanner instance is accepted only for this controlled No-CUI pilot and remains a broader-launch hardening limitation.
-- The tag points to the PR #35 merge commit, includes the PR #36 scheduler fix and reviewed PR #35 discovery/UAT assets, and introduces no EF Core migration file changes.
+- The tag points to PR #57 merge commit `50b2dd279f216f816b92fdbaf2c4d4be025ce4ea`; exact-candidate CI and staging passed, and the candidate introduces no EF Core migration file changes.
 - The 86.41 MB flagship MP4 is below GitHub's hard file-size limit but above its recommended 50 MB threshold; durable object/media storage remains the correct scaling path for future revisions.
 - If release notes, support runbooks, claim language, content scope, or accepted risks change after this tag, the tag must be superseded or re-approved under the same solo-controlled pilot posture or under a future production separation-of-duties approval model.
