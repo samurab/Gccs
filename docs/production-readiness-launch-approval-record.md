@@ -2,11 +2,11 @@
 
 Story: PR-6.1 - Collect Required Launch Approvals.
 
-Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with demo-scheduling-delivery reapproval recorded on 2026-08-11.
+Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with audit-workspace reapproval recorded on 2026-08-15.
 
 Record date: 2026-07-03.
 
-Latest candidate-specific reapproval date: 2026-08-11.
+Latest candidate-specific reapproval date: 2026-08-15.
 
 Record owner: Product owner.
 
@@ -158,6 +158,26 @@ This approval is not independent legal, security, privacy, compliance, accessibi
 | Exact-candidate staging evidence | Run `31543993493` applied the additive calendar-index migration and passed deployment and dependency smoke checks. Live `/health` reported PostgreSQL, Redis, object storage, and background jobs healthy. Live App Service settings remained `Staging` for both environment keys with development auth explicitly `false`; authentication authority and audience were configured; the development-auth header-spoof probe returned `401`. The hosted public scheduler dialog exposed the preferred date/time control without submitting customer data. |
 | Unresolved limitations | Review is solo-controlled rather than independent. No live demo request or email was sent during the read-only post-deployment smoke, so provider acceptance and external mailbox placement were not re-proven. The authenticated operator calendar was not browser-tested because no staging operator identity was supplied. The calendar organizes requested times; it is not an availability engine or confirmed reservation system. |
 | Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, guaranteed email delivery, confirmed reservation, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Audit Workspace Candidate Reapproval - 2026-08-15
+
+The repository owner and deployment operator, `samurab`, explicitly requested creation of an approved launch candidate, merge to `main`, correction of the production release gate, and production deployment. This records combined-role approval for `launch-candidate-2026-08-15-1` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-15 |
+| Candidate | `launch-candidate-2026-08-15-1` at `50b2dd279f216f816b92fdbaf2c4d4be025ce4ea` |
+| Scope | PR #57 adds tenant-safe audit entity-type discovery, richer audit descriptions, normalized authenticated-workspace assignment links, active tenant-membership resolution for assignees, audit filtering and responsive workspace UI improvements, and focused backend/frontend regression coverage. No EF Core model or migration change is included. |
+| Exact-candidate automated evidence | Main CI run `31910692965`; staging deployment run `31910692946`; Static Web Apps run `31910692991`; backend, frontend, dependency audit, secret scan, EF migration validation, Terraform validation, extraction evaluation, and real-stack report RBAC/rollback checks passed. |
+| Exact-candidate staging evidence | Run `31910692946` built the exact merge commit, generated and applied the idempotent migration script, deployed API and web artifacts, and passed No-CUI and dependency health checks. Staging smoke artifact `9253616864` contains the health output and migration script. |
+| Release-gate correction | The previous production manifest still approved `launch-candidate-2026-08-14-1`; this reapproval updates the immutable tag/SHA mapping to the exact merged and verified candidate before production dispatch. |
+| Unresolved limitations | Review is solo-controlled rather than independent. The automated and health checks do not replace authenticated production smoke for every role or broader customer-launch approval. Generated local screenshots remain outside the candidate. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, or independent professional approval is claimed. |
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
 
