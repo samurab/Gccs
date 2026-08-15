@@ -144,8 +144,15 @@ public sealed class CmmcAssessmentTests : IClassFixture<WebApplicationFactory<Pr
         var audits = await dbContext.AuditLogEntries
             .Where(audit => audit.TenantId == tenantId && audit.EntityType == "CmmcAssessment" && audit.EntityId == created.Id.ToString())
             .ToArrayAsync();
-        Assert.Contains(audits, audit => audit.Action == AuditAction.Created);
-        Assert.Contains(audits, audit => audit.Action == AuditAction.Updated && audit.MetadataJson.Contains("InProgress", StringComparison.Ordinal));
+        Assert.Contains(audits, audit =>
+            audit.Action == AuditAction.Created
+            && audit.Summary == "CMMC readiness assessment 'Audit assessment' was created."
+            && audit.MetadataJson.Contains("\"name\":\"Audit assessment\"", StringComparison.Ordinal));
+        Assert.Contains(audits, audit =>
+            audit.Action == AuditAction.Updated
+            && audit.Summary == "CMMC readiness assessment 'Audit assessment' was updated."
+            && audit.MetadataJson.Contains("\"name\":\"Audit assessment\"", StringComparison.Ordinal)
+            && audit.MetadataJson.Contains("InProgress", StringComparison.Ordinal));
     }
 
     private static async Task<CmmcAssessmentDto> CreateAssessmentAsync(

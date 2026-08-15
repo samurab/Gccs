@@ -33,7 +33,13 @@ public sealed class CmmcPoamService(
         var created = await repository.CreateAsync(assessmentId, normalized, actorUserId, cancellationToken);
         if (created is not null)
         {
-            await WriteAuditAsync(created, actorUserId, AuditAction.Created, "POA&M item was created.", null, cancellationToken);
+            await WriteAuditAsync(
+                created,
+                actorUserId,
+                AuditAction.Created,
+                $"POA&M item '{created.Weakness}' was created.",
+                null,
+                cancellationToken);
         }
 
         return created;
@@ -111,6 +117,7 @@ public sealed class CmmcPoamService(
         {
             ["assessmentId"] = item.AssessmentId.ToString(),
             ["controlId"] = item.ControlId,
+            ["weakness"] = item.Weakness,
             ["riskLevel"] = item.RiskLevel.ToString(),
             ["status"] = item.Status.ToString(),
             ["remediationTaskId"] = item.RemediationTaskId?.ToString() ?? string.Empty

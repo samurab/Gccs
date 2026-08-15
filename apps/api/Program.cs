@@ -3305,6 +3305,13 @@ api.MapGet("/audit-logs", async (
 .RequirePermission(Permission.ViewAuditLog)
 .WithName("ListAuditLogs");
 
+api.MapGet("/audit-logs/entity-types", async (
+    AuditLogService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListEntityTypesCurrentTenantAsync(cancellationToken)))
+.RequirePermission(Permission.ViewAuditLog)
+.WithName("ListAuditLogEntityTypes");
+
 api.MapPost("/audit-logs/cui-export", async (
     CuiAuditExportRequest request,
     CuiAuditExportService service,

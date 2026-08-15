@@ -29,6 +29,7 @@ import { controlCoverageTone } from "@/components/controlCoverage";
 import { DevelopmentTestingContextSelector } from "@/components/development/DevelopmentTestingContextSelector";
 import { ModuleCard } from "@/components/ModuleCard";
 import { TenantWorkspaceSelector } from "@/components/TenantWorkspaceSelector";
+import { getNotificationOpenUrl } from "@/routing";
 import {
   Alert,
   Button,
@@ -95,6 +96,7 @@ import {
   getContractObligations,
   getContracts,
   getCuiReadyApprovalChecklists,
+  getAuditLogEntityTypes,
   getAuditLogs,
   getComplianceOverview,
   getCurrentUserAccess,
@@ -627,6 +629,8 @@ export function App() {
   const [calendarMessage, setCalendarMessage] = useState("");
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [auditLogs, setAuditLogs] = useState<PagedResult<AuditLogEntry>>(fallbackAuditLogs);
+  const [auditLogEntityTypes, setAuditLogEntityTypes] = useState<string[]>([]);
+  const [auditLogEntityTypeStatus, setAuditLogEntityTypeStatus] = useState<"idle" | "ready" | "failed">("idle");
   const [auditLogFilters, setAuditLogFilters] = useState<AuditLogFilters>(defaultAuditLogFilters);
   const [auditLogStatus, setAuditLogStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [noCuiAcknowledgement, setNoCuiAcknowledgement] = useState<NoCuiAcknowledgementStatus>(
@@ -867,7 +871,17 @@ export function App() {
           : [[], [], null, []];
         const nextNotifications = canLoadNotifications ? await getNotifications() : [];
         const nextNotificationPreference = canLoadNotifications ? await getNotificationPreferences() : null;
-        const nextAuditLogs = canLoadAuditLogs ? await getAuditLogs({ page: 1, pageSize: 5 }) : fallbackAuditLogs;
+        const [nextAuditLogs, nextAuditLogEntityTypeResult]: [
+          PagedResult<AuditLogEntry>,
+          { entityTypes: string[]; status: "idle" | "ready" | "failed" }
+        ] = canLoadAuditLogs
+          ? await Promise.all([
+              getAuditLogs({ page: 1, pageSize: 5 }),
+              getAuditLogEntityTypes()
+                .then((entityTypes) => ({ entityTypes, status: "ready" as const }))
+                .catch(() => ({ entityTypes: [], status: "failed" as const }))
+            ])
+          : [fallbackAuditLogs, { entityTypes: [], status: "idle" }];
         const nextNoCuiAcknowledgement = canLoadNoCuiStatus
           ? await getNoCuiAcknowledgementStatus()
           : fallbackNoCuiAcknowledgementStatus;
@@ -936,6 +950,8 @@ export function App() {
           setCalendarStatus(canLoadCalendar ? "ready" : "idle");
           setSelectedContractId(nextContracts[0]?.id ?? null);
           setAuditLogs(nextAuditLogs);
+          setAuditLogEntityTypes(nextAuditLogEntityTypeResult.entityTypes);
+          setAuditLogEntityTypeStatus(nextAuditLogEntityTypeResult.status);
           setAuditLogStatus(canLoadAuditLogs ? "ready" : "idle");
           setNoCuiAcknowledgement(nextNoCuiAcknowledgement);
           setEvidenceItems(nextEvidenceItems);
@@ -2542,9 +2558,14 @@ export function App() {
               canSeedDemoDataset={canManageObligations}
               canManageUsers={canManageUsers}
               canViewAuditLog={canViewAuditLog}
+              auditLogEntityTypes={auditLogEntityTypes}
+              auditLogEntityTypeStatus={auditLogEntityTypeStatus}
               auditLogFilters={auditLogFilters}
               auditLogStatus={auditLogStatus}
               auditLogs={auditLogs}
+              cmmcAssessments={cmmcAssessments}
+              cmmcPoamItems={cmmcPoamItems}
+              evidenceItems={evidenceItems}
               currentTenant={currentTenant}
               currentUserId={access.userId}
               demoSeedMessage={demoSeedMessage}
@@ -2632,7 +2653,7 @@ function NotificationCenter({
                 </small>
               </div>
               <div className="notification-center__actions">
-                <a href={notification.linkUrl.startsWith("/#/") ? notification.linkUrl : `/api${notification.linkUrl}`}>
+                <a href={getNotificationOpenUrl(notification.linkUrl)}>
                   Open
                 </a>
                 {!notification.readAt ? (
@@ -3960,7 +3981,7 @@ function ObligationDetailPanel({
           }
         }}
       >
-        <label>
+        <label className="owner-assignment-form__kind">
           Assign by
           <select
             data-testid="obligation-owner-kind"
@@ -3982,7 +4003,7 @@ function ObligationDetailPanel({
           </select>
         </label>
         {ownerKind === "user" ? (
-          <label>
+          <label className="owner-assignment-form__target">
             Tenant member
             <select
               data-testid="obligation-owner-member"
@@ -4000,7 +4021,7 @@ function ObligationDetailPanel({
             </select>
           </label>
         ) : (
-          <label>
+          <label className="owner-assignment-form__target">
             Role
             <select
               name="roleName"
@@ -4016,7 +4037,7 @@ function ObligationDetailPanel({
             </select>
           </label>
         )}
-        <label className="inline-checkbox">
+        <label className="inline-checkbox owner-assignment-form__notify">
           <input
             name="notify"
             type="checkbox"
@@ -4025,12 +4046,17 @@ function ObligationDetailPanel({
           />
           Also send assignment email
         </label>
-        <small>
+        <small className="owner-assignment-form__help">
           {ownerKind === "user"
             ? "The member always receives an in-app notification. Email follows their assignment-email preference."
             : "Active members of this role receive an in-app notification. Role-assignment email is not sent."}
         </small>
-        <button data-testid="obligation-owner-submit" type="submit" disabled={!canManageObligations || status === "saving"}>
+        <button
+          className="owner-assignment-form__submit"
+          data-testid="obligation-owner-submit"
+          type="submit"
+          disabled={!canManageObligations || status === "saving"}
+        >
           <UserPlus size={16} aria-hidden="true" />
           Assign owner
         </button>
@@ -4616,21 +4642,19 @@ function ContractsView({
             </label>
             <label>
               Owner
-              <input
+              <select
                 aria-label="Owner"
-                list="deliverable-owner-options"
                 value={deliverableDraft.ownerFunction}
                 onChange={(event) => setDeliverableDraft((current) => ({ ...current, ownerFunction: event.target.value }))}
                 disabled={deliverableDisabled}
                 required
-              />
-              <datalist id="deliverable-owner-options">
+              >
                 {ownerOptionsWith(deliverableDraft.ownerFunction).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
                 ))}
-              </datalist>
+              </select>
             </label>
             <label>
               Due date
@@ -9122,9 +9146,14 @@ function InvitationListItem({
 }
 
 function SettingsView({
+  auditLogEntityTypes,
+  auditLogEntityTypeStatus,
   auditLogFilters,
   auditLogStatus,
   auditLogs,
+  cmmcAssessments,
+  cmmcPoamItems,
+  evidenceItems,
   canManageTenant,
   canSeedDemoDataset,
   canManageUsers,
@@ -9172,9 +9201,14 @@ function SettingsView({
   onSharedResponsibilityMatrixAcknowledge,
   onTenantModeUpdate
 }: {
+  auditLogEntityTypes: string[];
+  auditLogEntityTypeStatus: "idle" | "ready" | "failed";
   auditLogFilters: AuditLogFilters;
   auditLogStatus: "idle" | "loading" | "ready" | "failed";
   auditLogs: PagedResult<AuditLogEntry>;
+  cmmcAssessments: CmmcAssessment[];
+  cmmcPoamItems: CmmcPoamItem[];
+  evidenceItems: EvidenceMetadata[];
   canManageTenant: boolean;
   canSeedDemoDataset: boolean;
   canManageUsers: boolean;
@@ -9233,6 +9267,16 @@ function SettingsView({
   onSharedResponsibilityMatrixAcknowledge: () => Promise<void>;
   onTenantModeUpdate: (request: UpdateTenantDataHandlingModeRequest) => Promise<void>;
 }) {
+  const currentAuditEntityLabels = useMemo(
+    () =>
+      new Map<string, string>([
+        ...cmmcAssessments.map((assessment) => [`CmmcAssessment:${assessment.id}`, assessment.name] as const),
+        ...cmmcPoamItems.map((item) => [`CmmcPoamItem:${item.id}`, item.weakness] as const),
+        ...evidenceItems.map((evidence) => [`EvidenceItem:${evidence.id}`, evidence.title] as const)
+      ]),
+    [cmmcAssessments, cmmcPoamItems, evidenceItems]
+  );
+
   if (!canManageTenant && !canManageUsers && !canViewAuditLog && !notificationPreference) {
     return (
       <section className="route-panel">
@@ -9465,10 +9509,22 @@ function SettingsView({
               </label>
               <label>
                 <span>Entity</span>
-                <input
+                <select
                   value={auditLogFilters.entityType}
                   onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, entityType: event.target.value })}
-                />
+                >
+                  <option value="">Any</option>
+                  {auditLogEntityTypes.map((entityType) => (
+                    <option key={entityType} value={entityType}>
+                      {entityType}
+                    </option>
+                  ))}
+                </select>
+                {auditLogEntityTypeStatus === "failed" ? (
+                  <small role="status">Entity choices could not be loaded. Reload the workspace and try again.</small>
+                ) : auditLogEntityTypeStatus === "ready" && auditLogEntityTypes.length === 0 ? (
+                  <small>No entity types exist in this tenant's audit history yet.</small>
+                ) : null}
               </label>
               <label>
                 <span>From</span>
@@ -9516,15 +9572,22 @@ function SettingsView({
                   <span role="columnheader">Entity</span>
                   <span role="columnheader">Summary</span>
                 </div>
-                {auditLogs.items.map((entry) => (
-                  <article className="member-row" data-testid="audit-row" role="row" key={entry.id}>
-                    <span role="cell">{new Date(entry.occurredAt).toLocaleString()}</span>
-                    <span role="cell">{isDemoCaptureMode() && entry.actorUserId ? "Tenant user" : (entry.actorUserId ?? "System")}</span>
-                    <span role="cell">{entry.action}</span>
-                    <span role="cell">{entry.entityType}</span>
-                    <span role="cell">{entry.summary}</span>
-                  </article>
-                ))}
+                {auditLogs.items.map((entry) => {
+                  const currentEntityLabel = currentAuditEntityLabels.get(`${entry.entityType}:${entry.entityId}`);
+
+                  return (
+                    <article className="member-row" data-testid="audit-row" role="row" key={entry.id}>
+                      <span role="cell">{new Date(entry.occurredAt).toLocaleString()}</span>
+                      <span role="cell">{isDemoCaptureMode() && entry.actorUserId ? "Tenant user" : (entry.actorUserId ?? "System")}</span>
+                      <span role="cell">{entry.action}</span>
+                      <span role="cell">{entry.entityType}</span>
+                      <span role="cell">
+                        {entry.summary}
+                        {currentEntityLabel ? <small className="audit-current-entity-label">Current record: {currentEntityLabel}</small> : null}
+                      </span>
+                    </article>
+                  );
+                })}
               </div>
             </div>
           ) : (

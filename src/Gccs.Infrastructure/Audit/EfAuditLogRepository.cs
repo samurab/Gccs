@@ -11,6 +11,19 @@ public sealed class EfAuditLogRepository(
     GccsDbContext dbContext,
     ICurrentTenantContext tenantContext) : IAuditLogRepository
 {
+    public async Task<IReadOnlyList<string>> ListEntityTypesCurrentTenantAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var entityTypes = await dbContext.AuditLogEntries
+            .AsNoTracking()
+            .Where(entry => entry.TenantId == tenantContext.TenantId && entry.EntityType != string.Empty)
+            .Select(entry => entry.EntityType)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+
+        return entityTypes.Order(StringComparer.Ordinal).ToArray();
+    }
+
     public async Task<PagedResultDto<AuditLogEntryDto>> ListCurrentTenantAsync(
         AuditLogQuery query,
         CancellationToken cancellationToken = default)

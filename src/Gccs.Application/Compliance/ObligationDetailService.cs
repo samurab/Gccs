@@ -135,7 +135,7 @@ public sealed class ObligationDetailService(
                 updated.Detail.Title,
                 actorUserId,
                 queueEmail: queueEmail,
-                linkUrl: "/#/obligations",
+                linkUrl: AssignmentNotificationRoutes.Obligations,
                 cancellationToken: cancellationToken);
         }
 

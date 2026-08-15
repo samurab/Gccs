@@ -80,10 +80,23 @@ public sealed class EfObligationDashboardRepository(
             .Select(task => task.AssignedToUserId!.Value)
             .Distinct()
             .ToArray();
-        var assignedUsers = await dbContext.Users
+        var assignedUserRows = await dbContext.TenantMemberships
             .AsNoTracking()
-            .Where(user => user.TenantId == tenantContext.TenantId && assignedUserIds.Contains(user.Id))
-            .ToDictionaryAsync(user => user.Id, user => string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email : user.DisplayName, cancellationToken);
+            .Where(membership =>
+                membership.TenantId == tenantContext.TenantId &&
+                assignedUserIds.Contains(membership.UserId) &&
+                membership.Status == Gccs.Domain.Identity.MembershipStatus.Active &&
+                membership.User != null &&
+                membership.User.Status == Gccs.Domain.Identity.UserStatus.Active)
+            .Select(membership => new
+            {
+                membership.UserId,
+                DisplayName = string.IsNullOrWhiteSpace(membership.User!.DisplayName)
+                    ? membership.User.Email
+                    : membership.User.DisplayName
+            })
+            .ToArrayAsync(cancellationToken);
+        var assignedUsers = assignedUserRows.ToDictionary(user => user.UserId, user => user.DisplayName);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var items = mappings.Select(mapping =>

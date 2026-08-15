@@ -53,6 +53,7 @@ const {
   getEvidencePackageMock,
   getRecentReportsMock,
   getReportArtifactMock,
+  getAuditLogEntityTypesMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
   getNotificationPreferencesMock,
@@ -138,6 +139,7 @@ const {
   createEvidenceUploadIntentMock: vi.fn(),
   createTenantInvitationMock: vi.fn(),
   deleteContractDocumentMock: vi.fn(),
+  getAuditLogEntityTypesMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
   getCalendarEventsMock: vi.fn(),
   getCmmcAssessmentsMock: vi.fn(),
@@ -899,6 +901,7 @@ vi.mock("@/lib/api", () => ({
   getSelectedTenantId: getSelectedTenantIdMock,
   getTenant: getTenantMock,
   getTenantDataHandlingModeHistory: getTenantDataHandlingModeHistoryMock,
+  getAuditLogEntityTypes: getAuditLogEntityTypesMock,
   getAuditLogs: getAuditLogsMock,
   fallbackAuditLogs: {
     items: [],
@@ -980,6 +983,7 @@ describe("App", () => {
     selectTenantMock.mockReset();
     getTenantMock.mockReset();
     getTenantDataHandlingModeHistoryMock.mockReset();
+    getAuditLogEntityTypesMock.mockReset();
     getAuditLogsMock.mockReset();
     getCalendarEventsMock.mockReset();
     getCmmcAssessmentsMock.mockReset();
@@ -1065,6 +1069,7 @@ describe("App", () => {
       hasNextPage: false,
       hasPreviousPage: false
     });
+    getAuditLogEntityTypesMock.mockResolvedValue([]);
     getApprovedEvidencePackagesMock.mockResolvedValue([]);
     getRecentReportsMock.mockResolvedValue([]);
     getSubcontractorFlowDownsMock.mockResolvedValue([]);
@@ -1689,6 +1694,22 @@ describe("App", () => {
     expect(await screen.findByText("0 unread")).toBeInTheDocument();
   });
 
+  it("opens legacy workspace notifications inside the authenticated app shell", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getNotificationsMock.mockResolvedValueOnce([{ ...notification, linkUrl: "/#/obligations" }]);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Dashboard" });
+    await user.click(screen.getByLabelText(/notifications, 1 unread/i));
+
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/app#/obligations");
+  });
+
   it("TC-3.2.2 supports keyboard navigation across each visible primary route", async () => {
     getComplianceOverviewMock.mockResolvedValueOnce(overview);
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
@@ -2290,8 +2311,10 @@ describe("App", () => {
     expect(screen.getByText(/Contracts . 2026-06-01 . Overdue/i)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Name"), "Final acceptance package");
-    await user.clear(screen.getByLabelText("Owner"));
-    await user.type(screen.getByLabelText("Owner"), "Program manager");
+    const deliverableOwnerSelect = screen.getByLabelText("Owner");
+    expect(within(deliverableOwnerSelect).getByRole("option", { name: "Contracts" })).toBeInTheDocument();
+    expect(within(deliverableOwnerSelect).getByRole("option", { name: "Compliance" })).toBeInTheDocument();
+    await user.selectOptions(deliverableOwnerSelect, "Compliance");
     await user.type(screen.getByLabelText("Due date"), "2026-08-15");
     await user.type(screen.getByLabelText("Deliverable description"), "Closeout evidence and deliverable package.");
     await user.click(screen.getByRole("button", { name: /add deliverable/i }));
@@ -2300,7 +2323,7 @@ describe("App", () => {
       contract.id,
       expect.objectContaining({
         name: "Final acceptance package",
-        ownerFunction: "Program manager",
+        ownerFunction: "Compliance",
         dueAt: "2026-08-15",
         status: "NotStarted"
       })
@@ -3053,6 +3076,10 @@ describe("App", () => {
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce([]);
     getTenantMembersMock.mockResolvedValueOnce([]);
+    getCmmcAssessmentsMock.mockResolvedValueOnce([cmmcAssessment]);
+    getCmmcPoamItemsMock.mockResolvedValueOnce([cmmcPoamItem]);
+    getEvidenceItemsMock.mockResolvedValueOnce([evidenceMetadata]);
+    getAuditLogEntityTypesMock.mockResolvedValueOnce(["Contract", "TenantInvitation"]);
     getAuditLogsMock.mockResolvedValueOnce({
       items: [
         {
@@ -3067,6 +3094,48 @@ describe("App", () => {
           userAgent: "test",
           correlationId: "audit-table",
           summary: "Invitation was created.",
+          metadata: {}
+        },
+        {
+          id: "51515151-5151-5151-5151-515151515102",
+          tenantId: evidenceMetadata.tenantId,
+          actorUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+          action: "Created",
+          entityType: "EvidenceItem",
+          entityId: evidenceMetadata.id,
+          occurredAt: "2026-06-15T12:01:00Z",
+          ipAddress: "203.0.113.10",
+          userAgent: "test",
+          correlationId: "evidence-audit-table",
+          summary: "Evidence metadata was created.",
+          metadata: {}
+        },
+        {
+          id: "51515151-5151-5151-5151-515151515103",
+          tenantId: cmmcAssessment.tenantId,
+          actorUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+          action: "Created",
+          entityType: "CmmcAssessment",
+          entityId: cmmcAssessment.id,
+          occurredAt: "2026-06-15T12:02:00Z",
+          ipAddress: "203.0.113.10",
+          userAgent: "test",
+          correlationId: "cmmc-audit-table",
+          summary: "CMMC readiness assessment was created.",
+          metadata: {}
+        },
+        {
+          id: "51515151-5151-5151-5151-515151515104",
+          tenantId: cmmcPoamItem.tenantId,
+          actorUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+          action: "Created",
+          entityType: "CmmcPoamItem",
+          entityId: cmmcPoamItem.id,
+          occurredAt: "2026-06-15T12:03:00Z",
+          ipAddress: "203.0.113.10",
+          userAgent: "test",
+          correlationId: "cmmc-poam-audit-table",
+          summary: "POA&M item was created.",
           metadata: {}
         }
       ],
@@ -3099,7 +3168,10 @@ describe("App", () => {
     await user.click(await screen.findByRole("link", { name: /settings/i }));
     expect(await screen.findByRole("table", { name: /tenant audit logs/i })).toBeInTheDocument();
     expect(screen.getByText("Invitation was created.")).toBeInTheDocument();
-    expect(screen.getByTestId("audit-row")).toHaveTextContent("Invitation was created.");
+    expect(screen.getAllByTestId("audit-row")[0]).toHaveTextContent("Invitation was created.");
+    expect(screen.getByText("Current record: Access control policy")).toBeInTheDocument();
+    expect(screen.getByText("Current record: Level 1 workspace")).toBeInTheDocument();
+    expect(screen.getByText("Current record: MFA evidence gap")).toBeInTheDocument();
     expect(screen.getByText(/Page 1 of 2/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /next/i }));
@@ -3107,7 +3179,8 @@ describe("App", () => {
 
     await user.type(screen.getByLabelText("Actor ID"), "cccccccc-cccc-cccc-cccc-ccccccccccc1");
     await user.selectOptions(screen.getByLabelText("Action"), "Created");
-    await user.type(screen.getByLabelText("Entity"), "TenantInvitation");
+    expect(screen.getByRole("option", { name: "Contract" })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Entity"), "TenantInvitation");
     await user.click(screen.getByRole("button", { name: /filter/i }));
 
     expect(getAuditLogsMock).toHaveBeenLastCalledWith(

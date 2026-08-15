@@ -25,7 +25,12 @@ public sealed class CmmcAssessmentService(
         var normalized = Normalize(request);
         Validate(normalized);
         var created = await repository.CreateCurrentTenantAsync(normalized, actorUserId, cancellationToken);
-        await WriteAssessmentAuditAsync(created, actorUserId, AuditAction.Created, "CMMC readiness assessment was created.", cancellationToken);
+        await WriteAssessmentAuditAsync(
+            created,
+            actorUserId,
+            AuditAction.Created,
+            $"CMMC readiness assessment '{created.Name}' was created.",
+            cancellationToken);
         return created;
     }
 
@@ -43,7 +48,12 @@ public sealed class CmmcAssessmentService(
             return null;
         }
 
-        await WriteAssessmentAuditAsync(updated, actorUserId, AuditAction.Updated, "CMMC readiness assessment was updated.", cancellationToken);
+        await WriteAssessmentAuditAsync(
+            updated,
+            actorUserId,
+            AuditAction.Updated,
+            $"CMMC readiness assessment '{updated.Name}' was updated.",
+            cancellationToken);
         return updated;
     }
 
@@ -143,6 +153,7 @@ public sealed class CmmcAssessmentService(
             summary,
             new Dictionary<string, string>
             {
+                ["name"] = assessment.Name,
                 ["level"] = assessment.Level.ToString(),
                 ["status"] = assessment.Status.ToString(),
                 ["ownerFunction"] = assessment.OwnerFunction,

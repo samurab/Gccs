@@ -168,6 +168,29 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
     }
 
     [Fact]
+    public async Task UAT_09_Assigned_member_name_uses_current_tenant_membership()
+    {
+        var tenantId = Guid.Parse("90390390-3903-9039-0390-3903903903b2");
+        var identityTenantId = Guid.Parse("90390390-3903-9039-0390-3903903903c2");
+        var scenario = DetailScenario.Create(tenantId);
+        await using var factory = CreateFactory("uat-09-member-display-from-membership", dbContext =>
+            SeedScenario(dbContext, scenario, identityTenantId));
+        using var client = factory.CreateClient();
+
+        var detail = await PatchOwnerAsync(
+            client,
+            scenario,
+            new AssignContractObligationOwnerRequest(scenario.AssigneeUserId, null));
+        var reloadedDetail = await GetDetailAsync(client, scenario);
+        var dashboardItem = Assert.Single(await ListDashboardAsync(client, scenario));
+
+        Assert.Equal("Assigned Owner", detail.AssignedUserDisplayName);
+        Assert.Equal("Assigned Owner", reloadedDetail.AssignedUserDisplayName);
+        Assert.Equal("Assigned Owner", dashboardItem.AssignedUserDisplayName);
+        Assert.Equal("Assigned Owner", dashboardItem.OwnerFunction);
+    }
+
+    [Fact]
     public async Task TC_10_3_3_Unauthorized_role_cannot_assign_obligation_owner()
     {
         var tenantId = Guid.Parse("10310310-3103-1031-0310-3103103103a3");
@@ -358,10 +381,10 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
             delivery.NotificationDeliveryId == notification.Id);
 
         Assert.Equal("Delivered", notification.Status);
-        Assert.Equal("/#/obligations", notification.LinkUrl);
+        Assert.Equal(AssignmentNotificationRoutes.Obligations, notification.LinkUrl);
         Assert.Equal("Queued", email.Status);
         Assert.Equal("assigned.owner@example.com", email.RecipientEmail);
-        Assert.Equal("/#/obligations", email.LinkUrl);
+        Assert.Equal(AssignmentNotificationRoutes.Obligations, email.LinkUrl);
     }
 
     [Fact]
@@ -466,7 +489,7 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
         Assert.NotEqual(otherTenantUserId, notification.UserId);
         Assert.Equal("role_assignment", notification.Category);
         Assert.Contains("Compliance Manager", notification.Placeholder, StringComparison.Ordinal);
-        Assert.Equal("/#/obligations", notification.LinkUrl);
+        Assert.Equal(AssignmentNotificationRoutes.Obligations, notification.LinkUrl);
         Assert.False(await dbContext.AssignmentEmailDeliveries.AnyAsync());
     }
 
@@ -673,13 +696,16 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
             });
         });
 
-    private static void SeedScenario(GccsDbContext dbContext, DetailScenario scenario)
+    private static void SeedScenario(
+        GccsDbContext dbContext,
+        DetailScenario scenario,
+        Guid? assigneeIdentityTenantId = null)
     {
         SeedTenant(dbContext, scenario.TenantId, "Detail Tenant");
         dbContext.Users.Add(new UserEntity
         {
             Id = scenario.AssigneeUserId,
-            TenantId = scenario.TenantId,
+            TenantId = assigneeIdentityTenantId ?? scenario.TenantId,
             Email = "assigned.owner@example.com",
             DisplayName = "Assigned Owner",
             Status = UserStatus.Active,

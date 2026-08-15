@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getWorkspaceUrl, shouldRenderDemoPage, shouldRenderDemoRequestDetailsPage, shouldRenderLandingPage, shouldRenderPlatformAdminPage, shouldRenderPlatformDemoRequestsPage } from "./routing";
+import { getNotificationOpenUrl, getWorkspaceUrl, shouldRenderDemoPage, shouldRenderDemoRequestDetailsPage, shouldRenderLandingPage, shouldRenderPlatformAdminPage, shouldRenderPlatformDemoRequestsPage } from "./routing";
 
 function locationStub(pathname: string, search = "", hash = ""): Pick<Location, "pathname" | "search" | "hash"> {
   return { pathname, search, hash };
@@ -25,6 +25,12 @@ describe("routing", () => {
 
   it("uses /app as the shared workspace redirect URL", () => {
     expect(getWorkspaceUrl("https://gccs.example")).toBe("https://gccs.example/app");
+  });
+
+  it("opens current and legacy workspace notifications inside the authenticated shell", () => {
+    expect(getNotificationOpenUrl("/app#/obligations")).toBe("/app#/obligations");
+    expect(getNotificationOpenUrl("/#/obligations")).toBe("/app#/obligations");
+    expect(getNotificationOpenUrl("/tasks/task-id")).toBe("/api/tasks/task-id");
   });
 
   it("renders the dedicated public demo only at /demo", () => {

@@ -2133,6 +2133,10 @@ export async function getAuditLogs(params: AuditLogQueryParams = {}): Promise<Pa
   return getRequiredJson<PagedResult<AuditLogEntry>>(`/api/audit-logs?${searchParams.toString()}`);
 }
 
+export async function getAuditLogEntityTypes(): Promise<string[]> {
+  return getRequiredJson<string[]>("/api/audit-logs/entity-types");
+}
+
 export async function exportCuiAuditLogs(request: CuiAuditExportRequest): Promise<ApiMutationResult<CuiAuditExport>> {
   return postJsonResult<CuiAuditExport>("/api/audit-logs/cui-export", request);
 }

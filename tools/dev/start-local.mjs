@@ -46,7 +46,7 @@ async function startLocalStack() {
   if (await isFeDrilWebAvailable()) {
     console.log(`Reusing FeDril web app at ${webUrl}.`);
   } else {
-    startManaged("Web", "npm", ["--workspace", "apps/web", "run", "dev", "--", "--host", "localhost"]);
+    startManaged("Web", "npm", ["--workspace", "apps/web", "run", "dev"]);
     await waitFor("FeDril web app", isFeDrilWebAvailable, 30_000);
   }
 

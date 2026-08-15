@@ -202,10 +202,17 @@ public sealed class EfObligationDetailRepository(
         string? assignedUserDisplayName = null;
         if (assignedUserId.HasValue)
         {
-            assignedUserDisplayName = await dbContext.Users
+            assignedUserDisplayName = await dbContext.TenantMemberships
                 .AsNoTracking()
-                .Where(user => user.TenantId == tenantContext.TenantId && user.Id == assignedUserId.Value)
-                .Select(user => string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email : user.DisplayName)
+                .Where(membership =>
+                    membership.TenantId == tenantContext.TenantId &&
+                    membership.UserId == assignedUserId.Value &&
+                    membership.Status == Gccs.Domain.Identity.MembershipStatus.Active &&
+                    membership.User != null &&
+                    membership.User.Status == Gccs.Domain.Identity.UserStatus.Active)
+                .Select(membership => string.IsNullOrWhiteSpace(membership.User!.DisplayName)
+                    ? membership.User.Email
+                    : membership.User.DisplayName)
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
