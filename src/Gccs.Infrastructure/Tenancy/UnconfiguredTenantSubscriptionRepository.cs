@@ -8,6 +8,12 @@ internal sealed class UnconfiguredTenantSubscriptionRepository : ITenantSubscrip
     public Task<TenantSubscription?> FindByTenantIdAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
         Task.FromResult<TenantSubscription?>(null);
 
+    public Task<PlatformPilotSubscriptionPage> ListPilotsAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        throw new InvalidOperationException("Tenant subscription persistence requires ConnectionStrings:GccsDatabase to be configured.");
+
     public Task<TenantSubscriptionTransitionResult?> FindReplayAsync(
         Guid tenantId,
         string idempotencyKey,

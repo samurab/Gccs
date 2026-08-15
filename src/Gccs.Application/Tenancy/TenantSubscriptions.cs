@@ -12,8 +12,40 @@ public sealed class TenantSubscriptionService(
     TimeProvider timeProvider,
     TenantSubscriptionSettings settings)
 {
+    private const int MaximumPageSize = 100;
+
     public Task<TenantSubscriptionDto?> FindAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
         FindAndMapAsync(tenantId, cancellationToken);
+
+    public async Task<PlatformPilotSubscriptionPageDto> ListPilotsAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1)
+        {
+            throw new ArgumentException("Page must be at least 1.", nameof(page));
+        }
+
+        if (pageSize < 1 || pageSize > MaximumPageSize)
+        {
+            throw new ArgumentException($"Page size must be between 1 and {MaximumPageSize}.", nameof(pageSize));
+        }
+
+        var result = await repository.ListPilotsAsync(page, pageSize, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        return new PlatformPilotSubscriptionPageDto(
+            result.Items.Select(item => new PlatformPilotSubscriptionDto(
+                item.Subscription.TenantId,
+                item.DisplayName,
+                item.CustomerReference,
+                Map(item.Subscription, now)!)).ToArray(),
+            result.Page,
+            result.PageSize,
+            result.TotalCount,
+            result.HasNextPage,
+            result.HasPreviousPage);
+    }
 
     public async Task<TenantSubscriptionDto?> ExtendPilotAsync(
         Guid tenantId,
@@ -225,6 +257,11 @@ public interface ITenantSubscriptionRepository
 {
     Task<TenantSubscription?> FindByTenantIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
 
+    Task<PlatformPilotSubscriptionPage> ListPilotsAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     Task<TenantSubscriptionTransitionResult?> FindReplayAsync(
         Guid tenantId,
         string idempotencyKey,
@@ -253,6 +290,33 @@ public sealed record SubscriptionTransitionValues(
     string Reason);
 
 public sealed record TenantSubscriptionTransitionResult(TenantSubscription Subscription, bool IsReplay);
+
+public sealed record PlatformPilotSubscription(
+    string DisplayName,
+    string CustomerReference,
+    TenantSubscription Subscription);
+
+public sealed record PlatformPilotSubscriptionPage(
+    IReadOnlyList<PlatformPilotSubscription> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    bool HasNextPage,
+    bool HasPreviousPage);
+
+public sealed record PlatformPilotSubscriptionDto(
+    Guid TenantId,
+    string DisplayName,
+    string CustomerReference,
+    TenantSubscriptionDto Subscription);
+
+public sealed record PlatformPilotSubscriptionPageDto(
+    IReadOnlyList<PlatformPilotSubscriptionDto> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    bool HasNextPage,
+    bool HasPreviousPage);
 
 public sealed record TenantSubscriptionDto(
     Guid Id,

@@ -141,6 +141,15 @@ public static class ApiSecurityExtensions
             options.AddPolicy(PlatformAuthorization.ProvisionTenantsPolicy, policy =>
                 policy.RequireAuthenticatedUser()
                     .RequireAssertion(context => PlatformAuthorization.CanProvisionTenants(context.User)));
+            options.AddPolicy(PlatformAuthorization.ViewPlatformCustomersPolicy, policy =>
+                policy.RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanViewPlatformCustomers(context.User)));
+            options.AddPolicy(PlatformAuthorization.ManageTenantOnboardingPolicy, policy =>
+                policy.RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanManageTenantOnboarding(context.User)));
+            options.AddPolicy(PlatformAuthorization.ManageTenantSubscriptionsPolicy, policy =>
+                policy.RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanManageTenantSubscriptions(context.User)));
             options.AddPolicy(PlatformAuthorization.ManageDemoRequestsPolicy, policy =>
                 policy.RequireAuthenticatedUser()
                     .RequireAssertion(context => PlatformAuthorization.CanManageDemoRequests(context.User)));

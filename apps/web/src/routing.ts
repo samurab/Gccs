@@ -5,6 +5,7 @@ const demoRequestDetailsPath = "/demo-request-details";
 const platformAdminPath = "/platform";
 const platformTenantAdminPath = "/platform/tenants/new";
 const platformDemoRequestsPath = "/platform/demo-requests";
+const platformCustomersPath = "/platform/customers";
 const invitationAcceptancePath = "/invitations/accept";
 
 export function getWorkspaceUrl(origin = window.location.origin) {
@@ -59,6 +60,19 @@ export function shouldRenderPlatformTenantAdminPage(
 
 export function shouldRenderPlatformDemoRequestsPage(location: Pick<Location, "pathname"> = window.location) {
   return location.pathname === platformDemoRequestsPath;
+}
+
+export function shouldRenderPlatformCustomersPage(location: Pick<Location, "pathname"> = window.location) {
+  return location.pathname === platformCustomersPath;
+}
+
+export function getPlatformCustomerTenantId(location: Pick<Location, "pathname"> = window.location): string | null {
+  const match = location.pathname.match(/^\/platform\/customers\/([0-9a-f-]{36})$/i);
+  return match?.[1] ?? null;
+}
+
+export function shouldRenderPlatformCustomerDetailPage(location: Pick<Location, "pathname"> = window.location) {
+  return getPlatformCustomerTenantId(location) !== null;
 }
 
 export function shouldRenderInvitationAcceptancePage(

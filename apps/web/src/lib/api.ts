@@ -152,6 +152,9 @@ export type PlatformAccess = {
   userId: string | null;
   userEmail: string | null;
   canProvisionTenants: boolean;
+  canViewPlatformCustomers?: boolean;
+  canManageTenantOnboarding?: boolean;
+  canManageTenantSubscriptions?: boolean;
   canManageDemoRequests: boolean;
   demoRequestDeliveryMode?: "DevelopmentCapture" | "ExternalEmail" | "Disabled";
   permissions: string[];
@@ -284,6 +287,88 @@ export type TenantSubscription = {
 
 export type PlatformTenantOnboardingPage = {
   items: PlatformTenantProvisioningResult[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
+export type PlatformCustomerAttention =
+  | "PendingOwnerAcceptance"
+  | "InvitationDeliveryFailed"
+  | "PilotExpiring"
+  | "GracePeriod"
+  | "Expired"
+  | "SubscriptionMissing";
+
+export type PlatformCustomerSummary = {
+  tenantId: string;
+  displayName: string;
+  customerReference: string | null;
+  customerType: "Pilot" | "Paid" | null;
+  tenantStatus: string;
+  dataPosture: string;
+  onboardingStatus: string | null;
+  ownerEmail: string | null;
+  invitationStatus: string | null;
+  invitationDeliveryStatus: string | null;
+  subscription: TenantSubscription | null;
+  attention: PlatformCustomerAttention[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PlatformCustomerPage = {
+  items: PlatformCustomerSummary[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
+export type PlatformCustomerDetail = {
+  customer: PlatformCustomerSummary;
+  ownerDisplayName: string | null;
+  invitationId: string | null;
+  invitationNotificationSentAt: string | null;
+  invitationExpiresAt: string | null;
+  invitationAcceptedAt: string | null;
+  planCode: string | null;
+  subscriptionReference: string | null;
+  setupReason: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  lifecycle: Array<{
+    eventType: string;
+    summary: string;
+    occurredAt: string;
+    actorUserId: string | null;
+  }>;
+};
+
+export type PlatformCustomerQuery = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  customerType?: "Pilot" | "Paid";
+  tenantStatus?: string;
+  onboardingStatus?: string;
+  subscriptionStatus?: string;
+  attention?: PlatformCustomerAttention;
+  sort?: "UpdatedDescending" | "NameAscending" | "CreatedDescending" | "PilotEndAscending";
+};
+
+export type PlatformPilotSubscription = {
+  tenantId: string;
+  displayName: string;
+  customerReference: string;
+  subscription: TenantSubscription;
+};
+
+export type PlatformPilotSubscriptionPage = {
+  items: PlatformPilotSubscription[];
   page: number;
   pageSize: number;
   totalCount: number;
@@ -1868,6 +1953,32 @@ export async function getPlatformTenantOnboardings(
   });
   if (status) parameters.set("status", status);
   return getRequiredJson<PlatformTenantOnboardingPage>(`/api/platform/tenant-onboardings?${parameters}`);
+}
+
+export async function getPlatformCustomers(query: PlatformCustomerQuery = {}): Promise<PlatformCustomerPage> {
+  const parameters = new URLSearchParams({
+    page: (query.page ?? 1).toString(),
+    pageSize: (query.pageSize ?? 25).toString()
+  });
+  for (const [key, value] of Object.entries(query)) {
+    if (key !== "page" && key !== "pageSize" && value) parameters.set(key, String(value));
+  }
+  return getRequiredJson<PlatformCustomerPage>(`/api/platform/customers?${parameters}`);
+}
+
+export async function getPlatformCustomer(tenantId: string): Promise<PlatformCustomerDetail> {
+  return getRequiredJson<PlatformCustomerDetail>(`/api/platform/customers/${encodeURIComponent(tenantId)}`);
+}
+
+export async function getPlatformPilotSubscriptions(
+  page = 1,
+  pageSize = 25
+): Promise<PlatformPilotSubscriptionPage> {
+  const parameters = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString()
+  });
+  return getRequiredJson<PlatformPilotSubscriptionPage>(`/api/platform/tenant-subscriptions/pilots?${parameters}`);
 }
 
 export async function cancelPlatformTenantOnboarding(

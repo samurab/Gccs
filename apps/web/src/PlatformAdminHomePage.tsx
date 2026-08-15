@@ -1,9 +1,10 @@
-import { ArrowRight, Building2, Inbox, LoaderCircle, LockKeyhole, ShieldAlert } from "lucide-react";
+import { ArrowRight, Building2, Inbox, LoaderCircle, LockKeyhole, ShieldAlert, UsersRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PlatformAdminNav } from "./PlatformAdminNav";
 import {
   getPlatformAccess,
   getPlatformDemoRequests,
+  getPlatformCustomers,
   getPlatformTenantOnboardings,
   type PlatformAccess
 } from "./lib/api";
@@ -17,6 +18,7 @@ export function PlatformAdminHomePage() {
   const [accessError, setAccessError] = useState("");
   const [demoRequests, setDemoRequests] = useState<Metric>(emptyMetric);
   const [pendingOnboardings, setPendingOnboardings] = useState<Metric>(emptyMetric);
+  const [customers, setCustomers] = useState<Metric>(emptyMetric);
 
   useEffect(() => {
     let active = true;
@@ -41,6 +43,13 @@ export function PlatformAdminHomePage() {
               .catch((error) => { if (active) setPendingOnboardings({ count: null, error: error instanceof Error ? error.message : "Pending onboardings could not be loaded." }); })
           );
         }
+        if (nextAccess.canViewPlatformCustomers === true) {
+          tasks.push(
+            getPlatformCustomers({ page: 1, pageSize: 1 })
+              .then((page) => { if (active) setCustomers({ count: page.totalCount, error: "" }); })
+              .catch((error) => { if (active) setCustomers({ count: null, error: error instanceof Error ? error.message : "Customers could not be loaded." }); })
+          );
+        }
         await Promise.all(tasks);
       })
       .catch((error) => {
@@ -58,7 +67,7 @@ export function PlatformAdminHomePage() {
     return <PlatformConsoleState icon={ShieldAlert} title="Platform access unavailable" body={accessError} />;
   }
 
-  if (!access || (!access.canManageDemoRequests && !access.canProvisionTenants)) {
+  if (!access || (!access.canManageDemoRequests && !access.canProvisionTenants && access.canViewPlatformCustomers !== true)) {
     return <PlatformConsoleState icon={LockKeyhole} title="Platform access denied" body="Your account has no platform-operations permissions." />;
   }
 
@@ -101,6 +110,9 @@ export function PlatformAdminHomePage() {
             label="pending owner acceptance"
             title="Tenant onboarding"
           />
+        ) : null}
+        {access.canViewPlatformCustomers === true ? (
+          <OperationCard count={customers.count} description="Track Pilot and Paid account, Owner invitation, and subscription lifecycle metadata." error={customers.error} href="/platform/customers" icon={UsersRound} label="customers" title="Customers" />
         ) : null}
       </section>
 

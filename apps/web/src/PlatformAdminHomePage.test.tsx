@@ -6,6 +6,7 @@ import * as api from "./lib/api";
 vi.mock("./lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof api>()),
   getPlatformAccess: vi.fn(),
+  getPlatformCustomers: vi.fn(),
   getPlatformDemoRequests: vi.fn(),
   getPlatformTenantOnboardings: vi.fn()
 }));
@@ -72,5 +73,25 @@ describe("PlatformAdminHomePage", () => {
     expect(await screen.findByRole("heading", { name: "Platform access denied" })).toBeInTheDocument();
     expect(api.getPlatformDemoRequests).not.toHaveBeenCalled();
     expect(api.getPlatformTenantOnboardings).not.toHaveBeenCalled();
+  });
+
+  it("shows the customer directory to a read-only customer operator without exposing onboarding", async () => {
+    vi.mocked(api.getPlatformAccess).mockResolvedValue({
+      userId: "customer-operator-1",
+      userEmail: "customer-operator@example.com",
+      canProvisionTenants: false,
+      canViewPlatformCustomers: true,
+      canManageTenantOnboarding: false,
+      canManageTenantSubscriptions: false,
+      canManageDemoRequests: false,
+      permissions: ["ViewPlatformCustomers"]
+    });
+    vi.mocked(api.getPlatformCustomers).mockResolvedValue({ items: [], page: 1, pageSize: 1, totalCount: 18, hasNextPage: true, hasPreviousPage: false });
+
+    render(<PlatformAdminHomePage />);
+
+    expect(await screen.findByRole("link", { name: /Open customers/i })).toHaveAttribute("href", "/platform/customers");
+    expect(screen.getByText("18")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Open tenant onboarding/i })).not.toBeInTheDocument();
   });
 });
