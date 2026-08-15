@@ -1,5 +1,16 @@
 namespace Gccs.Application.Notifications;
 
+public static class AssignmentNotificationRoutes
+{
+    public const string Calendar = "/app#/calendar";
+    public const string Obligations = "/app#/obligations";
+
+    public static string NormalizeWorkspaceLink(string linkUrl) =>
+        linkUrl.StartsWith("/#/", StringComparison.Ordinal)
+            ? $"/app{linkUrl[1..]}"
+            : linkUrl;
+}
+
 public sealed record NotificationCenterItemDto(
     Guid Id,
     Guid TenantId,
@@ -27,7 +38,7 @@ public interface IAssignmentNotificationRepository
         string taskTitle,
         Guid actorUserId,
         bool queueEmail = false,
-        string linkUrl = "/#/calendar",
+        string linkUrl = AssignmentNotificationRoutes.Calendar,
         CancellationToken cancellationToken = default);
 
     Task<AssignmentNotificationEmission> EmitRoleTaskAssignmentAsync(

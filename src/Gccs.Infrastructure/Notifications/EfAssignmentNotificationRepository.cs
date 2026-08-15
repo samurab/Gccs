@@ -15,7 +15,7 @@ public sealed class EfAssignmentNotificationRepository(GccsDbContext dbContext) 
         string taskTitle,
         Guid actorUserId,
         bool queueEmail = false,
-        string linkUrl = "/#/calendar",
+        string linkUrl = AssignmentNotificationRoutes.Calendar,
         CancellationToken cancellationToken = default)
     {
         var notification = await dbContext.NotificationDeliveries.SingleOrDefaultAsync(
@@ -163,7 +163,7 @@ public sealed class EfAssignmentNotificationRepository(GccsDbContext dbContext) 
                 UserId = recipientUserId,
                 SourceTaskId = taskId,
                 SourceType = "ComplianceTask",
-                LinkUrl = "/#/obligations",
+                LinkUrl = AssignmentNotificationRoutes.Obligations,
                 Category = "role_assignment",
                 Status = "Delivered",
                 Placeholder = $"New obligation assigned to the {canonicalRoleName} queue.",

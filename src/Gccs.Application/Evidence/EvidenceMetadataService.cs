@@ -36,7 +36,12 @@ public sealed class EvidenceMetadataService(
             null,
             cancellationToken);
         var created = await repository.CreateCurrentTenantAsync(normalized, actorUserId, cancellationToken);
-        await WriteAuditAsync(created, actorUserId, AuditAction.Created, "Evidence metadata was created.", cancellationToken);
+        await WriteAuditAsync(
+            created,
+            actorUserId,
+            AuditAction.Created,
+            $"Evidence metadata '{created.Title}' was created.",
+            cancellationToken);
         return created;
     }
 
@@ -68,7 +73,12 @@ public sealed class EvidenceMetadataService(
             return null;
         }
 
-        await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, "Evidence metadata was updated.", cancellationToken);
+        await WriteAuditAsync(
+            updated,
+            actorUserId,
+            AuditAction.Updated,
+            $"Evidence metadata '{updated.Title}' was updated.",
+            cancellationToken);
         return updated;
     }
 
@@ -88,6 +98,7 @@ public sealed class EvidenceMetadataService(
             summary,
             new Dictionary<string, string>
             {
+                ["title"] = evidence.Title,
                 ["status"] = evidence.Status.ToString(),
                 ["ownerFunction"] = evidence.OwnerFunction,
                 ["tagCount"] = evidence.Tags.Count.ToString(),

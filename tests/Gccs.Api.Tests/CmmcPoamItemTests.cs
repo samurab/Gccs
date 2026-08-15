@@ -142,7 +142,10 @@ public sealed class CmmcPoamItemTests : IClassFixture<WebApplicationFactory<Prog
         var audits = await dbContext.AuditLogEntries
             .Where(audit => audit.TenantId == tenantId && audit.EntityType == "CmmcPoamItem" && audit.EntityId == created.Id.ToString())
             .ToArrayAsync();
-        Assert.Contains(audits, audit => audit.Action == AuditAction.Created);
+        Assert.Contains(audits, audit =>
+            audit.Action == AuditAction.Created
+            && audit.Summary == "POA&M item 'MFA evidence gap' was created."
+            && audit.MetadataJson.Contains("\"weakness\":\"MFA evidence gap\"", StringComparison.Ordinal));
         Assert.Contains(audits, audit => audit.Action == AuditAction.Updated && audit.MetadataJson.Contains("InProgress", StringComparison.Ordinal));
     }
 

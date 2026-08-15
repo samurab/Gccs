@@ -38,7 +38,7 @@ public sealed class AssignmentEmailDeliveryTests
 
         Assert.True(processed);
         Assert.NotNull(sender.Message);
-        Assert.Equal("https://app.example.test/#/calendar", sender.Message.AssignmentUrl);
+        Assert.Equal("https://app.example.test/app#/calendar", sender.Message.AssignmentUrl);
         Assert.Equal(delivery.DeliveryId, repository.SentDeliveryId);
         Assert.Equal("provider-message-id", repository.ProviderMessageId);
         Assert.Null(repository.FailedDeliveryId);

@@ -70,7 +70,7 @@ public sealed class AssignmentEmailDeliveryService(
 
         try
         {
-            var assignmentUrl = $"{settings.PublicWebBaseUrl.TrimEnd('/')}{delivery.LinkUrl}";
+            var assignmentUrl = $"{settings.PublicWebBaseUrl.TrimEnd('/')}{AssignmentNotificationRoutes.NormalizeWorkspaceLink(delivery.LinkUrl)}";
             var result = await emailSender.SendAsync(
                 new AssignmentEmailMessage(
                     delivery.DeliveryId,

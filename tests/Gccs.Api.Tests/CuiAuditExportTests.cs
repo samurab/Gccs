@@ -86,6 +86,9 @@ public sealed class CuiAuditExportTests
 
     private sealed class CapturingAuditLogRepository : IAuditLogRepository
     {
+        public Task<IReadOnlyList<string>> ListEntityTypesCurrentTenantAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<string>>(Seed().Select(item => item.EntityType).Distinct().ToArray());
+
         public Task<PagedResultDto<AuditLogEntryDto>> ListCurrentTenantAsync(AuditLogQuery query, CancellationToken cancellationToken = default)
         {
             var items = Seed()

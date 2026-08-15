@@ -124,8 +124,15 @@ public sealed class EvidenceMetadataTests : IClassFixture<WebApplicationFactory<
             .Where(audit => audit.TenantId == tenantId && audit.EntityType == "EvidenceItem" && audit.EntityId == created.Id.ToString())
             .OrderBy(audit => audit.OccurredAt)
             .ToArrayAsync();
-        Assert.Contains(audits, audit => audit.Action == AuditAction.Created);
-        Assert.Contains(audits, audit => audit.Action == AuditAction.Updated && audit.MetadataJson.Contains("reviewed", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(audits, audit =>
+            audit.Action == AuditAction.Created
+            && audit.Summary == "Evidence metadata 'Access control policy' was created."
+            && audit.MetadataJson.Contains("\"title\":\"Access control policy\"", StringComparison.Ordinal));
+        Assert.Contains(audits, audit =>
+            audit.Action == AuditAction.Updated
+            && audit.Summary == "Evidence metadata 'Access control policy updated' was updated."
+            && audit.MetadataJson.Contains("\"title\":\"Access control policy updated\"", StringComparison.Ordinal)
+            && audit.MetadataJson.Contains("reviewed", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

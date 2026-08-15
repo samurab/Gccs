@@ -11,6 +11,16 @@ export function getWorkspaceUrl(origin = window.location.origin) {
   return `${origin}${workspacePath}`;
 }
 
+export function getNotificationOpenUrl(linkUrl: string) {
+  const normalizedLinkUrl = linkUrl.startsWith("/#/")
+    ? `${workspacePath}${linkUrl.slice(1)}`
+    : linkUrl;
+
+  return normalizedLinkUrl.startsWith(`${workspacePath}#/`)
+    ? normalizedLinkUrl
+    : `/api${normalizedLinkUrl}`;
+}
+
 export function shouldRenderLandingPage(location: Pick<Location, "pathname" | "search" | "hash"> = window.location) {
   const searchParams = new URLSearchParams(location.search);
 

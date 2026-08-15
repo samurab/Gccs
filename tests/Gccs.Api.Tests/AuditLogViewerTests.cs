@@ -155,6 +155,64 @@ public sealed class AuditLogViewerTests : IClassFixture<WebApplicationFactory<Pr
         Assert.Equal("Matching membership", item.Summary);
     }
 
+    [Fact]
+    public async Task Audit_log_entity_types_are_distinct_sorted_and_tenant_scoped()
+    {
+        var tenantAId = Guid.Parse("52525252-5252-5252-5252-5252525252a5");
+        var tenantBId = Guid.Parse("52525252-5252-5252-5252-5252525252b5");
+        await using var factory = CreateFactory("audit-log-entity-types", dbContext =>
+        {
+            dbContext.Tenants.AddRange(
+                CreateTenant(tenantAId, "Entity Types Tenant A"),
+                CreateTenant(tenantBId, "Entity Types Tenant B"));
+            dbContext.AuditLogEntries.AddRange(
+                CreateAuditEntry(tenantAId, 1, AuditAction.Created, "TenantMembership", "Membership created"),
+                CreateAuditEntry(tenantAId, 2, AuditAction.Updated, "Contract", "Contract updated"),
+                CreateAuditEntry(tenantAId, 3, AuditAction.Deleted, "TenantMembership", "Membership deleted"),
+                CreateAuditEntry(tenantBId, 4, AuditAction.Created, "SensitiveOtherTenantEntity", "Other tenant event"));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var request = CreatePermissionRequest(
+            HttpMethod.Get,
+            "/api/audit-logs/entity-types",
+            tenantAId,
+            Permission.ViewAuditLog);
+
+        var response = await client.SendAsync(request);
+        var entityTypes = await response.Content.ReadFromJsonAsync<string[]>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(entityTypes);
+        Assert.Contains("ContractDeliverable", entityTypes);
+        Assert.Contains("CompanyProfile", entityTypes);
+        Assert.Contains("TenantMembership", entityTypes);
+        Assert.DoesNotContain("SensitiveOtherTenantEntity", entityTypes);
+        Assert.Equal(entityTypes.Order(StringComparer.Ordinal), entityTypes);
+        Assert.Equal(entityTypes.Distinct(StringComparer.Ordinal), entityTypes);
+    }
+
+    [Fact]
+    public async Task Audit_log_entity_types_require_audit_log_permission()
+    {
+        var tenantId = Guid.Parse("52525252-5252-5252-5252-5252525252a6");
+        await using var factory = CreateFactory("audit-log-entity-types-permission", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(tenantId, "Restricted Entity Types Tenant"));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        using var request = CreatePermissionRequest(
+            HttpMethod.Get,
+            "/api/audit-logs/entity-types",
+            tenantId,
+            Permission.ViewReports);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private WebApplicationFactory<Program> CreateFactory(
         string databaseName,
         Action<GccsDbContext>? seed = null) =>

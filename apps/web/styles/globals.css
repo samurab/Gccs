@@ -4727,6 +4727,12 @@ dt {
   min-width: 1040px;
 }
 
+.audit-current-entity-label {
+  color: var(--muted);
+  display: block;
+  margin-top: 4px;
+}
+
 .member-row:first-child {
   border-top: 0;
 }
@@ -5635,13 +5641,48 @@ textarea[aria-invalid="true"] {
   margin-bottom: 8px;
 }
 
-.status-update-form,
-.owner-assignment-form {
+.status-update-form {
   align-items: end;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(160px, 220px) minmax(180px, 260px) auto auto;
+  grid-template-columns: minmax(160px, 220px) auto;
   justify-content: start;
+}
+
+.owner-assignment-form {
+  align-items: end;
+  display: grid;
+  gap: 10px 14px;
+  grid-template-areas:
+    "kind target notify action"
+    ". . help help";
+  grid-template-columns: minmax(160px, 220px) minmax(200px, 280px) minmax(220px, 1fr) auto;
+  width: 100%;
+}
+
+.owner-assignment-form__kind {
+  grid-area: kind;
+}
+
+.owner-assignment-form__target {
+  grid-area: target;
+  min-width: 0;
+}
+
+.owner-assignment-form__notify {
+  grid-area: notify;
+  min-width: 0;
+}
+
+.owner-assignment-form__help {
+  align-self: start;
+  grid-area: help;
+  line-height: 1.4;
+}
+
+.owner-assignment-form__submit {
+  grid-area: action;
+  white-space: nowrap;
 }
 
 .status-update-form label,
@@ -5656,12 +5697,15 @@ textarea[aria-invalid="true"] {
 
 .status-update-form select,
 .owner-assignment-form select {
+  box-sizing: border-box;
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
   font: inherit;
   min-height: 40px;
+  min-width: 0;
   padding: 8px 10px;
+  width: 100%;
 }
 
 .status-update-form button,
@@ -7056,6 +7100,19 @@ textarea[aria-invalid="true"] {
   .span-2 {
     grid-column: span 1;
   }
+
+  .owner-assignment-form {
+    grid-template-areas:
+      "kind target"
+      "notify notify"
+      "help help"
+      "action action";
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .owner-assignment-form__submit {
+    justify-self: start;
+  }
 }
 
 @media (max-width: 620px) {
@@ -7063,6 +7120,16 @@ textarea[aria-invalid="true"] {
   .section-shell {
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  .owner-assignment-form {
+    grid-template-areas:
+      "kind"
+      "target"
+      "notify"
+      "help"
+      "action";
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .workspace-sidebar {

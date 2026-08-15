@@ -4,6 +4,18 @@ namespace Gccs.Application.Audit;
 
 public sealed class AuditLogService(IAuditLogRepository repository)
 {
+    public async Task<IReadOnlyList<string>> ListEntityTypesCurrentTenantAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var tenantEntityTypes = await repository.ListEntityTypesCurrentTenantAsync(cancellationToken);
+
+        return AuditEntityTypeCatalog.FilterableEntityTypes
+            .Concat(tenantEntityTypes)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
     public async Task<PagedResultDto<AuditLogEntryDto>> ListCurrentTenantAsync(
         AuditLogQueryRequest request,
         CancellationToken cancellationToken = default)
