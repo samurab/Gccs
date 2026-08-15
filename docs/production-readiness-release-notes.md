@@ -4,7 +4,7 @@ Story: PR-5.4 - Prepare Pilot Onboarding, Release Notes, And Known-Risk Log.
 
 Release note status: launch-ready draft approved for the 2026-08-11 solo-controlled No-CUI pilot candidate under the combined-role approval posture. Independent production separation-of-duties approval remains required before broader customer launch.
 
-Launch candidate tag: `launch-candidate-2026-08-14-1`.
+Launch candidate tag: `launch-candidate-2026-08-15-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -18,6 +18,8 @@ This launch candidate is No-CUI / compliance management only. Real customer CUI,
 
 Included MVP workflows:
 
+- Tenant-scoped audit-log filtering discovers current entity types without exposing cross-tenant audit data, and audit records for CMMC assessments, POA&M items, and evidence metadata include clearer object descriptions.
+- Assignment notifications and email links open inside the authenticated workspace shell, while obligation assignee display resolves only active users with active membership in the current tenant.
 - External presentation-boundary branding uses FeDril while internal namespaces, service identifiers, schema, API headers, storage keys, telemetry, and deployment identifiers remain unchanged and excluded from external display.
 - Repeated non-notifying obligation-owner assignments are idempotent; changed assignments retain the existing audit and notification behavior.
 - Concurrent creation of a tenant user's default notification preferences resolves to the tenant-scoped persisted record instead of surfacing the expected PostgreSQL uniqueness race.
