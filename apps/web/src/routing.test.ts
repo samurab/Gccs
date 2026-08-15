@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getNotificationOpenUrl, getWorkspaceUrl, shouldRenderDemoPage, shouldRenderDemoRequestDetailsPage, shouldRenderLandingPage, shouldRenderPlatformAdminPage, shouldRenderPlatformDemoRequestsPage } from "./routing";
+import { getNotificationOpenUrl, getPlatformCustomerTenantId, getWorkspaceUrl, shouldRenderDemoPage, shouldRenderDemoRequestDetailsPage, shouldRenderLandingPage, shouldRenderPlatformAdminPage, shouldRenderPlatformCustomerDetailPage, shouldRenderPlatformCustomersPage, shouldRenderPlatformDemoRequestsPage } from "./routing";
 
 function locationStub(pathname: string, search = "", hash = ""): Pick<Location, "pathname" | "search" | "hash"> {
   return { pathname, search, hash };
@@ -54,5 +54,13 @@ describe("routing", () => {
     expect(shouldRenderPlatformAdminPage(locationStub("/platform"))).toBe(true);
     expect(shouldRenderPlatformAdminPage(locationStub("/platform/demo-requests"))).toBe(false);
     expect(shouldRenderPlatformAdminPage(locationStub("/app"))).toBe(false);
+  });
+
+  it("routes the customer directory and UUID detail paths without matching arbitrary segments", () => {
+    const tenantId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2";
+    expect(shouldRenderPlatformCustomersPage(locationStub("/platform/customers"))).toBe(true);
+    expect(shouldRenderPlatformCustomerDetailPage(locationStub(`/platform/customers/${tenantId}`))).toBe(true);
+    expect(getPlatformCustomerTenantId(locationStub(`/platform/customers/${tenantId}`))).toBe(tenantId);
+    expect(shouldRenderPlatformCustomerDetailPage(locationStub("/platform/customers/not-a-guid"))).toBe(false);
   });
 });

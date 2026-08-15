@@ -310,6 +310,9 @@ platformApi.MapGet("/me/access", (ClaimsPrincipal user, IOptions<DemoRequestOpti
         userId = user.FindFirstValue(ClaimTypes.NameIdentifier),
         userEmail = user.FindFirstValue(ClaimTypes.Email),
         canProvisionTenants = PlatformAuthorization.CanProvisionTenants(user),
+        canViewPlatformCustomers = PlatformAuthorization.CanViewPlatformCustomers(user),
+        canManageTenantOnboarding = PlatformAuthorization.CanManageTenantOnboarding(user),
+        canManageTenantSubscriptions = PlatformAuthorization.CanManageTenantSubscriptions(user),
         canManageDemoRequests = PlatformAuthorization.CanManageDemoRequests(user),
         demoRequestDeliveryMode = deliveryMode,
         permissions = user
@@ -451,7 +454,7 @@ platformApi.MapPost("/tenants", async (
         });
     }
 })
-.RequireTenantProvisioningPermission()
+.RequireTenantOnboardingManagementPermission()
 .WithName("ProvisionPlatformTenant");
 
 platformApi.MapGet("/tenant-onboardings", async (
@@ -478,7 +481,7 @@ platformApi.MapGet("/tenant-onboardings", async (
         });
     }
 })
-.RequireTenantProvisioningPermission()
+.RequireTenantOnboardingManagementPermission()
 .WithName("ListPlatformTenantOnboardings");
 
 platformApi.MapPost("/tenant-onboardings/{onboardingId:guid}/cancel", async (
@@ -528,8 +531,65 @@ platformApi.MapPost("/tenant-onboardings/{onboardingId:guid}/cancel", async (
         });
     }
 })
-.RequireTenantProvisioningPermission()
+.RequireTenantOnboardingManagementPermission()
 .WithName("CancelPlatformTenantOnboarding");
+
+platformApi.MapGet("/customers", async (
+    int page,
+    int pageSize,
+    string? search,
+    TenantOnboardingType? customerType,
+    TenantStatus? tenantStatus,
+    TenantOnboardingStatus? onboardingStatus,
+    SubscriptionStatus? subscriptionStatus,
+    PlatformCustomerAttention? attention,
+    PlatformCustomerSort? sort,
+    PlatformCustomerService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ListAsync(
+            page == 0 ? 1 : page,
+            pageSize == 0 ? 25 : pageSize,
+            search,
+            customerType,
+            tenantStatus,
+            onboardingStatus,
+            subscriptionStatus,
+            attention,
+            sort ?? PlatformCustomerSort.UpdatedDescending,
+            cancellationToken));
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["customers"] = [exception.Message]
+        });
+    }
+})
+.RequirePlatformCustomerViewPermission()
+.WithName("ListPlatformCustomers");
+
+platformApi.MapGet("/customers/{tenantId:guid}", async (
+    Guid tenantId,
+    PlatformCustomerService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var customer = await service.FindAsync(tenantId, cancellationToken);
+    return customer is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            "The platform customer was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(customer);
+})
+.RequirePlatformCustomerViewPermission()
+.WithName("GetPlatformCustomer");
 
 platformApi.MapGet("/tenant-subscriptions/{tenantId:guid}", async (
     Guid tenantId,
@@ -542,8 +602,32 @@ platformApi.MapGet("/tenant-subscriptions/{tenantId:guid}", async (
         ? ApiProblemDetails.Create(httpContext, "Resource not found", "Tenant subscription was not found.", StatusCodes.Status404NotFound, "resource_not_found")
         : Results.Ok(subscription);
 })
-.RequireTenantProvisioningPermission()
+.RequirePlatformCustomerViewPermission()
 .WithName("GetPlatformTenantSubscription");
+
+platformApi.MapGet("/tenant-subscriptions/pilots", async (
+    int page,
+    int pageSize,
+    TenantSubscriptionService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ListPilotsAsync(
+            page == 0 ? 1 : page,
+            pageSize == 0 ? 25 : pageSize,
+            cancellationToken));
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["pilotSubscriptions"] = [exception.Message]
+        });
+    }
+})
+.RequireTenantSubscriptionManagementPermission()
+.WithName("ListPlatformPilotSubscriptions");
 
 platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/extend", async (
     Guid tenantId,
@@ -561,7 +645,7 @@ platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/extend", async (
             httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty,
             actorUserId,
             cancellationToken)))
-.RequireTenantProvisioningPermission()
+.RequireTenantSubscriptionManagementPermission()
 .WithName("ExtendPlatformPilotSubscription");
 
 platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/expire", async (
@@ -580,7 +664,7 @@ platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/expire", async (
             httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty,
             actorUserId,
             cancellationToken)))
-.RequireTenantProvisioningPermission()
+.RequireTenantSubscriptionManagementPermission()
 .WithName("ExpirePlatformPilotSubscription");
 
 platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/cancel", async (
@@ -599,7 +683,7 @@ platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/cancel", async (
             httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty,
             actorUserId,
             cancellationToken)))
-.RequireTenantProvisioningPermission()
+.RequireTenantSubscriptionManagementPermission()
 .WithName("CancelPlatformPilotSubscription");
 
 platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/convert", async (
@@ -618,7 +702,7 @@ platformApi.MapPost("/tenant-subscriptions/{tenantId:guid}/convert", async (
             httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty,
             actorUserId,
             cancellationToken)))
-.RequireTenantProvisioningPermission()
+.RequireTenantSubscriptionManagementPermission()
 .WithName("ConvertPlatformPilotSubscription");
 
 platformApi.MapPost("/tenant-invitations/{invitationId:guid}/resend", async (
@@ -650,7 +734,7 @@ platformApi.MapPost("/tenant-invitations/{invitationId:guid}/resend", async (
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["invitation"] = [exception.Message] });
     }
 })
-.RequireTenantProvisioningPermission()
+.RequireTenantOnboardingManagementPermission()
 .WithName("ResendPlatformTenantInvitation");
 
 var api = app.MapGroup("/api")

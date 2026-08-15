@@ -348,6 +348,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("tenants");
             entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Name);
             entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
             entity.Property(x => x.Status).IsConcurrencyToken();
             ConfigureAuditColumns(entity);
@@ -362,6 +363,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => x.IdempotencyKey).IsUnique();
             entity.HasIndex(x => x.CustomerReference).IsUnique();
             entity.HasIndex(x => x.SubscriptionReference).IsUnique();
+            entity.HasIndex(x => x.OwnerEmail);
+            entity.HasIndex(x => new { x.Status, x.OnboardingType, x.CreatedAt });
             entity.Property(x => x.IdempotencyKey).HasMaxLength(128).IsRequired();
             entity.Property(x => x.RequestFingerprint).HasMaxLength(64).IsRequired();
             entity.Property(x => x.CustomerReference).HasMaxLength(120).IsRequired();
@@ -383,6 +386,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.TenantId).IsUnique();
             entity.HasIndex(x => x.ExternalSubscriptionReference).IsUnique();
+            entity.HasIndex(x => new { x.Plan, x.Status, x.EndsAt });
             entity.Property(x => x.PlanCode).HasMaxLength(80).IsRequired();
             entity.Property(x => x.ExternalCustomerReference).HasMaxLength(160);
             entity.Property(x => x.ExternalSubscriptionReference).HasMaxLength(160);

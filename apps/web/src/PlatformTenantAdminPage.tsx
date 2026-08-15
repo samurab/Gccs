@@ -18,10 +18,6 @@ import {
 } from "lucide-react";
 import {
   cancelPlatformTenantOnboarding,
-  cancelPlatformPilotSubscription,
-  convertPlatformPilotSubscription,
-  expirePlatformPilotSubscription,
-  extendPlatformPilotSubscription,
   getPlatformAccess,
   getPlatformTenantOnboardings,
   provisionPlatformTenant,
@@ -29,8 +25,7 @@ import {
   type PlatformAccess,
   type PlatformTenantOnboardingPage,
   type PlatformTenantProvisioningRequest,
-  type PlatformTenantProvisioningResult,
-  type TenantSubscription
+  type PlatformTenantProvisioningResult
 } from "./lib/api";
 import { PlatformAdminNav } from "./PlatformAdminNav";
 
@@ -81,9 +76,7 @@ export function PlatformTenantAdminPage() {
   const [onboardingsError, setOnboardingsError] = useState("");
   const [onboardingsPage, setOnboardingsPage] = useState(1);
   const [onboardingsRefresh, setOnboardingsRefresh] = useState(0);
-  const [activeOnboardings, setActiveOnboardings] = useState<PlatformTenantOnboardingPage | null>(null);
-  const [activeState, setActiveState] = useState<"loading" | "ready" | "error">("loading");
-  const [activeError, setActiveError] = useState("");
+  const canManageTenantOnboarding = access?.canManageTenantOnboarding ?? access?.canProvisionTenants ?? false;
 
   useEffect(() => {
     let active = true;
@@ -105,7 +98,7 @@ export function PlatformTenantAdminPage() {
   }, []);
 
   useEffect(() => {
-    if (!access?.canProvisionTenants) return;
+    if (!canManageTenantOnboarding) return;
 
     let active = true;
     getPlatformTenantOnboardings(onboardingsPage, 25, "PendingOwnerAcceptance")
@@ -127,24 +120,7 @@ export function PlatformTenantAdminPage() {
     return () => {
       active = false;
     };
-  }, [access?.canProvisionTenants, onboardingsPage, onboardingsRefresh]);
-
-  useEffect(() => {
-    if (!access?.canProvisionTenants) return;
-    let active = true;
-    getPlatformTenantOnboardings(1, 100, "Active")
-      .then((page) => {
-        if (!active) return;
-        setActiveOnboardings(page);
-        setActiveState("ready");
-      })
-      .catch((error) => {
-        if (!active) return;
-        setActiveError(error instanceof Error ? error.message : "Active subscriptions could not be loaded.");
-        setActiveState("error");
-      });
-    return () => { active = false; };
-  }, [access?.canProvisionTenants, onboardingsRefresh]);
+  }, [canManageTenantOnboarding, onboardingsPage, onboardingsRefresh]);
 
   const request = useMemo<PlatformTenantProvisioningRequest>(
     () => ({
@@ -232,24 +208,26 @@ export function PlatformTenantAdminPage() {
     return <PlatformState icon={ShieldAlert} title="Platform access unavailable" body={accessError} />;
   }
 
-  if (!access?.canProvisionTenants) {
+  if (!access || !canManageTenantOnboarding) {
     return (
       <PlatformState
         icon={LockKeyhole}
         title="Provisioning access denied"
-        body="Your authenticated account does not have the ProvisionTenants platform permission."
+        body="Your authenticated account does not have a platform tenant onboarding management permission."
       />
     );
   }
 
+  const verifiedAccess = access;
+
   return (
     <main className="platform-admin-page">
-      <PlatformAdminNav access={access} active="tenant-onboarding" />
+      <PlatformAdminNav access={verifiedAccess} active="tenant-onboarding" />
       <header className="platform-admin-header">
         <div>
           <p className="platform-admin-kicker">FeDril platform operations</p>
           <h1>Tenant onboarding</h1>
-          <p className="platform-admin-operator">Signed in as {access.userEmail ?? access.userId}</p>
+          <p className="platform-admin-operator">Signed in as {verifiedAccess.userEmail ?? verifiedAccess.userId}</p>
         </div>
       </header>
 
@@ -261,33 +239,23 @@ export function PlatformTenantAdminPage() {
         </div>
       </section>
 
-      <PendingOnboardings
-        data={onboardings}
-        error={onboardingsError}
-        onCancel={cancelOnboarding}
-        onPageChange={(page) => {
-          setOnboardingsState("loading");
-          setOnboardingsError("");
-          setOnboardingsPage(page);
-        }}
-        state={onboardingsState}
-      />
+      {canManageTenantOnboarding ? (
+        <PendingOnboardings
+          data={onboardings}
+          error={onboardingsError}
+          onCancel={cancelOnboarding}
+          onPageChange={(page) => {
+            setOnboardingsState("loading");
+            setOnboardingsError("");
+            setOnboardingsPage(page);
+          }}
+          state={onboardingsState}
+        />
+      ) : null}
 
-      <ActivePilotSubscriptions
-        data={activeOnboardings}
-        error={activeError}
-        onChanged={(tenantId, subscription) => {
-          setActiveOnboardings((current) => current ? {
-            ...current,
-            items: current.items.map((item) => item.tenantId === tenantId ? { ...item, subscription } : item)
-          } : current);
-        }}
-        state={activeState}
-      />
-
-      {submitState === "success" && result ? (
+      {canManageTenantOnboarding && submitState === "success" && result ? (
         <ProvisioningSuccess result={result} copiedValue={copiedValue} onCopy={copyValue} onReset={resetForm} onResend={resendInvitation} />
-      ) : (
+      ) : canManageTenantOnboarding ? (
         <form className="platform-onboarding-form" onSubmit={handleSubmit}>
           <section className="platform-form-section" aria-labelledby="onboarding-type-heading">
             <div className="platform-section-heading">
@@ -499,120 +467,8 @@ export function PlatformTenantAdminPage() {
             </button>
           </footer>
         </form>
-      )}
+      ) : null}
     </main>
-  );
-}
-
-function ActivePilotSubscriptions({
-  data,
-  error,
-  onChanged,
-  state
-}: {
-  data: PlatformTenantOnboardingPage | null;
-  error: string;
-  onChanged: (tenantId: string, subscription: TenantSubscription) => void;
-  state: "loading" | "ready" | "error";
-}) {
-  const pilots = data?.items.filter((item) =>
-    item.subscription?.plan === "PilotEvaluation" && item.subscription.status !== "Cancelled") ?? [];
-
-  return (
-    <section className="platform-pending" aria-labelledby="active-pilot-subscriptions-heading">
-      <div className="platform-pending-heading">
-        <div>
-          <p>Subscription operations</p>
-          <h2 id="active-pilot-subscriptions-heading">Active pilot subscriptions</h2>
-        </div>
-        {state === "ready" ? <span>{pilots.length} pilots</span> : null}
-      </div>
-      {state === "loading" ? <div className="platform-pending-state"><LoaderCircle aria-hidden="true" className="spin" size={18} /> Loading active subscriptions</div> : null}
-      {state === "error" ? <div className="platform-form-error" role="alert"><ShieldAlert aria-hidden="true" size={18} /><span>{error}</span></div> : null}
-      {state === "ready" && pilots.length === 0 ? <div className="platform-pending-state">No active pilot subscriptions.</div> : null}
-      {pilots.map((item) => (
-        <PilotSubscriptionManager item={item} key={item.tenantId} onChanged={onChanged} />
-      ))}
-    </section>
-  );
-}
-
-function PilotSubscriptionManager({
-  item,
-  onChanged
-}: {
-  item: PlatformTenantProvisioningResult;
-  onChanged: (tenantId: string, subscription: TenantSubscription) => void;
-}) {
-  const subscription = item.subscription!;
-  const [reason, setReason] = useState("");
-  const [newEndsOn, setNewEndsOn] = useState("");
-  const [planCode, setPlanCode] = useState("");
-  const [externalReference, setExternalReference] = useState("");
-  const [actionState, setActionState] = useState<"idle" | "submitting" | "error" | "success">("idle");
-  const [message, setMessage] = useState("");
-  const [retryRequest, setRetryRequest] = useState<{ identity: string; key: string } | null>(null);
-
-  async function execute(action: "extend" | "expire" | "cancel" | "convert") {
-    setActionState("submitting");
-    setMessage("");
-    const requestIdentity = JSON.stringify({ action, newEndsOn, planCode, externalReference, reason, version: subscription.version });
-    const idempotencyKey = retryRequest?.identity === requestIdentity ? retryRequest.key : crypto.randomUUID();
-    setRetryRequest({ identity: requestIdentity, key: idempotencyKey });
-    const response = action === "extend"
-      ? await extendPlatformPilotSubscription(item.tenantId, newEndsOn, reason, subscription.version, idempotencyKey)
-      : action === "expire"
-        ? await expirePlatformPilotSubscription(item.tenantId, reason, subscription.version, idempotencyKey)
-        : action === "cancel"
-          ? await cancelPlatformPilotSubscription(item.tenantId, reason, subscription.version, idempotencyKey)
-          : await convertPlatformPilotSubscription(item.tenantId, planCode, externalReference, reason, subscription.version, idempotencyKey);
-    if (!response.data) {
-      setMessage(response.error ?? "Subscription transition failed. Refresh before retrying.");
-      setActionState("error");
-      return;
-    }
-    onChanged(item.tenantId, response.data);
-    setRetryRequest(null);
-    setReason("");
-    setNewEndsOn("");
-    setPlanCode("");
-    setExternalReference("");
-    setMessage(`Subscription ${action} completed.`);
-    setActionState("success");
-  }
-
-  return (
-    <details className="platform-form-section">
-      <summary>
-        <strong>{item.displayName}</strong> · {subscription.effectiveStatus} · version {subscription.version}
-      </summary>
-      <p>Ends {subscription.endsAt ? new Date(subscription.endsAt).toLocaleString() : "without a scheduled end"}; grace ends {subscription.graceEndsAt ? new Date(subscription.graceEndsAt).toLocaleString() : "not set"}.</p>
-      <div className="platform-form-grid">
-        <label>
-          <span>New pilot end date</span>
-          <input type="date" value={newEndsOn} onChange={(event) => setNewEndsOn(event.target.value)} />
-        </label>
-        <label>
-          <span>Commercial plan code</span>
-          <input maxLength={80} value={planCode} onChange={(event) => setPlanCode(event.target.value)} />
-        </label>
-        <label>
-          <span>External subscription reference</span>
-          <input maxLength={160} value={externalReference} onChange={(event) => setExternalReference(event.target.value)} />
-        </label>
-        <label className="platform-span-2">
-          <span>Required reason</span>
-          <textarea maxLength={600} rows={2} required value={reason} onChange={(event) => setReason(event.target.value)} />
-        </label>
-      </div>
-      <div className="platform-form-actions">
-        <button disabled={actionState === "submitting" || !reason || !newEndsOn} onClick={() => execute("extend")} type="button">Extend</button>
-        <button disabled={actionState === "submitting" || !reason} onClick={() => execute("expire")} type="button">Start grace period</button>
-        <button disabled={actionState === "submitting" || !reason} onClick={() => execute("cancel")} type="button">Cancel pilot</button>
-        <button disabled={actionState === "submitting" || !reason || !planCode || !externalReference} onClick={() => execute("convert")} type="button">Convert to commercial</button>
-      </div>
-      {message ? <div className={actionState === "error" ? "platform-form-error" : "platform-pending-state"} role={actionState === "error" ? "alert" : "status"}>{message}</div> : null}
-    </details>
   );
 }
 

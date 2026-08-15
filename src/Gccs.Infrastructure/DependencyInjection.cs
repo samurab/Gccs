@@ -83,6 +83,7 @@ public static class DependencyInjection
         services.AddScoped<ContractSizeCheckService>();
         services.AddScoped<TenantService>();
         services.AddScoped<PlatformTenantProvisioningService>();
+        services.AddScoped<PlatformCustomerService>();
         services.AddScoped<TenantSubscriptionService>();
         services.AddScoped<GovernmentCloudEnvironmentService>();
         services.AddScoped<RegulatedTenantProvisioningService>();
@@ -329,6 +330,7 @@ public static class DependencyInjection
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
             services.AddScoped<IPlatformTenantProvisioningRepository, EfPlatformTenantProvisioningRepository>();
+            services.AddScoped<IPlatformCustomerRepository, EfPlatformCustomerRepository>();
             services.AddScoped<ITenantSubscriptionRepository, EfTenantSubscriptionRepository>();
             services.AddScoped<IGovernmentCloudEnvironmentRepository, EfGovernmentCloudEnvironmentRepository>();
             services.AddScoped<IRegulatedTenantProvisioningRepository, EfRegulatedTenantProvisioningRepository>();
@@ -401,6 +403,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Tenant persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IPlatformTenantProvisioningRepository>(_ =>
                 throw new InvalidOperationException("Platform tenant provisioning requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IPlatformCustomerRepository>(_ =>
+                throw new InvalidOperationException("Platform customer operations require ConnectionStrings:GccsDatabase to be configured."));
             services.AddSingleton<ITenantSubscriptionRepository, UnconfiguredTenantSubscriptionRepository>();
             services.AddScoped<IGovernmentCloudEnvironmentRepository>(_ =>
                 throw new InvalidOperationException("Government cloud environment persistence requires ConnectionStrings:GccsDatabase to be configured."));

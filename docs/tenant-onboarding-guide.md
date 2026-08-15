@@ -1,6 +1,6 @@
 # Tenant Onboarding Guide
 
-Review date: 2026-08-13.
+Review date: 2026-08-15.
 
 Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator runbook, not customer self-service.
 
@@ -16,7 +16,9 @@ Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator
 | Capability | Status | Evidence or limitation |
 | --- | --- | --- |
 | Dedicated internal admin route | Implemented | `/platform/tenants/new` |
-| Platform-only tenant provisioning authorization | Implemented | `Platform.ProvisionTenants` policy; customer roles do not receive it |
+| Platform customer directory | Implemented | `/platform/customers` provides bounded server-side search, filters, sorting, attention states, and customer details containing operational metadata only |
+| Least-privilege platform authorization | Implemented | `ViewPlatformCustomers`, `ManageTenantOnboarding`, and `ManageTenantSubscriptions` are separate policies; `ProvisionTenants` remains a compatibility alias and `Gccs.PlatformOperator` retains all platform operations |
+| Platform-only tenant provisioning authorization | Implemented | `Platform.ManageTenantOnboarding` policy; customer roles do not receive it |
 | Pilot and Paid form modes with conditional fields | Implemented | Paid mode requires plan, subscription reference, and commercial approval confirmation |
 | Provider-independent pilot subscription lifecycle | Implemented | Provisioning creates a versioned subscription; activation, extension, grace-period entry, cancellation, and commercial conversion are audited |
 | Request-time pilot enforcement | Implemented | Active pilots have full access; grace-period pilots retain safe reads and GET-based exports while tenant mutations are rejected; expired or cancelled pilots are rejected |
@@ -36,7 +38,10 @@ Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator
 
 | Role | Responsibility |
 | --- | --- |
-| Platform Operator | Internal GCCS operator authorized by `ProvisionTenants`. Creates pending tenants. |
+| Customer Operations Viewer | Internal operator authorized by `ViewPlatformCustomers`. Can read operational customer metadata but cannot create tenants or mutate subscriptions. |
+| Onboarding Operator | Internal operator authorized by `ManageTenantOnboarding` or legacy `ProvisionTenants`. Creates and manages pending tenants. |
+| Subscription Operator | Internal operator authorized by `ManageTenantSubscriptions` or legacy `ProvisionTenants`. Manages Pilot lifecycle transitions. |
+| Platform Operator | Approved internal account assigned `Gccs.PlatformOperator`; receives all implemented platform operations. |
 | Customer Success Owner | Confirms scope, contacts, training, support routing, and first-use monitoring. |
 | Customer Tenant Owner | Named customer administrator who accepts the Owner invitation and manages the workspace. |
 | Security/Support Owner | Handles access incidents, suspected CUI, tenant exposure, and prohibited-data escalation. |
@@ -55,16 +60,18 @@ Scope: internal onboarding of No-CUI pilot and paid tenants. This is an operator
 
 Pilot dates use UTC end-exclusive semantics: a displayed end date remains active through that calendar date and enters the configured grace period at `00:00:00Z` on the following day. The default maximum pilot duration is 90 days and the default grace period is 7 days; deployment configuration can adjust them within the implemented guardrails.
 
-## Pilot Subscription Operations
+## Customer Directory And Pilot Subscription Operations
 
-The internal tenant administration page lists active pilot subscriptions and exposes four platform-operator actions:
+Open `/platform/customers` to list Pilot and Paid customers. The directory exposes tenant, onboarding, initial Owner invitation, and provider-independent subscription metadata. It does not expose tenant evidence, contracts, reports, workspace audit contents, or invitation tokens.
+
+Open a customer detail record to use these subscription actions when authorized by `ManageTenantSubscriptions`:
 
 1. **Extend** moves the end date later, recalculates the grace-period end, and requires a reason.
 2. **Start grace period** ends full access immediately and retains safe reads and GET-based exports for the configured grace period.
 3. **Cancel pilot** denies workspace access immediately without deleting tenant data or audit history.
 4. **Convert to commercial** removes the pilot dates, records the approved commercial plan and external subscription reference, and preserves tenant data, memberships, audit history, and `NoCui` posture.
 
-Each request includes the displayed subscription version and an `Idempotency-Key` header. Replaying the same key and payload returns the original transition result without another mutation or audit event; reusing the key for different input or submitting a stale version returns `409 Conflict`. Only a platform operator with `ProvisionTenants` can use these operations.
+Each request includes the displayed subscription version and an `Idempotency-Key` header. Replaying the same key and payload returns the original transition result without another mutation or audit event; reusing the key for different input or submitting a stale version returns `409 Conflict`. `ViewPlatformCustomers` alone cannot use these operations.
 
 ## Local Development Procedure
 
@@ -98,7 +105,7 @@ Open:
 http://localhost:5173/platform/tenants/new
 ```
 
-Local development grants the seeded operator `ProvisionTenants` through `Security:DevelopmentAuth:DefaultPlatformPermissions`. Development authentication must remain disabled outside local development.
+The default local configuration grants no platform permission. Start Vite with an explicit development-only permission, for example `VITE_GCCS_DEV_PLATFORM_PERMISSIONS=ViewPlatformCustomers,ManageTenantOnboarding,ManageTenantSubscriptions`. Development authentication must remain disabled outside local development.
 
 ### 3. Enter Pilot values
 
@@ -232,7 +239,7 @@ Request body:
 }
 ```
 
-Only an authenticated platform operator with `ProvisionTenants` can list or cancel platform onboarding. Unknown IDs return `404`; non-pending or activated records return `409`.
+Only an authenticated operator with `ManageTenantOnboarding`, legacy `ProvisionTenants`, or `Gccs.PlatformOperator` can list or cancel platform onboarding. Unknown IDs return `404`; non-pending or activated records return `409`.
 
 ## Staging and Production Authorization
 

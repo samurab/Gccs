@@ -129,6 +129,12 @@ public sealed class TenantSubscriptionLifecycleTests : IClassFixture<WebApplicat
         Assert.Equal(SubscriptionStatus.GracePeriod, expiredDto.EffectiveStatus);
         Assert.Equal(SubscriptionAccessLevel.ReadOnly, expiredDto.AccessLevel);
 
+        var repeatedExpire = await PostPlatformAsync<ChangePilotSubscriptionStatusRequest>(
+            client,
+            $"/api/platform/tenant-subscriptions/{TenantId}/expire",
+            new ChangePilotSubscriptionStatusRequest("A grace period cannot be restarted.", 3));
+        Assert.Equal(HttpStatusCode.Conflict, repeatedExpire.StatusCode);
+
         var converted = await PostPlatformAsync<ConvertPilotSubscriptionRequest>(
             client,
             $"/api/platform/tenant-subscriptions/{TenantId}/convert",
@@ -213,6 +219,150 @@ public sealed class TenantSubscriptionLifecycleTests : IClassFixture<WebApplicat
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.DoesNotContain(TenantId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("extend")]
+    [InlineData("expire")]
+    [InlineData("cancel")]
+    [InlineData("convert")]
+    public async Task Pending_subscription_rejects_every_lifecycle_transition_without_writes(string transition)
+    {
+        var clock = new MutableTimeProvider(DateTimeOffset.Parse("2026-08-13T12:00:00Z"));
+        await using var factory = CreateFactory($"subscription-pending-{transition}", clock, dbContext =>
+        {
+            SeedActivePilot(dbContext, clock.GetUtcNow(), clock.GetUtcNow().AddDays(10), clock.GetUtcNow().AddDays(17));
+            dbContext.TenantSubscriptions.Local.Single().Status = SubscriptionStatus.Pending;
+        });
+        using var client = factory.CreateClient();
+
+        var response = transition switch
+        {
+            "extend" => await PostPlatformAsync(
+                client,
+                $"/api/platform/tenant-subscriptions/{TenantId}/extend",
+                new ExtendPilotSubscriptionRequest(DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime).AddDays(20), "Pending pilot extension must fail.", 1)),
+            "convert" => await PostPlatformAsync(
+                client,
+                $"/api/platform/tenant-subscriptions/{TenantId}/convert",
+                new ConvertPilotSubscriptionRequest("COMMERCIAL-STANDARD", $"SUB-PENDING-{transition}", "Pending conversion must fail.", 1)),
+            _ => await PostPlatformAsync(
+                client,
+                $"/api/platform/tenant-subscriptions/{TenantId}/{transition}",
+                new ChangePilotSubscriptionStatusRequest("Pending lifecycle transition must fail.", 1))
+        };
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Equal(1, (await dbContext.TenantSubscriptions.SingleAsync()).Version);
+        Assert.Empty(await dbContext.TenantSubscriptionTransitions.ToArrayAsync());
+        Assert.Empty(await dbContext.AuditLogEntries.ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task Platform_operator_lists_only_manageable_pilots_with_bounded_paging()
+    {
+        var clock = new MutableTimeProvider(DateTimeOffset.Parse("2026-08-13T12:00:00Z"));
+        await using var factory = CreateFactory("subscription-pilot-list", clock, dbContext =>
+        {
+            SeedPilotListingCandidate(
+                dbContext,
+                "Active Pilot",
+                clock.GetUtcNow().AddDays(10),
+                TenantOnboardingStatus.Active,
+                TenantOnboardingType.Pilot,
+                SubscriptionPlan.PilotEvaluation,
+                SubscriptionStatus.Active,
+                clock.GetUtcNow().AddMinutes(2));
+            SeedPilotListingCandidate(
+                dbContext,
+                "Effectively Expired Pilot",
+                clock.GetUtcNow().AddDays(-10),
+                TenantOnboardingStatus.Active,
+                TenantOnboardingType.Pilot,
+                SubscriptionPlan.PilotEvaluation,
+                SubscriptionStatus.Active,
+                clock.GetUtcNow().AddMinutes(1));
+            SeedPilotListingCandidate(
+                dbContext,
+                "Cancelled Pilot",
+                clock.GetUtcNow().AddDays(10),
+                TenantOnboardingStatus.Active,
+                TenantOnboardingType.Pilot,
+                SubscriptionPlan.PilotEvaluation,
+                SubscriptionStatus.Cancelled,
+                clock.GetUtcNow());
+            SeedPilotListingCandidate(
+                dbContext,
+                "Converted Pilot",
+                null,
+                TenantOnboardingStatus.Active,
+                TenantOnboardingType.Pilot,
+                SubscriptionPlan.CommercialStandard,
+                SubscriptionStatus.Converted,
+                clock.GetUtcNow());
+            SeedPilotListingCandidate(
+                dbContext,
+                "Pending Pilot",
+                clock.GetUtcNow().AddDays(10),
+                TenantOnboardingStatus.PendingOwnerAcceptance,
+                TenantOnboardingType.Pilot,
+                SubscriptionPlan.PilotEvaluation,
+                SubscriptionStatus.Pending,
+                clock.GetUtcNow());
+            SeedPilotListingCandidate(
+                dbContext,
+                "Paid Tenant",
+                null,
+                TenantOnboardingStatus.Active,
+                TenantOnboardingType.Paid,
+                SubscriptionPlan.CommercialStandard,
+                SubscriptionStatus.Active,
+                clock.GetUtcNow());
+        });
+        using var client = factory.CreateClient();
+
+        using var firstRequest = new HttpRequestMessage(
+            HttpMethod.Get,
+            "/api/platform/tenant-subscriptions/pilots?page=1&pageSize=1");
+        AddPlatformHeaders(firstRequest);
+        var firstResponse = await client.SendAsync(firstRequest);
+        var firstPage = await firstResponse.Content.ReadFromJsonAsync<PlatformPilotSubscriptionPageDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.NotNull(firstPage);
+        Assert.Equal(2, firstPage.TotalCount);
+        Assert.Single(firstPage.Items);
+        Assert.Equal("Active Pilot", firstPage.Items[0].DisplayName);
+        Assert.True(firstPage.HasNextPage);
+        Assert.False(firstPage.HasPreviousPage);
+
+        using var secondRequest = new HttpRequestMessage(
+            HttpMethod.Get,
+            "/api/platform/tenant-subscriptions/pilots?page=2&pageSize=1");
+        AddPlatformHeaders(secondRequest);
+        var secondResponse = await client.SendAsync(secondRequest);
+        var secondPage = await secondResponse.Content.ReadFromJsonAsync<PlatformPilotSubscriptionPageDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        Assert.NotNull(secondPage);
+        Assert.Equal("Effectively Expired Pilot", secondPage.Items[0].DisplayName);
+        Assert.Equal(SubscriptionStatus.Expired, secondPage.Items[0].Subscription.EffectiveStatus);
+        Assert.False(secondPage.HasNextPage);
+        Assert.True(secondPage.HasPreviousPage);
+
+        using var deniedRequest = new HttpRequestMessage(
+            HttpMethod.Get,
+            "/api/platform/tenant-subscriptions/pilots?page=1&pageSize=25");
+        AddTenantHeaders(deniedRequest);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(deniedRequest)).StatusCode);
+
+        using var invalidPagingRequest = new HttpRequestMessage(
+            HttpMethod.Get,
+            "/api/platform/tenant-subscriptions/pilots?page=1&pageSize=101");
+        AddPlatformHeaders(invalidPagingRequest);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(invalidPagingRequest)).StatusCode);
     }
 
     [Theory]
@@ -324,6 +474,60 @@ public sealed class TenantSubscriptionLifecycleTests : IClassFixture<WebApplicat
             StatusReason = "Lifecycle test pilot.",
             Version = 1,
             CreatedAt = now
+        });
+    }
+
+    private static void SeedPilotListingCandidate(
+        GccsDbContext dbContext,
+        string displayName,
+        DateTimeOffset? endsAt,
+        TenantOnboardingStatus onboardingStatus,
+        TenantOnboardingType onboardingType,
+        SubscriptionPlan plan,
+        SubscriptionStatus subscriptionStatus,
+        DateTimeOffset createdAt)
+    {
+        var tenantId = Guid.NewGuid();
+        dbContext.Tenants.Add(new TenantEntity
+        {
+            Id = tenantId,
+            Name = displayName,
+            Status = onboardingStatus is TenantOnboardingStatus.Active ? TenantStatus.Trialing : TenantStatus.PendingActivation,
+            DataPosture = TenantDataPosture.NoCui,
+            TrialEndsAt = endsAt is null ? null : DateOnly.FromDateTime(endsAt.Value.UtcDateTime),
+            CreatedAt = createdAt
+        });
+        dbContext.PlatformTenantOnboardings.Add(new PlatformTenantOnboardingEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            InvitationId = Guid.NewGuid(),
+            IdempotencyKey = Guid.NewGuid().ToString(),
+            RequestFingerprint = Guid.NewGuid().ToString(),
+            OnboardingType = onboardingType,
+            Status = onboardingStatus,
+            CustomerReference = $"CUSTOMER-{tenantId:N}",
+            OwnerEmail = "owner@example.com",
+            OwnerDisplayName = "Owner",
+            SetupReason = "Pilot lifecycle listing test.",
+            CreatedAt = createdAt
+        });
+        dbContext.TenantSubscriptions.Add(new TenantSubscriptionEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            TenantKind = TenantKind.ContractorWorkspace,
+            Plan = plan,
+            PlanCode = plan is SubscriptionPlan.PilotEvaluation ? "PILOT-EVALUATION" : "COMMERCIAL-STANDARD",
+            Status = subscriptionStatus,
+            StartsAt = createdAt.AddDays(-1),
+            EndsAt = endsAt,
+            GraceEndsAt = endsAt?.AddDays(7),
+            ExternalCustomerReference = $"CUSTOMER-{tenantId:N}",
+            ExternalSubscriptionReference = plan is SubscriptionPlan.CommercialStandard ? $"SUB-{tenantId:N}" : null,
+            StatusReason = "Pilot lifecycle listing test.",
+            Version = 1,
+            CreatedAt = createdAt
         });
     }
 

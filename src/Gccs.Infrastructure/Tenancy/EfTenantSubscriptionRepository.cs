@@ -24,6 +24,45 @@ public sealed class EfTenantSubscriptionRepository(
             .AsNoTracking()
             .SingleOrDefaultAsync(candidate => candidate.TenantId == tenantId, cancellationToken));
 
+    public async Task<PlatformPilotSubscriptionPage> ListPilotsAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.PlatformTenantOnboardings
+            .AsNoTracking()
+            .Include(candidate => candidate.Tenant)
+                .ThenInclude(tenant => tenant!.Subscription)
+            .Where(candidate =>
+                candidate.Status == TenantOnboardingStatus.Active &&
+                candidate.OnboardingType == TenantOnboardingType.Pilot &&
+                candidate.Tenant != null &&
+                candidate.Tenant.Subscription != null &&
+                candidate.Tenant.Subscription.Plan == SubscriptionPlan.PilotEvaluation &&
+                (candidate.Tenant.Subscription.Status == SubscriptionStatus.Active ||
+                    candidate.Tenant.Subscription.Status == SubscriptionStatus.GracePeriod ||
+                    candidate.Tenant.Subscription.Status == SubscriptionStatus.Expired));
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(candidate => candidate.CreatedAt)
+            .ThenBy(candidate => candidate.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PlatformPilotSubscriptionPage(
+            items.Select(item => new PlatformPilotSubscription(
+                item.Tenant!.Name,
+                item.CustomerReference,
+                Map(item.Tenant.Subscription)!)).ToArray(),
+            page,
+            pageSize,
+            totalCount,
+            page * pageSize < totalCount,
+            page > 1);
+    }
+
     public async Task<TenantSubscriptionTransitionResult?> FindReplayAsync(
         Guid tenantId,
         string idempotencyKey,
@@ -75,7 +114,17 @@ public sealed class EfTenantSubscriptionRepository(
             if (entity.Plan is not SubscriptionPlan.PilotEvaluation ||
                 entity.Status is SubscriptionStatus.Cancelled or SubscriptionStatus.Converted)
             {
-                throw new TenantSubscriptionConflictException("Only an active pilot subscription can use this transition.");
+                throw new TenantSubscriptionConflictException("Only a non-terminal pilot subscription can use this transition.");
+            }
+
+            var effectiveStatus = Map(entity)!.EffectiveStatus(now);
+            if (effectiveStatus is not (SubscriptionStatus.Active or SubscriptionStatus.GracePeriod or SubscriptionStatus.Expired) ||
+                (transition is SubscriptionTransition.Expire && effectiveStatus is not SubscriptionStatus.Active))
+            {
+                throw new TenantSubscriptionConflictException(
+                    transition is SubscriptionTransition.Expire
+                        ? "Only an active pilot can enter its grace period."
+                        : "The pilot subscription is not in a lifecycle state that permits this transition.");
             }
 
             var before = Snapshot(entity);
