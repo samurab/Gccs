@@ -36,8 +36,8 @@ Verify these values before every deployment. They reflect the production readine
 | GitHub environment | `production` |
 | Approved workflow | `.github/workflows/production.yml` |
 | Approved launch candidate manifest | `docs/release/approved-launch-candidate.json` |
-| Approved launch candidate tag | `launch-candidate-2026-08-15-2` |
-| Launch candidate commit | `a6ee58aafbbfdfcb1a0ba8e8c053a79a248e5ee9` |
+| Approved launch candidate tag | `launch-candidate-2026-08-16-1` |
+| Launch candidate commit | `d0fa9503c0487aacd54443f971c04982501fe408` |
 | API App Service | `gccs-api-production` |
 | API base URL | `https://gccs-api-production-a7evdpg7fxd7e4e3.eastus-01.azurewebsites.net` |
 | Web base URL | `https://lemon-pond-093710c0f.7.azurestaticapps.net` |
@@ -367,7 +367,7 @@ Use the GitHub website:
 4. Enter the approved launch candidate tag:
 
 ```text
-launch-candidate-2026-08-15-2
+launch-candidate-2026-08-16-1
 ```
 
 5. Start the workflow.
@@ -379,7 +379,7 @@ Or use GitHub CLI:
 gh workflow run ".github/workflows/production.yml" \
   --repo samurab/Gccs \
   --ref main \
-  -f launch_candidate_tag=launch-candidate-2026-08-15-2
+  -f launch_candidate_tag=launch-candidate-2026-08-16-1
 ```
 
 Watch the run:
