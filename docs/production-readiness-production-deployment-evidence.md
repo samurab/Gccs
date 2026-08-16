@@ -2,9 +2,9 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate is awaiting protected production CI/CD execution; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-08-15-2` is approved but not yet deployed.
+Current candidate execution status: `launch-candidate-2026-08-15-2` deployed successfully in production workflow run `31917850470`.
 
 Latest evidence date: 2026-08-15. Historical evidence dates are retained below.
 
@@ -37,14 +37,14 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-15-2` at `a6ee58aafbbfdfcb1a0ba8e8c053a79a248e5ee9`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Ready; exact-candidate execution pending | Run `31912729330` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-15-2` still requires protected production workflow execution after this launch-candidate gate merges. |
+| Approved production CI/CD path | Passed | Run `31917850470` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-15-2` completed protected production workflow execution in run `31917850470`. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-08-15-2` still requires protected production workflow execution. Secret values are not stored in this evidence or the repository. |
-| Production No-CUI posture validation | Passed | Run `31912729330` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
-| Production migrations | Passed | Run `31912729330` generated and successfully applied the idempotent production migration script. |
+| Production secrets source | Passed | Current candidate `launch-candidate-2026-08-15-2` resolved the required production environment secrets in run `31917850470` without exposing their values. Secret values are not stored in this evidence or the repository. |
+| Production No-CUI posture validation | Passed | Run `31917850470` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
+| Production migrations | Passed | Run `31917850470` generated and successfully applied the idempotent production migration script. |
 | Production storage, cache, queue, and background jobs | Passed | Exact-candidate workflow and independent post-deployment `/health` checks returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
-| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `31912729330` passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. Alert delivery and email delivery were not repeated for this candidate. |
-| Deployment evidence capture | Passed | Artifact `9254183165` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
+| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `31917850470` passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. Alert delivery and email delivery were not repeated for this candidate. |
+| Deployment evidence capture | Passed | Artifact `9255497644` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
