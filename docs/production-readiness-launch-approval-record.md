@@ -181,6 +181,26 @@ This approval is not independent legal, security, privacy, compliance, accessibi
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, or customer-facing claims expand beyond the reviewed candidate scope.
 
+## Platform Customer Directory Candidate Reapproval - 2026-08-15
+
+The repository owner and deployment operator, `samurab`, explicitly requested pushing the platform customer directory change, deploying it to staging, merging it, creating a launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-08-15-2` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-15 |
+| Candidate | `launch-candidate-2026-08-15-2` at `a6ee58aafbbfdfcb1a0ba8e8c053a79a248e5ee9` |
+| Scope | PR #59 adds a platform customer directory and detail view, customer subscription actions, server-side platform customer listing/detail APIs, split platform permissions for onboarding versus subscription operations, and one additive EF Core migration for platform customer directory indexes. |
+| Exact-candidate automated evidence | PR #59 CI run `31914374969`; main CI run `31915244505`; staging deployment run `31915244551`; Static Web Apps run `31915244788`; backend, frontend, dependency audit, secret scan, EF migration validation, Terraform validation, extraction evaluation, and real-stack report RBAC/rollback checks passed. |
+| Exact-candidate staging evidence | Run `31915244551` built the exact merge commit, generated and applied the idempotent migration script, deployed API and web artifacts, and passed No-CUI and dependency health checks. Staging smoke artifact `9254774462` contains the health output and migration script. |
+| Security and migration scope | The change touches tenant/customer visibility, platform-only RBAC, subscription lifecycle operations, and EF Core indexes. Approval relies on server-side authorization tests, tenant-safe repository queries, migration validation, and staging migration application passing for the exact candidate. |
+| Unresolved limitations | Review is solo-controlled rather than independent. Automated and health checks do not replace authenticated production smoke for every platform role. The directory is an operator control surface and does not authorize customer-facing claims beyond implemented platform administration behavior. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, platform authorization weakens, or customer-facing claims expand beyond the reviewed candidate scope.
+
 ## Evidence Package Reviewed
 
 Required approval reviewers must inspect these artifacts before approval can be recorded:
