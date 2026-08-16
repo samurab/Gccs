@@ -6,6 +6,8 @@ using Gccs.Application.Audit;
 using Gccs.Application.Identity;
 using Gccs.Application.Reports;
 using Gccs.Application.Tenancy;
+using Gccs.Application.Storage;
+using Gccs.Api.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Evidence;
 using Gccs.Domain.Identity;
@@ -45,7 +47,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             [RoleCatalog.Owner, RoleCatalog.Admin, RoleCatalog.ComplianceManager, RoleCatalog.Contributor, RoleCatalog.Auditor, RoleCatalog.Advisor],
             RoleCatalog.Roles);
 
-        AssertRoleHas(RoleCatalog.Owner, Permission.ManageTenant, Permission.ManageUsers, Permission.ManageReports, Permission.ArchiveReports, Permission.ViewAuditLog);
+        AssertRoleHas(RoleCatalog.Owner, Permission.ManageTenant, Permission.ManageUsers, Permission.ManageReports, Permission.ArchiveReports, Permission.ExportReports, Permission.ViewAuditLog);
         AssertRoleHas(RoleCatalog.Admin, Permission.ManageUsers, Permission.ManageCompanyProfile, Permission.ManageContracts, Permission.ManageEvidence, Permission.ArchiveReports);
         AssertRoleHas(RoleCatalog.ComplianceManager, Permission.ManageObligations, Permission.ManageTasks, Permission.ApproveEvidence, Permission.ManageSubcontractors);
         AssertRoleHas(RoleCatalog.Contributor, Permission.ViewCompanyProfile, Permission.ManageTasks, Permission.ManageEvidence);
@@ -74,7 +76,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             Permission.ManageCmmc,
             Permission.ManageSubcontractors,
             Permission.ManageReports);
-        AssertRoleDoesNotHave(RoleCatalog.Admin, Permission.ManageTenant);
+        AssertRoleDoesNotHave(RoleCatalog.Admin, Permission.ManageTenant, Permission.ExportReports);
         AssertRoleDoesNotHave(RoleCatalog.Contributor, Permission.ManageUsers, Permission.ApproveEvidence, Permission.ManageReports, Permission.ArchiveReports);
         AssertRoleDoesNotHave(
             RoleCatalog.Auditor,
@@ -89,6 +91,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             Permission.ManageSubcontractors,
             Permission.ManageReports,
             Permission.ArchiveReports,
+            Permission.ExportReports,
             Permission.ManageTenant);
         AssertRoleDoesNotHave(RoleCatalog.Advisor, Permission.ManageUsers, Permission.ManageTenant, Permission.ArchiveReports);
         AssertRoleDoesNotHave(RoleCatalog.ComplianceManager, Permission.ArchiveReports);
@@ -115,6 +118,16 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             .ToArray();
 
         Assert.Equal([RoleCatalog.Owner, RoleCatalog.Admin], rolesWithArchivePermission);
+    }
+
+    [Fact]
+    public void Report_export_permission_is_limited_to_owner()
+    {
+        var rolesWithExportPermission = RoleCatalog.Roles
+            .Where(roleName => RoleCatalog.GetPermissions(roleName).Contains(Permission.ExportReports))
+            .ToArray();
+
+        Assert.Equal([RoleCatalog.Owner], rolesWithExportPermission);
     }
 
     [Fact]
@@ -466,12 +479,120 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
         using var archiveResponse = await client.SendAsync(archiveRequest);
         await AssertStandardAuthorizationErrorAsync(archiveResponse);
 
+        using var exportRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/reports/{reportId}/exports/pdf",
+            tenantId,
+            auditorId,
+            RoleCatalog.Auditor);
+        using var exportResponse = await client.SendAsync(exportRequest);
+        await AssertStandardAuthorizationErrorAsync(exportResponse);
+
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.Equal(ReportStatus.Complete, (await dbContext.Reports.SingleAsync()).Status);
         Assert.DoesNotContain(
             await dbContext.AuditLogEntries.ToArrayAsync(),
             audit => audit.EntityType == "Report" && audit.EntityId == reportId.ToString());
+    }
+
+    [Fact]
+    public async Task Owner_can_request_one_idempotent_tenant_scoped_pdf_export_while_other_roles_are_denied()
+    {
+        var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
+        var reportId = Guid.NewGuid();
+        await using var factory = CreateFactory("owner-report-pdf-export", dbContext =>
+        {
+            dbContext.Tenants.AddRange(
+                CreateTenant(tenantId, "PDF export tenant"),
+                CreateTenant(otherTenantId, "Other PDF export tenant"));
+            dbContext.Reports.Add(CreateComplianceStatusReport(reportId, tenantId));
+            dbContext.SaveChanges();
+        });
+        using var client = factory.CreateClient();
+        var ownerId = Guid.NewGuid();
+
+        using var firstRequest = CreateRequest(HttpMethod.Post, $"/api/reports/{reportId}/exports/pdf", tenantId, ownerId, RoleCatalog.Owner);
+        using var firstResponse = await client.SendAsync(firstRequest);
+        var first = await firstResponse.Content.ReadFromJsonAsync<ReportExportDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.Accepted, firstResponse.StatusCode);
+        Assert.Equal(ReportExportStatus.Queued, first?.Status);
+
+        using var repeatedRequest = CreateRequest(HttpMethod.Post, $"/api/reports/{reportId}/exports/pdf", tenantId, ownerId, RoleCatalog.Owner);
+        using var repeatedResponse = await client.SendAsync(repeatedRequest);
+        var repeated = await repeatedResponse.Content.ReadFromJsonAsync<ReportExportDto>(JsonOptions);
+        Assert.Equal(HttpStatusCode.Accepted, repeatedResponse.StatusCode);
+        Assert.Equal(first?.Id, repeated?.Id);
+
+        foreach (var role in new[] { RoleCatalog.Admin, RoleCatalog.ComplianceManager, RoleCatalog.Contributor, RoleCatalog.Auditor, RoleCatalog.Advisor })
+        {
+            using var deniedRequest = CreateRequest(HttpMethod.Post, $"/api/reports/{reportId}/exports/pdf", tenantId, Guid.NewGuid(), role);
+            using var deniedResponse = await client.SendAsync(deniedRequest);
+            await AssertStandardAuthorizationErrorAsync(deniedResponse);
+        }
+
+        using var crossTenantRequest = CreateRequest(HttpMethod.Post, $"/api/reports/{reportId}/exports/pdf", otherTenantId, Guid.NewGuid(), RoleCatalog.Owner);
+        using var crossTenantResponse = await client.SendAsync(crossTenantRequest);
+        Assert.Equal(HttpStatusCode.NotFound, crossTenantResponse.StatusCode);
+
+        await using (var processingScope = factory.Services.CreateAsyncScope())
+        {
+            var repository = processingScope.ServiceProvider.GetRequiredService<IReportExportRepository>();
+            var claimed = await repository.TryClaimNextAsync(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(5), 3);
+            Assert.NotNull(claimed);
+            processingScope.ServiceProvider.GetRequiredService<HttpTenantContext>().InitializeBackground(
+                claimed!.TenantId,
+                claimed.RequestedByUserId,
+                claimed.RequestedByEmail);
+            var processed = await processingScope.ServiceProvider.GetRequiredService<ReportExportService>().ProcessAsync(claimed);
+            Assert.Equal(ReportExportStatus.Ready, processed?.Status);
+        }
+
+        using var downloadRequest = CreateRequest(
+            HttpMethod.Get,
+            $"/api/report-exports/{first!.Id}/content",
+            tenantId,
+            ownerId,
+            RoleCatalog.Owner);
+        using var downloadResponse = await client.SendAsync(downloadRequest);
+        var pdf = await downloadResponse.Content.ReadAsByteArrayAsync();
+        Assert.Equal(HttpStatusCode.OK, downloadResponse.StatusCode);
+        Assert.Equal("application/pdf", downloadResponse.Content.Headers.ContentType?.MediaType);
+        Assert.StartsWith("%PDF-", System.Text.Encoding.ASCII.GetString(pdf, 0, Math.Min(pdf.Length, 5)));
+
+        using var auditorDownloadRequest = CreateRequest(
+            HttpMethod.Get,
+            $"/api/report-exports/{first.Id}/content",
+            tenantId,
+            Guid.NewGuid(),
+            RoleCatalog.Auditor);
+        using var auditorDownloadResponse = await client.SendAsync(auditorDownloadRequest);
+        await AssertStandardAuthorizationErrorAsync(auditorDownloadResponse);
+
+        using var crossTenantDownloadRequest = CreateRequest(
+            HttpMethod.Get,
+            $"/api/report-exports/{first.Id}/content",
+            otherTenantId,
+            Guid.NewGuid(),
+            RoleCatalog.Owner);
+        using var crossTenantDownloadResponse = await client.SendAsync(crossTenantDownloadRequest);
+        Assert.Equal(HttpStatusCode.NotFound, crossTenantDownloadResponse.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var export = Assert.Single(await dbContext.ReportExports.ToArrayAsync());
+        Assert.Equal(tenantId, export.TenantId);
+        Assert.Equal(reportId, export.ReportId);
+        Assert.Single(await dbContext.AuditLogEntries
+            .Where(audit => audit.EntityType == "ReportExport" && audit.Action == AuditAction.Created)
+            .ToArrayAsync());
+        Assert.Single(await dbContext.AuditLogEntries
+            .Where(audit => audit.EntityType == "ReportExport" && audit.Action == AuditAction.Exported)
+            .ToArrayAsync());
+        Assert.Single(await dbContext.AuditLogEntries
+            .Where(audit => audit.EntityType == "ReportExport" && audit.Action == AuditAction.Downloaded)
+            .ToArrayAsync());
     }
 
     [Fact]
@@ -678,6 +799,8 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
                 services.AddScoped<TenantInvitationService>();
                 services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
                 services.AddScoped<IReportRepository, EfReportRepository>();
+                services.AddScoped<IReportExportRepository, EfReportExportRepository>();
+                services.AddSingleton<IObjectStorageService, TestObjectStorageService>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
                 using var provider = services.BuildServiceProvider();

@@ -111,6 +111,8 @@ if (string.Equals(
 builder.Services.AddHostedService<DemoRequestDeliveryWorker>();
 builder.Services.Configure<ExtractionProcessingOptions>(
     builder.Configuration.GetSection(ExtractionProcessingOptions.SectionName));
+builder.Services.Configure<ReportExportProcessingOptions>(
+    builder.Configuration.GetSection(ReportExportProcessingOptions.SectionName));
 if (builder.Environment.IsDevelopment() &&
     builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
     builder.Configuration.GetValue("Security:DevelopmentAuth:Enabled", false))
@@ -126,6 +128,11 @@ if (builder.Configuration.GetValue("ExtractionProcessing:Enabled", true) &&
     !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
 {
     builder.Services.AddHostedService<ExtractionJobWorker>();
+}
+if (builder.Configuration.GetValue("ReportExportProcessing:Enabled", true) &&
+    !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
+{
+    builder.Services.AddHostedService<ReportExportWorker>();
 }
 if (builder.Environment.IsDevelopment())
 {
@@ -2387,6 +2394,90 @@ api.MapPost("/reports/{reportId:guid}/restore", async (
 })
 .RequirePermission(Permission.ArchiveReports)
 .WithName("RestoreReport");
+
+api.MapPost("/reports/{reportId:guid}/exports/pdf", async (
+    Guid reportId,
+    ReportExportService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var export = await service.RequestPdfAsync(reportId, tenantContext.UserId, cancellationToken);
+    return export is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Report '{reportId}' was not found or is not available for export.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Accepted($"/api/report-exports/{export.Id}", export);
+})
+.RequirePermission(Permission.ExportReports)
+.WithName("RequestReportPdfExport");
+
+api.MapGet("/report-exports/{exportId:guid}", async (
+    Guid exportId,
+    ReportExportService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var export = await service.GetAsync(exportId, cancellationToken);
+    return export is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Report export '{exportId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found")
+        : Results.Ok(export);
+})
+.RequirePermission(Permission.ExportReports)
+.WithName("GetReportPdfExport");
+
+api.MapGet("/report-exports/{exportId:guid}/content", async (
+    Guid exportId,
+    ReportExportService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var export = await service.GetAsync(exportId, cancellationToken);
+    if (export is null)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            $"Report export '{exportId}' was not found.",
+            StatusCodes.Status404NotFound,
+            "resource_not_found");
+    }
+
+    if (export.Status != Gccs.Domain.Reports.ReportExportStatus.Ready)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Report export is not ready",
+            "Wait for the PDF export to finish before opening or downloading it.",
+            StatusCodes.Status409Conflict,
+            "report_export_not_ready");
+    }
+
+    var stored = await service.OpenContentAsync(exportId, tenantContext.UserId, cancellationToken);
+    return stored is null
+        ? ApiProblemDetails.Create(
+            httpContext,
+            "Report export unavailable",
+            "The PDF export record exists, but its stored file is unavailable.",
+            StatusCodes.Status503ServiceUnavailable,
+            "report_export_storage_unavailable")
+        : Results.Stream(
+            stored.Content,
+            contentType: stored.ContentType,
+            fileDownloadName: export.FileName,
+            enableRangeProcessing: true);
+})
+.RequirePermission(Permission.ExportReports)
+.WithName("DownloadReportPdfExport");
 
 api.MapGet("/reports/exports/{reportType}", async (
     string reportType,

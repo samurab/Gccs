@@ -36,3 +36,11 @@ public enum ReportStatus
     Failed,
     Archived
 }
+
+public enum ReportExportStatus
+{
+    Queued,
+    Processing,
+    Ready,
+    Failed
+}

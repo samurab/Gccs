@@ -53,6 +53,7 @@ const {
   getEvidencePackageMock,
   getRecentReportsMock,
   getReportArtifactMock,
+  getReportExportMock,
   getAuditLogEntityTypesMock,
   getAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
@@ -99,6 +100,8 @@ const {
   rejectClauseCandidateMock,
   rejectCuiReadyApprovalChecklistMock,
   restoreReportMock,
+  requestReportPdfExportMock,
+  downloadReportExportMock,
   reclassifyEvidenceItemMock,
   saveCompanyProfileMock,
   searchClauseLibraryMock,
@@ -164,6 +167,7 @@ const {
   getEvidencePackageMock: vi.fn(),
   getRecentReportsMock: vi.fn(),
   getReportArtifactMock: vi.fn(),
+  getReportExportMock: vi.fn(),
   getComplianceOverviewMock: vi.fn(),
   getCurrentUserAccessMock: vi.fn(),
   getDevelopmentTestingContextMock: vi.fn(),
@@ -194,6 +198,8 @@ const {
   rejectClauseCandidateMock: vi.fn(),
   rejectCuiReadyApprovalChecklistMock: vi.fn(),
   restoreReportMock: vi.fn(),
+  requestReportPdfExportMock: vi.fn(),
+  downloadReportExportMock: vi.fn(),
   reclassifyEvidenceItemMock: vi.fn(),
   saveCompanyProfileMock: vi.fn(),
   searchClauseLibraryMock: vi.fn(),
@@ -836,6 +842,7 @@ vi.mock("@/lib/api", () => ({
   getEvidencePackage: getEvidencePackageMock,
   getRecentReports: getRecentReportsMock,
   getReportArtifact: getReportArtifactMock,
+  getReportExport: getReportExportMock,
   getNotificationPreferences: getNotificationPreferencesMock,
   getNotifications: getNotificationsMock,
   getObligationAssignmentCandidates: getObligationAssignmentCandidatesMock,
@@ -854,6 +861,8 @@ vi.mock("@/lib/api", () => ({
   rejectClauseCandidate: rejectClauseCandidateMock,
   rejectCuiReadyApprovalChecklist: rejectCuiReadyApprovalChecklistMock,
   restoreReport: restoreReportMock,
+  requestReportPdfExport: requestReportPdfExportMock,
+  downloadReportExport: downloadReportExportMock,
   reclassifyEvidenceItem: reclassifyEvidenceItemMock,
   saveCompanyProfile: saveCompanyProfileMock,
   searchClauseLibrary: searchClauseLibraryMock,
@@ -1010,8 +1019,11 @@ describe("App", () => {
     getEvidencePackageMock.mockReset();
     getRecentReportsMock.mockReset();
     getReportArtifactMock.mockReset();
+    getReportExportMock.mockReset();
     archiveReportMock.mockReset();
     restoreReportMock.mockReset();
+    requestReportPdfExportMock.mockReset();
+    downloadReportExportMock.mockReset();
     getContractClausesMock.mockReset();
     getContractDeliverablesMock.mockReset();
     getContractDocumentExtractionResultsMock.mockReset();
@@ -1653,7 +1665,7 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByText(overview.productPromise)).toBeInTheDocument();
-    expect(screen.getByText("Control coverage")).toBeInTheDocument();
+    expect(screen.getByText("Control coverage", { selector: ".workspace-metric span" })).toBeInTheDocument();
     expect(screen.getByText("72%")).toBeInTheDocument();
     expect(screen.getByText("18 of 25 applicable controls implemented")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "Applicable control implementation coverage" })).toHaveAttribute("aria-valuenow", "72");
@@ -2888,11 +2900,46 @@ describe("App", () => {
     expect(detail).toHaveFocus();
     expect(within(detail).getByText("Auditor can inspect this persisted item.")).toBeInTheDocument();
     expect(within(detail).queryByRole("button", { name: "Archive report" })).not.toBeInTheDocument();
+    expect(within(detail).queryByRole("button", { name: "Download PDF" })).not.toBeInTheDocument();
+    expect(within(detail).queryByRole("button", { name: "Print PDF" })).not.toBeInTheDocument();
     expect(within(detail).queryByRole("textbox", { name: "Archive reason" })).not.toBeInTheDocument();
     expect(generateComplianceStatusReportMock).not.toHaveBeenCalled();
     expect(generateCmmcReadinessReportMock).not.toHaveBeenCalled();
     expect(generateSubcontractorComplianceReportMock).not.toHaveBeenCalled();
     expect(generateEvidencePackageMock).not.toHaveBeenCalled();
+  });
+
+  it("shows PDF print and download actions only when the server grants ExportReports", async () => {
+    const persistedReport = {
+      id: "33333333-3333-3333-3333-333333333303",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      type: "ComplianceStatus",
+      status: "Complete",
+      title: "Owner export report",
+      generatedAt: "2026-08-15T20:00:00Z",
+      generatedByUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      disclaimer: reportDisclaimer
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce({
+      ...allWorkflowAccess,
+      roles: ["Owner"],
+      permissions: [...allWorkflowAccess.permissions, "ExportReports"]
+    });
+    getRecentReportsMock.mockResolvedValueOnce([persistedReport]);
+    getReportArtifactMock.mockResolvedValueOnce({
+      ...persistedReport,
+      snapshot: { totalObligations: 1, highRiskItems: [] }
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.click(await screen.findByRole("link", { name: /reports/i }));
+    await user.click(screen.getByRole("button", { name: /Owner export report.*View report details/i }));
+
+    const detail = within(await screen.findByLabelText("Generated report detail"));
+    expect(detail.getByRole("button", { name: "Download PDF" })).toBeInTheDocument();
+    expect(detail.getByRole("button", { name: "Print PDF" })).toBeInTheDocument();
   });
 
   it("keeps contract navigation visible without loading evidence APIs for contract-only users", async () => {

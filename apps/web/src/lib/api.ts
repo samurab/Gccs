@@ -1268,6 +1268,20 @@ export type ReportArtifactDetail = ReportHistoryItem & {
   snapshot: Record<string, unknown>;
 };
 
+export type ReportExport = {
+  id: string;
+  tenantId: string;
+  reportId: string;
+  status: "Queued" | "Processing" | "Ready" | "Failed";
+  format: "pdf";
+  fileName: string;
+  contentType: string;
+  contentLength: number | null;
+  requestedAt: string;
+  completedAt: string | null;
+  failureCode: string | null;
+};
+
 export type ComplianceStatusReport = {
   id: string;
   tenantId: string;
@@ -2928,6 +2942,37 @@ export async function restoreReport(
   reason: string
 ): Promise<ApiMutationResult<ReportArtifactDetail>> {
   return postJsonResult<ReportArtifactDetail>(`/api/reports/${reportId}/restore`, { reason });
+}
+
+export async function requestReportPdfExport(reportId: string): Promise<ApiMutationResult<ReportExport>> {
+  return postJsonResult<ReportExport>(`/api/reports/${reportId}/exports/pdf`, {});
+}
+
+export async function getReportExport(exportId: string): Promise<ReportExport> {
+  return getRequiredJson<ReportExport>(`/api/report-exports/${exportId}`);
+}
+
+export async function downloadReportExport(exportId: string): Promise<{ blob: Blob; fileName: string }> {
+  const path = `/api/report-exports/${exportId}/content`;
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, { headers: await getApiHeaders() });
+  } catch {
+    throw new ApiRequestError("The API request could not be completed.", path);
+  }
+
+  if (!response.ok) {
+    throw new ApiRequestError(await readErrorMessage(response), path, response.status);
+  }
+
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const utf8Name = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const quotedName = disposition.match(/filename="([^"]+)"/i)?.[1];
+  return {
+    blob: await response.blob(),
+    fileName: utf8Name ? decodeURIComponent(utf8Name) : quotedName ?? `report-${exportId}.pdf`
+  };
 }
 
 export async function getEvidencePackage(reportId: string): Promise<EvidencePackageReport> {

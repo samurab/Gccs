@@ -104,6 +104,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<LaborClassificationEntity> LaborClassifications => Set<LaborClassificationEntity>();
     public DbSet<PayrollRecordEntity> PayrollRecords => Set<PayrollRecordEntity>();
     public DbSet<ReportEntity> Reports => Set<ReportEntity>();
+    public DbSet<ReportExportEntity> ReportExports => Set<ReportExportEntity>();
     public DbSet<AuditLogEntryEntity> AuditLogEntries => Set<AuditLogEntryEntity>();
     public DbSet<MvpModuleEntity> MvpModules => Set<MvpModuleEntity>();
 
@@ -161,6 +162,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<RegulatedProvisioningChecklistItem>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<RegulatedProvisioningStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ReportStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<ReportExportStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ReportType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ReviewState>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<RiskLevel>().HaveConversion<string>().HaveMaxLength(64);
@@ -1612,11 +1614,34 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("reports");
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.Type, x.Status });
             entity.Property(x => x.Status).IsConcurrencyToken();
             entity.Property(x => x.SnapshotJson).HasColumnType("jsonb");
             entity.Property(x => x.ClassificationReason).HasMaxLength(600);
             entity.Property(x => x.ArchiveReason).HasMaxLength(500);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ReportExportEntity>(entity =>
+        {
+            entity.ToTable("report_exports");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ReportId, x.Format, x.RenderVersion }).IsUnique();
+            entity.HasIndex(x => new { x.Status, x.RequestedAt });
+            entity.Property(x => x.Format).HasMaxLength(20);
+            entity.Property(x => x.RenderVersion).HasMaxLength(40);
+            entity.Property(x => x.ObjectName).HasMaxLength(500);
+            entity.Property(x => x.FileName).HasMaxLength(240);
+            entity.Property(x => x.ContentType).HasMaxLength(100);
+            entity.Property(x => x.ETag).HasMaxLength(200);
+            entity.Property(x => x.FailureCode).HasMaxLength(160);
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            entity.HasOne(x => x.Report)
+                .WithMany(x => x.Exports)
+                .HasForeignKey(x => new { x.TenantId, x.ReportId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
             ConfigureAuditColumns(entity);
         });
 

@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Gccs.Application.Reports;
 using Gccs.Application.Audit;
+using Gccs.Application.Storage;
+using Gccs.Api.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Reports;
@@ -45,8 +47,12 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
                 services.RemoveAll<GccsDbContext>();
                 services.RemoveAll<DbContextOptions<GccsDbContext>>();
                 services.RemoveAll<IAuditEventWriter>();
+                services.RemoveAll<IObjectStorageService>();
                 services.AddDbContext<GccsDbContext>(options => options.UseNpgsql(connectionString));
                 services.AddScoped<IAuditEventWriter, FailingAuditEventWriter>();
+                services.AddSingleton<TestObjectStorageService>();
+                services.AddSingleton<IObjectStorageService>(provider =>
+                    provider.GetRequiredService<TestObjectStorageService>());
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
@@ -117,6 +123,73 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
             Assert.Null(unchangedReport.ArchivedAt);
             Assert.Null(unchangedReport.ArchivedByUserId);
             Assert.Null(unchangedReport.ArchiveReason);
+            Assert.False(await verificationDbContext.AuditLogEntries.AnyAsync(audit => audit.TenantId == tenantId));
+
+            using var exportRequest = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/reports/{existingReportId}/exports/pdf");
+            exportRequest.Headers.Add("X-Gccs-Dev-Auth", "true");
+            exportRequest.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+            exportRequest.Headers.Add("X-Gccs-Dev-User", Guid.NewGuid().ToString());
+            exportRequest.Headers.Add("X-Gccs-Dev-Permissions", Permission.ExportReports.ToString());
+
+            using var exportResponse = await client.SendAsync(exportRequest);
+
+            Assert.Equal(HttpStatusCode.InternalServerError, exportResponse.StatusCode);
+            Assert.Contains("audit_write_failed", await exportResponse.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+            verificationDbContext.ChangeTracker.Clear();
+            Assert.False(await verificationDbContext.ReportExports.AnyAsync(export => export.TenantId == tenantId));
+            Assert.False(await verificationDbContext.AuditLogEntries.AnyAsync(audit => audit.TenantId == tenantId));
+
+            var processingActorId = Guid.NewGuid();
+            var processingExportId = Guid.NewGuid();
+            var processingLeaseId = Guid.NewGuid();
+            verificationDbContext.ReportExports.Add(new ReportExportEntity
+            {
+                Id = processingExportId,
+                TenantId = tenantId,
+                ReportId = existingReportId,
+                Format = "pdf",
+                RenderVersion = ReportExportConstants.RenderVersion,
+                Status = ReportExportStatus.Processing,
+                ObjectName = ReportExportService.BuildPendingObjectName(existingReportId, processingExportId),
+                FileName = "atomic-report.pdf",
+                ContentType = "application/pdf",
+                RequestedByUserId = processingActorId,
+                RequestedAt = DateTimeOffset.UtcNow,
+                ProcessingAttemptCount = 1,
+                ProcessingLeaseId = processingLeaseId,
+                ProcessingLeaseUntil = DateTimeOffset.UtcNow.AddMinutes(10),
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedByUserId = processingActorId
+            });
+            await verificationDbContext.SaveChangesAsync();
+
+            using (var processingScope = factory.Services.CreateScope())
+            {
+                processingScope.ServiceProvider.GetRequiredService<HttpTenantContext>().InitializeBackground(
+                    tenantId,
+                    processingActorId,
+                    "owner@example.test");
+                var claimed = new ClaimedReportExport(
+                    processingExportId,
+                    tenantId,
+                    existingReportId,
+                    processingActorId,
+                    "owner@example.test",
+                    processingLeaseId,
+                    1);
+                await Assert.ThrowsAsync<AuditWriteException>(() =>
+                    processingScope.ServiceProvider.GetRequiredService<ReportExportService>().ProcessAsync(claimed));
+            }
+
+            Assert.Equal(0, factory.Services.GetRequiredService<TestObjectStorageService>().Count);
+            verificationDbContext.ChangeTracker.Clear();
+            var unchangedExport = await verificationDbContext.ReportExports.SingleAsync(export => export.Id == processingExportId);
+            Assert.Equal(ReportExportStatus.Processing, unchangedExport.Status);
+            Assert.Equal(
+                ReportExportService.BuildPendingObjectName(existingReportId, processingExportId),
+                unchangedExport.ObjectName);
             Assert.False(await verificationDbContext.AuditLogEntries.AnyAsync(audit => audit.TenantId == tenantId));
         }
         finally
