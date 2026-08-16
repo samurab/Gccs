@@ -32,6 +32,7 @@ public enum Permission
     ViewReports,
     ManageReports,
     ArchiveReports,
+    ExportReports,
     ViewAuditLog,
     AuditorReadOnly,
     ViewEnclave,
@@ -102,6 +103,7 @@ public static class RoleCatalog
                     Permission.ManageTenant,
                     Permission.ManageUsers,
                     Permission.ViewAuditLog,
+                    Permission.ExportReports,
                     Permission.AuditorReadOnly
                 ])
                 .ToHashSet(),

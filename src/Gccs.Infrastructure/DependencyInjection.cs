@@ -154,6 +154,7 @@ public static class DependencyInjection
         services.AddScoped<CmmcReadinessReportService>();
         services.AddScoped<ReportHistoryService>();
         services.AddScoped<ReportLifecycleService>();
+        services.AddScoped<ReportExportService>();
         services.AddScoped<SprsReadinessReportService>();
         services.AddScoped<EsrsApplicabilityService>();
         services.AddScoped<SubcontractingReportDataService>();
@@ -282,6 +283,18 @@ public static class DependencyInjection
             options.Containers.Exports = configuration[$"{AzureBlobStorageOptions.SectionName}:Containers:Exports"] ?? options.Containers.Exports;
             options.Containers.Reports = configuration[$"{AzureBlobStorageOptions.SectionName}:Containers:Reports"] ?? options.Containers.Reports;
         });
+        if (configuration is not null)
+        {
+            services.Configure<ReportPdfOptions>(options =>
+            {
+                options.FontDirectory = configuration[$"{ReportPdfOptions.SectionName}:FontDirectory"] ?? options.FontDirectory;
+            });
+        }
+        else
+        {
+            services.Configure<ReportPdfOptions>(_ => { });
+        }
+        services.AddSingleton<IReportPdfRenderer, MigraDocReportPdfRenderer>();
         services.AddScoped<IObjectStorageService, AzureBlobObjectStorageService>();
         services.AddScoped<ContractDocumentFileService>();
         services.Configure<MalwareScanningOptions>(options =>
@@ -359,6 +372,7 @@ public static class DependencyInjection
             services.AddScoped<IDemoFollowUpRepository, EfDemoFollowUpRepository>();
             services.AddScoped<DemoRequestDeliveryService>();
             services.AddScoped<IReportRepository, EfReportRepository>();
+            services.AddScoped<IReportExportRepository, EfReportExportRepository>();
             services.AddScoped<ISimpleReportExportRepository, EfSimpleReportExportRepository>();
             services.AddScoped<IContractObligationMatrixRepository, EfContractObligationMatrixRepository>();
             services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
@@ -442,6 +456,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Due-date reminder persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IReportRepository>(_ =>
                 throw new InvalidOperationException("Report persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IReportExportRepository>(_ =>
+                throw new InvalidOperationException("Report export persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ISimpleReportExportRepository>(_ =>
                 throw new InvalidOperationException("Simple report export persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IContractObligationMatrixRepository>(_ =>

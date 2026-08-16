@@ -13,6 +13,7 @@ import {
   GitBranch,
   LayoutDashboard,
   RefreshCw,
+  Printer,
   ScrollText,
   Send,
   Settings,
@@ -79,6 +80,7 @@ import {
   getEvidencePackage,
   getRecentReports,
   getReportArtifact,
+  getReportExport,
   getCompanyProfile,
   getCmmcAssessments,
   getCmmcControlLibrary,
@@ -124,6 +126,8 @@ import {
   removeContractClause,
   rejectClauseCandidate,
   restoreReport,
+  requestReportPdfExport,
+  downloadReportExport,
   startContractDocumentExtraction,
   supersedeClauseCandidate,
   supersedeCuiReadyApprovalChecklist,
@@ -763,6 +767,7 @@ export function App() {
   const canManageCmmc = access.permissions.includes("ManageCmmc");
   const canManageReports = access.permissions.includes("ManageReports");
   const canArchiveReports = access.permissions.includes("ArchiveReports");
+  const canExportReports = access.permissions.includes("ExportReports");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
   const canManageTenant = access.permissions.includes("ManageTenant");
 
@@ -2530,6 +2535,7 @@ export function App() {
               approvedEvidencePackages={approvedEvidencePackages}
               assessments={cmmcAssessments}
               canArchiveReports={canArchiveReports}
+              canExportReports={canExportReports}
               canManageReports={canManageReports}
               controls={cmmcControlLibrary}
               contracts={contracts}
@@ -7163,6 +7169,7 @@ function ReportsView({
   approvedEvidencePackages,
   assessments,
   canArchiveReports,
+  canExportReports,
   canManageReports,
   controls,
   contracts,
@@ -7188,6 +7195,7 @@ function ReportsView({
   approvedEvidencePackages: ApprovedEvidencePackage[];
   assessments: CmmcAssessment[];
   canArchiveReports: boolean;
+  canExportReports: boolean;
   canManageReports: boolean;
   controls: CmmcControlLibrary[];
   contracts: ContractRecord[];
@@ -7458,6 +7466,7 @@ function ReportsView({
       {reportDetailStatus === "ready" && selectedReport ? (
         <ReportDetailPanel
           canArchive={canArchiveReports && "snapshot" in selectedReport}
+          canExport={canExportReports && "snapshot" in selectedReport}
           report={selectedReport}
           onArchiveStateChange={onReportArchiveStateChange}
           onClose={onReportDetailClose}
@@ -7502,11 +7511,13 @@ function renderReportSummary(report: ReportArtifact) {
 
 function ReportDetailPanel({
   canArchive,
+  canExport,
   onArchiveStateChange,
   onClose,
   report
 }: {
   canArchive: boolean;
+  canExport: boolean;
   onArchiveStateChange: (reportId: string, archived: boolean, reason: string) => Promise<boolean>;
   onClose: () => void;
   report: ReportArtifact;
@@ -7514,6 +7525,10 @@ function ReportDetailPanel({
   const panelRef = useRef<HTMLElement>(null);
   const [lifecycleReason, setLifecycleReason] = useState("");
   const [lifecyclePending, setLifecyclePending] = useState(false);
+  const [exportPending, setExportPending] = useState<"download" | "print" | null>(null);
+  const [exportMessage, setExportMessage] = useState("");
+  const exportOperationRef = useRef(0);
+  const pendingPrintWindowRef = useRef<Window | null>(null);
   const metrics = reportDetailMetrics(report);
   const items = reportDetailItems(report);
   const isArchived = report.status === "Archived";
@@ -7527,6 +7542,12 @@ function ReportDetailPanel({
     panel.scrollIntoView?.({ behavior: isDemoCaptureMode() ? "auto" : "smooth", block: "start" });
     panel.focus({ preventScroll: true });
   }, [report.id]);
+
+  useEffect(() => () => {
+    exportOperationRef.current += 1;
+    pendingPrintWindowRef.current?.close();
+    pendingPrintWindowRef.current = null;
+  }, []);
 
   async function handleLifecycleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -7542,6 +7563,80 @@ function ReportDetailPanel({
       }
     } finally {
       setLifecyclePending(false);
+    }
+  }
+
+  async function handlePdfExport(action: "download" | "print") {
+    const operationId = ++exportOperationRef.current;
+    const printWindow = action === "print" ? window.open("", "_blank") : null;
+    if (action === "print" && !printWindow) {
+      setExportMessage("The browser blocked the print window. Allow pop-ups for this site and try again.");
+      return;
+    }
+    if (printWindow) {
+      pendingPrintWindowRef.current = printWindow;
+      printWindow.opener = null;
+      printWindow.document.title = "Preparing report PDF";
+      printWindow.document.body.textContent = "Preparing report PDF…";
+    }
+
+    setExportPending(action);
+    setExportMessage("Preparing the tenant-scoped PDF…");
+    try {
+      const requested = await requestReportPdfExport(report.id);
+      if (!requested.data) {
+        throw new Error(requested.error ?? "The PDF export could not be requested.");
+      }
+      if (operationId !== exportOperationRef.current) {
+        return;
+      }
+
+      let exportRecord = requested.data;
+      for (let attempt = 0; exportRecord.status === "Queued" || exportRecord.status === "Processing"; attempt += 1) {
+        if (attempt >= 60) {
+          throw new Error("The PDF is still processing. Try again shortly.");
+        }
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 1_000));
+        if (operationId !== exportOperationRef.current) {
+          return;
+        }
+        exportRecord = await getReportExport(exportRecord.id);
+      }
+      if (exportRecord.status !== "Ready") {
+        throw new Error("The PDF could not be generated. Try again or contact an administrator.");
+      }
+
+      const downloaded = await downloadReportExport(exportRecord.id);
+      if (operationId !== exportOperationRef.current) {
+        return;
+      }
+      const objectUrl = URL.createObjectURL(downloaded.blob);
+      if (action === "print" && printWindow) {
+        printWindow.location.replace(objectUrl);
+        printWindow.addEventListener("load", () => printWindow.print(), { once: true });
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        pendingPrintWindowRef.current = null;
+        setExportMessage("The PDF opened in a print window.");
+      } else {
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = downloaded.fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+        setExportMessage("The PDF download started.");
+      }
+    } catch (error) {
+      printWindow?.close();
+      pendingPrintWindowRef.current = null;
+      if (operationId === exportOperationRef.current) {
+        setExportMessage(error instanceof Error ? error.message : "The PDF export could not be completed.");
+      }
+    } finally {
+      if (operationId === exportOperationRef.current) {
+        setExportPending(null);
+      }
     }
   }
 
@@ -7570,6 +7665,28 @@ function ReportDetailPanel({
       <Alert title="Artifact limitations" tone="warning">
         {report.disclaimer}
       </Alert>
+
+      {canExport ? (
+        <div className="form-actions" aria-label="Owner report export actions">
+          <Button
+            disabled={exportPending !== null}
+            icon={<FileDown size={16} aria-hidden="true" />}
+            onClick={() => void handlePdfExport("download")}
+            variant="secondary"
+          >
+            {exportPending === "download" ? "Preparing PDF…" : "Download PDF"}
+          </Button>
+          <Button
+            disabled={exportPending !== null}
+            icon={<Printer size={16} aria-hidden="true" />}
+            onClick={() => void handlePdfExport("print")}
+            variant="secondary"
+          >
+            {exportPending === "print" ? "Preparing print…" : "Print PDF"}
+          </Button>
+        </div>
+      ) : null}
+      {exportMessage ? <p className="form-status" role="status">{exportMessage}</p> : null}
 
       {isArchived && "archiveReason" in report && report.archiveReason ? (
         <Alert title="Archived report" tone="warning">

@@ -641,6 +641,31 @@ public sealed class ReportEntity : AuditedEntity
     public ICollection<ReportContractEntity> Contracts { get; set; } = [];
     public ICollection<ReportObligationEntity> Obligations { get; set; } = [];
     public ICollection<ReportEvidenceEntity> EvidenceItems { get; set; } = [];
+    public ICollection<ReportExportEntity> Exports { get; set; } = [];
+}
+
+public sealed class ReportExportEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ReportId { get; set; }
+    public string Format { get; set; } = "pdf";
+    public string RenderVersion { get; set; } = string.Empty;
+    public ReportExportStatus Status { get; set; }
+    public string ObjectName { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = "application/pdf";
+    public long? ContentLength { get; set; }
+    public string? ETag { get; set; }
+    public Guid RequestedByUserId { get; set; }
+    public DateTimeOffset RequestedAt { get; set; }
+    public int ProcessingAttemptCount { get; set; }
+    public Guid? ProcessingLeaseId { get; set; }
+    public DateTimeOffset? ProcessingLeaseUntil { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public string? FailureCode { get; set; }
+
+    public ReportEntity? Report { get; set; }
 }
 
 public sealed class ReportContractEntity

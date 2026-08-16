@@ -34,7 +34,9 @@ public sealed class EndpointAuthorizationContractTests : IClassFixture<WebApplic
                     endpoint.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName ?? string.Empty,
                     permission));
             })
-            .Where(endpoint => endpoint.Route.StartsWith("/api/reports", StringComparison.Ordinal))
+            .Where(endpoint =>
+                endpoint.Route.StartsWith("/api/reports", StringComparison.Ordinal) ||
+                endpoint.Route.StartsWith("/api/report-exports", StringComparison.Ordinal))
             .OrderBy(endpoint => endpoint.Method)
             .ThenBy(endpoint => endpoint.Route)
             .ToArray();
@@ -46,11 +48,14 @@ public sealed class EndpointAuthorizationContractTests : IClassFixture<WebApplic
             new("GET", "/api/reports/exports/{reportType}", "ExportSimpleReportCsv", Permission.ViewReports),
             new("GET", "/api/reports/recent", "ListRecentReports", Permission.ViewReports),
             new("GET", "/api/reports/{reportId:guid}", "GetReportArtifact", Permission.ViewReports),
+            new("GET", "/api/report-exports/{exportId:guid}", "GetReportPdfExport", Permission.ExportReports),
+            new("GET", "/api/report-exports/{exportId:guid}/content", "DownloadReportPdfExport", Permission.ExportReports),
             new("POST", "/api/reports/cmmc-readiness", "GenerateCmmcReadinessReport", Permission.ManageReports),
             new("POST", "/api/reports/compliance-status", "GenerateComplianceStatusReport", Permission.ManageReports),
             new("POST", "/api/reports/evidence-packages", "GenerateEvidencePackage", Permission.ManageReports),
             new("POST", "/api/reports/subcontractor-compliance", "GenerateSubcontractorComplianceReport", Permission.ManageReports),
             new("POST", "/api/reports/{reportId:guid}/archive", "ArchiveReport", Permission.ArchiveReports),
+            new("POST", "/api/reports/{reportId:guid}/exports/pdf", "RequestReportPdfExport", Permission.ExportReports),
             new("POST", "/api/reports/{reportId:guid}/restore", "RestoreReport", Permission.ArchiveReports)
         ];
 
