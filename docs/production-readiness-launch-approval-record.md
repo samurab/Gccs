@@ -201,6 +201,27 @@ This approval is not independent legal, security, privacy, compliance, accessibi
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, platform authorization weakens, or customer-facing claims expand beyond the reviewed candidate scope.
 
+## Owner Report PDF Export Candidate Reapproval - 2026-08-16
+
+The repository owner and deployment operator, `samurab`, explicitly requested committing and pushing the worktree, deploying to staging, merging to `main`, creating an approved launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-08-16-1` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-16 |
+| Candidate | `launch-candidate-2026-08-16-1` at `d0fa9503c0487aacd54443f971c04982501fe408` |
+| Scope | PR #63 adds Owner-only, tenant-scoped asynchronous PDF report exports; server-authoritative status and content endpoints; an EF Core export record and additive migration; unique object locators, bounded leases and retries, transaction-aware audit updates, compensating object cleanup, UI download/print states, focused authorization and PostgreSQL rollback coverage, and bounded CI timeout headroom. |
+| Exact-candidate automated evidence | PR #63 corrective CI run `31964342258`; main CI run `31965707419`; staging deployment run `31965707397`; Static Web Apps run `31965707413`. Main CI passed 1,544 backend tests, 122 frontend tests, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation at precision 1.0 and recall 1.0, and the real-stack report RBAC/rollback gate. |
+| Exact-candidate staging evidence | Run `31965707397` built the exact merge commit, generated and applied the idempotent migration script, validated No-CUI and staging infrastructure guardrails, deployed API and web artifacts, and passed dependency health checks. Staging smoke artifact `9268469515` contains the health output and migration script. |
+| Security and migration scope | The change touches tenant-scoped report access, Owner RBAC, audit behavior, object storage, a hosted worker, and persistence. Approval relies on server-side permission and tenant-isolation tests, real PostgreSQL rollback tests, composite tenant/report referential integrity, immutable snapshot semantics, unique export object locators, and exact-candidate migration application. |
+| CI gate correction | The first PR CI run `31962872540` completed all 1,544 selected backend tests successfully but crossed the former 25-minute step cap by one second. Commit `2ac0d81e6912679d53441caf8c88284cadc5389e` increased bounded outer timeouts while retaining the 10-minute per-test hang detector; corrective run `31964342258` and exact-main run `31965707419` passed. |
+| Unresolved limitations | Review is solo-controlled rather than independent. Health and automated tests do not replace an authenticated production export smoke for every role. Compensating object deletion can itself fail and therefore still relies on storage lifecycle cleanup and monitoring. In-process PDF rendering and one polling worker per API replica remain bounded but scale with replica count rather than a dedicated queue-worker tier. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, secure CUI storage, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, report-export authorization or tenant isolation weakens, or customer-facing claims expand beyond the reviewed candidate scope.
+
 ## Evidence Package Reviewed
 
 Required approval reviewers must inspect these artifacts before approval can be recorded:
