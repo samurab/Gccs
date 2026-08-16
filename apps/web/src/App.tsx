@@ -44,6 +44,7 @@ import {
   WorkflowColumn,
   WorkspaceMetricStrip
 } from "@/components/ui";
+import { formatUsDateOnly, formatUsDateTime } from "./lib/dateFormat";
 import {
   acknowledgeNoCuiNotice,
   acknowledgeSharedResponsibilityMatrix,
@@ -2655,7 +2656,7 @@ function NotificationCenter({
               <div>
                 <strong>{notification.placeholder}</strong>
                 <small>
-                  {notification.sourceType} · {new Date(notification.attemptedAt).toLocaleString()}
+                  {notification.sourceType} · {formatUsDateTime(notification.attemptedAt)}
                 </small>
               </div>
               <div className="notification-center__actions">
@@ -5378,7 +5379,7 @@ function ProfileView({
                   <strong>{result.legalBusinessName}</strong> {result.uei} {result.cageCode ? `CAGE ${result.cageCode}` : ""}
                 </p>
                 <p>
-                  {result.source} retrieved {new Date(result.retrievedAt).toLocaleString()} · {result.registrationStatus ?? "Status unknown"} · SAM expires{" "}
+                  {result.source} retrieved {formatUsDateTime(result.retrievedAt)} · {result.registrationStatus ?? "Status unknown"} · SAM expires{" "}
                   {result.samRegistrationExpiresAt ?? "unknown"}
                 </p>
                 <p>
@@ -6686,7 +6687,7 @@ function SubcontractorsView({
                     <strong>{result.legalBusinessName}</strong> {result.uei} {result.cageCode ? `CAGE ${result.cageCode}` : ""}
                   </p>
                   <p>
-                    {result.source} retrieved {new Date(result.retrievedAt).toLocaleString()} · {result.registrationStatus ?? "Status unknown"} · SAM expires{" "}
+                  {result.source} retrieved {formatUsDateTime(result.retrievedAt)} · {result.registrationStatus ?? "Status unknown"} · SAM expires{" "}
                     {result.samRegistrationExpiresAt ?? "unknown"} · {result.exclusionStatus ?? "Exclusions unknown"}
                   </p>
                   <p>NAICS {result.naicsCodes.map((naics) => naics.code).join(", ") || "unknown"}</p>
@@ -7418,7 +7419,7 @@ function ReportsView({
                 >
                   <strong>{report.title}</strong>
                   <span>
-                    {report.type} · {report.status} · {new Date(report.generatedAt).toLocaleString()}
+                    {report.type} · {report.status} · {formatUsDateTime(report.generatedAt)}
                   </span>
                   <span>{reportCardSummary(report)}</span>
                   <span className="report-artifact-card__disclaimer">{report.disclaimer}</span>
@@ -7445,7 +7446,7 @@ function ReportsView({
                 >
                   <strong>{report.title}</strong>
                   <span>
-                    {report.status} · {report.evidenceItems.length} approved items · {new Date(report.generatedAt).toLocaleDateString()}
+                    {report.status} · {report.evidenceItems.length} approved items · {formatUsDateOnly(report.generatedAt)}
                   </span>
                   <span className="report-artifact-card__disclaimer">{report.disclaimer}</span>
                   <span className="report-artifact-card__action">View package details</span>
@@ -7654,7 +7655,7 @@ function ReportDetailPanel({
           <h3>{report.title}</h3>
           <p>
             {formatEnumLabel(report.type)} · {formatEnumLabel(report.status)} · generated{" "}
-            {new Date(report.generatedAt).toLocaleString()}
+            {formatUsDateTime(report.generatedAt)}
           </p>
         </div>
         <Button icon={<X size={16} aria-hidden="true" />} onClick={onClose} variant="secondary">
@@ -8343,7 +8344,7 @@ function NoCuiAcknowledgementPanel({
           {acknowledgement.acknowledgedAt ? (
             <div>
               <dt>Acknowledged</dt>
-              <dd>{new Date(acknowledgement.acknowledgedAt).toLocaleString()}</dd>
+              <dd>{formatUsDateTime(acknowledgement.acknowledgedAt)}</dd>
             </div>
           ) : null}
         </dl>
@@ -8965,7 +8966,7 @@ function SharedResponsibilityMatrixPanel({
                   <article className="member-row" role="row" key={acknowledgement.id}>
                     <span role="cell">{acknowledgement.matrixVersion}</span>
                     <span role="cell">{acknowledgement.status}</span>
-                    <span role="cell">{new Date(acknowledgement.acknowledgedAt).toLocaleString()}</span>
+                    <span role="cell">{formatUsDateTime(acknowledgement.acknowledgedAt)}</span>
                     <span role="cell">{acknowledgement.acknowledgedByUserId}</span>
                   </article>
                 ))}
@@ -9111,7 +9112,7 @@ function TenantModePanel({
             </div>
             {history.map((entry) => (
               <article className="member-row" role="row" key={entry.id}>
-                <span role="cell">{new Date(entry.changedAt).toLocaleString()}</span>
+                <span role="cell">{formatUsDateTime(entry.changedAt)}</span>
                 <span role="cell">{entry.previousMode ?? "Initial"}</span>
                 <span role="cell">{entry.newMode}</span>
                 <span role="cell">{entry.reason}</span>
@@ -9233,7 +9234,7 @@ function InvitationListItem({
           </Button>
         ) : null}
       </div>
-      <span className="invitation-date">Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
+      <span className="invitation-date">Expires {formatUsDateOnly(invitation.expiresAt)}</span>
       {!isDemoCaptureMode() ? <small className="notification-placeholder">{invitation.notificationPlaceholder}</small> : null}
       {isConfirming ? (
         <form className="invitation-revoke-form" onSubmit={handleRevoke}>
@@ -9694,7 +9695,7 @@ function SettingsView({
 
                   return (
                     <article className="member-row" data-testid="audit-row" role="row" key={entry.id}>
-                      <span role="cell">{new Date(entry.occurredAt).toLocaleString()}</span>
+                      <span role="cell">{formatUsDateTime(entry.occurredAt)}</span>
                       <span role="cell">{isDemoCaptureMode() && entry.actorUserId ? "Tenant user" : (entry.actorUserId ?? "System")}</span>
                       <span role="cell">{entry.action}</span>
                       <span role="cell">{entry.entityType}</span>

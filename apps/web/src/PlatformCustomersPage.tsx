@@ -1,6 +1,7 @@
 import { Building2, ChevronLeft, ChevronRight, LoaderCircle, LockKeyhole, Search, ShieldAlert } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { PlatformAdminNav } from "./PlatformAdminNav";
+import { formatUsDateOnly } from "./lib/dateFormat";
 import {
   getPlatformAccess,
   getPlatformCustomers,
@@ -127,9 +128,7 @@ export function PlatformCustomersPage() {
 }
 
 function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(0, 10);
+  return formatUsDateOnly(value);
 }
 
 function attentionLabel(value: PlatformCustomerAttention) {

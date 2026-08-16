@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlatformDemoRequestsPage } from "./PlatformDemoRequestsPage";
 import * as api from "./lib/api";
+import { formatUsMonthDay, formatUsWeekdayMonthDay } from "./lib/dateFormat";
 
 vi.mock("./lib/api", async importOriginal => ({ ...(await importOriginal<typeof api>()), confirmPlatformDemoAppointment: vi.fn(), getPlatformAccess: vi.fn(), getPlatformDemoRequestCalendar: vi.fn(), getPlatformDemoRequests: vi.fn(), queuePlatformDemoRequestResponse: vi.fn() }));
 beforeEach(() => {
@@ -23,6 +24,7 @@ describe("PlatformDemoRequestsPage", () => {
     render(<PlatformDemoRequestsPage />);
     expect(await screen.findByRole("heading", { name: "Northstar Systems" })).toBeInTheDocument();
     expect(screen.getAllByText("Captured locally")).toHaveLength(1);
+    expect(screen.getByText(/\(Eastern\)/)).toBeInTheDocument();
     expect(screen.getByText("Readiness workflow")).toBeInTheDocument();
     expect(screen.getByText("Prepare an evidence-focused demo.")).toBeInTheDocument();
     expect(screen.getByText("Evidence is spread across shared drives.")).toBeInTheDocument();
@@ -72,12 +74,12 @@ describe("PlatformDemoRequestsPage", () => {
     });
 
     render(<PlatformDemoRequestsPage />);
-    const requestedDayLabel = `${requestedAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })}: 1 demo appointment, 0 confirmed`;
+    const requestedDayLabel = `${formatUsMonthDay(requestedAt.toISOString().slice(0, 10))}: 1 demo appointment, 0 confirmed`;
     const requestedDay = await screen.findByRole("button", { name: requestedDayLabel });
     expect(screen.getByText(/requested times are tentative/i)).toBeInTheDocument();
     fireEvent.click(requestedDay);
 
-    expect(screen.getByRole("heading", { name: requestedAt.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: formatUsWeekdayMonthDay(requestedAt.toISOString().slice(0, 10)) })).toBeInTheDocument();
     expect(screen.getByText("Calendar Company")).toBeInTheDocument();
     expect(screen.getByText("Requested")).toBeInTheDocument();
     expect(screen.queryByText("Confirmed")).not.toBeInTheDocument();

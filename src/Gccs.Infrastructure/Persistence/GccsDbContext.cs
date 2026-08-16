@@ -14,6 +14,7 @@ using Gccs.Domain.People;
 using Gccs.Domain.Reports;
 using Gccs.Domain.Tenancy;
 using Gccs.Domain.Vendors;
+using Gccs.Infrastructure.Compliance;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -934,6 +935,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("mvp_modules");
             entity.HasKey(x => x.Key);
+            entity.HasData(MvpModuleCatalog.CreateEntities());
         });
     }
 

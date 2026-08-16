@@ -3,6 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { submitDemoRequest } from "./demoRequestApi";
+import { defaultUsTimeZone, formatUsTimeZoneLabel } from "./lib/dateFormat";
 
 type DemoRequestButtonProps = {
   label: string;
@@ -21,7 +22,13 @@ function formatSchedulerBoundary(value: string) {
   const boundary = new Date(value);
   return Number.isNaN(boundary.getTime())
     ? value.replace("T", " ")
-    : new Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle: "short" }).format(boundary);
+    : new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(boundary);
 }
 
 function getSchedulerValidationMessage(input: HTMLInputElement) {
@@ -42,7 +49,7 @@ export function DemoRequestButton({ label, className = "" }: DemoRequestButtonPr
   const titleId = useId();
   const descriptionId = useId();
   const schedulerErrorId = useId();
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const timeZone = defaultUsTimeZone;
   const [schedulerBounds, setSchedulerBounds] = useState(createSchedulerBounds);
   const [schedulerError, setSchedulerError] = useState("");
 
@@ -289,7 +296,7 @@ export function DemoRequestButton({ label, className = "" }: DemoRequestButtonPr
                     />
                   </label>
                   {schedulerError ? <p className="demo-request-form__error" id={schedulerErrorId} role="alert">{schedulerError}</p> : null}
-                  <p>Time zone: <strong>{timeZone}</strong></p>
+                  <p>Time zone: <strong>{formatUsTimeZoneLabel(timeZone)}</strong></p>
                   <small>This is a requested 30-minute time, not a confirmed reservation. FeDril will confirm availability separately.</small>
                 </fieldset>
                 <label className="demo-request-form__consent demo-request-form__wide">

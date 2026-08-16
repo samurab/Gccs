@@ -8,6 +8,7 @@ import {
   selectTenant,
   type InvitationAcceptanceContext
 } from "./lib/api";
+import { formatUsDateTime } from "./lib/dateFormat";
 
 type PageState = "loading" | "identity" | "ready" | "submitting" | "success" | "error";
 
@@ -141,7 +142,7 @@ export function InvitationAcceptancePage() {
             <div className="invitation-activation-summary">
               <div><span>Account</span><strong>{context.email}</strong></div>
               <div><span>Role</span><strong>{context.roleName}</strong></div>
-              <div><span>Expires</span><strong>{new Date(context.expiresAt).toLocaleString()}</strong></div>
+              <div><span>Expires</span><strong>{formatUsDateTime(context.expiresAt)}</strong></div>
             </div>
             <label>
               <span>Display name</span>

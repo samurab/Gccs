@@ -28,7 +28,10 @@ using Gccs.Domain.Contracts;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure;
+using Gccs.Infrastructure.Compliance;
+using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Marketing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -140,6 +143,14 @@ if (builder.Environment.IsDevelopment())
 }
 
 var app = builder.Build();
+
+if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
+{
+    using var migrationScope = app.Services.CreateScope();
+    var dbContext = migrationScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+    await dbContext.Database.MigrateAsync();
+    await MvpModuleCatalogSeeder.SyncAsync(dbContext);
+}
 
 if (app.Environment.IsDevelopment())
 {

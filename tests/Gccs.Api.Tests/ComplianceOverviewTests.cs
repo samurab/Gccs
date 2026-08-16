@@ -64,10 +64,59 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         Assert.Equal(1, overview.ContractRiskIndicator.ActiveContracts);
         Assert.Equal(1, overview.ContractRiskIndicator.HighRiskObligations);
         Assert.Equal(1, overview.ContractRiskIndicator.OverdueHighRiskTasks);
+        var priorityObligation = Assert.Single(overview.PriorityObligations);
+        Assert.Equal("overview-risk-A", priorityObligation.Id);
+        Assert.Equal("FAR risk A", priorityObligation.Source);
+        Assert.Equal("High risk obligation A", priorityObligation.Title);
+        Assert.Equal("Security", priorityObligation.OwnerFunction);
+        Assert.Equal("High", priorityObligation.RiskLevel);
+        Assert.Equal("https://www.acquisition.gov/far", priorityObligation.SourceUrl);
+        Assert.Equal(DateOnly.Parse("2026-06-01"), priorityObligation.LastReviewedAt);
         Assert.Equal(["Evidence uploaded"], overview.RecentAuditEvents.Select(item => item.Summary).ToArray());
         Assert.Contains(overview.Alerts, alert => alert.AlertType == "overdue_poam");
         Assert.Contains(overview.Alerts, alert => alert.AlertType == "control_without_evidence");
         Assert.Contains(overview.Alerts, alert => alert.AlertType == "evidence_pending_review");
+    }
+
+    [Fact]
+    public async Task Dashboard_marks_contract_intake_as_active()
+    {
+        var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151a9");
+        await using var factory = CreatePersistenceFactory("overview-module-status");
+        using var client = factory.CreateClient();
+        using var request = CreateOverviewRequest(tenantId, Permission.ViewObligations);
+
+        var response = await client.SendAsync(request);
+        var overview = await response.Content.ReadFromJsonAsync<ComplianceOverviewDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(overview);
+        var contractIntake = Assert.Single(overview.Modules, module => module.Key == "contract-intake");
+        Assert.Equal("Contract and clause intake", contractIntake.Name);
+        Assert.Equal("Collect solicitations, contracts, flow-downs, wage determinations, and CUI guides.", contractIntake.Purpose);
+        Assert.Equal("active", contractIntake.Status);
+    }
+
+    [Fact]
+    public async Task Dashboard_repairs_stale_module_status_before_reading()
+    {
+        var tenantId = Guid.Parse("51515151-5151-5151-5151-5151515151aa");
+        await using var factory = CreatePersistenceFactory("overview-module-stale-status", dbContext =>
+        {
+            var module = dbContext.MvpModules.Single(m => m.Key == "contract-intake");
+            module.Status = "planned";
+            dbContext.MvpModules.Update(module);
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateOverviewRequest(tenantId, Permission.ViewObligations);
+
+        var response = await client.SendAsync(request);
+        var overview = await response.Content.ReadFromJsonAsync<ComplianceOverviewDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(overview);
+        var contractIntake = Assert.Single(overview.Modules, module => module.Key == "contract-intake");
+        Assert.Equal("active", contractIntake.Status);
     }
 
     [Fact]
@@ -188,6 +237,8 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
         Assert.Equal(2, overview.EvidenceItems);
         Assert.Equal(1, overview.ContractRiskIndicator.ActiveContracts);
         Assert.Equal(1, overview.ContractRiskIndicator.HighRiskObligations);
+        Assert.Single(overview.PriorityObligations, item => item.Id == "overview-risk-A");
+        Assert.DoesNotContain(overview.PriorityObligations, item => item.Id.Contains("B", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(overview.RecentAuditEvents, item => item.Summary.Contains("B", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(overview.Alerts, item => item.Message.Contains("B", StringComparison.OrdinalIgnoreCase));
     }
@@ -318,6 +369,7 @@ public sealed class ComplianceOverviewTests : IClassFixture<WebApplicationFactor
                 dbContext.Database.EnsureCreated();
                 seed?.Invoke(dbContext);
                 dbContext.SaveChanges();
+                MvpModuleCatalogSeeder.SyncAsync(dbContext).GetAwaiter().GetResult();
             });
         });
 

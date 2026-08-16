@@ -28,6 +28,7 @@ import {
   type PlatformTenantProvisioningResult
 } from "./lib/api";
 import { PlatformAdminNav } from "./PlatformAdminNav";
+import { formatUsDateTime } from "./lib/dateFormat";
 
 type FormState = {
   onboardingType: "Pilot" | "Paid";
@@ -684,14 +685,14 @@ function ProvisioningSuccess({
         <div><dt>Invitation</dt><dd>{result.invitationStatus}</dd></div>
         <div><dt>Email delivery</dt><dd>{result.invitationDeliveryStatus}</dd></div>
         <div><dt>Data handling</dt><dd>{result.dataHandlingMode}</dd></div>
-        <div><dt>Expires</dt><dd>{new Date(result.invitationExpiresAt).toLocaleString()}</dd></div>
+        <div><dt>Expires</dt><dd>{formatUsDateTime(result.invitationExpiresAt)}</dd></div>
       </dl>
       <div className="platform-success-note">
         <LockKeyhole aria-hidden="true" size={18} />
         {isCancelled
-          ? `Cancelled${result.cancelledAt ? ` ${new Date(result.cancelledAt).toLocaleString()}` : ""}: ${result.cancellationReason ?? "No reason recorded."}`
+          ? `Cancelled${result.cancelledAt ? ` ${formatUsDateTime(result.cancelledAt)}` : ""}: ${result.cancellationReason ?? "No reason recorded."}`
           : result.invitationDeliveryStatus === "Sent"
-          ? `Invitation email sent${result.invitationNotificationSentAt ? ` ${new Date(result.invitationNotificationSentAt).toLocaleString()}` : ""}.`
+          ? `Invitation email sent${result.invitationNotificationSentAt ? ` ${formatUsDateTime(result.invitationNotificationSentAt)}` : ""}.`
           : "Invitation email is queued for asynchronous delivery."}
       </div>
       {resendState === "error" ? <div className="platform-form-error" role="alert"><ShieldAlert aria-hidden="true" size={18} /><span>{resendError}</span></div> : null}

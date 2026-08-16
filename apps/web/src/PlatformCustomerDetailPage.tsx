@@ -2,6 +2,7 @@ import { ArrowLeft, Building2, LoaderCircle, LockKeyhole, RefreshCw, ShieldAlert
 import { useEffect, useState } from "react";
 import { PlatformAdminNav } from "./PlatformAdminNav";
 import { PlatformCustomerSubscriptionActions } from "./PlatformCustomerSubscriptionActions";
+import { formatUsDateTime } from "./lib/dateFormat";
 import { getPlatformAccess, getPlatformCustomer, resendPlatformTenantInvitation, type PlatformAccess, type PlatformCustomerDetail } from "./lib/api";
 import { getPlatformCustomerTenantId } from "./routing";
 
@@ -74,5 +75,5 @@ export function PlatformCustomerDetailPage() {
 }
 
 function Value({ label, value }: { label: string; value: string | null | undefined }) { return <div><dt>{label}</dt><dd>{value || "—"}</dd></div>; }
-function formatTimestamp(value: string | null | undefined) { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toISOString().replace(".000Z", "Z"); }
+function formatTimestamp(value: string | null | undefined) { return formatUsDateTime(value); }
 function DetailState({ body, icon: Icon, spin, title }: { body: string; icon: typeof Building2; spin?: boolean; title: string }) { return <main className="platform-console-state"><Icon aria-hidden="true" className={spin ? "spin" : undefined} size={32} /><h1>{title}</h1><p>{body}</p><a href="/platform/customers">Return to customers</a></main>; }
