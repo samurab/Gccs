@@ -123,6 +123,20 @@ public sealed class EfDemoFollowUpRepository(
                 request.RespondedAt))
             .SingleOrDefaultAsync(cancellationToken);
 
+    public Task<DemoFollowUpPreviewRecord?> GetPreviewAsync(
+        Guid demoRequestId,
+        Guid followUpRequestId,
+        CancellationToken cancellationToken = default) =>
+        dbContext.DemoFollowUpRequests.AsNoTracking()
+            .Where(request => request.Id == followUpRequestId && request.DemoRequestId == demoRequestId)
+            .Select(request => new DemoFollowUpPreviewRecord(
+                request.Id,
+                request.DemoRequestId,
+                request.TokenHash,
+                request.Status,
+                request.ExpiresAt))
+            .SingleOrDefaultAsync(cancellationToken);
+
     public async Task<DemoFollowUpSubmissionDisposition> SubmitResponseAsync(
         string tokenHash,
         DemoFollowUpResponseCommand command,

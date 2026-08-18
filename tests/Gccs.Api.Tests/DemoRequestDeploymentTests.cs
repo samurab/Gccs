@@ -39,6 +39,38 @@ public sealed class DemoRequestDeploymentTests
     }
 
     [Fact]
+    public void Development_requester_email_accepts_loopback_http_without_an_internal_recipient()
+    {
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.DevelopmentRequesterEmailProvider,
+            Endpoint = "https://example.communication.azure.com",
+            UseManagedIdentity = true,
+            SenderAddress = "donotreply@example.com",
+            PublicWebBaseUrl = "http://127.0.0.1:5173",
+            FollowUpTokenSigningKey = string.Concat(Enumerable.Repeat("demo-follow-up-test-", 3))
+        };
+
+        DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: true);
+    }
+
+    [Fact]
+    public void Development_requester_email_is_rejected_outside_development()
+    {
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.DevelopmentRequesterEmailProvider
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: false));
+
+        Assert.Contains("only in the Development environment", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Azure_communication_delivery_remains_valid_outside_development()
     {
         var options = new DemoRequestOptions

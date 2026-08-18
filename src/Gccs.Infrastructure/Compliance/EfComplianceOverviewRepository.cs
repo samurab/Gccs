@@ -27,6 +27,16 @@ public sealed class EfComplianceOverviewRepository(
         var tenantId = tenantContext.TenantId;
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
+        var modules = await dbContext.MvpModules
+            .AsNoTracking()
+            .OrderBy(module => module.Key)
+            .Select(module => new ModuleStatusDto(
+                module.Key,
+                module.Name,
+                module.Purpose,
+                module.Status))
+            .ToArrayAsync(cancellationToken);
+
         var controlStatuses = await dbContext.ControlAssessments
             .AsNoTracking()
             .Where(control =>
@@ -70,6 +80,7 @@ public sealed class EfComplianceOverviewRepository(
                 entry.Summary))
             .ToArrayAsync(cancellationToken);
 
+        var priorityObligations = await BuildPriorityObligationsAsync(tenantId, today, cancellationToken);
         var alerts = await BuildAlertsAsync(tenantId, today, cancellationToken);
         var controlCountByStatus = controlStatuses.ToDictionary(item => item.Status, item => item.Count);
         var controlsTotal = controlStatuses.Sum(item => item.Count);
@@ -99,10 +110,136 @@ public sealed class EfComplianceOverviewRepository(
             evidenceItems,
             readinessScore,
             contractRiskIndicator,
-            recentAuditEvents)
+            recentAuditEvents,
+            modules)
         {
+            PriorityObligations = priorityObligations,
             Alerts = alerts
         };
+    }
+
+    private async Task<IReadOnlyList<ObligationSummaryDto>> BuildPriorityObligationsAsync(
+        Guid tenantId,
+        DateOnly today,
+        CancellationToken cancellationToken)
+    {
+        var sourceObligations = await dbContext.Set<ContractClauseObligationEntity>()
+            .AsNoTracking()
+            .Where(mapping =>
+                mapping.ContractClause != null &&
+                mapping.ContractClause.Contract != null &&
+                mapping.ContractClause.Contract.TenantId == tenantId &&
+                mapping.ContractClause.RemovedAt == null &&
+                mapping.Obligation != null &&
+                mapping.Obligation.ReviewState == ReviewState.Published)
+            .Select(mapping => new PriorityObligationSeedDto(
+                mapping.ContractClauseId,
+                mapping.ContractClause!.ContractId,
+                mapping.ContractClause!.Contract!.ContractNumber,
+                mapping.ObligationId,
+                mapping.Obligation!.Source,
+                mapping.Obligation.Title,
+                mapping.Obligation.OwnerFunction,
+                mapping.Obligation.RiskLevel,
+                mapping.Obligation.SourceUrl,
+                mapping.Obligation.LastReviewedAt))
+            .ToArrayAsync(cancellationToken);
+
+        if (sourceObligations.Length == 0)
+        {
+            return [];
+        }
+
+        var contractIds = sourceObligations
+            .Select(obligation => obligation.ContractId)
+            .Distinct()
+            .ToArray();
+        var obligationIds = sourceObligations
+            .Select(obligation => obligation.ObligationId)
+            .Distinct()
+            .ToArray();
+
+        var activeTasks = await dbContext.ComplianceTasks
+            .AsNoTracking()
+            .Where(task =>
+                task.TenantId == tenantId &&
+                task.ContractId.HasValue &&
+                contractIds.Contains(task.ContractId.Value) &&
+                task.ObligationId != null &&
+                obligationIds.Contains(task.ObligationId) &&
+                task.Type == ComplianceTaskType.ObligationAction)
+            .Select(task => new PriorityObligationTaskDto(
+                task.ContractId!.Value,
+                task.ObligationId!,
+                task.Status,
+                task.RiskLevel,
+                task.DueAt,
+                task.CreatedAt))
+            .ToArrayAsync(cancellationToken);
+
+        var taskLookup = activeTasks
+            .GroupBy(task => (task.ContractId, task.ObligationId))
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderBy(task => task.DueAt ?? DateOnly.MaxValue)
+                    .ThenBy(task => task.CreatedAt)
+                    .First());
+
+        return sourceObligations
+            .Select(obligation =>
+            {
+                taskLookup.TryGetValue((obligation.ContractId, obligation.ObligationId), out var task);
+                var isOpenTask = task is not null &&
+                    task.Status != ComplianceTaskStatus.Done &&
+                    task.Status != ComplianceTaskStatus.Canceled;
+                var isHighRiskTask = task is { } currentTask &&
+                    isOpenTask &&
+                    (currentTask.RiskLevel == RiskLevel.High || currentTask.RiskLevel == RiskLevel.Critical);
+
+                return new PriorityObligationCandidateDto(
+                    obligation.ContractId,
+                    obligation.ContractNumber,
+                    obligation.ContractClauseId,
+                    obligation.ObligationId,
+                    obligation.Source,
+                    obligation.Title,
+                    obligation.OwnerFunction,
+                    obligation.RiskLevel,
+                    obligation.SourceUrl,
+                    obligation.LastReviewedAt,
+                    task?.DueAt,
+                    isOpenTask && task?.DueAt.HasValue == true && task.DueAt.Value < today,
+                    isHighRiskTask,
+                    obligation.RiskLevel is RiskLevel.High or RiskLevel.Critical);
+            })
+            .GroupBy(candidate => candidate.ObligationId)
+            .Select(group => group
+                .OrderByDescending(candidate => candidate.IsOverdue)
+                .ThenByDescending(candidate => candidate.IsHighRiskTask)
+                .ThenByDescending(candidate => candidate.IsHighRiskObligation)
+                .ThenBy(candidate => candidate.DueAt ?? DateOnly.MaxValue)
+                .ThenBy(candidate => candidate.ContractNumber, StringComparer.Ordinal)
+                .ThenBy(candidate => candidate.Source, StringComparer.Ordinal)
+                .ThenBy(candidate => candidate.ContractClauseId)
+                .First())
+            .OrderByDescending(candidate => candidate.IsOverdue)
+            .ThenByDescending(candidate => candidate.IsHighRiskTask)
+            .ThenByDescending(candidate => candidate.IsHighRiskObligation)
+            .ThenBy(candidate => candidate.DueAt ?? DateOnly.MaxValue)
+            .ThenBy(candidate => candidate.ContractNumber, StringComparer.Ordinal)
+            .ThenBy(candidate => candidate.Source, StringComparer.Ordinal)
+            .ThenBy(candidate => candidate.ContractClauseId)
+            .Take(3)
+            .Select(candidate => new ObligationSummaryDto(
+                candidate.ObligationId,
+                candidate.Source,
+                candidate.Title,
+                candidate.OwnerFunction,
+                candidate.RiskLevel.ToString(),
+                candidate.SourceUrl,
+                candidate.LastReviewedAt))
+            .ToArray();
     }
 
     private async Task<ContractRiskIndicatorDto> BuildContractRiskIndicatorAsync(
@@ -460,6 +597,42 @@ public sealed class EfComplianceOverviewRepository(
             return false;
         }
     }
+
+    private sealed record PriorityObligationSeedDto(
+        Guid ContractClauseId,
+        Guid ContractId,
+        string ContractNumber,
+        string ObligationId,
+        string Source,
+        string Title,
+        string OwnerFunction,
+        RiskLevel RiskLevel,
+        string SourceUrl,
+        DateOnly LastReviewedAt);
+
+    private sealed record PriorityObligationTaskDto(
+        Guid ContractId,
+        string ObligationId,
+        ComplianceTaskStatus Status,
+        RiskLevel RiskLevel,
+        DateOnly? DueAt,
+        DateTimeOffset CreatedAt);
+
+    private sealed record PriorityObligationCandidateDto(
+        Guid ContractId,
+        string ContractNumber,
+        Guid ContractClauseId,
+        string ObligationId,
+        string Source,
+        string Title,
+        string OwnerFunction,
+        RiskLevel RiskLevel,
+        string SourceUrl,
+        DateOnly LastReviewedAt,
+        DateOnly? DueAt,
+        bool IsOverdue,
+        bool IsHighRiskTask,
+        bool IsHighRiskObligation);
 
     private static int SeverityRank(string severity) =>
         severity switch

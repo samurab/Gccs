@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PlatformAdminNav } from "./PlatformAdminNav";
 import {
   confirmPlatformDemoAppointment,
+  createDevelopmentDemoFollowUpPreview,
   getPlatformAccess,
   getPlatformDemoRequestCalendar,
   getPlatformDemoRequests,
@@ -14,6 +15,7 @@ import {
   type ConfirmDemoAppointmentRequest,
   type DemoFollowUpOperationsItem,
 } from "./lib/api";
+import { defaultUsTimeZone, formatUsDateTime, formatUsMonthDay, formatUsMonthYear, formatUsTimeZoneLabel, formatUsWeekdayMonthDay } from "./lib/dateFormat";
 
 const responseTemplates = [
   ["ReviewingRequestedTime", "We’re reviewing your requested time"],
@@ -96,7 +98,7 @@ function ResponseControls({
   const [templateKey, setTemplateKey] = useState<ResponseTemplateKey>(responseTemplates[0][0]);
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
-  const defaultTimeZone = preferredTimeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const defaultTimeZone = preferredTimeZone ?? defaultUsTimeZone;
   const [confirmedLocalStart, setConfirmedLocalStart] = useState(() => dateTimeLocalInZone(preferredStartAt, defaultTimeZone));
   const [timeZone, setTimeZone] = useState(defaultTimeZone);
   const [meetingMethod, setMeetingMethod] = useState<ConfirmDemoAppointmentRequest["meetingMethod"]>("ConnectionDetailsToFollow");
@@ -104,14 +106,17 @@ function ResponseControls({
   const isDevelopmentCapture = deliveryMode === "DevelopmentCapture";
   const isDeliveryDisabled = deliveryMode === "Disabled";
   const isAppointment = templateKey === "ConfirmAppointment";
+  const isDetailRequest = templateKey === "RequestMoreDetails";
   const appointmentAlreadyConfirmed = schedulingStatus === "Confirmed";
   const isOnlineMeeting = (["MicrosoftTeams", "Zoom", "GoogleMeet"] as string[]).includes(meetingMethod);
   const send = async () => {
     const label = responseTemplates.find(item => item[0] === templateKey)?.[1] ?? templateKey;
     const action = isDevelopmentCapture ? "Capture" : "Queue";
     const confirmation = isAppointment
-      ? `Confirm the 30-minute appointment for ${requesterName} at ${confirmedLocalStart.replace("T", " ")} (${timeZone}) and queue the confirmation?`
-      : `${action} “${label}” for ${requesterName}?`;
+      ? `Confirm the 30-minute appointment for ${requesterName} at ${confirmedLocalStart.replace("T", " ")} (${formatUsTimeZoneLabel(timeZone)}) and queue the confirmation?`
+      : isDetailRequest
+        ? `${action} a follow-up request using “${label}” for ${requesterName}?`
+        : `${action} “${label}” for ${requesterName}?`;
     if (!window.confirm(confirmation)) return;
     setState("sending"); setMessage("");
     if (isAppointment) {
@@ -133,14 +138,16 @@ function ResponseControls({
     if (result.error) { setState("error"); setMessage(result.error); return; }
     setState("sent");
     setMessage(result.data?.status === "AlreadyPending"
-      ? "A detail request is already pending. Send another after the requester responds or the current link expires."
+      ? "A follow-up request is already pending. Create another after the requester responds or the current link expires."
       : result.data?.status === "AlreadyQueued"
-      ? isDevelopmentCapture ? "This response was already captured locally." : "This response was already queued."
-      : isDevelopmentCapture ? "Response queued for local capture. No email will be sent." : "Response queued for email delivery.");
+      ? isDevelopmentCapture ? "This message was already captured locally." : "This message was already queued."
+      : isDetailRequest
+        ? isDevelopmentCapture ? "Follow-up request captured locally. No email was sent." : "Follow-up request queued for email delivery."
+        : isDevelopmentCapture ? "Message captured locally. No email was sent." : "Message queued for email delivery.");
     if (templateKey === "RequestMoreDetails") onChanged();
   };
   return <section className="platform-demo-response" aria-label={`Respond to ${requesterName}`}>
-    <label><span>Response template</span><select onChange={event => { setTemplateKey(event.target.value as ResponseTemplateKey); setState("idle"); setMessage(""); }} value={templateKey}>{responseTemplates.map(([key, label]) => <option disabled={key === "ConfirmAppointment" && appointmentAlreadyConfirmed} key={key} value={key}>{key === "ConfirmAppointment" && appointmentAlreadyConfirmed ? `${label} (already confirmed)` : label}</option>)}</select></label>
+    <label><span>Message template</span><select onChange={event => { setTemplateKey(event.target.value as ResponseTemplateKey); setState("idle"); setMessage(""); }} value={templateKey}>{responseTemplates.map(([key, label]) => <option disabled={key === "ConfirmAppointment" && appointmentAlreadyConfirmed} key={key} value={key}>{key === "ConfirmAppointment" && appointmentAlreadyConfirmed ? `${label} (already confirmed)` : label}</option>)}</select></label>
     {isAppointment ? <div className="platform-demo-confirmation-fields">
       <label><span>Confirmed date and time</span><input onChange={event => setConfirmedLocalStart(event.target.value)} required type="datetime-local" value={confirmedLocalStart} /></label>
       <label><span>Time zone</span><input maxLength={100} onChange={event => setTimeZone(event.target.value)} required value={timeZone} /></label>
@@ -149,26 +156,48 @@ function ResponseControls({
       {isOnlineMeeting ? <label className="platform-demo-confirmation-fields__wide"><span>HTTPS meeting link</span><input maxLength={2048} onChange={event => setMeetingJoinUrl(event.target.value)} placeholder="https://…" required type="url" value={meetingJoinUrl} /></label> : null}
       <p className="platform-demo-confirmation-fields__notice">The signed-in operator will be recorded as host. The appointment and confirmation-email outbox record are saved atomically.</p>
     </div> : null}
-    <button disabled={isDeliveryDisabled || state === "sending" || (isAppointment && (!confirmedLocalStart || !timeZone || appointmentAlreadyConfirmed || (isOnlineMeeting && !meetingJoinUrl.trim())))} onClick={() => void send()} type="button">{state === "sending" ? isAppointment ? "Confirming…" : isDevelopmentCapture ? "Capturing…" : "Queueing…" : isAppointment ? "Confirm appointment and queue email" : isDevelopmentCapture ? "Capture response" : "Queue response"}</button>
+    <button disabled={isDeliveryDisabled || state === "sending" || (isAppointment && (!confirmedLocalStart || !timeZone || appointmentAlreadyConfirmed || (isOnlineMeeting && !meetingJoinUrl.trim())))} onClick={() => void send()} type="button">{state === "sending" ? isAppointment ? "Confirming…" : isDevelopmentCapture ? "Capturing…" : "Queueing…" : isAppointment ? "Confirm appointment and queue email" : isDetailRequest ? isDevelopmentCapture ? "Create follow-up request" : "Queue follow-up request" : isDevelopmentCapture ? "Capture message" : "Queue message"}</button>
     {message ? <p className={state === "error" ? "form-status form-status--error" : "form-status form-status--ok"} role="status">{message}</p> : null}
     <small>{isDeliveryDisabled
-      ? "Demo-response delivery is disabled."
+      ? "Demo-message delivery is disabled."
       : isDevelopmentCapture
-        ? "Local development records the response and No-CUI warning without sending email."
+        ? "Local development records the message and No-CUI warning without sending email."
         : "Emails use server-owned copy and the No-CUI warning. Queueing does not guarantee delivery until the email provider accepts it."}</small>
   </section>;
 }
 
-function FollowUpHistory({ items }: { items: DemoFollowUpOperationsItem[] }) {
+function DevelopmentFollowUpPreview({ followUpRequestId, requestId }: { followUpRequestId: string; requestId: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [url, setUrl] = useState("");
+  const createPreview = async () => {
+    setState("loading");
+    const result = await createDevelopmentDemoFollowUpPreview(requestId, followUpRequestId);
+    if (!result.data) {
+      setState("error");
+      return;
+    }
+    setUrl(result.data.url);
+    setState("ready");
+  };
+  return <div className="platform-demo-development-preview">
+    {state !== "ready" ? <button disabled={state === "loading"} onClick={() => void createPreview()} type="button">{state === "loading" ? "Creating preview…" : "Create requester preview"}</button> : null}
+    {state === "ready" ? <a href={url} rel="noreferrer" target="_blank">Open requester form</a> : null}
+    {state === "error" ? <span role="alert">The requester preview is unavailable. Refresh and verify that the follow-up is still pending.</span> : null}
+  </div>;
+}
+
+function FollowUpHistory({ deliveryMode, items, requestId }: { deliveryMode: PlatformAccess["demoRequestDeliveryMode"]; items: DemoFollowUpOperationsItem[]; requestId: string }) {
   if (items.length === 0) return null;
   return <section className="platform-demo-follow-ups" aria-label="Demo detail follow-up history">
     <h3>Demo detail follow-up</h3>
     {items.map(item => <article key={item.id}>
-      <header><strong>{item.status}</strong><span>Requested {new Date(item.requestedAt).toLocaleString()} · Email {emailDeliveryLabel(item.deliveryStatus)}</span></header>
-      {item.status === "Pending" ? <p>Waiting for requester response. Link expires {new Date(item.expiresAt).toLocaleString()}.</p> : null}
-      {item.status === "Expired" ? <p>The requester did not respond before {new Date(item.expiresAt).toLocaleString()}.</p> : null}
+      <header><strong>{item.status}</strong><span>Requested {formatUsDateTime(item.requestedAt)} · Email {emailDeliveryLabel(item.deliveryStatus)}</span></header>
+      {item.status === "Pending" && item.deliveryStatus === "Captured" ? <p>Captured locally — not delivered. Preview link expires {formatUsDateTime(item.expiresAt)}.</p> : null}
+      {item.status === "Pending" && item.deliveryStatus !== "Captured" ? <p>Waiting for requester response. Link expires {formatUsDateTime(item.expiresAt)}.</p> : null}
+      {item.status === "Pending" && item.deliveryStatus === "Captured" && deliveryMode === "DevelopmentCapture" ? <DevelopmentFollowUpPreview followUpRequestId={item.id} requestId={requestId} /> : null}
+      {item.status === "Expired" ? <p>The requester did not respond before {formatUsDateTime(item.expiresAt)}.</p> : null}
       {item.status === "Responded" ? <div className="platform-demo-follow-up-response">
-        <p><strong>Received:</strong> {item.respondedAt ? new Date(item.respondedAt).toLocaleString() : "Recorded"}</p>
+        <p><strong>Received:</strong> {item.respondedAt ? formatUsDateTime(item.respondedAt) : "Recorded"}</p>
         <div><strong>Workflows</strong><ul>{item.workflows.map(workflow => <li key={workflow}>{workflowLabels[workflow] ?? workflow}</li>)}{item.otherWorkflow ? <li>{item.otherWorkflow}</li> : null}</ul></div>
         <div><strong>Desired outcome</strong><p>{item.goals}</p></div>
         <div><strong>Challenges</strong><p>{item.challenges}</p></div>
@@ -221,7 +250,7 @@ function DemoRequestCalendar({
 
   return <section className="platform-demo-calendar" aria-labelledby="demo-calendar-heading">
     <header>
-      <div><p className="landing-eyebrow">Requested-time calendar</p><h2 id="demo-calendar-heading">{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2></div>
+      <div><p className="landing-eyebrow">Requested-time calendar</p><h2 id="demo-calendar-heading">{formatUsMonthYear(month.toISOString().slice(0, 7))}</h2></div>
       <nav aria-label="Calendar month">
         <button aria-label="Previous month" onClick={() => onMonthChange(new Date(month.getFullYear(), month.getMonth() - 1, 1))} type="button"><ChevronLeft size={17} /></button>
         <button onClick={() => onMonthChange(new Date(new Date().getFullYear(), new Date().getMonth(), 1))} type="button">Today</button>
@@ -238,7 +267,7 @@ function DemoRequestCalendar({
         const count = dayItems.length;
         const confirmedCount = dayItems.filter(item => item.schedulingStatus === "Confirmed").length;
         return <button
-          aria-label={`${date.toLocaleDateString(undefined, { month: "long", day: "numeric" })}: ${count === 0 ? "no demo appointments" : `${count} demo appointment${count === 1 ? "" : "s"}, ${confirmedCount} confirmed`}`}
+          aria-label={`${formatUsMonthDay(date.toISOString().slice(0, 10))}: ${count === 0 ? "no demo appointments" : `${count} demo appointment${count === 1 ? "" : "s"}, ${confirmedCount} confirmed`}`}
           aria-pressed={selectedDate === key}
           className={count > 0 ? "platform-demo-calendar__day platform-demo-calendar__day--has-requests" : "platform-demo-calendar__day"}
           key={key}
@@ -248,12 +277,12 @@ function DemoRequestCalendar({
       })}
     </div>
     <section className="platform-demo-agenda" aria-live="polite">
-      <h3>{selectedDate ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) : "Daily agenda"}</h3>
+      <h3>{selectedDate ? formatUsWeekdayMonthDay(selectedDate) : "Daily agenda"}</h3>
       {!selectedDate ? <p>Select a date to review its requested demo times.</p> : null}
       {selectedDate && selectedItems.length === 0 ? <p>No demo times were requested for this date.</p> : null}
       {selectedItems.map(item => { const scheduledAt = item.confirmedStartAt ?? item.preferredStartAt; const zone = item.confirmedTimeZone ?? item.preferredTimeZone; return <article key={item.id}>
-        <time dateTime={scheduledAt}>{new Date(scheduledAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</time>
-        <div><strong>{item.company}</strong><span>{item.firstName} {item.lastName} · {zone ?? "Time zone not recorded"}</span></div>
+        <time dateTime={scheduledAt}>{new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(scheduledAt))}</time>
+        <div><strong>{item.company}</strong><span>{item.firstName} {item.lastName} · {formatUsTimeZoneLabel(zone) === "—" ? "Time zone not recorded" : formatUsTimeZoneLabel(zone)}</span></div>
         <span className={`platform-demo-status platform-demo-status--${item.schedulingStatus.toLowerCase()}`}>{item.schedulingStatus}</span>
       </article>; })}
     </section>
@@ -325,7 +354,7 @@ export function PlatformDemoRequestsPage() {
     <section className="platform-demo-delivery-note" aria-label="Demo request delivery mode">
       <strong>{isDevelopmentCapture ? "Development capture mode" : access?.demoRequestDeliveryMode === "ExternalEmail" ? "External email mode" : "Delivery disabled"}</strong>
       <span>{isDevelopmentCapture
-        ? "Local development records acknowledgement and response messages in the outbox as captured. It does not send requester emails unless the DemoRequests provider is configured for external email."
+        ? "Local development records acknowledgement and outbound messages in the outbox as captured. It does not send requester emails unless the DemoRequests provider is configured for external email."
         : access?.demoRequestDeliveryMode === "ExternalEmail"
           ? "Requester acknowledgements, detail requests, and appointment confirmations are sent by the server-side outbox worker. Provider accepted means Azure Communication Services accepted the message, not that the requester opened it."
           : "Demo-request delivery is disabled for this environment."}</span>
@@ -336,11 +365,11 @@ export function PlatformDemoRequestsPage() {
     {calendar ? <DemoRequestCalendar month={calendarMonth} onMonthChange={month => { setCalendar(null); setSelectedDate(null); setCalendarMonth(month); }} onSelectDate={setSelectedDate} range={calendar} selectedDate={selectedDate} /> : null}
     {data?.items.length === 0 ? <section className="platform-demo-empty"><Inbox size={34} /><h2>No demo requests</h2><p>New public submissions will appear here.</p></section> : null}
     {data?.items.map(item => <article className="platform-demo-card" key={item.id}>
-      <div><span className={`platform-demo-status platform-demo-status--${item.deliveryStatus.toLowerCase()}`}>{item.deliveryStatus}</span><time dateTime={item.receivedAt}>{new Date(item.receivedAt).toLocaleString()}</time></div>
+      <div><span className={`platform-demo-status platform-demo-status--${item.deliveryStatus.toLowerCase()}`}>{item.deliveryStatus}</span><time dateTime={item.receivedAt}>{formatUsDateTime(item.receivedAt)}</time></div>
       <h2>{item.company}</h2><p><strong>{item.firstName} {item.lastName}</strong> · <a href={`mailto:${item.email}`}>{item.email}</a>{item.phone ? ` · ${item.phone}` : ""}</p>
-      <dl><div><dt>Requested time</dt><dd>{item.preferredStartAt ? new Date(item.preferredStartAt).toLocaleString(undefined, { timeZone: item.preferredTimeZone ?? undefined }) : "Not provided"}{item.preferredTimeZone ? ` (${item.preferredTimeZone})` : ""}</dd></div><div><dt>Scheduling status</dt><dd>{item.schedulingStatus}</dd></div><div><dt>Confirmed appointment</dt><dd>{item.confirmedStartAt ? `${new Date(item.confirmedStartAt).toLocaleString(undefined, { timeZone: item.confirmedTimeZone ?? undefined })} (${item.confirmedTimeZone}) · ${item.durationMinutes} minutes · ${meetingMethodLabel(item.meetingMethod)}` : "Not confirmed"}</dd></div><div><dt>Confirmation email</dt><dd title={deliveryStatusDetail(item.appointmentConfirmationStatus)}>{emailDeliveryLabel(item.appointmentConfirmationStatus)}</dd></div><div><dt>Internal notification</dt><dd title={deliveryStatusDetail(item.deliveryStatus)}>{emailDeliveryLabel(item.deliveryStatus)} · {item.deliveryAttemptCount} attempts</dd></div><div><dt>Requester acknowledgement</dt><dd title={deliveryStatusDetail(item.acknowledgementStatus)}>{emailDeliveryLabel(item.acknowledgementStatus)}</dd></div></dl>
+      <dl><div><dt>Requested time</dt><dd>{item.preferredStartAt ? formatUsDateTime(item.preferredStartAt, item.preferredTimeZone ?? undefined) : "Not provided"}{item.preferredTimeZone ? ` (${formatUsTimeZoneLabel(item.preferredTimeZone)})` : ""}</dd></div><div><dt>Scheduling status</dt><dd>{item.schedulingStatus}</dd></div><div><dt>Confirmed appointment</dt><dd>{item.confirmedStartAt ? `${formatUsDateTime(item.confirmedStartAt, item.confirmedTimeZone ?? undefined)}${item.confirmedTimeZone ? ` (${formatUsTimeZoneLabel(item.confirmedTimeZone)})` : ""} · ${item.durationMinutes} minutes · ${meetingMethodLabel(item.meetingMethod)}` : "Not confirmed"}</dd></div><div><dt>Confirmation email</dt><dd title={deliveryStatusDetail(item.appointmentConfirmationStatus)}>{emailDeliveryLabel(item.appointmentConfirmationStatus)}</dd></div><div><dt>Internal notification</dt><dd title={deliveryStatusDetail(item.deliveryStatus)}>{emailDeliveryLabel(item.deliveryStatus)} · {item.deliveryAttemptCount} attempts</dd></div><div><dt>Requester acknowledgement</dt><dd title={deliveryStatusDetail(item.acknowledgementStatus)}>{emailDeliveryLabel(item.acknowledgementStatus)}</dd></div></dl>
       {item.message ? <blockquote>{item.message}</blockquote> : null}
-      <FollowUpHistory items={item.followUpRequests ?? []} />
+      <FollowUpHistory deliveryMode={access?.demoRequestDeliveryMode} items={item.followUpRequests ?? []} requestId={item.id} />
       {item.deliveryFailureCode ? <p className="form-status form-status--error">Delivery failure: {item.deliveryFailureCode}</p> : null}
       <ResponseControls deliveryMode={access?.demoRequestDeliveryMode} onChanged={() => { setCalendar(null); setRefreshVersion(value => value + 1); }} preferredStartAt={item.preferredStartAt} preferredTimeZone={item.preferredTimeZone} requestId={item.id} requesterName={`${item.firstName} ${item.lastName}`} schedulingStatus={item.schedulingStatus} />
     </article>)}

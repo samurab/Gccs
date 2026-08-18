@@ -1,5 +1,6 @@
 using Gccs.Application.Audit;
 using Gccs.Application.Common;
+using Gccs.Application.Compliance;
 using Gccs.Application.NoCui;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
@@ -481,6 +482,13 @@ public sealed partial class ContractService(
     {
         var normalized = NormalizeClauseAttachment(request);
         ValidateClauseAttachment(normalized);
+        var resolvedClause = await repository.ResolvePublishedClauseLibraryReferenceAsync(
+            ClauseReferenceNormalizer.NormalizeExact(normalized.ClauseLibraryId),
+            cancellationToken);
+        if (resolvedClause is not null)
+        {
+            normalized = normalized with { ClauseLibraryId = resolvedClause.Id };
+        }
         var clause = await repository.AttachClauseAsync(contractId, normalized, actorUserId, cancellationToken);
 
         if (clause is not null)
@@ -597,8 +605,8 @@ public sealed partial class ContractService(
     private static AttachContractClauseRequest NormalizeClauseAttachment(AttachContractClauseRequest request) =>
         request with
         {
-            ClauseLibraryId = request.ClauseLibraryId.Trim(),
-            AttachmentReason = request.AttachmentReason.Trim(),
+            ClauseLibraryId = request.ClauseLibraryId?.Trim() ?? string.Empty,
+            AttachmentReason = request.AttachmentReason?.Trim() ?? string.Empty,
             SourceDocumentReference = string.IsNullOrWhiteSpace(request.SourceDocumentReference)
                 ? null
                 : request.SourceDocumentReference.Trim()
@@ -726,8 +734,11 @@ public sealed partial class ContractService(
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
 
-        AddIf(errors, string.IsNullOrWhiteSpace(request.ClauseLibraryId), "clauseLibraryId", "Published clause id is required.");
+        AddIf(errors, string.IsNullOrWhiteSpace(request.ClauseLibraryId), "clauseLibraryId", "Published clause reference is required.");
+        AddIf(errors, request.ClauseLibraryId.Length > 160, "clauseLibraryId", "Published clause reference must be 160 characters or fewer.");
         AddIf(errors, string.IsNullOrWhiteSpace(request.AttachmentReason), "attachmentReason", "Attachment reason is required.");
+        AddIf(errors, request.AttachmentReason.Length > 600, "attachmentReason", "Attachment reason must be 600 characters or fewer.");
+        AddIf(errors, request.SourceDocumentReference?.Length > 300, "sourceDocumentReference", "Source document reference must be 300 characters or fewer.");
 
         if (errors.Count > 0)
         {
@@ -1061,6 +1072,10 @@ public interface IContractRepository
     Task<ClauseLibraryMatchDto?> FindPublishedClauseLibraryMatchAsync(
         Guid tenantId,
         string clauseNumber,
+        CancellationToken cancellationToken = default);
+
+    Task<ClauseLibraryMatchDto?> ResolvePublishedClauseLibraryReferenceAsync(
+        string reference,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ClauseCandidateDto>> ReplaceClauseCandidatesAsync(

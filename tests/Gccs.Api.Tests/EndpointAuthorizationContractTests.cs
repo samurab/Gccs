@@ -1,5 +1,6 @@
 using Gccs.Api.Security;
 using Gccs.Domain.Identity;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +14,11 @@ public sealed class EndpointAuthorizationContractTests : IClassFixture<WebApplic
 
     public EndpointAuthorizationContractTests(WebApplicationFactory<Program> factory)
     {
-        _factory = factory;
+        _factory = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("LocalDependencies:Enabled", "false");
+            builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
+        });
     }
 
     [Fact]

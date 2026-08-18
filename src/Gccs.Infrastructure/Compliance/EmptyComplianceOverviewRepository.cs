@@ -17,5 +17,6 @@ public sealed class EmptyComplianceOverviewRepository(ICurrentTenantContext tena
             0,
             new ReadinessScoreDto(null, 0, 0, 0, 0, "Not started"),
             new ContractRiskIndicatorDto("Low", 0, 0, 0, 0, 0, 0, 0),
+            [],
             []));
 }

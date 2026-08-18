@@ -152,6 +152,11 @@ public interface IDemoFollowUpRepository
         string tokenHash,
         CancellationToken cancellationToken = default);
 
+    Task<DemoFollowUpPreviewRecord?> GetPreviewAsync(
+        Guid demoRequestId,
+        Guid followUpRequestId,
+        CancellationToken cancellationToken = default);
+
     Task<DemoFollowUpSubmissionDisposition> SubmitResponseAsync(
         string tokenHash,
         DemoFollowUpResponseCommand command,
@@ -163,6 +168,17 @@ public sealed record DemoFollowUpQueueReceipt(
     Guid FollowUpRequestId,
     DateTimeOffset ExpiresAt,
     DateTimeOffset QueuedAt);
+
+public sealed record DemoFollowUpPreviewRecord(
+    Guid FollowUpRequestId,
+    Guid DemoRequestId,
+    string TokenHash,
+    string Status,
+    DateTimeOffset ExpiresAt);
+
+public sealed record DemoFollowUpDevelopmentPreview(
+    string Url,
+    DateTimeOffset ExpiresAt);
 
 public sealed record DemoFollowUpTokenRequest(string Token);
 
@@ -266,6 +282,32 @@ public sealed class DemoFollowUpService(
             access.RequestedAt,
             access.ExpiresAt,
             DemoFollowUpCatalog.NoCuiNoticeVersion);
+    }
+
+    public async Task<DemoFollowUpDevelopmentPreview?> CreateDevelopmentPreviewAsync(
+        Guid demoRequestId,
+        Guid followUpRequestId,
+        CancellationToken cancellationToken = default)
+    {
+        var preview = await repository.GetPreviewAsync(demoRequestId, followUpRequestId, cancellationToken);
+        if (preview is null ||
+            preview.Status != DemoFollowUpCatalog.Pending ||
+            preview.ExpiresAt <= timeProvider.GetUtcNow())
+        {
+            return null;
+        }
+
+        var accessCode = tokenCodec.Create(preview.FollowUpRequestId, preview.ExpiresAt);
+        if (!CryptographicOperations.FixedTimeEquals(
+            Encoding.ASCII.GetBytes(DemoFollowUpTokenCodec.Hash(accessCode)),
+            Encoding.ASCII.GetBytes(preview.TokenHash)))
+        {
+            return null;
+        }
+
+        return new DemoFollowUpDevelopmentPreview(
+            $"{securitySettings.PublicWebBaseUrl.TrimEnd('/')}/demo-request-details#token={Uri.EscapeDataString(accessCode)}",
+            preview.ExpiresAt);
     }
 
     public async Task<DemoFollowUpSubmissionReceipt?> SubmitAsync(

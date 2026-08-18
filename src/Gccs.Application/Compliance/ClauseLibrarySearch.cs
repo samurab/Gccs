@@ -17,15 +17,19 @@ public sealed class ClauseLibraryService(IClauseLibraryRepository repository)
         ClauseLibrarySearchRequest request,
         CancellationToken cancellationToken = default)
     {
-        var normalizedQuery = request.Query?.Trim();
+        var trimmedQuery = request.Query?.Trim();
         var normalizedCategory = request.Category?.Trim();
         var normalizedSourceFamily = request.SourceFamily?.Trim();
         var normalizedObligationArea = request.ObligationArea?.Trim();
 
-        if (normalizedQuery?.Length > 160)
+        if (trimmedQuery?.Length > 160)
         {
             throw new ClauseLibrarySearchValidationException("Clause search query must be 160 characters or fewer.");
         }
+
+        var normalizedQuery = string.IsNullOrWhiteSpace(trimmedQuery)
+            ? null
+            : ClauseReferenceNormalizer.NormalizeExact(trimmedQuery);
 
         if (!string.IsNullOrWhiteSpace(normalizedCategory) && !SupportedCategories.Contains(normalizedCategory))
         {
@@ -35,7 +39,7 @@ public sealed class ClauseLibraryService(IClauseLibraryRepository repository)
 
         return repository.SearchAsync(
             new ClauseLibrarySearchRequest(
-                string.IsNullOrWhiteSpace(normalizedQuery) ? null : normalizedQuery,
+                normalizedQuery,
                 string.IsNullOrWhiteSpace(normalizedCategory) ? null : normalizedCategory,
                 request.TenantId,
                 string.IsNullOrWhiteSpace(normalizedSourceFamily) ? null : normalizedSourceFamily,

@@ -3,6 +3,7 @@ using System;
 using Gccs.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Gccs.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GccsDbContext))]
-    partial class GccsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260816185344_SeedMvpModules")]
+    partial class SeedMvpModules
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4599,7 +4602,7 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                             Key = "company-profile",
                             Name = "Company compliance profile",
                             Purpose = "Capture UEI, CAGE, SAM, NAICS, certifications, roles, and data posture.",
-                            Status = "active"
+                            Status = "planned"
                         },
                         new
                         {
@@ -4620,35 +4623,35 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                             Key = "calendar",
                             Name = "Compliance calendar",
                             Purpose = "Track renewals, reports, training, affirmations, deliverables, and policy reviews.",
-                            Status = "active"
+                            Status = "planned"
                         },
                         new
                         {
                             Key = "evidence-vault",
                             Name = "Evidence vault",
                             Purpose = "Tag evidence by obligation, contract, control, vendor, employee, and expiration date.",
-                            Status = "active"
+                            Status = "planned"
                         },
                         new
                         {
                             Key = "cmmc",
                             Name = "CMMC readiness tracker",
                             Purpose = "Track Level 1 and Level 2 controls, evidence, SSP, POA&M, assets, and affirmations.",
-                            Status = "active"
+                            Status = "planned"
                         },
                         new
                         {
                             Key = "subcontractors",
                             Name = "Subcontractor flow-down tracker",
                             Purpose = "Track flow-down clauses, CMMC status, insurance, NDAs, CUI access, and workshare.",
-                            Status = "active"
+                            Status = "planned"
                         },
                         new
                         {
                             Key = "reports",
                             Name = "Basic reports",
                             Purpose = "Generate obligation matrices, readiness reports, evidence packages, and risk dashboards.",
-                            Status = "active"
+                            Status = "planned"
                         });
                 });
 

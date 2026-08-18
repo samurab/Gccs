@@ -72,7 +72,8 @@ public sealed class InMemoryClauseLibraryRepository : IClauseLibraryRepository
             return true;
         }
 
-        return Contains(clause.Number, query) ||
+        return string.Equals(clause.Id, query.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            Contains(clause.Number, query) ||
             Contains(clause.Title, query) ||
             Contains(clause.Source, query) ||
             Contains(clause.PlainEnglishSummary, query);

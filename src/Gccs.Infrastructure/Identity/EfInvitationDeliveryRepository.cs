@@ -100,7 +100,7 @@ public sealed class EfInvitationDeliveryRepository(GccsDbContext dbContext) : II
 
         invitation.DeliveryStatus = InvitationDeliveryStatus.Sent;
         invitation.NotificationSentAt = sentAt;
-        invitation.NotificationPlaceholder = $"{invitation.RoleName} invitation email was sent.";
+        invitation.NotificationPlaceholder = $"{invitation.RoleName} invitation was accepted by the email provider; inbox delivery is not confirmed.";
         invitation.DeliveryProviderMessageId = Truncate(providerMessageId, 200);
         invitation.DeliveryFailureCode = null;
         invitation.DeliveryLeaseUntil = null;

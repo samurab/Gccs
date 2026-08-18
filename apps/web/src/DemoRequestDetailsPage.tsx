@@ -5,6 +5,7 @@ import {
   submitDemoFollowUpResponse,
   type DemoFollowUpContext,
 } from "./demoRequestApi";
+import { formatUsDateTime } from "./lib/dateFormat";
 
 const workflowOptions = [
   ["ContractClauseIntake", "Contract and clause intake"],
@@ -115,7 +116,7 @@ export function DemoRequestDetailsPage() {
     {state === "success" ? <section className="demo-details-state demo-details-state--success" role="status"><CheckCircle2 /><h2>Details received</h2><p>The FeDril team can now use this information to prepare your demonstration. This form did not schedule or change an appointment.</p></section> : null}
 
     {(state === "ready" || state === "submitting" || (state === "error" && context?.status === "Pending")) ? <form className="demo-details-form" onSubmit={submit}>
-      <p className="demo-details-expiry">This single-use form expires {context ? new Date(context.expiresAt).toLocaleString() : "soon"}.</p>
+      <p className="demo-details-expiry">This single-use form expires {context ? formatUsDateTime(context.expiresAt) : "soon"}.</p>
       <fieldset>
         <legend>Which workflows would you like to see? *</legend>
         <div className="demo-details-workflows">{workflowOptions.map(([value, label]) => <label key={value}>
