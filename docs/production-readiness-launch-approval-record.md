@@ -2,11 +2,11 @@
 
 Story: PR-6.1 - Collect Required Launch Approvals.
 
-Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with audit-workspace reapproval recorded on 2026-08-15.
+Record status: approved for solo-controlled pilot launch-candidate tagging and project completion, with demo and clause workflow reapproval recorded on 2026-08-18.
 
 Record date: 2026-07-03.
 
-Latest candidate-specific reapproval date: 2026-08-15.
+Latest candidate-specific reapproval date: 2026-08-18.
 
 Record owner: Product owner.
 
@@ -221,6 +221,26 @@ This approval is not independent legal, security, privacy, compliance, accessibi
 | Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, secure CUI storage, or independent professional approval is claimed. |
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, report-export authorization or tenant isolation weakens, or customer-facing claims expand beyond the reviewed candidate scope.
+
+## Demo and Clause Workflow Candidate Reapproval - 2026-08-18
+
+The repository owner and deployment operator, `samurab`, explicitly requested committing and pushing the worktree, deploying to staging, merging to `main`, creating a launch candidate, and deploying production. This records combined-role approval for `launch-candidate-2026-08-18-1` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, email-deliverability, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, guaranteed email delivery, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-18 |
+| Candidate | `launch-candidate-2026-08-18-1` at `d49f594f8277aacb501c9ad4c8906960750eebf2` |
+| Scope | PR #66 stabilizes demo-request follow-up operations, development-only requester preview behavior, tenant onboarding delivery-status language and server-authoritative pilot date rules, published-clause citation lookup and contract attachment, the isolated authorization contract test host, and removes web-client embedded source-backed clause examples. Internal namespaces and storage identifiers remain unchanged. |
+| Exact-candidate automated evidence | PR #66 CI run `32098534154`; main CI run `32100036112`; staging deployment run `32100036047`; Static Web Apps run `32100036099`. Main CI passed backend validation, frontend validation, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation, and the real-stack report RBAC/rollback gate. |
+| Exact-candidate staging evidence | Run `32100036047` built the exact merge commit, generated and applied the idempotent migration script, deployed API and web artifacts, and passed No-CUI and dependency health checks. |
+| Security and claim-control scope | The change touches platform demo-request operations, development-only preview routing, invitation delivery wording, platform access metadata, and tenant-scoped published clause resolution. Approval relies on development-only provider gating, server-side platform permission checks, tenant-safe clause repository filters, no-mutation negative tests, and claim wording that distinguishes provider acceptance from inbox delivery. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No live external demo-request email, invitation email, or authenticated production clause-attachment smoke was executed before tagging. Email inbox placement remains provider- and mailbox-dependent. The development requester-preview endpoint is intentionally absent outside Development and does not authorize production token-preview behavior. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, guaranteed delivery, secure CUI storage, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, platform authorization or tenant isolation weakens, development-only preview gating regresses, or customer-facing claims expand beyond the reviewed candidate scope.
 
 ## Evidence Package Reviewed
 
