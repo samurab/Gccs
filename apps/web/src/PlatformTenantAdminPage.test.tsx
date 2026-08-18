@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlatformTenantAdminPage } from "./PlatformTenantAdminPage";
@@ -41,6 +41,12 @@ describe("PlatformTenantAdminPage", () => {
       userEmail: "operator@gccs.local",
       canProvisionTenants: true,
       canManageDemoRequests: false,
+      invitationDeliveryMode: "ExternalEmail",
+      pilotTrialDateRules: {
+        minimumEndsOn: "2026-08-18",
+        maximumEndsOn: "2026-11-15",
+        maximumPilotDays: 90
+      },
       permissions: ["ProvisionTenants"]
     });
     getPlatformTenantOnboardingsMock.mockResolvedValue({
@@ -68,10 +74,29 @@ describe("PlatformTenantAdminPage", () => {
     expect(screen.queryByLabelText("Pilot end date")).not.toBeInTheDocument();
   });
 
+  it("uses the server trial-date window and blocks an invalid pilot date before the API call", async () => {
+    const user = userEvent.setup();
+    render(<PlatformTenantAdminPage />);
+
+    const pilotEndDate = await screen.findByLabelText("Pilot end date");
+    expect(pilotEndDate).toHaveAttribute("min", "2026-08-18");
+    expect(pilotEndDate).toHaveAttribute("max", "2026-11-15");
+    expect(screen.getByText(/pilots are limited to 90 days/i)).toBeInTheDocument();
+
+    await user.type(pilotEndDate, "2026-08-17");
+    const form = screen.getByRole("button", { name: "Create pending tenant" }).closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    expect(provisionPlatformTenantMock).not.toHaveBeenCalled();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Pilot end date must be between 2026-08-18 and 2026-11-15 (UTC)."
+    );
+  });
+
   it("submits a pilot as a pending No-CUI onboarding without an owner user ID", async () => {
     const user = userEvent.setup();
-    provisionPlatformTenantMock.mockResolvedValue({
-      data: {
+    const queuedResult = {
         onboardingId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
         tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
         displayName: "Aegis Pilot Workspace",
@@ -94,9 +119,21 @@ describe("PlatformTenantAdminPage", () => {
         setupReason: "Provision approved No-CUI pilot PILOT-003.",
         createdAt: "2026-07-22T12:00:00Z",
         isReplay: false
-      },
+    };
+    provisionPlatformTenantMock.mockResolvedValue({
+      data: queuedResult,
       error: null
     });
+    getPlatformTenantOnboardingsMock
+      .mockResolvedValueOnce({ items: [], page: 1, pageSize: 25, totalCount: 0, hasNextPage: false, hasPreviousPage: false })
+      .mockResolvedValue({
+        items: [{ ...queuedResult, invitationDeliveryStatus: "Sent", invitationNotificationSentAt: "2026-07-22T12:00:02Z" }],
+        page: 1,
+        pageSize: 25,
+        totalCount: 1,
+        hasNextPage: false,
+        hasPreviousPage: false
+      });
 
     render(<PlatformTenantAdminPage />);
     await screen.findByRole("heading", { name: "Tenant onboarding" });
@@ -127,8 +164,62 @@ describe("PlatformTenantAdminPage", () => {
     });
     expect(idempotencyKey).toMatch(/^[0-9a-f-]{36}$/i);
     expect(await screen.findByText("PendingActivation")).toBeInTheDocument();
-    expect(screen.getByText("Queued")).toBeInTheDocument();
+    expect((await screen.findAllByText("Provider accepted")).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Inbox delivery is not confirmed/i)).toBeInTheDocument();
     expect(screen.queryByText(/invitation token/i)).not.toBeInTheDocument();
+  });
+
+  it("does not claim a queued invitation will be delivered when delivery is disabled", async () => {
+    getPlatformAccessMock.mockResolvedValue({
+      userId: "22222222-2222-2222-2222-222222222222",
+      userEmail: "operator@gccs.local",
+      canProvisionTenants: true,
+      canManageDemoRequests: false,
+      invitationDeliveryMode: "Disabled",
+      permissions: ["ProvisionTenants"]
+    });
+    provisionPlatformTenantMock.mockResolvedValue({
+      data: {
+        onboardingId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+        tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+        displayName: "Disabled Delivery Pilot",
+        onboardingType: "Pilot",
+        onboardingStatus: "PendingOwnerAcceptance",
+        tenantStatus: "PendingActivation",
+        dataHandlingMode: "NoCui",
+        customerReference: "PILOT-004",
+        ownerEmail: "owner@example.com",
+        ownerDisplayName: "Pilot Owner",
+        ownerRoleName: "Owner",
+        invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+        invitationStatus: "Pending",
+        invitationDeliveryStatus: "Queued",
+        invitationNotificationSentAt: null,
+        invitationExpiresAt: "2026-08-25T12:00:00Z",
+        trialEndsAt: "2026-08-31",
+        planCode: null,
+        subscriptionReference: null,
+        setupReason: "Provision approved No-CUI pilot PILOT-004.",
+        createdAt: "2026-08-17T12:00:00Z",
+        isReplay: false
+      },
+      error: null
+    });
+
+    const user = userEvent.setup();
+    render(<PlatformTenantAdminPage />);
+    await screen.findByRole("heading", { name: "Tenant onboarding" });
+    await user.type(screen.getByLabelText("Customer reference"), "PILOT-004");
+    await user.type(screen.getByLabelText("Tenant display name"), "Disabled Delivery Pilot");
+    await user.type(screen.getByLabelText("Pilot end date"), "2026-08-31");
+    await user.type(screen.getByLabelText("Setup reason"), "Provision approved No-CUI pilot PILOT-004.");
+    await user.type(screen.getByLabelText("Owner email"), "owner@example.com");
+    await user.type(screen.getByLabelText("Owner display name"), "Pilot Owner");
+    await user.click(screen.getByRole("checkbox", { name: /No-CUI boundary confirmed/ }));
+    await user.click(screen.getByRole("button", { name: "Create pending tenant" }));
+
+    expect(await screen.findByText(/email delivery is disabled/i)).toBeInTheDocument();
+    expect(screen.queryByText(/queued for asynchronous delivery/i)).not.toBeInTheDocument();
   });
 
   it("blocks the form when the account lacks the platform permission", async () => {

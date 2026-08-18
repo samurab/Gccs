@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   BadgeDollarSign,
   Ban,
@@ -62,6 +62,36 @@ function newIdempotencyKey() {
   return crypto.randomUUID();
 }
 
+function invitationDeliveryLabel(status: string) {
+  switch (status) {
+    case "Processing": return "Submitting";
+    case "RetryScheduled": return "Retry scheduled";
+    case "Sent": return "Provider accepted";
+    default: return status;
+  }
+}
+
+function invitationDeliveryMessage(result: PlatformTenantProvisioningResult, deliveryMode: PlatformAccess["invitationDeliveryMode"]) {
+  if (deliveryMode === "Disabled" && result.invitationDeliveryStatus === "Queued") {
+    return "Invitation recorded, but email delivery is disabled. Configure invitation delivery before requeuing it.";
+  }
+
+  switch (result.invitationDeliveryStatus) {
+    case "Sent":
+      return `Email provider accepted the invitation${result.invitationNotificationSentAt ? ` ${formatUsDateTime(result.invitationNotificationSentAt)}` : ""}. Inbox delivery is not confirmed.`;
+    case "Processing":
+      return "Invitation submission to the email provider is in progress.";
+    case "RetryScheduled":
+      return "The provider submission failed and is scheduled for retry.";
+    case "Failed":
+      return "Invitation delivery failed after the configured retry limit.";
+    case "Cancelled":
+      return "Invitation delivery was cancelled.";
+    default:
+      return "Invitation is queued for asynchronous provider submission.";
+  }
+}
+
 export function PlatformTenantAdminPage() {
   const [access, setAccess] = useState<PlatformAccess | null>(null);
   const [accessState, setAccessState] = useState<"loading" | "ready" | "error">("loading");
@@ -77,6 +107,8 @@ export function PlatformTenantAdminPage() {
   const [onboardingsError, setOnboardingsError] = useState("");
   const [onboardingsPage, setOnboardingsPage] = useState(1);
   const [onboardingsRefresh, setOnboardingsRefresh] = useState(0);
+  const deliveryPolling = useRef<{ onboardingId: string | null; attempts: number }>({ onboardingId: null, attempts: 0 });
+  const pilotTrialDateRules = access?.pilotTrialDateRules;
   const canManageTenantOnboarding = access?.canManageTenantOnboarding ?? access?.canProvisionTenants ?? false;
 
   useEffect(() => {
@@ -110,6 +142,18 @@ export function PlatformTenantAdminPage() {
           return;
         }
         setOnboardings(page);
+        setResult((current) => {
+          if (!current) return current;
+          const refreshed = page.items.find((item) => item.onboardingId === current.onboardingId);
+          return refreshed
+            ? {
+                ...current,
+                invitationStatus: refreshed.invitationStatus,
+                invitationDeliveryStatus: refreshed.invitationDeliveryStatus,
+                invitationNotificationSentAt: refreshed.invitationNotificationSentAt
+              }
+            : current;
+        });
         setOnboardingsState("ready");
       })
       .catch((error) => {
@@ -122,6 +166,31 @@ export function PlatformTenantAdminPage() {
       active = false;
     };
   }, [canManageTenantOnboarding, onboardingsPage, onboardingsRefresh]);
+
+  useEffect(() => {
+    const onboardingId = result?.onboardingId ?? null;
+    if (deliveryPolling.current.onboardingId !== onboardingId) {
+      deliveryPolling.current = { onboardingId, attempts: 0 };
+    }
+
+    if (
+      !onboardingId ||
+      access?.invitationDeliveryMode === "Disabled" ||
+      result?.invitationDeliveryStatus === "Sent" ||
+      result?.invitationDeliveryStatus === "Failed" ||
+      result?.invitationDeliveryStatus === "Cancelled" ||
+      deliveryPolling.current.attempts >= 10
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      deliveryPolling.current.attempts += 1;
+      setOnboardingsRefresh((current) => current + 1);
+    }, 1000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [access?.invitationDeliveryMode, onboardingsRefresh, result?.invitationDeliveryStatus, result?.onboardingId]);
 
   const request = useMemo<PlatformTenantProvisioningRequest>(
     () => ({
@@ -144,6 +213,20 @@ export function PlatformTenantAdminPage() {
     event.preventDefault();
     setSubmitState("submitting");
     setSubmitError("");
+
+    if (
+      request.onboardingType === "Pilot" &&
+      pilotTrialDateRules &&
+      (!request.trialEndsAt ||
+        request.trialEndsAt < pilotTrialDateRules.minimumEndsOn ||
+        request.trialEndsAt > pilotTrialDateRules.maximumEndsOn)
+    ) {
+      setSubmitError(
+        `Pilot end date must be between ${pilotTrialDateRules.minimumEndsOn} and ${pilotTrialDateRules.maximumEndsOn} (UTC).`
+      );
+      setSubmitState("error");
+      return;
+    }
 
     const response = await provisionPlatformTenant(request, idempotencyKey);
     if (!response.data) {
@@ -255,7 +338,14 @@ export function PlatformTenantAdminPage() {
       ) : null}
 
       {canManageTenantOnboarding && submitState === "success" && result ? (
-        <ProvisioningSuccess result={result} copiedValue={copiedValue} onCopy={copyValue} onReset={resetForm} onResend={resendInvitation} />
+        <ProvisioningSuccess
+          result={result}
+          copiedValue={copiedValue}
+          deliveryMode={access.invitationDeliveryMode}
+          onCopy={copyValue}
+          onReset={resetForm}
+          onResend={resendInvitation}
+        />
       ) : canManageTenantOnboarding ? (
         <form className="platform-onboarding-form" onSubmit={handleSubmit}>
           <section className="platform-form-section" aria-labelledby="onboarding-type-heading">
@@ -332,11 +422,20 @@ export function PlatformTenantAdminPage() {
                 <label>
                   <span>Pilot end date</span>
                   <input
+                    aria-label="Pilot end date"
+                    aria-describedby={pilotTrialDateRules ? "pilot-end-date-help" : undefined}
+                    max={pilotTrialDateRules?.maximumEndsOn}
+                    min={pilotTrialDateRules?.minimumEndsOn}
                     onChange={(event) => setForm((current) => ({ ...current, trialEndsAt: event.target.value }))}
                     required
                     type="date"
                     value={form.trialEndsAt}
                   />
+                  {pilotTrialDateRules ? (
+                    <small id="pilot-end-date-help">
+                      Select {pilotTrialDateRules.minimumEndsOn} through {pilotTrialDateRules.maximumEndsOn} UTC; pilots are limited to {pilotTrialDateRules.maximumPilotDays} days.
+                    </small>
+                  ) : null}
                 </label>
               ) : (
                 <>
@@ -545,7 +644,7 @@ function PendingOnboardings({
                     <td data-label="Tenant"><strong>{item.displayName}</strong><span>{item.onboardingType}</span></td>
                     <td data-label="Customer reference">{item.customerReference}</td>
                     <td data-label="Owner">{item.ownerEmail}</td>
-                    <td data-label="Delivery">{item.invitationDeliveryStatus}</td>
+                    <td data-label="Delivery">{invitationDeliveryLabel(item.invitationDeliveryStatus)}</td>
                     <td data-label="Action">
                       <button
                         aria-label={`Cancel onboarding for ${item.displayName}`}
@@ -635,12 +734,14 @@ function PendingOnboardings({
 function ProvisioningSuccess({
   result,
   copiedValue,
+  deliveryMode,
   onCopy,
   onReset,
   onResend
 }: {
   result: PlatformTenantProvisioningResult;
   copiedValue: string | null;
+  deliveryMode: PlatformAccess["invitationDeliveryMode"];
   onCopy: (value: string) => Promise<void>;
   onReset: () => void;
   onResend: () => Promise<string | null>;
@@ -683,7 +784,7 @@ function ProvisioningSuccess({
         <div><dt>Tenant status</dt><dd>{result.tenantStatus}</dd></div>
         <div><dt>Owner</dt><dd>{result.ownerEmail}</dd></div>
         <div><dt>Invitation</dt><dd>{result.invitationStatus}</dd></div>
-        <div><dt>Email delivery</dt><dd>{result.invitationDeliveryStatus}</dd></div>
+        <div><dt>Email submission</dt><dd>{invitationDeliveryLabel(result.invitationDeliveryStatus)}</dd></div>
         <div><dt>Data handling</dt><dd>{result.dataHandlingMode}</dd></div>
         <div><dt>Expires</dt><dd>{formatUsDateTime(result.invitationExpiresAt)}</dd></div>
       </dl>
@@ -691,9 +792,7 @@ function ProvisioningSuccess({
         <LockKeyhole aria-hidden="true" size={18} />
         {isCancelled
           ? `Cancelled${result.cancelledAt ? ` ${formatUsDateTime(result.cancelledAt)}` : ""}: ${result.cancellationReason ?? "No reason recorded."}`
-          : result.invitationDeliveryStatus === "Sent"
-          ? `Invitation email sent${result.invitationNotificationSentAt ? ` ${formatUsDateTime(result.invitationNotificationSentAt)}` : ""}.`
-          : "Invitation email is queued for asynchronous delivery."}
+          : invitationDeliveryMessage(result, deliveryMode)}
       </div>
       {resendState === "error" ? <div className="platform-form-error" role="alert"><ShieldAlert aria-hidden="true" size={18} /><span>{resendError}</span></div> : null}
       <div className="platform-success-actions">

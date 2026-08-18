@@ -2394,7 +2394,7 @@ describe("App", () => {
     expect(within(attachedClause as HTMLElement).getByText("Published review complete")).toBeInTheDocument();
     expect(within(attachedClause as HTMLElement).getByText("flowdown.pdf section 4")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Published clause ID"), "far-52-204-21");
+    await user.type(screen.getByLabelText("Published clause"), "52.204.21");
     await user.type(screen.getByLabelText("Attachment reason"), "Required by award package.");
     await user.type(screen.getByLabelText("Source document reference"), "contract.pdf section 12");
     await user.click(screen.getByRole("button", { name: /attach clause/i }));
@@ -2402,12 +2402,13 @@ describe("App", () => {
     expect(attachContractClauseMock).toHaveBeenCalledWith(
       contract.id,
       expect.objectContaining({
-        clauseLibraryId: "far-52-204-21",
+        clauseLibraryId: "52.204.21",
         attachmentReason: "Required by award package.",
         sourceDocumentReference: "contract.pdf section 12"
       })
     );
     expect(await screen.findByText("Clause attached to contract.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Published clause")).toHaveValue("");
 
     await user.click(screen.getByRole("button", { name: "Generate obligations for 52.204-27" }));
     expect(generateContractClauseObligationsMock).toHaveBeenCalledWith(contract.id, contractClause.id);
@@ -2423,6 +2424,33 @@ describe("App", () => {
       reason: "Removed from revised flow-down."
     });
     expect(await screen.findByText("Clause removed from contract.")).toBeInTheDocument();
+  });
+
+  it("preserves clause attachment values when the API rejects the reference", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getContractsMock.mockResolvedValueOnce([contract]);
+    getContractClausesMock.mockResolvedValueOnce([]);
+    attachContractClauseMock.mockResolvedValueOnce({
+      data: null,
+      error: "Published clause reference was not found."
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: /contracts/i }));
+    await user.type(screen.getByLabelText("Published clause"), "52.204.99");
+    await user.type(screen.getByLabelText("Attachment reason"), "Required by award package.");
+    await user.type(screen.getByLabelText("Source document reference"), "contract.pdf section 12");
+    await user.click(screen.getByRole("button", { name: /attach clause/i }));
+
+    expect(await screen.findByText("Published clause reference was not found.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Published clause")).toHaveValue("52.204.99");
+    expect(screen.getByLabelText("Attachment reason")).toHaveValue("Required by award package.");
+    expect(screen.getByLabelText("Source document reference")).toHaveValue("contract.pdf section 12");
   });
 
   it("TC-9.1.1 and TC-9.1.3 searches published clauses and shows source metadata", async () => {

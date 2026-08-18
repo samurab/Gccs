@@ -46,10 +46,12 @@ if (invitationDeliveryEnabled)
     var publicWebBaseUrl = builder.Configuration["InvitationDelivery:PublicWebBaseUrl"];
     var endpoint = builder.Configuration["InvitationDelivery:Endpoint"];
     var connectionString = builder.Configuration["InvitationDelivery:ConnectionString"];
+    var provider = builder.Configuration["InvitationDelivery:Provider"];
     var senderAddress = builder.Configuration["InvitationDelivery:SenderAddress"];
     var useManagedIdentity = builder.Configuration.GetValue("InvitationDelivery:UseManagedIdentity", true);
     if (!Uri.TryCreate(publicWebBaseUrl, UriKind.Absolute, out var publicWebUri) ||
         (!builder.Environment.IsDevelopment() && publicWebUri.Scheme != Uri.UriSchemeHttps) ||
+        !string.Equals(provider, "AzureCommunicationServices", StringComparison.OrdinalIgnoreCase) ||
         string.IsNullOrWhiteSpace(senderAddress) ||
         (useManagedIdentity && !Uri.TryCreate(endpoint, UriKind.Absolute, out _)) ||
         (!useManagedIdentity && string.IsNullOrWhiteSpace(connectionString)))
@@ -110,6 +112,15 @@ if (string.Equals(
 {
     builder.Services.RemoveAll<IDemoRequestDeliveryTransport>();
     builder.Services.AddScoped<IDemoRequestDeliveryTransport, DevelopmentCaptureDemoRequestDeliveryTransport>();
+}
+else if (string.Equals(
+    demoOptions.Provider,
+    DemoRequestOptions.DevelopmentRequesterEmailProvider,
+    StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.RemoveAll<IDemoRequestDeliveryTransport>();
+    builder.Services.AddScoped<AzureCommunicationDemoRequestEmailSender>();
+    builder.Services.AddScoped<IDemoRequestDeliveryTransport, DevelopmentRequesterEmailDemoRequestDeliveryTransport>();
 }
 builder.Services.AddHostedService<DemoRequestDeliveryWorker>();
 builder.Services.Configure<ExtractionProcessingOptions>(
@@ -313,7 +324,11 @@ var platformApi = app.MapGroup("/api/platform")
     .RequireRateLimiting("api")
     .AllowWithoutTenantMembership();
 
-platformApi.MapGet("/me/access", (ClaimsPrincipal user, IOptions<DemoRequestOptions> demoRequestOptions) =>
+platformApi.MapGet("/me/access", (
+    ClaimsPrincipal user,
+    IOptions<DemoRequestOptions> demoRequestOptions,
+    TenantSubscriptionSettings subscriptionSettings,
+    TimeProvider timeProvider) =>
 {
     var deliveryMode = !demoRequestOptions.Value.Enabled
         ? "Disabled"
@@ -323,6 +338,7 @@ platformApi.MapGet("/me/access", (ClaimsPrincipal user, IOptions<DemoRequestOpti
             StringComparison.OrdinalIgnoreCase)
             ? "DevelopmentCapture"
             : "ExternalEmail";
+    var serverToday = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
     return Results.Ok(new
     {
         userId = user.FindFirstValue(ClaimTypes.NameIdentifier),
@@ -333,6 +349,13 @@ platformApi.MapGet("/me/access", (ClaimsPrincipal user, IOptions<DemoRequestOpti
         canManageTenantSubscriptions = PlatformAuthorization.CanManageTenantSubscriptions(user),
         canManageDemoRequests = PlatformAuthorization.CanManageDemoRequests(user),
         demoRequestDeliveryMode = deliveryMode,
+        invitationDeliveryMode = invitationDeliveryEnabled ? "ExternalEmail" : "Disabled",
+        pilotTrialDateRules = new
+        {
+            minimumEndsOn = serverToday.AddDays(1),
+            maximumEndsOn = serverToday.AddDays(subscriptionSettings.MaximumPilotDays),
+            maximumPilotDays = subscriptionSettings.MaximumPilotDays
+        },
         permissions = user
             .FindAll(PlatformAuthorization.PermissionClaimType)
             .Select(claim => claim.Value)
@@ -391,6 +414,36 @@ platformApi.MapPost("/demo-requests/{requestId:guid}/responses", async (
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["templateKey"] = [exception.Message] });
     }
 }).RequireDemoRequestManagementPermission().WithName("QueuePlatformDemoRequestResponse");
+
+if (app.Environment.IsDevelopment() &&
+    string.Equals(
+        demoOptions.Provider,
+        DemoRequestOptions.DevelopmentCaptureProvider,
+        StringComparison.OrdinalIgnoreCase))
+{
+    platformApi.MapPost("/demo-requests/{requestId:guid}/follow-ups/{followUpRequestId:guid}/development-preview", async (
+        Guid requestId,
+        Guid followUpRequestId,
+        DemoFollowUpService service,
+        HttpContext httpContext,
+        CancellationToken cancellationToken) =>
+    {
+        httpContext.Response.Headers.CacheControl = "no-store";
+        httpContext.Response.Headers.Pragma = "no-cache";
+        httpContext.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+        var preview = await service.CreateDevelopmentPreviewAsync(requestId, followUpRequestId, cancellationToken);
+        return preview is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "The development follow-up preview is not available.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(preview);
+    })
+    .RequireDemoRequestManagementPermission()
+    .WithName("CreateDevelopmentDemoFollowUpPreview");
+}
 
 platformApi.MapPost("/demo-requests/{requestId:guid}/appointment-confirmation", async (
     Guid requestId,
@@ -1761,7 +1814,7 @@ api.MapPost("/contracts/{contractId:guid}/clauses", async (
             ? ApiProblemDetails.Create(
                 httpContext,
                 "Resource not found",
-                $"Contract '{contractId}' or published clause library ID '{request.ClauseLibraryId}' was not found. Use a clause library ID such as 'far-52-204-21', not a contract number.",
+                $"Contract '{contractId}' or published clause reference '{request.ClauseLibraryId}' was not found. Choose a published clause or enter a citation such as 'FAR 52.204-27'.",
                 StatusCodes.Status404NotFound,
                 "resource_not_found")
             : Results.Created($"/api/contracts/{contractId}/clauses/{clause.Id}", clause);

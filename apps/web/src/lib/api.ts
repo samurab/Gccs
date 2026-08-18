@@ -157,6 +157,12 @@ export type PlatformAccess = {
   canManageTenantSubscriptions?: boolean;
   canManageDemoRequests: boolean;
   demoRequestDeliveryMode?: "DevelopmentCapture" | "ExternalEmail" | "Disabled";
+  invitationDeliveryMode?: "ExternalEmail" | "Disabled";
+  pilotTrialDateRules?: {
+    minimumEndsOn: string;
+    maximumEndsOn: string;
+    maximumPilotDays: number;
+  };
   permissions: string[];
 };
 
@@ -211,6 +217,10 @@ export type DemoRequestResponseReceipt = {
   queuedAt: string;
   followUpRequestId?: string | null;
   expiresAt?: string | null;
+};
+export type DemoFollowUpDevelopmentPreview = {
+  url: string;
+  expiresAt: string;
 };
 export type ConfirmDemoAppointmentRequest = {
   confirmedLocalStart: string;
@@ -1916,6 +1926,9 @@ export async function getPlatformDemoRequestCalendar(from: string, to: string): 
 }
 export async function queuePlatformDemoRequestResponse(requestId: string, templateKey: string): Promise<ApiMutationResult<DemoRequestResponseReceipt>> {
   return postJsonResult<DemoRequestResponseReceipt>(`/api/platform/demo-requests/${requestId}/responses`, { templateKey });
+}
+export async function createDevelopmentDemoFollowUpPreview(requestId: string, followUpRequestId: string): Promise<ApiMutationResult<DemoFollowUpDevelopmentPreview>> {
+  return postJsonResult<DemoFollowUpDevelopmentPreview>(`/api/platform/demo-requests/${requestId}/follow-ups/${followUpRequestId}/development-preview`, {});
 }
 export async function confirmPlatformDemoAppointment(requestId: string, request: ConfirmDemoAppointmentRequest): Promise<ApiMutationResult<DemoAppointmentConfirmationReceipt>> {
   return postJsonResult<DemoAppointmentConfirmationReceipt>(`/api/platform/demo-requests/${requestId}/appointment-confirmation`, request);

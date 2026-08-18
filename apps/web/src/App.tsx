@@ -1507,7 +1507,7 @@ export function App() {
     }
   }
 
-  async function handleContractClauseAttach(contractId: string, request: AttachContractClauseRequest) {
+  async function handleContractClauseAttach(contractId: string, request: AttachContractClauseRequest): Promise<boolean> {
     setContractClauseStatus("saving");
     setContractMessage("");
     setContractClauseMessage("");
@@ -1517,11 +1517,12 @@ export function App() {
       setContractClauses((currentClauses) => [result.data!, ...currentClauses]);
       setContractClauseStatus("saved");
       setContractClauseMessage("Clause attached to contract.");
-      return;
+      return true;
     }
 
     setContractClauseStatus("failed");
     setContractClauseMessage(result.error ?? "Clause could not be attached.");
+    return false;
   }
 
   async function handleContractClauseRemove(contractId: string, contractClauseId: string, reason: string) {
@@ -4294,7 +4295,7 @@ function ContractsView({
     action: "accept" | "reject" | "needs_clarification" | "supersede",
     clauseLibraryId: string | null
   ) => Promise<void>;
-  onAttachClause: (contractId: string, request: AttachContractClauseRequest) => Promise<void>;
+  onAttachClause: (contractId: string, request: AttachContractClauseRequest) => Promise<boolean>;
   onGenerateClauseObligations: (contractId: string, contractClauseId: string) => Promise<void>;
   onRemoveClause: (contractId: string, contractClauseId: string, reason: string) => Promise<void>;
   onSaveDeliverable: (
@@ -4342,16 +4343,18 @@ function ContractsView({
       return;
     }
 
-    await onAttachClause(selectedContract.id, {
+    const attached = await onAttachClause(selectedContract.id, {
       clauseLibraryId: clauseDraft.clauseLibraryId.trim(),
       attachmentReason: clauseDraft.attachmentReason.trim(),
       sourceDocumentReference: clauseDraft.sourceDocumentReference?.trim() || null
     });
-    setClauseDraft({
-      clauseLibraryId: "",
-      attachmentReason: "",
-      sourceDocumentReference: ""
-    });
+    if (attached) {
+      setClauseDraft({
+        clauseLibraryId: "",
+        attachmentReason: "",
+        sourceDocumentReference: ""
+      });
+    }
   }
 
   async function removeClause(contractClauseId: string) {
@@ -4504,13 +4507,14 @@ function ContractsView({
             }}
           >
             <label>
-              Published clause ID
+              Published clause
               <input
                 list="published-clause-options"
+                aria-label="Published clause"
                 value={clauseDraft.clauseLibraryId}
                 onChange={(event) => setClauseDraft((current) => ({ ...current, clauseLibraryId: event.target.value }))}
                 disabled={clauseDisabled}
-                placeholder="Example: far-52-204-21"
+                placeholder="Example: published citation"
                 required
               />
               <datalist id="published-clause-options">
@@ -4520,6 +4524,7 @@ function ContractsView({
                   </option>
                 ))}
               </datalist>
+              <small>Choose a published result or enter its citation.</small>
             </label>
             <label>
               Attachment reason

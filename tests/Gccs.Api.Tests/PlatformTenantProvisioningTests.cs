@@ -231,6 +231,26 @@ public sealed class PlatformTenantProvisioningTests : IClassFixture<WebApplicati
     }
 
     [Fact]
+    public async Task Platform_access_returns_the_server_authoritative_pilot_trial_date_window()
+    {
+        var clock = new FixedTimeProvider(new DateTimeOffset(2026, 8, 17, 23, 30, 0, TimeSpan.Zero));
+        await using var factory = CreateFactory("platform-pilot-date-rules", timeProvider: clock);
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/platform/me/access");
+        AddPlatformHeaders(request, includePlatformPermission: true);
+
+        using var response = await client.SendAsync(request);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Disabled", body.RootElement.GetProperty("invitationDeliveryMode").GetString());
+        var rules = body.RootElement.GetProperty("pilotTrialDateRules");
+        Assert.Equal("2026-08-18", rules.GetProperty("minimumEndsOn").GetString());
+        Assert.Equal("2026-11-15", rules.GetProperty("maximumEndsOn").GetString());
+        Assert.Equal(90, rules.GetProperty("maximumPilotDays").GetInt32());
+    }
+
+    [Fact]
     public async Task Same_idempotency_key_and_payload_returns_original_tenant_without_duplicate()
     {
         await using var factory = CreateFactory("platform-provision-idempotent");
@@ -364,10 +384,14 @@ public sealed class PlatformTenantProvisioningTests : IClassFixture<WebApplicati
         Assert.Empty(await dbContext.AuditLogEntries.ToArrayAsync());
     }
 
-    private WebApplicationFactory<Program> CreateFactory(string databaseName, bool enforceMembership = false) =>
+    private WebApplicationFactory<Program> CreateFactory(
+        string databaseName,
+        bool enforceMembership = false,
+        TimeProvider? timeProvider = null) =>
         _factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("LocalDependencies:Enabled", "false");
+            builder.UseSetting("InvitationDelivery:Enabled", "false");
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.UseSetting("Security:DevelopmentAuth:DefaultPlatformPermissions", string.Empty);
             builder.UseSetting("Security:MembershipAuthorization:Enforce", enforceMembership.ToString());
@@ -379,6 +403,10 @@ public sealed class PlatformTenantProvisioningTests : IClassFixture<WebApplicati
                 services.AddScoped<TenantInvitationService>();
                 services.AddScoped<ITenantInvitationRepository, EfTenantInvitationRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                if (timeProvider is not null)
+                {
+                    services.AddSingleton<TimeProvider>(timeProvider);
+                }
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
@@ -446,4 +474,9 @@ public sealed class PlatformTenantProvisioningTests : IClassFixture<WebApplicati
             "Provision approved No-CUI pilot PILOT-003.",
             true,
             false);
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
 }

@@ -22,6 +22,7 @@ public sealed class EfClauseLibraryRepository(GccsDbContext dbContext) : IClause
         {
             var searchTerm = request.Query.Trim().ToLowerInvariant();
             query = query.Where(clause =>
+                clause.Id == searchTerm ||
                 clause.Number.ToLower().Contains(searchTerm) ||
                 clause.Title.ToLower().Contains(searchTerm) ||
                 clause.Source.ToLower().Contains(searchTerm) ||

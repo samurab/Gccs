@@ -79,6 +79,98 @@ public sealed class ContractClauseAttachmentTests : IClassFixture<WebApplication
         Assert.Equal("high", Assert.Single(listed ?? []).Confidence);
     }
 
+    [Theory]
+    [InlineData("52.204.27")]
+    [InlineData("52.204-27")]
+    [InlineData("FAR 52.204-27")]
+    [InlineData("far 52.204-27")]
+    public async Task Attach_published_clause_accepts_common_citation_formats(string clauseReference)
+    {
+        var tenantId = Guid.NewGuid();
+        var contractId = Guid.NewGuid();
+        await using var factory = CreateFactory($"citation-{Guid.NewGuid():N}", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContract(tenantId, contractId));
+            dbContext.Clauses.Add(CreateClause("far-52-204-27", "52.204-27", "ByteDance Covered Application"));
+        });
+        using var client = factory.CreateClient();
+
+        var attached = await AttachClauseAsync(client, tenantId, contractId, clauseReference);
+
+        Assert.Equal("far-52-204-27", attached.ClauseLibraryId);
+        Assert.Equal("52.204-27", attached.ClauseNumber);
+    }
+
+    [Fact]
+    public async Task Citation_resolution_does_not_expose_unpublished_or_cross_tenant_clauses()
+    {
+        var tenantAId = Guid.NewGuid();
+        var tenantBId = Guid.NewGuid();
+        var contractId = Guid.NewGuid();
+        await using var factory = CreateFactory($"citation-isolation-{Guid.NewGuid():N}", dbContext =>
+        {
+            SeedTenant(dbContext, tenantAId, "Tenant A");
+            SeedTenant(dbContext, tenantBId, "Tenant B");
+            dbContext.Contracts.Add(CreateContract(tenantAId, contractId));
+            dbContext.Clauses.Add(CreateClause("draft-52-204-27", "52.204-27", "Draft clause", ReviewState.Draft));
+            dbContext.Clauses.Add(CreateClause("tenant-b-52-204-28", "52.204-28", "Tenant B clause", ReviewState.Published, tenantBId));
+        });
+        using var client = factory.CreateClient();
+
+        using var unpublishedRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/clauses",
+            new AttachContractClauseRequest("52.204.27", "Unpublished clause attempt.", null),
+            tenantAId,
+            Guid.NewGuid(),
+            Permission.ManageContracts);
+        using var crossTenantRequest = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/clauses",
+            new AttachContractClauseRequest("52.204.28", "Cross-tenant clause attempt.", null),
+            tenantAId,
+            Guid.NewGuid(),
+            Permission.ManageContracts);
+
+        var unpublishedResponse = await client.SendAsync(unpublishedRequest);
+        var crossTenantResponse = await client.SendAsync(crossTenantRequest);
+
+        Assert.Equal(HttpStatusCode.NotFound, unpublishedResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, crossTenantResponse.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractClauseEntity>().ToArrayAsync());
+        Assert.Empty(await dbContext.AuditLogEntries.Where(item => item.EntityType == "ContractClause").ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task Missing_clause_reference_returns_validation_error_without_mutation()
+    {
+        var tenantId = Guid.NewGuid();
+        var contractId = Guid.NewGuid();
+        await using var factory = CreateFactory($"missing-citation-{Guid.NewGuid():N}", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Contracts.Add(CreateContract(tenantId, contractId));
+        });
+        using var client = factory.CreateClient();
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            $"/api/contracts/{contractId}/clauses",
+            new AttachContractClauseRequest(null!, "Required by award package.", null),
+            tenantId,
+            Guid.NewGuid(),
+            Permission.ManageContracts);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.Set<ContractClauseEntity>().ToArrayAsync());
+    }
+
     [Fact]
     public async Task TC_9_2_2_Duplicate_clause_attachment_is_prevented()
     {

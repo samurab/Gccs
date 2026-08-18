@@ -46,6 +46,22 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
     }
 
     [Fact]
+    public async Task Development_requester_email_transport_captures_internal_notifications()
+    {
+        await using var factory = CreateFactory(
+            new StubRepository(),
+            demoRequestProvider: DemoRequestOptions.DevelopmentRequesterEmailProvider);
+        using var scope = factory.Services.CreateScope();
+        var transport = scope.ServiceProvider.GetRequiredService<IDemoRequestDeliveryTransport>();
+
+        var result = await transport.DeliverAsync(CreateClaim(1));
+
+        Assert.IsType<DevelopmentRequesterEmailDemoRequestDeliveryTransport>(transport);
+        Assert.True(transport.IsConfigured);
+        Assert.Equal(DemoRequestDeliveryDisposition.Captured, result.Disposition);
+    }
+
+    [Fact]
     public async Task Invalid_or_unconsented_request_returns_standard_validation_problem_without_writing()
     {
         var repository = new StubRepository();
@@ -248,6 +264,109 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         Assert.DoesNotContain("v1.", followUps.QueueCommand!.TokenHash, StringComparison.Ordinal);
         Assert.Equal(Guid.Parse("71717171-7171-7171-7171-717171717171"), followUps.QueueCommand.RequestedByUserId);
         Assert.Contains("\"followUpRequestId\"", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Development_preview_requires_demo_permission_and_returns_only_a_pending_bound_follow_up()
+    {
+        var followUps = new StubFollowUpRepository();
+        await using var factory = CreateFactory(new StubRepository(), followUpRepository: followUps);
+        using var client = factory.CreateClient();
+        using var scope = factory.Services.CreateScope();
+        var codec = scope.ServiceProvider.GetRequiredService<DemoFollowUpTokenCodec>();
+        var demoRequestId = Guid.NewGuid();
+        var followUpRequestId = Guid.NewGuid();
+        var expiresAt = DateTimeOffset.UtcNow.AddHours(2);
+        var accessCode = codec.Create(followUpRequestId, expiresAt);
+        followUps.Preview = new DemoFollowUpPreviewRecord(
+            followUpRequestId,
+            demoRequestId,
+            DemoFollowUpTokenCodec.Hash(accessCode),
+            DemoFollowUpCatalog.Pending,
+            expiresAt);
+
+        using var denied = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/platform/demo-requests/{demoRequestId}/follow-ups/{followUpRequestId}/development-preview");
+        denied.Headers.Add("X-Gccs-Dev-Auth", "true");
+        denied.Headers.Add("X-Gccs-Dev-Tenant", "none");
+        denied.Headers.Add("X-Gccs-Dev-Platform-Permissions", "ProvisionTenants");
+        denied.Content = JsonContent.Create(new { });
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(denied)).StatusCode);
+
+        using var allowed = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/platform/demo-requests/{demoRequestId}/follow-ups/{followUpRequestId}/development-preview");
+        allowed.Headers.Add("X-Gccs-Dev-Auth", "true");
+        allowed.Headers.Add("X-Gccs-Dev-Tenant", "none");
+        allowed.Headers.Add("X-Gccs-Dev-Platform-Permissions", "ManageDemoRequests");
+        allowed.Content = JsonContent.Create(new { });
+        using var response = await client.SendAsync(allowed);
+        var preview = await response.Content.ReadFromJsonAsync<DemoFollowUpDevelopmentPreview>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        Assert.NotNull(preview);
+        Assert.Equal(expiresAt, preview.ExpiresAt);
+        Assert.EndsWith($"#token={Uri.EscapeDataString(accessCode)}", preview.Url, StringComparison.Ordinal);
+
+        using var crossRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/platform/demo-requests/{Guid.NewGuid()}/follow-ups/{followUpRequestId}/development-preview");
+        crossRequest.Headers.Add("X-Gccs-Dev-Auth", "true");
+        crossRequest.Headers.Add("X-Gccs-Dev-Tenant", "none");
+        crossRequest.Headers.Add("X-Gccs-Dev-Platform-Permissions", "ManageDemoRequests");
+        crossRequest.Content = JsonContent.Create(new { });
+        Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(crossRequest)).StatusCode);
+
+        followUps.Preview = followUps.Preview with { Status = DemoFollowUpCatalog.Responded };
+        using var completedRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/platform/demo-requests/{demoRequestId}/follow-ups/{followUpRequestId}/development-preview");
+        completedRequest.Headers.Add("X-Gccs-Dev-Auth", "true");
+        completedRequest.Headers.Add("X-Gccs-Dev-Tenant", "none");
+        completedRequest.Headers.Add("X-Gccs-Dev-Platform-Permissions", "ManageDemoRequests");
+        completedRequest.Content = JsonContent.Create(new { });
+        Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(completedRequest)).StatusCode);
+
+        followUps.Preview = followUps.Preview with
+        {
+            Status = DemoFollowUpCatalog.Pending,
+            TokenHash = new string('0', 64)
+        };
+        var service = scope.ServiceProvider.GetRequiredService<DemoFollowUpService>();
+        Assert.Null(await service.CreateDevelopmentPreviewAsync(demoRequestId, followUpRequestId));
+    }
+
+    [Fact]
+    public async Task Development_preview_route_is_absent_when_external_email_provider_is_configured()
+    {
+        await using var factory = CreateFactory(
+            new StubRepository(),
+            demoRequestProvider: DemoRequestOptions.AzureCommunicationServicesProvider);
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/platform/demo-requests/{Guid.NewGuid()}/follow-ups/{Guid.NewGuid()}/development-preview");
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", "none");
+        request.Headers.Add("X-Gccs-Dev-Platform-Permissions", "ManageDemoRequests");
+        request.Content = JsonContent.Create(new { });
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(request)).StatusCode);
+    }
+
+    [Fact]
+    public void Development_capture_provider_is_rejected_outside_development()
+    {
+        var options = new DemoRequestOptions
+        {
+            Enabled = true,
+            Provider = DemoRequestOptions.DevelopmentCaptureProvider
+        };
+
+        Assert.Throws<InvalidOperationException>(() =>
+            DemoRequestOptions.ValidateEnabledConfiguration(options, isDevelopment: false));
     }
 
     [Fact]
@@ -488,6 +607,22 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
 
         Assert.Equal("donotreply@example.com", message.SenderAddress);
         Assert.Collection(message.ReplyTo, replyTo => Assert.Equal("demo-operations@example.com", replyTo.Address));
+    }
+
+    [Fact]
+    public void Development_requester_email_targets_the_address_stored_on_the_demo_request_without_a_reply_to_mailbox()
+    {
+        var options = new DemoRequestOptions { SenderAddress = "donotreply@example.com" };
+        var claim = CreateClaim(1) with
+        {
+            Email = "requester@example.com",
+            DeliveryKind = "OperatorResponse:RequestMoreDetails"
+        };
+
+        var message = AzureCommunicationDemoRequestEmailSender.CreateMessage(options, claim);
+
+        Assert.Collection(message.Recipients.To, recipient => Assert.Equal("requester@example.com", recipient.Address));
+        Assert.Empty(message.ReplyTo);
     }
 
     [Fact]
@@ -828,12 +963,33 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         StubRepository repository,
         int permitLimit = 20,
         StubAppointmentRepository? appointmentRepository = null,
-        StubFollowUpRepository? followUpRepository = null) =>
+        StubFollowUpRepository? followUpRepository = null,
+        string demoRequestProvider = DemoRequestOptions.DevelopmentCaptureProvider) =>
         _factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("LocalDependencies:Enabled", "false");
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.UseSetting("DemoRequests:Enabled", "true");
+            builder.UseSetting("DemoRequests:Provider", demoRequestProvider);
+            if (demoRequestProvider == DemoRequestOptions.AzureCommunicationServicesProvider ||
+                demoRequestProvider == DemoRequestOptions.DevelopmentRequesterEmailProvider)
+            {
+                builder.UseSetting("DemoRequests:Endpoint", "https://example.communication.azure.com");
+                builder.UseSetting("DemoRequests:UseManagedIdentity", "true");
+                builder.UseSetting("DemoRequests:SenderAddress", "noreply@example.com");
+                if (demoRequestProvider == DemoRequestOptions.AzureCommunicationServicesProvider)
+                {
+                    builder.UseSetting("DemoRequests:RecipientAddress", "operations@example.com");
+                }
+                builder.UseSetting(
+                    "DemoRequests:PublicWebBaseUrl",
+                    demoRequestProvider == DemoRequestOptions.AzureCommunicationServicesProvider
+                        ? "https://example.com"
+                        : "http://127.0.0.1:5173");
+                builder.UseSetting(
+                    "DemoRequests:FollowUpTokenSigningKey",
+                    string.Concat(Enumerable.Repeat("demo-follow-up-test-", 3)));
+            }
             builder.UseSetting("Security:DemoRequestRateLimiting:PermitLimit", permitLimit.ToString());
             builder.UseSetting("Security:DemoRequestRateLimiting:WindowMinutes", "10");
             builder.UseSetting("Security:DevelopmentAuth:DefaultPlatformPermissions", string.Empty);
@@ -974,6 +1130,7 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         public DemoFollowUpQueueCommand? QueueCommand { get; private set; }
         public DemoFollowUpQueueDisposition QueueDisposition { get; set; } = DemoFollowUpQueueDisposition.Queued;
         public DemoFollowUpAccessRecord? Access { get; set; }
+        public DemoFollowUpPreviewRecord? Preview { get; set; }
         public DemoFollowUpResponseCommand? ResponseCommand { get; private set; }
         public DemoFollowUpSubmissionDisposition SubmissionDisposition { get; set; } = DemoFollowUpSubmissionDisposition.Accepted;
 
@@ -992,6 +1149,16 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
             Guid followUpRequestId,
             string tokenHash,
             CancellationToken cancellationToken = default) => Task.FromResult(Access);
+
+        public Task<DemoFollowUpPreviewRecord?> GetPreviewAsync(
+            Guid demoRequestId,
+            Guid followUpRequestId,
+            CancellationToken cancellationToken = default) => Task.FromResult(
+                Preview is not null &&
+                Preview.DemoRequestId == demoRequestId &&
+                Preview.FollowUpRequestId == followUpRequestId
+                    ? Preview
+                    : null);
 
         public Task<DemoFollowUpSubmissionDisposition> SubmitResponseAsync(
             string tokenHash,

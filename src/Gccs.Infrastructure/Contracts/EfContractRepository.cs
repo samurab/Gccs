@@ -396,6 +396,26 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         return clause is null ? null : new ClauseLibraryMatchDto(clause.Id, clause.Number, clause.Title);
     }
 
+    public async Task<ClauseLibraryMatchDto?> ResolvePublishedClauseLibraryReferenceAsync(
+        string reference,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedReference = reference.Trim();
+        var clause = await dbContext.Clauses
+            .AsNoTracking()
+            .Where(item =>
+                item.ReviewState == ReviewState.Published &&
+                (item.Id == normalizedReference || item.Number == normalizedReference) &&
+                (item.TenantId == null || item.TenantId == tenantContext.TenantId))
+            .OrderByDescending(item => item.Id == normalizedReference)
+            .ThenByDescending(item => item.TenantId == tenantContext.TenantId)
+            .ThenBy(item => item.Id)
+            .Select(item => new ClauseLibraryMatchDto(item.Id, item.Number, item.Title))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return clause;
+    }
+
     public async Task<IReadOnlyList<ClauseCandidateDto>> ReplaceClauseCandidatesAsync(
         Guid extractionJobId,
         Guid sourceDocumentId,

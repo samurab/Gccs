@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PlatformAdminNav } from "./PlatformAdminNav";
 import {
   confirmPlatformDemoAppointment,
+  createDevelopmentDemoFollowUpPreview,
   getPlatformAccess,
   getPlatformDemoRequestCalendar,
   getPlatformDemoRequests,
@@ -105,6 +106,7 @@ function ResponseControls({
   const isDevelopmentCapture = deliveryMode === "DevelopmentCapture";
   const isDeliveryDisabled = deliveryMode === "Disabled";
   const isAppointment = templateKey === "ConfirmAppointment";
+  const isDetailRequest = templateKey === "RequestMoreDetails";
   const appointmentAlreadyConfirmed = schedulingStatus === "Confirmed";
   const isOnlineMeeting = (["MicrosoftTeams", "Zoom", "GoogleMeet"] as string[]).includes(meetingMethod);
   const send = async () => {
@@ -112,7 +114,9 @@ function ResponseControls({
     const action = isDevelopmentCapture ? "Capture" : "Queue";
     const confirmation = isAppointment
       ? `Confirm the 30-minute appointment for ${requesterName} at ${confirmedLocalStart.replace("T", " ")} (${formatUsTimeZoneLabel(timeZone)}) and queue the confirmation?`
-      : `${action} “${label}” for ${requesterName}?`;
+      : isDetailRequest
+        ? `${action} a follow-up request using “${label}” for ${requesterName}?`
+        : `${action} “${label}” for ${requesterName}?`;
     if (!window.confirm(confirmation)) return;
     setState("sending"); setMessage("");
     if (isAppointment) {
@@ -134,14 +138,16 @@ function ResponseControls({
     if (result.error) { setState("error"); setMessage(result.error); return; }
     setState("sent");
     setMessage(result.data?.status === "AlreadyPending"
-      ? "A detail request is already pending. Send another after the requester responds or the current link expires."
+      ? "A follow-up request is already pending. Create another after the requester responds or the current link expires."
       : result.data?.status === "AlreadyQueued"
-      ? isDevelopmentCapture ? "This response was already captured locally." : "This response was already queued."
-      : isDevelopmentCapture ? "Response queued for local capture. No email will be sent." : "Response queued for email delivery.");
+      ? isDevelopmentCapture ? "This message was already captured locally." : "This message was already queued."
+      : isDetailRequest
+        ? isDevelopmentCapture ? "Follow-up request captured locally. No email was sent." : "Follow-up request queued for email delivery."
+        : isDevelopmentCapture ? "Message captured locally. No email was sent." : "Message queued for email delivery.");
     if (templateKey === "RequestMoreDetails") onChanged();
   };
   return <section className="platform-demo-response" aria-label={`Respond to ${requesterName}`}>
-    <label><span>Response template</span><select onChange={event => { setTemplateKey(event.target.value as ResponseTemplateKey); setState("idle"); setMessage(""); }} value={templateKey}>{responseTemplates.map(([key, label]) => <option disabled={key === "ConfirmAppointment" && appointmentAlreadyConfirmed} key={key} value={key}>{key === "ConfirmAppointment" && appointmentAlreadyConfirmed ? `${label} (already confirmed)` : label}</option>)}</select></label>
+    <label><span>Message template</span><select onChange={event => { setTemplateKey(event.target.value as ResponseTemplateKey); setState("idle"); setMessage(""); }} value={templateKey}>{responseTemplates.map(([key, label]) => <option disabled={key === "ConfirmAppointment" && appointmentAlreadyConfirmed} key={key} value={key}>{key === "ConfirmAppointment" && appointmentAlreadyConfirmed ? `${label} (already confirmed)` : label}</option>)}</select></label>
     {isAppointment ? <div className="platform-demo-confirmation-fields">
       <label><span>Confirmed date and time</span><input onChange={event => setConfirmedLocalStart(event.target.value)} required type="datetime-local" value={confirmedLocalStart} /></label>
       <label><span>Time zone</span><input maxLength={100} onChange={event => setTimeZone(event.target.value)} required value={timeZone} /></label>
@@ -150,23 +156,45 @@ function ResponseControls({
       {isOnlineMeeting ? <label className="platform-demo-confirmation-fields__wide"><span>HTTPS meeting link</span><input maxLength={2048} onChange={event => setMeetingJoinUrl(event.target.value)} placeholder="https://…" required type="url" value={meetingJoinUrl} /></label> : null}
       <p className="platform-demo-confirmation-fields__notice">The signed-in operator will be recorded as host. The appointment and confirmation-email outbox record are saved atomically.</p>
     </div> : null}
-    <button disabled={isDeliveryDisabled || state === "sending" || (isAppointment && (!confirmedLocalStart || !timeZone || appointmentAlreadyConfirmed || (isOnlineMeeting && !meetingJoinUrl.trim())))} onClick={() => void send()} type="button">{state === "sending" ? isAppointment ? "Confirming…" : isDevelopmentCapture ? "Capturing…" : "Queueing…" : isAppointment ? "Confirm appointment and queue email" : isDevelopmentCapture ? "Capture response" : "Queue response"}</button>
+    <button disabled={isDeliveryDisabled || state === "sending" || (isAppointment && (!confirmedLocalStart || !timeZone || appointmentAlreadyConfirmed || (isOnlineMeeting && !meetingJoinUrl.trim())))} onClick={() => void send()} type="button">{state === "sending" ? isAppointment ? "Confirming…" : isDevelopmentCapture ? "Capturing…" : "Queueing…" : isAppointment ? "Confirm appointment and queue email" : isDetailRequest ? isDevelopmentCapture ? "Create follow-up request" : "Queue follow-up request" : isDevelopmentCapture ? "Capture message" : "Queue message"}</button>
     {message ? <p className={state === "error" ? "form-status form-status--error" : "form-status form-status--ok"} role="status">{message}</p> : null}
     <small>{isDeliveryDisabled
-      ? "Demo-response delivery is disabled."
+      ? "Demo-message delivery is disabled."
       : isDevelopmentCapture
-        ? "Local development records the response and No-CUI warning without sending email."
+        ? "Local development records the message and No-CUI warning without sending email."
         : "Emails use server-owned copy and the No-CUI warning. Queueing does not guarantee delivery until the email provider accepts it."}</small>
   </section>;
 }
 
-function FollowUpHistory({ items }: { items: DemoFollowUpOperationsItem[] }) {
+function DevelopmentFollowUpPreview({ followUpRequestId, requestId }: { followUpRequestId: string; requestId: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [url, setUrl] = useState("");
+  const createPreview = async () => {
+    setState("loading");
+    const result = await createDevelopmentDemoFollowUpPreview(requestId, followUpRequestId);
+    if (!result.data) {
+      setState("error");
+      return;
+    }
+    setUrl(result.data.url);
+    setState("ready");
+  };
+  return <div className="platform-demo-development-preview">
+    {state !== "ready" ? <button disabled={state === "loading"} onClick={() => void createPreview()} type="button">{state === "loading" ? "Creating preview…" : "Create requester preview"}</button> : null}
+    {state === "ready" ? <a href={url} rel="noreferrer" target="_blank">Open requester form</a> : null}
+    {state === "error" ? <span role="alert">The requester preview is unavailable. Refresh and verify that the follow-up is still pending.</span> : null}
+  </div>;
+}
+
+function FollowUpHistory({ deliveryMode, items, requestId }: { deliveryMode: PlatformAccess["demoRequestDeliveryMode"]; items: DemoFollowUpOperationsItem[]; requestId: string }) {
   if (items.length === 0) return null;
   return <section className="platform-demo-follow-ups" aria-label="Demo detail follow-up history">
     <h3>Demo detail follow-up</h3>
     {items.map(item => <article key={item.id}>
       <header><strong>{item.status}</strong><span>Requested {formatUsDateTime(item.requestedAt)} · Email {emailDeliveryLabel(item.deliveryStatus)}</span></header>
-      {item.status === "Pending" ? <p>Waiting for requester response. Link expires {formatUsDateTime(item.expiresAt)}.</p> : null}
+      {item.status === "Pending" && item.deliveryStatus === "Captured" ? <p>Captured locally — not delivered. Preview link expires {formatUsDateTime(item.expiresAt)}.</p> : null}
+      {item.status === "Pending" && item.deliveryStatus !== "Captured" ? <p>Waiting for requester response. Link expires {formatUsDateTime(item.expiresAt)}.</p> : null}
+      {item.status === "Pending" && item.deliveryStatus === "Captured" && deliveryMode === "DevelopmentCapture" ? <DevelopmentFollowUpPreview followUpRequestId={item.id} requestId={requestId} /> : null}
       {item.status === "Expired" ? <p>The requester did not respond before {formatUsDateTime(item.expiresAt)}.</p> : null}
       {item.status === "Responded" ? <div className="platform-demo-follow-up-response">
         <p><strong>Received:</strong> {item.respondedAt ? formatUsDateTime(item.respondedAt) : "Recorded"}</p>
@@ -326,7 +354,7 @@ export function PlatformDemoRequestsPage() {
     <section className="platform-demo-delivery-note" aria-label="Demo request delivery mode">
       <strong>{isDevelopmentCapture ? "Development capture mode" : access?.demoRequestDeliveryMode === "ExternalEmail" ? "External email mode" : "Delivery disabled"}</strong>
       <span>{isDevelopmentCapture
-        ? "Local development records acknowledgement and response messages in the outbox as captured. It does not send requester emails unless the DemoRequests provider is configured for external email."
+        ? "Local development records acknowledgement and outbound messages in the outbox as captured. It does not send requester emails unless the DemoRequests provider is configured for external email."
         : access?.demoRequestDeliveryMode === "ExternalEmail"
           ? "Requester acknowledgements, detail requests, and appointment confirmations are sent by the server-side outbox worker. Provider accepted means Azure Communication Services accepted the message, not that the requester opened it."
           : "Demo-request delivery is disabled for this environment."}</span>
@@ -341,7 +369,7 @@ export function PlatformDemoRequestsPage() {
       <h2>{item.company}</h2><p><strong>{item.firstName} {item.lastName}</strong> · <a href={`mailto:${item.email}`}>{item.email}</a>{item.phone ? ` · ${item.phone}` : ""}</p>
       <dl><div><dt>Requested time</dt><dd>{item.preferredStartAt ? formatUsDateTime(item.preferredStartAt, item.preferredTimeZone ?? undefined) : "Not provided"}{item.preferredTimeZone ? ` (${formatUsTimeZoneLabel(item.preferredTimeZone)})` : ""}</dd></div><div><dt>Scheduling status</dt><dd>{item.schedulingStatus}</dd></div><div><dt>Confirmed appointment</dt><dd>{item.confirmedStartAt ? `${formatUsDateTime(item.confirmedStartAt, item.confirmedTimeZone ?? undefined)}${item.confirmedTimeZone ? ` (${formatUsTimeZoneLabel(item.confirmedTimeZone)})` : ""} · ${item.durationMinutes} minutes · ${meetingMethodLabel(item.meetingMethod)}` : "Not confirmed"}</dd></div><div><dt>Confirmation email</dt><dd title={deliveryStatusDetail(item.appointmentConfirmationStatus)}>{emailDeliveryLabel(item.appointmentConfirmationStatus)}</dd></div><div><dt>Internal notification</dt><dd title={deliveryStatusDetail(item.deliveryStatus)}>{emailDeliveryLabel(item.deliveryStatus)} · {item.deliveryAttemptCount} attempts</dd></div><div><dt>Requester acknowledgement</dt><dd title={deliveryStatusDetail(item.acknowledgementStatus)}>{emailDeliveryLabel(item.acknowledgementStatus)}</dd></div></dl>
       {item.message ? <blockquote>{item.message}</blockquote> : null}
-      <FollowUpHistory items={item.followUpRequests ?? []} />
+      <FollowUpHistory deliveryMode={access?.demoRequestDeliveryMode} items={item.followUpRequests ?? []} requestId={item.id} />
       {item.deliveryFailureCode ? <p className="form-status form-status--error">Delivery failure: {item.deliveryFailureCode}</p> : null}
       <ResponseControls deliveryMode={access?.demoRequestDeliveryMode} onChanged={() => { setCalendar(null); setRefreshVersion(value => value + 1); }} preferredStartAt={item.preferredStartAt} preferredTimeZone={item.preferredTimeZone} requestId={item.id} requesterName={`${item.firstName} ${item.lastName}`} schedulingStatus={item.schedulingStatus} />
     </article>)}

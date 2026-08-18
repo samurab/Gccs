@@ -58,6 +58,29 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
         Assert.Equal(["52.204-27", "52.222-41"], farCategoryResults.Select(clause => clause.Number).Order(StringComparer.Ordinal).ToArray());
     }
 
+    [Theory]
+    [InlineData("far-52-204-27")]
+    [InlineData("52.204.27")]
+    [InlineData("FAR 52.204.27")]
+    [InlineData("52.204-27")]
+    public async Task Search_accepts_internal_ids_and_common_citation_formats(string query)
+    {
+        var tenantId = Guid.NewGuid();
+        await using var factory = CreateFactory($"clause-reference-search-{Guid.NewGuid():N}", dbContext =>
+        {
+            SeedTenant(dbContext, tenantId);
+            dbContext.Clauses.Add(
+                CreateClause("far-52-204-27", "FAR 52.204-27", "52.204-27", "Prohibition on a ByteDance Covered Application"));
+        });
+        using var client = factory.CreateClient();
+
+        var results = await SearchAsync(client, $"/api/clauses?query={Uri.EscapeDataString(query)}", tenantId);
+
+        var clause = Assert.Single(results);
+        Assert.Equal("far-52-204-27", clause.Id);
+        Assert.Equal("52.204-27", clause.Number);
+    }
+
     [Fact]
     public async Task TC_9_1_2_Only_published_clauses_are_available_for_customer_mapping()
     {
@@ -116,9 +139,11 @@ public sealed class ClauseLibrarySearchTests : IClassFixture<WebApplicationFacto
 
         var results = await SearchAsync(client, "/api/clauses?category=Custom", tenantAId);
         var tenantBSearch = await SearchAsync(client, "/api/clauses?query=Tenant%20B%20Custom", tenantAId);
+        var tenantBIdSearch = await SearchAsync(client, "/api/clauses?query=tenant-b-custom", tenantAId);
 
         Assert.Equal(["tenant-a-custom"], results.Select(clause => clause.Id).ToArray());
         Assert.Empty(tenantBSearch);
+        Assert.Empty(tenantBIdSearch);
         Assert.DoesNotContain(results, clause => clause.Id is "draft-custom" or "retired-custom" or "tenant-b-custom");
     }
 

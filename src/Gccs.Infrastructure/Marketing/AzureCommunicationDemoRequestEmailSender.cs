@@ -13,6 +13,7 @@ public sealed class DemoRequestOptions
     public const string SectionName = "DemoRequests";
     public const string AzureCommunicationServicesProvider = "AzureCommunicationServices";
     public const string DevelopmentCaptureProvider = "DevelopmentCapture";
+    public const string DevelopmentRequesterEmailProvider = "DevelopmentRequesterEmail";
     public bool Enabled { get; set; }
     public string Provider { get; set; } = "AzureCommunicationServices";
     public string Endpoint { get; set; } = string.Empty;
@@ -42,6 +43,27 @@ public sealed class DemoRequestOptions
             return;
         }
 
+        if (string.Equals(options.Provider, DevelopmentRequesterEmailProvider, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!isDevelopment)
+            {
+                throw new InvalidOperationException("The DevelopmentRequesterEmail demo-request provider is permitted only in the Development environment.");
+            }
+
+            if (!System.Net.Mail.MailAddress.TryCreate(options.SenderAddress, out _) ||
+                !IsValidPublicWebUri(options.PublicWebBaseUrl, allowLoopbackHttp: true) ||
+                options.FollowUpTokenSigningKey.Length < 32 ||
+                options.FollowUpTokenLifetimeHours is < 1 or > 168 ||
+                (options.UseManagedIdentity &&
+                    (!Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var developmentEndpointUri) || developmentEndpointUri.Scheme != Uri.UriSchemeHttps)) ||
+                (!options.UseManagedIdentity && string.IsNullOrWhiteSpace(options.ConnectionString)))
+            {
+                throw new InvalidOperationException("Enabled development requester email requires valid Azure Communication Services delivery configuration, a loopback HTTP or HTTPS public web URL, and a follow-up signing key.");
+            }
+
+            return;
+        }
+
         if (!string.Equals(options.Provider, AzureCommunicationServicesProvider, StringComparison.OrdinalIgnoreCase) ||
             !System.Net.Mail.MailAddress.TryCreate(options.RecipientAddress, out _) ||
             !System.Net.Mail.MailAddress.TryCreate(options.SenderAddress, out _) ||
@@ -58,6 +80,20 @@ public sealed class DemoRequestOptions
         {
             throw new InvalidOperationException("Enabled demo requests require a supported provider, valid delivery configuration, HTTPS public web URL, and follow-up signing key.");
         }
+    }
+
+    private static bool IsValidPublicWebUri(string value, bool allowLoopbackHttp)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+            !string.IsNullOrEmpty(uri.UserInfo) ||
+            !string.IsNullOrEmpty(uri.Query) ||
+            !string.IsNullOrEmpty(uri.Fragment))
+        {
+            return false;
+        }
+
+        return uri.Scheme == Uri.UriSchemeHttps ||
+            (allowLoopbackHttp && uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback);
     }
 }
 
@@ -78,9 +114,9 @@ public sealed class AzureCommunicationDemoRequestEmailSender : IDemoRequestDeliv
     }
 
     public bool IsConfigured => _options.Enabled &&
-        string.Equals(_options.Provider, DemoRequestOptions.AzureCommunicationServicesProvider, StringComparison.OrdinalIgnoreCase) &&
+        (string.Equals(_options.Provider, DemoRequestOptions.AzureCommunicationServicesProvider, StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(_options.Provider, DemoRequestOptions.DevelopmentRequesterEmailProvider, StringComparison.OrdinalIgnoreCase)) &&
         !string.IsNullOrWhiteSpace(_options.SenderAddress) &&
-        !string.IsNullOrWhiteSpace(_options.RecipientAddress) &&
         (_options.UseManagedIdentity ? Uri.TryCreate(_options.Endpoint, UriKind.Absolute, out _) : !string.IsNullOrWhiteSpace(_options.ConnectionString));
 
     public async Task<DemoRequestDeliveryResult> DeliverAsync(ClaimedDemoRequestDelivery request, CancellationToken cancellationToken = default)
@@ -92,10 +128,7 @@ public sealed class AzureCommunicationDemoRequestEmailSender : IDemoRequestDeliv
 
     public static EmailMessage CreateMessage(DemoRequestOptions options, ClaimedDemoRequestDelivery request)
     {
-        var isRequesterEmail = request.DeliveryKind == "RequesterAcknowledgement" ||
-            request.DeliveryKind.StartsWith("OperatorResponse:", StringComparison.Ordinal) ||
-            request.DeliveryKind.StartsWith("AppointmentConfirmed:", StringComparison.Ordinal) ||
-            request.DeliveryKind.StartsWith("DemoFollowUpRequested:", StringComparison.Ordinal);
+        var isRequesterEmail = IsRequesterEmail(request.DeliveryKind);
         var content = request.DeliveryKind switch
         {
             "RequesterAcknowledgement" => CreateAcknowledgementContent(request),
@@ -115,13 +148,19 @@ public sealed class AzureCommunicationDemoRequestEmailSender : IDemoRequestDeliv
 
         // Azure Communication Services requires a verified sender, which may be a DoNotReply address.
         // Route replies from requester-facing messages to the monitored demo-operations inbox instead.
-        if (isRequesterEmail)
+        if (isRequesterEmail && System.Net.Mail.MailAddress.TryCreate(options.RecipientAddress, out _))
         {
             message.ReplyTo.Add(new EmailAddress(options.RecipientAddress));
         }
 
         return message;
     }
+
+    public static bool IsRequesterEmail(string deliveryKind) =>
+        deliveryKind == "RequesterAcknowledgement" ||
+        deliveryKind.StartsWith("OperatorResponse:", StringComparison.Ordinal) ||
+        deliveryKind.StartsWith("AppointmentConfirmed:", StringComparison.Ordinal) ||
+        deliveryKind.StartsWith("DemoFollowUpRequested:", StringComparison.Ordinal);
 
     public static EmailContent CreateContent(ClaimedDemoRequestDelivery request)
     {

@@ -4,7 +4,7 @@ import { PlatformDemoRequestsPage } from "./PlatformDemoRequestsPage";
 import * as api from "./lib/api";
 import { formatUsMonthDay, formatUsWeekdayMonthDay } from "./lib/dateFormat";
 
-vi.mock("./lib/api", async importOriginal => ({ ...(await importOriginal<typeof api>()), confirmPlatformDemoAppointment: vi.fn(), getPlatformAccess: vi.fn(), getPlatformDemoRequestCalendar: vi.fn(), getPlatformDemoRequests: vi.fn(), queuePlatformDemoRequestResponse: vi.fn() }));
+vi.mock("./lib/api", async importOriginal => ({ ...(await importOriginal<typeof api>()), confirmPlatformDemoAppointment: vi.fn(), createDevelopmentDemoFollowUpPreview: vi.fn(), getPlatformAccess: vi.fn(), getPlatformDemoRequestCalendar: vi.fn(), getPlatformDemoRequests: vi.fn(), queuePlatformDemoRequestResponse: vi.fn() }));
 beforeEach(() => {
   vi.mocked(api.getPlatformDemoRequestCalendar).mockResolvedValue({ items: [], from: "2026-08-01T04:00:00Z", to: "2026-09-01T04:00:00Z" });
 });
@@ -31,17 +31,17 @@ describe("PlatformDemoRequestsPage", () => {
     expect(screen.getByText("Evidence organization")).toBeInTheDocument();
   });
 
-  it("confirms and queues only a selected server-owned response template", async () => {
+  it("confirms and queues only a selected server-owned message template", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.mocked(api.getPlatformAccess).mockResolvedValue({ userId: "1", userEmail: "operator@example.com", canProvisionTenants: false, canManageDemoRequests: true, demoRequestDeliveryMode: "ExternalEmail", permissions: ["ManageDemoRequests"] });
     vi.mocked(api.getPlatformDemoRequests).mockResolvedValue({ page: 1, pageSize: 25, totalCount: 1, hasNextPage: false, hasPreviousPage: false, items: [{ id: "r1", firstName: "Avery", lastName: "Ng", email: "avery@example.com", phone: null, company: "Northstar Systems", referralSource: null, employeeCount: "11-50", message: null, preferredStartAt: "2026-08-04T18:00:00Z", preferredTimeZone: "America/New_York", receivedAt: "2026-08-02T22:00:00Z", deliveryStatus: "Queued", deliveryAttemptCount: 0, nextDeliveryAttemptAt: null, sentAt: null, deliveryFailureCode: null, acknowledgementStatus: "Queued", schedulingStatus: "Requested", confirmedStartAt: null, confirmedEndAt: null, confirmedTimeZone: null, durationMinutes: null, meetingMethod: null, meetingJoinUrl: null, appointmentConfirmationStatus: "NotQueued" }] });
     vi.mocked(api.queuePlatformDemoRequestResponse).mockResolvedValue({ data: { status: "Queued", templateKey: "RequestMoreDetails", queuedAt: "2026-08-02T23:00:00Z" }, error: null });
     render(<PlatformDemoRequestsPage />);
-    const select = await screen.findByLabelText(/response template/i);
+    const select = await screen.findByLabelText(/message template/i);
     fireEvent.change(select, { target: { value: "RequestMoreDetails" } });
-    fireEvent.click(screen.getByRole("button", { name: /queue response/i }));
+    fireEvent.click(screen.getByRole("button", { name: /queue follow-up request/i }));
     expect(api.queuePlatformDemoRequestResponse).toHaveBeenCalledWith("r1", "RequestMoreDetails");
-    expect(await screen.findByRole("status")).toHaveTextContent(/response queued/i);
+    expect(await screen.findByRole("status")).toHaveTextContent(/follow-up request queued/i);
   });
 
   it("labels development responses as captured and does not claim an email was sent", async () => {
@@ -51,13 +51,26 @@ describe("PlatformDemoRequestsPage", () => {
     vi.mocked(api.queuePlatformDemoRequestResponse).mockResolvedValue({ data: { status: "Queued", templateKey: "ReviewingRequestedTime", queuedAt: "2026-08-02T23:00:00Z" }, error: null });
 
     render(<PlatformDemoRequestsPage />);
-    expect(await screen.findByText(/local development records acknowledgement and response messages/i)).toBeInTheDocument();
+    expect(await screen.findByText(/local development records acknowledgement and outbound messages/i)).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Northstar Systems" })).toBeInTheDocument();
     expect(screen.getByText(/without sending email/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /capture response/i }));
+    fireEvent.click(screen.getByRole("button", { name: /capture message/i }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/no email will be sent/i);
+    expect(await screen.findByRole("status")).toHaveTextContent(/no email was sent/i);
     expect(screen.queryByText(/queued for email delivery/i)).not.toBeInTheDocument();
+  });
+
+  it("creates an explicit requester preview only for a locally captured pending follow-up", async () => {
+    vi.mocked(api.getPlatformAccess).mockResolvedValue({ userId: "1", userEmail: "operator@example.com", canProvisionTenants: false, canManageDemoRequests: true, demoRequestDeliveryMode: "DevelopmentCapture", permissions: ["ManageDemoRequests"] });
+    vi.mocked(api.getPlatformDemoRequests).mockResolvedValue({ page: 1, pageSize: 25, totalCount: 1, hasNextPage: false, hasPreviousPage: false, items: [{ id: "r1", firstName: "Avery", lastName: "Ng", email: "avery@example.com", phone: null, company: "Northstar Systems", referralSource: null, employeeCount: "11-50", message: null, preferredStartAt: "2026-08-04T18:00:00Z", preferredTimeZone: "America/New_York", receivedAt: "2026-08-02T22:00:00Z", deliveryStatus: "Captured", deliveryAttemptCount: 1, nextDeliveryAttemptAt: null, sentAt: null, deliveryFailureCode: null, acknowledgementStatus: "Captured", schedulingStatus: "Requested", confirmedStartAt: null, confirmedEndAt: null, confirmedTimeZone: null, durationMinutes: null, meetingMethod: null, meetingJoinUrl: null, appointmentConfirmationStatus: "NotQueued", followUpRequests: [{ id: "f1", status: "Pending", requestedAt: "2026-08-02T23:00:00Z", expiresAt: "2026-08-05T23:00:00Z", requestedByUserId: "u1", deliveryStatus: "Captured", respondedAt: null, workflows: [], otherWorkflow: null, goals: null, challenges: null, currentProcess: null, additionalContext: null, noCuiNoticeVersion: "demo-follow-up-no-cui-2026-08-12" }] }] });
+    vi.mocked(api.createDevelopmentDemoFollowUpPreview).mockResolvedValue({ data: { url: "http://localhost:5173/demo-request-details#token=opaque", expiresAt: "2026-08-05T23:00:00Z" }, error: null });
+
+    render(<PlatformDemoRequestsPage />);
+    expect(await screen.findByText(/captured locally — not delivered/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /create requester preview/i }));
+
+    expect(api.createDevelopmentDemoFollowUpPreview).toHaveBeenCalledWith("r1", "f1");
+    expect(await screen.findByRole("link", { name: /open requester form/i })).toHaveAttribute("href", "http://localhost:5173/demo-request-details#token=opaque");
   });
 
   it("shows requested-time counts and a daily agenda without claiming confirmation", async () => {
@@ -93,7 +106,7 @@ describe("PlatformDemoRequestsPage", () => {
     vi.mocked(api.confirmPlatformDemoAppointment).mockResolvedValue({ data: { appointmentId: "a1", demoRequestId: "r1", schedulingStatus: "Confirmed", confirmedStartAt: preferred.toISOString(), confirmedEndAt: new Date(preferred.getTime() + 30 * 60 * 1000).toISOString(), timeZone: "America/New_York", durationMinutes: 30, meetingMethod: "ConnectionDetailsToFollow", emailStatus: "Queued", confirmedAt: new Date().toISOString() }, error: null });
 
     render(<PlatformDemoRequestsPage />);
-    fireEvent.change(await screen.findByLabelText(/response template/i), { target: { value: "ConfirmAppointment" } });
+    fireEvent.change(await screen.findByLabelText(/message template/i), { target: { value: "ConfirmAppointment" } });
     fireEvent.click(screen.getByRole("button", { name: /confirm appointment and queue email/i }));
 
     expect(api.confirmPlatformDemoAppointment).toHaveBeenCalledWith("r1", expect.objectContaining({
