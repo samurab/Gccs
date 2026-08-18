@@ -81,7 +81,7 @@ Approval posture addendum: `docs/production-readiness-approval-posture-addendum.
 - PR-5.1 attached expert content approval or withholding evidence; future publication of withheld high-risk records remains blocked until approval.
 - PR-5.4 must keep pilot onboarding, release notes, support runbooks, and known-risk artifacts linked before launch approval.
 - PR-6.1 approval records are complete; accepted exceptions remain linked for PR-6.2.
-- PR-6.2 created launch candidate tag `launch-candidate-2026-08-16-1`, records the approved tag and commit in `docs/release/approved-launch-candidate.json`, and gathered launch evidence links in `docs/production-readiness-launch-candidate-tag.md`.
+- PR-6.2 created launch candidate tag `launch-candidate-2026-08-18-1`, records the approved tag and commit in `docs/release/approved-launch-candidate.json`, and gathered launch evidence links in `docs/production-readiness-launch-candidate-tag.md`.
 - PR-7.1 CI/CD path and production execution are resolved by `.github/workflows/production.yml`, `infra/terraform/environments/production/main.tf`, and successful run `28746053336`; PR-7.2 scanner-backed smoke is resolved by `docs/production-readiness-production-smoke-evidence.md` and `output/playwright/production-readiness/pr-7.2/authenticated-production-smoke.json`.
 - PR-7.3 controlled pilot onboarding is recorded in `docs/production-readiness-pilot-onboarding-evidence.md`.
 - PR-8.1 daily pilot monitoring is recorded in `docs/production-readiness-pilot-monitoring.md`.
