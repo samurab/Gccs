@@ -242,6 +242,26 @@ This approval is not independent legal, security, privacy, compliance, accessibi
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, platform authorization or tenant isolation weakens, development-only preview gating regresses, or customer-facing claims expand beyond the reviewed candidate scope.
 
+## Demo Launcher Admin Persona Candidate Reapproval - 2026-08-23
+
+The repository owner and deployment operator, `samurab`, explicitly requested committing and pushing the worktree, deploying to staging, merging to `main`, creating a launch candidate, and deploying production. This records combined-role approval for `launch-candidate-2026-08-23-1` within the existing solo-controlled No-CUI pilot production scope after the exact candidate passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, accessibility, email-deliverability, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, secure CUI storage, legal advice, guaranteed email delivery, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-23 |
+| Candidate | `launch-candidate-2026-08-23-1` at `8bcd6300ab854af28e8988639e4c24046c311b22` |
+| Scope | PR #69 changes only development/demo-video launcher defaults so the interactive local marketing demo starts as the seeded fictional Northstar Admin persona, while deterministic capture specs keep their explicit role-specific personas. Production authentication, authorization, tenant isolation, persistence, migrations, and No-CUI controls are unchanged. |
+| Exact-candidate automated evidence | PR #69 CI run `32662668101`; main CI run `32664108591`; staging deployment run `32664108548`; Static Web Apps run `32664108592`. Main CI passed backend validation, frontend validation, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation, and the real-stack report RBAC/rollback gate. |
+| Exact-candidate staging evidence | Run `32664108548` built the exact merge commit, generated and applied the idempotent migration script, deployed API and web artifacts, and passed No-CUI and dependency health checks. |
+| Security and claim-control scope | The change remains inside development/demo tooling and documentation. It relies on `Security__DevelopmentAuth__Enabled=true` in the local demo launcher, JWT bearer authentication outside Development, membership authorization remaining enabled, and explicit capture persona headers in `marketing/demo-video/capture/walkthrough.spec.ts`. |
+| Unresolved limitations | Review is solo-controlled rather than independent. The release did not add an authenticated production smoke identity, did not re-run every demo-video capture scene, and did not validate external email inbox placement. Generated local artifacts remain outside the candidate unless separately committed and approved. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, guaranteed delivery, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, development-only authentication gating regresses, capture persona isolation regresses, or customer-facing claims expand beyond the reviewed candidate scope.
+
 ## Evidence Package Reviewed
 
 Required approval reviewers must inspect these artifacts before approval can be recorded:
