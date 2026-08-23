@@ -2,9 +2,9 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate is awaiting protected production CI/CD execution; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-08-23-1` is approved but not yet deployed.
+Current candidate execution status: `launch-candidate-2026-08-23-1` deployed successfully in production workflow run `32668679239`.
 
 Latest evidence date: 2026-08-23. Historical evidence dates are retained below.
 
@@ -37,14 +37,14 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-23-1` at `8bcd6300ab854af28e8988639e4c24046c311b22`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Ready; exact-candidate execution pending | Run `32104303520` validated the historical manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-23-1` still requires protected production workflow execution after this launch-candidate gate merges. |
+| Approved production CI/CD path | Passed | Run `32668679239` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-23-1` completed protected production workflow execution in run `32668679239`. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-08-23-1` still requires protected production workflow execution. Secret values are not stored in this evidence or the repository. |
-| Production No-CUI posture validation | Passed | Run `32104303520` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
-| Production migrations | Passed | Run `32104303520` generated and successfully applied the idempotent production migration script. |
+| Production secrets source | Passed | Current candidate `launch-candidate-2026-08-23-1` resolved the required production environment secrets in run `32668679239` without exposing their values. Secret values are not stored in this evidence or the repository. |
+| Production No-CUI posture validation | Passed | Run `32668679239` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
+| Production migrations | Passed | Run `32668679239` generated and successfully applied the idempotent production migration script. |
 | Production storage, cache, queue, and background jobs | Passed | Exact-candidate workflow and independent post-deployment `/health` checks returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
-| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `32104303520` passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. Alert delivery and email delivery were not repeated for this candidate. |
-| Deployment evidence capture | Passed | Artifact `9312716657` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
+| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `32668679239` passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. Alert delivery and email delivery were not repeated for this candidate. |
+| Deployment evidence capture | Passed | Artifact `9500813730` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
@@ -71,10 +71,28 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | --- | --- | --- |
 | TC-PR-7.1.1 | Passed | Production workflow checks `launch_candidate_tag` against `docs/release/approved-launch-candidate.json`, verifies the tag commit, and checks out that tag. |
 | TC-PR-7.1.2 | Passed | Production deployment path is `.github/workflows/production.yml` using GitHub environment `production`; manual ad hoc deployment remains prohibited. |
-| TC-PR-7.1.3 | Passed for deployment runtime and repository contract | Run `31968286655` passed secrets resolution, migration application, dependency health, and No-CUI checks; workflow and Terraform retain logs/alerts contracts. |
-| TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `9269133023` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
+| TC-PR-7.1.3 | Passed for deployment runtime and repository contract | Run `32668679239` passed secrets resolution, migration application, dependency health, and No-CUI checks; workflow and Terraform retain logs/alerts contracts. |
+| TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `9500813730` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
 
 ## Deployment Execution Record
+
+### 2026-08-23 demo launcher admin-persona deployment
+
+Production workflow run `32668679239` completed successfully. Release controls ran from merged main approval commit `b8aaa9f9713c7e966cb7070aa2f8c513e05bf9a7`; the workflow validated and deployed immutable runtime tag `launch-candidate-2026-08-23-1` at `8bcd6300ab854af28e8988639e4c24046c311b22`.
+
+Run results:
+
+- Approved tag/SHA validation, protected-environment review, production controls, and No-CUI guardrails passed.
+- Production API and web builds, idempotent migration generation/application, API App Service deployment, Static Web App deployment, `/health`, and evidence upload passed.
+- Evidence artifact `9500813730` records deployment evidence at `2026-08-23T21:54:08Z`, runtime tag/SHA, operator `samurab`, `customer_data_mode=no-cui-only`, and `result=deployment-and-health-checks-passed`.
+- Workflow health checks returned `status=ok` for the deployed production application.
+
+Verification limits and environmental differences:
+
+- The candidate change is limited to development/demo-video launcher defaults and release-control metadata. Production authentication, authorization, tenant isolation, persistence, migrations, and No-CUI behavior are unchanged by the candidate source commit.
+- No authenticated production smoke identity was used in this release execution, so demo-request form submission, tenant admin onboarding, clause workflows, owner exports, RBAC denial, audit visibility, and interactive local demo persona behavior were not re-executed against production.
+- Alert delivery, email delivery, production restore, and rollback were not re-executed for this candidate; historical evidence remains applicable only to the paths and dates it tested.
+- The deployment used no real customer data or CUI and authorizes only the solo-controlled No-CUI pilot scope. It does not authorize broader customer launch, CUI processing, certification, government approval, secure CUI storage, legal advice, or independent professional approval.
 
 ### 2026-08-18 demo and clause workflow deployment
 
