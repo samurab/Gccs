@@ -43,7 +43,7 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Production No-CUI posture validation | Passed | Run `32747227383` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
 | Production migrations | Passed | Run `32747227383` generated and successfully applied the idempotent production migration script. |
 | Production storage, cache, queue, and background jobs | Passed | Exact-candidate workflow and independent post-deployment `/health` checks returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
-| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `32747227383` passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. Alert delivery, email delivery, and a live HubSpot write were not repeated for this candidate. |
+| Production health checks, logs, alerts, and HubSpot sync | Passed for exact-candidate health and one synthetic CRM write; historical alert evidence retained | Run `32747227383` passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. A synthetic public demo request accepted at `2026-08-24T16:57:53Z` produced exactly one HubSpot contact and one associated company. Alert delivery and mailbox placement were not repeated for this candidate. |
 | Deployment evidence capture | Passed | Artifact `9527732298` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
@@ -88,11 +88,18 @@ Run results:
 - Evidence artifact `9527732298` records deployment evidence at `2026-08-24T15:55:03Z`, runtime tag/SHA, operator `samurab`, `customer_data_mode=no-cui-only`, and `result=deployment-and-health-checks-passed`.
 - Workflow health checks returned `status=ok` for PostgreSQL, Redis, object storage, and background jobs.
 
+Live synthetic HubSpot verification:
+
+- At `2026-08-24T16:57:53Z`, production accepted one No-CUI synthetic `POST /api/public/demo-requests` with HTTP `202`. The synthetic address was `fedril.step6.production.verify.20260824165747@example.com`; the message explicitly identified the request as production verification and instructed operators not to contact it.
+- HubSpot account `247124975` returned exactly one matching contact, ID `540138987226`, created at `2026-08-24T16:58:12Z`. The contact contained acquisition source `Book a Demo`, outreach permission `Manual Only`, relationship status `Demo Interest`, interest level `High`, prospecting status `Meeting Requested`, the expected operator next action, next follow-up date `2026-08-25`, and source detail containing request ID `7d677ee83260402ca3f1fea636002ae2` and referral `Step 6 production verification`.
+- HubSpot returned exactly one company, ID `341642726076`, with domain `example.com`, associated to the synthetic contact. The deployed application excludes `example.com` from its own company-upsert path, so the observed company creation and association are attributed to HubSpot portal-level automatic company association rather than FeDril's company upsert. This is an evidence-based inference from the deployed code and live record timestamps, not a provider audit log.
+- The connected FeDril Google Calendar account `samurab@sierralabsllc.com` returned zero matching events between `2026-08-24T16:50:00Z` and `2026-09-01T00:00:00Z` when searched by the synthetic contact name, email, and company. The requested time remained unconfirmed, as designed.
+
 Verification limits and environmental differences:
 
-- HubSpot synchronization is enabled in production and disabled in staging. The production health check proves application startup and internal dependencies, but it does not execute a HubSpot contact or company write.
-- Secret presence does not prove private-app token validity, required contact/company scopes, custom `fedril_*` property existence, accepted enumeration values, external rate-limit behavior, or successful CRM association behavior.
-- No authenticated production smoke identity or synthetic public demo request was used in this release execution, so CRM delivery processing, email delivery, tenant-role flows, RBAC denial, and audit visibility were not re-executed against production.
+- HubSpot synchronization is enabled in production and disabled in staging. The live synthetic request proves token validity for the exercised contact/company operations, the required custom properties and enumeration values, one successful asynchronous CRM delivery, and one association path. It does not prove broader rate-limit behavior, long-running retry behavior, or every existing-record merge permutation.
+- HubSpot portal-level automatic company association can create a company for a generic or reserved email domain even when FeDril intentionally skips its own company-upsert path. This portal behavior should be reviewed before using generic-domain submissions as a strict no-company invariant.
+- No authenticated production operator identity was used, so the internal demo-request delivery status, tenant-role flows, RBAC denial, and audit visibility were not re-executed against production. Provider acceptance and external mailbox placement for the acknowledgement and internal notification were not independently verified.
 - Alert delivery, production restore, and rollback were not re-executed for this candidate; historical evidence remains applicable only to the paths and dates it tested.
 - The deployment used no real customer data or CUI and authorizes only the solo-controlled No-CUI pilot scope. It does not authorize broader customer launch, CUI processing, certification, government approval, guaranteed CRM delivery, secure CUI storage, legal advice, or independent professional approval.
 
