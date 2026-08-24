@@ -262,6 +262,26 @@ This approval is not independent legal, security, privacy, compliance, accessibi
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, development-only authentication gating regresses, capture persona isolation regresses, or customer-facing claims expand beyond the reviewed candidate scope.
 
+## HubSpot Demo-Request Sync Candidate Reapproval - 2026-08-24
+
+The repository owner and deployment operator, `samurab`, explicitly requested creating a launch candidate for merged PR #72 and deploying it to production. This records combined-role approval for `launch-candidate-2026-08-24-1` within the existing solo-controlled No-CUI pilot production scope after the exact merge commit passed protected CI and staging deployment.
+
+This approval is not independent legal, security, privacy, compliance, CRM-governance, accessibility, email-deliverability, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified or export-controlled data, sensitive government-furnished information, certification, government approval, secure CUI storage, legal advice, guaranteed CRM synchronization, or unsupported compliance claims.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-08-24 |
+| Candidate | `launch-candidate-2026-08-24-1` at `08545dd7eaf6c66a387d9d7f262cf9cddde1d742` |
+| Scope | PR #72 adds asynchronous HubSpot contact/company synchronization for Book-a-Demo requests, production-only secret wiring, idempotent retry behavior, preservation of advanced CRM relationship states, and focused deployment and transport tests. Staging keeps HubSpot synchronization disabled. |
+| Exact-candidate automated evidence | PR #72 CI run `32681125006`; main CI run `32683969415`; staging deployment run `32683969406`; Static Web Apps run `32683969431`. Main CI passed backend validation, frontend validation, dependency scans, secret scan, EF migration validation, Terraform validation, extraction evaluation, and the real-stack report RBAC/rollback gate. Local focused verification passed 49 of 52 selected tests; three PostgreSQL concurrency tests were skipped locally and remained covered by the exact-commit CI suite. |
+| Exact-candidate staging evidence | Run `32683969406` built the exact merge commit, generated and applied the idempotent migration script, deployed API and web artifacts, and passed No-CUI and dependency health checks. HubSpot synchronization remained disabled in staging, so this run did not write to a CRM account. |
+| Security and external-side-effect scope | Demo requests and their delivery records remain transactionally persisted before asynchronous delivery. The production workflow requires the `HUBSPOT_PRIVATE_APP_TOKEN` environment secret and configures an HTTPS HubSpot base URL. The token value is not committed or exposed in evidence. Retry processing uses contact email and company domain as idempotent lookup keys. |
+| Unresolved limitations | Review is solo-controlled rather than independent. Secret presence does not prove token validity, required HubSpot contact/company scopes, custom `fedril_*` property existence, accepted enumeration values, rate-limit behavior, or a successful live production CRM write. No live HubSpot request was sent before tagging. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, government approval, guaranteed CRM delivery, guaranteed deduplication across externally modified records, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is not successful, staging health or security evidence regresses, the No-CUI posture changes, the HubSpot token is unavailable, external CRM behavior contradicts the documented retry and state-preservation assumptions, or customer-facing claims expand beyond the reviewed candidate scope.
+
 ## Evidence Package Reviewed
 
 Required approval reviewers must inspect these artifacts before approval can be recorded:
