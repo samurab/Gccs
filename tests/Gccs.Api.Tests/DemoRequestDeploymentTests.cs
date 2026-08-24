@@ -142,6 +142,19 @@ public sealed class DemoRequestDeploymentTests
         }
 
         Assert.Contains(resourceGroupSetting, workflow);
+        if (workflowName == "production.yml")
+        {
+            Assert.Contains("HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}", workflow);
+            Assert.Contains("test -n \"$HUBSPOT_PRIVATE_APP_TOKEN\"", workflow);
+            Assert.Contains("DemoRequests__HubSpot__Enabled=true", workflow);
+            Assert.Contains("DemoRequests__HubSpot__BaseUrl=https://api.hubapi.com", workflow);
+            Assert.Contains("DemoRequests__HubSpot__PrivateAppToken=\"$HUBSPOT_PRIVATE_APP_TOKEN\"", workflow);
+        }
+        else
+        {
+            Assert.Contains("DemoRequests__HubSpot__Enabled=false", workflow);
+            Assert.DoesNotContain("DemoRequests__HubSpot__PrivateAppToken=", workflow);
+        }
         Assert.True(
             workflow.IndexOf("Configure " + (workflowName == "staging.yml" ? "staging" : "production") + " demo-request delivery", StringComparison.Ordinal) <
             workflow.IndexOf("Deploy " + (workflowName == "staging.yml" ? "staging" : "production") + " API App Service", StringComparison.Ordinal),

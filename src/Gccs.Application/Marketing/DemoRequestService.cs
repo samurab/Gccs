@@ -302,6 +302,12 @@ public interface IDemoRequestDeliveryTransport
     Task<DemoRequestDeliveryResult> DeliverAsync(ClaimedDemoRequestDelivery request, CancellationToken cancellationToken = default);
 }
 
+public interface IDemoRequestCrmSyncTransport
+{
+    bool IsConfigured { get; }
+    Task<DemoRequestDeliveryResult> SyncAsync(ClaimedDemoRequestDelivery request, CancellationToken cancellationToken = default);
+}
+
 public sealed record DemoRequestDeliverySettings(TimeSpan LeaseDuration, int MaximumAttempts);
 
 public enum DemoRequestDeliveryProcessingStatus
@@ -328,7 +334,8 @@ public sealed class DemoRequestDeliveryService(
     IDemoRequestRepository repository,
     IDemoRequestDeliveryTransport transport,
     DemoRequestDeliverySettings settings,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IDemoRequestCrmSyncTransport? crmSyncTransport = null)
 {
     public async Task<bool> ProcessNextAsync(CancellationToken cancellationToken = default) =>
         (await ProcessNextWithResultAsync(cancellationToken)).Processed;
@@ -349,7 +356,9 @@ public sealed class DemoRequestDeliveryService(
 
         try
         {
-            var result = await transport.DeliverAsync(request, cancellationToken);
+            var result = string.Equals(request.DeliveryKind, "HubSpotSync", StringComparison.Ordinal)
+                ? await SyncToCrmAsync(request, cancellationToken)
+                : await transport.DeliverAsync(request, cancellationToken);
             await repository.MarkDeliveryCompletedAsync(request.DeliveryId, result, timeProvider.GetUtcNow(), cancellationToken);
             return new DemoRequestDeliveryProcessingResult(
                 DemoRequestDeliveryProcessingStatus.Completed,
@@ -373,5 +382,18 @@ public sealed class DemoRequestDeliveryService(
                 failureCode,
                 retryAt);
         }
+    }
+
+
+    private Task<DemoRequestDeliveryResult> SyncToCrmAsync(
+        ClaimedDemoRequestDelivery request,
+        CancellationToken cancellationToken)
+    {
+        if (crmSyncTransport?.IsConfigured != true)
+        {
+            throw new InvalidOperationException("HubSpot demo-request synchronization is not configured.");
+        }
+
+        return crmSyncTransport.SyncAsync(request, cancellationToken);
     }
 }

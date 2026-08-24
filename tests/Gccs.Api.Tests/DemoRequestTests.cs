@@ -551,6 +551,27 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
     }
 
     [Fact]
+    public async Task Hubspot_delivery_kind_routes_to_crm_without_invoking_email_transport()
+    {
+        var claim = CreateClaim(attempt: 1) with { DeliveryKind = "HubSpotSync" };
+        var repository = new StubRepository { Claim = claim };
+        var emailTransport = new StubSender(exception: new InvalidOperationException("Email transport must not be called."));
+        var crmTransport = new StubCrmSyncTransport();
+        var service = new DemoRequestDeliveryService(
+            repository,
+            emailTransport,
+            new DemoRequestDeliverySettings(TimeSpan.FromMinutes(5), 2),
+            TimeProvider.System,
+            crmTransport);
+
+        var result = await service.ProcessNextWithResultAsync();
+
+        Assert.Equal(DemoRequestDeliveryProcessingStatus.Completed, result.Status);
+        Assert.Equal(claim.RequestId, crmTransport.Request?.RequestId);
+        Assert.Equal("hubspot-contact:123", repository.Completion?.ProviderMessageId);
+    }
+
+    [Fact]
     public void Notification_html_encodes_untrusted_contact_fields_and_preserves_no_cui_warning()
     {
         var content = AzureCommunicationDemoRequestEmailSender.CreateContent(CreateClaim(attempt: 1) with
@@ -1057,6 +1078,22 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
             exception is null
                 ? Task.FromResult(result ?? new DemoRequestDeliveryResult(DemoRequestDeliveryDisposition.Sent, "provider-id"))
                 : Task.FromException<DemoRequestDeliveryResult>(exception);
+    }
+
+    private sealed class StubCrmSyncTransport : IDemoRequestCrmSyncTransport
+    {
+        public bool IsConfigured => true;
+        public ClaimedDemoRequestDelivery? Request { get; private set; }
+
+        public Task<DemoRequestDeliveryResult> SyncAsync(
+            ClaimedDemoRequestDelivery request,
+            CancellationToken cancellationToken = default)
+        {
+            Request = request;
+            return Task.FromResult(new DemoRequestDeliveryResult(
+                DemoRequestDeliveryDisposition.Sent,
+                "hubspot-contact:123"));
+        }
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
