@@ -2,12 +2,15 @@ using Gccs.Application.Marketing;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using System.Text.Json;
 
 namespace Gccs.Infrastructure.Marketing;
 
-public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequestRepository
+public sealed class EfDemoRequestRepository(
+    GccsDbContext dbContext,
+    IOptions<DemoRequestOptions>? demoRequestOptions = null) : IDemoRequestRepository
 {
     public async Task<bool?> QueueOperatorResponseAsync(Guid requestId, string templateKey, Guid actorUserId, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
@@ -151,6 +154,18 @@ public sealed class EfDemoRequestRepository(GccsDbContext dbContext) : IDemoRequ
             UpdatedAt = request.ReceivedAt
         });
         dbContext.DemoRequestDeliveries.Add(new DemoRequestDeliveryEntity { Id = Guid.NewGuid(), DemoRequestId = request.Id, Status = "Queued", DeliveryKind = "RequesterAcknowledgement", CreatedAt = request.ReceivedAt, UpdatedAt = request.ReceivedAt });
+        if (demoRequestOptions?.Value.HubSpot.Enabled == true)
+        {
+            dbContext.DemoRequestDeliveries.Add(new DemoRequestDeliveryEntity
+            {
+                Id = Guid.NewGuid(),
+                DemoRequestId = request.Id,
+                Status = "Queued",
+                DeliveryKind = "HubSpotSync",
+                CreatedAt = request.ReceivedAt,
+                UpdatedAt = request.ReceivedAt
+            });
+        }
 
         try
         {

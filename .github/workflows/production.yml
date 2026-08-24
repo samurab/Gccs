@@ -37,6 +37,7 @@ jobs:
       DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
       DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
       DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+      HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
     steps:
       - name: Checkout production deployment controls
         uses: actions/checkout@v7
@@ -69,6 +70,7 @@ jobs:
           test -n "$DEMO_REQUESTS_RECIPIENT_ADDRESS"
           test -n "$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY"
           test "${#DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY}" -ge 32
+          test -n "$HUBSPOT_PRIVATE_APP_TOKEN"
           test -f infra/terraform/environments/production/main.tf
           grep -R "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
           grep -R "database" infra/terraform/environments/production/main.tf
@@ -160,6 +162,9 @@ jobs:
               DemoRequests__PollIntervalSeconds=5 \
               DemoRequests__LeaseMinutes=5 \
               DemoRequests__MaximumAttempts=5 \
+              DemoRequests__HubSpot__Enabled=true \
+              DemoRequests__HubSpot__BaseUrl=https://api.hubapi.com \
+              DemoRequests__HubSpot__PrivateAppToken="$HUBSPOT_PRIVATE_APP_TOKEN" \
               DemoRequests__RetentionDays=365 \
             --output none
 

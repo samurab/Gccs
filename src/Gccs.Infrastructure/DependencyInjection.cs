@@ -199,8 +199,14 @@ public static class DependencyInjection
             options.LeaseMinutes = ReadInt(configuration, $"{prefix}:LeaseMinutes", options.LeaseMinutes);
             options.MaximumAttempts = ReadInt(configuration, $"{prefix}:MaximumAttempts", options.MaximumAttempts);
             options.RetentionDays = ReadInt(configuration, $"{prefix}:RetentionDays", options.RetentionDays);
+            options.HubSpot.Enabled = ReadBool(configuration, $"{prefix}:HubSpot:Enabled", options.HubSpot.Enabled);
+            options.HubSpot.BaseUrl = configuration[$"{prefix}:HubSpot:BaseUrl"] ?? options.HubSpot.BaseUrl;
+            options.HubSpot.PrivateAppToken = configuration[$"{prefix}:HubSpot:PrivateAppToken"] ?? options.HubSpot.PrivateAppToken;
         });
         services.AddScoped<IDemoRequestDeliveryTransport, AzureCommunicationDemoRequestEmailSender>();
+        services.AddHttpClient<HubSpotDemoRequestSyncTransport>();
+        services.AddScoped<IDemoRequestCrmSyncTransport>(provider =>
+            provider.GetRequiredService<HubSpotDemoRequestSyncTransport>());
         services.AddSingleton(provider =>
         {
             var options = provider.GetRequiredService<IOptions<DemoRequestOptions>>().Value;

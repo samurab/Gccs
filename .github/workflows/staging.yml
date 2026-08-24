@@ -134,6 +134,8 @@ jobs:
               DemoRequests__PollIntervalSeconds=5 \
               DemoRequests__LeaseMinutes=5 \
               DemoRequests__MaximumAttempts=5 \
+              DemoRequests__HubSpot__Enabled=false \
+              DemoRequests__HubSpot__BaseUrl=https://api.hubapi.com \
               DemoRequests__RetentionDays=365 \
             --output none
 

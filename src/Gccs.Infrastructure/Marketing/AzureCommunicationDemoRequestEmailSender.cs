@@ -28,10 +28,22 @@ public sealed class DemoRequestOptions
     public int LeaseMinutes { get; set; } = 5;
     public int MaximumAttempts { get; set; } = 5;
     public int RetentionDays { get; set; } = 365;
+    public HubSpotDemoRequestOptions HubSpot { get; set; } = new();
 
     public static void ValidateEnabledConfiguration(DemoRequestOptions options, bool isDevelopment)
     {
         if (!options.Enabled) return;
+
+        if (options.HubSpot.Enabled &&
+            (!Uri.TryCreate(options.HubSpot.BaseUrl, UriKind.Absolute, out var hubSpotUri) ||
+             hubSpotUri.Scheme != Uri.UriSchemeHttps ||
+             !string.IsNullOrEmpty(hubSpotUri.UserInfo) ||
+             !string.IsNullOrEmpty(hubSpotUri.Query) ||
+             !string.IsNullOrEmpty(hubSpotUri.Fragment) ||
+             string.IsNullOrWhiteSpace(options.HubSpot.PrivateAppToken)))
+        {
+            throw new InvalidOperationException("Enabled HubSpot demo-request synchronization requires an HTTPS API base URL and private-app token.");
+        }
 
         if (string.Equals(options.Provider, DevelopmentCaptureProvider, StringComparison.OrdinalIgnoreCase))
         {
@@ -95,6 +107,13 @@ public sealed class DemoRequestOptions
         return uri.Scheme == Uri.UriSchemeHttps ||
             (allowLoopbackHttp && uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback);
     }
+}
+
+public sealed class HubSpotDemoRequestOptions
+{
+    public bool Enabled { get; set; }
+    public string BaseUrl { get; set; } = "https://api.hubapi.com";
+    public string PrivateAppToken { get; set; } = string.Empty;
 }
 
 public sealed class AzureCommunicationDemoRequestEmailSender : IDemoRequestDeliveryTransport
