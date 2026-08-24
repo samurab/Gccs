@@ -2,9 +2,9 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate is awaiting protected production CI/CD execution; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-08-24-1` is approved but not yet deployed.
+Current candidate execution status: `launch-candidate-2026-08-24-1` deployed successfully in production workflow run `32747227383`.
 
 Latest evidence date: 2026-08-24. Historical evidence dates are retained below.
 
@@ -37,14 +37,14 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-08-24-1` at `08545dd7eaf6c66a387d9d7f262cf9cddde1d742`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Ready; exact-candidate execution pending | Historical run `32668679239` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-24-1` still requires protected production workflow execution after this launch-candidate gate merges. |
+| Approved production CI/CD path | Passed | Run `32747227383` validated the manifest input, immutable tag SHA, protected production environment, No-CUI guardrails, and exact-candidate checkout. Current candidate `launch-candidate-2026-08-24-1` completed protected production workflow execution in run `32747227383`. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-08-24-1` still requires protected production workflow execution. Secret values are not stored in this evidence or the repository. |
-| Production No-CUI posture validation | Passed | Run `32668679239` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
-| Production migrations | Passed | Run `32668679239` generated and successfully applied the idempotent production migration script. |
+| Production secrets source | Passed | Current candidate `launch-candidate-2026-08-24-1` resolved the required production environment secrets in run `32747227383` without exposing their values. Required-secret validation included the HubSpot private-app token. Secret values are not stored in this evidence or the repository. |
+| Production No-CUI posture validation | Passed | Run `32747227383` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
+| Production migrations | Passed | Run `32747227383` generated and successfully applied the idempotent production migration script. |
 | Production storage, cache, queue, and background jobs | Passed | Exact-candidate workflow and independent post-deployment `/health` checks returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
-| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `32668679239` passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. Alert delivery and email delivery were not repeated for this candidate. |
-| Deployment evidence capture | Passed | Artifact `9500813730` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
+| Production health checks, logs, and alerts | Passed for exact-candidate health; historical alert evidence retained | Run `32747227383` passed `/health`; PostgreSQL, Redis, object storage, and background jobs returned `ok`. Alert delivery, email delivery, and a live HubSpot write were not repeated for this candidate. |
+| Deployment evidence capture | Passed | Artifact `9527732298` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
@@ -64,6 +64,7 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | `AZURE_CREDENTIALS_GCCS_PRODUCTION` | GitHub production environment secret | Azure deployment identity. |
 | `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION` | GitHub production environment secret | Static Web App deployment token. |
 | `PRODUCTION_DATABASE_URL` | GitHub production environment secret | Database migration target. |
+| `HUBSPOT_PRIVATE_APP_TOKEN` | GitHub production environment secret | HubSpot contact and company synchronization authentication. |
 
 ## Smoke Verification
 
@@ -71,10 +72,29 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | --- | --- | --- |
 | TC-PR-7.1.1 | Passed | Production workflow checks `launch_candidate_tag` against `docs/release/approved-launch-candidate.json`, verifies the tag commit, and checks out that tag. |
 | TC-PR-7.1.2 | Passed | Production deployment path is `.github/workflows/production.yml` using GitHub environment `production`; manual ad hoc deployment remains prohibited. |
-| TC-PR-7.1.3 | Passed for deployment runtime and repository contract | Run `32668679239` passed secrets resolution, migration application, dependency health, and No-CUI checks; workflow and Terraform retain logs/alerts contracts. |
-| TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `9500813730` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
+| TC-PR-7.1.3 | Passed for deployment runtime and repository contract | Run `32747227383` passed secrets resolution, migration application, dependency health, and No-CUI checks; workflow and Terraform retain logs/alerts contracts. |
+| TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `9527732298` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
 
 ## Deployment Execution Record
+
+### 2026-08-24 HubSpot demo-request synchronization deployment
+
+Production workflow run `32747227383` completed successfully. Release controls ran from merged main approval commit `36a7f21dccd6360df90d8663c63332a077c49151`; the workflow validated and deployed immutable runtime tag `launch-candidate-2026-08-24-1` at `08545dd7eaf6c66a387d9d7f262cf9cddde1d742`.
+
+Run results:
+
+- Approved tag/SHA validation, protected-environment review, production controls, required-secret presence, and No-CUI guardrails passed.
+- Production API and web builds, idempotent migration generation/application, HubSpot-enabled demo-request configuration, API App Service deployment, Static Web App deployment, `/health`, and evidence upload passed.
+- Evidence artifact `9527732298` records deployment evidence at `2026-08-24T15:55:03Z`, runtime tag/SHA, operator `samurab`, `customer_data_mode=no-cui-only`, and `result=deployment-and-health-checks-passed`.
+- Workflow health checks returned `status=ok` for PostgreSQL, Redis, object storage, and background jobs.
+
+Verification limits and environmental differences:
+
+- HubSpot synchronization is enabled in production and disabled in staging. The production health check proves application startup and internal dependencies, but it does not execute a HubSpot contact or company write.
+- Secret presence does not prove private-app token validity, required contact/company scopes, custom `fedril_*` property existence, accepted enumeration values, external rate-limit behavior, or successful CRM association behavior.
+- No authenticated production smoke identity or synthetic public demo request was used in this release execution, so CRM delivery processing, email delivery, tenant-role flows, RBAC denial, and audit visibility were not re-executed against production.
+- Alert delivery, production restore, and rollback were not re-executed for this candidate; historical evidence remains applicable only to the paths and dates it tested.
+- The deployment used no real customer data or CUI and authorizes only the solo-controlled No-CUI pilot scope. It does not authorize broader customer launch, CUI processing, certification, government approval, guaranteed CRM delivery, secure CUI storage, legal advice, or independent professional approval.
 
 ### 2026-08-23 demo launcher admin-persona deployment
 
