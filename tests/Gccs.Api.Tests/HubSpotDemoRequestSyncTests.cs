@@ -24,7 +24,7 @@ public sealed class HubSpotDemoRequestSyncTests
             Options.Create(new DemoRequestOptions { HubSpot = new HubSpotDemoRequestOptions { Enabled = true } }));
         var now = new DateTimeOffset(2026, 8, 24, 15, 0, 0, TimeSpan.Zero);
         var record = new DemoRequestRecord(
-            Guid.NewGuid(), "Avery", "Ng", "avery@northstar.example", "555-0101", "Northstar Systems",
+            Guid.NewGuid(), "Avery", "Ng", "avery@northstar.example.test", "555-0101", "Northstar Systems",
             "Industry event", "11-50", "Evidence readiness workflow", now.AddDays(4), "America/New_York",
             DemoRequestService.ConsentNoticeVersion, now, Guid.NewGuid().ToString("N"));
 
@@ -48,7 +48,7 @@ public sealed class HubSpotDemoRequestSyncTests
             Response(HttpStatusCode.Created, "{\"id\":\"202\"}"),
             Response(HttpStatusCode.NoContent));
         var transport = CreateTransport(handler);
-        var request = CreateRequest("avery@northstar.example") with
+        var request = CreateRequest("avery@northstar.example.test") with
         {
             ReceivedAt = new DateTimeOffset(2026, 8, 21, 15, 0, 0, TimeSpan.Zero),
             DeliveryKind = "HubSpotSync"
@@ -60,7 +60,7 @@ public sealed class HubSpotDemoRequestSyncTests
         Assert.Equal("hubspot-contact:101", result.ProviderMessageId);
         Assert.Collection(
             handler.Requests,
-            item => Assert.StartsWith("GET /crm/v3/objects/contacts/avery%40northstar.example?idProperty=email&properties=", item.Target, StringComparison.Ordinal),
+            item => Assert.StartsWith("GET /crm/v3/objects/contacts/avery%40northstar.example.test?idProperty=email&properties=", item.Target, StringComparison.Ordinal),
             item =>
             {
                 Assert.Equal("POST /crm/v3/objects/contacts", item.Target);
@@ -72,7 +72,7 @@ public sealed class HubSpotDemoRequestSyncTests
                 Assert.Equal("2026-08-24", properties.GetProperty("fedril_next_followup_date").GetString());
                 Assert.Contains(request.RequestId.ToString("N"), properties.GetProperty("fedril_source_detail").GetString());
             },
-            item => Assert.Equal("GET /crm/v3/objects/companies/northstar.example?idProperty=domain", item.Target),
+            item => Assert.Equal("GET /crm/v3/objects/companies/northstar.example.test?idProperty=domain", item.Target),
             item => Assert.Equal("POST /crm/v3/objects/companies", item.Target),
             item => Assert.Equal("PUT /crm/v3/objects/contacts/101/associations/companies/202/contact_to_company", item.Target));
         Assert.All(handler.Requests, item => Assert.Equal("Bearer test-private-token", item.Authorization));
@@ -86,12 +86,12 @@ public sealed class HubSpotDemoRequestSyncTests
             Response(HttpStatusCode.OK, "{\"id\":\"303\"}"));
         var transport = CreateTransport(handler);
 
-        var result = await transport.SyncAsync(CreateRequest("avery@gmail.com") with { DeliveryKind = "HubSpotSync" });
+        var result = await transport.SyncAsync(CreateRequest("avery@example.com") with { DeliveryKind = "HubSpotSync" });
 
         Assert.Equal("hubspot-contact:303", result.ProviderMessageId);
         Assert.Collection(
             handler.Requests,
-            item => Assert.StartsWith("GET /crm/v3/objects/contacts/avery%40gmail.com", item.Target, StringComparison.Ordinal),
+            item => Assert.StartsWith("GET /crm/v3/objects/contacts/avery%40example.com", item.Target, StringComparison.Ordinal),
             item =>
             {
                 Assert.Equal("PATCH /crm/v3/objects/contacts/303", item.Target);

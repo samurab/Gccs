@@ -14,7 +14,7 @@ public sealed class HubSpotDemoRequestSyncTransport(
 {
     private static readonly HashSet<string> GenericEmailDomains = new(StringComparer.OrdinalIgnoreCase)
     {
-        "aol.com", "gmail.com", "googlemail.com", "hotmail.com", "icloud.com", "live.com",
+        "aol.com", "example.com", "example.org", "gmail.com", "googlemail.com", "hotmail.com", "icloud.com", "live.com",
         "mail.com", "me.com", "msn.com", "outlook.com", "proton.me", "protonmail.com",
         "yahoo.com", "ymail.com"
     };
