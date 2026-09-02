@@ -8,6 +8,10 @@ const platformDemoRequestsPath = "/platform/demo-requests";
 const platformCustomersPath = "/platform/customers";
 const invitationAcceptancePath = "/invitations/accept";
 
+export function shouldOfferHubSpotChat(location: Pick<Location, "pathname"> = window.location) {
+  return location.pathname === "/" || location.pathname === landingPath || location.pathname === demoPath;
+}
+
 export function getWorkspaceUrl(origin = window.location.origin) {
   return `${origin}${workspacePath}`;
 }

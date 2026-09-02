@@ -74,3 +74,11 @@ Detailed delivery backlog: `docs/development-phase-use-cases.md`, sections 18-28
 - GovCloud or government cloud deployment path.
 - FedRAMP readiness package if selling directly to federal agencies.
 - Higher-assurance CUI enclave, customer-managed keys, and GovCloud deployment path, if approved.
+- **Planned - SOC 2 assurance program:** Define the FeDril production-system scope, assign control owners, operate and collect evidence for applicable controls, and complete an independent SOC 2 examination. An issued report may serve as an enterprise procurement or availability gate when required by the target customer segment.
+    1. Complete an auditor-supported scope and readiness assessment.
+    2. Remediate control gaps and collect operating evidence.
+    3. Complete a SOC 2 Type I examination if commercially justified.
+    4. Complete a SOC 2 Type II examination after the required operating period.
+    5. Establish controlled report distribution and an ongoing examination-renewal process.
+
+SOC 2 planning or an issued report does not authorize CUI storage or establish CMMC certification, FedRAMP authorization, government approval, or government endorsement. Customer-facing material must not describe FeDril as "SOC 2 certified," "SOC 2 compliant," or "audit ready." Claims must identify the actual report type, covered system, and examination period and must be reviewed before publication.

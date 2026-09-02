@@ -54,7 +54,7 @@ public sealed class EvidenceRequestCreationTests : IClassFixture<WebApplicationF
         Assert.Equal(EvidenceRequestStatus.Open, obligation.Status);
         Assert.Equal(ids.RequesterUserId, obligation.RequesterUserId);
         Assert.Equal(ids.AssigneeUserId, obligation.AssigneeUserId);
-        Assert.Equal(new DateOnly(2026, 9, 1), obligation.DueDate);
+        Assert.Equal(EvidenceRequestDueDate, obligation.DueDate);
         Assert.Equal("Upload policy evidence.", obligation.Instructions);
         Assert.Equal(EvidenceRequestRelatedRecordType.Control, control.RelatedRecordType);
         Assert.Equal(EvidenceRequestRelatedRecordType.Contract, contract.RelatedRecordType);
@@ -144,8 +144,10 @@ public sealed class EvidenceRequestCreationTests : IClassFixture<WebApplicationF
             relatedId,
             assigneeUserId,
             assigneeSubcontractorId,
-            new DateOnly(2026, 9, 1),
+            EvidenceRequestDueDate,
             "Upload policy evidence.");
+
+    private static DateOnly EvidenceRequestDueDate => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30);
 
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
         _factory.WithWebHostBuilder(builder =>

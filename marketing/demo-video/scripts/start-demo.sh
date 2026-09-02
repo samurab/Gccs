@@ -6,6 +6,11 @@ project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 runtime_dir="${project_root}/.runtime"
 mkdir -p "${runtime_dir}"
 
+if ! docker info >/dev/null 2>&1; then
+  printf 'Docker Desktop is not running. Start Docker Desktop, wait until the engine is ready, then rerun npm run demo:video:start.\n' >&2
+  exit 1
+fi
+
 api_pid=""
 web_pid=""
 

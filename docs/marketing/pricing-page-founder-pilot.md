@@ -15,6 +15,8 @@ Publication status: draft pricing hypothesis. Do not publish or invoice from thi
 | Core workflow can show contract metadata, clauses, obligations, evidence metadata, reports, and audit history. | Implemented product capability | Current app exposes these tabs and flows with permission boundaries. |
 | Evidence upload is No-CUI-gated. | Implemented for upload workflows | No-CUI acknowledgement and upload tests verify blocking before acknowledgement. |
 | Payment processing, order form, refund policy, or annual subscription conversion. | Planned | No payment/order-form implementation or counsel-approved terms were verified for this page. |
+| Tier usage quantities, metering, overages, and automated billing. | Planned | The application does not currently meter or enforce the compute-aware packaging targets below. |
+| Metered LLM usage. | Do not claim as current | Current clause extraction is local deterministic processing; AI token cost is modeled only as a future scenario. |
 
 ## Page Hero
 
@@ -58,13 +60,25 @@ FeDril helps small government contractors replace scattered compliance spreadshe
 
 ## Post-Pilot Pricing Hypothesis
 
-These prices are initial market-test prices and should be validated through buyer conversations.
+These prices are initial market-test prices and should be validated through buyer conversations. The quantities are packaging targets, not current product-enforced limits.
 
-| Plan | Price hypothesis | Best fit | Includes |
-| --- | --- | --- | --- |
-| Starter | $99-$199/month | Very small contractors starting readiness tracking | Core workspace, obligation tracking, evidence metadata, basic reports |
-| Team | $299-$499/month | Contractors with multiple users, contracts, and reports | Starter plus expanded users, workflows, subcontractor tracking, audit history |
-| Advisor | Custom after pilot validation | MSPs, consultants, and advisors supporting multiple customers | Multi-client workflow needs, referral model, advisor packaging |
+| Plan | Price hypothesis | Best fit | Packaging target | Status |
+| --- | --- | --- | --- | --- |
+| Starter | $149/month or $1,490/year | Very small contractors starting readiness tracking | 3 users, 5 active contracts, 5 GB storage, 25 uploads/month, 20 reports/month | Planned commercial packaging; quantities are not enforced |
+| Team | $399/month or $3,990/year | Contractors with multiple users, contracts, and reports | 15 users, 30 active contracts, 50 GB storage, 250 uploads/month, 100 reports/month | Planned commercial packaging; quantities are not enforced |
+| Advisor | Custom, starting at $999/month after product validation | MSPs, consultants, and advisors supporting multiple customers | Target equivalent of three heavy workspaces | Planned; automated multi-client packaging is not implemented |
+
+## Compute Economics Review
+
+Internal model as of 2026-08-28:
+
+- Observed Azure production footprint modeled at approximately `$284/month` of fixed platform cost before customer-success and support labor.
+- At a 25-tenant reference mix of 80% lightweight and 20% heavy tenants, modeled current compute is approximately `$5.88` per lightweight tenant and `$36.95` per heavy tenant.
+- At the proposed Starter and Team prices, modeled compute-only gross margin is approximately `96%` and `91%`, respectively.
+- A separately labeled future AI scenario adds approximately `$0.21` per lightweight tenant and `$4.05` per heavy tenant under the model's explicit token assumptions.
+- Compute-only gross margin is not total gross margin. Founder delivery, onboarding, support, expert review, payment processing, taxes, and sales costs are excluded.
+
+The capacity curve is not load-tested, and Azure retail rates have not yet been reconciled to invoices. Do not publish compute-margin claims. Use them for internal pricing and investor preparation only.
 
 ## Qualification Requirements
 
