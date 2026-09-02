@@ -27,12 +27,14 @@ stop_recorded_process() {
 stop_recorded_process "${project_root}/.runtime/web.pid"
 stop_recorded_process "${project_root}/.runtime/api.pid"
 
-if [[ -f "${runtime_env}" ]]; then
+if [[ -f "${runtime_env}" ]] && docker info >/dev/null 2>&1; then
   docker compose \
     --project-name "${compose_project_name}" \
     --env-file "${runtime_env}" \
     -f "${project_root}/infra/docker-compose.yml" \
     down >/dev/null
+elif [[ -f "${runtime_env}" ]]; then
+  printf 'Docker is not running; skipped container cleanup. No demo application processes were left running.\n'
 fi
 
 printf 'FeDril demo services stopped. The isolated database volume was preserved.\n'

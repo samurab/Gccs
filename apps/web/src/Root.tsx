@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
-import { shouldRenderDemoPage, shouldRenderDemoRequestDetailsPage, shouldRenderLandingPage } from "./routing";
+import { HubSpotChat } from "./HubSpotChat";
+import { shouldOfferHubSpotChat, shouldRenderDemoPage, shouldRenderDemoRequestDetailsPage, shouldRenderLandingPage } from "./routing";
 
 const LandingPage = lazy(() =>
   import("./LandingPage").then((module) => ({ default: module.LandingPage }))
@@ -16,8 +17,11 @@ const AuthenticatedWorkspace = lazy(() =>
 
 export function Root() {
   return (
-    <Suspense fallback={<main role="status">Loading FeDril…</main>}>
-      {shouldRenderDemoRequestDetailsPage() ? <DemoRequestDetailsPage /> : shouldRenderDemoPage() ? <DemoPage /> : shouldRenderLandingPage() ? <LandingPage /> : <AuthenticatedWorkspace />}
-    </Suspense>
+    <>
+      <Suspense fallback={<main role="status">Loading FeDril…</main>}>
+        {shouldRenderDemoRequestDetailsPage() ? <DemoRequestDetailsPage /> : shouldRenderDemoPage() ? <DemoPage /> : shouldRenderLandingPage() ? <LandingPage /> : <AuthenticatedWorkspace />}
+      </Suspense>
+      {shouldOfferHubSpotChat() ? <HubSpotChat /> : null}
+    </>
   );
 }

@@ -27,7 +27,10 @@ describe("LandingPage", () => {
     }
     expect(screen.getByText(/No-CUI \/ compliance management only/i)).toBeInTheDocument();
     expect(screen.getByText(/does not certify compliance, provide legal advice, or provide government approval/i)).toBeInTheDocument();
-    expect(screen.getByText(/30-day guided readiness pilot/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /guided readiness pilot/i })).toBeInTheDocument();
+    expect(screen.queryByText(/30-day guided readiness pilot/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\$500-\$1,500/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/flat fee hypothesis/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /discuss pilot fit/i })).toBeInTheDocument();
     const primaryNavigation = screen.getByText("Platform").closest(".landing-nav__links");
     expect(primaryNavigation).not.toBeNull();

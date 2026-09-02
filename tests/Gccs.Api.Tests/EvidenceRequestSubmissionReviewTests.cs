@@ -109,7 +109,7 @@ public sealed class EvidenceRequestSubmissionReviewTests : IClassFixture<WebAppl
         using var request = CreateHttpRequest(
             HttpMethod.Post,
             "/api/evidence-requests",
-            new CreateEvidenceRequestRequest(EvidenceRequestRelatedRecordType.Obligation, ids.ObligationId, ids.AssigneeUserId, null, new DateOnly(2026, 9, 1), "Submit policy evidence."),
+            new CreateEvidenceRequestRequest(EvidenceRequestRelatedRecordType.Obligation, ids.ObligationId, ids.AssigneeUserId, null, EvidenceRequestDueDate, "Submit policy evidence."),
             ids.TenantId,
             ids.RequesterUserId,
             Permission.ManageEvidence);
@@ -136,6 +136,8 @@ public sealed class EvidenceRequestSubmissionReviewTests : IClassFixture<WebAppl
         return await response.Content.ReadFromJsonAsync<EvidenceRequestDto>(JsonOptions) ??
             throw new InvalidOperationException("Expected reviewed request.");
     }
+
+    private static DateOnly EvidenceRequestDueDate => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30);
 
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
         _factory.WithWebHostBuilder(builder =>

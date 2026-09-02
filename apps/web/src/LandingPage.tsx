@@ -448,20 +448,19 @@ export function LandingPage() {
       <section className="landing-section landing-pilot" id="pilot">
         <div className="landing-pilot__copy">
           <p className="landing-eyebrow">Founder-friendly pilot</p>
-          <h2>30-day guided readiness pilot.</h2>
+          <h2>Guided readiness pilot.</h2>
           <p>
             Set up a company profile, model one workflow, tag obligations manually, assign owners, attach allowed evidence
             metadata, and generate a sample readiness report.
           </p>
         </div>
-        <div className="landing-price" aria-label="Founder pilot pricing">
+        <div className="landing-price" aria-label="Founder pilot inquiry">
           <div className="landing-price__badge">
             <Sparkles size={18} />
             <span>Early pilot</span>
           </div>
           <span>Founder pilot</span>
-          <strong>$500-$1,500</strong>
-          <p>Flat fee hypothesis. Credit toward annual subscription if converted.</p>
+          <p>Discuss workflow scope, onboarding needs, and pilot fit with the FeDril team.</p>
           <DemoRequestButton label="Discuss pilot fit" />
         </div>
       </section>
