@@ -17,6 +17,12 @@ const sha = requiredString(manifest.approvedCommitSha, "approvedCommitSha");
 const approvedDate = requiredString(manifest.approvedDate, "approvedDate");
 const dataPosture = requiredString(manifest.dataPosture, "dataPosture");
 const tagMatch = /^launch-candidate-(\d{4}-\d{2}-\d{2})-([1-9]\d*)$/.exec(tag);
+const deploymentCompletedPattern = new RegExp(
+  "^Current candidate execution status: `" +
+    escapeRegExp(tag) +
+    "` deployed successfully in production workflow run `\\d+`\\.$",
+  "m"
+);
 
 if (!tagMatch) {
   fail(`Invalid approvedLaunchCandidateTag: ${tag}`);
@@ -61,11 +67,25 @@ const files = [
     rule("launch gap decision", /(PR-6\.2 created launch candidate tag `)[^`]+(`)/, (match) => `${match[1]}${tag}${match[2]}`)
   ]),
   syncFile("docs/production-readiness-production-deployment-evidence.md", [
+    rule("deployment status", /^Deployment status: current approved candidate (is awaiting protected production CI\/CD execution|deployed successfully through the protected production CI\/CD path; historical successful deployment evidence is retained below)\.$/m, (match, original) => {
+      const status = deploymentCompletedPattern.test(original)
+        ? "deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below"
+        : "is awaiting protected production CI/CD execution";
+      return `Deployment status: current approved candidate ${status}.`;
+    }),
     rule("current candidate execution status", /^(Current candidate execution status: `)([^`]+)(` )(is approved but not yet deployed\.|deployed successfully in production workflow run `\d+`\.)$/m, (match) => `${match[1]}${tag}${match[3]}${match[2] === tag ? match[4] : "is approved but not yet deployed."}`),
     rule("latest evidence date", /^(Latest evidence date: )[0-9]{4}-[0-9]{2}-[0-9]{2}(\. Historical evidence dates are retained below\.)$/m, (match) => `${match[1]}${approvedDate}${match[2]}`),
     rule("deployment evidence candidate", /^(Approved launch candidate tag: `)[^`]+(`\.)$/m, (match) => `${match[1]}${tag}${match[2]}`),
     rule("deployment precondition candidate", /(Manifest `docs\/release\/approved-launch-candidate\.json` approves tag `)[^`]+(` at `)[0-9a-f]+(`)/, (match) => `${match[1]}${tag}${match[2]}${sha}${match[3]}`),
+    rule("approved production path status", /^(\| Approved production CI\/CD path \| )(Passed|Ready; exact-candidate execution pending)( \| .+ \|)$/m, (match, original) => {
+      const status = deploymentCompletedPattern.test(original) ? "Passed" : "Ready; exact-candidate execution pending";
+      return `${match[1]}${status}${match[3]}`;
+    }),
     rule("CI/CD candidate status", /(Current candidate `)([^`]+)(` )(still requires protected production workflow execution after this launch-candidate gate merges\.|completed protected production workflow execution in run `\d+`\.)/, (match) => `${match[1]}${tag}${match[3]}${match[2] === tag ? match[4] : "still requires protected production workflow execution after this launch-candidate gate merges."}`),
+    rule("production secrets status", /^(\| Production secrets source \| )(Passed|Historical path passed; current execution pending)( \| .+ \|)$/m, (match, original) => {
+      const status = deploymentCompletedPattern.test(original) ? "Passed" : "Historical path passed; current execution pending";
+      return `${match[1]}${status}${match[3]}`;
+    }),
     rule("production secrets candidate status", /(Current candidate `)([^`]+)(` )(still requires protected production workflow execution\.|resolved the required production environment secrets in run `\d+` without exposing their values\.)/, (match) => `${match[1]}${tag}${match[3]}${match[2] === tag ? match[4] : "still requires protected production workflow execution."}`)
   ]),
   syncFile("docs/production-readiness-release-notes.md", [
@@ -102,6 +122,10 @@ function isIsoDate(value) {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function rule(label, pattern, replacement) {
   return { label, pattern, replacement };
 }
@@ -122,7 +146,7 @@ async function syncFile(path, rules) {
       fail(`${path}: expected one ${currentRule.label} field, found ${matches.length}`);
     }
 
-    synchronized = synchronized.replace(globalPattern, (...args) => currentRule.replacement(args));
+    synchronized = synchronized.replace(globalPattern, (...args) => currentRule.replacement(args, original));
   }
 
   const changed = synchronized !== original;
