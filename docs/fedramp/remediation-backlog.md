@@ -1,0 +1,43 @@
+# Future FedRAMP Foundation Remediation Backlog
+
+- Backlog date: 2026-09-04
+- Status: Partially implemented
+- Current boundary: commercial No-CUI only
+
+This backlog decomposes roadmap items `FR-0`, `FR-3`, and `FR-4`. It does not activate `FR-5` through `FR-10` or authorize implementation of a regulated/CUI environment.
+
+## Implementation Update — 2026-09-04
+
+- **Implemented:** readiness-package authorization text now fails closed. The legacy client Boolean remains temporarily for wire compatibility but is ignored; every generated package states that it does not claim FedRAMP authorization.
+- **Implemented for mappings and readiness packages:** production dependency injection now uses tenant-scoped EF Core repositories with relational history, optimistic concurrency, restart persistence, and application/audit transactions.
+- **Partially implemented:** production Terraform now declares the discovered commercial resources, supplies import blocks, validates in CI, and has a gated scheduled drift workflow. Remote state initialization, imports, and the first zero-drift plan remain operational work and require a separately approved production change window.
+- **Planned:** a restricted platform-governance authorization-status record. Until it exists and is backed by official evidence, FeDril must not render a positive FedRAMP authorization claim.
+- **Planned:** durable persistence for trust artifacts and SSP artifacts, which remain outside this completed persistence slice.
+- **Urgent operational dependency:** rotate the production Redis credential before Terraform adoption. A read-only resource export exposed the existing value to the local execution context; the value was not copied into the repository and the temporary export was deleted.
+
+| Priority | Slice | Roadmap | Work | Acceptance evidence | Dependencies/stop conditions |
+| --- | --- | --- | --- | --- | --- |
+| P1 | FR-FND-01 Claim authority — Partially implemented | FR-1 | The unsafe positive-claim path is closed: the compatibility Boolean is ignored and package language always fails closed. Add a separate platform security-governance authority and server-derived official-status record only when an approved authorization process exists. | Current tests prove `true` cannot produce an authorization claim. Future completion requires a platform allow/deny matrix, official-evidence validation, immutable status history, expiry handling, and concurrency/rollback tests. | Governance roles and official evidence semantics are not approved. Positive authorization claims remain prohibited. |
+| P1 | FR-FND-02 Durable FedRAMP records — Partially implemented | FR-2/FR-3 | Mappings, gaps, evidence links, readiness packages, included-record snapshots, and lifecycle history now use tenant-scoped relational persistence, concurrency tokens, and transactional audit writes. Persist trust and SSP artifacts in a later slice. | Additive migration; restart and tenant-isolation tests; PostgreSQL concurrency and audit-rollback tests. Future completion requires equivalent trust-artifact and SSP coverage. | Existing process-memory data cannot be recovered. Apply the migration before deploying code that resolves the EF repositories. |
+| P1 | FR-FND-03 Evidence schema and restricted store | FR-3 | Approve the evidence record schema and select an append-only restricted evidence store with sanitized repository index, hashing, access roles, retention, backup, and freshness alerts. | Threat model, access matrix, retention decision, recovery test, tamper/supersession tests, sanitized sample records. | Do not store sensitive vulnerability or incident evidence in the repository. Vendor selection and cost approval required. |
+| P1 | FR-FND-04 Current resource discovery | FR-4 | Generate a read-only inventory of commercial production resources, identities, network paths, data stores, monitoring, CI/CD, external services, and administrators. Classify each as included, shared, inherited, external, or excluded from a candidate boundary. | Dated inventory with collector, subscription/environment, hashes, reviewer, unclassified resources = zero or tracked findings. | Requires explicit authorization and read-only cloud access. Do not mutate live resources. |
+| P1 | FR-FND-05 Real regulated IaC design — Partially implemented | FR-4/FR-6 | Commercial-production resources now have real Terraform declarations, import blocks, validation, and a gated drift workflow. Complete secure remote state, import the existing resources, reconcile to a zero-drift plan, then create a separate regulated-environment ADR and hardened implementation. | Current: `terraform fmt` and `validate`. Remaining: credential rotation, reviewed backend, successful imports, zero-drift plan, drift-run evidence, ADR, policy tests, and rollback strategy. | No provisioning or import was authorized in this slice. Current commercial settings are represented for adoption and must not be mistaken for an approved FedRAMP baseline. |
+| P2 | FR-FND-06 Software and service inventory/SBOM | FR-3/FR-4 | Generate application SBOMs and inventory base images, GitHub Actions, NuGet/npm dependencies, runtime versions, cloud services, and external APIs. Add ownership and update policy. | Machine-readable SBOM artifacts, hashes, release linkage, dependency owners, missing inventory findings. | Tool and artifact-retention selection required. |
+| P2 | FR-FND-07 Persistent vulnerability workflow | FR-3 | Expand one-time dependency checks into asset-linked detection, triage, KEV handling, remediation/mitigation, exception approval, SLA tracking, verification, and recurring reporting. Treat pipeline failures as findings. | End-to-end synthetic finding exercise; recurring report; overdue and accepted-risk handling; tool failure alert evidence. | Requires complete inventory and accountable security owner. Official cadence follows selected profile. |
+| P2 | FR-FND-08 CI/CD provenance hardening | FR-3 | Assess pinned action commits, short-lived federated cloud identity, artifact signing/attestation, runner trust, branch/environment protections, migration approval, and evidence retention. | Provenance record, least-privilege identity evidence, policy tests, rollback test, artifact verification. | Live GitHub/Azure changes need explicit authorization. |
+| P2 | FR-FND-09 Logging and monitoring baseline | FR-3/FR-4 | Inventory security events and telemetry sources; define central routing, time synchronization, retention, access, tamper protection, alert ownership, test cadence, and sensitive-data exclusions. | Event matrix, sanitized sample, alert test, access review, retention/configuration evidence, failure escalation. | Requires SIEM/log-workspace architecture and privacy review. |
+| P2 | FR-FND-10 Recovery and incident exercises | FR-3 | Define RTO/RPO assumptions, run production-safe restore and incident tabletop exercises, capture decisions/findings, and track closure. | Exercise plans, execution metadata, results, findings, owner/date, closure evidence, explicit limitations. | Current staging restore evidence cannot substitute for production or future regulated evidence. |
+| P2 | FR-FND-11 Boundary and data-flow review | FR-4 | Validate the candidate boundary and every flow with engineering, security, product, privacy/legal, support, and an assessor/advisor after activation. | Approved boundary version, data categories, flow inventory, supplier decisions, shared-responsibility matrix. | Blocked until federal use case and expected data categories are known. |
+| P3 | FR-FND-12 Evidence freshness automation | FR-3 | Add automated expiry, missing-collection, environment mismatch, supersession, and reviewer alerts to the approved evidence system. | Synthetic stale/missing/mismatched evidence tests and alert delivery evidence. | Depends on FR-FND-03. |
+
+## Recommended Next Safe Slice
+
+Complete Terraform adoption without changing resource configuration:
+
+1. Rotate the production Redis credential and update its authorized consumers through an approved production procedure.
+2. Approve and initialize encrypted, access-controlled remote Terraform state.
+3. Run the committed import blocks with a least-privilege deployment identity.
+4. Reconcile declarations until `terraform plan` reports no unintended change; do not apply destructive or security-weakening changes.
+5. Set `PRODUCTION_TERRAFORM_STATE_READY=true` only after the reviewed zero-drift baseline exists, then retain scheduled drift evidence.
+
+The next application slice should persist trust and SSP artifacts. Implement a positive authorization-status model only after platform governance roles and official evidence semantics are approved.

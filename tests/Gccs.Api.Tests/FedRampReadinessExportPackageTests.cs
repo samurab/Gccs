@@ -51,6 +51,16 @@ public sealed class FedRampReadinessExportPackageTests : IClassFixture<WebApplic
     }
 
     [Fact]
+    public async Task TC_37_3_2A_Client_boolean_cannot_authorize_FedRAMP_language()
+    {
+        using var client = CreateClient();
+        var package = await GenerateAsync(client, Ids(), governanceApproved: true);
+
+        Assert.Contains("does not claim FedRAMP authorization", package.AuthorizationLanguage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("approved", package.AuthorizationLanguage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task TC_37_3_3_Excluded_records_are_not_exported()
     {
         using var client = CreateClient();

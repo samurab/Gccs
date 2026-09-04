@@ -1,0 +1,75 @@
+name: Production infrastructure drift
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 13 * * 1"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-infrastructure-drift
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: vars.PRODUCTION_TERRAFORM_STATE_READY == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_PRODUCTION_TERRAFORM_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_alert_email_address: ${{ vars.PRODUCTION_ALERT_EMAIL_ADDRESS }}
+      TF_VAR_production_service_plan_id: ${{ vars.PRODUCTION_SERVICE_PLAN_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Login with short-lived Azure identity
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_PRODUCTION_TERRAFORM_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Initialize restricted remote state
+        run: |
+          test -n "${{ vars.PRODUCTION_TF_STATE_RESOURCE_GROUP }}"
+          test -n "${{ vars.PRODUCTION_TF_STATE_STORAGE_ACCOUNT }}"
+          test -n "${{ vars.PRODUCTION_TF_STATE_CONTAINER }}"
+          test -n "${{ vars.PRODUCTION_TF_STATE_KEY }}"
+          terraform -chdir=infra/terraform/environments/production init \
+            -backend-config="resource_group_name=${{ vars.PRODUCTION_TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ vars.PRODUCTION_TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ vars.PRODUCTION_TF_STATE_CONTAINER }}" \
+            -backend-config="key=${{ vars.PRODUCTION_TF_STATE_KEY }}" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Fail on configuration drift
+        run: |
+          set +e
+          terraform -chdir=infra/terraform/environments/production plan \
+            -detailed-exitcode \
+            -lock-timeout=5m \
+            -no-color \
+            -out="$RUNNER_TEMP/production.tfplan"
+          plan_exit="$?"
+          set -e
+          if [ "$plan_exit" -eq 0 ]; then
+            echo "No production infrastructure drift detected."
+            exit 0
+          fi
+          if [ "$plan_exit" -eq 2 ]; then
+            echo "Production infrastructure differs from the reviewed Terraform configuration."
+            exit 1
+          fi
+          echo "Terraform plan failed with exit code $plan_exit."
+          exit "$plan_exit"

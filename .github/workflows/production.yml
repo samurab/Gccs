@@ -72,16 +72,22 @@ jobs:
           test "${#DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY}" -ge 32
           test -n "$HUBSPOT_PRIVATE_APP_TOKEN"
           test -f infra/terraform/environments/production/main.tf
-          grep -R "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
-          grep -R "database" infra/terraform/environments/production/main.tf
-          grep -R "object_storage" infra/terraform/environments/production/main.tf
-          grep -R "cache" infra/terraform/environments/production/main.tf
-          grep -R "queue" infra/terraform/environments/production/main.tf
-          grep -R "secrets" infra/terraform/environments/production/main.tf
-          grep -R "background_jobs" infra/terraform/environments/production/main.tf
-          grep -R "health_checks" infra/terraform/environments/production/main.tf
-          grep -R "logs" infra/terraform/environments/production/main.tf
-          grep -R "alerts" infra/terraform/environments/production/main.tf
+          test -f infra/terraform/environments/production/imports.tf
+          test -f infra/terraform/environments/production/.terraform.lock.hcl
+          grep -F "No-CUI / compliance management only" infra/terraform/environments/production/main.tf
+          resource_count="$(grep -c '^resource ' infra/terraform/environments/production/main.tf)"
+          test "$resource_count" -ge 20
+
+      - name: Validate production Terraform configuration
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Verify production Terraform without backend or live changes
+        run: |
+          terraform -chdir=infra/terraform/environments/production fmt -check
+          terraform -chdir=infra/terraform/environments/production init -backend=false
+          terraform -chdir=infra/terraform/environments/production validate
 
       - name: Checkout approved launch candidate artifact source
         uses: actions/checkout@v7

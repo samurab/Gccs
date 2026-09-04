@@ -1,4 +1,5 @@
 using System.Text;
+using Gccs.Application.Compliance;
 using Gccs.Application.Identity;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
@@ -108,6 +109,13 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<ReportExportEntity> ReportExports => Set<ReportExportEntity>();
     public DbSet<AuditLogEntryEntity> AuditLogEntries => Set<AuditLogEntryEntity>();
     public DbSet<MvpModuleEntity> MvpModules => Set<MvpModuleEntity>();
+    public DbSet<FedRampControlMappingEntity> FedRampControlMappings => Set<FedRampControlMappingEntity>();
+    public DbSet<FedRampEvidenceLinkEntity> FedRampEvidenceLinks => Set<FedRampEvidenceLinkEntity>();
+    public DbSet<FedRampGapEntity> FedRampGaps => Set<FedRampGapEntity>();
+    public DbSet<FedRampControlMappingHistoryEntity> FedRampControlMappingHistory => Set<FedRampControlMappingHistoryEntity>();
+    public DbSet<FedRampReadinessPackageEntity> FedRampReadinessPackages => Set<FedRampReadinessPackageEntity>();
+    public DbSet<FedRampPackageRecordEntity> FedRampPackageRecords => Set<FedRampPackageRecordEntity>();
+    public DbSet<FedRampReadinessPackageHistoryEntity> FedRampReadinessPackageHistory => Set<FedRampReadinessPackageHistoryEntity>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -148,6 +156,12 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<EnvironmentReadinessStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<EvidenceStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<EvidenceType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampEvidenceType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampGapSeverity>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampImplementationStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampPackageRecordStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampReadinessPackageStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<FedRampReviewState>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<ExtractionJobStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<FlowDownStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<GovernmentCloudReleaseChecklistItem>().HaveConversion<string>().HaveMaxLength(64);
@@ -204,9 +218,121 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         ConfigurePeopleAndLabor(modelBuilder);
         ConfigureReports(modelBuilder);
         ConfigureAudit(modelBuilder);
+        ConfigureFedRamp(modelBuilder);
 
         ConfigureTenantForeignKeys(modelBuilder);
         ApplyPostgresConventions(modelBuilder);
+    }
+
+    private static void ConfigureFedRamp(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<FedRampControlMappingEntity>(entity =>
+        {
+            entity.ToTable("fedramp_control_mappings");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ControlId, x.Baseline }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Family, x.ReviewState });
+            entity.Property(x => x.ControlId).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Family).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Baseline).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Owner).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ImplementationSummary).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.InheritedProvider).HasMaxLength(200);
+            entity.Property(x => x.GapRationale).HasMaxLength(1000);
+            entity.Property(x => x.SourceReference).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Reviewer).HasMaxLength(200);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<FedRampEvidenceLinkEntity>(entity =>
+        {
+            entity.ToTable("fedramp_evidence_links");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.MappingId, x.Reference }).IsUnique();
+            entity.Property(x => x.Label).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Reference).HasMaxLength(600).IsRequired();
+            entity.HasOne(x => x.Mapping).WithMany(x => x.EvidenceLinks)
+                .HasForeignKey(x => new { x.TenantId, x.MappingId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FedRampGapEntity>(entity =>
+        {
+            entity.ToTable("fedramp_gaps");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.MappingId, x.IsOpen, x.Severity });
+            entity.Property(x => x.Rationale).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Owner).HasMaxLength(200).IsRequired();
+            entity.HasOne(x => x.Mapping).WithMany(x => x.Gaps)
+                .HasForeignKey(x => new { x.TenantId, x.MappingId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FedRampControlMappingHistoryEntity>(entity =>
+        {
+            entity.ToTable("fedramp_control_mapping_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.MappingId, x.ChangedAt });
+            entity.Property(x => x.Reviewer).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1200).IsRequired();
+            entity.HasOne(x => x.Mapping).WithMany(x => x.History)
+                .HasForeignKey(x => new { x.TenantId, x.MappingId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FedRampReadinessPackageEntity>(entity =>
+        {
+            entity.ToTable("fedramp_readiness_packages");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.PackageVersion }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.Status, x.GeneratedAt });
+            entity.Property(x => x.PackageVersion).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Scope).HasMaxLength(400).IsRequired();
+            entity.Property(x => x.Environment).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Reviewer).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.AuthorizationLanguage).HasMaxLength(400).IsRequired();
+            entity.Property(x => x.GapsJson).IsRequired();
+            entity.Property(x => x.AcceptedRisksJson).IsRequired();
+            entity.Property(x => x.ReadinessSummary).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.LastActor).HasMaxLength(320);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<FedRampPackageRecordEntity>(entity =>
+        {
+            entity.ToTable("fedramp_package_records");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.PackageId, x.RecordType, x.RecordId }).IsUnique();
+            entity.Property(x => x.RecordType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.RecordId).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(400).IsRequired();
+            entity.HasOne(x => x.Package).WithMany(x => x.IncludedRecords)
+                .HasForeignKey(x => new { x.TenantId, x.PackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FedRampReadinessPackageHistoryEntity>(entity =>
+        {
+            entity.ToTable("fedramp_readiness_package_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.PackageId, x.ChangedAt });
+            entity.Property(x => x.Actor).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(1200);
+            entity.HasOne(x => x.Package).WithMany(x => x.History)
+                .HasForeignKey(x => new { x.TenantId, x.PackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     private static void ConfigureMarketing(ModelBuilder modelBuilder)
