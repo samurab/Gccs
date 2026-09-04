@@ -1636,6 +1636,35 @@ public sealed class ProductionReadinessChecklistTests
     }
 
     [Fact]
+    public void Production_deployment_enables_and_verifies_invitation_delivery_before_api_deployment()
+    {
+        var workflow = ReadText(".github", "workflows", "production.yml");
+
+        foreach (var requiredSetting in new[]
+        {
+            "InvitationDelivery__Enabled=true",
+            "InvitationDelivery__Provider=AzureCommunicationServices",
+            "InvitationDelivery__PublicWebBaseUrl=\"$PRODUCTION_WEB_BASE_URL\"",
+            "InvitationDelivery__Endpoint=\"$DEMO_REQUESTS_ENDPOINT\"",
+            "InvitationDelivery__UseManagedIdentity=true",
+            "InvitationDelivery__SenderAddress=\"$DEMO_REQUESTS_SENDER_ADDRESS\"",
+            "InvitationDelivery__PollIntervalSeconds=5",
+            "InvitationDelivery__LeaseMinutes=5",
+            "InvitationDelivery__MaximumAttempts=5"
+        })
+        {
+            Assert.Contains(requiredSetting, workflow);
+        }
+
+        Assert.Contains("name=='InvitationDelivery__Enabled'", workflow);
+        Assert.Contains("test \"$invitation_delivery_enabled\" = \"true\"", workflow);
+        Assert.True(
+            workflow.IndexOf("Configure production email delivery", StringComparison.Ordinal) <
+            workflow.IndexOf("Deploy production API App Service", StringComparison.Ordinal),
+            "Invitation delivery must be configured before the production API starts.");
+    }
+
+    [Fact]
     public void TC_PR_7_2_Production_smoke_evidence_records_scanner_backed_pass()
     {
         var smoke = ReadText("docs", "production-readiness-production-smoke-evidence.md");

@@ -144,12 +144,21 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_PRODUCTION }}
 
-      - name: Configure production demo-request delivery
+      - name: Configure production email delivery
         run: |
           az webapp config appsettings set \
             --resource-group "$PRODUCTION_RESOURCE_GROUP" \
             --name "$PRODUCTION_API_APP_NAME" \
             --settings \
+              InvitationDelivery__Enabled=true \
+              InvitationDelivery__Provider=AzureCommunicationServices \
+              InvitationDelivery__PublicWebBaseUrl="$PRODUCTION_WEB_BASE_URL" \
+              InvitationDelivery__Endpoint="$DEMO_REQUESTS_ENDPOINT" \
+              InvitationDelivery__UseManagedIdentity=true \
+              InvitationDelivery__SenderAddress="$DEMO_REQUESTS_SENDER_ADDRESS" \
+              InvitationDelivery__PollIntervalSeconds=5 \
+              InvitationDelivery__LeaseMinutes=5 \
+              InvitationDelivery__MaximumAttempts=5 \
               DemoRequests__Enabled=true \
               DemoRequests__Provider=AzureCommunicationServices \
               DemoRequests__Endpoint="$DEMO_REQUESTS_ENDPOINT" \
@@ -167,6 +176,13 @@ jobs:
               DemoRequests__HubSpot__PrivateAppToken="$HUBSPOT_PRIVATE_APP_TOKEN" \
               DemoRequests__RetentionDays=365 \
             --output none
+
+          invitation_delivery_enabled="$(az webapp config appsettings list \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --name "$PRODUCTION_API_APP_NAME" \
+            --query "[?name=='InvitationDelivery__Enabled'].value | [0]" \
+            --output tsv)"
+          test "$invitation_delivery_enabled" = "true"
 
       - name: Deploy production API App Service
         uses: azure/webapps-deploy@v3
