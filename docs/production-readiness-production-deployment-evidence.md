@@ -2,9 +2,9 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate is awaiting protected production CI/CD execution.
+Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-09-04-1` is approved but not yet deployed.
+Current candidate execution status: `launch-candidate-2026-09-04-1` deployed successfully in production workflow run `33916926687`.
 
 Latest evidence date: 2026-09-04. Historical evidence dates are retained below.
 
@@ -37,14 +37,14 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-09-04-1` at `55ed0dd049b43bec4c19d98b24cdd81224c19c90`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Ready; exact-candidate execution pending | PR #80 CI run `33907834336`, main CI run `33910693123`, exact-branch staging run `33910143138`, main staging run `33910693222`, and Static Web Apps run `33910693231` passed. Current candidate `launch-candidate-2026-09-04-1` still requires protected production workflow execution after this launch-candidate gate merges. |
+| Approved production CI/CD path | Passed | PR #80 CI run `33907834336`, main CI run `33910693123`, exact-branch staging run `33910143138`, main staging run `33910693222`, Static Web Apps run `33910693231`, approval-main CI run `33914940525`, approval-main staging run `33914940335`, and protected production run `33916926687` passed. Current candidate `launch-candidate-2026-09-04-1` completed protected production workflow execution in run `33916926687`. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-09-04-1` still requires protected production workflow execution. Required-secret validation included the HubSpot private-app token. Secret values are not stored in this evidence or the repository. |
-| Production No-CUI posture validation | Historical path passed; current execution pending | Staging runs `33910143138` and `33910693222` preserved the No-CUI posture. The production workflow must independently validate `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only` for this candidate. |
-| Production migrations | Passed in staging; current production execution pending | Both candidate staging runs generated and applied the idempotent migration. Production application remains gated by the protected workflow. |
-| Production storage, cache, queue, and background jobs | Passed in staging; current production execution pending | Candidate staging health returned `ok` for PostgreSQL, Redis, object storage, and background jobs. Production health remains to be captured. |
-| Production health checks, logs, alerts, and HubSpot sync | Historical path passed; current execution pending | Historical production evidence remains below. Candidate-specific production health, logs, alerts, and external integrations have not yet been re-executed. |
-| Deployment evidence capture | Historical path passed; current execution pending | Current-candidate deployment evidence will be uploaded by the protected production workflow; artifact `9923675595` is retained for the prior candidate. |
+| Production secrets source | Passed | Current candidate `launch-candidate-2026-09-04-1` resolved the required production environment secrets in run `33916926687` without exposing their values. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
+| Production No-CUI posture validation | Passed | Run `33916926687` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
+| Production migrations | Passed | Run `33916926687` generated and applied the idempotent migration containing the durable FedRAMP preparation records. |
+| Production storage, cache, queue, and background jobs | Passed | Candidate production health returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
+| Production health checks, logs, alerts, and HubSpot sync | Passed for candidate health; historical external-integration evidence retained | Run `33916926687` passed `/health`. Authenticated workflow smoke, alerts, email delivery, and HubSpot writes were not re-executed for this candidate. |
+| Deployment evidence capture | Passed | Artifact `9953670252` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
@@ -76,6 +76,30 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `9527732298` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
 
 ## Deployment Execution Record
+
+### 2026-09-04 future FedRAMP foundation deployment
+
+Production workflow run `33916926687` completed successfully at `2026-09-04T20:40:43Z`. Release controls ran from merged approval commit `ea633908a6fd09d372bff3d28783236ca0178116`; the workflow validated and deployed immutable runtime tag `launch-candidate-2026-09-04-1` at `55ed0dd049b43bec4c19d98b24cdd81224c19c90`.
+
+Run results:
+
+- Approved tag/SHA validation, protected-environment review, No-CUI guardrails, and the production Terraform configuration check passed.
+- The idempotent migration applied, then the API App Service and Static Web App deployed successfully.
+- `/health` returned `status=ok`; PostgreSQL, Redis, object storage, and background jobs each returned `status=ok`.
+- Evidence artifact `9953670252` records the exact runtime tag/SHA, operator `samurab`, `customer_data_mode=no-cui-only`, and `result=deployment-and-health-checks-passed`.
+- An unauthenticated request to `/api/enterprise/fedramp/control-mappings` returned HTTP `401`, confirming the deployed route did not expose tenant records anonymously.
+
+Credential-rotation evidence:
+
+- Before deployment, the only production web-app Redis consumer was identified and confirmed to use the primary key over TLS.
+- A fresh secondary key was generated, the API switched to that key, and production Redis health returned `ok` before the old primary key was regenerated.
+- Both keys that existed before rotation were invalidated. Secret values were not printed, committed, or included in evidence.
+
+Verification limits and posture:
+
+- No authenticated production smoke identity was available, so tenant-scoped create/update/package workflows and role denials were not re-executed against production. CI PostgreSQL integration tests and staging deployments remain the candidate-specific evidence for those paths.
+- Production Terraform was validated but not applied or imported. Scheduled drift enforcement remains disabled until remote state, import review, and `PRODUCTION_TERRAFORM_STATE_READY=true` are approved.
+- This deployment establishes only engineering preparation for a possible future FedRAMP effort. It is not FedRAMP authorization, FedRAMP Ready status, a 3PAO assessment, agency approval, or permission to process CUI.
 
 ### 2026-09-03 approved candidate deployment
 
