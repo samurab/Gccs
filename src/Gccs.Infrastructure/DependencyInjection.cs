@@ -115,9 +115,7 @@ public static class DependencyInjection
         services.AddSingleton<IExternalPortalAccessRepository, InMemoryExternalPortalAccessRepository>();
         services.AddSingleton<IPortalPackageRepository, InMemoryPortalPackageRepository>();
         services.AddSingleton<IPortalPackageLifecycleRepository, InMemoryPortalPackageLifecycleRepository>();
-        services.AddSingleton<IFedRampControlMappingRepository, InMemoryFedRampControlMappingRepository>();
         services.AddSingleton<ITrustArtifactLibraryRepository, InMemoryTrustArtifactLibraryRepository>();
-        services.AddSingleton<IFedRampReadinessExportPackageRepository, InMemoryFedRampReadinessExportPackageRepository>();
         services.AddSingleton<ISspSectionRepository, InMemorySspSectionRepository>();
         services.AddSingleton<ISspNarrativeRepository>(provider => (InMemorySspSectionRepository)provider.GetRequiredService<ISspSectionRepository>());
         services.AddSingleton<ISspExportPackageRepository>(provider => (InMemorySspSectionRepository)provider.GetRequiredService<ISspSectionRepository>());
@@ -414,6 +412,8 @@ public static class DependencyInjection
             services.AddScoped<ISubcontractorRepository, EfSubcontractorRepository>();
             services.AddScoped<IContentClassificationReviewRepository, EfContentClassificationReviewRepository>();
             services.AddScoped<IDemoTenantSeedRepository, EfDemoTenantSeedRepository>();
+            services.AddScoped<IFedRampControlMappingRepository, EfFedRampControlMappingRepository>();
+            services.AddScoped<IFedRampReadinessExportPackageRepository, EfFedRampReadinessExportPackageRepository>();
         }
         else
         {
@@ -532,6 +532,10 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Demo appointment persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IDemoFollowUpRepository>(_ =>
                 throw new InvalidOperationException("Demo follow-up persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IFedRampControlMappingRepository>(_ =>
+                throw new InvalidOperationException("FedRAMP control mapping persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IFedRampReadinessExportPackageRepository>(_ =>
+                throw new InvalidOperationException("FedRAMP readiness package persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<DemoRequestDeliveryService>();
         }
 

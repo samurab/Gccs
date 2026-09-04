@@ -195,6 +195,21 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
             string.Join(Environment.NewLine, findings));
     }
 
+    [Fact]
+    public void Secret_scanner_allows_GitHub_OIDC_permission_but_detects_assigned_tokens()
+    {
+        var findings = new List<string>();
+
+        AddSecretFindings(findings, ".github/workflows/example.yml", "id-token: write");
+
+        Assert.Empty(findings);
+
+        var assignedToken = string.Concat("to", "ken", ": ", "production", "-value");
+        AddSecretFindings(findings, ".github/workflows/example.yml", assignedToken);
+
+        Assert.Single(findings);
+    }
+
     private WebApplicationFactory<Program> CreateFactoryWithLocalDependencyConfiguration(
         Action<IWebHostBuilder>? configure = null)
     {
@@ -290,7 +305,7 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
             ("OpenAI API key", new Regex(@"\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}\b", RegexOptions.Compiled)),
             ("Slack token", new Regex(@"\bxox[baprs]-[A-Za-z0-9-]{20,}\b", RegexOptions.Compiled)),
             ("JWT", new Regex(@"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b", RegexOptions.Compiled)),
-            ("assigned credential", new Regex(@"(?im)\b(?:password|secret|token|api[_-]?key|client[_-]?secret)\b\s*[""']?\s*[:=]\s*[""']?(?<value>[^""'\s,;}]+)", RegexOptions.Compiled))
+            ("assigned credential", new Regex(@"(?im)(?<!id[-_])\b(?:password|secret|token|api[_-]?key|client[_-]?secret)\b\s*[""']?\s*[:=]\s*[""']?(?<value>[^""'\s,;}]+)", RegexOptions.Compiled))
         };
 
         foreach (var (name, pattern) in secretPatterns)

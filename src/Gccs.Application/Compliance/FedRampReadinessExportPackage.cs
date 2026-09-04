@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 
@@ -7,7 +8,8 @@ namespace Gccs.Application.Compliance;
 public sealed class FedRampReadinessExportPackageService(
     IFedRampReadinessExportPackageRepository repository,
     ICurrentTenantContext tenantContext,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    IApplicationTransaction transaction)
 {
     public async Task<FedRampReadinessPackageDto> GenerateAsync(CreateFedRampReadinessPackageRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
@@ -16,9 +18,12 @@ public sealed class FedRampReadinessExportPackageService(
             throw new FedRampReadinessPackageValidationException("At least one package record is required.");
         }
 
-        var package = await repository.CreateAsync(tenantContext.TenantId, request, actorUserId, cancellationToken);
-        await WriteAuditAsync(package, actorUserId, AuditAction.Created, "FedRAMP readiness package was generated.", cancellationToken);
-        return package;
+        return await transaction.ExecuteAsync(async transactionToken =>
+        {
+            var package = await repository.CreateAsync(tenantContext.TenantId, request, actorUserId, transactionToken);
+            await WriteAuditAsync(package, actorUserId, AuditAction.Created, "FedRAMP readiness package was generated.", transactionToken);
+            return package;
+        }, cancellationToken);
     }
 
     public async Task<FedRampReadinessPackageDto?> ChangeStatusAsync(Guid packageId, FedRampReadinessPackageStatusRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
@@ -28,36 +33,42 @@ public sealed class FedRampReadinessExportPackageService(
             throw new FedRampReadinessPackageValidationException("Actor metadata is required.");
         }
 
-        var updated = await repository.ChangeStatusAsync(tenantContext.TenantId, packageId, request, actorUserId, cancellationToken);
-        if (updated is not null)
+        return await transaction.ExecuteAsync(async transactionToken =>
         {
-            var action = request.Status is FedRampReadinessPackageStatus.Archived or FedRampReadinessPackageStatus.Superseded ? AuditAction.Archived : AuditAction.Updated;
-            await WriteAuditAsync(updated, actorUserId, action, $"FedRAMP readiness package moved to {updated.Status}.", cancellationToken);
-        }
+            var updated = await repository.ChangeStatusAsync(tenantContext.TenantId, packageId, request, actorUserId, transactionToken);
+            if (updated is not null)
+            {
+                var action = request.Status is FedRampReadinessPackageStatus.Archived or FedRampReadinessPackageStatus.Superseded ? AuditAction.Archived : AuditAction.Updated;
+                await WriteAuditAsync(updated, actorUserId, action, $"FedRAMP readiness package moved to {updated.Status}.", transactionToken);
+            }
 
-        return updated;
+            return updated;
+        }, cancellationToken);
     }
 
     public async Task<FedRampReadinessPackageDto?> ShareAsync(Guid packageId, FedRampReadinessPackageShareRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
-        var package = await repository.GetAsync(tenantContext.TenantId, packageId, cancellationToken);
-        if (package is null)
+        return await transaction.ExecuteAsync(async transactionToken =>
         {
-            return null;
-        }
+            var package = await repository.GetAsync(tenantContext.TenantId, packageId, transactionToken);
+            if (package is null)
+            {
+                return null;
+            }
 
-        if (package.Status is not FedRampReadinessPackageStatus.Approved and not FedRampReadinessPackageStatus.Shared)
-        {
-            throw new FedRampReadinessPackageValidationException("Only approved packages can be shared.");
-        }
+            if (package.Status is not FedRampReadinessPackageStatus.Approved and not FedRampReadinessPackageStatus.Shared)
+            {
+                throw new FedRampReadinessPackageValidationException("Only approved packages can be shared.");
+            }
 
-        var shared = await repository.ShareAsync(tenantContext.TenantId, packageId, request, actorUserId, cancellationToken);
-        if (shared is not null)
-        {
-            await WriteAuditAsync(shared, actorUserId, AuditAction.Exported, "FedRAMP readiness package was shared.", cancellationToken);
-        }
+            var shared = await repository.ShareAsync(tenantContext.TenantId, packageId, request, actorUserId, transactionToken);
+            if (shared is not null)
+            {
+                await WriteAuditAsync(shared, actorUserId, AuditAction.Exported, "FedRAMP readiness package was shared.", transactionToken);
+            }
 
-        return shared;
+            return shared;
+        }, cancellationToken);
     }
 
     private Task WriteAuditAsync(FedRampReadinessPackageDto package, Guid actorUserId, AuditAction action, string summary, CancellationToken cancellationToken) =>
@@ -72,7 +83,17 @@ public interface IFedRampReadinessExportPackageRepository
     Task<FedRampReadinessPackageDto?> ShareAsync(Guid tenantId, Guid packageId, FedRampReadinessPackageShareRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
 }
 
-public sealed record CreateFedRampReadinessPackageRequest(string PackageVersion, string Scope, string Environment, string Reviewer, bool GovernanceAuthorizedFedRampClaim, FedRampPackageRecordDto[] Records, string[] Gaps, string[] AcceptedRisks, string ReadinessSummary);
+public sealed record CreateFedRampReadinessPackageRequest(
+    string PackageVersion,
+    string Scope,
+    string Environment,
+    string Reviewer,
+    [property: Obsolete("Client input cannot authorize FedRAMP status and is ignored. Retained temporarily for wire compatibility.")]
+    bool GovernanceAuthorizedFedRampClaim,
+    FedRampPackageRecordDto[] Records,
+    string[] Gaps,
+    string[] AcceptedRisks,
+    string ReadinessSummary);
 public sealed record FedRampReadinessPackageStatusRequest(FedRampReadinessPackageStatus Status, string ActorName, string? Notes = null);
 public sealed record FedRampReadinessPackageShareRequest(string Recipient, string Purpose);
 public sealed record FedRampPackageRecordDto(string RecordType, string RecordId, string Title, FedRampPackageRecordStatus Status, bool Restricted, bool Prohibited, Guid TenantId);

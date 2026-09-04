@@ -15,9 +15,7 @@ public sealed class InMemoryFedRampReadinessExportPackageRepository : IFedRampRe
         var included = request.Records
             .Where(record => record.TenantId == tenantId && !record.Restricted && !record.Prohibited && record.Status is FedRampPackageRecordStatus.Approved or FedRampPackageRecordStatus.Published)
             .ToArray();
-        var language = request.GovernanceAuthorizedFedRampClaim
-            ? "Governance has approved this package language for FedRAMP authorization status."
-            : "Readiness only: this package does not claim FedRAMP authorization.";
+        var language = EfFedRampReadinessExportPackageRepository.ReadinessOnlyLanguage;
         var package = new FedRampReadinessPackageDto(Guid.NewGuid(), tenantId, DateTimeOffset.UtcNow, request.PackageVersion, request.Scope, request.Environment, request.Reviewer, language, request.Gaps, request.AcceptedRisks, request.ReadinessSummary, included, FedRampReadinessPackageStatus.Draft, null, null);
         _records.GetOrAdd(tenantId, _ => []).Add(package);
         return Task.FromResult(package);
