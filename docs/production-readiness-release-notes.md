@@ -4,7 +4,7 @@ Story: PR-5.4 - Prepare Pilot Onboarding, Release Notes, And Known-Risk Log.
 
 Release note status: launch-ready draft approved for the 2026-08-11 solo-controlled No-CUI pilot candidate under the combined-role approval posture. Independent production separation-of-duties approval remains required before broader customer launch.
 
-Launch candidate tag: `launch-candidate-2026-09-03-1`.
+Launch candidate tag: `launch-candidate-2026-09-04-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -18,6 +18,10 @@ This launch candidate is No-CUI / compliance management only. Real customer CUI,
 
 Included MVP workflows:
 
+- A server-controlled deployment posture is the sole authority for official FedRAMP status language; tenant-supplied values cannot assert authorization or compliance.
+- Tenant-scoped FedRAMP control mappings and immutable readiness-package snapshots are stored durably in PostgreSQL with authorization, audit, concurrency, and cross-tenant test coverage.
+- Production Terraform now declares the intended application, database, storage, cache, monitoring, networking, identity, and policy resources. Live import/apply and scheduled drift enforcement remain gated and are not represented as completed.
+- Future-FedRAMP documents and evidence metadata are preparation artifacts only. FeDril does not claim FedRAMP authorization, FedRAMP Ready status, agency approval, or permission to process CUI.
 - Tenant-scoped audit-log filtering discovers current entity types without exposing cross-tenant audit data, and audit records for CMMC assessments, POA&M items, and evidence metadata include clearer object descriptions.
 - Assignment notifications and email links open inside the authenticated workspace shell, while obligation assignee display resolves only active users with active membership in the current tenant.
 - External presentation-boundary branding uses FeDril while internal namespaces, service identifiers, schema, API headers, storage keys, telemetry, and deployment identifiers remain unchanged and excluded from external display.

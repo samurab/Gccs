@@ -4,20 +4,20 @@ Story: PR-6.2 - Tag Launch Candidate With Evidence Links.
 
 Tag status: created.
 
-Tag date: 2026-09-03.
+Tag date: 2026-09-04.
 
 Tag owner: Engineering lead.
 
-Launch candidate tag: `launch-candidate-2026-09-03-1`.
+Launch candidate tag: `launch-candidate-2026-09-04-1`.
 
-Tagged commit: `f4547893b7d8683eeaa147fd0b1ca43a1fa88eda`.
+Tagged commit: `55ed0dd049b43bec4c19d98b24cdd81224c19c90`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
 Tag command:
 
 ```bash
-git tag launch-candidate-2026-09-03-1 f4547893b7d8683eeaa147fd0b1ca43a1fa88eda
+git tag launch-candidate-2026-09-04-1 55ed0dd049b43bec4c19d98b24cdd81224c19c90
 ```
 
 This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testing and project completion. It is not a production deployment approval, production separation-of-duties approval, legal advice, certification evidence, government endorsement, broader customer launch approval, or authorization to accept real CUI.
@@ -29,10 +29,27 @@ This tag is a No-CUI MVP launch candidate marker for solo-controlled pilot testi
 | Required launch approvals complete | Passed for solo-controlled pilot testing | `docs/production-readiness-launch-approval-record.md` records product owner, engineering lead, security owner, compliance content owner, customer success/support owner, and legal or contracting advisor approval scopes under `docs/production-readiness-approval-posture-addendum.md`. |
 | Accepted exceptions recorded | Passed | `docs/production-readiness-launch-gap-decisions.md` records `PR41-RESTORE-001`, `PR43-MALWARE-001`, `PR51-HIGH-RISK-001`, `PR52-CLAIM-001`, and `PR53-SUPPORT-001`. |
 | Evidence package gathered | Passed | This artifact links launch approval, closure evidence, staging smoke, staging workflow, staging security, upload/report controls, backup/restore disposition, rollback, content review, support runbooks, release notes, pilot onboarding, and known-risk log. |
-| Approved build and deployment path passed | Passed | PR #57 CI run `31907508233`, exact-candidate main CI run `31910692965`, exact-candidate staging workflow run `31910692946`, and Static Web Apps run `31910692991` completed successfully for candidate commit `50b2dd279f216f816b92fdbaf2c4d4be025ce4ea`. |
+| Approved build and deployment path passed | Passed | PR #80 CI run `33907834336`, exact-branch staging run `33910143138`, exact-candidate main CI run `33910693123`, exact-candidate staging run `33910693222`, and Static Web Apps run `33910693231` completed successfully for candidate commit `55ed0dd049b43bec4c19d98b24cdd81224c19c90`. |
 | Missing-evidence tag block rule retained | Passed | If any required approval, evidence link, build artifact, deployment artifact, release note, known limitation, support path, staging evidence, rollback plan, or content-scope link is removed, tag creation must be blocked or the tag must be superseded. |
 
 ## Build And Deployment Artifacts
+
+### 2026-09-04 future FedRAMP foundation candidate
+
+The candidate-specific approval is recorded in `docs/production-readiness-launch-approval-record.md`. PR #80 CI run `33907834336`, exact-branch staging run `33910143138`, exact-candidate main CI run `33910693123`, main staging run `33910693222`, and Static Web Apps run `33910693231` completed successfully.
+
+| Refreshed artifact | Location |
+| --- | --- |
+| Candidate source | PR #80 merge commit `55ed0dd049b43bec4c19d98b24cdd81224c19c90` |
+| Delta from prior production candidate | Server-governed FedRAMP posture; durable tenant-scoped control mappings and immutable readiness-package snapshots; audit-coupled persistence; production Terraform resources, imports, and gated drift workflow; governance and evidence documentation; EF migration for the durable records. |
+| Pull-request CI | GitHub Actions run `33907834336` |
+| Exact-branch staging deployment | GitHub Actions run `33910143138` |
+| Exact-candidate main CI | GitHub Actions run `33910693123` |
+| Exact-candidate main staging deployment | GitHub Actions run `33910693222` |
+| Static Web Apps deployment | GitHub Actions run `33910693231` |
+| Staging smoke artifacts | Artifacts `9951191155` and `9951399051` (`staging-smoke-test-results`) |
+
+These artifacts establish engineering preparation for a possible future FedRAMP effort. They do not establish FedRAMP Ready status, a 3PAO assessment, agency authorization, or FedRAMP compliance.
 
 ### 2026-08-15 audit-workspace candidate refresh
 
@@ -130,6 +147,6 @@ The candidate-specific approval is recorded in `docs/production-readiness-launch
 - The same user approved all six PR-6.1 role scopes for solo-controlled pilot testing and project completion only. This is not production separation-of-duties approval.
 - `PR41-RESTORE-001` was closed by the 2026-07-05 staging point-in-time restore rehearsal. That evidence supports only the tested staging path; it does not prove geo-disaster recovery or production customer-data restore.
 - Production scanner evidence is attached for the private ClamAV-compatible path. A single scanner instance is accepted only for this controlled No-CUI pilot and remains a broader-launch hardening limitation.
-- The tag points to PR #57 merge commit `50b2dd279f216f816b92fdbaf2c4d4be025ce4ea`; exact-candidate CI and staging passed, and the candidate introduces no EF Core migration file changes.
+- The tag points to PR #80 merge commit `55ed0dd049b43bec4c19d98b24cdd81224c19c90`; exact-candidate CI and staging passed, and the candidate includes the reviewed EF Core migration for durable FedRAMP preparation records.
 - The 86.41 MB flagship MP4 is below GitHub's hard file-size limit but above its recommended 50 MB threshold; durable object/media storage remains the correct scaling path for future revisions.
 - If release notes, support runbooks, claim language, content scope, or accepted risks change after this tag, the tag must be superseded or re-approved under the same solo-controlled pilot posture or under a future production separation-of-duties approval model.
