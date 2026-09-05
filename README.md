@@ -84,7 +84,10 @@ Useful endpoints:
 
 All `/api` endpoints require authentication. In local development only, send
 `X-Gccs-Dev-Auth: true` to use the development auth handler. Production requires
-`Authentication:Authority` and `Authentication:Audience` for JWT bearer tokens.
+the workforce `Authentication:Authority` and `Authentication:Audience` settings.
+An environment can additionally configure `Authentication:Customer:Authority`
+and `Authentication:Customer:Audience` to route customer APIs through a separate
+External ID tenant while retaining workforce-only authentication for `/api/platform`.
 
 ### Frontend
 
@@ -94,6 +97,10 @@ npm run dev:web
 ```
 
 The frontend expects the API at `http://localhost:5062` by default. Override with `VITE_API_BASE_URL`.
+Workforce authentication uses `VITE_MSAL_CLIENT_ID`, `VITE_MSAL_TENANT_ID`, and
+`VITE_MSAL_API_SCOPE`. Customer External ID is enabled only when
+`VITE_CUSTOMER_MSAL_CLIENT_ID`, `VITE_CUSTOMER_MSAL_TENANT_ID`,
+`VITE_CUSTOMER_MSAL_TENANT_SUBDOMAIN`, and `VITE_CUSTOMER_MSAL_API_SCOPE` are all set.
 
 The authenticated SaaS app uses React + Vite. If SEO-heavy public content becomes a requirement later, add a separate marketing/content site, for example `www` on Next.js, while keeping this app at an application subdomain such as `app`.
 

@@ -52,7 +52,7 @@ export function InvitationAcceptancePage() {
         return;
       }
       if (isMsalConfigured && /authenticated email does not match this invitation/i.test(errorMessage)) {
-        setMessage("The signed-in Microsoft account does not match this invitation. Choose the account that received the invitation.");
+        setMessage("The signed-in email does not match this invitation. Sign out and enter the exact email address that received it.");
         setRequiresAccountSwitch(true);
         setState("error");
         return;
@@ -127,7 +127,7 @@ export function InvitationAcceptancePage() {
             title="Invitation unavailable"
             body={message}
             tone="error"
-            actionLabel={requiresAccountSwitch ? "Switch account" : undefined}
+            actionLabel={requiresAccountSwitch ? "Use another email" : undefined}
             onAction={requiresAccountSwitch ? () => void selectMicrosoftEntraAccount() : undefined}
           />
         ) : null}

@@ -26,9 +26,18 @@ public sealed class HttpTenantContext(IHttpContextAccessor httpContextAccessor) 
                 throw new MissingTenantContextException($"The tenant selection header '{ApiSecurityExtensions.TenantSelectionHeader}' is invalid.");
             }
 
-            return GetRequiredGuid(
-                ApiSecurityExtensions.TenantIdClaimType,
-                claimType => new MissingTenantContextException($"The authenticated user claim '{claimType}' is missing or invalid."));
+            var principal = httpContextAccessor.HttpContext?.User;
+            if (principal?.HasClaim(
+                    ApiSecurityExtensions.AuthenticationPlaneClaimType,
+                    ApiSecurityExtensions.DevelopmentAuthenticationPlane) is true)
+            {
+                return GetRequiredGuid(
+                    ApiSecurityExtensions.TenantIdClaimType,
+                    claimType => new MissingTenantContextException($"The authenticated user claim '{claimType}' is missing or invalid."));
+            }
+
+            throw new MissingTenantContextException(
+                $"The tenant selection header '{ApiSecurityExtensions.TenantSelectionHeader}' is required.");
         }
     }
 

@@ -12,6 +12,23 @@ Story 17.3 defines staging as the production-like release verification environme
 - Queue and jobs: dedicated staging background job queue with job failure and backlog monitoring.
 - Secrets: staging-only secret store values, separate from production credentials.
 
+## Authentication Boundary
+
+Current state: **Implemented**.
+
+- Platform Operator routes under `/platform` and `/api/platform` use the existing FeDril workforce tenant and workforce SPA/API registrations.
+- Customer routes, including `/app`, `/invitations/accept`, and non-platform authenticated APIs, use the `FeDril Customers - Staging` External ID tenant (`fedrilcustomersstaging.onmicrosoft.com`).
+- The customer user flow uses email one-time passcode as its only initial sign-up and sign-in provider. A customer directory identity alone grants no workspace access; the API still requires an exact invited-email match during activation and an active server-side tenant membership afterward.
+- The API selects the JWT validation scheme from the requested route. It validates separate issuers and audiences, does not accept the identity-provider tenant ID as a FeDril tenant ID, and requires a client-selected `X-Gccs-Tenant` value that the server verifies against active membership for tenant-scoped work.
+- Customer identities cannot satisfy Platform Operator authorization, even if an untrusted customer token contains a role value with the Platform Operator name.
+
+Staging identity resources:
+
+- External tenant ID: `f1922ab8-830a-4517-afec-6a9ce8f6113e`
+- Customer portal application ID: `60771465-6a29-44e0-b8cc-ea30fa3cf83f`
+- Customer resource registration ID: `293510cf-aec0-48ac-b074-55edeba2caf8`
+- Sign-up/sign-in user flow ID: `46173763-2f13-4ec1-bbd2-2cf904eda808`
+
 ## Data Guardrails
 
 - Staging is **No-CUI / compliance management only** with synthetic CUI-ready demonstration data.

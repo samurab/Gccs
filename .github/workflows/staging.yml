@@ -58,6 +58,10 @@ jobs:
           VITE_MSAL_CLIENT_ID: 8df0cbe5-60ee-4356-9386-41f300e82718
           VITE_MSAL_TENANT_ID: 8c934636-0c37-4a8f-9134-323bef993ef2
           VITE_MSAL_API_SCOPE: api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/access_as_user
+          VITE_CUSTOMER_MSAL_CLIENT_ID: 60771465-6a29-44e0-b8cc-ea30fa3cf83f
+          VITE_CUSTOMER_MSAL_TENANT_ID: f1922ab8-830a-4517-afec-6a9ce8f6113e
+          VITE_CUSTOMER_MSAL_TENANT_SUBDOMAIN: fedrilcustomersstaging
+          VITE_CUSTOMER_MSAL_API_SCOPE: api://293510cf-aec0-48ac-b074-55edeba2caf8/access_as_customer
         run: |
           test -n "$VITE_API_BASE_URL"
           dotnet publish apps/api/Gccs.Api.csproj --configuration Release --output "$RUNNER_TEMP/gccs-api-staging"
@@ -131,6 +135,8 @@ jobs:
               InvitationDelivery__PollIntervalSeconds=5 \
               InvitationDelivery__LeaseMinutes=5 \
               InvitationDelivery__MaximumAttempts=5 \
+              Authentication__Customer__Authority=https://fedrilcustomersstaging.ciamlogin.com/f1922ab8-830a-4517-afec-6a9ce8f6113e/v2.0 \
+              Authentication__Customer__Audience=api://293510cf-aec0-48ac-b074-55edeba2caf8 \
               DemoRequests__Enabled=true \
               DemoRequests__Provider=AzureCommunicationServices \
               DemoRequests__Endpoint="$DEMO_REQUESTS_ENDPOINT" \
@@ -168,6 +174,10 @@ jobs:
           VITE_MSAL_CLIENT_ID: 8df0cbe5-60ee-4356-9386-41f300e82718
           VITE_MSAL_TENANT_ID: 8c934636-0c37-4a8f-9134-323bef993ef2
           VITE_MSAL_API_SCOPE: api://ad0a64ee-ab9a-4dcf-b330-b3ab36214426/access_as_user
+          VITE_CUSTOMER_MSAL_CLIENT_ID: 60771465-6a29-44e0-b8cc-ea30fa3cf83f
+          VITE_CUSTOMER_MSAL_TENANT_ID: f1922ab8-830a-4517-afec-6a9ce8f6113e
+          VITE_CUSTOMER_MSAL_TENANT_SUBDOMAIN: fedrilcustomersstaging
+          VITE_CUSTOMER_MSAL_API_SCOPE: api://293510cf-aec0-48ac-b074-55edeba2caf8/access_as_customer
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_ROCK_016FF040F }}
           action: upload
