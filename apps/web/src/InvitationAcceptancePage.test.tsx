@@ -8,14 +8,27 @@ const {
   acceptMock,
   selectTenantMock,
   selectDevelopmentInvitationIdentityMock,
-  selectDevelopmentTestingContextMock
+  selectDevelopmentTestingContextMock,
+  selectMicrosoftEntraAccountMock,
+  authSessionState
 } = vi.hoisted(() => ({
   getContextMock: vi.fn(),
   acceptMock: vi.fn(),
   selectTenantMock: vi.fn(),
   selectDevelopmentInvitationIdentityMock: vi.fn(),
-  selectDevelopmentTestingContextMock: vi.fn()
+  selectDevelopmentTestingContextMock: vi.fn(),
+  selectMicrosoftEntraAccountMock: vi.fn(),
+  authSessionState: { isMsalConfigured: true }
 }));
+
+vi.mock("./authSession", async () => {
+  const actual = await vi.importActual<typeof import("./authSession")>("./authSession");
+  return {
+    ...actual,
+    get isMsalConfigured() { return authSessionState.isMsalConfigured; },
+    selectMicrosoftEntraAccount: selectMicrosoftEntraAccountMock
+  };
+});
 
 vi.mock("./lib/api", async () => {
   const actual = await vi.importActual<typeof import("./lib/api")>("./lib/api");
@@ -50,9 +63,14 @@ describe("InvitationAcceptancePage", () => {
     selectTenantMock.mockReset();
     selectDevelopmentInvitationIdentityMock.mockReset();
     selectDevelopmentTestingContextMock.mockReset();
+    selectMicrosoftEntraAccountMock.mockReset().mockResolvedValue(undefined);
+    authSessionState.isMsalConfigured = true;
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllEnvs();
+  });
 
   it("presents invitation errors with the danger message treatment", async () => {
     window.history.replaceState({}, "", "/invitations/accept");
@@ -81,6 +99,7 @@ describe("InvitationAcceptancePage", () => {
   });
 
   it("verifies the signed-in owner, accepts once, and selects the activated tenant", async () => {
+    authSessionState.isMsalConfigured = false;
     const user = userEvent.setup();
     render(<InvitationAcceptancePage />);
 
@@ -100,6 +119,7 @@ describe("InvitationAcceptancePage", () => {
   });
 
   it("lets a local tester switch to the invited email after an identity mismatch", async () => {
+    authSessionState.isMsalConfigured = false;
     const user = userEvent.setup();
     getContextMock
       .mockRejectedValueOnce(new Error("The authenticated email does not match this invitation."))
@@ -119,6 +139,21 @@ describe("InvitationAcceptancePage", () => {
 
     expect(selectDevelopmentInvitationIdentityMock).toHaveBeenCalledWith("invitee@example.com");
     expect(await screen.findByRole("heading", { name: "Aegis Pilot Workspace" })).toBeInTheDocument();
+  });
+
+  it("lets a staging user switch Microsoft accounts without weakening invitation validation", async () => {
+    vi.stubEnv("DEV", false);
+    const user = userEvent.setup();
+    getContextMock.mockRejectedValueOnce(new Error("The authenticated email does not match this invitation."));
+
+    render(<InvitationAcceptancePage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The signed-in Microsoft account does not match this invitation."
+    );
+    await user.click(screen.getByRole("button", { name: "Switch account" }));
+
+    expect(selectMicrosoftEntraAccountMock).toHaveBeenCalledOnce();
   });
 
   it("shows an existing-member conflict instead of a generic invitation failure", async () => {

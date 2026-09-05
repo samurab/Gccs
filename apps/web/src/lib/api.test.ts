@@ -15,7 +15,8 @@ import {
 } from "./api";
 
 vi.mock("../authSession", () => ({
-  getFreshAccessToken: vi.fn()
+  getFreshAccessToken: vi.fn(),
+  isMsalConfigured: false
 }));
 
 describe("FeDril API client", () => {

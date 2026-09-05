@@ -8,6 +8,7 @@ import {
   clearStoredAccessToken,
   isMsalConfigured,
   msalInstance,
+  selectMicrosoftEntraAccount,
   storeAccessToken
 } from "./authSession";
 
@@ -88,11 +89,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return (
       <AuthShell
         title="Sign in to FeDril"
-        body="Use your Microsoft Entra account to access your FeDril workspace."
-        actionLabel="Sign in"
-        onAction={() => {
-          void msalInstance!.loginRedirect(tokenRequest);
-        }}
+        body="Choose the Microsoft Entra account assigned to your FeDril access."
+        actionLabel="Choose account"
+        onAction={() => void selectMicrosoftEntraAccount()}
       />
     );
   }
@@ -102,10 +101,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <AuthShell
         title="Sign-in failed"
         body={state.message}
-        actionLabel="Try again"
-        onAction={() => {
-          void msalInstance!.loginRedirect(tokenRequest);
-        }}
+        actionLabel="Choose another account"
+        onAction={() => void selectMicrosoftEntraAccount()}
       />
     );
   }
@@ -114,6 +111,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
     <>
       <div className="auth-session" role="status">
         <span>Signed in as {state.account.username}</span>
+        <button type="button" onClick={() => void selectMicrosoftEntraAccount()}>
+          Switch account
+        </button>
         <button
           type="button"
           onClick={() => {

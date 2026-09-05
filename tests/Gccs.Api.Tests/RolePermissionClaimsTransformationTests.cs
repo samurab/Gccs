@@ -46,4 +46,25 @@ public sealed class RolePermissionClaimsTransformationTests
         Assert.Equal(tenantId.ToString(), principal.FindFirstValue(ApiSecurityExtensions.TenantIdClaimType));
         Assert.Equal(userId.ToString(), principal.FindFirstValue(ClaimTypes.NameIdentifier));
     }
+
+    [Fact]
+    public void NormalizeMicrosoftEntraClaims_PreservesSignedEmailInsteadOfGuestUserPrincipalName()
+    {
+        var identity = new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.Email, "alice@example.com"),
+                new Claim("preferred_username", "alice_example.com#EXT#@tenant.example.onmicrosoft.com")
+            ],
+            authenticationType: "Bearer");
+        var principal = new ClaimsPrincipal(identity);
+
+        typeof(ApiSecurityExtensions)
+            .GetMethod("NormalizeMicrosoftEntraClaims", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [principal]);
+
+        Assert.Equal("alice@example.com", principal.FindFirstValue(ClaimTypes.Email));
+        Assert.DoesNotContain(
+            principal.FindAll(ClaimTypes.Email),
+            claim => claim.Value.Contains("#EXT#", StringComparison.OrdinalIgnoreCase));
+    }
 }
