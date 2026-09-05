@@ -319,6 +319,187 @@ public sealed class EfPlatformTenantProvisioningRepository(
         }
     }
 
+    public async Task<PlatformTenantProvisioningResultDto?> CorrectOwnerInvitationAsync(
+        Guid onboardingId,
+        Guid expectedInvitationId,
+        string newOwnerEmail,
+        string reason,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var onboarding = await dbContext.PlatformTenantOnboardings
+            .Include(candidate => candidate.Tenant)
+                .ThenInclude(tenant => tenant!.Subscription)
+            .Include(candidate => candidate.Invitation)
+            .SingleOrDefaultAsync(candidate => candidate.Id == onboardingId, cancellationToken);
+        if (onboarding is null)
+        {
+            return null;
+        }
+
+        var tenant = onboarding.Tenant ?? throw new InvalidOperationException("Provisioned tenant was not loaded.");
+        var invitation = onboarding.Invitation ?? throw new InvalidOperationException("Owner invitation was not loaded.");
+        if (onboarding.InvitationId != expectedInvitationId)
+        {
+            if (string.Equals(onboarding.OwnerEmail, newOwnerEmail, StringComparison.OrdinalIgnoreCase))
+            {
+                return ToResult(onboarding, false);
+            }
+
+            throw new TenantOwnerInvitationCorrectionConflictException(
+                "The Owner invitation changed after this page was loaded. Refresh and try again.");
+        }
+
+        if (onboarding.Status is not TenantOnboardingStatus.PendingOwnerAcceptance ||
+            tenant.Status is not TenantStatus.PendingActivation ||
+            invitation.Status is not (TenantInvitationStatus.Pending or TenantInvitationStatus.Expired) ||
+            invitation.RoleName != RoleCatalog.Owner ||
+            invitation.TenantId != tenant.Id ||
+            onboarding.InvitationId != invitation.Id)
+        {
+            throw new TenantOwnerInvitationCorrectionConflictException(
+                "Only an unaccepted Owner invitation on a pending tenant onboarding can be corrected.");
+        }
+
+        if (string.Equals(onboarding.OwnerEmail, newOwnerEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            return ToResult(onboarding, false);
+        }
+
+        if (await dbContext.Users.AsNoTracking().AnyAsync(
+                candidate => candidate.TenantId == tenant.Id && candidate.Email == newOwnerEmail,
+                cancellationToken))
+        {
+            throw new TenantOwnerInvitationCorrectionConflictException(
+                "The corrected email already belongs to a user in this tenant.");
+        }
+
+        if (await dbContext.TenantInvitations.AsNoTracking().AnyAsync(
+                candidate => candidate.TenantId == tenant.Id &&
+                             candidate.Id != invitation.Id &&
+                             candidate.Email == newOwnerEmail &&
+                             candidate.Status == TenantInvitationStatus.Pending,
+                cancellationToken))
+        {
+            throw new TenantOwnerInvitationCorrectionConflictException(
+                "A pending invitation already exists for the corrected email in this tenant.");
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var previousDeliveryStatus = invitation.DeliveryStatus;
+        var previousDeliveryAttemptCount = invitation.DeliveryAttemptCount;
+        var previousOwnerEmail = onboarding.OwnerEmail;
+        var emailWasSent = invitation.DeliveryStatus == InvitationDeliveryStatus.Sent;
+
+        invitation.Status = TenantInvitationStatus.Revoked;
+        invitation.InvitationTokenHash = null;
+        invitation.RevokedAt = now;
+        invitation.RevokedByUserId = actorUserId;
+        invitation.DeliveryStatus = emailWasSent
+            ? InvitationDeliveryStatus.Sent
+            : InvitationDeliveryStatus.Cancelled;
+        invitation.DeliveryLeaseUntil = null;
+        invitation.NextDeliveryAttemptAt = null;
+        invitation.DeliveryFailureCode = null;
+        invitation.NotificationPlaceholder = emailWasSent
+            ? "Invitation was replaced after email delivery."
+            : "Invitation delivery was cancelled because the recipient was corrected.";
+        invitation.UpdatedAt = now;
+        invitation.UpdatedByUserId = actorUserId;
+
+        var replacement = new TenantInvitationEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenant.Id,
+            Email = newOwnerEmail,
+            RoleName = RoleCatalog.Owner,
+            InvitationTokenHash = null,
+            Status = TenantInvitationStatus.Pending,
+            ExpiresAt = now.AddDays(InvitationLifetimeDays),
+            NotificationPlaceholder = "Owner invitation is queued for delivery.",
+            DeliveryStatus = InvitationDeliveryStatus.Queued,
+            DeliveryAttemptCount = 0,
+            NextDeliveryAttemptAt = now,
+            CreatedAt = now,
+            CreatedByUserId = actorUserId,
+            Tenant = tenant
+        };
+
+        onboarding.OwnerEmail = newOwnerEmail;
+        onboarding.InvitationId = replacement.Id;
+        onboarding.Invitation = replacement;
+        onboarding.UpdatedAt = now;
+        onboarding.UpdatedByUserId = actorUserId;
+        dbContext.TenantInvitations.Add(replacement);
+
+        var sharedMetadata = new Dictionary<string, string>
+        {
+            ["reason"] = reason,
+            ["previousOwnerEmail"] = previousOwnerEmail,
+            ["newOwnerEmail"] = newOwnerEmail,
+            ["previousInvitationId"] = invitation.Id.ToString(),
+            ["replacementInvitationId"] = replacement.Id.ToString()
+        };
+        AddAudit(
+            tenant.Id,
+            actorUserId,
+            AuditAction.Updated,
+            "PlatformTenantOnboarding",
+            onboarding.Id.ToString(),
+            "The pending Owner email was corrected and a replacement invitation was queued.",
+            sharedMetadata,
+            now);
+        AddAudit(
+            tenant.Id,
+            actorUserId,
+            AuditAction.Updated,
+            "TenantInvitation",
+            invitation.Id.ToString(),
+            "The previous Owner invitation was revoked because its recipient was corrected.",
+            new Dictionary<string, string>(sharedMetadata)
+            {
+                ["previousDeliveryStatus"] = previousDeliveryStatus.ToString(),
+                ["previousDeliveryAttemptCount"] = previousDeliveryAttemptCount.ToString(),
+                ["status"] = invitation.Status.ToString(),
+                ["deliveryStatus"] = invitation.DeliveryStatus.ToString()
+            },
+            now);
+        AddAudit(
+            tenant.Id,
+            actorUserId,
+            AuditAction.Created,
+            "TenantInvitation",
+            replacement.Id.ToString(),
+            "A replacement Owner invitation was created and queued for delivery.",
+            new Dictionary<string, string>(sharedMetadata)
+            {
+                ["status"] = replacement.Status.ToString(),
+                ["deliveryStatus"] = replacement.DeliveryStatus.ToString(),
+                ["expiresAt"] = replacement.ExpiresAt.ToString("O")
+            },
+            now);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return ToResult(onboarding, false);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            dbContext.ChangeTracker.Clear();
+            throw new TenantOwnerInvitationCorrectionConflictException(
+                "The Owner invitation changed while the correction was in progress. Refresh and try again.",
+                exception);
+        }
+        catch (DbUpdateException exception)
+        {
+            dbContext.ChangeTracker.Clear();
+            throw new TenantOwnerInvitationCorrectionConflictException(
+                "The corrected Owner invitation conflicts with current tenant data. Refresh and try again.",
+                exception);
+        }
+    }
+
     private IQueryable<PlatformTenantOnboardingEntity> Onboardings() =>
         dbContext.PlatformTenantOnboardings
             .AsNoTracking()

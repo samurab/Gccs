@@ -71,6 +71,28 @@ public sealed class PlatformTenantProvisioningService(
         return repository.CancelAsync(onboardingId, reason, actorUserId, cancellationToken);
     }
 
+    public Task<PlatformTenantProvisioningResultDto?> CorrectOwnerInvitationAsync(
+        Guid onboardingId,
+        CorrectPlatformOwnerInvitationRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.ExpectedInvitationId == Guid.Empty)
+        {
+            throw new ArgumentException("Expected invitation id is required.", nameof(request));
+        }
+
+        var newOwnerEmail = NormalizeEmail(request.NewOwnerEmail);
+        var reason = Required(request.Reason, "Correction reason", 600);
+        return repository.CorrectOwnerInvitationAsync(
+            onboardingId,
+            request.ExpectedInvitationId,
+            newOwnerEmail,
+            reason,
+            actorUserId,
+            cancellationToken);
+    }
+
     private NormalizedRequest NormalizeAndValidate(
         PlatformTenantProvisioningRequest request,
         string idempotencyKey)
@@ -220,6 +242,14 @@ public interface IPlatformTenantProvisioningRepository
         string reason,
         Guid actorUserId,
         CancellationToken cancellationToken = default);
+
+    Task<PlatformTenantProvisioningResultDto?> CorrectOwnerInvitationAsync(
+        Guid onboardingId,
+        Guid expectedInvitationId,
+        string newOwnerEmail,
+        string reason,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record PlatformTenantProvisioningRequest(
@@ -265,6 +295,11 @@ public sealed record PlatformTenantProvisioningResultDto(
 
 public sealed record CancelPlatformTenantOnboardingRequest(string Reason);
 
+public sealed record CorrectPlatformOwnerInvitationRequest(
+    Guid ExpectedInvitationId,
+    string NewOwnerEmail,
+    string Reason);
+
 public sealed record PlatformTenantOnboardingPageDto(
     IReadOnlyList<PlatformTenantProvisioningResultDto> Items,
     int Page,
@@ -287,6 +322,19 @@ public sealed class TenantOnboardingCancellationConflictException : InvalidOpera
     }
 
     public TenantOnboardingCancellationConflictException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+}
+
+public sealed class TenantOwnerInvitationCorrectionConflictException : InvalidOperationException
+{
+    public TenantOwnerInvitationCorrectionConflictException(string message)
+        : base(message)
+    {
+    }
+
+    public TenantOwnerInvitationCorrectionConflictException(string message, Exception innerException)
         : base(message, innerException)
     {
     }

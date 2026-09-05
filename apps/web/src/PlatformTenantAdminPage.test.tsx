@@ -5,12 +5,14 @@ import { PlatformTenantAdminPage } from "./PlatformTenantAdminPage";
 
 const {
   cancelPlatformTenantOnboardingMock,
+  correctPlatformOwnerInvitationMock,
   getPlatformAccessMock,
   getPlatformTenantOnboardingsMock,
   provisionPlatformTenantMock,
   resendPlatformTenantInvitationMock
 } = vi.hoisted(() => ({
   cancelPlatformTenantOnboardingMock: vi.fn(),
+  correctPlatformOwnerInvitationMock: vi.fn(),
   getPlatformAccessMock: vi.fn(),
   getPlatformTenantOnboardingsMock: vi.fn(),
   provisionPlatformTenantMock: vi.fn(),
@@ -22,6 +24,7 @@ vi.mock("./lib/api", async () => {
   return {
     ...actual,
     cancelPlatformTenantOnboarding: cancelPlatformTenantOnboardingMock,
+    correctPlatformOwnerInvitation: correctPlatformOwnerInvitationMock,
     getPlatformAccess: getPlatformAccessMock,
     getPlatformTenantOnboardings: getPlatformTenantOnboardingsMock,
     provisionPlatformTenant: provisionPlatformTenantMock,
@@ -32,6 +35,7 @@ vi.mock("./lib/api", async () => {
 describe("PlatformTenantAdminPage", () => {
   beforeEach(() => {
     cancelPlatformTenantOnboardingMock.mockReset();
+    correctPlatformOwnerInvitationMock.mockReset();
     getPlatformAccessMock.mockReset();
     getPlatformTenantOnboardingsMock.mockReset();
     provisionPlatformTenantMock.mockReset();
@@ -304,6 +308,88 @@ describe("PlatformTenantAdminPage", () => {
       pending.onboardingId,
       "Duplicate pilot onboarding."
     );
+  });
+
+  it("corrects a pending Owner email and reissues the invitation", async () => {
+    const user = userEvent.setup();
+    const pending = {
+      onboardingId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      displayName: "Owner Correction Pilot",
+      onboardingType: "Pilot",
+      onboardingStatus: "PendingOwnerAcceptance",
+      tenantStatus: "PendingActivation",
+      dataHandlingMode: "NoCui",
+      customerReference: "PILOT-OWNER-CORRECTION",
+      ownerEmail: "wrong.owner@example.com",
+      ownerDisplayName: "Pilot Owner",
+      ownerRoleName: "Owner",
+      invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+      invitationStatus: "Pending",
+      invitationDeliveryStatus: "Sent",
+      invitationNotificationSentAt: "2026-09-05T12:00:00Z",
+      invitationExpiresAt: "2026-09-12T12:00:00Z",
+      trialEndsAt: "2026-09-30",
+      planCode: null,
+      subscriptionReference: null,
+      setupReason: "Pilot onboarding.",
+      createdAt: "2026-09-05T12:00:00Z",
+      cancelledAt: null,
+      cancelledByUserId: null,
+      cancellationReason: null,
+      subscription: null,
+      isReplay: false
+    };
+    getPlatformTenantOnboardingsMock
+      .mockResolvedValueOnce({ items: [pending], page: 1, pageSize: 25, totalCount: 1, hasNextPage: false, hasPreviousPage: false })
+      .mockResolvedValue({
+        items: [{
+          ...pending,
+          ownerEmail: "samurab@sierralabsllc.com",
+          invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+          invitationDeliveryStatus: "Queued",
+          invitationNotificationSentAt: null
+        }],
+        page: 1,
+        pageSize: 25,
+        totalCount: 1,
+        hasNextPage: false,
+        hasPreviousPage: false
+      });
+    correctPlatformOwnerInvitationMock.mockResolvedValue({
+      data: {
+        ...pending,
+        ownerEmail: "samurab@sierralabsllc.com",
+        invitationId: "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+        invitationDeliveryStatus: "Queued",
+        invitationNotificationSentAt: null
+      },
+      error: null
+    });
+
+    render(<PlatformTenantAdminPage />);
+    await screen.findByText("Owner Correction Pilot");
+    await user.click(screen.getByRole("button", { name: "Correct Owner email for Owner Correction Pilot" }));
+
+    expect(screen.getByLabelText("Corrected Owner email")).toHaveValue("wrong.owner@example.com");
+    const submit = screen.getByRole("button", { name: "Correct and reissue invitation" });
+    expect(submit).toBeDisabled();
+    await user.clear(screen.getByLabelText("Corrected Owner email"));
+    await user.type(screen.getByLabelText("Corrected Owner email"), "samurab@sierralabsllc.com");
+    await user.type(
+      screen.getByLabelText("Correction reason"),
+      "Correct designated Owner address before activation."
+    );
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    expect(correctPlatformOwnerInvitationMock).toHaveBeenCalledWith(
+      pending.onboardingId,
+      pending.invitationId,
+      "samurab@sierralabsllc.com",
+      "Correct designated Owner address before activation."
+    );
+    expect(await screen.findByText("samurab@sierralabsllc.com")).toBeInTheDocument();
   });
 
 });
