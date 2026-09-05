@@ -9,9 +9,9 @@ import {
   type InvitationAcceptanceContext
 } from "./lib/api";
 import { formatUsDateTime } from "./lib/dateFormat";
-import { isMsalConfigured, selectMicrosoftEntraAccount } from "./authSession";
+import { isMsalConfigured, switchMicrosoftEntraAccount } from "./authSession";
 
-type PageState = "loading" | "identity" | "ready" | "submitting" | "success" | "error";
+type PageState = "loading" | "identity" | "ready" | "submitting" | "switchingAccount" | "success" | "error";
 
 export function InvitationAcceptancePage() {
   const token = new URLSearchParams(window.location.search).get("token")?.trim() ?? "";
@@ -101,6 +101,19 @@ export function InvitationAcceptancePage() {
     setState("success");
   }
 
+  async function handleAccountSwitch() {
+    setRequiresAccountSwitch(false);
+    setMessage("");
+    setState("switchingAccount");
+    try {
+      await switchMicrosoftEntraAccount();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Account switching could not be completed.");
+      setRequiresAccountSwitch(true);
+      setState("error");
+    }
+  }
+
   return (
     <main className="invitation-activation-page">
       <header className="invitation-activation-header">
@@ -128,7 +141,16 @@ export function InvitationAcceptancePage() {
             body={message}
             tone="error"
             actionLabel={requiresAccountSwitch ? "Use another email" : undefined}
-            onAction={requiresAccountSwitch ? () => void selectMicrosoftEntraAccount() : undefined}
+            onAction={requiresAccountSwitch ? () => void handleAccountSwitch() : undefined}
+          />
+        ) : null}
+
+        {state === "switchingAccount" ? (
+          <ActivationState
+            icon={LoaderCircle}
+            title="Changing account"
+            body="Ending the current sign-in session before requesting another email address."
+            spin
           />
         ) : null}
 

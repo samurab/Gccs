@@ -11,13 +11,16 @@ import {
   msalInstance,
   selectCachedAccount,
   selectMicrosoftEntraAccount,
+  shouldRestartSignInAfterLogout,
   signOutOfFeDril,
+  switchMicrosoftEntraAccount,
   storeAccessToken
 } from "./authSession";
 
 type AuthState =
   | { status: "disabled" }
   | { status: "initializing" }
+  | { status: "switchingAccount" }
   | { status: "signingOut" }
   | { status: "signedOut" }
   | { status: "ready"; account: AccountInfo }
@@ -46,6 +49,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
         if (!account) {
           clearStoredAccessToken();
+          if (shouldRestartSignInAfterLogout()) {
+            await selectMicrosoftEntraAccount();
+            return;
+          }
           if (isMounted) {
             setState({ status: "signedOut" });
           }
@@ -85,6 +92,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
     };
   }, [tokenRequest]);
 
+  function handleAccountSwitch() {
+    setState({ status: "switchingAccount" });
+    void switchMicrosoftEntraAccount().catch(error => setState({
+      status: "failed",
+      message: error instanceof Error ? error.message : "Account switching could not be completed."
+    }));
+  }
+
   if (state.status === "disabled") {
     return <>{children}</>;
   }
@@ -95,6 +110,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (state.status === "signingOut") {
     return <AuthShell title="Signing out" body="Clearing the current FeDril sign-in session." />;
+  }
+
+  if (state.status === "switchingAccount") {
+    return <AuthShell title="Changing account" body="Ending the current sign-in session before choosing another account." />;
   }
 
   if (state.status === "signedOut") {
@@ -117,7 +136,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         title="Sign-in failed"
         body={state.message}
         actionLabel={activeAuthenticationPlane === "customer" ? "Use another email" : "Choose another account"}
-        onAction={() => void selectMicrosoftEntraAccount()}
+        onAction={handleAccountSwitch}
       />
     );
   }
@@ -126,7 +145,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     <>
       <div className="auth-session" role="status">
         <span>Signed in as {state.account.username}</span>
-        <button type="button" onClick={() => void selectMicrosoftEntraAccount()}>
+        <button type="button" onClick={handleAccountSwitch}>
           {activeAuthenticationPlane === "customer" ? "Use another email" : "Switch account"}
         </button>
         <button

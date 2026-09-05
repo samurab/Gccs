@@ -1,4 +1,4 @@
-import { getFreshAccessToken, isMsalConfigured } from "../authSession";
+import { getFreshAccessToken, isAuthenticationSessionChanging, isMsalConfigured } from "../authSession";
 
 const selectedTenantStorageKey = "gccs.selectedTenantId";
 const developmentRoleStorageKey = "gccs.developmentRole";
@@ -3413,6 +3413,9 @@ async function getApiHeaders(): Promise<HeadersInit | undefined> {
   }
 
   const token = await getFreshAccessToken();
+  if (isAuthenticationSessionChanging()) {
+    return undefined;
+  }
   const selectedTenantId = getSelectedTenantId();
   return token
     ? {

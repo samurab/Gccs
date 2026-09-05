@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMocks = vi.hoisted(() => ({
   acquireTokenSilent: vi.fn(),
@@ -11,7 +11,9 @@ const authMocks = vi.hoisted(() => ({
   initialize: vi.fn(),
   loginRedirect: vi.fn(),
   selectMicrosoftEntraAccount: vi.fn(),
+  shouldRestartSignInAfterLogout: vi.fn(),
   signOutOfFeDril: vi.fn(),
+  switchMicrosoftEntraAccount: vi.fn(),
   setActiveAccount: vi.fn(),
   storeAccessToken: vi.fn()
 }));
@@ -36,7 +38,9 @@ vi.mock("./authSession", () => ({
     cachedAccounts: Array<{ username: string }>
   ) => redirectAccount ?? activeAccount ?? (cachedAccounts.length === 1 ? cachedAccounts[0] : null),
   selectMicrosoftEntraAccount: authMocks.selectMicrosoftEntraAccount,
+  shouldRestartSignInAfterLogout: authMocks.shouldRestartSignInAfterLogout,
   signOutOfFeDril: authMocks.signOutOfFeDril,
+  switchMicrosoftEntraAccount: authMocks.switchMicrosoftEntraAccount,
   storeAccessToken: authMocks.storeAccessToken
 }));
 
@@ -52,9 +56,15 @@ describe("AuthGate", () => {
     authMocks.initialize.mockReset().mockResolvedValue(undefined);
     authMocks.loginRedirect.mockReset().mockResolvedValue(undefined);
     authMocks.selectMicrosoftEntraAccount.mockReset().mockResolvedValue(undefined);
+    authMocks.shouldRestartSignInAfterLogout.mockReset().mockReturnValue(false);
     authMocks.signOutOfFeDril.mockReset().mockResolvedValue(undefined);
+    authMocks.switchMicrosoftEntraAccount.mockReset().mockResolvedValue(undefined);
     authMocks.setActiveAccount.mockReset();
     authMocks.storeAccessToken.mockReset();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("offers the customer email one-time-passcode form", async () => {
@@ -87,7 +97,26 @@ describe("AuthGate", () => {
     expect(await screen.findByText("Signed in as wrong-account@example.com")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Use another email" }));
 
-    expect(authMocks.selectMicrosoftEntraAccount).toHaveBeenCalledOnce();
+    expect(authMocks.switchMicrosoftEntraAccount).toHaveBeenCalledOnce();
+    expect(screen.getByRole("heading", { name: "Changing account" })).toBeVisible();
+  });
+
+  it("shows a retryable error when account switching fails", async () => {
+    const user = userEvent.setup();
+    authMocks.getAllAccounts.mockReturnValue([{ username: "wrong-account@example.com" }]);
+    authMocks.switchMicrosoftEntraAccount.mockRejectedValueOnce(new Error("External ID sign-out failed."));
+
+    render(
+      <AuthGate>
+        <div>Protected workspace</div>
+      </AuthGate>
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Use another email" }));
+
+    expect(await screen.findByRole("heading", { name: "Sign-in failed" })).toBeVisible();
+    expect(screen.getByText("External ID sign-out failed.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Use another email" })).toBeVisible();
   });
 
   it("requires an explicit choice when more than one cached account exists", async () => {
@@ -104,6 +133,21 @@ describe("AuthGate", () => {
 
     expect(await screen.findByRole("heading", { name: "Sign in to FeDril" })).toBeVisible();
     expect(authMocks.acquireTokenSilent).not.toHaveBeenCalled();
+  });
+
+  it("restarts customer sign-in after a completed account-switch logout", async () => {
+    authMocks.shouldRestartSignInAfterLogout.mockReturnValue(true);
+
+    render(
+      <AuthGate>
+        <div>Protected workspace</div>
+      </AuthGate>
+    );
+
+    await vi.waitFor(() => {
+      expect(authMocks.selectMicrosoftEntraAccount).toHaveBeenCalledOnce();
+    });
+    expect(screen.queryByText("Protected workspace")).not.toBeInTheDocument();
   });
 
   it("clears the cached account before returning to the sign-in form", async () => {
