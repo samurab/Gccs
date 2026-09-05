@@ -19,32 +19,45 @@ public static class PlatformAuthorization
     public const string PlatformOperatorRole = "Gccs.PlatformOperator";
 
     public static bool CanProvisionTenants(ClaimsPrincipal user) =>
-        user.HasClaim(PermissionClaimType, ProvisionTenants) ||
-        user.HasClaim(PermissionClaimType, ManageTenantOnboarding) ||
-        IsPlatformOperator(user);
+        IsTrustedWorkforceIdentity(user) &&
+        (user.HasClaim(PermissionClaimType, ProvisionTenants) ||
+         user.HasClaim(PermissionClaimType, ManageTenantOnboarding) ||
+         IsPlatformOperator(user));
 
     public static bool CanViewPlatformCustomers(ClaimsPrincipal user) =>
-        user.HasClaim(PermissionClaimType, ViewPlatformCustomers) ||
-        CanManageTenantOnboarding(user) ||
-        CanManageTenantSubscriptions(user) ||
-        IsPlatformOperator(user);
+        IsTrustedWorkforceIdentity(user) &&
+        (user.HasClaim(PermissionClaimType, ViewPlatformCustomers) ||
+         CanManageTenantOnboarding(user) ||
+         CanManageTenantSubscriptions(user) ||
+         IsPlatformOperator(user));
 
     public static bool CanManageTenantOnboarding(ClaimsPrincipal user) =>
-        user.HasClaim(PermissionClaimType, ManageTenantOnboarding) ||
-        user.HasClaim(PermissionClaimType, ProvisionTenants) ||
-        IsPlatformOperator(user);
+        IsTrustedWorkforceIdentity(user) &&
+        (user.HasClaim(PermissionClaimType, ManageTenantOnboarding) ||
+         user.HasClaim(PermissionClaimType, ProvisionTenants) ||
+         IsPlatformOperator(user));
 
     public static bool CanManageTenantSubscriptions(ClaimsPrincipal user) =>
-        user.HasClaim(PermissionClaimType, ManageTenantSubscriptions) ||
-        user.HasClaim(PermissionClaimType, ProvisionTenants) ||
-        IsPlatformOperator(user);
+        IsTrustedWorkforceIdentity(user) &&
+        (user.HasClaim(PermissionClaimType, ManageTenantSubscriptions) ||
+         user.HasClaim(PermissionClaimType, ProvisionTenants) ||
+         IsPlatformOperator(user));
 
     public static bool CanManageDemoRequests(ClaimsPrincipal user) =>
-        user.HasClaim(PermissionClaimType, ManageDemoRequests) ||
-        IsPlatformOperator(user);
+        IsTrustedWorkforceIdentity(user) &&
+        (user.HasClaim(PermissionClaimType, ManageDemoRequests) ||
+         IsPlatformOperator(user));
 
     private static bool IsPlatformOperator(ClaimsPrincipal user) =>
         user.IsInRole(PlatformOperatorRole) || user.HasClaim("roles", PlatformOperatorRole);
+
+    private static bool IsTrustedWorkforceIdentity(ClaimsPrincipal user) =>
+        user.HasClaim(
+            ApiSecurityExtensions.AuthenticationPlaneClaimType,
+            ApiSecurityExtensions.WorkforceAuthenticationPlane) ||
+        user.HasClaim(
+            ApiSecurityExtensions.AuthenticationPlaneClaimType,
+            ApiSecurityExtensions.DevelopmentAuthenticationPlane);
 }
 
 public sealed class AllowWithoutTenantMembershipAttribute : Attribute

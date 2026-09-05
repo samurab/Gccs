@@ -25,13 +25,18 @@ public sealed record RequiredAnyPermissionMetadata(IReadOnlyList<Permission> Per
 public static class ApiSecurityExtensions
 {
     public const string DevelopmentAuthenticationScheme = "Development";
-    public const string JwtAuthenticationScheme = JwtBearerDefaults.AuthenticationScheme;
+    public const string RoutedJwtAuthenticationScheme = "GccsBearer";
+    public const string WorkforceJwtAuthenticationScheme = "WorkforceBearer";
+    public const string CustomerJwtAuthenticationScheme = "CustomerBearer";
+    public const string AuthenticationPlaneClaimType = "gccs_authentication_plane";
+    public const string WorkforceAuthenticationPlane = "workforce";
+    public const string CustomerAuthenticationPlane = "customer";
+    public const string DevelopmentAuthenticationPlane = "development";
     public const string PermissionClaimType = "permission";
     public const string RoleNameClaimType = "gccs_role";
     public const string TenantIdClaimType = "tenant_id";
     public const string TenantSelectionHeader = "X-Gccs-Tenant";
     private const string MembershipAuthorizationEnforcedKey = "Security:MembershipAuthorization:Enforce";
-    private const string MicrosoftTenantIdClaimType = "http://schemas.microsoft.com/identity/claims/tenantid";
     private const string MicrosoftObjectIdClaimType = "http://schemas.microsoft.com/identity/claims/objectidentifier";
 
     public static IServiceCollection AddGccsApiSecurity(
@@ -65,65 +70,67 @@ public static class ApiSecurityExtensions
         }
         else
         {
-            var authority = configuration["Authentication:Authority"];
-            var audience = configuration["Authentication:Audience"];
+            var workforceAuthority = configuration["Authentication:Workforce:Authority"] ??
+                configuration["Authentication:Authority"];
+            var workforceAudience = configuration["Authentication:Workforce:Audience"] ??
+                configuration["Authentication:Audience"];
+            var customerAuthority = configuration["Authentication:Customer:Authority"];
+            var customerAudience = configuration["Authentication:Customer:Audience"];
+            var customerAuthenticationConfigured =
+                !string.IsNullOrWhiteSpace(customerAuthority) &&
+                !string.IsNullOrWhiteSpace(customerAudience);
 
-            if (string.IsNullOrWhiteSpace(authority) || string.IsNullOrWhiteSpace(audience))
+            if (string.IsNullOrWhiteSpace(workforceAuthority) || string.IsNullOrWhiteSpace(workforceAudience))
             {
                 throw new InvalidOperationException(
-                    "Authentication:Authority and Authentication:Audience must be configured outside local development auth.");
+                    "Workforce authentication authority and audience must be configured outside local development auth.");
             }
 
-            services.AddAuthentication(JwtAuthenticationScheme)
-                .AddJwtBearer(options =>
+            if (string.IsNullOrWhiteSpace(customerAuthority) != string.IsNullOrWhiteSpace(customerAudience))
+            {
+                throw new InvalidOperationException(
+                    "Customer authentication authority and audience must be configured together.");
+            }
+
+            var authentication = services.AddAuthentication(options =>
                 {
-                    options.Authority = authority;
-                    options.Audience = audience;
-                    options.RequireHttpsMetadata = !environment.IsDevelopment();
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidateAudience = true,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
-                        ValidAudiences = BuildValidAudiences(audience),
-                        NameClaimType = ClaimTypes.Email,
-                        RoleClaimType = ClaimTypes.Role
-                    };
-                    options.Events = new JwtBearerEvents
-                    {
-                        OnMessageReceived = context =>
-                        {
-                            var logger = context.HttpContext.RequestServices
-                                .GetRequiredService<ILoggerFactory>()
-                                .CreateLogger("Gccs.Api.Security.JwtBearer");
-                            logger.LogDebug(
-                                "JWT bearer request received. Path={Path} AuthorizationHeaderPresent={AuthorizationHeaderPresent}",
-                                context.HttpContext.Request.Path,
-                                context.Request.Headers.ContainsKey("Authorization"));
-                            return Task.CompletedTask;
-                        },
-                        OnAuthenticationFailed = context =>
-                        {
-                            var logger = context.HttpContext.RequestServices
-                                .GetRequiredService<ILoggerFactory>()
-                                .CreateLogger("Gccs.Api.Security.JwtBearer");
-                            logger.LogWarning(
-                                context.Exception,
-                                "JWT bearer authentication failed. Path={Path} ExceptionType={ExceptionType} Message={Message}",
-                                context.HttpContext.Request.Path,
-                                context.Exception.GetType().Name,
-                                context.Exception.Message);
-                            return Task.CompletedTask;
-                        },
-                        OnTokenValidated = context =>
-                        {
-                            NormalizeMicrosoftEntraClaims(context.Principal);
-                            return Task.CompletedTask;
-                        }
-                    };
+                    options.DefaultAuthenticateScheme = RoutedJwtAuthenticationScheme;
+                    options.DefaultChallengeScheme = RoutedJwtAuthenticationScheme;
+                })
+                .AddPolicyScheme(RoutedJwtAuthenticationScheme, RoutedJwtAuthenticationScheme, options =>
+                {
+                    options.ForwardDefaultSelector = context => SelectJwtAuthenticationScheme(
+                        context.Request.Path,
+                        customerAuthenticationConfigured);
                 });
+
+            authentication.AddJwtBearer(
+                WorkforceJwtAuthenticationScheme,
+                options => ConfigureJwtBearer(
+                    options,
+                    workforceAuthority,
+                    workforceAudience,
+                    WorkforceAuthenticationPlane,
+                    allowUsernameEmailFallback: true,
+                    environment));
+
+            if (customerAuthenticationConfigured)
+            {
+                authentication.AddJwtBearer(
+                    CustomerJwtAuthenticationScheme,
+                    options => ConfigureJwtBearer(
+                        options,
+                        customerAuthority!,
+                        customerAudience!,
+                        CustomerAuthenticationPlane,
+                        allowUsernameEmailFallback: false,
+                        environment));
+            }
         }
+
+        var platformAuthenticationScheme = developmentAuthEnabled
+            ? DevelopmentAuthenticationScheme
+            : WorkforceJwtAuthenticationScheme;
 
         services.AddAuthorization(options =>
         {
@@ -139,19 +146,24 @@ public static class ApiSecurityExtensions
             }
 
             options.AddPolicy(PlatformAuthorization.ProvisionTenantsPolicy, policy =>
-                policy.RequireAuthenticatedUser()
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme)
+                    .RequireAuthenticatedUser()
                     .RequireAssertion(context => PlatformAuthorization.CanProvisionTenants(context.User)));
             options.AddPolicy(PlatformAuthorization.ViewPlatformCustomersPolicy, policy =>
-                policy.RequireAuthenticatedUser()
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme)
+                    .RequireAuthenticatedUser()
                     .RequireAssertion(context => PlatformAuthorization.CanViewPlatformCustomers(context.User)));
             options.AddPolicy(PlatformAuthorization.ManageTenantOnboardingPolicy, policy =>
-                policy.RequireAuthenticatedUser()
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme)
+                    .RequireAuthenticatedUser()
                     .RequireAssertion(context => PlatformAuthorization.CanManageTenantOnboarding(context.User)));
             options.AddPolicy(PlatformAuthorization.ManageTenantSubscriptionsPolicy, policy =>
-                policy.RequireAuthenticatedUser()
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme)
+                    .RequireAuthenticatedUser()
                     .RequireAssertion(context => PlatformAuthorization.CanManageTenantSubscriptions(context.User)));
             options.AddPolicy(PlatformAuthorization.ManageDemoRequestsPolicy, policy =>
-                policy.RequireAuthenticatedUser()
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme)
+                    .RequireAuthenticatedUser()
                     .RequireAssertion(context => PlatformAuthorization.CanManageDemoRequests(context.User)));
         });
         services.AddTransient<IClaimsTransformation, RolePermissionClaimsTransformation>();
@@ -208,6 +220,73 @@ public static class ApiSecurityExtensions
         });
 
         return services;
+    }
+
+    internal static string SelectJwtAuthenticationScheme(PathString path, bool customerAuthenticationConfigured) =>
+        path.StartsWithSegments("/api/platform", StringComparison.OrdinalIgnoreCase) ||
+        !customerAuthenticationConfigured
+            ? WorkforceJwtAuthenticationScheme
+            : CustomerJwtAuthenticationScheme;
+
+    private static void ConfigureJwtBearer(
+        JwtBearerOptions options,
+        string authority,
+        string audience,
+        string authenticationPlane,
+        bool allowUsernameEmailFallback,
+        IWebHostEnvironment environment)
+    {
+        options.Authority = authority;
+        options.Audience = audience;
+        options.RequireHttpsMetadata = !environment.IsDevelopment();
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidAudiences = BuildValidAudiences(audience),
+            NameClaimType = "email",
+            RoleClaimType = "roles"
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger($"Gccs.Api.Security.{authenticationPlane}.JwtBearer");
+                logger.LogDebug(
+                    "JWT bearer request received. AuthenticationPlane={AuthenticationPlane} Path={Path} AuthorizationHeaderPresent={AuthorizationHeaderPresent}",
+                    authenticationPlane,
+                    context.HttpContext.Request.Path,
+                    context.Request.Headers.ContainsKey("Authorization"));
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger($"Gccs.Api.Security.{authenticationPlane}.JwtBearer");
+                logger.LogWarning(
+                    context.Exception,
+                    "JWT bearer authentication failed. AuthenticationPlane={AuthenticationPlane} Path={Path} ExceptionType={ExceptionType} Message={Message}",
+                    authenticationPlane,
+                    context.HttpContext.Request.Path,
+                    context.Exception.GetType().Name,
+                    context.Exception.Message);
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                NormalizeMicrosoftEntraClaims(
+                    context.Principal,
+                    authenticationPlane,
+                    allowUsernameEmailFallback);
+                return Task.CompletedTask;
+            }
+        };
     }
 
     private static string[] BuildValidAudiences(string audience)
@@ -372,7 +451,10 @@ public static class ApiSecurityExtensions
     private static bool TryReadGuid(ClaimsPrincipal principal, string claimType, out Guid value) =>
         Guid.TryParse(principal.FindFirstValue(claimType), out value);
 
-    private static void NormalizeMicrosoftEntraClaims(ClaimsPrincipal? principal)
+    internal static void NormalizeMicrosoftEntraClaims(
+        ClaimsPrincipal? principal,
+        string authenticationPlane,
+        bool allowUsernameEmailFallback)
     {
         if (principal is null)
         {
@@ -385,9 +467,24 @@ public static class ApiSecurityExtensions
             return;
         }
 
-        AddGuidClaimIfMissingOrInvalid(identity, TenantIdClaimType, FirstClaimValue(principal, "tid", MicrosoftTenantIdClaimType));
-        AddGuidClaimIfMissingOrInvalid(identity, ClaimTypes.NameIdentifier, FirstClaimValue(principal, "oid", MicrosoftObjectIdClaimType));
-        AddClaimIfMissing(identity, ClaimTypes.Email, principal.FindFirstValue("preferred_username") ?? principal.FindFirstValue("upn"));
+        RemoveClaims(identity, TenantIdClaimType);
+        ReplaceGuidClaim(identity, ClaimTypes.NameIdentifier, FirstClaimValue(principal, "oid", MicrosoftObjectIdClaimType));
+        ReplaceClaim(identity, AuthenticationPlaneClaimType, authenticationPlane);
+
+        var verifiedEmail = string.Equals(authenticationPlane, CustomerAuthenticationPlane, StringComparison.Ordinal)
+            ? FirstClaimValue(principal, "email", "emails")
+            : FirstClaimValue(principal, "email", "emails", ClaimTypes.Email);
+        if (allowUsernameEmailFallback)
+        {
+            verifiedEmail ??= principal.FindFirstValue("preferred_username") ?? principal.FindFirstValue("upn");
+        }
+
+        ReplaceOptionalClaim(identity, ClaimTypes.Email, verifiedEmail);
+
+        if (!string.Equals(authenticationPlane, WorkforceAuthenticationPlane, StringComparison.Ordinal))
+        {
+            return;
+        }
 
         foreach (var roleClaim in principal.FindAll("roles").ToArray())
         {
@@ -419,25 +516,41 @@ public static class ApiSecurityExtensions
         identity.AddClaim(new Claim(claimType, value));
     }
 
-    private static void AddGuidClaimIfMissingOrInvalid(ClaimsIdentity identity, string claimType, string? value)
+    private static void ReplaceGuidClaim(ClaimsIdentity identity, string claimType, string? value)
     {
+        RemoveClaims(identity, claimType);
+
         if (!Guid.TryParse(value, out _))
         {
             return;
         }
 
-        var existingClaims = identity.FindAll(claimType).ToArray();
-        if (existingClaims.Any(claim => Guid.TryParse(claim.Value, out _)))
-        {
-            return;
-        }
+        identity.AddClaim(new Claim(claimType, value));
+    }
 
-        foreach (var claim in existingClaims)
+    private static void ReplaceOptionalClaim(ClaimsIdentity identity, string claimType, string? value)
+    {
+        RemoveClaims(identity, claimType);
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            identity.AddClaim(new Claim(claimType, value));
+        }
+    }
+
+    private static void ReplaceClaim(ClaimsIdentity identity, string claimType, string value)
+    {
+        RemoveClaims(identity, claimType);
+
+        identity.AddClaim(new Claim(claimType, value));
+    }
+
+    private static void RemoveClaims(ClaimsIdentity identity, string claimType)
+    {
+        foreach (var claim in identity.FindAll(claimType).ToArray())
         {
             identity.RemoveClaim(claim);
         }
-
-        identity.AddClaim(new Claim(claimType, value));
     }
 
     private static void ReplaceRoleAndPermissionClaims(ClaimsPrincipal principal, string roleName)

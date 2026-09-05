@@ -54,7 +54,8 @@ public sealed class DevelopmentAuthenticationHandler(
 
         var claims = new List<Claim>
         {
-            new(ClaimTypes.Email, email)
+            new(ClaimTypes.Email, email),
+            new(ApiSecurityExtensions.AuthenticationPlaneClaimType, ApiSecurityExtensions.DevelopmentAuthenticationPlane)
         };
 
         if (!string.IsNullOrWhiteSpace(userId) &&

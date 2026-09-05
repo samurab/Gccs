@@ -141,7 +141,7 @@ describe("InvitationAcceptancePage", () => {
     expect(await screen.findByRole("heading", { name: "Aegis Pilot Workspace" })).toBeInTheDocument();
   });
 
-  it("lets a staging user switch Microsoft accounts without weakening invitation validation", async () => {
+  it("lets a staging customer restart email sign-in without weakening invitation validation", async () => {
     vi.stubEnv("DEV", false);
     const user = userEvent.setup();
     getContextMock.mockRejectedValueOnce(new Error("The authenticated email does not match this invitation."));
@@ -149,9 +149,9 @@ describe("InvitationAcceptancePage", () => {
     render(<InvitationAcceptancePage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "The signed-in Microsoft account does not match this invitation."
+      "The signed-in email does not match this invitation."
     );
-    await user.click(screen.getByRole("button", { name: "Switch account" }));
+    await user.click(screen.getByRole("button", { name: "Use another email" }));
 
     expect(selectMicrosoftEntraAccountMock).toHaveBeenCalledOnce();
   });

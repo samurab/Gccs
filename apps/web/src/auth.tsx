@@ -4,17 +4,21 @@ import {
 } from "@azure/msal-browser";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
+  activeAuthenticationPlane,
   apiTokenRequest,
   clearStoredAccessToken,
   isMsalConfigured,
   msalInstance,
+  selectCachedAccount,
   selectMicrosoftEntraAccount,
+  signOutOfFeDril,
   storeAccessToken
 } from "./authSession";
 
 type AuthState =
   | { status: "disabled" }
   | { status: "initializing" }
+  | { status: "signingOut" }
   | { status: "signedOut" }
   | { status: "ready"; account: AccountInfo }
   | { status: "failed"; message: string };
@@ -34,7 +38,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
       try {
         await msalInstance!.initialize();
         const redirectResult = await msalInstance!.handleRedirectPromise();
-        const account = redirectResult?.account ?? msalInstance!.getAllAccounts()[0] ?? null;
+        const account = selectCachedAccount(
+          redirectResult?.account,
+          msalInstance!.getActiveAccount(),
+          msalInstance!.getAllAccounts()
+        );
 
         if (!account) {
           clearStoredAccessToken();
@@ -85,12 +93,19 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return <AuthShell title="Connecting to FeDril" body="Preparing your FeDril workspace." />;
   }
 
+  if (state.status === "signingOut") {
+    return <AuthShell title="Signing out" body="Clearing the current FeDril sign-in session." />;
+  }
+
   if (state.status === "signedOut") {
+    const isCustomer = activeAuthenticationPlane === "customer";
     return (
       <AuthShell
         title="Sign in to FeDril"
-        body="Choose the Microsoft Entra account assigned to your FeDril access."
-        actionLabel="Choose account"
+        body={isCustomer
+          ? "Enter the email address that received your FeDril invitation. We’ll send a one-time passcode."
+          : "Choose the Microsoft Entra workforce account assigned to Platform Operations."}
+        actionLabel={isCustomer ? "Sign in with email code" : "Choose workforce account"}
         onAction={() => void selectMicrosoftEntraAccount()}
       />
     );
@@ -101,7 +116,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <AuthShell
         title="Sign-in failed"
         body={state.message}
-        actionLabel="Choose another account"
+        actionLabel={activeAuthenticationPlane === "customer" ? "Use another email" : "Choose another account"}
         onAction={() => void selectMicrosoftEntraAccount()}
       />
     );
@@ -112,14 +127,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <div className="auth-session" role="status">
         <span>Signed in as {state.account.username}</span>
         <button type="button" onClick={() => void selectMicrosoftEntraAccount()}>
-          Switch account
+          {activeAuthenticationPlane === "customer" ? "Use another email" : "Switch account"}
         </button>
         <button
           type="button"
           onClick={() => {
-            clearStoredAccessToken();
-            msalInstance!.setActiveAccount(null);
-            setState({ status: "signedOut" });
+            setState({ status: "signingOut" });
+            void signOutOfFeDril()
+              .then(() => setState({ status: "signedOut" }))
+              .catch(error => setState({
+                status: "failed",
+                message: error instanceof Error ? error.message : "Sign-out could not be completed."
+              }));
           }}
         >
           Sign out

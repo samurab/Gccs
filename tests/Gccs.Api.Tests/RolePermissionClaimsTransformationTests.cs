@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using System.Reflection;
 using Gccs.Api.Security;
 using Xunit;
 
@@ -26,7 +25,7 @@ public sealed class RolePermissionClaimsTransformationTests
     }
 
     [Fact]
-    public void NormalizeMicrosoftEntraClaims_MapsInboundTenantAndObjectIdentifierClaims()
+    public void NormalizeMicrosoftEntraClaims_MapsObjectIdentifierButNotDirectoryTenantToWorkspace()
     {
         var tenantId = Guid.Parse("8c934636-0c37-4a8f-9134-323bef993ef2");
         var userId = Guid.Parse("09e188fa-befc-4b99-822b-d641767cb7b9");
@@ -39,11 +38,12 @@ public sealed class RolePermissionClaimsTransformationTests
             authenticationType: "Bearer");
         var principal = new ClaimsPrincipal(identity);
 
-        typeof(ApiSecurityExtensions)
-            .GetMethod("NormalizeMicrosoftEntraClaims", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [principal]);
+        ApiSecurityExtensions.NormalizeMicrosoftEntraClaims(
+            principal,
+            ApiSecurityExtensions.WorkforceAuthenticationPlane,
+            allowUsernameEmailFallback: true);
 
-        Assert.Equal(tenantId.ToString(), principal.FindFirstValue(ApiSecurityExtensions.TenantIdClaimType));
+        Assert.Null(principal.FindFirstValue(ApiSecurityExtensions.TenantIdClaimType));
         Assert.Equal(userId.ToString(), principal.FindFirstValue(ClaimTypes.NameIdentifier));
     }
 
@@ -58,9 +58,10 @@ public sealed class RolePermissionClaimsTransformationTests
             authenticationType: "Bearer");
         var principal = new ClaimsPrincipal(identity);
 
-        typeof(ApiSecurityExtensions)
-            .GetMethod("NormalizeMicrosoftEntraClaims", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [principal]);
+        ApiSecurityExtensions.NormalizeMicrosoftEntraClaims(
+            principal,
+            ApiSecurityExtensions.WorkforceAuthenticationPlane,
+            allowUsernameEmailFallback: true);
 
         Assert.Equal("alice@example.com", principal.FindFirstValue(ClaimTypes.Email));
         Assert.DoesNotContain(
