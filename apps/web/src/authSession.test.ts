@@ -66,7 +66,7 @@ describe("route-specific authentication", () => {
     expect(msalMocks.configuration).toMatchObject({
       auth: {
         clientId: "customer-client-id",
-        authority: "https://fedrilcustomersstaging.ciamlogin.com/",
+        authority: "https://fedrilcustomersstaging.ciamlogin.com/customer-tenant-id",
         knownAuthorities: ["fedrilcustomersstaging.ciamlogin.com"],
         redirectUri: `${window.location.origin}/invitations/accept`
       }
