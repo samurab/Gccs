@@ -170,6 +170,254 @@ public sealed class PlatformTenantProvisioningTests : IClassFixture<WebApplicati
     }
 
     [Fact]
+    public async Task Platform_operator_corrects_pending_owner_by_revoking_and_replacing_invitation_atomically()
+    {
+        await using var factory = CreateFactory("platform-correct-owner-success");
+        using var client = factory.CreateClient();
+        using var provisionRequest = CreateProvisionRequest(PilotRequest(), "correct-owner-success", true);
+        var provisionResponse = await client.SendAsync(provisionRequest);
+        var provisioned = await provisionResponse.Content.ReadFromJsonAsync<PlatformTenantProvisioningResultDto>(JsonOptions);
+        Assert.NotNull(provisioned);
+
+        const string previousToken = "previous-owner-invitation-token";
+        using (var setupScope = factory.Services.CreateScope())
+        {
+            var setupDbContext = setupScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var invitation = await setupDbContext.TenantInvitations.SingleAsync();
+            invitation.InvitationTokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(previousToken)));
+            invitation.DeliveryStatus = InvitationDeliveryStatus.Sent;
+            invitation.DeliveryAttemptCount = 2;
+            invitation.NotificationSentAt = DateTimeOffset.UtcNow;
+            invitation.DeliveryProviderMessageId = "provider-message-id";
+            await setupDbContext.SaveChangesAsync();
+        }
+
+        using var correctionRequest = CreateOwnerCorrectionRequest(
+            provisioned.OnboardingId,
+            provisioned.InvitationId,
+            " Correct.Owner@Example.com ",
+            "Correct the designated Owner address before activation.",
+            includePlatformPermission: true);
+        var correctionResponse = await client.SendAsync(correctionRequest);
+        var corrected = await correctionResponse.Content.ReadFromJsonAsync<PlatformTenantProvisioningResultDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, correctionResponse.StatusCode);
+        Assert.NotNull(corrected);
+        Assert.Equal("correct.owner@example.com", corrected.OwnerEmail);
+        Assert.NotEqual(provisioned.InvitationId, corrected.InvitationId);
+        Assert.Equal(TenantInvitationStatus.Pending, corrected.InvitationStatus);
+        Assert.Equal(InvitationDeliveryStatus.Queued, corrected.InvitationDeliveryStatus);
+
+        using var verificationScope = factory.Services.CreateScope();
+        var dbContext = verificationScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var onboarding = await dbContext.PlatformTenantOnboardings.SingleAsync();
+        var invitations = await dbContext.TenantInvitations.OrderBy(item => item.CreatedAt).ToArrayAsync();
+        Assert.Equal("correct.owner@example.com", onboarding.OwnerEmail);
+        Assert.Equal(corrected.InvitationId, onboarding.InvitationId);
+        Assert.Equal(2, invitations.Length);
+
+        var previousInvitation = Assert.Single(invitations, item => item.Id == provisioned.InvitationId);
+        Assert.Equal(TenantInvitationStatus.Revoked, previousInvitation.Status);
+        Assert.Equal(InvitationDeliveryStatus.Sent, previousInvitation.DeliveryStatus);
+        Assert.Null(previousInvitation.InvitationTokenHash);
+        Assert.Equal(2, previousInvitation.DeliveryAttemptCount);
+
+        var replacementInvitation = Assert.Single(invitations, item => item.Id == corrected.InvitationId);
+        Assert.Equal("correct.owner@example.com", replacementInvitation.Email);
+        Assert.Equal(TenantInvitationStatus.Pending, replacementInvitation.Status);
+        Assert.Equal(InvitationDeliveryStatus.Queued, replacementInvitation.DeliveryStatus);
+        Assert.Equal(0, replacementInvitation.DeliveryAttemptCount);
+        Assert.Null(replacementInvitation.InvitationTokenHash);
+        Assert.NotNull(replacementInvitation.NextDeliveryAttemptAt);
+        Assert.Equal(6, await dbContext.AuditLogEntries.CountAsync(item => item.TenantId == provisioned.TenantId));
+
+        using var oldLinkRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/invitations/{previousToken}");
+        oldLinkRequest.Headers.Add("X-Gccs-Dev-Auth", "true");
+        oldLinkRequest.Headers.Add("X-Gccs-Dev-Tenant", "none");
+        oldLinkRequest.Headers.Add("X-Gccs-Dev-User", "81818181-8181-8181-8181-818181818181");
+        oldLinkRequest.Headers.Add("X-Gccs-Dev-Email", "pilot.owner@example.com");
+        Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(oldLinkRequest)).StatusCode);
+
+        Assert.True(replacementInvitation.NextDeliveryAttemptAt <= DateTimeOffset.UtcNow);
+    }
+
+    [Fact]
+    public async Task Customer_manage_tenant_permission_cannot_correct_owner_invitation()
+    {
+        await using var factory = CreateFactory("platform-correct-owner-rbac");
+        using var client = factory.CreateClient();
+        using var provisionRequest = CreateProvisionRequest(PilotRequest(), "correct-owner-rbac", true);
+        var provisioned = await (await client.SendAsync(provisionRequest)).Content
+            .ReadFromJsonAsync<PlatformTenantProvisioningResultDto>(JsonOptions);
+        Assert.NotNull(provisioned);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var auditCount = await dbContext.AuditLogEntries.CountAsync();
+
+        using var correctionRequest = CreateOwnerCorrectionRequest(
+            provisioned.OnboardingId,
+            provisioned.InvitationId,
+            "attacker@example.com",
+            "Unauthorized correction attempt.",
+            includePlatformPermission: false);
+        correctionRequest.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageTenant.ToString());
+        var response = await client.SendAsync(correctionRequest);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        dbContext.ChangeTracker.Clear();
+        Assert.Equal("pilot.owner@example.com", (await dbContext.PlatformTenantOnboardings.SingleAsync()).OwnerEmail);
+        Assert.Equal("pilot.owner@example.com", (await dbContext.TenantInvitations.SingleAsync()).Email);
+        Assert.Equal(auditCount, await dbContext.AuditLogEntries.CountAsync());
+    }
+
+    [Fact]
+    public async Task Platform_operator_revokes_processing_invitation_when_correcting_owner()
+    {
+        await using var factory = CreateFactory("platform-correct-owner-processing");
+        using var client = factory.CreateClient();
+        using var provisionRequest = CreateProvisionRequest(PilotRequest(), "correct-owner-processing", true);
+        var provisioned = await (await client.SendAsync(provisionRequest)).Content
+            .ReadFromJsonAsync<PlatformTenantProvisioningResultDto>(JsonOptions);
+        Assert.NotNull(provisioned);
+
+        using (var setupScope = factory.Services.CreateScope())
+        {
+            var setupDbContext = setupScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var invitation = await setupDbContext.TenantInvitations.SingleAsync();
+            invitation.DeliveryStatus = InvitationDeliveryStatus.Processing;
+            invitation.DeliveryLeaseUntil = DateTimeOffset.UtcNow.AddMinutes(5);
+            invitation.InvitationTokenHash = Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes("processing-owner-invitation-token")));
+            await setupDbContext.SaveChangesAsync();
+        }
+
+        using var correctionRequest = CreateOwnerCorrectionRequest(
+            provisioned.OnboardingId,
+            provisioned.InvitationId,
+            "correct.owner@example.com",
+            "Attempt correction during active delivery.",
+            includePlatformPermission: true);
+        var response = await client.SendAsync(correctionRequest);
+        var corrected = await response.Content.ReadFromJsonAsync<PlatformTenantProvisioningResultDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(corrected);
+        using var verificationScope = factory.Services.CreateScope();
+        var dbContext = verificationScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Equal("correct.owner@example.com", (await dbContext.PlatformTenantOnboardings.SingleAsync()).OwnerEmail);
+        var invitations = await dbContext.TenantInvitations.ToArrayAsync();
+        Assert.Equal(2, invitations.Length);
+        var previous = Assert.Single(invitations, item => item.Id == provisioned.InvitationId);
+        Assert.Equal(TenantInvitationStatus.Revoked, previous.Status);
+        Assert.Equal(InvitationDeliveryStatus.Cancelled, previous.DeliveryStatus);
+        Assert.Null(previous.InvitationTokenHash);
+        var replacement = Assert.Single(invitations, item => item.Id == corrected.InvitationId);
+        Assert.Equal(TenantInvitationStatus.Pending, replacement.Status);
+        Assert.Equal(InvitationDeliveryStatus.Queued, replacement.DeliveryStatus);
+        Assert.Equal(6, await dbContext.AuditLogEntries.CountAsync());
+    }
+
+    [Fact]
+    public async Task Platform_operator_cannot_correct_owner_after_activation()
+    {
+        await using var factory = CreateFactory("platform-correct-owner-active");
+        using var client = factory.CreateClient();
+        using var provisionRequest = CreateProvisionRequest(PilotRequest(), "correct-owner-active", true);
+        var provisioned = await (await client.SendAsync(provisionRequest)).Content
+            .ReadFromJsonAsync<PlatformTenantProvisioningResultDto>(JsonOptions);
+        Assert.NotNull(provisioned);
+
+        using (var setupScope = factory.Services.CreateScope())
+        {
+            var setupDbContext = setupScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            (await setupDbContext.PlatformTenantOnboardings.SingleAsync()).Status = TenantOnboardingStatus.Active;
+            (await setupDbContext.Tenants.SingleAsync()).Status = TenantStatus.Trialing;
+            (await setupDbContext.TenantInvitations.SingleAsync()).Status = TenantInvitationStatus.Accepted;
+            await setupDbContext.SaveChangesAsync();
+        }
+
+        using var correctionRequest = CreateOwnerCorrectionRequest(
+            provisioned.OnboardingId,
+            provisioned.InvitationId,
+            "correct.owner@example.com",
+            "Attempt correction after activation.",
+            includePlatformPermission: true);
+        var response = await client.SendAsync(correctionRequest);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var verificationScope = factory.Services.CreateScope();
+        var dbContext = verificationScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Equal("pilot.owner@example.com", (await dbContext.PlatformTenantOnboardings.SingleAsync()).OwnerEmail);
+        Assert.Single(await dbContext.TenantInvitations.ToArrayAsync());
+        Assert.Equal(3, await dbContext.AuditLogEntries.CountAsync());
+    }
+
+    [Fact]
+    public async Task Stale_owner_correction_cannot_replace_a_different_current_recipient()
+    {
+        await using var factory = CreateFactory("platform-correct-owner-stale");
+        using var client = factory.CreateClient();
+        using var provisionRequest = CreateProvisionRequest(PilotRequest(), "correct-owner-stale", true);
+        var provisioned = await (await client.SendAsync(provisionRequest)).Content
+            .ReadFromJsonAsync<PlatformTenantProvisioningResultDto>(JsonOptions);
+        Assert.NotNull(provisioned);
+
+        using var correctionRequest = CreateOwnerCorrectionRequest(
+            provisioned.OnboardingId,
+            Guid.NewGuid(),
+            "attacker@example.com",
+            "Stale correction request.",
+            includePlatformPermission: true);
+        var response = await client.SendAsync(correctionRequest);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var verificationScope = factory.Services.CreateScope();
+        var dbContext = verificationScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Equal("pilot.owner@example.com", (await dbContext.PlatformTenantOnboardings.SingleAsync()).OwnerEmail);
+        Assert.Single(await dbContext.TenantInvitations.ToArrayAsync());
+        Assert.Equal(3, await dbContext.AuditLogEntries.CountAsync());
+    }
+
+    [Fact]
+    public async Task Repeating_owner_correction_for_replacement_target_is_idempotent()
+    {
+        await using var factory = CreateFactory("platform-correct-owner-replay");
+        using var client = factory.CreateClient();
+        using var provisionRequest = CreateProvisionRequest(PilotRequest(), "correct-owner-replay", true);
+        var provisioned = await (await client.SendAsync(provisionRequest)).Content
+            .ReadFromJsonAsync<PlatformTenantProvisioningResultDto>(JsonOptions);
+        Assert.NotNull(provisioned);
+
+        using var firstRequest = CreateOwnerCorrectionRequest(
+            provisioned.OnboardingId,
+            provisioned.InvitationId,
+            "correct.owner@example.com",
+            "Correct the designated Owner address.",
+            includePlatformPermission: true);
+        var first = await (await client.SendAsync(firstRequest)).Content
+            .ReadFromJsonAsync<PlatformTenantProvisioningResultDto>(JsonOptions);
+        Assert.NotNull(first);
+
+        using var replayRequest = CreateOwnerCorrectionRequest(
+            provisioned.OnboardingId,
+            provisioned.InvitationId,
+            "correct.owner@example.com",
+            "Correct the designated Owner address.",
+            includePlatformPermission: true);
+        var replayResponse = await client.SendAsync(replayRequest);
+        var replay = await replayResponse.Content.ReadFromJsonAsync<PlatformTenantProvisioningResultDto>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
+        Assert.NotNull(replay);
+        Assert.Equal(first.InvitationId, replay.InvitationId);
+        using var verificationScope = factory.Services.CreateScope();
+        var dbContext = verificationScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Equal(2, await dbContext.TenantInvitations.CountAsync());
+        Assert.Equal(6, await dbContext.AuditLogEntries.CountAsync());
+    }
+
+    [Fact]
     public async Task Platform_operator_cannot_cancel_an_activated_onboarding()
     {
         await using var factory = CreateFactory("platform-cancel-active");
@@ -446,6 +694,23 @@ public sealed class PlatformTenantProvisioningTests : IClassFixture<WebApplicati
         AddPlatformHeaders(request, includePlatformPermission);
         request.Content = JsonContent.Create(
             new CancelPlatformTenantOnboardingRequest(reason),
+            options: JsonOptions);
+        return request;
+    }
+
+    private static HttpRequestMessage CreateOwnerCorrectionRequest(
+        Guid onboardingId,
+        Guid expectedInvitationId,
+        string newOwnerEmail,
+        string reason,
+        bool includePlatformPermission)
+    {
+        var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/platform/tenant-onboardings/{onboardingId}/owner-invitation/correct");
+        AddPlatformHeaders(request, includePlatformPermission);
+        request.Content = JsonContent.Create(
+            new CorrectPlatformOwnerInvitationRequest(expectedInvitationId, newOwnerEmail, reason),
             options: JsonOptions);
         return request;
     }

@@ -605,6 +605,60 @@ platformApi.MapPost("/tenant-onboardings/{onboardingId:guid}/cancel", async (
 .RequireTenantOnboardingManagementPermission()
 .WithName("CancelPlatformTenantOnboarding");
 
+platformApi.MapPost("/tenant-onboardings/{onboardingId:guid}/owner-invitation/correct", async (
+    Guid onboardingId,
+    CorrectPlatformOwnerInvitationRequest request,
+    PlatformTenantProvisioningService service,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId))
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Invalid platform operator identity",
+            "The authenticated platform operator identity is missing or invalid.",
+            StatusCodes.Status401Unauthorized,
+            "invalid_platform_operator_identity");
+    }
+
+    try
+    {
+        var result = await service.CorrectOwnerInvitationAsync(
+            onboardingId,
+            request,
+            actorUserId,
+            cancellationToken);
+        return result is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                "Tenant onboarding was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(result);
+    }
+    catch (TenantOwnerInvitationCorrectionConflictException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Owner invitation correction conflict",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "tenant_owner_invitation_correction_conflict");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["ownerInvitationCorrection"] = [exception.Message]
+        });
+    }
+})
+.RequireTenantOnboardingManagementPermission()
+.WithName("CorrectPlatformOwnerInvitation");
+
 platformApi.MapGet("/customers", async (
     int page,
     int pageSize,

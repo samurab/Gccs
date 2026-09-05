@@ -470,7 +470,17 @@
 .platform-pending-table th:last-child,
 .platform-pending-table td:last-child {
   text-align: right;
-  width: 44px;
+  width: 78px;
+}
+
+.platform-pending-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.platform-pending-actions .platform-cancel-icon:first-child {
+  color: #315f7c;
 }
 
 .platform-cancel-icon,
@@ -534,6 +544,7 @@
   text-transform: uppercase;
 }
 
+.platform-cancel-panel input,
 .platform-cancel-panel textarea {
   border: 1px solid #bdc8c0;
   border-radius: 6px;

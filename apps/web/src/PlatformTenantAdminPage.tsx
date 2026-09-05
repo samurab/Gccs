@@ -11,6 +11,7 @@ import {
   FlaskConical,
   LoaderCircle,
   LockKeyhole,
+  Pencil,
   Plus,
   RefreshCw,
   ShieldAlert,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import {
   cancelPlatformTenantOnboarding,
+  correctPlatformOwnerInvitation,
   getPlatformAccess,
   getPlatformTenantOnboardings,
   provisionPlatformTenant,
@@ -145,14 +147,7 @@ export function PlatformTenantAdminPage() {
         setResult((current) => {
           if (!current) return current;
           const refreshed = page.items.find((item) => item.onboardingId === current.onboardingId);
-          return refreshed
-            ? {
-                ...current,
-                invitationStatus: refreshed.invitationStatus,
-                invitationDeliveryStatus: refreshed.invitationDeliveryStatus,
-                invitationNotificationSentAt: refreshed.invitationNotificationSentAt
-              }
-            : current;
+          return refreshed ?? current;
         });
         setOnboardingsState("ready");
       })
@@ -284,6 +279,29 @@ export function PlatformTenantAdminPage() {
     return response.error;
   }
 
+  async function correctOwnerInvitation(
+    onboardingId: string,
+    expectedInvitationId: string,
+    newOwnerEmail: string,
+    reason: string
+  ) {
+    const response = await correctPlatformOwnerInvitation(
+      onboardingId,
+      expectedInvitationId,
+      newOwnerEmail,
+      reason
+    );
+    if (response.data) {
+      if (result?.onboardingId === onboardingId) {
+        setResult(response.data);
+      }
+      setOnboardingsState("loading");
+      setOnboardingsError("");
+      setOnboardingsRefresh((current) => current + 1);
+    }
+    return response.error;
+  }
+
   if (accessState === "loading") {
     return <PlatformState icon={LoaderCircle} title="Verifying platform access" body="Checking operator authorization." spin />;
   }
@@ -328,6 +346,7 @@ export function PlatformTenantAdminPage() {
           data={onboardings}
           error={onboardingsError}
           onCancel={cancelOnboarding}
+          onCorrectOwner={correctOwnerInvitation}
           onPageChange={(page) => {
             setOnboardingsState("loading");
             setOnboardingsError("");
@@ -576,12 +595,19 @@ function PendingOnboardings({
   data,
   error,
   onCancel,
+  onCorrectOwner,
   onPageChange,
   state
 }: {
   data: PlatformTenantOnboardingPage | null;
   error: string;
   onCancel: (onboardingId: string, reason: string) => Promise<string | null>;
+  onCorrectOwner: (
+    onboardingId: string,
+    expectedInvitationId: string,
+    newOwnerEmail: string,
+    reason: string
+  ) => Promise<string | null>;
   onPageChange: (page: number) => void;
   state: "idle" | "loading" | "ready" | "error";
 }) {
@@ -589,6 +615,16 @@ function PendingOnboardings({
   const [reason, setReason] = useState("");
   const [cancelState, setCancelState] = useState<"idle" | "submitting" | "error">("idle");
   const [cancelError, setCancelError] = useState("");
+  const [ownerCorrection, setOwnerCorrection] = useState<{
+    onboardingId: string;
+    invitationId: string;
+    displayName: string;
+    ownerEmail: string;
+  } | null>(null);
+  const [correctedOwnerEmail, setCorrectedOwnerEmail] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [correctionState, setCorrectionState] = useState<"idle" | "submitting" | "error">("idle");
+  const [correctionError, setCorrectionError] = useState("");
 
   async function handleCancel() {
     if (!selectedId) return;
@@ -604,6 +640,28 @@ function PendingOnboardings({
     setSelectedId(null);
     setReason("");
     setCancelState("idle");
+  }
+
+  async function handleOwnerCorrection() {
+    if (!ownerCorrection) return;
+    setCorrectionState("submitting");
+    setCorrectionError("");
+    const nextError = await onCorrectOwner(
+      ownerCorrection.onboardingId,
+      ownerCorrection.invitationId,
+      correctedOwnerEmail,
+      correctionReason
+    );
+    if (nextError) {
+      setCorrectionError(nextError);
+      setCorrectionState("error");
+      return;
+    }
+
+    setOwnerCorrection(null);
+    setCorrectedOwnerEmail("");
+    setCorrectionReason("");
+    setCorrectionState("idle");
   }
 
   return (
@@ -646,20 +704,44 @@ function PendingOnboardings({
                     <td data-label="Owner">{item.ownerEmail}</td>
                     <td data-label="Delivery">{invitationDeliveryLabel(item.invitationDeliveryStatus)}</td>
                     <td data-label="Action">
-                      <button
-                        aria-label={`Cancel onboarding for ${item.displayName}`}
-                        className="platform-cancel-icon"
-                        onClick={() => {
-                          setSelectedId(item.onboardingId);
-                          setReason("");
-                          setCancelError("");
-                          setCancelState("idle");
-                        }}
-                        title="Cancel pending onboarding"
-                        type="button"
-                      >
-                        <Ban aria-hidden="true" size={17} />
-                      </button>
+                      <div className="platform-pending-actions">
+                        <button
+                          aria-label={`Correct Owner email for ${item.displayName}`}
+                          className="platform-cancel-icon"
+                          onClick={() => {
+                            setSelectedId(null);
+                            setOwnerCorrection({
+                              onboardingId: item.onboardingId,
+                              invitationId: item.invitationId,
+                              displayName: item.displayName,
+                              ownerEmail: item.ownerEmail
+                            });
+                            setCorrectedOwnerEmail(item.ownerEmail);
+                            setCorrectionReason("");
+                            setCorrectionError("");
+                            setCorrectionState("idle");
+                          }}
+                          title="Correct Owner email"
+                          type="button"
+                        >
+                          <Pencil aria-hidden="true" size={17} />
+                        </button>
+                        <button
+                          aria-label={`Cancel onboarding for ${item.displayName}`}
+                          className="platform-cancel-icon"
+                          onClick={() => {
+                            setOwnerCorrection(null);
+                            setSelectedId(item.onboardingId);
+                            setReason("");
+                            setCancelError("");
+                            setCancelState("idle");
+                          }}
+                          title="Cancel pending onboarding"
+                          type="button"
+                        >
+                          <Ban aria-hidden="true" size={17} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -688,6 +770,61 @@ function PendingOnboardings({
             </button>
           </div>
         </>
+      ) : null}
+
+      {ownerCorrection ? (
+        <div className="platform-cancel-panel">
+          <div>
+            <strong>Correct Owner email</strong>
+            <span>
+              This revokes the previous link for {ownerCorrection.ownerEmail} and queues a new invitation.
+            </span>
+          </div>
+          <label htmlFor="platform-corrected-owner-email">Corrected Owner email</label>
+          <input
+            autoComplete="email"
+            id="platform-corrected-owner-email"
+            maxLength={320}
+            onChange={(event) => setCorrectedOwnerEmail(event.target.value)}
+            required
+            type="email"
+            value={correctedOwnerEmail}
+          />
+          <label htmlFor="platform-owner-correction-reason">Correction reason</label>
+          <textarea
+            id="platform-owner-correction-reason"
+            maxLength={600}
+            onChange={(event) => setCorrectionReason(event.target.value)}
+            required
+            rows={3}
+            value={correctionReason}
+          />
+          {correctionState === "error" ? <div className="platform-form-error" role="alert"><ShieldAlert aria-hidden="true" size={18} /><span>{correctionError}</span></div> : null}
+          <div className="platform-cancel-actions">
+            <button
+              className="platform-primary-action"
+              disabled={
+                correctionState === "submitting" ||
+                correctedOwnerEmail.trim().length === 0 ||
+                correctedOwnerEmail.trim().toLowerCase() === ownerCorrection.ownerEmail.toLowerCase() ||
+                correctionReason.trim().length === 0
+              }
+              onClick={() => void handleOwnerCorrection()}
+              type="button"
+            >
+              <Pencil aria-hidden="true" size={17} />
+              {correctionState === "submitting" ? "Correcting Owner email" : "Correct and reissue invitation"}
+            </button>
+            <button
+              className="platform-secondary-action"
+              disabled={correctionState === "submitting"}
+              onClick={() => setOwnerCorrection(null)}
+              type="button"
+            >
+              Keep current email
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {selectedId ? (

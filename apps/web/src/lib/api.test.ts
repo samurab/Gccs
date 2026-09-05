@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getFreshAccessToken } from "../authSession";
 import {
   archiveReport,
+  correctPlatformOwnerInvitation,
   getCurrentUserAccess,
   getEvidencePackage,
   getPlatformAccess,
@@ -120,6 +121,31 @@ describe("FeDril API client", () => {
 
     const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
     expect(headers).not.toHaveProperty("X-Gccs-Dev-Platform-Permissions");
+  });
+
+  it("sends the expected invitation id when correcting a pending Owner invitation", async () => {
+    vi.stubEnv("DEV", true);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ invitationId: "replacement" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await correctPlatformOwnerInvitation(
+      "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "samurab@sierralabsllc.com",
+      "Correct the designated Owner before activation."
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:5062/api/platform/tenant-onboardings/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/owner-invitation/correct",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          expectedInvitationId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          newOwnerEmail: "samurab@sierralabsllc.com",
+          reason: "Correct the designated Owner before activation."
+        })
+      })
+    );
   });
 
   it("uses an invited development email without reusing the selected persona user id", async () => {

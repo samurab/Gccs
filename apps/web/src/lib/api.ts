@@ -2018,6 +2018,18 @@ export async function cancelPlatformTenantOnboarding(
   );
 }
 
+export async function correctPlatformOwnerInvitation(
+  onboardingId: string,
+  expectedInvitationId: string,
+  newOwnerEmail: string,
+  reason: string
+): Promise<ApiMutationResult<PlatformTenantProvisioningResult>> {
+  return postJsonResult<PlatformTenantProvisioningResult>(
+    `/api/platform/tenant-onboardings/${onboardingId}/owner-invitation/correct`,
+    { expectedInvitationId, newOwnerEmail, reason }
+  );
+}
+
 export async function extendPlatformPilotSubscription(
   tenantId: string,
   newEndsOn: string,
