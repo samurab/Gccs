@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const msalMocks = vi.hoisted(() => ({
+  acquireTokenSilent: vi.fn(),
   clearCache: vi.fn(),
   configuration: null as unknown,
   getActiveAccount: vi.fn(),
   getAllAccounts: vi.fn(),
+  initialize: vi.fn(),
   loginRedirect: vi.fn(),
+  logoutRedirect: vi.fn(),
   setActiveAccount: vi.fn()
 }));
 
@@ -16,10 +19,13 @@ vi.mock("@azure/msal-browser", async (importOriginal) => {
     PublicClientApplication: function PublicClientApplication(configuration: unknown) {
       msalMocks.configuration = configuration;
       return {
+        acquireTokenSilent: msalMocks.acquireTokenSilent,
         clearCache: msalMocks.clearCache,
         getActiveAccount: msalMocks.getActiveAccount,
         getAllAccounts: msalMocks.getAllAccounts,
+        initialize: msalMocks.initialize,
         loginRedirect: msalMocks.loginRedirect,
+        logoutRedirect: msalMocks.logoutRedirect,
         setActiveAccount: msalMocks.setActiveAccount
       };
     }
@@ -37,10 +43,13 @@ describe("route-specific authentication", () => {
     vi.stubEnv("VITE_CUSTOMER_MSAL_TENANT_SUBDOMAIN", "fedrilcustomersstaging");
     vi.stubEnv("VITE_CUSTOMER_MSAL_API_SCOPE", "api://fedril/customer");
     msalMocks.configuration = null;
+    msalMocks.acquireTokenSilent.mockReset().mockResolvedValue({ accessToken: "fresh-token" });
     msalMocks.clearCache.mockReset().mockResolvedValue(undefined);
     msalMocks.getActiveAccount.mockReset().mockReturnValue(null);
     msalMocks.getAllAccounts.mockReset().mockReturnValue([]);
+    msalMocks.initialize.mockReset().mockResolvedValue(undefined);
     msalMocks.loginRedirect.mockReset().mockResolvedValue(undefined);
+    msalMocks.logoutRedirect.mockReset().mockResolvedValue(undefined);
     msalMocks.setActiveAccount.mockReset();
     const createStorage = (): Storage => {
       const values = new Map<string, string>();
@@ -95,6 +104,7 @@ describe("route-specific authentication", () => {
       prompt: "select_account",
       redirectStartPage: window.location.href
     });
+    expect(msalMocks.logoutRedirect).not.toHaveBeenCalled();
   });
 
   it("falls back to the existing workforce configuration when customer identity is not configured", async () => {
@@ -135,21 +145,136 @@ describe("route-specific authentication", () => {
     expect(selectCachedAccount(workforce as never, null, [workforce] as never)).toBeNull();
   });
 
-  it("removes every cached customer account without clearing the workforce plane", async () => {
+  it("ends the active customer server session without clearing the workforce plane", async () => {
     const firstCustomer = { username: "first@example.com", tenantId: "customer-tenant-id" };
     const secondCustomer = { username: "second@example.com", tenantId: "customer-tenant-id" };
     const workforce = { username: "operator@example.com", tenantId: "workforce-tenant-id" };
     msalMocks.getAllAccounts.mockReturnValue([firstCustomer, workforce, secondCustomer]);
+    msalMocks.getActiveAccount.mockReturnValue(firstCustomer);
     window.sessionStorage.setItem("gccs.accessToken", "stale-token");
     const { signOutOfFeDril } = await import("./authSession");
 
     await signOutOfFeDril();
 
-    expect(msalMocks.clearCache).toHaveBeenCalledTimes(2);
-    expect(msalMocks.clearCache).toHaveBeenCalledWith({ account: firstCustomer });
+    expect(msalMocks.clearCache).toHaveBeenCalledTimes(1);
     expect(msalMocks.clearCache).toHaveBeenCalledWith({ account: secondCustomer });
     expect(msalMocks.clearCache).not.toHaveBeenCalledWith({ account: workforce });
-    expect(msalMocks.setActiveAccount).toHaveBeenLastCalledWith(null);
+    expect(msalMocks.logoutRedirect).toHaveBeenCalledWith({
+      account: firstCustomer,
+      authority: "https://fedrilcustomersstaging.ciamlogin.com/customer-tenant-id",
+      postLogoutRedirectUri: `${window.location.origin}/app`,
+      state: expect.any(String)
+    });
     expect(window.sessionStorage.getItem("gccs.accessToken")).toBeNull();
+  });
+
+  it("ends the active workforce session without clearing customer accounts", async () => {
+    window.history.replaceState({}, "", "/platform/tenants/new");
+    const workforce = { username: "operator@example.com", tenantId: "workforce-tenant-id" };
+    const customer = { username: "customer@example.com", tenantId: "customer-tenant-id" };
+    msalMocks.getAllAccounts.mockReturnValue([customer, workforce]);
+    msalMocks.getActiveAccount.mockReturnValue(workforce);
+    const { signOutOfFeDril } = await import("./authSession");
+
+    await signOutOfFeDril();
+
+    expect(msalMocks.clearCache).not.toHaveBeenCalledWith({ account: customer });
+    expect(msalMocks.logoutRedirect).toHaveBeenCalledWith({
+      account: workforce,
+      authority: "https://login.microsoftonline.com/workforce-tenant-id",
+      postLogoutRedirectUri: `${window.location.origin}/app`,
+      state: expect.any(String)
+    });
+  });
+
+  it("ends customer SSO before restarting sign-in with another email", async () => {
+    const customer = { username: "wrong@example.com", tenantId: "customer-tenant-id" };
+    msalMocks.getAllAccounts.mockReturnValue([customer]);
+    msalMocks.getActiveAccount.mockReturnValue(customer);
+    const { switchMicrosoftEntraAccount } = await import("./authSession");
+
+    await switchMicrosoftEntraAccount();
+
+    expect(msalMocks.logoutRedirect).toHaveBeenCalledWith({
+      account: customer,
+      authority: "https://fedrilcustomersstaging.ciamlogin.com/customer-tenant-id",
+      postLogoutRedirectUri: `${window.location.origin}/app`,
+      state: expect.any(String)
+    });
+    expect(msalMocks.loginRedirect).not.toHaveBeenCalled();
+  });
+
+  it("discards an in-flight customer token when server logout begins", async () => {
+    const customer = { username: "wrong@example.com", tenantId: "customer-tenant-id" };
+    msalMocks.getAllAccounts.mockReturnValue([customer]);
+    msalMocks.getActiveAccount.mockReturnValue(customer);
+    let finishTokenAcquisition: ((result: { accessToken: string }) => void) | undefined;
+    msalMocks.acquireTokenSilent.mockImplementationOnce(() => new Promise(resolve => {
+      finishTokenAcquisition = resolve;
+    }));
+    const { getFreshAccessToken, switchMicrosoftEntraAccount } = await import("./authSession");
+
+    const tokenRequest = getFreshAccessToken();
+    await vi.waitFor(() => expect(msalMocks.acquireTokenSilent).toHaveBeenCalledOnce());
+    await switchMicrosoftEntraAccount();
+    finishTokenAcquisition!({ accessToken: "stale-token" });
+
+    expect(await tokenRequest).toBeNull();
+    expect(window.sessionStorage.getItem("gccs.accessToken")).toBeNull();
+  });
+
+  it("restores only a nonce-bound customer invitation path after logout", async () => {
+    window.sessionStorage.setItem("gccs.auth.postLogoutState", JSON.stringify({
+      nonce: "logout-nonce",
+      plane: "customer",
+      restartSignIn: true,
+      returnPath: "/invitations/accept?token=invitation-token",
+      createdAt: Date.now()
+    }));
+    window.history.replaceState({}, "", "/app?state=eyJpZCI6ImxpYnJhcnktc3RhdGUifQ%3D%3D%7Clogout-nonce");
+
+    const { activeAuthenticationPlane, shouldRestartSignInAfterLogout } = await import("./authSession");
+
+    expect(activeAuthenticationPlane).toBe("customer");
+    expect(shouldRestartSignInAfterLogout()).toBe(true);
+    expect(shouldRestartSignInAfterLogout()).toBe(false);
+    expect(window.location.pathname).toBe("/invitations/accept");
+    expect(window.location.search).toBe("?token=invitation-token");
+    expect(window.sessionStorage.getItem("gccs.auth.postLogoutState")).toBeNull();
+  });
+
+  it("rejects a cross-plane post-logout return path", async () => {
+    window.sessionStorage.setItem("gccs.auth.postLogoutState", JSON.stringify({
+      nonce: "logout-nonce",
+      plane: "customer",
+      restartSignIn: true,
+      returnPath: "/platform/tenants/new",
+      createdAt: Date.now()
+    }));
+    window.history.replaceState({}, "", "/app?state=eyJpZCI6ImxpYnJhcnktc3RhdGUifQ%3D%3D%7Clogout-nonce");
+
+    const { activeAuthenticationPlane, shouldRestartSignInAfterLogout } = await import("./authSession");
+
+    expect(activeAuthenticationPlane).toBe("customer");
+    expect(shouldRestartSignInAfterLogout()).toBe(false);
+    expect(window.location.pathname).toBe("/app");
+    expect(window.sessionStorage.getItem("gccs.auth.postLogoutState")).toBeNull();
+  });
+
+  it("restores a workforce route without restarting customer sign-in", async () => {
+    window.sessionStorage.setItem("gccs.auth.postLogoutState", JSON.stringify({
+      nonce: "logout-nonce",
+      plane: "workforce",
+      restartSignIn: false,
+      returnPath: "/platform/tenants/new",
+      createdAt: Date.now()
+    }));
+    window.history.replaceState({}, "", "/app?state=library-state%7Clogout-nonce");
+
+    const { activeAuthenticationPlane, shouldRestartSignInAfterLogout } = await import("./authSession");
+
+    expect(activeAuthenticationPlane).toBe("workforce");
+    expect(shouldRestartSignInAfterLogout()).toBe(false);
+    expect(window.location.pathname).toBe("/platform/tenants/new");
   });
 });

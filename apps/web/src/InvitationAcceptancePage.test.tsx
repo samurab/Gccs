@@ -9,7 +9,7 @@ const {
   selectTenantMock,
   selectDevelopmentInvitationIdentityMock,
   selectDevelopmentTestingContextMock,
-  selectMicrosoftEntraAccountMock,
+  switchMicrosoftEntraAccountMock,
   authSessionState
 } = vi.hoisted(() => ({
   getContextMock: vi.fn(),
@@ -17,7 +17,7 @@ const {
   selectTenantMock: vi.fn(),
   selectDevelopmentInvitationIdentityMock: vi.fn(),
   selectDevelopmentTestingContextMock: vi.fn(),
-  selectMicrosoftEntraAccountMock: vi.fn(),
+  switchMicrosoftEntraAccountMock: vi.fn(),
   authSessionState: { isMsalConfigured: true }
 }));
 
@@ -26,7 +26,7 @@ vi.mock("./authSession", async () => {
   return {
     ...actual,
     get isMsalConfigured() { return authSessionState.isMsalConfigured; },
-    selectMicrosoftEntraAccount: selectMicrosoftEntraAccountMock
+    switchMicrosoftEntraAccount: switchMicrosoftEntraAccountMock
   };
 });
 
@@ -63,7 +63,7 @@ describe("InvitationAcceptancePage", () => {
     selectTenantMock.mockReset();
     selectDevelopmentInvitationIdentityMock.mockReset();
     selectDevelopmentTestingContextMock.mockReset();
-    selectMicrosoftEntraAccountMock.mockReset().mockResolvedValue(undefined);
+    switchMicrosoftEntraAccountMock.mockReset().mockResolvedValue(undefined);
     authSessionState.isMsalConfigured = true;
   });
 
@@ -153,7 +153,21 @@ describe("InvitationAcceptancePage", () => {
     );
     await user.click(screen.getByRole("button", { name: "Use another email" }));
 
-    expect(selectMicrosoftEntraAccountMock).toHaveBeenCalledOnce();
+    expect(switchMicrosoftEntraAccountMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole("heading", { name: "Changing account" })).toBeInTheDocument();
+  });
+
+  it("shows a retryable invitation error when customer logout fails", async () => {
+    vi.stubEnv("DEV", false);
+    const user = userEvent.setup();
+    getContextMock.mockRejectedValueOnce(new Error("The authenticated email does not match this invitation."));
+    switchMicrosoftEntraAccountMock.mockRejectedValueOnce(new Error("External ID sign-out failed."));
+
+    render(<InvitationAcceptancePage />);
+    await user.click(await screen.findByRole("button", { name: "Use another email" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("External ID sign-out failed.");
+    expect(screen.getByRole("button", { name: "Use another email" })).toBeInTheDocument();
   });
 
   it("shows an existing-member conflict instead of a generic invitation failure", async () => {

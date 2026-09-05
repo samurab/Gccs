@@ -10,6 +10,20 @@ export type AuthenticationPlane = "workforce" | "customer";
 
 const accessTokenStorageKey = import.meta.env.VITE_GCCS_ACCESS_TOKEN_STORAGE_KEY ?? "gccs.accessToken";
 const legacyAccessTokenStorageKey = "access_token";
+const postLogoutStateStorageKey = "gccs.auth.postLogoutState";
+const postLogoutStateLifetimeMs = 10 * 60 * 1000;
+let isEndingAuthenticationSession = false;
+let authenticationSessionGeneration = 0;
+
+type PostLogoutState = {
+  nonce: string;
+  plane: AuthenticationPlane;
+  restartSignIn: boolean;
+  returnPath: string;
+  createdAt: number;
+};
+
+let completedPostLogoutState = consumePostLogoutState();
 
 const workforceClientId = import.meta.env.VITE_MSAL_CLIENT_ID;
 const workforceTenantId = import.meta.env.VITE_MSAL_TENANT_ID;
@@ -51,6 +65,18 @@ const selectedConfiguration = authenticationPlane === "workforce"
     };
 
 export const activeAuthenticationPlane = authenticationPlane;
+export function shouldRestartSignInAfterLogout() {
+  const shouldRestart = Boolean(
+    completedPostLogoutState?.restartSignIn &&
+    completedPostLogoutState.plane === authenticationPlane
+  );
+  completedPostLogoutState = null;
+  return shouldRestart;
+}
+
+export function isAuthenticationSessionChanging() {
+  return isEndingAuthenticationSession;
+}
 export const apiTokenRequest = { scopes: selectedConfiguration.apiScope ? [selectedConfiguration.apiScope] : [] };
 export const isMsalConfigured = Boolean(
   selectedConfiguration.clientId &&
@@ -65,7 +91,7 @@ export const msalInstance = isMsalConfigured
         clientId: selectedConfiguration.clientId!,
         authority: selectedConfiguration.authority,
         redirectUri: selectedConfiguration.redirectUri,
-        postLogoutRedirectUri: window.location.origin,
+        postLogoutRedirectUri: getWorkspaceUrl(),
         knownAuthorities: selectedConfiguration.knownAuthorities
       },
       cache: {
@@ -102,11 +128,21 @@ export function accountBelongsToActivePlane(account: AccountInfo): boolean {
 }
 
 export async function getFreshAccessToken(): Promise<string | null> {
+  const requestedGeneration = authenticationSessionGeneration;
+  if (isEndingAuthenticationSession) {
+    clearStoredAccessToken();
+    return null;
+  }
+
   if (!msalInstance) {
     return getStoredAccessToken();
   }
 
   await msalInstance.initialize();
+  if (requestedGeneration !== authenticationSessionGeneration) {
+    clearStoredAccessToken();
+    return null;
+  }
 
   const account = selectCachedAccount(
     null,
@@ -122,9 +158,18 @@ export async function getFreshAccessToken(): Promise<string | null> {
 
   try {
     const tokenResult = await msalInstance.acquireTokenSilent({ ...apiTokenRequest, account });
+    if (requestedGeneration !== authenticationSessionGeneration || isEndingAuthenticationSession) {
+      clearStoredAccessToken();
+      return null;
+    }
     storeAccessToken(tokenResult.accessToken);
     return tokenResult.accessToken;
   } catch (error) {
+    if (requestedGeneration !== authenticationSessionGeneration || isEndingAuthenticationSession) {
+      clearStoredAccessToken();
+      return null;
+    }
+
     if (error instanceof InteractionRequiredAuthError) {
       clearStoredAccessToken();
       await msalInstance.acquireTokenRedirect({ ...apiTokenRequest, account });
@@ -136,7 +181,7 @@ export async function getFreshAccessToken(): Promise<string | null> {
 }
 
 export async function selectMicrosoftEntraAccount(): Promise<void> {
-  if (!msalInstance) {
+  if (!msalInstance || isEndingAuthenticationSession) {
     return;
   }
 
@@ -149,15 +194,26 @@ export async function selectMicrosoftEntraAccount(): Promise<void> {
   });
 }
 
+export async function switchMicrosoftEntraAccount(): Promise<void> {
+  if (!msalInstance) {
+    return;
+  }
+
+  if (authenticationPlane === "customer" && getCurrentPlaneAccount()) {
+    await endMicrosoftEntraSession(true);
+    return;
+  }
+
+  await selectMicrosoftEntraAccount();
+}
+
 export async function signOutOfFeDril(): Promise<void> {
   clearStoredAccessToken();
   if (!msalInstance) {
     return;
   }
 
-  const accounts = msalInstance.getAllAccounts().filter(accountBelongsToActivePlane);
-  await Promise.all(accounts.map(account => msalInstance.clearCache({ account })));
-  msalInstance.setActiveAccount(null);
+  await endMicrosoftEntraSession(false);
 }
 
 export function storeAccessToken(accessToken: string) {
@@ -202,4 +258,118 @@ function getStoredAccessToken(): string | null {
   }
 
   return null;
+}
+
+async function endMicrosoftEntraSession(restartSignIn: boolean): Promise<void> {
+  if (!msalInstance || isEndingAuthenticationSession) {
+    return;
+  }
+
+  isEndingAuthenticationSession = true;
+  authenticationSessionGeneration += 1;
+  try {
+    clearStoredAccessToken();
+    const accounts = msalInstance.getAllAccounts().filter(accountBelongsToActivePlane);
+    const account = getCurrentPlaneAccount(accounts);
+    if (!account) {
+      await Promise.all(accounts.map(cachedAccount => msalInstance.clearCache({ account: cachedAccount })));
+      msalInstance.setActiveAccount(null);
+      isEndingAuthenticationSession = false;
+      if (restartSignIn) {
+        await selectMicrosoftEntraAccount();
+      }
+      return;
+    }
+
+    const otherAccounts = accounts.filter(cachedAccount => !isSameAccount(cachedAccount, account));
+    await Promise.all(otherAccounts.map(cachedAccount => msalInstance.clearCache({ account: cachedAccount })));
+    msalInstance.setActiveAccount(account);
+
+    const postLogoutState: PostLogoutState = {
+      nonce: crypto.randomUUID(),
+      plane: authenticationPlane,
+      restartSignIn,
+      returnPath: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      createdAt: Date.now()
+    };
+    window.sessionStorage.setItem(postLogoutStateStorageKey, JSON.stringify(postLogoutState));
+
+    await msalInstance.logoutRedirect({
+      account,
+      authority: selectedConfiguration.authority,
+      postLogoutRedirectUri: getWorkspaceUrl(),
+      state: postLogoutState.nonce
+    });
+  } catch (error) {
+    window.sessionStorage.removeItem(postLogoutStateStorageKey);
+    throw error;
+  } finally {
+    isEndingAuthenticationSession = false;
+  }
+}
+
+function getCurrentPlaneAccount(accounts = msalInstance?.getAllAccounts().filter(accountBelongsToActivePlane) ?? []) {
+  if (!msalInstance) {
+    return null;
+  }
+
+  return selectCachedAccount(null, msalInstance.getActiveAccount(), accounts);
+}
+
+function isSameAccount(left: AccountInfo, right: AccountInfo) {
+  return left.homeAccountId && right.homeAccountId
+    ? left.homeAccountId === right.homeAccountId
+    : left === right;
+}
+
+function consumePostLogoutState(): PostLogoutState | null {
+  const rawState = window.sessionStorage.getItem(postLogoutStateStorageKey);
+  if (!rawState) {
+    return null;
+  }
+
+  let pendingState: PostLogoutState;
+  try {
+    pendingState = JSON.parse(rawState) as PostLogoutState;
+  } catch {
+    window.sessionStorage.removeItem(postLogoutStateStorageKey);
+    return null;
+  }
+
+  const returnedState = new URLSearchParams(window.location.search).get("state");
+  const returnedNonce = returnedState?.slice(returnedState.lastIndexOf("|") + 1) ?? null;
+  if (!returnedNonce || returnedNonce !== pendingState.nonce) {
+    if (Date.now() - pendingState.createdAt > postLogoutStateLifetimeMs) {
+      window.sessionStorage.removeItem(postLogoutStateStorageKey);
+    }
+    return null;
+  }
+
+  window.sessionStorage.removeItem(postLogoutStateStorageKey);
+  if (
+    !Number.isFinite(pendingState.createdAt) ||
+    Date.now() - pendingState.createdAt < 0 ||
+    Date.now() - pendingState.createdAt > postLogoutStateLifetimeMs ||
+    !isAllowedPostLogoutReturnPath(pendingState.plane, pendingState.returnPath)
+  ) {
+    return null;
+  }
+
+  window.history.replaceState(null, "", pendingState.returnPath);
+  return pendingState;
+}
+
+function isAllowedPostLogoutReturnPath(plane: AuthenticationPlane, returnPath: string) {
+  if (!returnPath.startsWith("/")) {
+    return false;
+  }
+
+  const returnUrl = new URL(returnPath, window.location.origin);
+  if (returnUrl.origin !== window.location.origin) {
+    return false;
+  }
+
+  return plane === "customer"
+    ? returnUrl.pathname === "/app" || returnUrl.pathname === "/invitations/accept"
+    : returnUrl.pathname === "/platform" || returnUrl.pathname.startsWith("/platform/");
 }

@@ -17,6 +17,7 @@ import {
 
 vi.mock("../authSession", () => ({
   getFreshAccessToken: vi.fn(),
+  isAuthenticationSessionChanging: () => false,
   isMsalConfigured: false
 }));
 

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getFreshAccessToken } from "../authSession";
+import { getFreshAccessToken, isAuthenticationSessionChanging } from "../authSession";
 import { getPlatformAccess } from "./api";
 
 vi.mock("../authSession", () => ({
   getFreshAccessToken: vi.fn(),
+  isAuthenticationSessionChanging: vi.fn(),
   isMsalConfigured: true
 }));
 
@@ -13,6 +14,7 @@ describe("FeDril API client with Microsoft Entra configured", () => {
     vi.stubEnv("VITE_GCCS_DEV_EMAIL", "spoofed@example.com");
     vi.stubEnv("VITE_GCCS_DEV_PLATFORM_PERMISSIONS", "ProvisionTenants");
     vi.mocked(getFreshAccessToken).mockResolvedValue("entra-access-token");
+    vi.mocked(isAuthenticationSessionChanging).mockReturnValue(false);
   });
 
   it("uses the Entra bearer token instead of development identity headers", async () => {
@@ -35,5 +37,19 @@ describe("FeDril API client with Microsoft Entra configured", () => {
     expect(headers).not.toHaveProperty("X-Gccs-Dev-Auth");
     expect(headers).not.toHaveProperty("X-Gccs-Dev-Email");
     expect(headers).not.toHaveProperty("X-Gccs-Dev-Platform-Permissions");
+  });
+
+  it("does not attach a bearer token while an account transition is active", async () => {
+    vi.mocked(isAuthenticationSessionChanging).mockReturnValue(true);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ title: "Unauthorized" })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getPlatformAccess()).rejects.toThrow("Unauthorized");
+
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toBeUndefined();
   });
 });
