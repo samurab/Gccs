@@ -2,9 +2,9 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate is awaiting protected production CI/CD execution.
+Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-09-04-2` is approved but not yet deployed.
+Current candidate execution status: `launch-candidate-2026-09-04-2` deployed successfully in production workflow run `33941169705`.
 
 Latest evidence date: 2026-09-04. Historical evidence dates are retained below.
 
@@ -37,14 +37,14 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-09-04-2` at `c467e33dc2bf0e645ffe0a5ca9759a25f5060727`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Ready; exact-candidate execution pending | PR #80 CI run `33907834336`, main CI run `33910693123`, exact-branch staging run `33910143138`, main staging run `33910693222`, Static Web Apps run `33910693231`, approval-main CI run `33914940525`, approval-main staging run `33914940335`, and protected production run `33916926687` passed. Current candidate `launch-candidate-2026-09-04-2` still requires protected production workflow execution after this launch-candidate gate merges. |
+| Approved production CI/CD path | Passed | PR #83 CI run `33938225225`, main CI run `33939297049`, main staging run `33939296991`, Static Web Apps run `33939297035`, approval PR #84 CI run `33940168257`, approval-main staging run `33941160974`, and protected production run `33941169705` passed. Current candidate `launch-candidate-2026-09-04-2` completed protected production workflow execution in run `33941169705`. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-09-04-2` still requires protected production workflow execution. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
-| Production No-CUI posture validation | Passed | Run `33916926687` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
-| Production migrations | Passed | Run `33916926687` generated and applied the idempotent migration containing the durable FedRAMP preparation records. |
-| Production storage, cache, queue, and background jobs | Passed | Candidate production health returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
-| Production health checks, logs, alerts, and HubSpot sync | Passed for candidate health; historical external-integration evidence retained | Run `33916926687` passed `/health`. Authenticated workflow smoke, alerts, email delivery, and HubSpot writes were not re-executed for this candidate. |
-| Deployment evidence capture | Passed | Artifact `9953670252` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
+| Production secrets source | Passed | Current candidate `launch-candidate-2026-09-04-2` resolved the required production environment secrets in run `33941169705` without exposing their values. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
+| Production No-CUI posture validation | Passed | Run `33941169705` validated the production No-CUI deployment guardrails. |
+| Production migrations | Passed | Run `33941169705` generated and applied the idempotent production migration script through approved CI/CD. |
+| Production storage, cache, queue, and background jobs | Passed | Run `33941169705` production health checks passed after API and web deployment. |
+| Production health checks, logs, alerts, and HubSpot sync | Passed for candidate health; historical external-integration evidence retained | Run `33941169705` passed production health checks. Authenticated workflow smoke, alerts, email delivery, and HubSpot writes were not re-executed for this candidate. |
+| Deployment evidence capture | Passed | Artifact `9961924098` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
@@ -76,6 +76,23 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `9527732298` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
 
 ## Deployment Execution Record
+
+### 2026-09-04 MSAL account-selection deployment
+
+Production workflow run `33941169705` completed successfully at `2026-09-05T03:16:00Z`. Release controls ran from merged approval commit `3b7ccebc90004a6830740d964aeb47a015c782e0`; the workflow validated and deployed immutable runtime tag `launch-candidate-2026-09-04-2` at `c467e33dc2bf0e645ffe0a5ca9759a25f5060727`.
+
+Run results:
+
+- Approved tag/SHA validation, protected-environment review, No-CUI guardrails, production Terraform validation, and Terraform verification without backend or live changes passed.
+- Production artifacts built, an idempotent migration script was generated, production migrations were applied through approved CI/CD, and production email delivery was configured.
+- The API App Service and Static Web App deployed successfully.
+- Production health checks passed.
+- Evidence artifact `9961924098` records the exact runtime tag/SHA, operator, environment, result, health output, and migration script.
+
+Verification limits and posture:
+
+- This deployment preserves the No-CUI-only posture. It is not CMMC certification, FedRAMP authorization, government approval, legal advice, or permission to process CUI.
+- Authenticated production user-flow smoke was not re-executed outside the workflow health checks in this evidence update.
 
 ### 2026-09-04 future FedRAMP foundation deployment
 
