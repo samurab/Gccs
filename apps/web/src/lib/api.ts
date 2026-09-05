@@ -1,4 +1,4 @@
-import { getFreshAccessToken } from "../authSession";
+import { getFreshAccessToken, isMsalConfigured } from "../authSession";
 
 const selectedTenantStorageKey = "gccs.selectedTenantId";
 const developmentRoleStorageKey = "gccs.developmentRole";
@@ -3377,7 +3377,7 @@ function getDevelopmentHeaders(): HeadersInit | undefined {
   const platformPermissions = import.meta.env.VITE_GCCS_DEV_PLATFORM_PERMISSIONS;
   const selectedTenantId = getSelectedTenantId();
 
-  return import.meta.env.DEV
+  return import.meta.env.DEV && !isMsalConfigured
     ? {
         "X-Gccs-Dev-Auth": "true",
         ...(role ? { "X-Gccs-Dev-Role": role } : {}),

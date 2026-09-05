@@ -59,6 +59,20 @@ export async function getFreshAccessToken(): Promise<string | null> {
   }
 }
 
+export async function selectMicrosoftEntraAccount(): Promise<void> {
+  if (!msalInstance) {
+    return;
+  }
+
+  clearStoredAccessToken();
+  msalInstance.setActiveAccount(null);
+  await msalInstance.loginRedirect({
+    ...apiTokenRequest,
+    prompt: "select_account",
+    redirectStartPage: window.location.href
+  });
+}
+
 export function storeAccessToken(accessToken: string) {
   window.localStorage.setItem(accessTokenStorageKey, accessToken);
   window.sessionStorage.setItem(accessTokenStorageKey, accessToken);

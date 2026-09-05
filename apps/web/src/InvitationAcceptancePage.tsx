@@ -9,6 +9,7 @@ import {
   type InvitationAcceptanceContext
 } from "./lib/api";
 import { formatUsDateTime } from "./lib/dateFormat";
+import { isMsalConfigured, selectMicrosoftEntraAccount } from "./authSession";
 
 type PageState = "loading" | "identity" | "ready" | "submitting" | "success" | "error";
 
@@ -19,6 +20,7 @@ export function InvitationAcceptancePage() {
   const [displayName, setDisplayName] = useState("");
   const [invitedEmail, setInvitedEmail] = useState("");
   const [message, setMessage] = useState(token ? "" : "The activation link is missing its invitation token.");
+  const [requiresAccountSwitch, setRequiresAccountSwitch] = useState(false);
 
   const verifyInvitation = useCallback(async (isActive: () => boolean) => {
     if (!token) {
@@ -26,6 +28,7 @@ export function InvitationAcceptancePage() {
     }
 
     try {
+      setRequiresAccountSwitch(false);
       const result = await getInvitationAcceptanceContext(token);
       if (!isActive()) return;
       setContext(result);
@@ -43,9 +46,15 @@ export function InvitationAcceptancePage() {
     } catch (error) {
       if (!isActive()) return;
       const errorMessage = error instanceof Error ? error.message : "The invitation could not be verified.";
-      if (import.meta.env.DEV && /authenticated email does not match this invitation/i.test(errorMessage)) {
+      if (import.meta.env.DEV && !isMsalConfigured && /authenticated email does not match this invitation/i.test(errorMessage)) {
         setMessage("Enter the exact email address that received this invitation. This control is available only in local development.");
         setState("identity");
+        return;
+      }
+      if (isMsalConfigured && /authenticated email does not match this invitation/i.test(errorMessage)) {
+        setMessage("The signed-in Microsoft account does not match this invitation. Choose the account that received the invitation.");
+        setRequiresAccountSwitch(true);
+        setState("error");
         return;
       }
       setMessage(errorMessage);
@@ -84,7 +93,7 @@ export function InvitationAcceptancePage() {
       return;
     }
 
-    if (import.meta.env.DEV && context) {
+    if (import.meta.env.DEV && !isMsalConfigured && context) {
       selectDevelopmentTestingContext(result.data.tenantId, context.roleName, null, context.email);
     } else {
       selectTenant(result.data.tenantId);
@@ -113,7 +122,14 @@ export function InvitationAcceptancePage() {
         ) : null}
 
         {state === "error" ? (
-          <ActivationState icon={ShieldAlert} title="Invitation unavailable" body={message} tone="error" />
+          <ActivationState
+            icon={ShieldAlert}
+            title="Invitation unavailable"
+            body={message}
+            tone="error"
+            actionLabel={requiresAccountSwitch ? "Switch account" : undefined}
+            onAction={requiresAccountSwitch ? () => void selectMicrosoftEntraAccount() : undefined}
+          />
         ) : null}
 
         {state === "identity" ? (
@@ -178,12 +194,16 @@ function ActivationState({
   icon: Icon,
   title,
   body,
+  actionLabel,
+  onAction,
   spin = false,
   tone = "neutral"
 }: {
   icon: typeof ShieldAlert;
   title: string;
   body: string;
+  actionLabel?: string;
+  onAction?: () => void;
   spin?: boolean;
   tone?: "neutral" | "error";
 }) {
@@ -193,7 +213,13 @@ function ActivationState({
       role={tone === "error" ? "alert" : "status"}
     >
       <Icon aria-hidden="true" className={spin ? "spin" : undefined} size={28} />
-      <div><h2>{title}</h2><p>{body}</p></div>
+      <div>
+        <h2>{title}</h2>
+        <p>{body}</p>
+        {actionLabel && onAction ? (
+          <button className="auth-action" type="button" onClick={onAction}>{actionLabel}</button>
+        ) : null}
+      </div>
     </div>
   );
 }
