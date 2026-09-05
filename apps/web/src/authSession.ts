@@ -41,7 +41,10 @@ const selectedConfiguration = authenticationPlane === "workforce"
   : {
       clientId: customerClientId,
       tenantId: customerTenantId,
-      authority: customerTenantSubdomain ? `https://${customerTenantSubdomain}.ciamlogin.com/` : "",
+      authority:
+        customerTenantSubdomain && customerTenantId
+          ? `https://${customerTenantSubdomain}.ciamlogin.com/${customerTenantId}`
+          : "",
       apiScope: customerApiScope,
       redirectUri: getCustomerRedirectUri(),
       knownAuthorities: customerTenantSubdomain ? [`${customerTenantSubdomain}.ciamlogin.com`] : undefined
