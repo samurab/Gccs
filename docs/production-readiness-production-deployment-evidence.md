@@ -2,15 +2,15 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate is awaiting protected production CI/CD execution.
 
-Current candidate execution status: `launch-candidate-2026-09-04-1` deployed successfully in production workflow run `33916926687`.
+Current candidate execution status: `launch-candidate-2026-09-04-2` is approved but not yet deployed.
 
 Latest evidence date: 2026-09-04. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-09-04-1`.
+Approved launch candidate tag: `launch-candidate-2026-09-04-2`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -36,10 +36,10 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-09-04-1` at `55ed0dd049b43bec4c19d98b24cdd81224c19c90`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Passed | PR #80 CI run `33907834336`, main CI run `33910693123`, exact-branch staging run `33910143138`, main staging run `33910693222`, Static Web Apps run `33910693231`, approval-main CI run `33914940525`, approval-main staging run `33914940335`, and protected production run `33916926687` passed. Current candidate `launch-candidate-2026-09-04-1` completed protected production workflow execution in run `33916926687`. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-09-04-2` at `c467e33dc2bf0e645ffe0a5ca9759a25f5060727`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved production CI/CD path | Ready; exact-candidate execution pending | PR #80 CI run `33907834336`, main CI run `33910693123`, exact-branch staging run `33910143138`, main staging run `33910693222`, Static Web Apps run `33910693231`, approval-main CI run `33914940525`, approval-main staging run `33914940335`, and protected production run `33916926687` passed. Current candidate `launch-candidate-2026-09-04-2` still requires protected production workflow execution after this launch-candidate gate merges. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Passed | Current candidate `launch-candidate-2026-09-04-1` resolved the required production environment secrets in run `33916926687` without exposing their values. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
+| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-09-04-2` still requires protected production workflow execution. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
 | Production No-CUI posture validation | Passed | Run `33916926687` validated `Gccs__DataPosture=No-CUI / compliance management only` and `PRODUCTION_CUSTOMER_DATA_MODE=no-cui-only`. |
 | Production migrations | Passed | Run `33916926687` generated and applied the idempotent migration containing the durable FedRAMP preparation records. |
 | Production storage, cache, queue, and background jobs | Passed | Candidate production health returned `ok` for PostgreSQL, Redis, object storage, and background jobs. |
