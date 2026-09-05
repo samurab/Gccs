@@ -20,6 +20,7 @@ import {
 type AuthState =
   | { status: "disabled" }
   | { status: "initializing" }
+  | { status: "signingIn" }
   | { status: "switchingAccount" }
   | { status: "signingOut" }
   | { status: "signedOut" }
@@ -100,12 +101,24 @@ export function AuthGate({ children }: { children: ReactNode }) {
     }));
   }
 
+  function handleSignIn() {
+    setState({ status: "signingIn" });
+    void selectMicrosoftEntraAccount().catch(error => setState({
+      status: "failed",
+      message: error instanceof Error ? error.message : "Sign-in could not be completed."
+    }));
+  }
+
   if (state.status === "disabled") {
     return <>{children}</>;
   }
 
   if (state.status === "initializing") {
     return <AuthShell title="Connecting to FeDril" body="Preparing your FeDril workspace." />;
+  }
+
+  if (state.status === "signingIn") {
+    return <AuthShell title="Opening Microsoft sign-in" body="Connecting to the Microsoft account chooser." />;
   }
 
   if (state.status === "signingOut") {
@@ -125,7 +138,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
           ? "Enter the email address that received your FeDril invitation. We’ll send a one-time passcode."
           : "Choose the Microsoft Entra workforce account assigned to Platform Operations."}
         actionLabel={isCustomer ? "Sign in with email code" : "Choose workforce account"}
-        onAction={() => void selectMicrosoftEntraAccount()}
+        onAction={handleSignIn}
       />
     );
   }
@@ -136,7 +149,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         title="Sign-in failed"
         body={state.message}
         actionLabel={activeAuthenticationPlane === "customer" ? "Use another email" : "Choose another account"}
-        onAction={handleAccountSwitch}
+        onAction={activeAuthenticationPlane === "customer" ? handleAccountSwitch : handleSignIn}
       />
     );
   }
