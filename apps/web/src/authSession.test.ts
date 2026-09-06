@@ -99,6 +99,7 @@ describe("route-specific authentication", () => {
         authority: "https://login.microsoftonline.com/workforce-tenant-id"
       }
     });
+    expect((msalMocks.configuration as { auth: object }).auth).not.toHaveProperty("knownAuthorities");
     expect(msalMocks.loginRedirect).toHaveBeenCalledWith({
       scopes: ["api://fedril/workforce"],
       prompt: "select_account",

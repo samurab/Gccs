@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMocks = vi.hoisted(() => ({
+  activeAuthenticationPlane: "customer" as "customer" | "workforce",
   acquireTokenSilent: vi.fn(),
   clearStoredAccessToken: vi.fn(),
   getActiveAccount: vi.fn(),
@@ -19,7 +20,9 @@ const authMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./authSession", () => ({
-  activeAuthenticationPlane: "customer",
+  get activeAuthenticationPlane() {
+    return authMocks.activeAuthenticationPlane;
+  },
   apiTokenRequest: { scopes: ["api://fedril/access"] },
   clearStoredAccessToken: authMocks.clearStoredAccessToken,
   isMsalConfigured: true,
@@ -48,6 +51,7 @@ import { AuthGate } from "./auth";
 
 describe("AuthGate", () => {
   beforeEach(() => {
+    authMocks.activeAuthenticationPlane = "customer";
     authMocks.acquireTokenSilent.mockReset().mockResolvedValue({ accessToken: "access-token" });
     authMocks.clearStoredAccessToken.mockReset();
     authMocks.getActiveAccount.mockReset().mockReturnValue(null);
@@ -82,6 +86,29 @@ describe("AuthGate", () => {
     await user.click(screen.getByRole("button", { name: "Sign in with email code" }));
 
     expect(authMocks.selectMicrosoftEntraAccount).toHaveBeenCalledOnce();
+    expect(screen.getByRole("heading", { name: "Opening Microsoft sign-in" })).toBeVisible();
+  });
+
+  it("surfaces a workforce sign-in failure and lets the operator retry", async () => {
+    const user = userEvent.setup();
+    authMocks.activeAuthenticationPlane = "workforce";
+    authMocks.selectMicrosoftEntraAccount
+      .mockRejectedValueOnce(new Error("Microsoft authority discovery failed."))
+      .mockResolvedValueOnce(undefined);
+
+    render(
+      <AuthGate>
+        <div>Protected workspace</div>
+      </AuthGate>
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Choose workforce account" }));
+
+    expect(await screen.findByRole("heading", { name: "Sign-in failed" })).toBeVisible();
+    expect(screen.getByText("Microsoft authority discovery failed.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Choose another account" }));
+    expect(authMocks.selectMicrosoftEntraAccount).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("heading", { name: "Opening Microsoft sign-in" })).toBeVisible();
   });
 
   it("lets an authenticated user switch away from a cached account", async () => {

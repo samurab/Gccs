@@ -92,7 +92,9 @@ export const msalInstance = isMsalConfigured
         authority: selectedConfiguration.authority,
         redirectUri: selectedConfiguration.redirectUri,
         postLogoutRedirectUri: getWorkspaceUrl(),
-        knownAuthorities: selectedConfiguration.knownAuthorities
+        ...(selectedConfiguration.knownAuthorities
+          ? { knownAuthorities: selectedConfiguration.knownAuthorities }
+          : {})
       },
       cache: {
         cacheLocation: BrowserCacheLocation.SessionStorage
