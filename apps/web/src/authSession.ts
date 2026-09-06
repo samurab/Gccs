@@ -351,7 +351,7 @@ function startMicrosoftEntraAccountSelection() {
 
 function getAuthenticationPrompt() {
   if (authenticationPlane === "workforce") {
-    return PromptValue.SELECT_ACCOUNT;
+    return PromptValue.LOGIN;
   }
 
   return shouldRenderInvitationAcceptancePage()

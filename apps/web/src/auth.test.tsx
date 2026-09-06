@@ -121,11 +121,11 @@ describe("AuthGate", () => {
       </AuthGate>
     );
 
-    await user.click(await screen.findByRole("button", { name: "Choose workforce account" }));
+    await user.click(await screen.findByRole("button", { name: "Sign in with workforce account" }));
 
     expect(await screen.findByRole("heading", { name: "Sign-in failed" })).toBeVisible();
     expect(screen.getByText("Microsoft authority discovery failed.")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Choose another account" }));
+    await user.click(screen.getByRole("button", { name: "Sign in again" }));
     expect(authMocks.selectMicrosoftEntraAccount).toHaveBeenCalledTimes(2);
     expect(screen.getByRole("heading", { name: "Opening Microsoft sign-in" })).toBeVisible();
   });
