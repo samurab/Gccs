@@ -67,7 +67,7 @@ describe("route-specific authentication", () => {
     window.history.replaceState({}, "", "/invitations/accept?token=invitation-token");
   });
 
-  it("uses the customer External ID authority and forces the email form on invitation routes", async () => {
+  it("uses the customer External ID authority and opens account creation on invitation routes", async () => {
     const { selectMicrosoftEntraAccount } = await import("./authSession");
 
     await selectMicrosoftEntraAccount();
@@ -80,6 +80,19 @@ describe("route-specific authentication", () => {
         redirectUri: `${window.location.origin}/invitations/accept`
       }
     });
+    expect(msalMocks.loginRedirect).toHaveBeenCalledWith({
+      scopes: ["api://fedril/customer"],
+      prompt: "create",
+      redirectStartPage: window.location.href
+    });
+  });
+
+  it("uses customer sign-in for an existing customer opening the workspace", async () => {
+    window.history.replaceState({}, "", "/app#/dashboard");
+    const { selectMicrosoftEntraAccount } = await import("./authSession");
+
+    await selectMicrosoftEntraAccount();
+
     expect(msalMocks.loginRedirect).toHaveBeenCalledWith({
       scopes: ["api://fedril/customer"],
       prompt: "login",
@@ -129,7 +142,7 @@ describe("route-specific authentication", () => {
     expect(msalMocks.loginRedirect).toHaveBeenCalledTimes(2);
     expect(msalMocks.loginRedirect).toHaveBeenLastCalledWith({
       scopes: ["api://fedril/customer"],
-      prompt: "login",
+      prompt: "create",
       redirectStartPage: window.location.href
     });
   });

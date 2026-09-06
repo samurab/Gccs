@@ -2,10 +2,11 @@ import {
   BrowserAuthErrorCodes,
   BrowserCacheLocation,
   InteractionRequiredAuthError,
+  PromptValue,
   PublicClientApplication,
   type AccountInfo
 } from "@azure/msal-browser";
-import { getWorkspaceUrl } from "./routing";
+import { getWorkspaceUrl, shouldRenderInvitationAcceptancePage } from "./routing";
 
 export type AuthenticationPlane = "workforce" | "customer";
 
@@ -341,9 +342,19 @@ function getCurrentPlaneAccount(accounts = msalInstance?.getAllAccounts().filter
 function startMicrosoftEntraAccountSelection() {
   return msalInstance!.loginRedirect({
     ...apiTokenRequest,
-    prompt: authenticationPlane === "workforce" ? "select_account" : "login",
+    prompt: getAuthenticationPrompt(),
     redirectStartPage: window.location.href
   });
+}
+
+function getAuthenticationPrompt() {
+  if (authenticationPlane === "workforce") {
+    return PromptValue.SELECT_ACCOUNT;
+  }
+
+  return shouldRenderInvitationAcceptancePage()
+    ? PromptValue.CREATE
+    : PromptValue.LOGIN;
 }
 
 function isInteractionInProgressError(error: unknown): error is { errorCode: string } {

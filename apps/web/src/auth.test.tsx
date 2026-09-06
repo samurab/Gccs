@@ -65,13 +65,14 @@ describe("AuthGate", () => {
     authMocks.switchMicrosoftEntraAccount.mockReset().mockResolvedValue(undefined);
     authMocks.setActiveAccount.mockReset();
     authMocks.storeAccessToken.mockReset();
+    window.history.replaceState({}, "", "/invitations/accept?token=invitation-token");
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it("offers the customer email one-time-passcode form", async () => {
+  it("offers customer account creation for an invitation", async () => {
     const user = userEvent.setup();
     render(
       <AuthGate>
@@ -79,14 +80,32 @@ describe("AuthGate", () => {
       </AuthGate>
     );
 
-    expect(await screen.findByRole("heading", { name: "Sign in to FeDril" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Activate your FeDril account" })).toBeVisible();
     expect(screen.getByText("FeDril workspace")).toBeVisible();
-    expect(screen.getByText("Enter the email address that received your FeDril invitation. We’ll send a one-time passcode.")).toBeVisible();
+    expect(screen.getByText("Create the customer account for the email address that received this invitation. Microsoft will verify the address with a one-time passcode.")).toBeVisible();
     expect(screen.queryByText(/staging/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Create invited account" }));
+
+    expect(authMocks.selectMicrosoftEntraAccount).toHaveBeenCalledOnce();
+    expect(screen.getByRole("heading", { name: "Opening customer account setup" })).toBeVisible();
+  });
+
+  it("offers email sign-in for an existing customer opening the workspace", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState({}, "", "/app#/dashboard");
+
+    render(
+      <AuthGate>
+        <div>Protected workspace</div>
+      </AuthGate>
+    );
+
+    expect(await screen.findByRole("heading", { name: "Sign in to FeDril" })).toBeVisible();
+    expect(screen.getByText("Sign in with your FeDril customer email address. Microsoft will send a one-time passcode.")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Sign in with email code" }));
 
     expect(authMocks.selectMicrosoftEntraAccount).toHaveBeenCalledOnce();
-    expect(screen.getByRole("heading", { name: "Opening Microsoft sign-in" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Opening customer sign-in" })).toBeVisible();
   });
 
   it("surfaces a workforce sign-in failure and lets the operator retry", async () => {
@@ -158,7 +177,7 @@ describe("AuthGate", () => {
       </AuthGate>
     );
 
-    expect(await screen.findByRole("heading", { name: "Sign in to FeDril" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Activate your FeDril account" })).toBeVisible();
     expect(authMocks.acquireTokenSilent).not.toHaveBeenCalled();
   });
 
@@ -195,9 +214,9 @@ describe("AuthGate", () => {
 
     expect(authMocks.signOutOfFeDril).toHaveBeenCalledOnce();
     expect(within(container).getByRole("heading", { name: "Signing out" })).toBeVisible();
-    expect(within(container).queryByRole("button", { name: "Sign in with email code" })).not.toBeInTheDocument();
+    expect(within(container).queryByRole("button", { name: "Create invited account" })).not.toBeInTheDocument();
 
     finishSignOut!();
-    expect(await within(container).findByRole("heading", { name: "Sign in to FeDril" })).toBeVisible();
+    expect(await within(container).findByRole("heading", { name: "Activate your FeDril account" })).toBeVisible();
   });
 });
