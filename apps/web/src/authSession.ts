@@ -222,7 +222,7 @@ export async function switchMicrosoftEntraAccount(): Promise<void> {
     return;
   }
 
-  if (authenticationPlane === "customer" && getCurrentPlaneAccount()) {
+  if (getCurrentPlaneAccount()) {
     await endMicrosoftEntraSession(true);
     return;
   }
