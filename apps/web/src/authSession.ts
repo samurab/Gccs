@@ -6,7 +6,7 @@ import {
   PublicClientApplication,
   type AccountInfo
 } from "@azure/msal-browser";
-import { getWorkspaceUrl, shouldRenderInvitationAcceptancePage } from "./routing";
+import { getPlatformAuthenticationUrl, getWorkspaceUrl, shouldRenderInvitationAcceptancePage } from "./routing";
 
 export type AuthenticationPlane = "workforce" | "customer";
 
@@ -53,7 +53,8 @@ const selectedConfiguration = authenticationPlane === "workforce"
       tenantId: workforceTenantId,
       authority: workforceTenantId ? `https://login.microsoftonline.com/${workforceTenantId}` : "",
       apiScope: workforceApiScope,
-      redirectUri: getWorkspaceUrl(),
+      redirectUri: getPlatformAuthenticationUrl(),
+      postLogoutRedirectUri: getPlatformAuthenticationUrl(),
       knownAuthorities: undefined
     }
   : {
@@ -65,6 +66,7 @@ const selectedConfiguration = authenticationPlane === "workforce"
           : "",
       apiScope: customerApiScope,
       redirectUri: getCustomerRedirectUri(),
+      postLogoutRedirectUri: getWorkspaceUrl(),
       knownAuthorities: customerTenantSubdomain ? [`${customerTenantSubdomain}.ciamlogin.com`] : undefined
     };
 
@@ -95,7 +97,7 @@ export const msalInstance = isMsalConfigured
         clientId: selectedConfiguration.clientId!,
         authority: selectedConfiguration.authority,
         redirectUri: selectedConfiguration.redirectUri,
-        postLogoutRedirectUri: getWorkspaceUrl(),
+        postLogoutRedirectUri: selectedConfiguration.postLogoutRedirectUri,
         ...(selectedConfiguration.knownAuthorities
           ? { knownAuthorities: selectedConfiguration.knownAuthorities }
           : {})
@@ -320,7 +322,7 @@ async function endMicrosoftEntraSession(restartSignIn: boolean): Promise<void> {
     await msalInstance.logoutRedirect({
       account,
       authority: selectedConfiguration.authority,
-      postLogoutRedirectUri: getWorkspaceUrl(),
+      postLogoutRedirectUri: selectedConfiguration.postLogoutRedirectUri,
       state: postLogoutState.nonce
     });
   } catch (error) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getNotificationOpenUrl, getPlatformCustomerTenantId, getWorkspaceUrl, shouldRenderDemoPage, shouldRenderDemoRequestDetailsPage, shouldRenderLandingPage, shouldRenderPlatformAdminPage, shouldRenderPlatformCustomerDetailPage, shouldRenderPlatformCustomersPage, shouldRenderPlatformDemoRequestsPage } from "./routing";
+import { getNotificationOpenUrl, getPlatformAuthenticationUrl, getPlatformCustomerTenantId, getWorkspaceUrl, shouldRenderDemoPage, shouldRenderDemoRequestDetailsPage, shouldRenderLandingPage, shouldRenderPlatformAdminPage, shouldRenderPlatformCustomerDetailPage, shouldRenderPlatformCustomersPage, shouldRenderPlatformDemoRequestsPage } from "./routing";
 
 function locationStub(pathname: string, search = "", hash = ""): Pick<Location, "pathname" | "search" | "hash"> {
   return { pathname, search, hash };
@@ -23,8 +23,9 @@ describe("routing", () => {
     expect(shouldRenderLandingPage(locationStub("/app", "", "#/reports"))).toBe(false);
   });
 
-  it("uses /app as the shared workspace redirect URL", () => {
+  it("keeps customer and workforce authentication callbacks on their respective route planes", () => {
     expect(getWorkspaceUrl("https://gccs.example")).toBe("https://gccs.example/app");
+    expect(getPlatformAuthenticationUrl("https://gccs.example")).toBe("https://gccs.example/platform");
   });
 
   it("opens current and legacy workspace notifications inside the authenticated shell", () => {

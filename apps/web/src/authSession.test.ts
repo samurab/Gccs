@@ -109,7 +109,9 @@ describe("route-specific authentication", () => {
     expect(msalMocks.configuration).toMatchObject({
       auth: {
         clientId: "workforce-client-id",
-        authority: "https://login.microsoftonline.com/workforce-tenant-id"
+        authority: "https://login.microsoftonline.com/workforce-tenant-id",
+        redirectUri: `${window.location.origin}/platform`,
+        postLogoutRedirectUri: `${window.location.origin}/platform`
       }
     });
     expect((msalMocks.configuration as { auth: object }).auth).not.toHaveProperty("knownAuthorities");
@@ -286,7 +288,7 @@ describe("route-specific authentication", () => {
     expect(msalMocks.logoutRedirect).toHaveBeenCalledWith({
       account: workforce,
       authority: "https://login.microsoftonline.com/workforce-tenant-id",
-      postLogoutRedirectUri: `${window.location.origin}/app`,
+      postLogoutRedirectUri: `${window.location.origin}/platform`,
       state: expect.any(String)
     });
   });
@@ -320,7 +322,7 @@ describe("route-specific authentication", () => {
     expect(msalMocks.logoutRedirect).toHaveBeenCalledWith({
       account: workforce,
       authority: "https://login.microsoftonline.com/workforce-tenant-id",
-      postLogoutRedirectUri: `${window.location.origin}/app`,
+      postLogoutRedirectUri: `${window.location.origin}/platform`,
       state: expect.any(String)
     });
     const postLogoutState = JSON.parse(window.sessionStorage.getItem("gccs.auth.postLogoutState")!);
@@ -397,7 +399,7 @@ describe("route-specific authentication", () => {
       returnPath: "/platform/tenants/new",
       createdAt: Date.now()
     }));
-    window.history.replaceState({}, "", "/app?state=library-state%7Clogout-nonce");
+    window.history.replaceState({}, "", "/platform?state=library-state%7Clogout-nonce");
 
     const { activeAuthenticationPlane, shouldRestartSignInAfterLogout } = await import("./authSession");
 
@@ -414,7 +416,7 @@ describe("route-specific authentication", () => {
       returnPath: "/platform/tenants/new",
       createdAt: Date.now()
     }));
-    window.history.replaceState({}, "", "/app?state=library-state%7Clogout-nonce");
+    window.history.replaceState({}, "", "/platform?state=library-state%7Clogout-nonce");
 
     const { activeAuthenticationPlane, shouldRestartSignInAfterLogout } = await import("./authSession");
 
@@ -422,5 +424,23 @@ describe("route-specific authentication", () => {
     expect(shouldRestartSignInAfterLogout()).toBe(true);
     expect(shouldRestartSignInAfterLogout()).toBe(false);
     expect(window.location.pathname).toBe("/platform/tenants/new");
+  });
+
+  it("keeps an incomplete workforce logout callback on the workforce plane", async () => {
+    window.sessionStorage.setItem("gccs.auth.postLogoutState", JSON.stringify({
+      nonce: "logout-nonce",
+      plane: "workforce",
+      restartSignIn: true,
+      returnPath: "/platform/tenants/new",
+      createdAt: Date.now()
+    }));
+    window.history.replaceState({}, "", "/platform");
+
+    const { activeAuthenticationPlane, shouldRestartSignInAfterLogout } = await import("./authSession");
+
+    expect(activeAuthenticationPlane).toBe("workforce");
+    expect(shouldRestartSignInAfterLogout()).toBe(false);
+    expect(window.location.pathname).toBe("/platform");
+    expect(window.sessionStorage.getItem("gccs.auth.postLogoutState")).not.toBeNull();
   });
 });

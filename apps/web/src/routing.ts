@@ -16,6 +16,10 @@ export function getWorkspaceUrl(origin = window.location.origin) {
   return `${origin}${workspacePath}`;
 }
 
+export function getPlatformAuthenticationUrl(origin = window.location.origin) {
+  return `${origin}${platformAdminPath}`;
+}
+
 export function getNotificationOpenUrl(linkUrl: string) {
   const normalizedLinkUrl = linkUrl.startsWith("/#/")
     ? `${workspacePath}${linkUrl.slice(1)}`
