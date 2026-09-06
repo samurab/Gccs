@@ -1,4 +1,5 @@
 import {
+  BrowserAuthErrorCodes,
   BrowserCacheLocation,
   InteractionRequiredAuthError,
   PublicClientApplication,
@@ -12,7 +13,9 @@ const accessTokenStorageKey = import.meta.env.VITE_GCCS_ACCESS_TOKEN_STORAGE_KEY
 const legacyAccessTokenStorageKey = "access_token";
 const postLogoutStateStorageKey = "gccs.auth.postLogoutState";
 const postLogoutStateLifetimeMs = 10 * 60 * 1000;
+const interactionInProgressStorageKey = "msal.interaction.status";
 let isEndingAuthenticationSession = false;
+let isStartingAuthenticationSession = false;
 let authenticationSessionGeneration = 0;
 
 type PostLogoutState = {
@@ -183,17 +186,34 @@ export async function getFreshAccessToken(): Promise<string | null> {
 }
 
 export async function selectMicrosoftEntraAccount(): Promise<void> {
-  if (!msalInstance || isEndingAuthenticationSession) {
+  if (!msalInstance || isEndingAuthenticationSession || isStartingAuthenticationSession) {
     return;
   }
 
-  clearStoredAccessToken();
-  msalInstance.setActiveAccount(null);
-  await msalInstance.loginRedirect({
-    ...apiTokenRequest,
-    prompt: authenticationPlane === "workforce" ? "select_account" : "login",
-    redirectStartPage: window.location.href
-  });
+  isStartingAuthenticationSession = true;
+  try {
+    clearStoredAccessToken();
+    msalInstance.setActiveAccount(null);
+
+    try {
+      await startMicrosoftEntraAccountSelection();
+    } catch (error) {
+      if (!isInteractionInProgressError(error)) {
+        throw error;
+      }
+
+      // MSAL 5 uses one temporary interaction marker per browser tab, even when
+      // separate customer and workforce client IDs share this application origin.
+      // Its redirect API has no public interaction override. Remove only that
+      // stale marker so recovering one plane does not erase the other plane's
+      // cached accounts and tokens, then let MSAL create a fresh transaction.
+      window.sessionStorage.removeItem(interactionInProgressStorageKey);
+      msalInstance.setActiveAccount(null);
+      await startMicrosoftEntraAccountSelection();
+    }
+  } finally {
+    isStartingAuthenticationSession = false;
+  }
 }
 
 export async function switchMicrosoftEntraAccount(): Promise<void> {
@@ -316,6 +336,23 @@ function getCurrentPlaneAccount(accounts = msalInstance?.getAllAccounts().filter
   }
 
   return selectCachedAccount(null, msalInstance.getActiveAccount(), accounts);
+}
+
+function startMicrosoftEntraAccountSelection() {
+  return msalInstance!.loginRedirect({
+    ...apiTokenRequest,
+    prompt: authenticationPlane === "workforce" ? "select_account" : "login",
+    redirectStartPage: window.location.href
+  });
+}
+
+function isInteractionInProgressError(error: unknown): error is { errorCode: string } {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    "errorCode" in error &&
+    error.errorCode === BrowserAuthErrorCodes.interactionInProgress
+  );
 }
 
 function isSameAccount(left: AccountInfo, right: AccountInfo) {
