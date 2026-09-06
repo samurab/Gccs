@@ -308,6 +308,30 @@ describe("route-specific authentication", () => {
     expect(msalMocks.loginRedirect).not.toHaveBeenCalled();
   });
 
+  it("ends workforce SSO before restarting the account chooser", async () => {
+    window.history.replaceState({}, "", "/platform/tenants/new");
+    const workforce = { username: "operator@example.com", tenantId: "workforce-tenant-id" };
+    msalMocks.getAllAccounts.mockReturnValue([workforce]);
+    msalMocks.getActiveAccount.mockReturnValue(workforce);
+    const { switchMicrosoftEntraAccount } = await import("./authSession");
+
+    await switchMicrosoftEntraAccount();
+
+    expect(msalMocks.logoutRedirect).toHaveBeenCalledWith({
+      account: workforce,
+      authority: "https://login.microsoftonline.com/workforce-tenant-id",
+      postLogoutRedirectUri: `${window.location.origin}/app`,
+      state: expect.any(String)
+    });
+    const postLogoutState = JSON.parse(window.sessionStorage.getItem("gccs.auth.postLogoutState")!);
+    expect(postLogoutState).toMatchObject({
+      plane: "workforce",
+      restartSignIn: true,
+      returnPath: "/platform/tenants/new"
+    });
+    expect(msalMocks.loginRedirect).not.toHaveBeenCalled();
+  });
+
   it("discards an in-flight customer token when server logout begins", async () => {
     const customer = { username: "wrong@example.com", tenantId: "customer-tenant-id" };
     msalMocks.getAllAccounts.mockReturnValue([customer]);
@@ -378,6 +402,24 @@ describe("route-specific authentication", () => {
     const { activeAuthenticationPlane, shouldRestartSignInAfterLogout } = await import("./authSession");
 
     expect(activeAuthenticationPlane).toBe("workforce");
+    expect(shouldRestartSignInAfterLogout()).toBe(false);
+    expect(window.location.pathname).toBe("/platform/tenants/new");
+  });
+
+  it("restores a workforce route and restarts the workforce chooser after account switching", async () => {
+    window.sessionStorage.setItem("gccs.auth.postLogoutState", JSON.stringify({
+      nonce: "logout-nonce",
+      plane: "workforce",
+      restartSignIn: true,
+      returnPath: "/platform/tenants/new",
+      createdAt: Date.now()
+    }));
+    window.history.replaceState({}, "", "/app?state=library-state%7Clogout-nonce");
+
+    const { activeAuthenticationPlane, shouldRestartSignInAfterLogout } = await import("./authSession");
+
+    expect(activeAuthenticationPlane).toBe("workforce");
+    expect(shouldRestartSignInAfterLogout()).toBe(true);
     expect(shouldRestartSignInAfterLogout()).toBe(false);
     expect(window.location.pathname).toBe("/platform/tenants/new");
   });
