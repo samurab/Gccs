@@ -16,6 +16,7 @@ import {
   switchMicrosoftEntraAccount,
   storeAccessToken
 } from "./authSession";
+import { shouldRenderInvitationAcceptancePage } from "./routing";
 
 type AuthState =
   | { status: "disabled" }
@@ -118,6 +119,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
 
   if (state.status === "signingIn") {
+    if (activeAuthenticationPlane === "customer") {
+      return shouldRenderInvitationAcceptancePage()
+        ? <AuthShell title="Opening customer account setup" body="Connecting to Microsoft to create and verify your invited account." />
+        : <AuthShell title="Opening customer sign-in" body="Connecting to Microsoft email sign-in." />;
+    }
+
     return <AuthShell title="Opening Microsoft sign-in" body="Connecting to the Microsoft account chooser." />;
   }
 
@@ -131,13 +138,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (state.status === "signedOut") {
     const isCustomer = activeAuthenticationPlane === "customer";
+    const isInvitationActivation = isCustomer && shouldRenderInvitationAcceptancePage();
     return (
       <AuthShell
-        title="Sign in to FeDril"
-        body={isCustomer
-          ? "Enter the email address that received your FeDril invitation. We’ll send a one-time passcode."
+        title={isInvitationActivation ? "Activate your FeDril account" : "Sign in to FeDril"}
+        body={isInvitationActivation
+          ? "Create the customer account for the email address that received this invitation. Microsoft will verify the address with a one-time passcode."
+          : isCustomer
+            ? "Sign in with your FeDril customer email address. Microsoft will send a one-time passcode."
           : "Choose the Microsoft Entra workforce account assigned to Platform Operations."}
-        actionLabel={isCustomer ? "Sign in with email code" : "Choose workforce account"}
+        actionLabel={isInvitationActivation
+          ? "Create invited account"
+          : isCustomer
+            ? "Sign in with email code"
+            : "Choose workforce account"}
         onAction={handleSignIn}
       />
     );
