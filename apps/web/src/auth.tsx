@@ -125,7 +125,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         : <AuthShell title="Opening customer sign-in" body="Connecting to Microsoft email sign-in." />;
     }
 
-    return <AuthShell title="Opening Microsoft sign-in" body="Connecting to the Microsoft account chooser." />;
+    return <AuthShell title="Opening Microsoft sign-in" body="Connecting to Microsoft for workforce credential entry." />;
   }
 
   if (state.status === "signingOut") {
@@ -146,12 +146,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
           ? "Create the customer account for the email address that received this invitation. Microsoft will verify the address with a one-time passcode."
           : isCustomer
             ? "Sign in with your FeDril customer email address. Microsoft will send a one-time passcode."
-          : "Choose the Microsoft Entra workforce account assigned to Platform Operations."}
+          : "Sign in with the Microsoft Entra workforce account assigned to Platform Operations."}
         actionLabel={isInvitationActivation
           ? "Create invited account"
           : isCustomer
             ? "Sign in with email code"
-            : "Choose workforce account"}
+            : "Sign in with workforce account"}
         onAction={handleSignIn}
       />
     );
@@ -162,7 +162,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <AuthShell
         title="Sign-in failed"
         body={state.message}
-        actionLabel={activeAuthenticationPlane === "customer" ? "Use another email" : "Choose another account"}
+        actionLabel={activeAuthenticationPlane === "customer" ? "Use another email" : "Sign in again"}
         onAction={activeAuthenticationPlane === "customer" ? handleAccountSwitch : handleSignIn}
       />
     );

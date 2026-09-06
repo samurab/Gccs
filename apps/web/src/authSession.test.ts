@@ -100,7 +100,7 @@ describe("route-specific authentication", () => {
     });
   });
 
-  it("preserves the workforce account chooser on Platform Operator routes", async () => {
+  it("requires fresh workforce credentials on Platform Operator routes", async () => {
     window.history.replaceState({}, "", "/platform/tenants/new");
     const { selectMicrosoftEntraAccount } = await import("./authSession");
 
@@ -117,7 +117,7 @@ describe("route-specific authentication", () => {
     expect((msalMocks.configuration as { auth: object }).auth).not.toHaveProperty("knownAuthorities");
     expect(msalMocks.loginRedirect).toHaveBeenCalledWith({
       scopes: ["api://fedril/workforce"],
-      prompt: "select_account",
+      prompt: "login",
       redirectStartPage: window.location.href
     });
     expect(msalMocks.logoutRedirect).not.toHaveBeenCalled();
@@ -149,7 +149,7 @@ describe("route-specific authentication", () => {
     });
   });
 
-  it("recovers a stale customer interaction without changing the workforce account chooser", async () => {
+  it("recovers a stale customer interaction without weakening workforce credential entry", async () => {
     window.history.replaceState({}, "", "/platform/tenants/new");
     window.sessionStorage.setItem("msal.interaction.status", JSON.stringify({
       clientId: "customer-client-id",
@@ -166,7 +166,7 @@ describe("route-specific authentication", () => {
     expect(msalMocks.loginRedirect).toHaveBeenCalledTimes(2);
     expect(msalMocks.loginRedirect).toHaveBeenLastCalledWith({
       scopes: ["api://fedril/workforce"],
-      prompt: "select_account",
+      prompt: "login",
       redirectStartPage: window.location.href
     });
   });
