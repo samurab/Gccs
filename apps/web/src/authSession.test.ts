@@ -108,6 +108,96 @@ describe("route-specific authentication", () => {
     expect(msalMocks.logoutRedirect).not.toHaveBeenCalled();
   });
 
+  it("clears a stale cross-client interaction and retries customer sign-in once", async () => {
+    const interactionError = { errorCode: "interaction_in_progress" };
+    window.sessionStorage.setItem("msal.interaction.status", JSON.stringify({
+      clientId: "workforce-client-id",
+      type: "signin"
+    }));
+    window.sessionStorage.setItem("msal.workforce-client-id.account", "preserved-workforce-cache");
+    msalMocks.loginRedirect
+      .mockRejectedValueOnce(interactionError)
+      .mockResolvedValueOnce(undefined);
+    const { selectMicrosoftEntraAccount } = await import("./authSession");
+
+    await selectMicrosoftEntraAccount();
+
+    expect(window.sessionStorage.getItem("msal.interaction.status")).toBeNull();
+    expect(window.sessionStorage.getItem("msal.workforce-client-id.account")).toBe("preserved-workforce-cache");
+    expect(msalMocks.clearCache).not.toHaveBeenCalled();
+    expect(msalMocks.setActiveAccount).toHaveBeenCalledWith(null);
+    expect(msalMocks.loginRedirect).toHaveBeenCalledTimes(2);
+    expect(msalMocks.loginRedirect).toHaveBeenLastCalledWith({
+      scopes: ["api://fedril/customer"],
+      prompt: "login",
+      redirectStartPage: window.location.href
+    });
+  });
+
+  it("recovers a stale customer interaction without changing the workforce account chooser", async () => {
+    window.history.replaceState({}, "", "/platform/tenants/new");
+    window.sessionStorage.setItem("msal.interaction.status", JSON.stringify({
+      clientId: "customer-client-id",
+      type: "signin"
+    }));
+    msalMocks.loginRedirect
+      .mockRejectedValueOnce({ errorCode: "interaction_in_progress" })
+      .mockResolvedValueOnce(undefined);
+    const { selectMicrosoftEntraAccount } = await import("./authSession");
+
+    await selectMicrosoftEntraAccount();
+
+    expect(window.sessionStorage.getItem("msal.interaction.status")).toBeNull();
+    expect(msalMocks.loginRedirect).toHaveBeenCalledTimes(2);
+    expect(msalMocks.loginRedirect).toHaveBeenLastCalledWith({
+      scopes: ["api://fedril/workforce"],
+      prompt: "select_account",
+      redirectStartPage: window.location.href
+    });
+  });
+
+  it("does not clear authentication state or retry unrelated sign-in failures", async () => {
+    const providerError = new Error("identity provider unavailable");
+    window.sessionStorage.setItem("msal.interaction.status", "unrelated-interaction");
+    msalMocks.loginRedirect.mockRejectedValueOnce(providerError);
+    const { selectMicrosoftEntraAccount } = await import("./authSession");
+
+    await expect(selectMicrosoftEntraAccount()).rejects.toBe(providerError);
+
+    expect(msalMocks.clearCache).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem("msal.interaction.status")).toBe("unrelated-interaction");
+    expect(msalMocks.loginRedirect).toHaveBeenCalledOnce();
+  });
+
+  it("retries an interaction collision only once", async () => {
+    const interactionError = { errorCode: "interaction_in_progress" };
+    window.sessionStorage.setItem("msal.interaction.status", "stale-interaction");
+    msalMocks.loginRedirect.mockRejectedValue(interactionError);
+    const { selectMicrosoftEntraAccount } = await import("./authSession");
+
+    await expect(selectMicrosoftEntraAccount()).rejects.toBe(interactionError);
+
+    expect(msalMocks.clearCache).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem("msal.interaction.status")).toBeNull();
+    expect(msalMocks.loginRedirect).toHaveBeenCalledTimes(2);
+  });
+
+  it("suppresses duplicate sign-in requests while a redirect is starting", async () => {
+    let completeRedirect: (() => void) | undefined;
+    msalMocks.loginRedirect.mockImplementationOnce(() => new Promise<void>(resolve => {
+      completeRedirect = resolve;
+    }));
+    const { selectMicrosoftEntraAccount } = await import("./authSession");
+
+    const firstRequest = selectMicrosoftEntraAccount();
+    const duplicateRequest = selectMicrosoftEntraAccount();
+    await duplicateRequest;
+
+    expect(msalMocks.loginRedirect).toHaveBeenCalledOnce();
+    completeRedirect!();
+    await firstRequest;
+  });
+
   it("falls back to the existing workforce configuration when customer identity is not configured", async () => {
     vi.stubEnv("VITE_CUSTOMER_MSAL_CLIENT_ID", "");
     vi.stubEnv("VITE_CUSTOMER_MSAL_TENANT_ID", "");
