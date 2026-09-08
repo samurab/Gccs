@@ -312,6 +312,8 @@ public sealed class CuiReadyApprovalChecklistItemEntity
     public Guid? ReviewerUserId { get; set; }
     public DateOnly? ReviewedAt { get; set; }
     public string? Notes { get; set; }
+    public Guid? SupportingRecordId { get; set; }
+    public string? SupportingVersion { get; set; }
 
     public CuiReadyApprovalChecklistEntity? Checklist { get; set; }
 }

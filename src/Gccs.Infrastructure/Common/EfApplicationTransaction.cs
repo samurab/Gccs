@@ -35,10 +35,10 @@ public sealed class EfApplicationTransaction(IServiceProvider serviceProvider) :
         {
             // Policy rejections describe a denied attempt, not a committed mutation.
             // Keep only those events after rolling the entire business transaction back.
-            var rejections = exception is TenantDataHandlingModeRestrictedException
+            var rejections = exception is TenantDataHandlingModeRestrictedException or CuiReadyApprovalChecklistValidationException
                 ? dbContext.ChangeTracker.Entries<AuditLogEntryEntity>()
                     .Where(entry => entry.Entity.Action == AuditAction.Rejected &&
-                        entry.Entity.EntityType == "TenantDataHandlingModePolicy")
+                        entry.Entity.EntityType is "TenantDataHandlingModePolicy" or "CuiReadyApprovalChecklist" or "TenantDataHandlingMode")
                     .Select(entry => entry.Entity).ToArray()
                 : [];
             await transaction.RollbackAsync(CancellationToken.None);

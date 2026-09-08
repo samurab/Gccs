@@ -981,7 +981,8 @@ api.MapGet("/me/access", (ClaimsPrincipal user, ITenantContext tenantContext) =>
         permissions,
         rolePermissionMatrix = RoleCatalog.PermissionsByRole.ToDictionary(
             role => role.Key,
-            role => role.Value.Select(permission => permission.ToString()).Order().ToArray())
+            role => role.Value.Select(permission => permission.ToString()).Order().ToArray()),
+        canApproveCuiReadiness = PlatformAuthorization.CanApproveCuiReadiness(user)
     });
 })
 .WithName("GetCurrentUserAccess");
@@ -6700,21 +6701,19 @@ api.MapPatch("/tenants/{tenantId:guid}/data-handling-mode", async (
     Guid tenantId,
     UpdateTenantDataHandlingModeRequest request,
     TenantService service,
-    IServiceProvider serviceProvider,
-    IWebHostEnvironment environment,
+    IAuditEventWriter audit,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        if (request.DataHandlingMode is TenantDataPosture.CuiReady && !string.IsNullOrWhiteSpace(request.ApprovalRecordReference))
+        if (request.DataHandlingMode is TenantDataPosture.CuiReady && !PlatformAuthorization.CanApproveCuiReadiness(httpContext.User))
         {
-            var matrixService = serviceProvider.GetRequiredService<SharedResponsibilityMatrixService>();
-            var matrixAcknowledgementService = serviceProvider.GetRequiredService<SharedResponsibilityMatrixAcknowledgementService>();
-            var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
-            var matrix = await matrixService.GetPublishedAsync(packageRoot, cancellationToken);
-            await matrixAcknowledgementService.EnsureCurrentAcknowledgedAsync(tenantId, matrix, tenantContext.UserId, cancellationToken);
+            await audit.WriteAsync(tenantContext.TenantId, tenantContext.UserId, Gccs.Domain.Audit.AuditAction.Rejected,
+                "CuiReadyApprovalChecklist", tenantContext.TenantId.ToString(), "CUI-ready mode approval permission denied.",
+                new Dictionary<string, string> { ["result"] = "failed", ["reason"] = "platform_permission_required" }, cancellationToken);
+            return ApiProblemDetails.Create(httpContext, "Permission denied", "Platform readiness approval permission is required.", 403, "permission_denied");
         }
 
         var tenant = await service.UpdateDataHandlingModeAsync(tenantId, request, tenantContext.UserId, cancellationToken);
@@ -6807,10 +6806,20 @@ api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/su
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var checklist = await service.SubmitForReviewAsync(tenantId, checklistId, tenantContext.UserId, cancellationToken);
-    return checklist is null
-        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Checklist was not found.", StatusCodes.Status404NotFound, "resource_not_found")
-        : Results.Ok(checklist);
+    try
+    {
+        var checklist = await service.SubmitForReviewAsync(tenantId, checklistId, tenantContext.UserId, cancellationToken);
+        return checklist is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Checklist was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(checklist);
+    }
+    catch (CuiReadyApprovalChecklistValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["checklist"] = [exception.Message]
+        });
+    }
 })
 .RequirePermission(Permission.ManageTenant)
 .WithName("SubmitCuiReadyApprovalChecklist");
@@ -6820,31 +6829,40 @@ api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/ap
     Guid checklistId,
     ReviewCuiReadyChecklistRequest request,
     CuiReadyApprovalChecklistService service,
-    SharedResponsibilityMatrixService matrixService,
-    SharedResponsibilityMatrixAcknowledgementService matrixAcknowledgementService,
-    IWebHostEnvironment environment,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
-        var matrix = await matrixService.GetPublishedAsync(packageRoot, cancellationToken);
-        await matrixAcknowledgementService.EnsureCurrentAcknowledgedAsync(tenantId, matrix, tenantContext.UserId, cancellationToken);
-    }
-    catch (SharedResponsibilityMatrixAcknowledgementException exception)
-    {
-        return Results.ValidationProblem(new Dictionary<string, string[]>
-        {
-            ["sharedResponsibilityMatrix"] = [exception.Message]
-        });
-    }
-
-    return await ReviewCuiReadyChecklistAsync(tenantId, checklistId, request, service.ApproveAsync, tenantContext, httpContext, cancellationToken);
-})
+    await ReviewCuiReadyChecklistAsync(tenantId, checklistId, request, service.ApproveAsync, tenantContext, httpContext, cancellationToken))
 .RequirePermission(Permission.ManageTenant)
+.RequireAuthorization(PlatformAuthorization.ApproveCuiReadinessPolicy)
 .WithName("ApproveCuiReadyApprovalChecklist");
+
+api.MapGet("/cui-readiness-evidence", async (CuiReadinessEvidenceService service, CancellationToken ct) =>
+    Results.Ok(await service.ListAsync(ct)))
+    .RequirePermission(Permission.ManageTenant).WithName("ListCuiReadinessEvidence");
+api.MapGet("/cui-readiness-evidence/notice", async (CuiReadinessNoticeService service, CancellationToken ct) =>
+    Results.Ok(await service.GetAsync(ct)))
+    .RequirePermission(Permission.ManageTenant).WithName("GetCuiReadinessNotice");
+api.MapPost("/cui-readiness-evidence/notice-acknowledgement", async (AcknowledgeDataHandlingNoticeRequest request,
+    CuiReadinessNoticeService service, HttpContext http, CancellationToken ct) =>
+{
+    try { return Results.Ok(await service.AcknowledgeAsync(request, ct)); }
+    catch (DataHandlingNoticeAcknowledgementRequiredException ex)
+    { return ApiProblemDetails.Create(http, "Notice acknowledgement rejected", ex.Message, 400, "notice_acknowledgement_invalid"); }
+})
+    .RequirePermission(Permission.ManageTenant).WithName("AcknowledgeCuiReadinessNotice");
+api.MapGet("/cui-readiness-evidence/sources", async (CuiReadinessEvidenceService service, CancellationToken ct) =>
+    Results.Ok(await service.SourcesAsync(ct)))
+    .RequirePermission(Permission.ManageTenant).WithName("ListCuiReadinessSupportingRecords");
+api.MapPost("/cui-readiness-evidence", async (RecordCuiReadinessEvidenceRequest request,
+    CuiReadinessEvidenceService service, HttpContext http, CancellationToken ct) =>
+{
+    try { return Results.Ok(await service.RecordAsync(request, ct)); }
+    catch (CuiReadyApprovalChecklistValidationException exception)
+    { return ApiProblemDetails.Create(http, "Readiness evidence rejected", exception.Message, 400, "readiness_evidence_invalid"); }
+})
+    .RequirePermission(Permission.ManageTenant)
+    .RequireAuthorization(PlatformAuthorization.ApproveCuiReadinessPolicy).WithName("RecordCuiReadinessEvidence");
 
 api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/reject", async (
     Guid tenantId,

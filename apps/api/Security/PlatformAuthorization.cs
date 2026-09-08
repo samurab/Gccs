@@ -17,6 +17,10 @@ public static class PlatformAuthorization
     public const string ManageDemoRequests = "ManageDemoRequests";
     public const string ManageDemoRequestsPolicy = "Platform.ManageDemoRequests";
     public const string PlatformOperatorRole = "Gccs.PlatformOperator";
+    public const string ApproveCuiReadiness = "ApproveCuiReadiness";
+    public const string ApproveCuiReadinessPolicy = "Platform.ApproveCuiReadiness";
+    public static bool CanApproveCuiReadiness(ClaimsPrincipal user) =>
+        IsTrustedWorkforceIdentity(user) && (user.HasClaim(PermissionClaimType, ApproveCuiReadiness) || IsPlatformOperator(user));
 
     public static bool CanProvisionTenants(ClaimsPrincipal user) =>
         IsTrustedWorkforceIdentity(user) &&

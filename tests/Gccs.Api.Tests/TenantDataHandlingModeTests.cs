@@ -120,12 +120,13 @@ public sealed class TenantDataHandlingModeTests : IClassFixture<WebApplicationFa
             tenantId,
             Guid.Parse("1a113333-3333-3333-3333-333333333332"),
             Permission.ManageTenant);
+        request.Headers.Add("X-Gccs-Dev-Platform-Permissions", "ApproveCuiReadiness");
 
         var response = await client.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("approved CUI-ready checklist reference", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("approved checklist ID", body, StringComparison.OrdinalIgnoreCase);
 
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
@@ -226,6 +227,8 @@ public sealed class TenantDataHandlingModeTests : IClassFixture<WebApplicationFa
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<TenantService>();
                 services.AddScoped<ITenantRepository, EfTenantRepository>();
+                services.AddScoped<ICuiReadyApprovalChecklistRepository, EfCuiReadyApprovalChecklistRepository>();
+                services.AddScoped<ICuiReadyApprovalChecklistGate>(s => s.GetRequiredService<CuiReadyApprovalChecklistService>());
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
                 using var provider = services.BuildServiceProvider();

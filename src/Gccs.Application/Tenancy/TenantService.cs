@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Common;
 using Gccs.Domain.Tenancy;
@@ -8,7 +9,9 @@ namespace Gccs.Application.Tenancy;
 public sealed class TenantService(
     ITenantRepository tenantRepository,
     IAuditEventWriter auditEventWriter,
-    ICuiReadyApprovalChecklistGate? checklistGate = null)
+    ICuiReadyApprovalChecklistGate? checklistGate = null,
+    IApplicationTransaction? transaction = null,
+    ICuiReadinessEvidenceRepository? readinessEvidence = null)
 {
     private static readonly TenantStatus[] CreatableStatuses =
     [
@@ -37,6 +40,8 @@ public sealed class TenantService(
         }
 
         var dataHandlingMode = request.DataHandlingMode ?? TenantDataPosture.NoCui;
+        if (dataHandlingMode == TenantDataPosture.CuiReady)
+            throw new ArgumentException("Create the tenant in NoCui mode, then complete its approval gate.");
         ValidateDataHandlingMode(dataHandlingMode, request.DataHandlingModeReason, request.ApprovalRecordReference, isCreate: true);
 
         var now = DateTimeOffset.UtcNow;
@@ -122,7 +127,16 @@ public sealed class TenantService(
         return ToDto(tenant);
     }
 
-    public async Task<TenantDto?> UpdateDataHandlingModeAsync(
+    public Task<TenantDto?> UpdateDataHandlingModeAsync(Guid tenantId, UpdateTenantDataHandlingModeRequest request,
+        Guid actorUserId, CancellationToken cancellationToken = default) => transaction is null
+            ? UpdateDataHandlingModeCoreAsync(tenantId, request, actorUserId, cancellationToken)
+            : transaction.ExecuteAsync(async ct =>
+            {
+                if (readinessEvidence is not null) await readinessEvidence.LockTenantAsync(tenantId, ct);
+                return await UpdateDataHandlingModeCoreAsync(tenantId, request, actorUserId, ct);
+            }, cancellationToken);
+
+    private async Task<TenantDto?> UpdateDataHandlingModeCoreAsync(
         Guid tenantId,
         UpdateTenantDataHandlingModeRequest request,
         Guid actorUserId,
@@ -142,11 +156,13 @@ public sealed class TenantService(
             throw new ArgumentException("Data handling mode change reason is required.", nameof(request));
         }
 
-        if (request.DataHandlingMode is TenantDataPosture.CuiReady && checklistGate is not null)
+        if (request.DataHandlingMode is TenantDataPosture.CuiReady)
         {
             try
             {
-                await checklistGate.EnsureApprovedChecklistAsync(tenantId, request.ApprovalRecordReference!, cancellationToken);
+                if (checklistGate is null)
+                    throw new CuiReadyApprovalChecklistValidationException("Approval verification is unavailable.");
+                await checklistGate.EnsureApprovedChecklistAsync(tenantId, request.ApprovalRecordReference ?? "", cancellationToken);
             }
             catch (CuiReadyApprovalChecklistValidationException exception)
             {
@@ -160,7 +176,6 @@ public sealed class TenantService(
                     new Dictionary<string, string>
                     {
                         ["requestedDataHandlingMode"] = request.DataHandlingMode.ToString(),
-                        ["approvalRecordReference"] = request.ApprovalRecordReference ?? string.Empty,
                         ["result"] = "failed",
                         ["reason"] = exception.Message
                     },
@@ -255,7 +270,7 @@ public sealed class TenantService(
             throw new ArgumentException("Data handling mode change reason is required.", nameof(reason));
         }
 
-        if (dataHandlingMode is TenantDataPosture.CuiReady && string.IsNullOrWhiteSpace(approvalRecordReference))
+        if (isCreate && dataHandlingMode is TenantDataPosture.CuiReady && string.IsNullOrWhiteSpace(approvalRecordReference))
         {
             throw new ArgumentException("CuiReady mode requires an approved CUI-ready checklist reference.", nameof(approvalRecordReference));
         }

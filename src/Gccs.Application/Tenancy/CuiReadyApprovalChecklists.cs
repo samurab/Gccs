@@ -1,13 +1,43 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
+using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 
 namespace Gccs.Application.Tenancy;
 
 public sealed class CuiReadyApprovalChecklistService(
     ICuiReadyApprovalChecklistRepository repository,
-    IAuditEventWriter auditEventWriter) : ICuiReadyApprovalChecklistGate
+    IAuditEventWriter auditEventWriter,
+    ICuiReadinessEvidenceRepository? evidence = null,
+    IApplicationTransaction? transaction = null,
+    ICurrentTenantContext? context = null) : ICuiReadyApprovalChecklistGate
 {
-    public async Task<CuiReadyApprovalChecklistDto> CreateAsync(Guid tenantId, Guid actorUserId, CancellationToken cancellationToken = default)
+    private Task<T> SerializedAsync<T>(Guid tenantId, Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
+        transaction is null ? action(ct) : transaction.ExecuteAsync(async token =>
+        {
+            if (evidence is not null) await evidence.LockTenantAsync(tenantId, token);
+            return await action(token);
+        }, ct);
+
+    public Task<CuiReadyApprovalChecklistDto?> UpdateItemAsync(Guid tenantId, Guid checklistId, string itemKey,
+        UpdateCuiReadyChecklistItemRequest request, Guid actorUserId, CancellationToken cancellationToken = default) =>
+        SerializedAsync(tenantId, ct => UpdateItemCoreAsync(tenantId, checklistId, itemKey, request, actorUserId, ct), cancellationToken);
+
+    public Task<CuiReadyApprovalChecklistDto?> SubmitForReviewAsync(Guid tenantId, Guid checklistId, Guid actorUserId, CancellationToken cancellationToken = default) =>
+        SerializedAsync(tenantId, ct => SubmitForReviewCoreAsync(tenantId, checklistId, actorUserId, ct), cancellationToken);
+
+    public Task<CuiReadyApprovalChecklistDto?> RejectAsync(Guid tenantId, Guid checklistId, ReviewCuiReadyChecklistRequest request,
+        Guid actorUserId, CancellationToken cancellationToken = default) =>
+        SerializedAsync(tenantId, ct => RejectCoreAsync(tenantId, checklistId, request, actorUserId, ct), cancellationToken);
+
+    public Task<CuiReadyApprovalChecklistDto?> SupersedeAsync(Guid tenantId, Guid checklistId, ReviewCuiReadyChecklistRequest request,
+        Guid actorUserId, CancellationToken cancellationToken = default) =>
+        SerializedAsync(tenantId, ct => SupersedeCoreAsync(tenantId, checklistId, request, actorUserId, ct), cancellationToken);
+
+    public Task<CuiReadyApprovalChecklistDto> CreateAsync(Guid tenantId, Guid actorUserId, CancellationToken cancellationToken = default) =>
+        SerializedAsync(tenantId, ct => CreateCoreAsync(tenantId, actorUserId, ct), cancellationToken);
+
+    private async Task<CuiReadyApprovalChecklistDto> CreateCoreAsync(Guid tenantId, Guid actorUserId, CancellationToken cancellationToken)
     {
         var checklist = await repository.CreateAsync(tenantId, actorUserId, DefaultItems(), cancellationToken);
         await WriteAuditAsync(checklist, actorUserId, AuditAction.Created, "created", cancellationToken);
@@ -17,7 +47,7 @@ public sealed class CuiReadyApprovalChecklistService(
     public Task<IReadOnlyList<CuiReadyApprovalChecklistDto>> ListAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
         repository.ListAsync(tenantId, cancellationToken);
 
-    public async Task<CuiReadyApprovalChecklistDto?> UpdateItemAsync(
+    private async Task<CuiReadyApprovalChecklistDto?> UpdateItemCoreAsync(
         Guid tenantId,
         Guid checklistId,
         string itemKey,
@@ -25,6 +55,13 @@ public sealed class CuiReadyApprovalChecklistService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        request = request.Status == CuiReadyChecklistItemStatus.Complete
+            ? request with
+            {
+                ReviewerUserId = actorUserId,
+                ReviewedAt = DateOnly.FromDateTime(DateTime.UtcNow)
+            }
+            : request with { ReviewerUserId = null, ReviewedAt = null };
         ValidateCompletedItem(request);
         var checklist = await repository.UpdateItemAsync(tenantId, checklistId, itemKey, request, actorUserId, cancellationToken);
         if (checklist is not null)
@@ -35,12 +72,16 @@ public sealed class CuiReadyApprovalChecklistService(
         return checklist;
     }
 
-    public async Task<CuiReadyApprovalChecklistDto?> SubmitForReviewAsync(
+    private async Task<CuiReadyApprovalChecklistDto?> SubmitForReviewCoreAsync(
         Guid tenantId,
         Guid checklistId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        var current = await repository.FindAsync(tenantId, checklistId, cancellationToken);
+        if (current is null) return null;
+        if (current.State != CuiReadyChecklistState.Draft)
+            throw new CuiReadyApprovalChecklistValidationException("Only a draft checklist can be submitted.");
         var checklist = await repository.SetStateAsync(tenantId, checklistId, CuiReadyChecklistState.InReview, actorUserId, null, cancellationToken);
         if (checklist is not null)
         {
@@ -57,32 +98,34 @@ public sealed class CuiReadyApprovalChecklistService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        try
+        {
+            var result = await SerializedAsync(tenantId,
+                ct => ApproveCoreAsync(tenantId, checklistId, request, actorUserId, ct), cancellationToken);
+            if (result is null) await FailureAsync(tenantId, actorUserId, "approval", "checklist_unavailable", cancellationToken);
+            return result;
+        }
+        catch (CuiReadyApprovalChecklistValidationException exception)
+        {
+            await FailureAsync(tenantId, actorUserId, "approval", exception.Message, CancellationToken.None);
+            throw;
+        }
+    }
+
+    private async Task<CuiReadyApprovalChecklistDto?> ApproveCoreAsync(Guid tenantId, Guid checklistId,
+        ReviewCuiReadyChecklistRequest request, Guid actorUserId, CancellationToken cancellationToken)
+    {
         var current = await repository.FindAsync(tenantId, checklistId, cancellationToken);
         if (current is null)
         {
             return null;
         }
 
-        var incomplete = current.Items.Where(item => item.IsRequired && item.Status is not CuiReadyChecklistItemStatus.Complete).ToArray();
-        if (incomplete.Length > 0)
-        {
-            await auditEventWriter.WriteAsync(
-                tenantId,
-                actorUserId,
-                AuditAction.Rejected,
-                "CuiReadyApprovalChecklist",
-                checklistId.ToString(),
-                "CUI-ready approval checklist approval failed.",
-                new Dictionary<string, string>
-                {
-                    ["tenantId"] = tenantId.ToString(),
-                    ["checklistId"] = checklistId.ToString(),
-                    ["result"] = "failed",
-                    ["reason"] = "required_items_incomplete"
-                },
-                cancellationToken);
-            throw new CuiReadyApprovalChecklistValidationException("Checklist cannot be approved while required items are incomplete.");
-        }
+        if (current.State != CuiReadyChecklistState.InReview)
+            throw new CuiReadyApprovalChecklistValidationException("Only an in-review checklist can receive final approval.");
+        if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Length > 1000)
+            throw new CuiReadyApprovalChecklistValidationException("Final approval requires review notes of at most 1000 characters.");
+        await ValidateEvidenceAsync(tenantId, current, cancellationToken);
 
         var checklist = await repository.SetStateAsync(tenantId, checklistId, CuiReadyChecklistState.Approved, actorUserId, request.Reason, cancellationToken);
         if (checklist is not null)
@@ -93,17 +136,22 @@ public sealed class CuiReadyApprovalChecklistService(
         return checklist;
     }
 
-    public async Task<CuiReadyApprovalChecklistDto?> RejectAsync(
+    private async Task<CuiReadyApprovalChecklistDto?> RejectCoreAsync(
         Guid tenantId,
         Guid checklistId,
         ReviewCuiReadyChecklistRequest request,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Reason))
+        if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Length > 1000)
         {
-            throw new CuiReadyApprovalChecklistValidationException("Checklist rejection reason is required.");
+            throw new CuiReadyApprovalChecklistValidationException("Checklist rejection reason is required and must not exceed 1000 characters.");
         }
+
+        var current = await repository.FindAsync(tenantId, checklistId, cancellationToken);
+        if (current is null) return null;
+        if (current.State is CuiReadyChecklistState.Approved or CuiReadyChecklistState.Rejected or CuiReadyChecklistState.Superseded)
+            throw new CuiReadyApprovalChecklistValidationException("Only a draft or in-review checklist can be rejected.");
 
         var checklist = await repository.SetStateAsync(tenantId, checklistId, CuiReadyChecklistState.Rejected, actorUserId, request.Reason.Trim(), cancellationToken);
         if (checklist is not null)
@@ -114,14 +162,20 @@ public sealed class CuiReadyApprovalChecklistService(
         return checklist;
     }
 
-    public async Task<CuiReadyApprovalChecklistDto?> SupersedeAsync(
+    private async Task<CuiReadyApprovalChecklistDto?> SupersedeCoreAsync(
         Guid tenantId,
         Guid checklistId,
         ReviewCuiReadyChecklistRequest request,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var checklist = await repository.SetStateAsync(tenantId, checklistId, CuiReadyChecklistState.Superseded, actorUserId, request.Reason, cancellationToken);
+        if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Length > 1000)
+            throw new CuiReadyApprovalChecklistValidationException("Checklist supersession reason is required and must not exceed 1000 characters.");
+        var current = await repository.FindAsync(tenantId, checklistId, cancellationToken);
+        if (current is null) return null;
+        if (current.State != CuiReadyChecklistState.Approved)
+            throw new CuiReadyApprovalChecklistValidationException("Only an approved checklist can be superseded.");
+        var checklist = await repository.SetStateAsync(tenantId, checklistId, CuiReadyChecklistState.Superseded, actorUserId, request.Reason.Trim(), cancellationToken);
         if (checklist is not null)
         {
             await WriteAuditAsync(checklist, actorUserId, AuditAction.Archived, "superseded", cancellationToken);
@@ -131,6 +185,23 @@ public sealed class CuiReadyApprovalChecklistService(
     }
 
     public async Task EnsureApprovedChecklistAsync(Guid tenantId, string approvalRecordReference, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await SerializedAsync(tenantId, async ct =>
+            {
+                await EnsureApprovedChecklistCoreAsync(tenantId, approvalRecordReference, ct);
+                return true;
+            }, cancellationToken);
+        }
+        catch (CuiReadyApprovalChecklistValidationException exception)
+        {
+            await FailureAsync(tenantId, context?.UserId ?? Guid.Empty, "use", exception.Message, CancellationToken.None);
+            throw;
+        }
+    }
+
+    private async Task EnsureApprovedChecklistCoreAsync(Guid tenantId, string approvalRecordReference, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(approvalRecordReference, out var checklistId))
         {
@@ -143,15 +214,35 @@ public sealed class CuiReadyApprovalChecklistService(
             throw new CuiReadyApprovalChecklistValidationException("CuiReady mode requires an approved checklist linked to the current tenant.");
         }
 
-        if (checklist.ReviewedByUserId is null || checklist.ReviewedAt is null ||
+        if (checklist.ReviewedByUserId is null || checklist.ReviewedByUserId == Guid.Empty || string.IsNullOrWhiteSpace(checklist.ReviewNotes) || checklist.ReviewedAt is null ||
             checklist.ReviewedAt.Value < DateTimeOffset.UtcNow.AddYears(-1) || checklist.ReviewedAt.Value > DateTimeOffset.UtcNow)
         {
             throw new CuiReadyApprovalChecklistValidationException("CuiReady mode requires a non-expired checklist approval reviewed within the last year.");
         }
-        if (!checklist.Items.Any(item => item.IsRequired) || checklist.Items.Any(item => item.IsRequired &&
-            (item.Status != CuiReadyChecklistItemStatus.Complete || item.ReviewerUserId is null || item.ReviewedAt is null)))
-            throw new CuiReadyApprovalChecklistValidationException("CuiReady mode requires completed and reviewed approval items.");
+        await ValidateEvidenceAsync(tenantId, checklist, cancellationToken);
     }
+
+    private async Task ValidateEvidenceAsync(Guid tenantId, CuiReadyApprovalChecklistDto checklist, CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (DefaultItems().Any(required => !checklist.Items.Any(i => i.ItemKey == required.ItemKey && i.IsRequired)) ||
+            checklist.Items.Any(i => i.IsRequired && (i.Status != CuiReadyChecklistItemStatus.Complete ||
+                i.ReviewerUserId is null || i.ReviewerUserId == Guid.Empty || i.ReviewedAt is null ||
+                i.ReviewedAt > today || i.ReviewedAt <= today.AddYears(-1))))
+            throw new CuiReadyApprovalChecklistValidationException("All required items need a current completed review.");
+        if (evidence is null)
+            throw new CuiReadyApprovalChecklistValidationException("Supporting evidence verification is unavailable; approval is blocked.");
+        string? error;
+        try { error = await evidence.ValidateLinksAsync(tenantId, checklist, ct); }
+        catch (Exception ex) when (ex is DataHandlingNoticeValidationException or SharedResponsibilityMatrixValidationException or IOException or System.Text.Json.JsonException)
+        { throw new CuiReadyApprovalChecklistValidationException("Current published readiness documents are unavailable."); }
+        if (error is not null) throw new CuiReadyApprovalChecklistValidationException(error);
+    }
+
+    private Task FailureAsync(Guid tenantId, Guid actor, string operation, string reason, CancellationToken ct) =>
+        auditEventWriter.WriteAsync(context?.TenantId ?? tenantId, context?.UserId ?? actor, AuditAction.Rejected,
+            "CuiReadyApprovalChecklist", (context?.TenantId ?? tenantId).ToString(), "CUI-ready gate evaluation failed.",
+            new Dictionary<string, string> { ["operation"] = operation, ["reason"] = reason, ["result"] = "failed" }, ct);
 
     private static void ValidateCompletedItem(UpdateCuiReadyChecklistItemRequest request)
     {
@@ -263,7 +354,9 @@ public sealed record CuiReadyApprovalChecklistItemDto(
     string? EvidenceLink,
     Guid? ReviewerUserId,
     DateOnly? ReviewedAt,
-    string? Notes);
+    string? Notes,
+    Guid? SupportingRecordId = null,
+    string? SupportingVersion = null);
 
 public sealed record UpdateCuiReadyChecklistItemRequest(
     CuiReadyChecklistItemStatus Status,
@@ -271,7 +364,9 @@ public sealed record UpdateCuiReadyChecklistItemRequest(
     string? EvidenceLink,
     Guid? ReviewerUserId,
     DateOnly? ReviewedAt,
-    string? Notes);
+    string? Notes,
+    Guid? SupportingRecordId = null,
+    string? SupportingVersion = null);
 
 public sealed record ReviewCuiReadyChecklistRequest(string? Reason);
 

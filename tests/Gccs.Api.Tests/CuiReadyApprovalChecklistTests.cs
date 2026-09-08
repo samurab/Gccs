@@ -27,7 +27,7 @@ public sealed class CuiReadyApprovalChecklistTests
         var exception = await Assert.ThrowsAsync<CuiReadyApprovalChecklistValidationException>(
             () => service.ApproveAsync(TenantId, checklist.Id, new ReviewCuiReadyChecklistRequest("Ready."), ActorUserId));
 
-        Assert.Contains("required items are incomplete", exception.Message);
+        Assert.Contains("in-review", exception.Message);
     }
 
     [Fact]
@@ -74,8 +74,45 @@ public sealed class CuiReadyApprovalChecklistTests
         var completed = Assert.Single(updated!.Items, candidate => candidate.ItemKey == item.ItemKey);
         Assert.Equal("Security", completed.Owner);
         Assert.Equal(ActorUserId, completed.ReviewerUserId);
-        Assert.Equal(new DateOnly(2026, 6, 18), completed.ReviewedAt);
+        Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow), completed.ReviewedAt);
         Assert.Equal("Security review evidence retained.", completed.Notes);
+    }
+
+    [Fact]
+    public async Task Completed_item_uses_server_authoritative_reviewer_and_review_date()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTenant(dbContext);
+        var service = CreateService(dbContext);
+        var checklist = await service.CreateAsync(TenantId, ActorUserId);
+
+        var updated = await service.UpdateItemAsync(TenantId, checklist.Id, checklist.Items[0].ItemKey,
+            CompletedRequest() with
+            {
+                ReviewerUserId = Guid.NewGuid(),
+                ReviewedAt = new DateOnly(2035, 1, 1)
+            }, ActorUserId);
+
+        var completed = updated!.Items[0];
+        Assert.Equal(ActorUserId, completed.ReviewerUserId);
+        Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow), completed.ReviewedAt);
+    }
+
+    [Fact]
+    public async Task Terminal_checklist_states_cannot_be_rewritten()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTenant(dbContext);
+        var service = CreateService(dbContext);
+        var checklist = await service.CreateAsync(TenantId, ActorUserId);
+        checklist = await CompleteAllItemsAsync(service, checklist);
+        checklist = (await service.ApproveAsync(TenantId, checklist.Id, new ReviewCuiReadyChecklistRequest("Approved."), ActorUserId))!;
+
+        await Assert.ThrowsAsync<CuiReadyApprovalChecklistValidationException>(() =>
+            service.RejectAsync(TenantId, checklist.Id, new ReviewCuiReadyChecklistRequest("Rewrite."), ActorUserId));
+        checklist = (await service.SupersedeAsync(TenantId, checklist.Id, new ReviewCuiReadyChecklistRequest("Replaced."), ActorUserId))!;
+        await Assert.ThrowsAsync<CuiReadyApprovalChecklistValidationException>(() =>
+            service.SupersedeAsync(TenantId, checklist.Id, new ReviewCuiReadyChecklistRequest("Rewrite again."), ActorUserId));
     }
 
     [Fact]
@@ -192,7 +229,7 @@ public sealed class CuiReadyApprovalChecklistTests
         Assert.Equal(CuiReadyChecklistState.Approved, approved.State);
         Assert.Equal(ActorUserId, approved.ReviewedByUserId);
         Assert.NotNull(approved.ReviewedAt);
-        Assert.Equal(1, approved.Version);
+        Assert.Equal(checklist.Version, approved.Version);
         Assert.Equal("Final approval notes.", approved.ReviewNotes);
     }
 
@@ -233,7 +270,7 @@ public sealed class CuiReadyApprovalChecklistTests
             checklist = (await service.UpdateItemAsync(TenantId, checklist.Id, item.ItemKey, CompletedRequest(), ActorUserId))!;
         }
 
-        return checklist;
+        return (await service.SubmitForReviewAsync(TenantId, checklist.Id, ActorUserId))!;
     }
 
     private static UpdateCuiReadyChecklistItemRequest CompletedRequest() =>
@@ -242,11 +279,28 @@ public sealed class CuiReadyApprovalChecklistTests
             Owner: "Security",
             EvidenceLink: "https://example.invalid/evidence/cui-ready",
             ReviewerUserId: ActorUserId,
-            ReviewedAt: new DateOnly(2026, 6, 18),
+            ReviewedAt: DateOnly.FromDateTime(DateTime.UtcNow),
             Notes: null);
 
     private static CuiReadyApprovalChecklistService CreateService(GccsDbContext dbContext, IAuditEventWriter? auditWriter = null) =>
-        new(new EfCuiReadyApprovalChecklistRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter());
+        new(new LinkedChecklistRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter(),
+            CuiReadinessTestData.Repository(dbContext, TenantId, ActorUserId), new TestApplicationTransaction(), new CuiReadinessTestData.Context(TenantId, ActorUserId));
+
+    // These lifecycle tests use explicit current synthetic evidence; separate gate tests
+    // exercise missing links, supersession, expiry, and real PostgreSQL transactions.
+    private sealed class LinkedChecklistRepository(GccsDbContext db) : ICuiReadyApprovalChecklistRepository
+    {
+        private readonly EfCuiReadyApprovalChecklistRepository inner = new(db);
+        public Task<CuiReadyApprovalChecklistDto> CreateAsync(Guid t, Guid a, IReadOnlyList<CreateCuiReadyChecklistItem> i, CancellationToken ct) => inner.CreateAsync(t, a, i, ct);
+        public Task<CuiReadyApprovalChecklistDto?> FindAsync(Guid t, Guid id, CancellationToken ct) => inner.FindAsync(t, id, ct);
+        public Task<IReadOnlyList<CuiReadyApprovalChecklistDto>> ListAsync(Guid t, CancellationToken ct) => inner.ListAsync(t, ct);
+        public async Task<CuiReadyApprovalChecklistDto?> UpdateItemAsync(Guid t, Guid id, string key, UpdateCuiReadyChecklistItemRequest r, Guid a, CancellationToken ct)
+        {
+            var source = (await CuiReadinessTestData.Repository(db, t, a).SourcesAsync(t, ct)).SingleOrDefault(s => s.Kind == key);
+            return await inner.UpdateItemAsync(t, id, key, r with { SupportingRecordId = source?.Id, SupportingVersion = source?.Version }, a, ct);
+        }
+        public Task<CuiReadyApprovalChecklistDto?> SetStateAsync(Guid t, Guid id, CuiReadyChecklistState s, Guid a, string? r, CancellationToken ct) => inner.SetStateAsync(t, id, s, a, r, ct);
+    }
 
     private static GccsDbContext CreateDbContext()
     {
@@ -268,6 +322,7 @@ public sealed class CuiReadyApprovalChecklistTests
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedByUserId = ActorUserId
         });
+        CuiReadinessTestData.Seed(dbContext, TenantId, ActorUserId);
         dbContext.SaveChanges();
     }
 

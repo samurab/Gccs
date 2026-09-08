@@ -92,6 +92,7 @@ export type ComplianceOverview = {
 };
 
 export type CurrentUserAccess = {
+  canApproveCuiReadiness?: boolean;
   tenantId: string | null;
   userId: string | null;
   userEmail: string | null;
@@ -471,6 +472,8 @@ export type UpdateTenantDataHandlingModeRequest = {
 };
 
 export type CuiReadyApprovalChecklistItem = {
+  supportingRecordId?: string | null;
+  supportingVersion?: string | null;
   id: string;
   checklistId: string;
   itemKey: string;
@@ -502,6 +505,8 @@ export type CuiReadyApprovalChecklist = {
 };
 
 export type UpdateCuiReadyChecklistItemRequest = {
+  supportingRecordId?: string | null;
+  supportingVersion?: string | null;
   status: "NotStarted" | "InProgress" | "Complete" | "NotApplicable" | string;
   owner: string | null;
   evidenceLink: string | null;
@@ -3208,6 +3213,17 @@ export async function resolveCuiSupportEscalation(
 export async function createCuiReadyApprovalChecklist(tenantId: string): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
   return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists`, {});
 }
+
+export type ReadinessSource = { id: string; kind: string; version: string; title: string };
+export type ReadinessEvidence = { id: string; kind: string; version: number; state: string; reviewedAt: string; expiresAt: string; reviewNotes: string };
+export const getReadinessSources = () => getRequiredJson<ReadinessSource[]>("/api/cui-readiness-evidence/sources");
+export const getReadinessEvidence = () => getRequiredJson<ReadinessEvidence[]>("/api/cui-readiness-evidence");
+export const getReadinessNotice = () => getRequiredJson<DataHandlingNotice>("/api/cui-readiness-evidence/notice");
+export const acknowledgeReadinessNotice = (request: AcknowledgeDataHandlingNoticeRequest) =>
+  postJsonResult<DataHandlingNoticeAcknowledgement>("/api/cui-readiness-evidence/notice-acknowledgement", request);
+export const recordReadinessEvidence = (request: { kind: string; expectedVersion: number; expiresAt: string;
+  sourceReference: string; reviewNotes: string; details: unknown; rejected: boolean }) =>
+  postJsonResult<ReadinessEvidence>("/api/cui-readiness-evidence", request);
 
 export async function updateCuiReadyApprovalChecklistItem(
   tenantId: string,

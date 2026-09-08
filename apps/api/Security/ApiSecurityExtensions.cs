@@ -149,6 +149,9 @@ public static class ApiSecurityExtensions
                 policy.AddAuthenticationSchemes(platformAuthenticationScheme)
                     .RequireAuthenticatedUser()
                     .RequireAssertion(context => PlatformAuthorization.CanProvisionTenants(context.User)));
+            options.AddPolicy(PlatformAuthorization.ApproveCuiReadinessPolicy, policy =>
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme).RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanApproveCuiReadiness(context.User)));
             options.AddPolicy(PlatformAuthorization.ViewPlatformCustomersPolicy, policy =>
                 policy.AddAuthenticationSchemes(platformAuthenticationScheme)
                     .RequireAuthenticatedUser()

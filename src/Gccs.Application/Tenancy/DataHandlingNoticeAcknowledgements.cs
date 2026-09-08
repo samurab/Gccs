@@ -26,12 +26,26 @@ public sealed class DataHandlingNoticeAcknowledgementService(
         DataHandlingNoticeDto currentNotice,
         AcknowledgeDataHandlingNoticeRequest request,
         CancellationToken cancellationToken = default)
+        => await AcknowledgeCoreAsync(tenantId, userId, currentNotice, request, false, cancellationToken);
+
+    // Only the explicit tenant-admin readiness endpoint uses this path. It acknowledges
+    // the proposed mode's notice without granting that mode or bypassing its approval gate.
+    public Task<DataHandlingNoticeAcknowledgementDto> AcknowledgeReadinessAsync(Guid tenantId, Guid userId,
+        DataHandlingNoticeDto notice, AcknowledgeDataHandlingNoticeRequest request, CancellationToken ct)
+    {
+        if (notice.Mode != TenantDataPosture.CuiReady || request.WorkflowContext != "Onboarding")
+            throw new DataHandlingNoticeAcknowledgementRequiredException("Readiness acknowledgement must cover CuiReady onboarding.");
+        return AcknowledgeCoreAsync(tenantId, userId, notice, request, true, ct);
+    }
+
+    private async Task<DataHandlingNoticeAcknowledgementDto> AcknowledgeCoreAsync(Guid tenantId, Guid userId,
+        DataHandlingNoticeDto currentNotice, AcknowledgeDataHandlingNoticeRequest request, bool readiness, CancellationToken cancellationToken)
     {
         ValidateRequest(currentNotice, request);
         request = request with { WorkflowContext = request.WorkflowContext.Trim() };
         return await transaction.ExecuteAsync(async cancellationToken =>
         {
-            await repository.EnsureTenantModeAsync(tenantId, currentNotice.Mode, cancellationToken);
+            if (!readiness) await repository.EnsureTenantModeAsync(tenantId, currentNotice.Mode, cancellationToken);
             var existing = await repository.FindAsync(
                 tenantId,
                 userId,

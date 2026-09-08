@@ -69,12 +69,22 @@ public sealed class EfCuiReadyApprovalChecklistRepository(GccsDbContext dbContex
             return null;
         }
 
+        if (entity.State is CuiReadyChecklistState.Rejected or CuiReadyChecklistState.Superseded)
+            throw new CuiReadyApprovalChecklistValidationException("Rejected or superseded checklists cannot be edited. Create a new checklist.");
         item.Status = request.Status;
         item.Owner = Normalize(request.Owner);
         item.EvidenceLink = Normalize(request.EvidenceLink);
         item.ReviewerUserId = request.ReviewerUserId;
         item.ReviewedAt = request.ReviewedAt;
         item.Notes = Normalize(request.Notes);
+        item.SupportingRecordId = request.SupportingRecordId;
+        item.SupportingVersion = Normalize(request.SupportingVersion);
+        // Editing a reviewed checklist invalidates its prior final approval.
+        entity.State = CuiReadyChecklistState.Draft;
+        entity.Version++;
+        entity.ReviewedAt = null;
+        entity.ReviewedByUserId = null;
+        entity.ReviewNotes = null;
         entity.UpdatedAt = DateTimeOffset.UtcNow;
         entity.UpdatedByUserId = actorUserId;
 
@@ -144,7 +154,9 @@ public sealed class EfCuiReadyApprovalChecklistRepository(GccsDbContext dbContex
             item.EvidenceLink,
             item.ReviewerUserId,
             item.ReviewedAt,
-            item.Notes);
+            item.Notes,
+            item.SupportingRecordId,
+            item.SupportingVersion);
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

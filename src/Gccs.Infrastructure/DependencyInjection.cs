@@ -89,6 +89,8 @@ public static class DependencyInjection
         services.AddScoped<RegulatedTenantProvisioningService>();
         services.AddScoped<GovernmentCloudReleaseReadinessService>();
         services.AddScoped<CuiReadyApprovalChecklistService>();
+        services.AddScoped<CuiReadinessEvidenceService>();
+        services.AddScoped<CuiReadinessNoticeService>();
         services.AddScoped<SharedResponsibilityMatrixService>();
         services.AddScoped<SharedResponsibilityMatrixAcknowledgementService>();
         services.AddScoped<DataHandlingNoticeService>();
@@ -364,6 +366,7 @@ public static class DependencyInjection
             services.AddScoped<IRegulatedTenantProvisioningRepository, EfRegulatedTenantProvisioningRepository>();
             services.AddScoped<IGovernmentCloudReleaseReadinessRepository, EfGovernmentCloudReleaseReadinessRepository>();
             services.AddScoped<ICuiReadyApprovalChecklistRepository, EfCuiReadyApprovalChecklistRepository>();
+            services.AddScoped<ICuiReadinessEvidenceRepository, EfCuiReadinessEvidenceRepository>();
             services.AddScoped<ISharedResponsibilityMatrixAcknowledgementRepository, EfSharedResponsibilityMatrixAcknowledgementRepository>();
             services.AddScoped<IDataHandlingNoticeAcknowledgementRepository, EfDataHandlingNoticeAcknowledgementRepository>();
             services.AddScoped<ICuiSupportEscalationRepository, EfCuiSupportEscalationRepository>();
@@ -445,6 +448,7 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Government cloud release readiness persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICuiReadyApprovalChecklistRepository>(_ =>
                 throw new InvalidOperationException("CUI-ready approval checklist persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddSingleton<ICuiReadinessEvidenceRepository, UnavailableCuiReadinessEvidenceRepository>();
             services.AddScoped<ISharedResponsibilityMatrixAcknowledgementRepository>(_ =>
                 throw new InvalidOperationException("Shared responsibility matrix acknowledgement persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IDataHandlingNoticeAcknowledgementRepository>(_ =>

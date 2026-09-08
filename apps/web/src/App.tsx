@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DataHandlingNoticePanel } from "@/components/DataHandlingNoticePanel";
+import { ReadinessEvidencePanel, ReadinessItemEditor } from "@/components/ReadinessEvidencePanel";
 import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
 import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
 import type { ClassifiedContent } from "@/lib/api";
@@ -165,7 +166,6 @@ import {
   type ComplianceStatusReport,
   type ContentClassificationReviewItem,
   type CuiReadyApprovalChecklist,
-  type CuiReadyApprovalChecklistItem,
   type UpdateCuiReadyChecklistItemRequest,
   type SharedResponsibilityMatrix,
   type SharedResponsibilityMatrixAcknowledgement,
@@ -8792,20 +8792,9 @@ function CuiReadyChecklistPanel({
   onReview: (checklistId: string, action: "submit" | "approve" | "reject" | "supersede", reason: string | null) => Promise<void>;
   status: "idle" | "saving" | "saved" | "failed";
 }) {
-  const [reviewReason, setReviewReason] = useState("Approved for CUI-ready mode.");
+  const [reviewReason, setReviewReason] = useState("");
   const latest = checklists[0] ?? null;
   const completedCount = latest?.items.filter((item) => item.status === "Complete").length ?? 0;
-
-  function completeItem(checklistId: string, item: CuiReadyApprovalChecklistItem) {
-    void onItemUpdate(checklistId, item.itemKey, {
-      status: "Complete",
-      owner: item.owner ?? "Security",
-      evidenceLink: item.evidenceLink ?? "https://example.invalid/evidence/cui-ready",
-      reviewerUserId: item.reviewerUserId ?? currentUserId,
-      reviewedAt: item.reviewedAt ?? new Date().toISOString().slice(0, 10),
-      notes: item.notes
-    });
-  }
 
   return (
     <section className="members-section" aria-label="CUI-ready approval checklist">
@@ -8824,6 +8813,8 @@ function CuiReadyChecklistPanel({
         <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
       ) : null}
       {latest ? (
+        <ReadinessEvidencePanel key={`${currentTenant?.id}:${currentUserId}`}>
+        {(sources, canApprove) => (
         <div className="approval-checklist">
           <div className="section-heading--split">
             <div>
@@ -8845,9 +8836,9 @@ function CuiReadyChecklistPanel({
                 <span>
                   Status: {item.status} · Owner: {item.owner ?? "No owner"} · Review date: {item.reviewedAt ?? "No review date"}
                 </span>
-                <button type="button" onClick={() => completeItem(latest.id, item)} disabled={status === "saving"}>
-                  Mark complete
-                </button>
+                <ReadinessItemEditor key={`${item.id}:${latest.version}`} item={item} sources={sources} userId={currentUserId}
+                  disabled={status === "saving" || ["Rejected", "Superseded"].includes(latest.state)}
+                  onSave={request => void onItemUpdate(latest.id, item.itemKey, request)} />
               </article>
             ))}
           </div>
@@ -8856,10 +8847,10 @@ function CuiReadyChecklistPanel({
               <span>Review reason</span>
               <input value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} />
             </label>
-            <button type="button" onClick={() => void onReview(latest.id, "submit", null)} disabled={status === "saving"}>
+            <button type="button" onClick={() => void onReview(latest.id, "submit", null)} disabled={status === "saving" || latest.state !== "Draft"}>
               Submit
             </button>
-            <button type="button" onClick={() => void onReview(latest.id, "approve", reviewReason)} disabled={status === "saving"}>
+            <button type="button" onClick={() => void onReview(latest.id, "approve", reviewReason)} disabled={status === "saving" || !canApprove || latest.state !== "InReview" || !reviewReason.trim()}>
               Approve
             </button>
             <button type="button" onClick={() => void onReview(latest.id, "reject", reviewReason)} disabled={status === "saving"}>
@@ -8874,6 +8865,8 @@ function CuiReadyChecklistPanel({
           ) : null}
           {latest.rejectionReason ? <p className="form-status form-status--error">{latest.rejectionReason}</p> : null}
         </div>
+        )}
+        </ReadinessEvidencePanel>
       ) : (
         <EmptyState title="No CUI-ready checklist" body="Create a checklist before requesting CUI-ready tenant mode." />
       )}

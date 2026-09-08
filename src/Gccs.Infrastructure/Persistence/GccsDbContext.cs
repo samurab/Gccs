@@ -723,6 +723,18 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             ConfigureAuditColumns(entity);
         });
 
+        modelBuilder.Entity<CuiReadinessEvidenceEntity>(entity =>
+        {
+            entity.ToTable("cui_readiness_evidence");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Kind, x.Version }).IsUnique();
+            entity.Property(x => x.Kind).HasMaxLength(80);
+            entity.Property(x => x.State).HasMaxLength(40);
+            entity.Property(x => x.SourceReference).HasMaxLength(600);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1200);
+            entity.HasOne<TenantEntity>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<CuiReadyApprovalChecklistItemEntity>(entity =>
         {
             entity.ToTable("cui_ready_approval_checklist_items");
@@ -734,6 +746,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.Owner).HasMaxLength(180);
             entity.Property(x => x.EvidenceLink).HasMaxLength(600);
             entity.Property(x => x.Notes).HasMaxLength(1200);
+            entity.Property(x => x.SupportingVersion).HasMaxLength(80);
             entity.HasOne(x => x.Checklist).WithMany(x => x.Items).HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
         });
 
