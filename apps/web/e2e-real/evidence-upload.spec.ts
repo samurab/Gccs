@@ -76,6 +76,8 @@ test("Story 12.2 creates evidence metadata, uploads bytes, and retrieves the Pos
   const metadataForm = page.getByRole("region", { name: "Evidence metadata" }).locator("form");
   await metadataForm.getByLabel("Title").fill(title);
   await metadataForm.getByLabel("Description").fill("Synthetic No-CUI browser-to-API-to-PostgreSQL test evidence.");
+  await expect(metadataForm.getByRole("button", { name: "Create metadata" })).toBeDisabled();
+  await metadataForm.getByLabel("Classification", { exact: true }).selectOption("Unclassified");
 
   const createResponsePromise = page.waitForResponse(
     (response) => response.url() === `${apiURL}/api/evidence-items` && response.request().method() === "POST"
@@ -106,6 +108,8 @@ test("Story 12.2 creates evidence metadata, uploads bytes, and retrieves the Pos
       response.url() === `${apiURL}/api/evidence-items/${evidence.id}/file` &&
       response.request().method() === "POST"
   );
+  await expect(uploadForm.getByRole("button", { name: "Upload evidence" })).toBeDisabled();
+  await uploadForm.getByLabel("Upload classification", { exact: true }).selectOption("Unclassified");
   await uploadForm.getByRole("button", { name: "Upload evidence" }).click();
   const uploadResponse = await uploadResponsePromise;
   expect(uploadResponse.status()).toBe(201);

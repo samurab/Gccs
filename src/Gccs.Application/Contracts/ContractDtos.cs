@@ -119,7 +119,10 @@ public sealed record ContractDocumentExtractionResultsDto(
     ExtractionJobStatus? LatestJobStatus,
     string? FailureReason,
     int CandidateCount,
-    IReadOnlyList<ClauseCandidateDto> Candidates);
+    IReadOnlyList<ClauseCandidateDto> Candidates)
+{
+    public ContentClassificationDto? LatestJobClassification { get; init; }
+}
 
 public sealed record ClauseCandidateEditRequest(
     string NormalizedCitation,

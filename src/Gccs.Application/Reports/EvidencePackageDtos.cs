@@ -25,6 +25,7 @@ public sealed record EvidencePackageReportDto(
     EvidencePackageManifestDto Manifest,
     string ExportHtml)
 {
+    public Gccs.Application.Common.ContentClassificationDto? Classification { get; init; }
     public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
 }
 

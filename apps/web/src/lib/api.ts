@@ -1242,6 +1242,7 @@ export type ReviewEvidenceRequestRequest = {
 };
 
 export type ApprovedEvidencePackage = {
+  classification?: ContentClassification | null;
   reportId: string;
   tenantId: string;
   type: string;
@@ -1261,6 +1262,7 @@ export type ApprovedEvidencePackage = {
 };
 
 export type ReportHistoryItem = {
+  classification?: ContentClassification | null;
   id: string;
   tenantId: string;
   type: string;
@@ -1293,6 +1295,7 @@ export type ReportExport = {
 };
 
 export type ComplianceStatusReport = {
+  classification?: ContentClassification | null;
   id: string;
   tenantId: string;
   type: string;
@@ -1319,6 +1322,7 @@ export type EvidencePackageGenerateRequest = {
 };
 
 export type EvidencePackageReport = {
+  classification?: ContentClassification | null;
   id: string;
   tenantId: string;
   type: string;
@@ -1550,6 +1554,40 @@ export type ContentClassificationReviewItem = {
   reviewRoute: string;
 };
 
+export type ClassifiedContentRoute = "evidence-items" | "evidence-file-versions" | "notes" | "contract-documents" | "extraction-jobs" | "reports";
+export type ClassifiedContent = {
+  entityType: string;
+  id: string;
+  title: string;
+  classification: ContentClassification;
+  revision: number;
+  createdAt: string;
+};
+export type ClassificationHistory = {
+  id: string;
+  previousClassification: string | null;
+  newClassification: string;
+  source: string;
+  confidence: number | null;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  reason: string | null;
+  changedByUserId: string;
+  changedAt: string;
+  revision: number | null;
+  previousMetadata: ContentClassification | null;
+};
+
+export const getClassifiedContent = (route: ClassifiedContentRoute, reviewOnly = true, offset = 0) =>
+  getRequiredJson<ClassifiedContent[]>(`/api/classified-content/${route}?reviewOnly=${reviewOnly}&offset=${offset}`);
+export const getClassifiedContentDetail = (route: ClassifiedContentRoute, id: string) =>
+  getRequiredJson<ClassifiedContent>(`/api/classified-content/${route}/${encodeURIComponent(id)}`);
+export const getClassificationHistory = (route: ClassifiedContentRoute, id: string, offset = 0) =>
+  getRequiredJson<ClassificationHistory[]>(`/api/classified-content/${route}/${encodeURIComponent(id)}/history?offset=${offset}`);
+export const reviewContentClassification = (route: ClassifiedContentRoute, id: string, expectedRevision: number, classification: string, reason: string) =>
+  patchJsonResult<ClassifiedContent>(`/api/classified-content/${route}/${encodeURIComponent(id)}/classification`,
+    { expectedRevision, classification: { classification, reason } });
+
 export type ReclassifyContentRequest = {
   classification: ContentClassification;
 };
@@ -1607,6 +1645,7 @@ export type DemoTenantSeedResult = {
 };
 
 export type ExtractionJob = {
+  classification?: ContentClassification | null;
   id: string;
   tenantId: string;
   sourceDocumentId: string;
@@ -1639,6 +1678,7 @@ export type ClauseCandidate = {
 };
 
 export type ContractDocumentExtractionResults = {
+  latestJobClassification?: ContentClassification | null;
   contractId: string;
   sourceDocumentId: string;
   latestJobStatus: string | null;
@@ -2246,7 +2286,7 @@ export async function getNotifications(): Promise<NotificationCenterItem[]> {
 }
 
 export async function getCuiSupportEscalations(tenantId: string): Promise<CuiSupportEscalation[]> {
-  return getJson<CuiSupportEscalation[]>(`/api/tenants/${tenantId}/cui-support-escalations`, []);
+  return getRequiredJson<CuiSupportEscalation[]>(`/api/tenants/${tenantId}/cui-support-escalations`);
 }
 
 export async function markNotificationRead(notificationId: string): Promise<ApiMutationResult<NotificationCenterItem>> {

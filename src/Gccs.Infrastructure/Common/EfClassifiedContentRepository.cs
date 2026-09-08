@@ -33,7 +33,8 @@ public sealed class EfClassifiedContentRepository(GccsDbContext db, ICurrentTena
                         e.ClassificationReviewedAt, e.ClassificationReason, e.ClassificationIsApprovedDemoContent), e.ClassificationRevision, e.CreatedAt)).ToArrayAsync(ct),
             "Report" => await Reports.AsNoTracking().Where(e => !reviewOnly ||
                 (e.CurrentClassification == null ? e.Classification : e.CurrentClassification.Classification) == ContentClassification.Unknown ||
-                (e.CurrentClassification == null ? e.Classification : e.CurrentClassification.Classification) == ContentClassification.Prohibited)
+                (e.CurrentClassification == null ? e.Classification : e.CurrentClassification.Classification) == ContentClassification.Prohibited ||
+                (e.CurrentClassification == null ? e.Classification : e.CurrentClassification.Classification) == ContentClassification.Cui)
                 .OrderBy(e => e.Id).Skip(offset).Take(100)
                 .Select(e => new ClassifiedContentDto(type, e.Id, e.Title, new(
                     e.CurrentClassification == null ? e.Classification : e.CurrentClassification.Classification,
@@ -48,7 +49,8 @@ public sealed class EfClassifiedContentRepository(GccsDbContext db, ICurrentTena
         };
     }
     private static IQueryable<T> Review<T>(IQueryable<T> query, bool required) where T : class, IClassifiedContentEntity =>
-        required ? query.Where(e => e.Classification == ContentClassification.Unknown || e.Classification == ContentClassification.Prohibited) : query;
+        required ? query.Where(e => e.Classification == ContentClassification.Unknown || e.Classification == ContentClassification.Prohibited ||
+            e.Classification == ContentClassification.Cui) : query;
 
     private async Task<IClassifiedContentEntity?> LoadAsync(string type, Guid id, CancellationToken ct) => type switch
     {

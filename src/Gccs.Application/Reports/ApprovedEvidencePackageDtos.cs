@@ -13,6 +13,7 @@ public sealed record ApprovedEvidencePackageDto(
     Guid GeneratedByUserId,
     IReadOnlyList<ApprovedEvidencePackageItemDto> EvidenceItems)
 {
+    public Gccs.Application.Common.ContentClassificationDto? Classification { get; init; }
     public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
 }
 

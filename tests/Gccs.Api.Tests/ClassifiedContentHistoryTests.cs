@@ -150,6 +150,59 @@ public sealed class ClassifiedContentHistoryTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => db.SaveChangesAsync());
     }
 
+    [Theory]
+    [InlineData("compliance-status")]
+    [InlineData("subcontractor-compliance")]
+    [InlineData("cmmc-readiness")]
+    [InlineData("evidence-packages")]
+    public async Task Report_generation_and_lists_expose_current_classification_without_rewriting_snapshot(string route)
+    {
+        await using var factory = Factory(); using var client = factory.CreateClient();
+        var assessmentId = Guid.NewGuid();
+        using (var setup = factory.Services.CreateScope())
+        {
+            var db = setup.ServiceProvider.GetRequiredService<GccsDbContext>();
+            db.Assessments.Add(new() { Id = assessmentId, TenantId = tenant, Name = "Synthetic classification assessment",
+                Level = Gccs.Domain.Cmmc.CmmcLevel.Level1 });
+            await db.SaveChangesAsync();
+        }
+        using var generated = await client.SendAsync(Request(HttpMethod.Post,
+            $"/api/reports/{route}" + (route == "cmmc-readiness" ? $"?assessmentId={assessmentId}" : ""), "ManageReports",
+            new { classification = new { classification = "Fci" }, title = "Synthetic classified report",
+                contractIds = new[] { contract }, obligationIds = Array.Empty<string>(), controlIds = Array.Empty<string>(),
+                subcontractorIds = Array.Empty<Guid>() }));
+        Assert.Equal(HttpStatusCode.Created, generated.StatusCode);
+        var body = await generated.Content.ReadFromJsonAsync<JsonElement>(); var id = body.GetProperty("id").GetGuid();
+        Assert.Equal("Fci", body.GetProperty("classification").GetProperty("classification").GetString());
+        using var review = await client.SendAsync(Request(HttpMethod.Patch,
+            $"/api/classified-content/reports/{id}/classification", "ManageReports", Review(0, "Unclassified")));
+        Assert.Equal(HttpStatusCode.OK, review.StatusCode);
+        using var list = await client.SendAsync(Request(HttpMethod.Get, route == "evidence-packages" ?
+            "/api/reports/approved-evidence-packages" : "/api/reports/recent", "ViewReports"));
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        var row = (await list.Content.ReadFromJsonAsync<JsonElement>()).EnumerateArray()
+            .Single(r => r.GetProperty(route == "evidence-packages" ? "reportId" : "id").GetGuid() == id);
+        Assert.Equal("Unclassified", row.GetProperty("classification").GetProperty("classification").GetString());
+        using var detail = await client.SendAsync(Request(HttpMethod.Get,
+            route == "evidence-packages" ? $"/api/reports/evidence-packages/{id}" : $"/api/reports/{id}", "ViewReports"));
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Equal("Unclassified", (await detail.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("classification").GetProperty("classification").GetString());
+        using var scope = factory.Services.CreateScope();
+        Assert.Equal(ContentClassification.Fci, (await scope.ServiceProvider.GetRequiredService<GccsDbContext>().Reports.SingleAsync(r => r.Id == id)).Classification);
+    }
+
+    [Theory, MemberData(nameof(Cases))]
+    public async Task Cui_quarantine_is_visible_in_the_review_queue_for_every_type(string type, string route, string read, string write)
+    {
+        await using var factory = Factory(); using var client = factory.CreateClient();
+        using var review = await client.SendAsync(Request(HttpMethod.Patch,
+            $"/api/classified-content/{route}/{ids[type]}/classification", write, Review(0, "Cui")));
+        Assert.Equal(HttpStatusCode.OK, review.StatusCode);
+        using var queue = await client.SendAsync(Request(HttpMethod.Get, $"/api/classified-content/{route}?reviewOnly=true", read));
+        Assert.Equal(HttpStatusCode.OK, queue.StatusCode);
+        Assert.Contains(ids[type].ToString(), await queue.Content.ReadAsStringAsync());
+    }
+
     [Theory, MemberData(nameof(Cases))]
     public async Task Invalid_reviews_leave_classification_history_and_audit_unchanged(string type, string route, string read, string write)
     {

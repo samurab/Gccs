@@ -88,3 +88,47 @@ The EF design-time factory reads `GCCS_DATABASE`, not `ConnectionStrings__GccsDa
 Full backend regression: 1,754 passed, zero skipped, 13 minutes 29 seconds (`/tmp/gccs-history-full-verified.log`; TRX: `tests/Gccs.Api.Tests/TestResults/classified-history-verified.trx`). The subsequent version-only escalation test and its fixture change passed in the final 34-test suite above; production source was unchanged during that full run.
 
 Story 1A.2.1 is implemented and verified at this checkpoint. The cross-content review UI belongs to Story 1A.2.2 and is not yet claimed implemented.
+
+## Story 1A.2.2: classification UX and review
+
+Parent commit: `4fac1b57`. This section supersedes the earlier checkpoints' remaining-UI scope. Implementation commit is the commit containing this section on `codex/classified-content-enforcement`.
+
+### Implemented
+
+- Evidence, Contracts, and Reports expose a shared classification review panel with the six content types, paginated metadata/history, current classification badges, source, confidence, reviewer, review time, reason, and recorded demo provenance. Unknown, CUI, and Prohibited records appear in the review filter. Users can turn off that filter to inspect safe records and their history.
+- Review controls consume server-provided content-specific permissions. A reason and current revision accompany each review. Conflicts and uncertain failures require reloading the item before retrying; the UI does not silently overwrite another review. Metadata-only reasons are requested; raw note/file contents are not displayed in this panel.
+- Prohibited/CUI detail routes users to the existing escalation workflow. Only a tenant Owner with `ManageTenant` can manage escalation. Admin/reviewer authority alone is insufficient. A safe classification review does not automatically release an escalated item; a separate authorized resolution is necessary.
+- New evidence metadata, file uploads, contract uploads, notes, reports, and extraction require explicit classification selection/confirmation. File changes reset classification/attestation. Normal metadata editing cannot reclassify an existing record. Imported synthetic labels remain visible but cannot be assigned through ordinary upload/reviewer selectors.
+- Classification changes clear locally displayed note/report/extraction content and pending workflow confirmation. Reopening a report fetches the API again. Report lists and artifacts expose current handling metadata while persisted generation snapshots and export HTML remain unchanged.
+
+### Test-case mapping and smoke steps
+
+| Case | Setup/action and expected result | Observed evidence |
+| --- | --- | --- |
+| TC-1A.2.2.1 | On synthetic records, attempt note/metadata/upload/report/extraction submission without classification, then select it. | Unit/API tests reject missing classification; browser note/metadata/upload controls are disabled until selection, and explicit-selection upload/extraction flows succeed. |
+| TC-1A.2.2.2 | Save an Unknown synthetic note, open Notes in the review panel, and attempt body use. | Note is listed for review; API body access returns 400. Six-type API suites cover queue and downstream restrictions. |
+| TC-1A.2.2.3 | Review the note as Prohibited; escalate as Owner, then perform a safe review without resolving escalation. | Body access returns 400 after Prohibited review and 403 after safe review while escalation remains open. Separate false-positive resolution restores access. |
+| TC-1A.2.2.4 | Review with a reason, reload the browser, inspect current metadata/history; repeat as Auditor. | Real PostgreSQL history records prior metadata, reviewer, and revisions. Auditor sees metadata/history but no review/escalation mutation controls. |
+| TC-1A.2.2.5 | Inspect notes, evidence, extraction, and reports; reclassify each report type and retrieve list/detail. | Current badges/metadata are rendered; four report-type API cases preserve the original generation classification while exposing current handling metadata. |
+
+### Executed evidence
+
+Same synthetic local PostgreSQL 17 databases and development-authentication differences described above. No staging/production deployment was performed for these three completion commits.
+
+- Release backend build passed with zero warnings/errors (`/tmp/gccs-review-api-build.log`). Focused/adjacent backend verification: 152 passed, zero skipped, 1 minute 1 second (`/tmp/gccs-review-backend-focused.log`). This includes all six review queues and all four current-report-classification mappings.
+- Full final backend regression: 1,765 passed, zero failed, zero skipped, 13 minutes 52 seconds (`/tmp/gccs-review-full.log`; TRX: `tests/Gccs.Api.Tests/TestResults/classified-review-final.trx`). Command: `dotnet test tests/Gccs.Api.Tests -c Release --no-build --settings tests/Gccs.Api.Tests/regression.runsettings --logger 'trx;LogFileName=classified-review-final.trx'`, with `GCCS_TEST_POSTGRES_CONNECTION` targeting the local PostgreSQL integration database. No backend production/test source changed during this run.
+- Final Vitest: 190 passed across 20 files, 13.27 seconds (`/tmp/gccs-review-ui-complete.log`). `npm run lint:web` and `npm run build:web` passed (`/tmp/gccs-review-lint-complete.log`, `/tmp/gccs-review-build-complete.log`).
+- Final real-stack Chromium: six passed, 15.8 seconds (`/tmp/gccs-review-real-complete.log`). Command: `npm run test:e2e:real`, with `PLAYWRIGHT_API_URL=http://127.0.0.1:5067` and `ConnectionStrings__GccsDatabase` pointing to `gccs_classified_browser_20260908`. The test traverses the browser, API, and PostgreSQL for note creation, review, history reload, quarantine, escalation, and release. Existing evidence metadata → bytes → retrieved version, extraction, assignment, and read-only report tests also passed.
+- Mocked browser regression: three passed, 3.8 seconds (`/tmp/gccs-review-mocked-browser.log`), using `PLAYWRIGHT_BASE_URL=http://127.0.0.1:5175 npm run test:e2e -- --workers=1`. These prove presentation/navigation, not persistence.
+- Playwright CLI smoke on local API 5068 and web 5175 verified rendered history and Auditor read-only controls. Synthetic screenshots: [review detail](../output/playwright/classification-review-owner.png), [Auditor detail](../output/playwright/classification-review-auditor.png).
+- Earlier real-stack runs found required-field accessible-label ambiguity and an incorrect test assumption that Admin has `ManageTenant`. Explicit labels and the correct Owner test context fixed those failures; server permissions were not broadened. The final run above passed. A separate unit test proves reviewer authority cannot expose escalation-management actions.
+
+### Risks and boundaries
+
+- Apply both additive migrations from the preceding story commits before deployment. No additional schema change is introduced in this UI story. Populated-history downgrade guards remain in force.
+- Local tests do not prove staging identity, cloud storage behavior, external assessor approval, or authorization for real CUI. FeDril remains No-CUI / compliance management only.
+- Classification history paging is bounded at 100 rows per page and offset 100,000. Existing legacy records do not receive fabricated historical review metadata. The regular note list retains its existing newest-200 limit; the separate metadata review panel is paginated.
+- UI cache invalidation occurs when this client performs review/escalation; it is not a cross-browser revocation push channel. Subsequent API access rechecks current restrictions. Already downloaded information cannot be recalled by reclassification.
+- All six content types have API/repository concurrency and tenant/RBAC coverage. The full browser persistence review/escalation round trip uses notes; other types have component/API coverage and their existing workflow browser tests, not six duplicated end-to-end review scenarios.
+
+Stories 1A.1.2, 1A.2.1, and 1A.2.2 are implemented and verified within the scope above. The classification-review completion is not a staging deployment or an authorization to handle real CUI.

@@ -239,7 +239,15 @@ public sealed class EfReportRepository(
                 report.Title,
                 report.Status,
                 report.GeneratedAt,
-                report.GeneratedByUserId
+                report.GeneratedByUserId,
+                Classification = new ContentClassificationDto(
+                    report.CurrentClassification != null ? report.CurrentClassification.Classification : report.Classification,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationSource : report.ClassificationSource,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationConfidence : report.ClassificationConfidence,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationReviewedByUserId : report.ClassificationReviewedByUserId,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationReviewedAt : report.ClassificationReviewedAt,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationReason : report.ClassificationReason,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationIsApprovedDemoContent : report.ClassificationIsApprovedDemoContent)
             })
             .ToListAsync(cancellationToken);
 
@@ -281,7 +289,7 @@ public sealed class EfReportRepository(
                 report.Status,
                 report.GeneratedAt,
                 report.GeneratedByUserId,
-                evidenceLookup.GetValueOrDefault(report.Id, [])))
+                evidenceLookup.GetValueOrDefault(report.Id, [])) { Classification = report.Classification })
             .ToArray();
     }
 
@@ -408,6 +416,7 @@ public sealed class EfReportRepository(
     {
         var entity = await dbContext.Reports
             .AsNoTracking()
+            .Include(report => report.CurrentClassification)
             .SingleOrDefaultAsync(
                 report =>
                     report.Id == reportId &&
@@ -909,7 +918,7 @@ public sealed class EfReportRepository(
             entity.GeneratedAt,
             entity.GeneratedByUserId,
             snapshot,
-            entity.ExportHtml);
+            entity.ExportHtml) { Classification = ClassificationMetadata.Read(entity.CurrentClassification ?? (IClassifiedContentEntity)entity) };
     }
 
     private static ComplianceStatusReportDto ToDto(ReportEntity entity, ComplianceStatusReportSnapshotDto snapshot) =>
@@ -922,7 +931,7 @@ public sealed class EfReportRepository(
             entity.GeneratedAt,
             entity.GeneratedByUserId,
             snapshot,
-            entity.ExportHtml);
+            entity.ExportHtml) { Classification = ClassificationMetadata.Read(entity.CurrentClassification ?? (IClassifiedContentEntity)entity) };
 
     private static EvidencePackageReportDto ToDto(ReportEntity entity, EvidencePackageManifestDto manifest) =>
         new(
@@ -934,7 +943,7 @@ public sealed class EfReportRepository(
             entity.GeneratedAt,
             entity.GeneratedByUserId,
             manifest,
-            entity.ExportHtml);
+            entity.ExportHtml) { Classification = ClassificationMetadata.Read(entity.CurrentClassification ?? (IClassifiedContentEntity)entity) };
 
     private static SubcontractorComplianceReportDto ToDto(ReportEntity entity, SubcontractorComplianceSnapshotDto snapshot) =>
         new(
@@ -946,7 +955,7 @@ public sealed class EfReportRepository(
             entity.GeneratedAt,
             entity.GeneratedByUserId,
             snapshot,
-            entity.ExportHtml);
+            entity.ExportHtml) { Classification = ClassificationMetadata.Read(entity.CurrentClassification ?? (IClassifiedContentEntity)entity) };
 
     private async Task EnsureReportUsableAsync(Guid reportId, CancellationToken cancellationToken)
     {

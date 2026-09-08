@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getClassifiedNote, getClassifiedNotes, saveClassifiedNote, type ClassifiedNote } from "@/lib/api";
+import { ClassificationBadge } from "./ClassificationReviewPanel";
 
 export function ClassifiedNotesPanel({ canManage }: { canManage: boolean }) {
   const [notes, setNotes] = useState<ClassifiedNote[]>([]);
@@ -23,8 +24,9 @@ export function ClassifiedNotesPanel({ canManage }: { canManage: boolean }) {
   }
   return <section aria-label="Classified notes" className="upload-panel">
     <h3>Classified notes</h3>
-    <p>No-CUI restrictions apply to note text. Unknown notes need review before downstream use.</p>
-    <ul>{notes.map(note => <li key={note.id}><button type="button" disabled={busy} onClick={() => void open(note.id)}>{note.title}</button> <span>{note.classification.classification}</span></li>)}</ul>
+    <p>No-CUI restrictions apply to note text. Unknown notes need review before reopening. Use Classification review and history above for review or escalation.</p>
+    <ul>{notes.map(note => <li key={note.id}><button type="button" disabled={busy} onClick={() => void open(note.id)}>{note.title}</button> <ClassificationBadge classification={note.classification.classification} /></li>)}</ul>
+    {selected && <ClassificationBadge classification={selected.classification.classification} />}
     {canManage ? <form onSubmit={async event => {
       event.preventDefault(); if (busy || !classification) return; setBusy(true);
       try {

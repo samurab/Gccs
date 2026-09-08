@@ -27,6 +27,8 @@ import {
 import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DataHandlingNoticePanel } from "@/components/DataHandlingNoticePanel";
 import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
+import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
+import type { ClassifiedContent } from "@/lib/api";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
 import { controlCoverageTone } from "@/components/controlCoverage";
 import { DevelopmentTestingContextSelector } from "@/components/development/DevelopmentTestingContextSelector";
@@ -116,7 +118,6 @@ import {
   getTenantDataHandlingModeHistory,
   getTenantInvitations,
   getTenantMembers,
-  reclassifyEvidenceItem,
   markClauseCandidateNeedsClarification,
   markNotificationRead,
   runDueDateReminders,
@@ -209,7 +210,6 @@ import {
   type UpsertSubcontractorFlowDownRequest,
   type UpsertSubcontractorRequest,
   type UpdateTenantDataHandlingModeRequest,
-  type ReclassifyContentRequest,
   type TenantMember,
 } from "@/lib/api";
 
@@ -627,6 +627,7 @@ export function App() {
   const [approvedEvidencePackages, setApprovedEvidencePackages] = useState<ApprovedEvidencePackage[]>([]);
   const [generatedReports, setGeneratedReports] = useState<ReportArtifact[]>([]);
   const [workflowSelection, setWorkflowSelection] = useState({ context: "", value: "" });
+  const [classificationRefresh, setClassificationRefresh] = useState(0);
   const [recentReports, setRecentReports] = useState<ReportHistoryItem[]>([]);
   const [selectedReport, setSelectedReport] = useState<ReportArtifact | null>(null);
   const [reportDetailStatus, setReportDetailStatus] = useState<ReportDetailStatus>("idle");
@@ -748,7 +749,7 @@ export function App() {
         hint: "source-backed obligations"
       },
       {
-        label: "Evidence review",
+        label: "Evidence/doc review",
         value: classificationReviewItems.length,
         tone: classificationReviewItems.length > 0 ? ("warning" as const) : ("success" as const),
         hint: "classification queue"
@@ -1604,12 +1605,12 @@ export function App() {
     contractId: string,
     documentType: string,
     file: File | null,
-    classification = "Unclassified",
+    classification = "",
     noCuiAttestation = false
   ): Promise<boolean> {
-    if (!file) {
+    if (!file || !classification) {
       setContractDocumentStatus("failed");
-      setContractDocumentMessage("Select a contract document before upload.");
+      setContractDocumentMessage("Select a contract document and its classification before upload.");
       return false;
     }
 
@@ -1845,9 +1846,9 @@ export function App() {
       return;
     }
 
-    if (!selectedEvidenceFile) {
+    if (!selectedEvidenceFile || !classification) {
       setUploadStatus("blocked");
-      setUploadMessage("Select an allowed evidence file before upload.");
+      setUploadMessage("Select an allowed evidence file and its classification before upload.");
       return;
     }
 
@@ -1905,21 +1906,22 @@ export function App() {
     setEvidenceMetadataMessage(result.error ?? "Evidence metadata could not be saved.");
   }
 
-  async function handleEvidenceReclassify(evidenceItemId: string, request: ReclassifyContentRequest) {
-    setEvidenceMetadataStatus("saving");
-    setEvidenceMetadataMessage("");
-    const result = await reclassifyEvidenceItem(evidenceItemId, request);
-    if (result.data) {
-      const saved = result.data;
-      setEvidenceItems((currentItems) => currentItems.map((item) => (item.id === saved.id ? saved : item)));
-      setClassificationReviewItems(await getContentClassificationReviewItems());
-      setEvidenceMetadataStatus("saved");
-      setEvidenceMetadataMessage("Classification updated.");
-      return;
+  function handleClassificationChanged(item: ClassifiedContent) {
+    setClassificationRefresh(value => value + 1);
+    setWorkflowClassification("");
+    setSelectedEvidenceFile(null);
+    setSelectedReport(null); setGeneratedReports([]); setReportDetailStatus("idle");
+    setExtractionJobsByDocumentId({}); setExtractionResultsByDocumentId({});
+    if (item.entityType === "EvidenceItem")
+      setEvidenceItems(current => current.map(e => e.id === item.id ? { ...e, classification: item.classification } : e));
+    if (item.entityType === "ContractDocument")
+      setContractDocuments(current => current.map(d => d.id === item.id ? { ...d, classification: item.classification } : d));
+    if (item.entityType === "Report") {
+      setRecentReports(current => current.map(r => r.id === item.id ? { ...r, classification: item.classification } : r));
+      setApprovedEvidencePackages(current => current.map(r => r.reportId === item.id ? { ...r, classification: item.classification } : r));
     }
-
-    setEvidenceMetadataStatus("failed");
-    setEvidenceMetadataMessage(result.error ?? "Classification could not be updated.");
+    setClassificationReviewItems(current => current.flatMap(e => e.entityType !== item.entityType || e.entityId !== item.id ? [e] :
+      ["Unknown", "Cui", "Prohibited"].includes(item.classification.classification) ? [{ ...e, classification: item.classification }] : []));
   }
 
   async function handleCmmcAssessmentSave(assessmentId: string | null, request: UpsertCmmcAssessmentRequest) {
@@ -2186,19 +2188,12 @@ export function App() {
   }
 
   async function handleGeneratedReportSelect(report: ReportArtifact | ReportHistoryItem) {
-    if ("snapshot" in report || "manifest" in report) {
-      setSelectedReport(report);
-      setReportDetailStatus("ready");
-      setReportDetailMessage("");
-      return;
-    }
-
     setSelectedReport(null);
     setReportDetailStatus("loading");
     setReportDetailMessage("");
 
     try {
-      const detail = await getReportArtifact(report.id);
+      const detail = "manifest" in report ? await getEvidencePackage(report.id) : await getReportArtifact(report.id);
       setSelectedReport(detail);
       setReportDetailStatus("ready");
     } catch (error) {
@@ -2416,10 +2411,14 @@ export function App() {
               <option value="">Select / confirm classification</option>
               <option value="Unclassified">Unclassified</option><option value="Fci">FCI</option><option value="Cui">CUI (approved workflows only)</option>
             </select>
+            {workflowClassification && <ClassificationBadge classification={workflowClassification} />}
             <small>Required for reports and extraction. Extraction must match the source document. No-CUI restrictions still apply.</small>
           </label>}
+          {currentTenant && (activeRoute === "evidence" || activeRoute === "contracts" || activeRoute === "reports") &&
+            <ClassificationReviewPanel key={`${currentTenant.id}:${access.userId}:${access.permissions.join(",")}:${activeRoute}`}
+              group={activeRoute} tenantId={currentTenant.id} permissions={access.permissions} onChanged={handleClassificationChanged} />}
           {activeRoute === "evidence" && access.permissions.includes("ViewEvidence") &&
-            <ClassifiedNotesPanel key={`${currentTenant?.id}:${access.userId}`} canManage={canManageEvidence} />}
+            <ClassifiedNotesPanel key={`${currentTenant?.id}:${access.userId}:${classificationRefresh}`} canManage={canManageEvidence} />}
           {activeRoute === "dashboard" ? (
             <DashboardView overview={overview} />
           ) : activeRoute === "profile" ? (
@@ -2435,6 +2434,8 @@ export function App() {
             />
           ) : activeRoute === "contracts" ? (
             <ContractsView
+              key={`${access.tenantId}:${access.userId}:${selectedContractId}`}
+              workflowClassification={workflowClassification}
               canManageContracts={canManageContracts}
               canReviewClauses={canReviewClauses}
               clauseResults={clauseResults}
@@ -2499,6 +2500,7 @@ export function App() {
             />
           ) : activeRoute === "evidence" ? (
             <EvidenceView
+              key={`${access.tenantId}:${access.userId}:${selectedEvidenceItemId}:${classificationRefresh}`}
               acknowledgement={noCuiAcknowledgement}
               acknowledgementMessage={acknowledgementMessage}
               acknowledgementStatus={acknowledgementStatus}
@@ -2515,9 +2517,8 @@ export function App() {
               classificationReviewItems={classificationReviewItems}
               onAcknowledge={handleNoCuiAcknowledgement}
               onFileSelected={setSelectedEvidenceFile}
-              onReclassifyEvidence={handleEvidenceReclassify}
               onMetadataSave={handleEvidenceMetadataSave}
-              onSelectEvidence={setSelectedEvidenceItemId}
+              onSelectEvidence={id => { setSelectedEvidenceFile(null); setSelectedEvidenceItemId(id); }}
               onUploadIntentSubmit={handleEvidenceUploadIntentSubmit}
             />
           ) : activeRoute === "calendar" ? (
@@ -2572,6 +2573,7 @@ export function App() {
             />
           ) : activeRoute === "reports" ? (
             <ReportsView
+              classificationConfirmed={Boolean(workflowClassification)}
               approvedEvidencePackages={approvedEvidencePackages}
               assessments={cmmcAssessments}
               canArchiveReports={canArchiveReports}
@@ -4263,6 +4265,7 @@ function mergeClauseSearchResults(
 }
 
 function ContractsView({
+  workflowClassification,
   canManageContracts,
   canReviewClauses,
   clauseResults,
@@ -4308,6 +4311,7 @@ function ContractsView({
   contractClauseStatus: "idle" | "saving" | "saved" | "failed";
   contractDeliverables: ContractDeliverable[];
   contractDocuments: ContractDocument[];
+  workflowClassification: string;
   extractionJobsByDocumentId: Record<string, ExtractionJob>;
   extractionResultsByDocumentId: Record<string, ContractDocumentExtractionResults>;
   clauseCandidateReviewStatusFilter: string;
@@ -4354,7 +4358,7 @@ function ContractsView({
   const selectedContract = contracts.find((contract) => contract.id === selectedContractId) ?? null;
   const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState("Contract");
-  const [documentClassification, setDocumentClassification] = useState("Unclassified");
+  const [documentClassification, setDocumentClassification] = useState("");
   const [documentNoCuiAttestation, setDocumentNoCuiAttestation] = useState(false);
   const [documentInputKey, setDocumentInputKey] = useState(0);
   const [clauseDraft, setClauseDraft] = useState<AttachContractClauseRequest>({
@@ -4820,13 +4824,14 @@ function ContractsView({
               <span>Contract document classification</span>
               <select
                 value={documentClassification}
+                aria-label="Contract document classification"
                 onChange={(event) => setDocumentClassification(event.target.value)}
                 disabled={uploadDisabled}
               >
+                <option value="">Select classification</option>
                 <option value="Unclassified">Unclassified</option>
                 <option value="Fci">FCI</option>
                 <option value="Cui">CUI</option>
-                <option value="SyntheticCui">Synthetic CUI</option>
                 <option value="Unknown">Unknown</option>
                 <option value="Prohibited">Prohibited</option>
               </select>
@@ -4850,7 +4855,7 @@ function ContractsView({
             className="contract-document-upload"
             onSubmit={(event) => {
               event.preventDefault();
-              if (selectedContract) {
+              if (selectedContract && documentClassification) {
                 void onUploadDocument(
                     selectedContract.id,
                     documentType,
@@ -4861,6 +4866,7 @@ function ContractsView({
                   .then((uploaded) => {
                     if (uploaded) {
                       setSelectedDocumentFile(null);
+                      setDocumentClassification("");
                       setDocumentNoCuiAttestation(false);
                       setDocumentInputKey((currentKey) => currentKey + 1);
                     }
@@ -4872,7 +4878,7 @@ function ContractsView({
               key={documentInputKey}
               aria-label="Contract document"
               type="file"
-              onChange={(event) => setSelectedDocumentFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => { setSelectedDocumentFile(event.target.files?.[0] ?? null); setDocumentClassification(""); setDocumentNoCuiAttestation(false); }}
               disabled={uploadDisabled}
             />
             <label>
@@ -4885,7 +4891,7 @@ function ContractsView({
               I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or
               sensitive government-furnished information.
             </label>
-            <button type="submit" disabled={uploadDisabled || !documentNoCuiAttestation}>
+            <button type="submit" disabled={uploadDisabled || !selectedDocumentFile || !documentClassification || !documentNoCuiAttestation}>
               Upload document
             </button>
           </form>
@@ -4908,12 +4914,14 @@ function ContractsView({
                     <span>{document.type} · {document.validationStatus} · {document.malwareScanStatus}</span>
                     <ClassificationBadge classification={document.classification.classification} />
                     {extractionJobsByDocumentId[document.id] ? (
-                      <small>Extraction {extractionJobsByDocumentId[document.id].status}</small>
+                      <small>Extraction {extractionJobsByDocumentId[document.id].status}{" "}
+                        <ClassificationBadge classification={extractionJobsByDocumentId[document.id].classification?.classification ?? "Unknown"} /></small>
                     ) : null}
                     {extractionResultsByDocumentId[document.id] ? (
                       <small>
                         Results {extractionResultsByDocumentId[document.id].latestJobStatus ?? "none"} ·{" "}
                         {extractionResultsByDocumentId[document.id].candidateCount} candidates
+                        {" "}<ClassificationBadge classification={extractionResultsByDocumentId[document.id].latestJobClassification?.classification ?? "Unknown"} />
                         {extractionResultsByDocumentId[document.id].failureReason
                           ? ` · ${extractionResultsByDocumentId[document.id].failureReason}`
                           : ""}
@@ -4937,7 +4945,8 @@ function ContractsView({
                         <button
                           type="button"
                           onClick={() => selectedContract && void onStartExtraction(selectedContract.id, document.id)}
-                          disabled={!canManageContracts || contractDocumentStatus === "saving" || isRunning || !isStoredText}
+                          disabled={!canManageContracts || contractDocumentStatus === "saving" || isRunning || !isStoredText ||
+                            workflowClassification !== document.classification.classification || !workflowClassification}
                           title={
                             isStoredText
                               ? "Queue tenant-scoped clause extraction."
@@ -7210,6 +7219,7 @@ function SubcontractorDetailPanel({
 }
 
 function ReportsView({
+  classificationConfirmed,
   approvedEvidencePackages,
   assessments,
   canArchiveReports,
@@ -7244,6 +7254,7 @@ function ReportsView({
   controls: CmmcControlLibrary[];
   contracts: ContractRecord[];
   evidenceItems: EvidenceMetadata[];
+  classificationConfirmed: boolean;
   generatedReports: ReportArtifact[];
   recentReports: ReportHistoryItem[];
   message: string;
@@ -7314,7 +7325,7 @@ function ReportsView({
               <h3>Compliance status</h3>
               <p>Snapshot obligation status, overdue tasks, evidence state, high-risk items, and readiness gaps.</p>
               <div className="form-actions">
-                <button type="button" disabled={status === "loading"} onClick={() => void onComplianceReportGenerate()}>
+                <button type="button" disabled={!classificationConfirmed || status === "loading"} onClick={() => void onComplianceReportGenerate()}>
                   <ScrollText size={16} aria-hidden="true" />
                   <span>Generate status</span>
                 </button>
@@ -7336,7 +7347,7 @@ function ReportsView({
               <div className="form-actions">
                 <button
                   type="button"
-                  disabled={!assessmentId || status === "loading"}
+                  disabled={!classificationConfirmed || !assessmentId || status === "loading"}
                   onClick={() => void onCmmcReportGenerate(assessmentId)}
                 >
                   <ShieldCheck size={16} aria-hidden="true" />
@@ -7358,7 +7369,7 @@ function ReportsView({
                 </select>
               </label>
               <div className="form-actions">
-                <button type="button" disabled={status === "loading"} onClick={() => void onSubcontractorReportGenerate(contractId || undefined)}>
+                <button type="button" disabled={!classificationConfirmed || status === "loading"} onClick={() => void onSubcontractorReportGenerate(contractId || undefined)}>
                   <UsersRound size={16} aria-hidden="true" />
                   <span>Generate supplier report</span>
                 </button>
@@ -7438,7 +7449,7 @@ function ReportsView({
           </label>
         </div>
         <div className="form-actions">
-          <button type="submit" disabled={!canManageReports || status === "loading"}>
+          <button type="submit" disabled={!canManageReports || !classificationConfirmed || status === "loading"}>
             <FileDown size={16} aria-hidden="true" />
             <span>Generate package</span>
           </button>
@@ -7461,6 +7472,7 @@ function ReportsView({
                   type="button"
                 >
                   <strong>{report.title}</strong>
+                  <ClassificationBadge classification={report.classification?.classification ?? "Unknown"} />
                   <span>
                     {report.type} · {report.status} · {formatUsDateTime(report.generatedAt)}
                   </span>
@@ -7488,6 +7500,7 @@ function ReportsView({
                   type="button"
                 >
                   <strong>{report.title}</strong>
+                  <ClassificationBadge classification={report.classification?.classification ?? "Unknown"} />
                   <span>
                     {report.status} · {report.evidenceItems.length} approved items · {formatUsDateOnly(report.generatedAt)}
                   </span>
@@ -7525,6 +7538,7 @@ function reportHistoryItem(
 ): ReportHistoryItem {
   return {
     id: report.id,
+    classification: report.classification,
     tenantId: report.tenantId,
     type: report.type,
     status: report.status,
@@ -7696,6 +7710,7 @@ function ReportDetailPanel({
         <div>
           <p className="eyebrow">Report artifact</p>
           <h3>{report.title}</h3>
+          <ClassificationBadge classification={report.classification?.classification ?? "Unknown"} />
           <p>
             {formatEnumLabel(report.type)} · {formatEnumLabel(report.status)} · generated{" "}
             {formatUsDateTime(report.generatedAt)}
@@ -8090,7 +8105,6 @@ function EvidenceView({
   onAcknowledge,
   onFileSelected,
   onMetadataSave,
-  onReclassifyEvidence,
   onSelectEvidence,
   onUploadIntentSubmit,
   selectedEvidenceItemId,
@@ -8111,7 +8125,6 @@ function EvidenceView({
   onAcknowledge: () => void;
   onFileSelected: (file: File | null) => void;
   onMetadataSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
-  onReclassifyEvidence: (evidenceItemId: string, request: ReclassifyContentRequest) => Promise<void>;
   onSelectEvidence: (evidenceItemId: string | null) => void;
   onUploadIntentSubmit: (
     event: FormEvent<HTMLFormElement>,
@@ -8127,7 +8140,7 @@ function EvidenceView({
 }) {
   const uploadDisabled = !canManageEvidence || !acknowledgement.isAcknowledged;
   const selectedEvidence = evidenceItems.find((item) => item.id === selectedEvidenceItemId) ?? null;
-  const [uploadClassification, setUploadClassification] = useState("Unclassified");
+  const [uploadClassification, setUploadClassification] = useState("");
   const [uploadClassificationReason, setUploadClassificationReason] = useState("User confirmed upload classification.");
   const [noCuiAttestation, setNoCuiAttestation] = useState(false);
   const approvedEvidenceCount = evidenceItems.filter((item) => item.status === "Approved").length;
@@ -8147,7 +8160,7 @@ function EvidenceView({
           { label: "Approved", value: approvedEvidenceCount, tone: approvedEvidenceCount > 0 ? "success" : "warning" },
           { label: "Linked", value: linkedEvidenceCount, tone: linkedEvidenceCount > 0 ? "success" : "warning" },
           { label: "Expired", value: expiredEvidenceCount, tone: expiredEvidenceCount > 0 ? "danger" : "success" },
-          { label: "Review queue", value: classificationReviewItems.length, tone: classificationReviewItems.length > 0 ? "warning" : "success" }
+          { label: "Evidence/doc review", value: classificationReviewItems.length, tone: classificationReviewItems.length > 0 ? "warning" : "success" }
         ]}
       />
 
@@ -8159,38 +8172,11 @@ function EvidenceView({
         message={evidenceMetadataMessage}
         obligationItems={obligationItems}
         onSave={onMetadataSave}
-        onReclassifyEvidence={onReclassifyEvidence}
         onSelectEvidence={onSelectEvidence}
         selectedEvidence={selectedEvidence}
         status={evidenceMetadataStatus}
       />
 
-      <section className="evidence-metadata" aria-label="Classification review queue">
-        <div className="section-heading--split">
-          <div>
-            <h3>Classification review</h3>
-            <p>Unknown items are blocked from reports and extraction until reviewed; prohibited items route to escalation.</p>
-          </div>
-          <strong>{classificationReviewItems.length}</strong>
-        </div>
-        <div className="evidence-list">
-          {classificationReviewItems.length > 0 ? (
-            classificationReviewItems.map((item) => (
-              <TaskCard
-                badges={<ClassificationBadge classification={item.classification.classification} />}
-                key={`${item.entityType}-${item.entityId}`}
-                meta={[
-                  { label: "Entity", value: item.entityType },
-                  { label: "Route", value: item.reviewRoute }
-                ]}
-                title={item.title}
-              />
-            ))
-          ) : (
-            <EmptyState title="No classification reviews" body="Unknown and prohibited content will appear here for reviewer action." />
-          )}
-        </div>
-      </section>
 
       <NoCuiAcknowledgementPanel
         acknowledgement={acknowledgement}
@@ -8225,23 +8211,25 @@ function EvidenceView({
             type="file"
             disabled={uploadDisabled}
             accept=".csv,.docx,.jpg,.jpeg,.pdf,.png,.txt,.xlsx"
-            onChange={(event) => onFileSelected(event.target.files?.[0] ?? null)}
+            onChange={(event) => { onFileSelected(event.target.files?.[0] ?? null); setUploadClassification(""); setNoCuiAttestation(false); }}
           />
         </label>
         <label>
           <span>Upload classification</span>
           <select
             value={uploadClassification}
+            aria-label="Upload classification"
+            required
             onChange={(event) => {
               setUploadClassification(event.target.value);
               setUploadClassificationReason(`User selected ${event.target.value} upload classification.`);
             }}
             disabled={uploadDisabled}
           >
+            <option value="">Select classification</option>
             <option value="Unclassified">Unclassified</option>
             <option value="Fci">FCI</option>
             <option value="Cui">CUI</option>
-            <option value="SyntheticCui">Synthetic CUI</option>
             <option value="Unknown">Unknown</option>
             <option value="Prohibited">Prohibited</option>
           </select>
@@ -8272,7 +8260,7 @@ function EvidenceView({
         </label>
         <button
           type="submit"
-          disabled={uploadDisabled || !selectedEvidenceItemId || !selectedFile || !noCuiAttestation || uploadStatus === "creating"}
+          disabled={uploadDisabled || !selectedEvidenceItemId || !selectedFile || !uploadClassification || !noCuiAttestation || uploadStatus === "creating"}
         >
           <UploadCloud size={16} aria-hidden="true" />
           <span>{uploadStatus === "creating" ? "Uploading evidence" : "Upload evidence"}</span>
@@ -8454,7 +8442,7 @@ const defaultEvidenceMetadataForm: EvidenceMetadataFormState = {
   tags: "",
   obligationIds: "",
   controlIds: "",
-  classification: "Unclassified",
+  classification: "",
   classificationReason: "User confirmed evidence classification.",
   description: ""
 };
@@ -8466,7 +8454,6 @@ function EvidenceMetadataPanel({
   message,
   obligationItems,
   onSave,
-  onReclassifyEvidence,
   onSelectEvidence,
   selectedEvidence,
   status
@@ -8477,7 +8464,6 @@ function EvidenceMetadataPanel({
   message: string;
   obligationItems: ContractObligationDashboardItem[];
   onSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
-  onReclassifyEvidence: (evidenceItemId: string, request: ReclassifyContentRequest) => Promise<void>;
   onSelectEvidence: (evidenceItemId: string | null) => void;
   selectedEvidence: EvidenceMetadata | null;
   status: "idle" | "saving" | "saved" | "failed";
@@ -8493,29 +8479,11 @@ function EvidenceMetadataPanel({
   }
 
   function save() {
-    if (evidenceDateError) {
+    if (evidenceDateError || !form.classification) {
       return;
     }
 
     void onSave(selectedEvidence?.id ?? null, evidenceMetadataFormToRequest(form, selectedEvidence));
-  }
-
-  function reclassify() {
-    if (!selectedEvidence) {
-      return;
-    }
-
-    void onReclassifyEvidence(selectedEvidence.id, {
-      classification: {
-        classification: form.classification,
-        source: "AdminReviewed",
-        confidence: null,
-        reviewedByUserId: null,
-        reviewedAt: null,
-        reason: form.classificationReason,
-        isApprovedDemoContent: false
-      }
-    });
   }
 
   return (
@@ -8702,18 +8670,19 @@ function EvidenceMetadataPanel({
               </label>
               <label>
                 <span>Classification</span>
-                <select value={form.classification} onChange={(event) => updateField("classification", event.target.value)}>
+                <select aria-label="Classification" required disabled={Boolean(selectedEvidence)} value={form.classification} onChange={(event) => updateField("classification", event.target.value)}>
+                  <option value="">Select classification</option>
+                  {selectedEvidence && form.classification === "SyntheticCui" && <option value="SyntheticCui">Synthetic demo data (imported)</option>}
                   <option value="Unclassified">Unclassified</option>
                   <option value="Fci">FCI</option>
                   <option value="Cui">CUI</option>
-                  <option value="SyntheticCui">Synthetic CUI</option>
                   <option value="Unknown">Unknown</option>
                   <option value="Prohibited">Prohibited</option>
                 </select>
               </label>
               <label>
                 <span>Classification reason</span>
-                <input value={form.classificationReason} onChange={(event) => updateField("classificationReason", event.target.value)} />
+                <input disabled={Boolean(selectedEvidence)} value={form.classificationReason} onChange={(event) => updateField("classificationReason", event.target.value)} />
               </label>
               <label className="span-2">
                 <span>Description</span>
@@ -8722,12 +8691,10 @@ function EvidenceMetadataPanel({
             </div>
           </fieldset>
           <div className="form-actions">
-            <button type="submit" disabled={!canManageEvidence || status === "saving" || Boolean(evidenceDateError)}>
+            <button type="submit" disabled={!canManageEvidence || !form.classification || status === "saving" || Boolean(evidenceDateError)}>
               {selectedEvidence ? "Update metadata" : "Create metadata"}
             </button>
-            <button type="button" onClick={reclassify} disabled={!selectedEvidence || !canManageEvidence || status === "saving"}>
-              Review classification
-            </button>
+            {selectedEvidence && <p>Use Classification review and history above to review this item's classification.</p>}
           </div>
           {status === "failed" ? (
             <Alert title="Evidence metadata action failed" tone="danger">
@@ -9790,13 +9757,5 @@ function EmptyState({ body, title }: { body: string; title: string }) {
       <h3>{title}</h3>
       <p>{body}</p>
     </div>
-  );
-}
-
-function ClassificationBadge({ classification }: { classification: string }) {
-  return (
-    <span className={`status status--${classification.toLowerCase()}`}>
-      {classification === "SyntheticCui" ? "Synthetic demo data" : classification}
-    </span>
   );
 }

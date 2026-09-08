@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Gccs.Application.Common;
+using Gccs.Infrastructure.Common;
 using Gccs.Application.Contracts;
 using Gccs.Application.NoCui;
 using Gccs.Application.Security;
@@ -517,7 +518,7 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             latestJob?.Status,
             latestJob?.FailureReason,
             candidates.Length,
-            candidates);
+            candidates) { LatestJobClassification = latestJob is null ? null : ClassificationMetadata.Read(latestJob) };
     }
 
     public async Task<ClauseCandidateDto?> EditClauseCandidateAsync(

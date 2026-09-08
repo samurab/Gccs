@@ -93,6 +93,8 @@ test("UAT-04 Start extraction processes uploaded text and displays clause candid
       "I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information."
     )
     .check();
+  await expect(page.getByRole("button", { name: "Upload document" })).toBeDisabled();
+  await page.getByLabel("Contract document classification").selectOption("Unclassified");
   await page.getByRole("button", { name: "Upload document" }).click();
 
   const documentCard = page.locator(".contract-document-item").filter({ hasText: fileName });
