@@ -3607,7 +3607,8 @@ main {
 /* New workflow panels share the existing centered page-header/route content rail. */
 .workspace-main > .classification-review-panel,
 .workspace-main > .classified-notes,
-.workspace-main > .workflow-classification {
+.workspace-main > .workflow-classification,
+.workspace-main > .workflow-notice-grid {
   max-width: 1180px;
   margin-inline: auto;
 }
