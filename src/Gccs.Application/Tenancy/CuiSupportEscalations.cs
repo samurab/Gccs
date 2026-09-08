@@ -260,8 +260,11 @@ public sealed record CuiSupportEscalationResolutionDto(
 
 public enum CuiSupportEscalationCategory
 {
+    AccidentalCuiUpload,
     SuspectedCui,
     ProhibitedData,
+    Misclassification,
+    CustomerQuestion,
     ClassificationQuestion
 }
 

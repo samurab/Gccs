@@ -47,6 +47,7 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         };
 
         dbContext.CuiSupportEscalations.Add(entity);
+        await SetContentBlockedAsync(tenantId, entity.AffectedEntityType, affectedId, true, createdAt, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity);
     }
@@ -69,6 +70,8 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         entity.Severity = request.Severity;
         entity.Status = request.Status;
         entity.IsAffectedContentBlocked = IsBlocked(entity.Category, entity.Status);
+        if (Guid.TryParse(entity.AffectedEntityId, out var affectedId))
+            await SetContentBlockedAsync(tenantId, entity.AffectedEntityType, affectedId, entity.IsAffectedContentBlocked, updatedAt, cancellationToken, entity.Id);
         entity.UpdatedAt = updatedAt;
         entity.UpdatedByUserId = actorUserId;
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -94,6 +97,8 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         entity.StatusChangedAt = changedAt;
         entity.StatusChangedByUserId = actorUserId;
         entity.IsAffectedContentBlocked = IsBlocked(entity.Category, entity.Status);
+        if (Guid.TryParse(entity.AffectedEntityId, out var affectedId))
+            await SetContentBlockedAsync(tenantId, entity.AffectedEntityType, affectedId, entity.IsAffectedContentBlocked, changedAt, cancellationToken, entity.Id);
         entity.UpdatedAt = changedAt;
         entity.UpdatedByUserId = actorUserId;
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -126,6 +131,8 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         entity.StatusChangedAt = resolvedAt;
         entity.StatusChangedByUserId = actorUserId;
         entity.IsAffectedContentBlocked = false;
+        if (Guid.TryParse(entity.AffectedEntityId, out var affectedId))
+            await SetContentBlockedAsync(tenantId, entity.AffectedEntityType, affectedId, false, resolvedAt, cancellationToken, entity.Id);
         entity.UpdatedAt = resolvedAt;
         entity.UpdatedByUserId = actorUserId;
         dbContext.CuiSupportEscalationResolutions.Add(new CuiSupportEscalationResolutionEntity
@@ -152,6 +159,37 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         "Report" => dbContext.Set<ReportEntity>().AnyAsync(e => e.Id == id && e.TenantId == tenantId, ct),
         _ => Task.FromResult(false)
     };
+
+    private async Task SetContentBlockedAsync(
+        Guid tenantId,
+        string type,
+        Guid id,
+        bool blocked,
+        DateTimeOffset changedAt,
+        CancellationToken ct,
+        Guid? currentEscalationId = null)
+    {
+        if (!blocked && await dbContext.CuiSupportEscalations.AnyAsync(e =>
+                e.TenantId == tenantId && e.Id != currentEscalationId &&
+                e.AffectedEntityType == type && e.AffectedEntityId == id.ToString() &&
+                e.IsAffectedContentBlocked, ct))
+            blocked = true;
+
+        IContainableContentEntity? content = type switch
+        {
+            "EvidenceItem" => await dbContext.EvidenceItems.SingleOrDefaultAsync(e => e.TenantId == tenantId && e.Id == id, ct),
+            "EvidenceFileVersion" => await dbContext.EvidenceFileVersions.SingleOrDefaultAsync(e => e.Id == id && e.EvidenceItem!.TenantId == tenantId, ct),
+            "ClassifiedNote" => await dbContext.Set<ClassifiedNoteEntity>().SingleOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId, ct),
+            "ExtractionJob" => await dbContext.Set<ExtractionJobEntity>().SingleOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId, ct),
+            "ContractDocument" => await dbContext.Set<ContractDocumentEntity>().SingleOrDefaultAsync(e => e.Id == id && e.Contract!.TenantId == tenantId, ct),
+            "Report" => await dbContext.Reports.SingleOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId, ct),
+            _ => null
+        };
+        if (content is null)
+            throw new CuiSupportEscalationValidationException("The affected content reference is unavailable in this tenant.");
+        content.IsUseBlocked = blocked;
+        content.UseBlockedAt = blocked ? content.UseBlockedAt ?? changedAt : null;
+    }
 
     private async Task<bool> CanReleaseAsync(CuiSupportEscalationEntity escalation, CuiSupportEscalationResolutionType resolution, CancellationToken ct)
     {

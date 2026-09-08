@@ -42,7 +42,8 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
   const definition = contentTypes.find(t => t.route === route)!;
   const canRead = available.some(t => t.route === route);
   const canReview = canRead && permissions.includes(definition.review);
-  const canEscalate = canRead && permissions.includes("ManageTenant");
+  const canEscalate = canRead;
+  const canManageEscalations = canRead && permissions.includes("ManageTenant");
   const [reviewOnly, setReviewOnly] = useState(true);
   const [offset, setOffset] = useState(0);
   const [items, setItems] = useState<ClassifiedContent[]>([]);
@@ -53,6 +54,8 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
   const [classification, setClassification] = useState("");
   const [reason, setReason] = useState("");
   const [supportReason, setSupportReason] = useState("");
+  const [supportCategory, setSupportCategory] = useState("SuspectedCui");
+  const [supportSeverity, setSupportSeverity] = useState("Medium");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState("");
@@ -81,12 +84,13 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
     try {
       const [item, entries, support] = await Promise.all([
         getClassifiedContentDetail(route, id), getClassificationHistory(route, id),
-        canEscalate ? getCuiSupportEscalations(tenantId) : Promise.resolve([])
+        canManageEscalations ? getCuiSupportEscalations(tenantId) : Promise.resolve([])
       ]);
       if (attempt !== request.current) return;
       setSelected(item); setHistory(entries); setMoreHistory(entries.length === 100);
       setEscalations(support.filter(e => e.affectedEntityType === item.entityType && e.affectedEntityId === item.id && e.status !== "Resolved"));
       setClassification(item.classification.classification); setReason(""); setSupportReason("");
+      setSupportCategory(item.classification.classification === "Prohibited" ? "ProhibitedData" : "SuspectedCui");
     } catch (error) {
       if (attempt === request.current) setMessage(error instanceof Error ? error.message : "The current item could not be loaded.");
     } finally { if (attempt === request.current) setBusy(false); }
@@ -108,14 +112,14 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
     } finally { if (attempt === request.current) setBusy(false); }
   }
   async function supportAction(escalationId?: string) {
-    if (!selected || !canEscalate || busy || mustReload || !supportReason.trim()) return;
+    if (!selected || !canEscalate || (escalationId && !canManageEscalations) || busy || mustReload || !supportReason.trim()) return;
     const attempt = request.current; setBusy(true);
     try {
       const result = escalationId
         ? await resolveCuiSupportEscalation(tenantId, escalationId, { resolutionType: "FalsePositive", summary: supportReason.trim() })
         : await createCuiSupportEscalation(tenantId, { sourceWorkflow: "ClassificationReview", affectedEntityType: selected.entityType,
-            affectedEntityId: selected.id, category: selected.classification.classification === "Prohibited" ? "ProhibitedData" : "SuspectedCui",
-            severity: "High", description: supportReason.trim() });
+            affectedEntityId: selected.id, category: supportCategory,
+            severity: supportSeverity, description: supportReason.trim() });
       if (attempt !== request.current) return;
       if (result.data) {
         setEscalations(current => escalationId ? current.filter(e => e.id !== escalationId) : [...current, result.data!]);
@@ -164,18 +168,27 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
           <p>Use metadata-only reasons. Do not paste file or note contents. Synthetic demo provenance cannot be assigned here.</p>
           <button className="classification-primary" type="submit" disabled={busy || mustReload || !reason.trim() || classification === "SyntheticCui"}>Save classification review</button>
         </form> : <p>Your role can inspect classification and history but cannot reclassify this content.</p>}
-        {(escalations.length > 0 || ["Prohibited", "Cui"].includes(selected.classification.classification)) && <section aria-label="Data handling escalation">
+        <section aria-label="Data handling escalation">
           <h4>Data handling escalation</h4>
           {canEscalate ? <>
-            <label>Escalation or resolution reason<textarea maxLength={1000} value={supportReason} disabled={busy || mustReload} onChange={e => setSupportReason(e.target.value)} /></label>
-            {escalations.length ? escalations.map(e => <div key={e.id}>
+            {!escalations.length && <div className="classification-filters">
+              <label>Concern category<select aria-label="Concern category" value={supportCategory} disabled={busy || mustReload} onChange={e => setSupportCategory(e.target.value)}>
+                <option value="AccidentalCuiUpload">Accidental CUI upload</option><option value="SuspectedCui">Suspected CUI</option>
+                <option value="ProhibitedData">Prohibited data</option><option value="Misclassification">Misclassification</option><option value="CustomerQuestion">Customer question</option>
+              </select></label>
+              <label>Severity<select aria-label="Escalation severity" value={supportSeverity} disabled={busy || mustReload} onChange={e => setSupportSeverity(e.target.value)}>
+                <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option><option value="Critical">Critical</option>
+              </select></label>
+            </div>}
+            <label>Escalation or resolution reason<textarea aria-label="Escalation or resolution reason" maxLength={1000} value={supportReason} disabled={busy || mustReload} onChange={e => setSupportReason(e.target.value)} /></label>
+            {canManageEscalations && escalations.length ? escalations.map(e => <div key={e.id}>
               <p>Escalation {e.id} · {e.status}</p>
               <button type="button" disabled={busy || mustReload || !supportReason.trim() || !["Unclassified", "Fci"].includes(selected.classification.classification)}
                 onClick={() => void supportAction(e.id)}>Resolve reviewed false positive</button>
-            </div>) : <button type="button" disabled={busy || mustReload || !supportReason.trim()} onClick={() => void supportAction()}>Escalate restricted content</button>}
+            </div>) : <button type="button" disabled={busy || mustReload || !supportReason.trim()} onClick={() => void supportAction()}>Report data-handling concern</button>}
             <p>Release requires a safe review after escalation. A classification change alone does not release contained content.</p>
-          </> : <p>Ask a tenant Owner to open a data-handling escalation for the item reference above.</p>}
-        </section>}
+          </> : null}
+        </section>
         <section aria-label="Classification history" className="classification-history"><h4>Classification history</h4>
           {history.length ? <ol>{history.map(entry => <li key={entry.id}>
             <p>Revision {entry.revision ?? "legacy"}: {entry.previousClassification ?? "Not recorded"} → {entry.newClassification}</p>

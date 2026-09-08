@@ -1,7 +1,7 @@
 using Gccs.Domain.Common;
 namespace Gccs.Infrastructure.Persistence.Models;
 
-public sealed class ClassifiedNoteEntity : IClassifiedContentEntity
+public sealed class ClassifiedNoteEntity : IClassifiedContentEntity, IContainableContentEntity
 {
     public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
@@ -18,4 +18,6 @@ public sealed class ClassifiedNoteEntity : IClassifiedContentEntity
     public DateTimeOffset? ClassificationReviewedAt { get; set; }
     public string? ClassificationReason { get; set; }
     public bool ClassificationIsApprovedDemoContent { get; set; }
+    public bool IsUseBlocked { get; set; }
+    public DateTimeOffset? UseBlockedAt { get; set; }
 }

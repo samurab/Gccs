@@ -66,6 +66,10 @@ public sealed class CuiSupportEscalationTests
         Assert.True(escalation.IsAffectedContentBlocked);
         Assert.Equal("EvidenceItem", escalation.AffectedEntityType);
         Assert.Equal(EvidenceId.ToString(), escalation.AffectedEntityId);
+        var affected = await dbContext.EvidenceItems.SingleAsync(e => e.Id == EvidenceId);
+        Assert.True(affected.IsUseBlocked);
+        Assert.NotNull(affected.UseBlockedAt);
+        Assert.True(await new EfContentContainmentRepository(dbContext).IsBlockedAsync(TenantId, "EvidenceItem", EvidenceId.ToString()));
     }
 
     [Fact]

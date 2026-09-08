@@ -769,7 +769,7 @@ public sealed class SolicitationEntity : AuditedEntity
     public string SetAside { get; set; } = string.Empty;
 }
 
-public sealed class ContractDocumentEntity : IClassifiedContentEntity
+public sealed class ContractDocumentEntity : IClassifiedContentEntity, IContainableContentEntity
 {
     public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
@@ -793,12 +793,14 @@ public sealed class ContractDocumentEntity : IClassifiedContentEntity
     public DateTimeOffset? ClassificationReviewedAt { get; set; }
     public string? ClassificationReason { get; set; }
     public bool ClassificationIsApprovedDemoContent { get; set; }
+    public bool IsUseBlocked { get; set; }
+    public DateTimeOffset? UseBlockedAt { get; set; }
 
     public ContractEntity? Contract { get; set; }
     public ICollection<ExtractionJobEntity> ExtractionJobs { get; set; } = [];
 }
 
-public sealed class ExtractionJobEntity : IClassifiedContentEntity
+public sealed class ExtractionJobEntity : IClassifiedContentEntity, IContainableContentEntity
 {
     public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
@@ -821,6 +823,8 @@ public sealed class ExtractionJobEntity : IClassifiedContentEntity
     public DateTimeOffset? ClassificationReviewedAt { get; set; }
     public string? ClassificationReason { get; set; }
     public bool ClassificationIsApprovedDemoContent { get; set; }
+    public bool IsUseBlocked { get; set; }
+    public DateTimeOffset? UseBlockedAt { get; set; }
 
     public TenantEntity? Tenant { get; set; }
     public ContractDocumentEntity? SourceDocument { get; set; }

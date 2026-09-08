@@ -9,7 +9,7 @@ using Gccs.Domain.Vendors;
 
 namespace Gccs.Infrastructure.Persistence.Models;
 
-public sealed class EvidenceItemEntity : AuditedEntity, IClassifiedContentEntity
+public sealed class EvidenceItemEntity : AuditedEntity, IClassifiedContentEntity, IContainableContentEntity
 {
     public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
@@ -38,6 +38,8 @@ public sealed class EvidenceItemEntity : AuditedEntity, IClassifiedContentEntity
     public DateTimeOffset? ClassificationReviewedAt { get; set; }
     public string? ClassificationReason { get; set; }
     public bool ClassificationIsApprovedDemoContent { get; set; }
+    public bool IsUseBlocked { get; set; }
+    public DateTimeOffset? UseBlockedAt { get; set; }
 
     public ICollection<EvidenceObligationEntity> Obligations { get; set; } = [];
     public ICollection<EvidenceContractEntity> Contracts { get; set; } = [];
@@ -67,7 +69,7 @@ public sealed class EvidenceRequestEntity : AuditedEntity
     public DateTimeOffset? ReviewedAt { get; set; }
 }
 
-public sealed class EvidenceFileVersionEntity : IClassifiedContentEntity
+public sealed class EvidenceFileVersionEntity : IClassifiedContentEntity, IContainableContentEntity
 {
     public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
@@ -91,6 +93,8 @@ public sealed class EvidenceFileVersionEntity : IClassifiedContentEntity
     public DateTimeOffset? ClassificationReviewedAt { get; set; }
     public string? ClassificationReason { get; set; }
     public bool ClassificationIsApprovedDemoContent { get; set; }
+    public bool IsUseBlocked { get; set; }
+    public DateTimeOffset? UseBlockedAt { get; set; }
 
     public EvidenceItemEntity? EvidenceItem { get; set; }
 }
@@ -616,7 +620,7 @@ public sealed class PayrollRecordEntity : AuditedEntity
     public Guid? EvidenceItemId { get; set; }
 }
 
-public sealed class ReportEntity : AuditedEntity, IClassifiedContentEntity
+public sealed class ReportEntity : AuditedEntity, IClassifiedContentEntity, IContainableContentEntity
 {
     public ReportClassificationEntity? CurrentClassification { get; set; }
     public long ClassificationRevision { get; set; }
@@ -641,6 +645,8 @@ public sealed class ReportEntity : AuditedEntity, IClassifiedContentEntity
     public DateTimeOffset? ClassificationReviewedAt { get; set; }
     public string? ClassificationReason { get; set; }
     public bool ClassificationIsApprovedDemoContent { get; set; }
+    public bool IsUseBlocked { get; set; }
+    public DateTimeOffset? UseBlockedAt { get; set; }
 
     public ICollection<ReportContractEntity> Contracts { get; set; } = [];
     public ICollection<ReportObligationEntity> Obligations { get; set; } = [];

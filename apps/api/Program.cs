@@ -6995,6 +6995,7 @@ api.MapPost("/tenants/{tenantId:guid}/cui-support-escalations", async (
 {
     try
     {
+        if (tenantId != tenantContext.TenantId) return Results.NotFound();
         var escalation = await service.CreateAsync(tenantId, request, tenantContext.UserId, cancellationToken);
         return Results.Created($"/api/tenants/{tenantId}/cui-support-escalations/{escalation.Id}", escalation);
     }
@@ -7006,7 +7007,7 @@ api.MapPost("/tenants/{tenantId:guid}/cui-support-escalations", async (
         });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequireAuthorization()
 .WithName("CreateCuiSupportEscalation");
 
 api.MapPatch("/tenants/{tenantId:guid}/cui-support-escalations/{escalationId:guid}", async (

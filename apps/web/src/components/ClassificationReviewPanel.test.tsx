@@ -74,15 +74,15 @@ it("allows inspection without exposing reviewer or admin actions to a read-only 
   await expand();
   expect(screen.queryByRole("button", { name: "Save classification review" })).not.toBeInTheDocument();
   expect(getCuiSupportEscalations).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Report data-handling concern" })).toBeVisible();
   expect(within(screen.getByRole("article")).getByText("Unknown")).toBeVisible();
 });
-it("keeps escalation management separate from classification review permission", async () => {
+it("allows reporting while keeping restricted escalation management separate", async () => {
   vi.mocked(getClassifiedContentDetail).mockResolvedValue({ ...item, classification: { ...item.classification, classification: "Prohibited" } });
   render(<ClassificationReviewPanel group="evidence" tenantId="tenant-1" permissions={["ViewEvidence", "ApproveEvidence"]} onChanged={vi.fn()} />);
   await expand();
   expect(screen.getByRole("button", { name: "Save classification review" })).toBeVisible();
-  expect(screen.queryByRole("button", { name: "Escalate restricted content" })).not.toBeInTheDocument();
-  expect(screen.getByText(/Ask a tenant Owner to open/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Report data-handling concern" })).toBeVisible();
   expect(getCuiSupportEscalations).not.toHaveBeenCalled();
 });
 it("displays imported synthetic provenance without allowing reviewers to assign it", async () => {
@@ -140,14 +140,14 @@ it("routes prohibited content to an admin escalation without submitting content 
   render(<ClassificationReviewPanel group="evidence" tenantId="tenant-1" permissions={["ViewEvidence", "ManageTenant"]} onChanged={vi.fn()} />);
   const user = await expand();
   await user.type(screen.getByLabelText("Escalation or resolution reason"), "Synthetic metadata concern");
-  await user.click(screen.getByRole("button", { name: "Escalate restricted content" }));
+  await user.click(screen.getByRole("button", { name: "Report data-handling concern" }));
   expect(createCuiSupportEscalation).toHaveBeenCalledWith("tenant-1", {
     sourceWorkflow: "ClassificationReview", affectedEntityType: "EvidenceItem", affectedEntityId: "item-1",
-    category: "ProhibitedData", severity: "High", description: "Synthetic metadata concern"
+    category: "ProhibitedData", severity: "Medium", description: "Synthetic metadata concern"
   });
   expect(await screen.findByText(/Escalation escalation-1/)).toBeVisible();
   expect(screen.getByRole("button", { name: "Resolve reviewed false positive" })).toBeDisabled();
-  expect(screen.queryByRole("button", { name: "Escalate restricted content" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Report data-handling concern" })).not.toBeInTheDocument();
 });
 it("resolves a reviewed false positive separately from reclassification", async () => {
   vi.mocked(getClassifiedContentDetail).mockResolvedValue(reviewed);

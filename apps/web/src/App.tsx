@@ -29,6 +29,7 @@ import { DataHandlingNoticePanel } from "@/components/DataHandlingNoticePanel";
 import { ReadinessEvidencePanel, ReadinessItemEditor } from "@/components/ReadinessEvidencePanel";
 import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
 import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
+import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
 import type { ClassifiedContent } from "@/lib/api";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
 import { controlCoverageTone } from "@/components/controlCoverage";
@@ -2438,8 +2439,11 @@ export function App() {
             <small>Required for reports and extraction. Extraction must match the source document. No-CUI restrictions still apply.</small>
           </label>}
           {currentTenant && (activeRoute === "evidence" || activeRoute === "contracts" || activeRoute === "reports") &&
-            <ClassificationReviewPanel key={`${currentTenant.id}:${access.userId}:${access.permissions.join(",")}:${activeRoute}`}
-              group={activeRoute} tenantId={currentTenant.id} permissions={access.permissions} onChanged={handleClassificationChanged} />}
+            <>
+              <ClassificationReviewPanel key={`${currentTenant.id}:${access.userId}:${access.permissions.join(",")}:${activeRoute}`}
+                group={activeRoute} tenantId={currentTenant.id} permissions={access.permissions} onChanged={handleClassificationChanged} />
+              <CuiEscalationQueue tenantId={currentTenant.id} permissions={access.permissions} />
+            </>}
           {activeRoute === "dashboard" ? (
             <DashboardView overview={overview} />
           ) : activeRoute === "profile" ? (

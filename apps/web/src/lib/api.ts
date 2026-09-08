@@ -599,7 +599,7 @@ export type CuiSupportEscalation = {
   sourceWorkflow: string;
   affectedEntityType: string;
   affectedEntityId: string;
-  category: "SuspectedCui" | "ProhibitedData" | "ClassificationQuestion" | string;
+  category: "AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
   severity: "Low" | "Medium" | "High" | "Critical" | string;
   status: "Submitted" | "Triage" | "Contained" | "Resolved" | string;
   owner: string | null;
@@ -628,7 +628,7 @@ export type CreateCuiSupportEscalationRequest = {
   sourceWorkflow: string;
   affectedEntityType: string;
   affectedEntityId: string;
-  category: "SuspectedCui" | "ProhibitedData" | "ClassificationQuestion" | string;
+  category: "AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
   severity: "Low" | "Medium" | "High" | "Critical" | string;
   description: string;
 };

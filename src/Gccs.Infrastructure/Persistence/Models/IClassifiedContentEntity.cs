@@ -15,6 +15,12 @@ public interface IClassifiedContentEntity
     bool ClassificationIsApprovedDemoContent { get; set; }
 }
 
+public interface IContainableContentEntity
+{
+    bool IsUseBlocked { get; set; }
+    DateTimeOffset? UseBlockedAt { get; set; }
+}
+
 // Current handling metadata is separate from the report's immutable generation snapshot.
 public sealed class ReportClassificationEntity : IClassifiedContentEntity
 {
