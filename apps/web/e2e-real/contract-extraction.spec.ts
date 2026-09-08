@@ -41,7 +41,8 @@ test("UAT-04 Start extraction processes uploaded text and displays clause candid
     }
   });
   expect(acknowledgementResponse.status()).toBe(200);
-  await acknowledgeCurrentNotice(request, apiURL, headers(), "ContractIntake");
+  await acknowledgeCurrentNotice(request, apiURL, headers(), "ContractUpload");
+  await acknowledgeCurrentNotice(request, apiURL, headers(), "ExtractionJob");
 
   const contractNumber = `E2E-UAT04-${Date.now()}`;
   const contractResponse = await request.post(`${apiURL}/api/contracts`, {

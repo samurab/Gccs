@@ -10,7 +10,8 @@ const headers = {
 };
 
 test("classification review persists note history and keeps escalation release separate", async ({ page, request }) => {
-  await acknowledgeCurrentNotice(request, apiURL, headers, "Onboarding");
+  await acknowledgeCurrentNotice(request, apiURL, headers, "ClassifiedNote");
+  await acknowledgeCurrentNotice(request, apiURL, headers, "Support");
   await page.addInitScript(({ tenantId, owner }) => {
     localStorage.setItem("gccs.selectedTenantId", tenantId);
     localStorage.setItem("gccs.developmentRole", owner.role);
