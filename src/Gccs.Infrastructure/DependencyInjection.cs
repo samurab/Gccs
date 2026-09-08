@@ -99,6 +99,8 @@ public static class DependencyInjection
             new EfContentContainmentRepository(provider.GetRequiredService<GccsDbContext>()));
         services.AddScoped<ContentClassificationPolicy>();
         services.AddScoped<ClassifiedNoteService>();
+        services.AddScoped<ClassifiedContentService>();
+        services.AddScoped<IClassifiedContentRepository>(provider => new EfClassifiedContentRepository(provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddScoped<ISyntheticContentApprovalRepository, UnavailableSyntheticContentApprovalRepository>();
         services.AddScoped<IClassifiedNoteRepository>(_ => throw new InvalidOperationException("Classified notes require configured persistence."));
         services.AddScoped<IObjectCleanupQueue>(provider => new EfObjectCleanupQueue(

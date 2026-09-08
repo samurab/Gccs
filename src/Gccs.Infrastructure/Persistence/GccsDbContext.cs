@@ -207,6 +207,19 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("gccs");
+        foreach (var type in new[] { typeof(EvidenceItemEntity), typeof(EvidenceFileVersionEntity), typeof(ContractDocumentEntity),
+            typeof(ExtractionJobEntity), typeof(ClassifiedNoteEntity), typeof(ReportEntity), typeof(ReportClassificationEntity) })
+            modelBuilder.Entity(type).Property<long>("ClassificationRevision").IsConcurrencyToken();
+        modelBuilder.Entity<ReportClassificationEntity>(entity =>
+        {
+            entity.ToTable("report_classifications");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.ClassificationReason).HasMaxLength(600);
+            entity.HasOne<ReportEntity>().WithOne(e => e.CurrentClassification).HasForeignKey<ReportClassificationEntity>(e => e.Id)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ContentClassificationHistoryEntity>().Property(e => e.PreviousMetadataJson).HasColumnType("jsonb");
         modelBuilder.Entity<ClassifiedNoteEntity>(entity =>
         {
             entity.ToTable("classified_notes");
@@ -1831,6 +1844,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 
     private void EnforceAuditLogAppendOnly()
     {
+        if (ChangeTracker.Entries<ContentClassificationHistoryEntity>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Classification history is append-only and cannot be updated or deleted.");
         var invalidAuditLogMutations = ChangeTracker
             .Entries<AuditLogEntryEntity>()
             .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)

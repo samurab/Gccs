@@ -33,4 +33,6 @@ public sealed record ContentClassificationHistoryDto(
     DateTimeOffset? ReviewedAt,
     string? Reason,
     Guid ChangedByUserId,
-    DateTimeOffset ChangedAt);
+    DateTimeOffset ChangedAt,
+    long? Revision = null,
+    ContentClassificationDto? PreviousMetadata = null);

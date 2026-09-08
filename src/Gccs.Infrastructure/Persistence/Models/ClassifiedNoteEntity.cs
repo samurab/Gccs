@@ -1,8 +1,9 @@
 using Gccs.Domain.Common;
 namespace Gccs.Infrastructure.Persistence.Models;
 
-public sealed class ClassifiedNoteEntity
+public sealed class ClassifiedNoteEntity : IClassifiedContentEntity
 {
+    public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
     public string Title { get; set; } = "";

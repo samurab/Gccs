@@ -11,6 +11,7 @@ using Gccs.Domain.Evidence;
 using Gccs.Domain.Reports;
 using Gccs.Domain.Vendors;
 using Gccs.Infrastructure.Persistence;
+using Gccs.Infrastructure.Common;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,7 +47,14 @@ public sealed class EfReportRepository(
                 report.GeneratedByUserId,
                 report.ArchivedAt,
                 report.ArchivedByUserId,
-                report.ArchiveReason))
+                report.ArchiveReason) { Classification = new ContentClassificationDto(
+                    report.CurrentClassification != null ? report.CurrentClassification.Classification : report.Classification,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationSource : report.ClassificationSource,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationConfidence : report.ClassificationConfidence,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationReviewedByUserId : report.ClassificationReviewedByUserId,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationReviewedAt : report.ClassificationReviewedAt,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationReason : report.ClassificationReason,
+                    report.CurrentClassification != null ? report.CurrentClassification.ClassificationIsApprovedDemoContent : report.ClassificationIsApprovedDemoContent) })
             .ToArrayAsync(cancellationToken);
 
     public async Task<ReportArtifactDetailDto?> GetReportArtifactAsync(
@@ -73,7 +81,15 @@ public sealed class EfReportRepository(
                 candidate.SnapshotJson,
                 candidate.ArchivedAt,
                 candidate.ArchivedByUserId,
-                candidate.ArchiveReason
+                candidate.ArchiveReason,
+                Classification = new ContentClassificationDto(
+                    candidate.CurrentClassification != null ? candidate.CurrentClassification.Classification : candidate.Classification,
+                    candidate.CurrentClassification != null ? candidate.CurrentClassification.ClassificationSource : candidate.ClassificationSource,
+                    candidate.CurrentClassification != null ? candidate.CurrentClassification.ClassificationConfidence : candidate.ClassificationConfidence,
+                    candidate.CurrentClassification != null ? candidate.CurrentClassification.ClassificationReviewedByUserId : candidate.ClassificationReviewedByUserId,
+                    candidate.CurrentClassification != null ? candidate.CurrentClassification.ClassificationReviewedAt : candidate.ClassificationReviewedAt,
+                    candidate.CurrentClassification != null ? candidate.CurrentClassification.ClassificationReason : candidate.ClassificationReason,
+                    candidate.CurrentClassification != null ? candidate.CurrentClassification.ClassificationIsApprovedDemoContent : candidate.ClassificationIsApprovedDemoContent)
             })
             .SingleOrDefaultAsync(cancellationToken);
         if (report is null)
@@ -103,7 +119,7 @@ public sealed class EfReportRepository(
             snapshot,
             report.ArchivedAt,
             report.ArchivedByUserId,
-            report.ArchiveReason);
+            report.ArchiveReason) { Classification = report.Classification };
     }
 
     public async Task<ReportLifecycleTransitionDto?> SetArchiveStateAsync(
@@ -113,7 +129,7 @@ public sealed class EfReportRepository(
         string reason,
         CancellationToken cancellationToken = default)
     {
-        var report = await dbContext.Reports.SingleOrDefaultAsync(
+        var report = await dbContext.Reports.Include(r => r.CurrentClassification).SingleOrDefaultAsync(
             candidate =>
                 candidate.Id == reportId &&
                 candidate.TenantId == tenantContext.TenantId &&
@@ -126,6 +142,8 @@ public sealed class EfReportRepository(
             return null;
         }
 
+        // This endpoint returns the snapshot; lifecycle mutations must not become a restricted-content read bypass.
+        await EnsureReportUsableAsync(reportId, cancellationToken);
         var previousStatus = report.Status;
         var alreadyInRequestedState = archived
             ? report.Status == ReportStatus.Archived
@@ -197,7 +215,7 @@ public sealed class EfReportRepository(
                 snapshot,
                 report.ArchivedAt,
                 report.ArchivedByUserId,
-                report.ArchiveReason),
+                report.ArchiveReason) { Classification = ClassificationMetadata.Read(report.CurrentClassification ?? (IClassifiedContentEntity)report) },
             previousStatus,
             !alreadyInRequestedState);
     }
@@ -672,13 +690,11 @@ public sealed class EfReportRepository(
         return ToDto(entity, snapshot);
     }
 
-    private static void ApplyInitialClassification(ReportEntity entity, ContentClassificationRequest? classification)
+    private void ApplyInitialClassification(ReportEntity entity, ContentClassificationRequest? classification)
     {
-        if (classification is null) return;
-        entity.Classification = classification.Classification;
-        entity.ClassificationSource = classification.Source;
-        entity.ClassificationConfidence = classification.Confidence;
-        entity.ClassificationReason = classification.Reason;
+        if (classification is not null) ClassificationMetadata.Apply(entity, classification);
+        dbContext.ContentClassificationHistory.Add(ClassificationMetadata.History(entity, entity.TenantId,
+            "Report", entity.GeneratedByUserId, entity.GeneratedAt));
     }
 
     private static void EnsureOutputClassification(ContentClassificationRequest? selection, IEnumerable<EvidenceItemEntity> evidence)
@@ -934,15 +950,14 @@ public sealed class EfReportRepository(
 
     private async Task EnsureReportUsableAsync(Guid reportId, CancellationToken cancellationToken)
     {
-        var report = await dbContext.Reports.AsNoTracking().SingleAsync(
+        var report = await dbContext.Reports.AsNoTracking().Include(r => r.CurrentClassification).SingleAsync(
             r => r.Id == reportId && r.TenantId == tenantContext.TenantId, cancellationToken);
-        ContentClassificationPolicy.EnsureProcessable(report.Classification, "Report access");
+        IClassifiedContentEntity handling = report.CurrentClassification ?? (IClassifiedContentEntity)report;
+        ContentClassificationPolicy.EnsureProcessable(handling.Classification, "Report access");
         await dataHandlingModePolicy.EnsureAllowedAsync(new TenantDataHandlingModePolicyRequest(
             TenantDataHandlingWorkflow.Report,
-            ContainsRealCui: report.Classification == ContentClassification.Cui,
-            ContainsSyntheticCui: report.Classification == ContentClassification.SyntheticCui,
-            ApprovalChecksPassed: report.Classification != ContentClassification.SyntheticCui ||
-                (report.ClassificationIsApprovedDemoContent && report.ClassificationSource == ContentClassificationSource.ImportedDemoSeed),
+            ContainsRealCui: handling.Classification == ContentClassification.Cui,
+            ContainsSyntheticCui: handling.Classification == ContentClassification.SyntheticCui,
             EntityType: "Report", EntityId: reportId.ToString()), tenantContext.UserId, cancellationToken);
         var evidenceIds = dbContext.Set<ReportEvidenceEntity>().Where(link => link.ReportId == reportId).Select(link => link.EvidenceItemId);
         var evidence = await dbContext.EvidenceItems.AsNoTracking()

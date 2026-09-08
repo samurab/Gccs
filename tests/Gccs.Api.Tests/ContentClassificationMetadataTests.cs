@@ -174,10 +174,9 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
         Assert.NotNull(evidence);
 
         using var update = CreateRequest(
-            HttpMethod.Put,
-            $"/api/evidence-items/{evidence.Id}",
-            EvidenceRequest(
-                "Evidence policy",
+            HttpMethod.Patch,
+            $"/api/evidence-items/{evidence.Id}/classification",
+            new ReclassifyContentRequest(
                 new ContentClassificationRequest(
                     ContentClassification.Fci,
                     ContentClassificationSource.UserSelected,
@@ -185,7 +184,7 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
                     Reason: "Reviewed as FCI, not CUI.")),
             ids.TenantId,
             ids.ActorUserId,
-            Permission.ManageEvidence);
+            Permission.ApproveEvidence);
 
         var updateResponse = await client.SendAsync(update);
 
@@ -202,10 +201,10 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
         Assert.Equal(ContentClassification.Unclassified, history[0].NewClassification);
         Assert.Equal(ContentClassification.Unclassified, history[1].PreviousClassification);
         Assert.Equal(ContentClassification.Fci, history[1].NewClassification);
-        Assert.Equal(ContentClassificationSource.UserSelected, history[1].Source);
+        Assert.Equal(ContentClassificationSource.AdminReviewed, history[1].Source);
         Assert.Equal(0.96m, history[1].Confidence);
-        Assert.Null(history[1].ReviewedByUserId);
-        Assert.Null(history[1].ReviewedAt);
+        Assert.Equal(ids.ActorUserId, history[1].ReviewedByUserId);
+        Assert.NotNull(history[1].ReviewedAt);
         Assert.Equal("Reviewed as FCI, not CUI.", history[1].Reason);
     }
 
@@ -294,6 +293,7 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
                 services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
                 services.AddScoped<EvidenceMetadataService>();
                 services.AddScoped<IEvidenceMetadataRepository, EfEvidenceMetadataRepository>();
+                services.AddScoped<IContentClassificationReviewRepository, Gccs.Infrastructure.Common.EfContentClassificationReviewRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
                 using var provider = services.BuildServiceProvider();

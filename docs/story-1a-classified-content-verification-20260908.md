@@ -47,3 +47,44 @@ Backend commands use `dotnet test tests/Gccs.Api.Tests --configuration Release -
 - No real customer CUI was used. Cloud storage, staging identity, external reviewers, and production deployment are not validated by these local tests.
 - Notes are not inputs to any existing report or extraction workflow. Unknown notes remain stored for review, not made eligible for downstream processing.
 - Stories 1A.2.1 and 1A.2.2 remain in progress: general history/reclassification and its cross-content review UI are not claimed complete by this checkpoint.
+
+## Story 1A.2.1: versioned classification metadata
+
+Parent commit: `34848a1b`. Same branch and synthetic local environments as above.
+
+### Implemented
+
+- Revision-aware classification review and paginated metadata/history endpoints cover evidence items, individual file versions, classified notes, contract documents, extraction jobs, and persisted reports. Each route retains the existing content-specific read/review permissions. Reviewers cannot establish synthetic demo provenance.
+- A classification change records the previous full metadata, new classification/review metadata, actor, time, reason, and revision, including reviews that retain the same classification label. Existing legacy history is preserved without fabricated backfill. Tracked history updates/deletes are rejected by the EF context, consistent with the existing audit-history boundary; this is not a claim of database-administrator-proof immutability.
+- PostgreSQL revision tokens reject stale/concurrent changes. Record, classification history, and business audit writes share an application transaction. Report handling metadata uses a separate one-to-one record, leaving original generation classification, snapshot JSON, and export HTML unchanged.
+- Ordinary evidence/note edits cannot reclassify records. Accepted file replacements cannot lower parent handling classification or erase review metadata. Parent promotion and initial file-version history are recorded inside the existing serialized upload transaction.
+- Evidence metadata and upload intents now require explicit classification. Unknown notes cannot be reopened for body access until reviewed. Report access, archive/restore responses, extraction results, and candidate mutations consult current classification. Extraction result publication rechecks source/job classification while holding PostgreSQL row locks.
+- Escalations support all six types. A prior safe label does not release a newly escalated item: a subsequent authorized safe review is necessary. File download policy checks both the current version and its parent evidence reference.
+- The legacy mixed review listing filters contract-document metadata unless the caller also has `ViewContracts`.
+
+### Compatibility, dependencies, and rollback
+
+New review endpoints are `/api/classified-content/{evidence-items|evidence-file-versions|notes|contract-documents|extraction-jobs|reports}`, with list, `/{id}`, `/{id}/history`, and `PATCH /{id}/classification`. Patches require `expectedRevision` and a classification reason; stale revisions return 409. List/history pages contain at most 100 entries, with an explicit offset bounded at 100,000.
+
+External evidence metadata/upload-intent callers must supply classification; ordinary metadata updates can no longer change classification. The legacy evidence review endpoint remains compatible, but the new endpoint provides explicit optimistic-concurrency control.
+
+Apply `20260908151906_AddVersionedContentClassification` before starting the updated API. Existing revisions start at zero without inventing past reviews. Downgrade refuses to remove populated current-report classification or versioned history. Application rollback must retain the additive schema and recorded history.
+
+The EF design-time factory reads `GCCS_DATABASE`, not `ConnectionStrings__GccsDatabase`. The initial migration command applied additive migrations to the factory's default local `gccs` database. The isolated browser database was then explicitly verified using `GCCS_DATABASE`; it was already current following API startup. No staging/production database was targeted.
+
+### Executed evidence
+
+- Adjacent backend suite: 342 passed, zero skipped, 3 minutes 4 seconds (`/tmp/gccs-history-all-adjacent.log`).
+- Classification history, PostgreSQL races, six-role endpoint matrix, and mid-extraction quarantine: 27 passed, zero skipped, 22 seconds (`/tmp/gccs-history-focused-verified.log`).
+- Expanded history, escalation lifecycle, file upload, and containment coverage: 54 passed, zero skipped, 28 seconds (`/tmp/gccs-history-complete-focused.log`).
+- Final classification suite: 34 passed, zero skipped, 30 seconds (`/tmp/gccs-history-download-verified.log`). This includes a version-only escalation blocking both download metadata and file-byte endpoints while the parent remains FCI, with no extra download audit or version mutation.
+- For each of six types, eight concurrent PostgreSQL reviews produced one success and seven 409 responses. Injected audit failure rolled back the next review. Report snapshot JSON and HTML were unchanged.
+- In-flight extraction test paused text extraction, reclassified the job as Prohibited, then resumed it. Publication returned 400 with no candidates or completion audit.
+- Real-stack Chromium: five passed, 14.4 seconds (`/tmp/gccs-history-browser-verified.log`), covering original evidence upload, extraction, assignment, and read-only reports.
+- Web: 175 passed across 19 files, 13.31 seconds (`/tmp/gccs-history-web-final.log`). Lint and production build passed. An earlier intermittent demo-capture navigation test failed and passed on rerun; an actual classification-reset effect lint error was fixed.
+- EF reported no pending model changes. A real downgrade to the preceding notes migration was refused with the classification-history preservation error (`/tmp/gccs-history-rollback.log`).
+- Earlier test fixture defects included JSONB formatting expectations, authorization-denial audits being counted as content writes, a queued fixture picked up by the worker, and the wrong archive permission. Corrected runs above are the evidence; failed/interrupted runs are not passes.
+
+Full backend regression: 1,754 passed, zero skipped, 13 minutes 29 seconds (`/tmp/gccs-history-full-verified.log`; TRX: `tests/Gccs.Api.Tests/TestResults/classified-history-verified.trx`). The subsequent version-only escalation test and its fixture change passed in the final 34-test suite above; production source was unchanged during that full run.
+
+Story 1A.2.1 is implemented and verified at this checkpoint. The cross-content review UI belongs to Story 1A.2.2 and is not yet claimed implemented.

@@ -384,7 +384,7 @@ public sealed class SecurityIsolationVerificationTests : IClassFixture<WebApplic
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static UpsertCompanyProfileRequest CreateCompanyProfileRequest(string legalName) =>

@@ -1,6 +1,7 @@
 using Gccs.Application.NoCui;
 using Gccs.Application.Security;
 using Gccs.Application.Common;
+using Gccs.Domain.Common;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -100,13 +101,28 @@ public sealed class EfNoCuiAcknowledgementRepository(
         evidenceItem.MalwareScanStatus = uploadIntent.MalwareScanStatus;
         evidenceItem.StorageUri = uploadIntent.StorageObjectName;
         evidenceItem.FileHash = null;
-        evidenceItem.Classification = uploadIntent.Classification.Classification;
-        evidenceItem.ClassificationSource = uploadIntent.Classification.Source;
-        evidenceItem.ClassificationConfidence = uploadIntent.Classification.Confidence;
-        evidenceItem.ClassificationReviewedByUserId = uploadIntent.Classification.ReviewedByUserId;
-        evidenceItem.ClassificationReviewedAt = uploadIntent.Classification.ReviewedAt;
-        evidenceItem.ClassificationReason = uploadIntent.Classification.Reason;
-        evidenceItem.ClassificationIsApprovedDemoContent = uploadIntent.Classification.IsApprovedDemoContent;
+        // A replacement cannot erase a review, downgrade its parent, or release quarantined content.
+        ContentClassificationPolicy.EnsureProcessable(evidenceItem.Classification, "Evidence replacement");
+        if (evidenceItem.Classification == ContentClassification.SyntheticCui)
+            throw new ContentClassificationValidationException("Imported synthetic seed content cannot be replaced through customer uploads.");
+        var previous = Gccs.Infrastructure.Common.ClassificationMetadata.Read(evidenceItem);
+        var incoming = uploadIntent.Classification;
+        var promote = incoming.Classification == ContentClassification.Unknown ||
+            (incoming.Classification == ContentClassification.Cui && evidenceItem.Classification != ContentClassification.Cui) ||
+            (incoming.Classification == ContentClassification.Fci && evidenceItem.Classification == ContentClassification.Unclassified);
+        if (promote)
+        {
+            evidenceItem.Classification = incoming.Classification;
+            evidenceItem.ClassificationSource = ContentClassificationSource.SystemSuggested;
+            evidenceItem.ClassificationConfidence = null;
+            evidenceItem.ClassificationReviewedByUserId = null;
+            evidenceItem.ClassificationReviewedAt = null;
+            evidenceItem.ClassificationReason = "Handling classification raised from an accepted file version; reviewer confirmation remains separate.";
+            evidenceItem.ClassificationIsApprovedDemoContent = false;
+            evidenceItem.ClassificationRevision++;
+            dbContext.ContentClassificationHistory.Add(Gccs.Infrastructure.Common.ClassificationMetadata.History(
+                evidenceItem, tenantContext.TenantId, "EvidenceItem", uploadIntent.CreatedByUserId, now, previous));
+        }
 
         var nextVersionNumber = await dbContext.EvidenceFileVersions
             .Where(version => version.EvidenceItemId == evidenceItem.Id)
@@ -135,6 +151,8 @@ public sealed class EfNoCuiAcknowledgementRepository(
             ClassificationIsApprovedDemoContent = uploadIntent.Classification.IsApprovedDemoContent
         };
         dbContext.EvidenceFileVersions.Add(version);
+        dbContext.ContentClassificationHistory.Add(Gccs.Infrastructure.Common.ClassificationMetadata.History(
+            version, tenantContext.TenantId, "EvidenceFileVersion", uploadIntent.CreatedByUserId, now));
 
         await dbContext.SaveChangesAsync(cancellationToken);
         if (transaction is not null)

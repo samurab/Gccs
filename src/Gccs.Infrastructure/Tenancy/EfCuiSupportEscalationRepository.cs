@@ -145,6 +145,9 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
     private Task<bool> ContentExistsAsync(Guid tenantId, string type, Guid id, CancellationToken ct) => type switch
     {
         "EvidenceItem" => dbContext.EvidenceItems.AnyAsync(e => e.TenantId == tenantId && e.Id == id, ct),
+        "EvidenceFileVersion" => dbContext.EvidenceFileVersions.AnyAsync(e => e.Id == id && e.EvidenceItem!.TenantId == tenantId, ct),
+        "ClassifiedNote" => dbContext.Set<ClassifiedNoteEntity>().AnyAsync(e => e.Id == id && e.TenantId == tenantId, ct),
+        "ExtractionJob" => dbContext.Set<ExtractionJobEntity>().AnyAsync(e => e.Id == id && e.TenantId == tenantId, ct),
         "ContractDocument" => dbContext.Set<ContractDocumentEntity>().AnyAsync(e => e.Id == id && e.Contract!.TenantId == tenantId, ct),
         "Report" => dbContext.Set<ReportEntity>().AnyAsync(e => e.Id == id && e.TenantId == tenantId, ct),
         _ => Task.FromResult(false)
@@ -178,8 +181,19 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             return !await dbContext.EvidenceFileVersions.AnyAsync(v => v.EvidenceItemId == id && v.DeletedAt == null &&
                 v.Classification != ContentClassification.Unclassified && v.Classification != ContentClassification.Fci, ct);
         }
-        // Document/report release requires a version-bound review workflow; unsupported cases fail closed.
-        return false;
+        IClassifiedContentEntity? reviewed = escalation.AffectedEntityType switch
+        {
+            "EvidenceFileVersion" => await dbContext.EvidenceFileVersions.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.EvidenceItem!.TenantId == tenantId, ct),
+            "ContractDocument" => await dbContext.Set<ContractDocumentEntity>().AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.Contract!.TenantId == tenantId, ct),
+            "ClassifiedNote" => await dbContext.Set<ClassifiedNoteEntity>().AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId, ct),
+            "ExtractionJob" => await dbContext.Set<ExtractionJobEntity>().AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId, ct),
+            "Report" => (await dbContext.Reports.AsNoTracking().Include(e => e.CurrentClassification).SingleOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId, ct))?.CurrentClassification,
+            _ => null
+        };
+        return reviewed is not null && reviewed.ClassificationRevision > 0 && Safe(reviewed.Classification) &&
+            reviewed.ClassificationSource == ContentClassificationSource.AdminReviewed &&
+            reviewed.ClassificationReviewedByUserId is not null && reviewed.ClassificationReviewedByUserId != Guid.Empty &&
+            reviewed.ClassificationReviewedAt >= escalation.CreatedAt;
     }
 
     private static bool Safe(ContentClassification classification) =>

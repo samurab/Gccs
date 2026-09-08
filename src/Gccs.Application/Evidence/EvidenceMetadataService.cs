@@ -148,7 +148,8 @@ public sealed class EvidenceMetadataService(
 
     private static void Validate(UpsertEvidenceMetadataRequest request)
     {
-        ContentClassificationPolicy.ValidateUserSelection(request.Classification ?? ContentClassificationPolicy.DefaultUnclassified());
+        ContentClassificationPolicy.ValidateUserSelection(request.Classification ??
+            throw new ContentClassificationValidationException("Explicit evidence classification is required."));
         if (string.IsNullOrWhiteSpace(request.Title))
         {
             throw new EvidenceMetadataValidationException("Evidence title is required.");

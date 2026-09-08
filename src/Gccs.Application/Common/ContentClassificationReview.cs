@@ -20,7 +20,7 @@ public sealed class ContentClassificationReviewService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Classification.Reason))
+        if (request.Classification is null || string.IsNullOrWhiteSpace(request.Classification.Reason))
         {
             throw new ContentClassificationValidationException("A classification update reason is required.");
         }

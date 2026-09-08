@@ -25,6 +25,7 @@ public sealed class EvidenceFileService(
     {
         await EnsureEvidenceItemExistsAsync(evidenceItemId, cancellationToken);
         var uploadIntent = await ValidateAndBuildUploadIntentAsync(evidenceItemId, request, actorUserId, cancellationToken);
+        await EnsureCurrentClassificationUsableAsync(evidenceItemId, actorUserId, cancellationToken, uploading: true);
         return await transaction.ExecuteAsync(async token =>
         {
             var version = await repository.RecordAcceptedEvidenceUploadIntentAsync(uploadIntent, token);
@@ -72,6 +73,7 @@ public sealed class EvidenceFileService(
             actorUserId,
             cancellationToken);
 
+        await EnsureCurrentClassificationUsableAsync(evidenceItemId, actorUserId, cancellationToken, uploading: true);
         await using var content = await BufferUploadContentAsync(request.Content, cancellationToken);
         var scanResult = await ScanUploadAsync(evidenceItemId, uploadIntent, content, actorUserId, cancellationToken);
         var scannedIntent = uploadIntent with
@@ -128,10 +130,12 @@ public sealed class EvidenceFileService(
         return ToAccessDto(version, "Evidence file was uploaded to private object storage.");
     }
 
-    private async Task EnsureCurrentClassificationUsableAsync(Guid evidenceItemId, Guid actorUserId, CancellationToken cancellationToken)
+    private async Task EnsureCurrentClassificationUsableAsync(Guid evidenceItemId, Guid actorUserId, CancellationToken cancellationToken, bool uploading = false)
     {
         var classification = await repository.FindCurrentTenantEvidenceClassificationAsync(evidenceItemId, cancellationToken)
             ?? throw new EvidenceItemNotFoundException(evidenceItemId);
+        if (uploading && classification.Classification == Gccs.Domain.Common.ContentClassification.SyntheticCui)
+            throw new ContentClassificationValidationException("Imported synthetic seed content cannot be replaced through customer uploads.");
         await classificationPolicy.EnsureUsableAsync(classification, TenantDataHandlingWorkflow.EvidenceUpload,
             actorUserId, "EvidenceItem", evidenceItemId.ToString(), cancellationToken);
     }
@@ -259,7 +263,7 @@ public sealed class EvidenceFileService(
         }
 
         await classificationPolicy.EnsureUsableAsync(version.Classification, TenantDataHandlingWorkflow.EvidenceUpload,
-            actorUserId, "EvidenceItem", evidenceItemId.ToString(), cancellationToken);
+            actorUserId, "EvidenceFileVersion", version.Id.ToString(), cancellationToken);
         await EnsureCurrentClassificationUsableAsync(evidenceItemId, actorUserId, cancellationToken);
 
         await auditEventWriter.WriteAsync(
@@ -287,7 +291,7 @@ public sealed class EvidenceFileService(
         }
 
         await classificationPolicy.EnsureUsableAsync(version.Classification, TenantDataHandlingWorkflow.EvidenceUpload,
-            actorUserId, "EvidenceItem", evidenceItemId.ToString(), cancellationToken);
+            actorUserId, "EvidenceFileVersion", version.Id.ToString(), cancellationToken);
         await EnsureCurrentClassificationUsableAsync(evidenceItemId, actorUserId, cancellationToken);
 
         if (!version.IsUsable)
@@ -380,6 +384,7 @@ public sealed class EvidenceFileService(
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
         var fileName = request.FileName?.Trim() ?? string.Empty;
         var contentType = request.ContentType?.Trim() ?? string.Empty;
+        if (request.Classification is null) errors["classification"] = ["Explicit file classification is required."];
 
         if (string.IsNullOrWhiteSpace(fileName) || fileName.Length > 240)
         {

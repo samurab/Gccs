@@ -626,7 +626,7 @@ export function App() {
   const [subcontractorEvidenceRequests, setSubcontractorEvidenceRequests] = useState<SubcontractorEvidenceRequest[]>([]);
   const [approvedEvidencePackages, setApprovedEvidencePackages] = useState<ApprovedEvidencePackage[]>([]);
   const [generatedReports, setGeneratedReports] = useState<ReportArtifact[]>([]);
-  const [workflowClassification, setWorkflowClassification] = useState("");
+  const [workflowSelection, setWorkflowSelection] = useState({ context: "", value: "" });
   const [recentReports, setRecentReports] = useState<ReportHistoryItem[]>([]);
   const [selectedReport, setSelectedReport] = useState<ReportArtifact | null>(null);
   const [reportDetailStatus, setReportDetailStatus] = useState<ReportDetailStatus>("idle");
@@ -775,7 +775,10 @@ export function App() {
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
   const canManageTenant = access.permissions.includes("ManageTenant");
 
-  useEffect(() => { setWorkflowClassification(""); }, [access.tenantId, access.userId, activeRoute]);
+  const workflowContext = `${access.tenantId}:${access.userId}:${activeRoute}`;
+  if (workflowSelection.context !== workflowContext) setWorkflowSelection({ context: workflowContext, value: "" });
+  const workflowClassification = workflowSelection.context === workflowContext ? workflowSelection.value : "";
+  const setWorkflowClassification = (value: string) => setWorkflowSelection({ context: workflowContext, value });
 
   useEffect(() => {
     function handleHashChange() {

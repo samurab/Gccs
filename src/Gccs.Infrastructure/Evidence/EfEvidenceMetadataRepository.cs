@@ -107,7 +107,8 @@ public sealed class EfEvidenceMetadataRepository(
         }
 
         var now = DateTimeOffset.UtcNow;
-        var previousClassification = entity.Classification;
+        if (request.Classification is not null && request.Classification.Classification != entity.Classification)
+            throw new ContentClassificationValidationException("Use authorized classification review to change an existing evidence classification.");
         entity.Name = request.Title;
         entity.Description = request.Description;
         entity.Type = request.Type;
@@ -116,18 +117,10 @@ public sealed class EfEvidenceMetadataRepository(
         entity.EffectiveAt = request.EffectiveAt;
         entity.ExpiresAt = request.ExpiresAt;
         entity.TagsJson = JsonSerializer.Serialize(request.Tags, JsonOptions);
-        if (request.Classification is not null)
-        {
-            ApplyClassification(entity, request.Classification);
-        }
         entity.UpdatedAt = now;
         entity.UpdatedByUserId = actorUserId;
 
         SyncLinks(entity.Id, request);
-        if (previousClassification != entity.Classification)
-        {
-            AddClassificationHistory(entity.TenantId, entity.Id.ToString(), previousClassification, entity, actorUserId, now);
-        }
         await SyncExpirationTaskAsync(entity, actorUserId, now, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity);
@@ -444,17 +437,6 @@ public sealed class EfEvidenceMetadataRepository(
             entity.CreatedAt,
             entity.UpdatedAt);
 
-    private static void ApplyClassification(EvidenceItemEntity entity, ContentClassificationRequest classification)
-    {
-        entity.Classification = classification.Classification;
-        entity.ClassificationSource = classification.Source;
-        entity.ClassificationConfidence = classification.Confidence;
-        entity.ClassificationReviewedByUserId = classification.ReviewedByUserId;
-        entity.ClassificationReviewedAt = classification.ReviewedAt;
-        entity.ClassificationReason = classification.Reason;
-        entity.ClassificationIsApprovedDemoContent = classification.IsApprovedDemoContent;
-    }
-
     private void AddClassificationHistory(
         Guid tenantId,
         string entityId,
@@ -477,7 +459,8 @@ public sealed class EfEvidenceMetadataRepository(
             ReviewedAt = entity.ClassificationReviewedAt,
             Reason = entity.ClassificationReason,
             ChangedByUserId = actorUserId,
-            ChangedAt = changedAt
+            ChangedAt = changedAt,
+            Revision = entity.ClassificationRevision
         });
     }
 

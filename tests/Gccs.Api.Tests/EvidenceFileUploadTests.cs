@@ -781,6 +781,7 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         await dbContext.Set<ObjectCleanupEntity>().Where(item => item.TenantId == tenantId).ExecuteDeleteAsync();
         // Remove only this test's synthetic audit fixtures during relational cleanup.
         await dbContext.AuditLogEntries.Where(entry => entry.TenantId == tenantId).ExecuteDeleteAsync();
+        await dbContext.ContentClassificationHistory.Where(entry => entry.TenantId == tenantId).ExecuteDeleteAsync();
         var tenant = await dbContext.Tenants.SingleOrDefaultAsync(candidate => candidate.Id == tenantId);
         if (tenant is not null)
         {
@@ -811,7 +812,7 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static void SeedTenant(GccsDbContext dbContext, Guid tenantId)

@@ -23,7 +23,7 @@ public sealed class ClassifiedNoteService(IClassifiedNoteRepository repository, 
     public async Task<ClassifiedNoteDto?> FindAsync(Guid id, CancellationToken cancellationToken)
     {
         var note = await repository.FindAsync(id, cancellationToken);
-        if (note is not null && note.Classification.Classification != ContentClassification.Unknown)
+        if (note is not null)
             await policy.EnsureUsableAsync(note.Classification, TenantDataHandlingWorkflow.Note, context.UserId, "ClassifiedNote", id.ToString(), cancellationToken);
         return note;
     }

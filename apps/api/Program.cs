@@ -3787,10 +3787,39 @@ api.MapPut("/classified-notes/{id:guid}", async (Guid id, SaveClassifiedNoteRequ
         "Resource not found", "Classified note was not found.", StatusCodes.Status404NotFound, "resource_not_found"))
     .RequirePermission(Permission.ManageEvidence).WithName("UpdateClassifiedNote");
 
+foreach (var content in new[] {
+    (Route: "evidence-items", Type: "EvidenceItem", Read: Permission.ViewEvidence, Review: Permission.ApproveEvidence),
+    (Route: "evidence-file-versions", Type: "EvidenceFileVersion", Read: Permission.ViewEvidence, Review: Permission.ApproveEvidence),
+    (Route: "notes", Type: "ClassifiedNote", Read: Permission.ViewEvidence, Review: Permission.ApproveEvidence),
+    (Route: "contract-documents", Type: "ContractDocument", Read: Permission.ViewContracts, Review: Permission.ReviewClauses),
+    (Route: "extraction-jobs", Type: "ExtractionJob", Read: Permission.ViewContracts, Review: Permission.ReviewClauses),
+    (Route: "reports", Type: "Report", Read: Permission.ViewReports, Review: Permission.ManageReports) })
+{
+    var route = $"/classified-content/{content.Route}";
+    api.MapGet(route, async (bool? reviewOnly, int? offset, ClassifiedContentService service, CancellationToken ct) =>
+        Results.Ok(await service.ListAsync(content.Type, reviewOnly ?? false, offset ?? 0, ct)))
+        .RequirePermission(content.Read).WithName($"ListClassified{content.Type}");
+    api.MapGet(route + "/{id:guid}", async (Guid id, ClassifiedContentService service, HttpContext http, CancellationToken ct) =>
+        await service.FindAsync(content.Type, id, ct) is { } item ? Results.Ok(item) :
+            ApiProblemDetails.Create(http, "Resource not found", "Classified content was not found.", 404, "resource_not_found"))
+        .RequirePermission(content.Read).WithName($"GetClassified{content.Type}");
+    api.MapGet(route + "/{id:guid}/history", async (Guid id, int? offset, ClassifiedContentService service, HttpContext http, CancellationToken ct) =>
+        await service.HistoryAsync(content.Type, id, offset ?? 0, ct) is { } history ? Results.Ok(history) :
+            ApiProblemDetails.Create(http, "Resource not found", "Classified content was not found.", 404, "resource_not_found"))
+        .RequirePermission(content.Read).WithName($"Get{content.Type}ClassificationHistory");
+    api.MapPatch(route + "/{id:guid}/classification", async (Guid id, ReviewClassifiedContentRequest request,
+        ClassifiedContentService service, HttpContext http, CancellationToken ct) =>
+        await service.ReclassifyAsync(content.Type, id, request, ct) is { } item ? Results.Ok(item) :
+            ApiProblemDetails.Create(http, "Resource not found", "Classified content was not found.", 404, "resource_not_found"))
+        .RequirePermission(content.Review).WithName($"Review{content.Type}Classification");
+}
+
 api.MapGet("/content-classification-review-items", async (
     ContentClassificationReviewService service,
+    HttpContext http,
     CancellationToken cancellationToken) =>
-    Results.Ok(await service.ListAsync(cancellationToken)))
+    Results.Ok((await service.ListAsync(cancellationToken)).Where(item => item.EntityType != "ContractDocument" ||
+        http.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewContracts.ToString()))))
 .RequirePermission(Permission.ViewEvidence)
 .WithName("ListContentClassificationReviewItems");
 

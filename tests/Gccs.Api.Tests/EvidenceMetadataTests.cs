@@ -389,7 +389,7 @@ public sealed class EvidenceMetadataTests : IClassFixture<WebApplicationFactory<
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static UpsertEvidenceMetadataRequest CreateRequestBody() =>

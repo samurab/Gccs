@@ -194,7 +194,7 @@ public sealed class ContentClassificationReviewTests : IClassFixture<WebApplicat
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static void SeedTenant(GccsDbContext dbContext, Guid tenantId)

@@ -245,7 +245,7 @@ public sealed class EvidenceApprovalTests : IClassFixture<WebApplicationFactory<
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static EvidenceItemEntity CreateEvidence(Guid evidenceItemId, Guid tenantId, EvidenceStatus status) =>

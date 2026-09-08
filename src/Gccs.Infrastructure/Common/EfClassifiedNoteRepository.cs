@@ -31,7 +31,7 @@ public sealed class EfClassifiedNoteRepository(GccsDbContext db, ICurrentTenantC
             db.ContentClassificationHistory.Add(new() { Id = Guid.NewGuid(), TenantId = context.TenantId,
                 EntityType = "ClassifiedNote", EntityId = id.ToString(), NewClassification = note.Classification,
                 Source = note.ClassificationSource, Confidence = note.ClassificationConfidence, Reason = note.ClassificationReason,
-                ChangedAt = note.CreatedAt, ChangedByUserId = actor });
+                ChangedAt = note.CreatedAt, ChangedByUserId = actor, Revision = note.ClassificationRevision });
         }
         else if (request.Revision != note.Revision) throw new ContentRevisionConflictException();
         note.Title = request.Title; note.Body = request.Body; note.Revision++; note.UpdatedAt = DateTimeOffset.UtcNow;

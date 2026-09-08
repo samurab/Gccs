@@ -767,8 +767,9 @@ public sealed class SolicitationEntity : AuditedEntity
     public string SetAside { get; set; } = string.Empty;
 }
 
-public sealed class ContractDocumentEntity
+public sealed class ContractDocumentEntity : IClassifiedContentEntity
 {
+    public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
     public Guid ContractId { get; set; }
     public ContractDocumentType Type { get; set; }
@@ -795,8 +796,9 @@ public sealed class ContractDocumentEntity
     public ICollection<ExtractionJobEntity> ExtractionJobs { get; set; } = [];
 }
 
-public sealed class ExtractionJobEntity
+public sealed class ExtractionJobEntity : IClassifiedContentEntity
 {
+    public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
     public Guid SourceDocumentId { get; set; }

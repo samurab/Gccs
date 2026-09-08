@@ -522,7 +522,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static HttpRequestMessage CreateRequest(
@@ -539,7 +539,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         request.Headers.Add("X-Gccs-Dev-Email", "no.cui.user@example.com");
         request.Headers.Add("X-Gccs-Dev-Permissions", permission.ToString());
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static TenantEntity CreateTenant(Guid tenantId, string name) =>
