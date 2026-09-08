@@ -245,7 +245,7 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static void SeedScenario(GccsDbContext dbContext, StoryIds ids)

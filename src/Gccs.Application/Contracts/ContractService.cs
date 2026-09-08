@@ -171,13 +171,19 @@ public sealed partial class ContractService(
         Guid contractId,
         Guid documentId,
         Guid actorUserId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, ContentClassificationRequest? classification = null)
     {
         var document = await repository.FindDocumentInCurrentTenantAsync(contractId, documentId, cancellationToken);
         if (document is null)
         {
             return null;
         }
+
+        ContentClassificationPolicy.EnsureProcessable(document.Classification.Classification, "Clause extraction");
+        await ClassifiedWorkflowValidation.ConfirmAsync(classificationPolicy, classification,
+            TenantDataHandlingWorkflow.ExtractionJob, actorUserId, cancellationToken);
+        if (classification!.Classification != document.Classification.Classification)
+            throw new ContentClassificationValidationException("Confirm the source document's current classification before extraction.");
 
         await dataHandlingModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(
@@ -187,7 +193,6 @@ public sealed partial class ContractService(
                 EntityId: documentId.ToString()),
             actorUserId,
             cancellationToken);
-        ContentClassificationPolicy.EnsureProcessable(document.Classification.Classification, "Clause extraction");
         await classificationPolicy.EnsureUsableAsync(document.Classification, TenantDataHandlingWorkflow.ExtractionJob,
             actorUserId, "ContractDocument", documentId.ToString(), cancellationToken);
 

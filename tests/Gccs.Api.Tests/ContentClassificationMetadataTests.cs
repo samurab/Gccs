@@ -325,7 +325,7 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static ContractDocumentUploadRequest DocumentRequest(string fileName, ContentClassification classification) =>

@@ -256,7 +256,7 @@ public sealed class ComplianceStatusReportTests : IClassFixture<WebApplicationFa
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static void SeedScenario(GccsDbContext dbContext, StoryIds ids)

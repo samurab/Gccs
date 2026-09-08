@@ -98,6 +98,9 @@ public static class DependencyInjection
         services.AddScoped<IContentContainmentRepository>(provider =>
             new EfContentContainmentRepository(provider.GetRequiredService<GccsDbContext>()));
         services.AddScoped<ContentClassificationPolicy>();
+        services.AddScoped<ClassifiedNoteService>();
+        services.AddScoped<ISyntheticContentApprovalRepository, UnavailableSyntheticContentApprovalRepository>();
+        services.AddScoped<IClassifiedNoteRepository>(_ => throw new InvalidOperationException("Classified notes require configured persistence."));
         services.AddScoped<IObjectCleanupQueue>(provider => new EfObjectCleanupQueue(
             provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<IObjectStorageService>(),
             provider.GetRequiredService<IAuditEventWriter>()));
@@ -346,6 +349,8 @@ public static class DependencyInjection
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
+            services.AddScoped<ISyntheticContentApprovalRepository, EfSyntheticContentApprovalRepository>();
+            services.AddScoped<IClassifiedNoteRepository, EfClassifiedNoteRepository>();
             services.AddDbContext<GccsDbContext>(options =>
                 options.UseGccsPostgres(connectionString));
 

@@ -653,6 +653,8 @@ public static class ApiSecurityExtensions
 
                 var (statusCode, title, detail, errorCode) = exception switch
                 {
+                    ContentRevisionConflictException conflict => (StatusCodes.Status409Conflict,
+                        "Content changed", conflict.Message, "content_revision_conflict"),
                     AuditWriteException => (
                         StatusCodes.Status500InternalServerError,
                         "Critical audit failure",
@@ -688,7 +690,7 @@ public static class ApiSecurityExtensions
                         "Current notice acknowledgement required",
                         acknowledgement.Message,
                         "data_handling_notice_acknowledgement_required"),
-                    BadHttpRequestException when exception.InnerException is JsonException => (
+                    BadHttpRequestException badRequest when badRequest.StatusCode == StatusCodes.Status400BadRequest => (
                         StatusCodes.Status400BadRequest,
                         "Invalid request body",
                         "The request body could not be parsed or contains an unsupported value.",

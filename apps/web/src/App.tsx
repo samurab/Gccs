@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DataHandlingNoticePanel } from "@/components/DataHandlingNoticePanel";
+import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
 import { controlCoverageTone } from "@/components/controlCoverage";
 import { DevelopmentTestingContextSelector } from "@/components/development/DevelopmentTestingContextSelector";
@@ -625,6 +626,7 @@ export function App() {
   const [subcontractorEvidenceRequests, setSubcontractorEvidenceRequests] = useState<SubcontractorEvidenceRequest[]>([]);
   const [approvedEvidencePackages, setApprovedEvidencePackages] = useState<ApprovedEvidencePackage[]>([]);
   const [generatedReports, setGeneratedReports] = useState<ReportArtifact[]>([]);
+  const [workflowClassification, setWorkflowClassification] = useState("");
   const [recentReports, setRecentReports] = useState<ReportHistoryItem[]>([]);
   const [selectedReport, setSelectedReport] = useState<ReportArtifact | null>(null);
   const [reportDetailStatus, setReportDetailStatus] = useState<ReportDetailStatus>("idle");
@@ -772,6 +774,8 @@ export function App() {
   const canExportReports = access.permissions.includes("ExportReports");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
   const canManageTenant = access.permissions.includes("ManageTenant");
+
+  useEffect(() => { setWorkflowClassification(""); }, [access.tenantId, access.userId, activeRoute]);
 
   useEffect(() => {
     function handleHashChange() {
@@ -1653,9 +1657,10 @@ export function App() {
   }
 
   async function handleStartContractDocumentExtraction(contractId: string, documentId: string) {
+    if (!workflowClassification) { setContractDocumentMessage("Select a workflow classification before extraction."); return; }
     setContractDocumentStatus("saving");
     setContractDocumentMessage("");
-    const result = await startContractDocumentExtraction(contractId, documentId);
+    const result = await startContractDocumentExtraction(contractId, documentId, workflowClassification);
 
     if (result.data) {
       const queuedJob = result.data;
@@ -2110,30 +2115,34 @@ export function App() {
   }
 
   async function handleComplianceReportGenerate() {
+    if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
     setReportMessage("");
-    const result = await generateComplianceStatusReport();
+    const result = await generateComplianceStatusReport(workflowClassification);
     handleGeneratedReportResult(result.data, result.error, "Compliance status report generated.");
   }
 
   async function handleCmmcReportGenerate(assessmentId: string) {
+    if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
     setReportMessage("");
-    const result = await generateCmmcReadinessReport(assessmentId);
+    const result = await generateCmmcReadinessReport(assessmentId, workflowClassification);
     handleGeneratedReportResult(result.data, result.error, "CMMC readiness report generated.");
   }
 
   async function handleSubcontractorReportGenerate(contractId?: string) {
+    if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
     setReportMessage("");
-    const result = await generateSubcontractorComplianceReport(contractId);
+    const result = await generateSubcontractorComplianceReport(workflowClassification, contractId);
     handleGeneratedReportResult(result.data, result.error, "Subcontractor compliance report generated.");
   }
 
   async function handleEvidencePackageGenerate(request: EvidencePackageGenerateRequest) {
+    if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
     setReportMessage("");
-    const result = await generateEvidencePackage(request);
+    const result = await generateEvidencePackage(request, workflowClassification);
 
     if (result.data) {
       setGeneratedReports((currentReports) => [result.data!, ...currentReports]);
@@ -2398,6 +2407,16 @@ export function App() {
           <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}`} tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} />}
 
         <WorkspaceState state={loadState} onRetry={() => window.location.reload()}>
+          {(activeRoute === "reports" || activeRoute === "contracts") && <label>
+            Workflow classification
+            <select aria-label="Workflow classification" value={workflowClassification} onChange={event => setWorkflowClassification(event.target.value)}>
+              <option value="">Select / confirm classification</option>
+              <option value="Unclassified">Unclassified</option><option value="Fci">FCI</option><option value="Cui">CUI (approved workflows only)</option>
+            </select>
+            <small>Required for reports and extraction. Extraction must match the source document. No-CUI restrictions still apply.</small>
+          </label>}
+          {activeRoute === "evidence" && access.permissions.includes("ViewEvidence") &&
+            <ClassifiedNotesPanel key={`${currentTenant?.id}:${access.userId}`} canManage={canManageEvidence} />}
           {activeRoute === "dashboard" ? (
             <DashboardView overview={overview} />
           ) : activeRoute === "profile" ? (

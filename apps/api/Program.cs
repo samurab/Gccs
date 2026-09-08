@@ -1509,6 +1509,7 @@ api.MapDelete("/contracts/{contractId:guid}/documents/{documentId:guid}", async 
 api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/extraction-jobs", async (
     Guid contractId,
     Guid documentId,
+    ClassifiedWorkflowRequest request,
     ContractService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
@@ -1516,7 +1517,7 @@ api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/extraction
 {
     try
     {
-        var job = await service.StartExtractionJobAsync(contractId, documentId, tenantContext.UserId, cancellationToken);
+        var job = await service.StartExtractionJobAsync(contractId, documentId, tenantContext.UserId, cancellationToken, request.Classification);
         return job is null
             ? ApiProblemDetails.Create(
                 httpContext,
@@ -2658,6 +2659,8 @@ api.MapPost("/reports/evidence-packages", async (
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
+    if (request.Classification is null)
+        throw new ContentClassificationValidationException("Explicit report classification is required.");
     if ((request.ObligationIds.Count + request.ContractIds.Count + request.ControlIds.Count + request.SubcontractorIds.Count) == 0)
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -2681,7 +2684,7 @@ api.MapPost("/reports/evidence-packages", async (
         request,
         tenantContext.UserId,
         request.IncludeDraftOrRejectedEvidence,
-        cancellationToken);
+        cancellationToken, request.Classification);
     return Results.Created($"/api/reports/evidence-packages/{report.Id}", report);
 })
 .RequirePermission(Permission.ManageReports)
@@ -2707,11 +2710,12 @@ api.MapGet("/reports/evidence-packages/{reportId:guid}", async (
 .WithName("GetEvidencePackage");
 
 api.MapPost("/reports/compliance-status", async (
+    ClassifiedWorkflowRequest request,
     ComplianceStatusReportService service,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
-    var report = await service.GenerateAsync(tenantContext.UserId, cancellationToken);
+    var report = await service.GenerateAsync(tenantContext.UserId, cancellationToken, request.Classification);
     return Results.Created($"/api/reports/{report.Id}", report);
 })
 .RequirePermission(Permission.ManageReports)
@@ -2719,13 +2723,14 @@ api.MapPost("/reports/compliance-status", async (
 
 api.MapPost("/reports/cmmc-readiness", async (
     Guid assessmentId,
+    ClassifiedWorkflowRequest request,
     CmmcReadinessReportService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     var includeEvidenceLinks = httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewEvidence.ToString());
-    var report = await service.GenerateAsync(assessmentId, tenantContext.UserId, includeEvidenceLinks, cancellationToken);
+    var report = await service.GenerateAsync(assessmentId, tenantContext.UserId, includeEvidenceLinks, cancellationToken, request.Classification);
     return report is null
         ? ApiProblemDetails.Create(
             httpContext,
@@ -2740,11 +2745,12 @@ api.MapPost("/reports/cmmc-readiness", async (
 
 api.MapPost("/reports/subcontractor-compliance", async (
     Guid? contractId,
+    ClassifiedWorkflowRequest request,
     SubcontractorComplianceReportService service,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
-    var report = await service.GenerateAsync(contractId, tenantContext.UserId, cancellationToken);
+    var report = await service.GenerateAsync(contractId, tenantContext.UserId, cancellationToken, request.Classification);
     return Results.Created($"/api/reports/{report.Id}", report);
 })
 .RequirePermission(Permission.ManageReports)
@@ -3764,6 +3770,22 @@ api.MapPut("/evidence-items/{evidenceItemId:guid}", async (
 })
 .RequirePermission(Permission.ManageEvidence)
 .WithName("UpdateEvidenceItem");
+
+api.MapGet("/classified-notes", async (ClassifiedNoteService service, CancellationToken ct) =>
+    Results.Ok(await service.ListAsync(ct))).RequirePermission(Permission.ViewEvidence).WithName("ListClassifiedNotes");
+api.MapGet("/classified-notes/{id:guid}", async (Guid id, ClassifiedNoteService service, HttpContext httpContext, CancellationToken ct) =>
+    await service.FindAsync(id, ct) is { } note ? Results.Ok(note) : ApiProblemDetails.Create(httpContext,
+        "Resource not found", "Classified note was not found.", StatusCodes.Status404NotFound, "resource_not_found"))
+    .RequirePermission(Permission.ViewEvidence).WithName("GetClassifiedNote");
+api.MapPost("/classified-notes", async (SaveClassifiedNoteRequest request, ClassifiedNoteService service, CancellationToken ct) =>
+{
+    var note = await service.SaveAsync(null, request, ct);
+    return Results.Created($"/api/classified-notes/{note!.Id}", note);
+}).RequirePermission(Permission.ManageEvidence).WithName("CreateClassifiedNote");
+api.MapPut("/classified-notes/{id:guid}", async (Guid id, SaveClassifiedNoteRequest request, ClassifiedNoteService service, HttpContext httpContext, CancellationToken ct) =>
+    await service.SaveAsync(id, request, ct) is { } note ? Results.Ok(note) : ApiProblemDetails.Create(httpContext,
+        "Resource not found", "Classified note was not found.", StatusCodes.Status404NotFound, "resource_not_found"))
+    .RequirePermission(Permission.ManageEvidence).WithName("UpdateClassifiedNote");
 
 api.MapGet("/content-classification-review-items", async (
     ContentClassificationReviewService service,

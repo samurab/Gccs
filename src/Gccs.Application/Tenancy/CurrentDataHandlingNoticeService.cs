@@ -46,6 +46,8 @@ public sealed class CurrentDataHandlingNoticeService(
         "ContractDocumentUpload" or "ExtractionJob" or "ContractIntake" => "ContractIntake",
         "EvidenceSubmission" or "EvidenceUpload" => "EvidenceUpload",
         "Report" or "ReportGeneration" => "ReportGeneration",
+        // Notes use the existing published general notice; no new review/approval is invented.
+        "Note" or "ClassifiedNote" => "Onboarding",
         "Onboarding" => "Onboarding",
         "Support" => "Support",
         _ => throw new DataHandlingNoticeValidationException("The notice workflow is not supported.")

@@ -483,7 +483,7 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static UpsertCompanyProfileRequest CreateCompanyProfileRequest() =>

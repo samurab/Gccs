@@ -97,6 +97,7 @@ test("UAT-04 Start extraction processes uploaded text and displays clause candid
 
   const documentCard = page.locator(".contract-document-item").filter({ hasText: fileName });
   await expect(documentCard).toContainText("accepted · clean");
+  await page.getByLabel("Workflow classification", { exact: true }).selectOption("Unclassified");
   await documentCard.getByRole("button", { name: "Start extraction" }).click();
 
   await expect(page.getByText("Extraction completed with 1 clause candidate.")).toBeVisible({

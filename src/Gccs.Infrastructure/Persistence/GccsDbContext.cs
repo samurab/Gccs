@@ -207,6 +207,17 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("gccs");
+        modelBuilder.Entity<ClassifiedNoteEntity>(entity =>
+        {
+            entity.ToTable("classified_notes");
+            entity.HasKey(n => n.Id);
+            entity.HasIndex(n => new { n.TenantId, n.UpdatedAt });
+            entity.Property(n => n.Title).HasMaxLength(240).IsRequired();
+            entity.Property(n => n.Body).HasMaxLength(20000).IsRequired();
+            entity.Property(n => n.ClassificationReason).HasMaxLength(600);
+            entity.Property(n => n.Revision).IsConcurrencyToken();
+            entity.HasOne<TenantEntity>().WithMany().HasForeignKey(n => n.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         modelBuilder.Entity<ObjectCleanupEntity>(entity =>
         {

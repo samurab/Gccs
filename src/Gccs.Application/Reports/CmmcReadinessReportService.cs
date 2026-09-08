@@ -9,15 +9,16 @@ public sealed class CmmcReadinessReportService(
     IReportRepository repository,
     IAuditEventWriter auditEventWriter,
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction, ContentClassificationPolicy classificationPolicy)
 {
     public Task<CmmcReadinessReportDto?> GenerateAsync(
         Guid assessmentId,
         Guid actorUserId,
         bool includeEvidenceLinks,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default, ContentClassificationRequest? classification = null) =>
         transaction.ExecuteAsync(async transactionCancellationToken =>
     {
+        await ClassifiedWorkflowValidation.ConfirmAsync(classificationPolicy, classification, TenantDataHandlingWorkflow.Report, actorUserId, transactionCancellationToken);
         await dataHandlingModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(TenantDataHandlingWorkflow.Report, ContainsRealCui: false),
             actorUserId,
@@ -27,7 +28,7 @@ public sealed class CmmcReadinessReportService(
             assessmentId,
             actorUserId,
             includeEvidenceLinks,
-            transactionCancellationToken);
+            transactionCancellationToken, classification);
         if (report is null)
         {
             return null;

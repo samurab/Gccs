@@ -827,7 +827,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static string Slugify(string roleName) =>
@@ -846,7 +846,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
         request.Headers.Add("X-Gccs-Dev-User", userId.ToString());
         request.Headers.Add("X-Gccs-Dev-Role", roleName);
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static TenantEntity CreateTenant(Guid tenantId, string name) =>

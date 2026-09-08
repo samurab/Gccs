@@ -143,10 +143,14 @@ public sealed class CuiReadyApprovalChecklistService(
             throw new CuiReadyApprovalChecklistValidationException("CuiReady mode requires an approved checklist linked to the current tenant.");
         }
 
-        if (checklist.ReviewedAt is null || checklist.ReviewedAt.Value < DateTimeOffset.UtcNow.AddYears(-1))
+        if (checklist.ReviewedByUserId is null || checklist.ReviewedAt is null ||
+            checklist.ReviewedAt.Value < DateTimeOffset.UtcNow.AddYears(-1) || checklist.ReviewedAt.Value > DateTimeOffset.UtcNow)
         {
             throw new CuiReadyApprovalChecklistValidationException("CuiReady mode requires a non-expired checklist approval reviewed within the last year.");
         }
+        if (!checklist.Items.Any(item => item.IsRequired) || checklist.Items.Any(item => item.IsRequired &&
+            (item.Status != CuiReadyChecklistItemStatus.Complete || item.ReviewerUserId is null || item.ReviewedAt is null)))
+            throw new CuiReadyApprovalChecklistValidationException("CuiReady mode requires completed and reviewed approval items.");
     }
 
     private static void ValidateCompletedItem(UpdateCuiReadyChecklistItemRequest request)

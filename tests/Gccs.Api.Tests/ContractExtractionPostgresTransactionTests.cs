@@ -116,6 +116,7 @@ public sealed class ContractExtractionPostgresTransactionTests : IClassFixture<W
             request.Headers.Add("X-Gccs-Dev-User", actorUserId.ToString());
             request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageContracts.ToString());
 
+            ClassifiedWorkflowTestData.Confirm(request);
             using var response = await client.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);

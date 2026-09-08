@@ -802,6 +802,9 @@ const {
 }));
 
 vi.mock("@/lib/api", () => ({
+  getClassifiedNotes: vi.fn().mockResolvedValue([]),
+  getClassifiedNote: vi.fn(),
+  saveClassifiedNote: vi.fn(),
   getPublishedDataHandlingNotice: vi.fn().mockResolvedValue(null),
   getDataHandlingNoticeAcknowledgements: vi.fn().mockResolvedValue([]),
   acknowledgeDataHandlingNotice: vi.fn().mockResolvedValue({ data: null, error: "Not configured" }),
@@ -2239,7 +2242,10 @@ describe("App", () => {
     await user.click(await screen.findByRole("link", { name: /contracts/i }));
     await user.click(await screen.findByRole("button", { name: /start extraction/i }));
 
-    expect(startContractDocumentExtractionMock).toHaveBeenCalledWith(contract.id, contractDocument.id);
+    expect(startContractDocumentExtractionMock).not.toHaveBeenCalled();
+    await user.selectOptions(screen.getByLabelText("Workflow classification"), "Unclassified");
+    await user.click(screen.getByRole("button", { name: /start extraction/i }));
+    expect(startContractDocumentExtractionMock).toHaveBeenCalledWith(contract.id, contractDocument.id, "Unclassified");
     expect(await screen.findByText(/Extraction job queued with status Queued/i)).toBeInTheDocument();
     expect(screen.getByText(/Extraction Queued/i)).toBeInTheDocument();
     expect(await screen.findByText(/Extraction completed with 1 clause candidate/i, {}, { timeout: 2500 })).toBeInTheDocument();
@@ -3751,6 +3757,9 @@ describe("App", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("link", { name: /reports/i }));
+    await user.click(screen.getByRole("button", { name: "Generate status" }));
+    expect(generateComplianceStatusReportMock).not.toHaveBeenCalled();
+    await user.selectOptions(screen.getByLabelText("Workflow classification"), "Unclassified");
     await user.click(screen.getByRole("button", { name: "Generate status" }));
 
     const detail = within(await screen.findByLabelText("Generated report detail"));

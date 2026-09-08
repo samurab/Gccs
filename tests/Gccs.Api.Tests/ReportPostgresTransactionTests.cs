@@ -90,6 +90,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
             request.Headers.Add("X-Gccs-Dev-User", actorUserId.ToString());
             request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageReports.ToString());
 
+            ClassifiedWorkflowTestData.Confirm(request);
             using var response = await client.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);

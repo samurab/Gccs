@@ -2739,9 +2739,10 @@ export async function uploadContractDocumentFile(
 
 export async function startContractDocumentExtraction(
   contractId: string,
-  documentId: string
+  documentId: string,
+  classification: string
 ): Promise<ApiMutationResult<ExtractionJob>> {
-  return postJsonResult<ExtractionJob>(`/api/contracts/${contractId}/documents/${documentId}/extraction-jobs`, {});
+  return postJsonResult<ExtractionJob>(`/api/contracts/${contractId}/documents/${documentId}/extraction-jobs`, { classification: { classification } });
 }
 
 export async function getContractDocumentExtractionResults(
@@ -3004,25 +3005,26 @@ export async function getEvidencePackage(reportId: string): Promise<EvidencePack
   return getRequiredJson<EvidencePackageReport>(`/api/reports/evidence-packages/${reportId}`);
 }
 
-export async function generateComplianceStatusReport(): Promise<ApiMutationResult<ComplianceStatusReport>> {
-  return postJsonResult<ComplianceStatusReport>("/api/reports/compliance-status", {});
+export async function generateComplianceStatusReport(classification: string): Promise<ApiMutationResult<ComplianceStatusReport>> {
+  return postJsonResult<ComplianceStatusReport>("/api/reports/compliance-status", { classification: { classification } });
 }
 
-export async function generateCmmcReadinessReport(assessmentId: string): Promise<ApiMutationResult<CmmcReadinessReport>> {
-  return postJsonResult<CmmcReadinessReport>(`/api/reports/cmmc-readiness?assessmentId=${encodeURIComponent(assessmentId)}`, {});
+export async function generateCmmcReadinessReport(assessmentId: string, classification: string): Promise<ApiMutationResult<CmmcReadinessReport>> {
+  return postJsonResult<CmmcReadinessReport>(`/api/reports/cmmc-readiness?assessmentId=${encodeURIComponent(assessmentId)}`, { classification: { classification } });
 }
 
 export async function generateSubcontractorComplianceReport(
+  classification: string,
   contractId?: string
 ): Promise<ApiMutationResult<SubcontractorComplianceReport>> {
   const query = contractId ? `?contractId=${encodeURIComponent(contractId)}` : "";
-  return postJsonResult<SubcontractorComplianceReport>(`/api/reports/subcontractor-compliance${query}`, {});
+  return postJsonResult<SubcontractorComplianceReport>(`/api/reports/subcontractor-compliance${query}`, { classification: { classification } });
 }
 
 export async function generateEvidencePackage(
-  request: EvidencePackageGenerateRequest
+  request: EvidencePackageGenerateRequest, classification: string
 ): Promise<ApiMutationResult<EvidencePackageReport>> {
-  return postJsonResult<EvidencePackageReport>("/api/reports/evidence-packages", request);
+  return postJsonResult<EvidencePackageReport>("/api/reports/evidence-packages", { ...request, classification: { classification } });
 }
 
 export async function updateEvidenceMetadata(
@@ -3030,6 +3032,17 @@ export async function updateEvidenceMetadata(
   request: UpsertEvidenceMetadataRequest
 ): Promise<ApiMutationResult<EvidenceMetadata>> {
   return putJsonResult<EvidenceMetadata>(`/api/evidence-items/${evidenceItemId}`, request);
+}
+
+export type ClassifiedNote = {
+  id: string; title: string; body: string; revision: number; createdAt: string; updatedAt: string;
+  classification: { classification: string; source: string; reason?: string };
+};
+export const getClassifiedNotes = () => getRequiredJson<ClassifiedNote[]>("/api/classified-notes");
+export const getClassifiedNote = (id: string) => getRequiredJson<ClassifiedNote>(`/api/classified-notes/${id}`);
+export function saveClassifiedNote(id: string | null, title: string, body: string, classification: string, revision: number) {
+  const request = { title, body, classification: { classification }, revision };
+  return id ? putJsonResult<ClassifiedNote>(`/api/classified-notes/${id}`, request) : postJsonResult<ClassifiedNote>("/api/classified-notes", request);
 }
 
 export async function getContentClassificationReviewItems(): Promise<ContentClassificationReviewItem[]> {

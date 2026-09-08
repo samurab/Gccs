@@ -18,6 +18,13 @@ public sealed class TenantDataHandlingModePolicyService(
     {
         var mode = await FindCurrentModeAsync(cancellationToken);
         var normalized = request.Normalize();
+        if (normalized.ContainsSyntheticCui)
+            normalized = normalized with { ApprovalChecksPassed =
+                serviceProvider.GetService(typeof(ISyntheticContentApprovalRepository)) is ISyntheticContentApprovalRepository provenance &&
+                await provenance.IsApprovedAsync(normalized.EntityType, normalized.EntityId, cancellationToken) };
+        // Approval is a persisted tenant decision, never a caller assertion.
+        if (mode == TenantDataPosture.CuiReady && (normalized.ContainsRealCui || normalized.RequiresCuiReadyApproval))
+            normalized = normalized with { ApprovalChecksPassed = await HasCurrentApprovalAsync(cancellationToken) };
         var denialReason = GetDenialReason(mode, normalized);
         if (denialReason is null && normalized.EntityType is not null && normalized.EntityId is not null &&
             serviceProvider.GetService(typeof(IContentContainmentRepository)) is IContentContainmentRepository containment &&
@@ -76,6 +83,23 @@ public sealed class TenantDataHandlingModePolicyService(
         {
             return null;
         }
+    }
+
+    private async Task<bool> HasCurrentApprovalAsync(CancellationToken cancellationToken)
+    {
+        if (serviceProvider.GetService(typeof(ITenantRepository)) is not ITenantRepository tenants ||
+            serviceProvider.GetService(typeof(ICuiReadyApprovalChecklistGate)) is not ICuiReadyApprovalChecklistGate gate)
+            return false;
+        var history = await tenants.ListDataHandlingModeHistoryInCurrentTenantScopeAsync(tenantContext.TenantId, cancellationToken);
+        var current = history.OrderByDescending(item => item.ChangedAt).ThenByDescending(item => item.Id).FirstOrDefault();
+        if (current?.NewMode != TenantDataPosture.CuiReady || string.IsNullOrWhiteSpace(current.ApprovalRecordReference))
+            return false;
+        try
+        {
+            await gate.EnsureApprovedChecklistAsync(tenantContext.TenantId, current.ApprovalRecordReference, cancellationToken);
+            return true;
+        }
+        catch (CuiReadyApprovalChecklistValidationException) { return false; }
     }
 
     private async Task<TenantDataPosture> FindCurrentModeAsync(CancellationToken cancellationToken)
@@ -145,7 +169,7 @@ public sealed record TenantDataHandlingModePolicyRequest(
     bool ContainsRealCui,
     bool ContainsSyntheticCui = false,
     bool ClassificationConfirmed = true,
-    bool ApprovalChecksPassed = true,
+    bool ApprovalChecksPassed = false,
     bool RequiresCuiReadyApproval = false,
     string? EntityType = null,
     string? EntityId = null)

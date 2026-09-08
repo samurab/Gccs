@@ -9,15 +9,16 @@ public sealed class EvidencePackageReportService(
     IReportRepository repository,
     IAuditEventWriter auditEventWriter,
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction, ContentClassificationPolicy classificationPolicy)
 {
     public Task<EvidencePackageReportDto> GenerateAsync(
         EvidencePackageGenerateRequest request,
         Guid actorUserId,
         bool includeDraftOrRejectedEvidence,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default, ContentClassificationRequest? classification = null) =>
         transaction.ExecuteAsync(async transactionCancellationToken =>
     {
+        await ClassifiedWorkflowValidation.ConfirmAsync(classificationPolicy, classification, TenantDataHandlingWorkflow.Report, actorUserId, transactionCancellationToken);
         await dataHandlingModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(TenantDataHandlingWorkflow.Report, ContainsRealCui: false),
             actorUserId,
@@ -27,7 +28,7 @@ public sealed class EvidencePackageReportService(
             request,
             actorUserId,
             includeDraftOrRejectedEvidence,
-            transactionCancellationToken);
+            transactionCancellationToken, classification);
         await auditEventWriter.WriteAsync(
             report.TenantId,
             actorUserId,

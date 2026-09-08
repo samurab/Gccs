@@ -32,7 +32,8 @@ for (const persona of readOnlyPersonas) {
     };
     await acknowledgeCurrentNotice(request, apiURL, setupHeaders, "ReportGeneration");
     const setupReportResponse = await request.post(`${apiURL}/api/reports/compliance-status`, {
-      headers: setupHeaders
+      headers: setupHeaders,
+      data: { classification: { classification: "Unclassified" } }
     });
     expect(setupReportResponse.status()).toBe(201);
 

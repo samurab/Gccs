@@ -81,7 +81,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                     EntityId: "misclassified-customer-cui"),
                 ids.ActorUserId));
 
-        await policy.EnsureAllowedAsync(
+        await Assert.ThrowsAsync<TenantDataHandlingModeRestrictedException>(() => policy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(
                 TenantDataHandlingWorkflow.ContractDocumentUpload,
                 ContainsRealCui: false,
@@ -89,7 +89,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                 ApprovalChecksPassed: true,
                 EntityType: "ContractDocument",
                 EntityId: "synthetic-demo-seed"),
-            ids.ActorUserId);
+            ids.ActorUserId)); // A caller flag is not persisted seed provenance.
     }
 
     [Fact]
@@ -207,13 +207,13 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                     ClassificationConfirmed: true,
                     ApprovalChecksPassed: false),
                 ids.ActorUserId));
-        await policy.EnsureAllowedAsync(
+        await Assert.ThrowsAsync<TenantDataHandlingModeRestrictedException>(() => policy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(
                 TenantDataHandlingWorkflow.EvidenceUpload,
                 ContainsRealCui: true,
                 ClassificationConfirmed: true,
                 ApprovalChecksPassed: true),
-            ids.ActorUserId);
+            ids.ActorUserId)); // Positive persisted approval is covered by ClassifiedWorkflowTests.
     }
 
     [Fact]
@@ -340,7 +340,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static UpsertContractRequest CreateContractRequest(DataHandlingPosture posture) =>

@@ -271,7 +271,7 @@ public sealed class EfReportRepository(
         EvidencePackageGenerateRequest request,
         Guid actorUserId,
         bool includeDraftOrRejectedEvidence,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null)
     {
         var generatedAt = DateTimeOffset.UtcNow;
         var obligationIds = NormalizeStrings(request.ObligationIds);
@@ -307,6 +307,7 @@ public sealed class EfReportRepository(
             await EnsureEvidenceAllowedForReportAsync(evidence, actorUserId, cancellationToken);
             ContentClassificationPolicy.EnsureProcessable(evidence.Classification, "Evidence package generation");
         }
+        EnsureOutputClassification(classification, evidenceItems);
 
         var subcontractorLinks = await dbContext.Set<SubcontractorEvidenceEntity>()
             .AsNoTracking()
@@ -377,6 +378,7 @@ public sealed class EfReportRepository(
             })
             .ToArray();
 
+        ApplyInitialClassification(entity, classification);
         dbContext.Reports.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity, manifest);
@@ -412,7 +414,7 @@ public sealed class EfReportRepository(
     public async Task<SubcontractorComplianceReportDto> GenerateSubcontractorComplianceReportAsync(
         Guid? contractId,
         Guid actorUserId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null)
     {
         var generatedAt = DateTimeOffset.UtcNow;
         var today = DateOnly.FromDateTime(generatedAt.UtcDateTime);
@@ -534,6 +536,7 @@ public sealed class EfReportRepository(
             entity.Contracts = [new ReportContractEntity { ReportId = entity.Id, ContractId = contractId.Value }];
         }
 
+        ApplyInitialClassification(entity, classification);
         dbContext.Reports.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity, snapshot);
@@ -541,7 +544,7 @@ public sealed class EfReportRepository(
 
     public async Task<ComplianceStatusReportDto> GenerateComplianceStatusReportAsync(
         Guid actorUserId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null)
     {
         var generatedAt = DateTimeOffset.UtcNow;
         var today = DateOnly.FromDateTime(generatedAt.UtcDateTime);
@@ -663,16 +666,44 @@ public sealed class EfReportRepository(
             })
             .ToArray();
 
+        ApplyInitialClassification(entity, classification);
         dbContext.Reports.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity, snapshot);
+    }
+
+    private static void ApplyInitialClassification(ReportEntity entity, ContentClassificationRequest? classification)
+    {
+        if (classification is null) return;
+        entity.Classification = classification.Classification;
+        entity.ClassificationSource = classification.Source;
+        entity.ClassificationConfidence = classification.Confidence;
+        entity.ClassificationReason = classification.Reason;
+    }
+
+    private static void EnsureOutputClassification(ContentClassificationRequest? selection, IEnumerable<EvidenceItemEntity> evidence)
+    {
+        if (selection is null) return; // Internal repository callers supply their own trusted snapshot classification.
+        foreach (var item in evidence)
+        {
+            var permitted = item.Classification switch
+            {
+                ContentClassification.Unclassified => true,
+                ContentClassification.Fci => selection.Classification is ContentClassification.Fci or ContentClassification.Cui,
+                ContentClassification.Cui => selection.Classification == ContentClassification.Cui,
+                ContentClassification.SyntheticCui => selection.Classification == ContentClassification.SyntheticCui,
+                _ => false
+            };
+            if (!permitted)
+                throw new ContentClassificationValidationException("Report classification cannot downgrade the classification of included evidence.");
+        }
     }
 
     public async Task<CmmcReadinessReportDto?> GenerateCmmcReadinessReportAsync(
         Guid assessmentId,
         Guid actorUserId,
         bool includeEvidenceLinks,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null)
     {
         var assessment = await dbContext.Assessments
             .AsNoTracking()
@@ -706,6 +737,7 @@ public sealed class EfReportRepository(
                 ReadGuidArray(status?.EvidenceItemIdsJson ?? "[]"));
         }).ToArray();
         var reportEvidence = await LoadReportableEvidenceAsync(controlRows, actorUserId, cancellationToken);
+        EnsureOutputClassification(classification, reportEvidence.Values);
         var evidenceStatusByControl = BuildEvidenceStatusByControl(controlRows, reportEvidence);
         var progress = controlRows
             .GroupBy(row => row.Control.Family)
@@ -849,6 +881,7 @@ public sealed class EfReportRepository(
             CreatedByUserId = actorUserId
         };
 
+        ApplyInitialClassification(entity, classification);
         dbContext.Reports.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
         return new CmmcReadinessReportDto(
