@@ -1,6 +1,6 @@
 # Staging regression — 2026-09-08
 
-Status: local regression passed after the documented policy-note correction; staging deployment pending.
+Status: Implemented and deployed to No-CUI staging after the documented regression correction.
 Internal engineering evidence, not a production or CUI approval.
 
 ## Scope and architecture
@@ -64,6 +64,25 @@ Earlier exploratory runs were interrupted after managed stacks identified a macO
 configuration-file reload loop in test-host startup. The regression settings disable
 hot reload only in tests and bound xUnit parallelism to four. Those interrupted runs
 are not passing evidence. Build first, then execute the consolidated suite.
+
+## Staging deployment and post-deployment checks
+
+- Deployed implementation SHA: `8799c9dfa19a4bc873152fb7c22c622a1ca5b1ba`.
+- Preserved planning/documentation commit: `e78bf4b3`.
+- [Staging workflow run 34180299257](https://github.com/samurab/Gccs/actions/runs/34180299257):
+  succeeded on 2026-09-08 UTC; deployment job duration 4 minutes 1 second.
+- GitHub Actions built the artifacts, generated/applied the migration SQL, validated
+  staging No-CUI/infrastructure rules, deployed the API and Static Web App, and passed
+  the staging smoke tests. Artifact: `staging-smoke-test-results` (health JSON and SQL).
+- Post-deployment API health: HTTP 200, status `ok`, No-CUI posture; PostgreSQL,
+  Redis, object storage, and background-job dependencies all reported `ok`.
+- Unauthenticated `/api/evidence-items`: HTTP 401, both before and after deployment.
+- [Staging web](https://mango-rock-016ff040f.7.azurestaticapps.net): HTTP 200.
+  Entry bundle changed from `index-BO4T_mXe.js` to `index-BgplctB9.js`.
+  Served `App-DRQpre0P.js` contains the selected-evidence upload UI and notice panel;
+  `api-BJNYkl2z.js` contains the notice-renewal event and no hard-coded evidence ID.
+- Production was not deployed. No merge to main was performed. Subsequent changes
+  to this evidence record do not alter the deployed implementation SHA.
 
 ## Remaining operational dependencies
 
