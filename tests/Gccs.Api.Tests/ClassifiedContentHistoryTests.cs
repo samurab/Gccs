@@ -500,7 +500,8 @@ public sealed class ClassifiedContentHistoryTests
         Assert.All(results, response => { Assert.Equal(HttpStatusCode.OK, response.StatusCode); response.Dispose(); });
         using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.False((await db.EvidenceItems.AsNoTracking().SingleAsync(e => e.Id == ids["EvidenceItem"])).IsUseBlocked);
-        Assert.Equal(2, await db.CuiSupportEscalationResolutions.CountAsync());
+        var createdEscalationIds = escalationIds.Select(Guid.Parse).ToArray();
+        Assert.Equal(2, await db.CuiSupportEscalationResolutions.CountAsync(r => createdEscalationIds.Contains(r.EscalationId)));
     }
     private sealed class PausedExtractor : Gccs.Application.Contracts.IContractDocumentTextExtractor
     {
