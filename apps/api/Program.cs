@@ -6986,16 +6986,34 @@ api.MapGet("/tenants/{tenantId:guid}/cui-support-escalations", async (
 .RequirePermission(Permission.ManageTenant)
 .WithName("ListCuiSupportEscalations");
 
+api.MapGet("/tenants/{tenantId:guid}/cui-support-escalations/report", async (
+    Guid tenantId,
+    CuiSupportEscalationService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.GetReportAsync(tenantId, cancellationToken)))
+.RequirePermission(Permission.ManageTenant)
+.WithName("GetCuiSupportEscalationReport");
+
 api.MapPost("/tenants/{tenantId:guid}/cui-support-escalations", async (
     Guid tenantId,
     CreateCuiSupportEscalationRequest request,
     CuiSupportEscalationService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
         if (tenantId != tenantContext.TenantId) return Results.NotFound();
+        var requiredPermission = CuiEscalationAuthorization.RequiredReadPermission(request.AffectedEntityType);
+        if (requiredPermission is null ||
+            (!httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, requiredPermission.Value.ToString()) &&
+             !httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ManageTenant.ToString())))
+        {
+            return ApiProblemDetails.Create(httpContext, "Permission required",
+                "You do not have permission to report a concern for this content type.",
+                StatusCodes.Status403Forbidden, "permission_required");
+        }
         var escalation = await service.CreateAsync(tenantId, request, tenantContext.UserId, cancellationToken);
         return Results.Created($"/api/tenants/{tenantId}/cui-support-escalations/{escalation.Id}", escalation);
     }
@@ -7285,6 +7303,17 @@ internal static class SimpleReportExportAuthorization
             "audit-log" or "auditlog" or "audit" => Permission.ViewAuditLog,
             _ => null
         };
+}
+
+internal static class CuiEscalationAuthorization
+{
+    public static Permission? RequiredReadPermission(string? entityType) => entityType?.Trim() switch
+    {
+        "EvidenceItem" or "EvidenceFileVersion" or "ClassifiedNote" => Permission.ViewEvidence,
+        "ContractDocument" or "ExtractionJob" => Permission.ViewContracts,
+        "Report" => Permission.ViewReports,
+        _ => null
+    };
 }
 
 internal static class ComplianceContentPackageLocator

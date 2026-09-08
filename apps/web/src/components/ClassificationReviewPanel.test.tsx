@@ -24,7 +24,7 @@ const escalation: CuiSupportEscalation = { id: "escalation-1", tenantId: "tenant
   affectedEntityType: "EvidenceItem", affectedEntityId: item.id, category: "ProhibitedData", severity: "High", status: "Submitted",
   owner: null, description: "Synthetic metadata concern", isAffectedContentBlocked: true, statusNote: null,
   statusChangedAt: null, statusChangedByUserId: null, createdAt: "2026-09-08T12:00:00Z", createdByUserId: "admin",
-  updatedAt: null, updatedByUserId: null, resolutions: [] };
+  updatedAt: null, updatedByUserId: null, slaDueAt: "2026-09-08T16:00:00Z", slaState: "Open", resolutions: [], events: [] };
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getClassifiedContent).mockResolvedValue([item]);

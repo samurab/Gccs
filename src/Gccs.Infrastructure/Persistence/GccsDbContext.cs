@@ -45,6 +45,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<DataHandlingNoticeAcknowledgementEntity> DataHandlingNoticeAcknowledgements => Set<DataHandlingNoticeAcknowledgementEntity>();
     public DbSet<CuiSupportEscalationEntity> CuiSupportEscalations => Set<CuiSupportEscalationEntity>();
     public DbSet<CuiSupportEscalationResolutionEntity> CuiSupportEscalationResolutions => Set<CuiSupportEscalationResolutionEntity>();
+    public DbSet<CuiSupportEscalationEventEntity> CuiSupportEscalationEvents => Set<CuiSupportEscalationEventEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
@@ -799,6 +800,15 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.EscalationId, x.ResolvedAt });
             entity.Property(x => x.Summary).HasMaxLength(1200).IsRequired();
             entity.HasOne(x => x.Escalation).WithMany(x => x.Resolutions).HasForeignKey(x => x.EscalationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CuiSupportEscalationEventEntity>(entity =>
+        {
+            entity.ToTable("cui_support_escalation_events");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.EscalationId, x.OccurredAt });
+            entity.Property(x => x.Note).HasMaxLength(1200).IsRequired();
+            entity.HasOne(x => x.Escalation).WithMany(x => x.Events).HasForeignKey(x => x.EscalationId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<UserEntity>(entity =>

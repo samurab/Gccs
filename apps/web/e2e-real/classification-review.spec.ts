@@ -50,7 +50,7 @@ test("classification review persists note history and keeps escalation release s
   expect((await request.get(`${apiURL}/api/classified-notes/${note.id}`, { headers })).status()).toBe(400);
   await panel.getByLabel("Escalation or resolution reason").fill("Synthetic metadata-only escalation.");
   const escalating = page.waitForResponse(r => r.url().endsWith("/cui-support-escalations") && r.request().method() === "POST");
-  await panel.getByRole("button", { name: "Escalate restricted content" }).click();
+  await panel.getByRole("button", { name: "Report data-handling concern" }).click();
   expect((await escalating).status()).toBe(201);
   await review("Fci", "Synthetic post-escalation review confirmed false positive.");
   expect((await request.get(`${apiURL}/api/classified-notes/${note.id}`, { headers })).status()).toBe(403);

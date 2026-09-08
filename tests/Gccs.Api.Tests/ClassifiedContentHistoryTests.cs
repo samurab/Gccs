@@ -389,9 +389,10 @@ public sealed class ClassifiedContentHistoryTests
             affectedEntityId = id.ToString(), category = "ProhibitedData", severity = "High", description = "Synthetic metadata-only concern." };
         using var unavailable = await client.SendAsync(Request(HttpMethod.Post, path, "ManageTenant", Body(Guid.NewGuid())));
         Assert.Equal(HttpStatusCode.BadRequest, unavailable.StatusCode);
-        using var denied = await client.SendAsync(Request(HttpMethod.Post, path, read, Body(ids[type])));
+        using var denied = await client.SendAsync(Request(HttpMethod.Post, path,
+            read == "ViewReports" ? "ViewEvidence" : "ViewReports", Body(ids[type])));
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
-        using var created = await client.SendAsync(Request(HttpMethod.Post, path, "ManageTenant", Body(ids[type])));
+        using var created = await client.SendAsync(Request(HttpMethod.Post, path, read, Body(ids[type])));
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var escalation = await created.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(escalation.GetProperty("isAffectedContentBlocked").GetBoolean());

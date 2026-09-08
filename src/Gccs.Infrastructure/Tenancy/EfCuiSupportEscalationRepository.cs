@@ -1,5 +1,6 @@
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Common;
+using Gccs.Domain.Identity;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +14,23 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         var escalations = await dbContext.CuiSupportEscalations
             .AsNoTracking()
             .Include(escalation => escalation.Resolutions)
+            .Include(escalation => escalation.Events)
             .Where(escalation => escalation.TenantId == tenantId)
             .OrderByDescending(escalation => escalation.CreatedAt)
             .ToArrayAsync(cancellationToken);
 
         return escalations.Select(ToDto).ToArray();
+    }
+
+    public async Task<CuiSupportEscalationReportDto> GetReportAsync(Guid tenantId, DateTimeOffset asOf, CancellationToken cancellationToken = default)
+    {
+        var rows = await dbContext.CuiSupportEscalations.AsNoTracking().Where(e => e.TenantId == tenantId)
+            .Select(e => new { e.Status, e.Severity, e.SlaDueAt }).ToArrayAsync(cancellationToken);
+        static bool Complete(CuiSupportEscalationStatus status) => status is CuiSupportEscalationStatus.Resolved or CuiSupportEscalationStatus.Closed;
+        return new CuiSupportEscalationReportDto(rows.Count(e => !Complete(e.Status)), rows.Count(e => Complete(e.Status)),
+            rows.Count(e => !Complete(e.Status) && e.SlaDueAt < asOf),
+            rows.GroupBy(e => e.Status.ToString()).ToDictionary(g => g.Key, g => g.Count()),
+            rows.GroupBy(e => e.Severity.ToString()).ToDictionary(g => g.Key, g => g.Count()));
     }
 
     public async Task<CuiSupportEscalationDto> CreateAsync(
@@ -43,11 +56,14 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             Description = Normalize(request.Description),
             IsAffectedContentBlocked = true,
             CreatedAt = createdAt,
-            CreatedByUserId = actorUserId
+            CreatedByUserId = actorUserId,
+            SlaDueAt = createdAt + SlaWindow(request.Severity)
         };
 
         dbContext.CuiSupportEscalations.Add(entity);
+        AddEvent(entity, CuiSupportEscalationStatus.Submitted, "Escalation submitted.", actorUserId, createdAt);
         await SetContentBlockedAsync(tenantId, entity.AffectedEntityType, affectedId, true, createdAt, cancellationToken);
+        await AddNotificationsAsync(entity, actorUserId, "A new CUI support escalation requires triage.", createdAt, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity);
     }
@@ -66,14 +82,19 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             return null;
         }
 
+        var statusChanged = entity.Status != request.Status;
+        if (statusChanged && string.IsNullOrWhiteSpace(request.Note))
+            throw new CuiSupportEscalationValidationException("Status change note is required.");
+        ValidateTransition(entity.Status, request.Status);
         entity.Owner = Normalize(request.Owner);
         entity.Severity = request.Severity;
         entity.Status = request.Status;
-        entity.IsAffectedContentBlocked = IsBlocked(entity.Category, entity.Status);
+        entity.IsAffectedContentBlocked = entity.Status == CuiSupportEscalationStatus.Closed ? entity.IsAffectedContentBlocked : IsBlocked(entity.Category, entity.Status);
         if (Guid.TryParse(entity.AffectedEntityId, out var affectedId))
             await SetContentBlockedAsync(tenantId, entity.AffectedEntityType, affectedId, entity.IsAffectedContentBlocked, updatedAt, cancellationToken, entity.Id);
         entity.UpdatedAt = updatedAt;
         entity.UpdatedByUserId = actorUserId;
+        AddEvent(entity, entity.Status, statusChanged ? Normalize(request.Note!) : $"Assigned to {entity.Owner}; severity set to {entity.Severity}.", actorUserId, updatedAt);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity);
     }
@@ -92,15 +113,19 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             return null;
         }
 
+        ValidateTransition(entity.Status, request.Status);
+
         entity.Status = request.Status;
         entity.StatusNote = Normalize(request.Note);
         entity.StatusChangedAt = changedAt;
         entity.StatusChangedByUserId = actorUserId;
-        entity.IsAffectedContentBlocked = IsBlocked(entity.Category, entity.Status);
+        entity.IsAffectedContentBlocked = entity.Status == CuiSupportEscalationStatus.Closed ? entity.IsAffectedContentBlocked : IsBlocked(entity.Category, entity.Status);
         if (Guid.TryParse(entity.AffectedEntityId, out var affectedId))
             await SetContentBlockedAsync(tenantId, entity.AffectedEntityType, affectedId, entity.IsAffectedContentBlocked, changedAt, cancellationToken, entity.Id);
         entity.UpdatedAt = changedAt;
         entity.UpdatedByUserId = actorUserId;
+        AddEvent(entity, request.Status, entity.StatusNote, actorUserId, changedAt);
+        await AddNotificationsAsync(entity, actorUserId, $"CUI escalation status changed to {request.Status}.", changedAt, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity);
     }
@@ -119,20 +144,19 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             return null;
         }
 
-        if (entity.Status == CuiSupportEscalationStatus.Resolved)
+        if (entity.Status is CuiSupportEscalationStatus.Resolved or CuiSupportEscalationStatus.Closed)
             throw new CuiSupportEscalationValidationException("This escalation has already been resolved.");
         // Referral is not a release decision. Keep it contained until removal or a reviewed false positive.
-        if (request.ResolutionType == CuiSupportEscalationResolutionType.ReferredToCustomer)
-            throw new CuiSupportEscalationValidationException("Customer referral does not release content. Keep the escalation contained.");
-        if (!await CanReleaseAsync(entity, request.ResolutionType, cancellationToken))
+        var referral = request.ResolutionType is CuiSupportEscalationResolutionType.ReferredToCustomer or CuiSupportEscalationResolutionType.ReferredToLegalOrSecurity;
+        if (!referral && !await CanReleaseAsync(entity, request.ResolutionType, cancellationToken))
             throw new CuiSupportEscalationValidationException("Release requires reviewed safe content, or completed content removal and private object cleanup.");
         entity.Status = CuiSupportEscalationStatus.Resolved;
         entity.StatusNote = Normalize(request.Summary);
         entity.StatusChangedAt = resolvedAt;
         entity.StatusChangedByUserId = actorUserId;
-        entity.IsAffectedContentBlocked = false;
+        entity.IsAffectedContentBlocked = referral;
         if (Guid.TryParse(entity.AffectedEntityId, out var affectedId))
-            await SetContentBlockedAsync(tenantId, entity.AffectedEntityType, affectedId, false, resolvedAt, cancellationToken, entity.Id);
+            await SetContentBlockedAsync(tenantId, entity.AffectedEntityType, affectedId, entity.IsAffectedContentBlocked, resolvedAt, cancellationToken, entity.Id);
         entity.UpdatedAt = resolvedAt;
         entity.UpdatedByUserId = actorUserId;
         dbContext.CuiSupportEscalationResolutions.Add(new CuiSupportEscalationResolutionEntity
@@ -144,6 +168,8 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             ResolvedAt = resolvedAt,
             ResolvedByUserId = actorUserId
         });
+        AddEvent(entity, CuiSupportEscalationStatus.Resolved, entity.StatusNote, actorUserId, resolvedAt);
+        await AddNotificationsAsync(entity, actorUserId, referral ? "CUI escalation was referred and remains contained." : "CUI escalation was resolved.", resolvedAt, cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity);
@@ -195,7 +221,7 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
     {
         if (!Guid.TryParse(escalation.AffectedEntityId, out var id)) return false;
         var tenantId = escalation.TenantId;
-        if (resolution == CuiSupportEscalationResolutionType.ContentRemoved)
+        if (resolution is CuiSupportEscalationResolutionType.ContentRemoved or CuiSupportEscalationResolutionType.Deleted)
         {
             // Never interpret archive as deletion of an immutable report artifact.
             if (escalation.AffectedEntityType == "Report") return false;
@@ -257,11 +283,15 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             entity.CreatedByUserId ?? Guid.Empty,
             entity.UpdatedAt,
             entity.UpdatedByUserId,
-            entity.Resolutions.OrderByDescending(resolution => resolution.ResolvedAt).Select(ToResolutionDto).ToArray());
+            entity.SlaDueAt,
+            entity.Status is CuiSupportEscalationStatus.Resolved or CuiSupportEscalationStatus.Closed ? "Completed" : entity.SlaDueAt < DateTimeOffset.UtcNow ? "Breached" : "Open",
+            entity.Resolutions.OrderByDescending(resolution => resolution.ResolvedAt).Select(ToResolutionDto).ToArray(),
+            entity.Events.OrderBy(e => e.OccurredAt).Select(e => new CuiSupportEscalationEventDto(e.Id, e.Status, e.Note, e.OccurredAt, e.ActorUserId)).ToArray());
 
     private IQueryable<CuiSupportEscalationEntity> Query(Guid tenantId) =>
         dbContext.CuiSupportEscalations
             .Include(escalation => escalation.Resolutions)
+            .Include(escalation => escalation.Events)
             .Where(escalation => escalation.TenantId == tenantId);
 
     private async Task<CuiSupportEscalationEntity?> FindForUpdateAsync(Guid tenantId, Guid id, CancellationToken ct)
@@ -274,6 +304,7 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             """).ToArrayAsync(ct);
         var item = items.SingleOrDefault();
         if (item is not null) await dbContext.Entry(item).Collection(e => e.Resolutions).LoadAsync(ct);
+        if (item is not null) await dbContext.Entry(item).Collection(e => e.Events).LoadAsync(ct);
         return item;
     }
 
@@ -287,7 +318,40 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             entity.ResolvedByUserId);
 
     private static bool IsBlocked(CuiSupportEscalationCategory category, CuiSupportEscalationStatus status) =>
-        status is CuiSupportEscalationStatus.Submitted or CuiSupportEscalationStatus.Triage or CuiSupportEscalationStatus.Contained;
+        status is CuiSupportEscalationStatus.Submitted or CuiSupportEscalationStatus.Triage or CuiSupportEscalationStatus.Contained or CuiSupportEscalationStatus.CustomerActionRequired or CuiSupportEscalationStatus.Reopened;
+
+    private static void ValidateTransition(CuiSupportEscalationStatus current, CuiSupportEscalationStatus next)
+    {
+        if (next == CuiSupportEscalationStatus.Reopened && current is not (CuiSupportEscalationStatus.Resolved or CuiSupportEscalationStatus.Closed))
+            throw new CuiSupportEscalationValidationException("Only a resolved or closed escalation can be reopened.");
+        if (next == CuiSupportEscalationStatus.Closed && current != CuiSupportEscalationStatus.Resolved)
+            throw new CuiSupportEscalationValidationException("Only a resolved escalation can be closed.");
+        if (current is CuiSupportEscalationStatus.Resolved or CuiSupportEscalationStatus.Closed && next is not (CuiSupportEscalationStatus.Reopened or CuiSupportEscalationStatus.Closed))
+            throw new CuiSupportEscalationValidationException("Use Reopened before resuming a completed escalation.");
+    }
+
+    private static TimeSpan SlaWindow(CuiSupportEscalationSeverity severity) => severity switch
+    {
+        CuiSupportEscalationSeverity.Critical => TimeSpan.FromHours(1), CuiSupportEscalationSeverity.High => TimeSpan.FromHours(4),
+        CuiSupportEscalationSeverity.Medium => TimeSpan.FromHours(24), _ => TimeSpan.FromHours(72)
+    };
+
+    private void AddEvent(CuiSupportEscalationEntity escalation, CuiSupportEscalationStatus status, string note, Guid actor, DateTimeOffset at) =>
+        dbContext.CuiSupportEscalationEvents.Add(new CuiSupportEscalationEventEntity { Id = Guid.NewGuid(), EscalationId = escalation.Id, Status = status, Note = Normalize(note), ActorUserId = actor, OccurredAt = at });
+
+    private async Task AddNotificationsAsync(CuiSupportEscalationEntity escalation, Guid actor, string message, DateTimeOffset at, CancellationToken ct)
+    {
+        var recipients = await dbContext.TenantMemberships.AsNoTracking()
+            .Where(m => m.TenantId == escalation.TenantId && m.Status == MembershipStatus.Active &&
+                (m.RoleName == RoleCatalog.Owner || m.RoleName == RoleCatalog.Admin || m.RoleName == RoleCatalog.Advisor))
+            .Select(m => m.UserId).Distinct().ToArrayAsync(ct);
+        var existing = await dbContext.NotificationDeliveries.AsNoTracking().Where(n => n.TenantId == escalation.TenantId &&
+            n.SourceTaskId == escalation.Id && n.Category == $"cui_escalation_{escalation.Status}").Select(n => n.UserId).ToArrayAsync(ct);
+        foreach (var userId in recipients.Except(existing))
+            dbContext.NotificationDeliveries.Add(new NotificationDeliveryEntity { Id = Guid.NewGuid(), TenantId = escalation.TenantId, UserId = userId,
+                SourceTaskId = escalation.Id, SourceType = "CuiSupportEscalation", LinkUrl = "/app#/evidence", Category = $"cui_escalation_{escalation.Status}",
+                Status = "Delivered", Placeholder = message, AttemptedAt = at, CreatedAt = at, CreatedByUserId = actor });
+    }
 
     private static string Normalize(string value) => value.Trim();
 }

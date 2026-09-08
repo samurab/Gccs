@@ -2,6 +2,7 @@ using Gccs.Application.Audit;
 using Gccs.Application.Common;
 using Gccs.Application.Storage;
 using Gccs.Domain.Audit;
+using Gccs.Application.Tenancy;
 
 namespace Gccs.Application.Reports;
 
@@ -11,7 +12,8 @@ public sealed class ReportExportService(
     IReportPdfRenderer renderer,
     IObjectStorageService objectStorage,
     IAuditEventWriter auditEventWriter,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction,
+    IContentContainmentRepository containment)
 {
     public Task<ReportExportDto?> RequestPdfAsync(
         Guid reportId,
@@ -19,7 +21,10 @@ public sealed class ReportExportService(
         CancellationToken cancellationToken = default) =>
         transaction.ExecuteAsync(async transactionCancellationToken =>
         {
-            if (await reports.GetReportArtifactAsync(reportId, transactionCancellationToken) is null) return null;
+            var report = await reports.GetReportArtifactAsync(reportId, transactionCancellationToken);
+            if (report is null) return null;
+            if (await containment.IsBlockedAsync(report.TenantId, "Report", reportId.ToString(), transactionCancellationToken))
+                throw new ContentContainedException("Contained reports cannot be exported.", "Report", reportId.ToString());
             var result = await exports.RequestPdfAsync(reportId, actorUserId, transactionCancellationToken);
             if (result is null || !result.Queued)
             {
@@ -59,6 +64,8 @@ public sealed class ReportExportService(
         }
 
         if (await reports.GetReportArtifactAsync(locator.ReportId, cancellationToken) is null) return null;
+        if (await containment.IsBlockedAsync(locator.TenantId, "Report", locator.ReportId.ToString(), cancellationToken))
+            throw new ContentContainedException("Contained reports cannot be downloaded.", "Report", locator.ReportId.ToString());
         var stored = await objectStorage.OpenReadAsync(
             new ObjectStorageReadRequest(
                 locator.TenantId,
@@ -103,6 +110,8 @@ public sealed class ReportExportService(
         {
             return await MarkFailedAsync(claimed, "report_not_found", cancellationToken);
         }
+        if (await containment.IsBlockedAsync(claimed.TenantId, "Report", claimed.ReportId.ToString(), cancellationToken))
+            return await MarkFailedAsync(claimed, "contained_report", cancellationToken);
 
         var rendered = renderer.Render(report);
         const int maximumPdfBytes = 10 * 1024 * 1024;
@@ -132,6 +141,7 @@ public sealed class ReportExportService(
             var ready = await transaction.ExecuteAsync(async transactionCancellationToken =>
             {
                 if (await reports.GetReportArtifactAsync(claimed.ReportId, transactionCancellationToken) is null) return null;
+                if (await containment.IsBlockedAsync(claimed.TenantId, "Report", claimed.ReportId.ToString(), transactionCancellationToken)) return null;
                 var persisted = await exports.MarkReadyAsync(
                     claimed.ExportId,
                     claimed.LeaseId,

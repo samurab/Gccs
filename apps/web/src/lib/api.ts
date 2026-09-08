@@ -601,7 +601,7 @@ export type CuiSupportEscalation = {
   affectedEntityId: string;
   category: "AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
   severity: "Low" | "Medium" | "High" | "Critical" | string;
-  status: "Submitted" | "Triage" | "Contained" | "Resolved" | string;
+  status: "Submitted" | "Triage" | "Contained" | "CustomerActionRequired" | "Resolved" | "Closed" | "Reopened" | string;
   owner: string | null;
   description: string;
   isAffectedContentBlocked: boolean;
@@ -612,8 +612,13 @@ export type CuiSupportEscalation = {
   createdByUserId: string;
   updatedAt: string | null;
   updatedByUserId: string | null;
+  slaDueAt: string;
+  slaState: string;
   resolutions: CuiSupportEscalationResolution[];
+  events: CuiSupportEscalationEvent[];
 };
+export type CuiSupportEscalationEvent = { id: string; status: string; note: string; occurredAt: string; actorUserId: string };
+export type CuiSupportEscalationReport = { openCount: number; resolvedCount: number; overdueCount: number; byStatus: Record<string, number>; bySeverity: Record<string, number> };
 
 export type CuiSupportEscalationResolution = {
   id: string;
@@ -2292,6 +2297,9 @@ export async function getNotifications(): Promise<NotificationCenterItem[]> {
 
 export async function getCuiSupportEscalations(tenantId: string): Promise<CuiSupportEscalation[]> {
   return getRequiredJson<CuiSupportEscalation[]>(`/api/tenants/${tenantId}/cui-support-escalations`);
+}
+export async function getCuiSupportEscalationReport(tenantId: string): Promise<CuiSupportEscalationReport> {
+  return getRequiredJson<CuiSupportEscalationReport>(`/api/tenants/${tenantId}/cui-support-escalations/report`);
 }
 
 export async function markNotificationRead(notificationId: string): Promise<ApiMutationResult<NotificationCenterItem>> {

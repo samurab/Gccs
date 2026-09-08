@@ -13,6 +13,9 @@ public sealed class CuiSupportEscalationService(
     public Task<IReadOnlyList<CuiSupportEscalationDto>> ListAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
         repository.ListAsync(tenantId, cancellationToken);
 
+    public Task<CuiSupportEscalationReportDto> GetReportAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
+        repository.GetReportAsync(tenantId, DateTimeOffset.UtcNow, cancellationToken);
+
     public async Task<CuiSupportEscalationDto> CreateAsync(
         Guid tenantId,
         CreateCuiSupportEscalationRequest request,
@@ -173,6 +176,7 @@ public sealed class CuiSupportEscalationService(
 public interface ICuiSupportEscalationRepository
 {
     Task<IReadOnlyList<CuiSupportEscalationDto>> ListAsync(Guid tenantId, CancellationToken cancellationToken = default);
+    Task<CuiSupportEscalationReportDto> GetReportAsync(Guid tenantId, DateTimeOffset asOf, CancellationToken cancellationToken = default);
 
     Task<CuiSupportEscalationDto> CreateAsync(
         Guid tenantId,
@@ -219,7 +223,8 @@ public sealed record CreateCuiSupportEscalationRequest(
 public sealed record UpdateCuiSupportEscalationRequest(
     string Owner,
     CuiSupportEscalationSeverity Severity,
-    CuiSupportEscalationStatus Status);
+    CuiSupportEscalationStatus Status,
+    string? Note = null);
 
 public sealed record ChangeCuiSupportEscalationStatusRequest(
     CuiSupportEscalationStatus Status,
@@ -248,7 +253,14 @@ public sealed record CuiSupportEscalationDto(
     Guid CreatedByUserId,
     DateTimeOffset? UpdatedAt,
     Guid? UpdatedByUserId,
-    IReadOnlyList<CuiSupportEscalationResolutionDto> Resolutions);
+    DateTimeOffset SlaDueAt,
+    string SlaState,
+    IReadOnlyList<CuiSupportEscalationResolutionDto> Resolutions,
+    IReadOnlyList<CuiSupportEscalationEventDto> Events);
+
+public sealed record CuiSupportEscalationEventDto(Guid Id, CuiSupportEscalationStatus Status, string Note, DateTimeOffset OccurredAt, Guid ActorUserId);
+public sealed record CuiSupportEscalationReportDto(int OpenCount, int ResolvedCount, int OverdueCount,
+    IReadOnlyDictionary<string, int> ByStatus, IReadOnlyDictionary<string, int> BySeverity);
 
 public sealed record CuiSupportEscalationResolutionDto(
     Guid Id,
@@ -281,7 +293,10 @@ public enum CuiSupportEscalationStatus
     Submitted,
     Triage,
     Contained,
-    Resolved
+    CustomerActionRequired,
+    Resolved,
+    Closed,
+    Reopened
 }
 
 public enum CuiSupportEscalationResolutionType
@@ -289,5 +304,11 @@ public enum CuiSupportEscalationResolutionType
     FalsePositive,
     ContentRemoved,
     ApprovedForUse,
-    ReferredToCustomer
+    ReferredToCustomer,
+    Reclassified,
+    Deleted,
+    RetainedUnderCuiReadyApproval,
+    ConfirmedSynthetic,
+    FalseAlarm,
+    ReferredToLegalOrSecurity
 }

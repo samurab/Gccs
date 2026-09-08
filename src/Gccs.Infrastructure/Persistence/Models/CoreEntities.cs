@@ -361,9 +361,22 @@ public sealed class CuiSupportEscalationEntity : AuditedEntity
     public string? StatusNote { get; set; }
     public DateTimeOffset? StatusChangedAt { get; set; }
     public Guid? StatusChangedByUserId { get; set; }
+    public DateTimeOffset SlaDueAt { get; set; }
 
     public TenantEntity? Tenant { get; set; }
     public ICollection<CuiSupportEscalationResolutionEntity> Resolutions { get; set; } = [];
+    public ICollection<CuiSupportEscalationEventEntity> Events { get; set; } = [];
+}
+
+public sealed class CuiSupportEscalationEventEntity
+{
+    public Guid Id { get; set; }
+    public Guid EscalationId { get; set; }
+    public CuiSupportEscalationStatus Status { get; set; }
+    public string Note { get; set; } = string.Empty;
+    public DateTimeOffset OccurredAt { get; set; }
+    public Guid ActorUserId { get; set; }
+    public CuiSupportEscalationEntity? Escalation { get; set; }
 }
 
 public sealed class CuiSupportEscalationResolutionEntity

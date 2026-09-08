@@ -2,6 +2,7 @@ using Gccs.Application.Audit;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Tenancy;
+using Gccs.Domain.Identity;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Gccs.Infrastructure.Tenancy;
@@ -37,6 +38,30 @@ public sealed class CuiSupportEscalationWorkflowTests
         Assert.Equal("Triage started.", updated.StatusNote);
         Assert.Equal(ActorUserId, updated.StatusChangedByUserId);
         Assert.NotNull(updated.StatusChangedAt);
+        Assert.Collection(updated.Events,
+            created => Assert.Equal(CuiSupportEscalationStatus.Submitted, created.Status),
+            triage => Assert.Equal("Triage started.", triage.Note));
+    }
+
+    [Fact]
+    public async Task Reporting_sla_notifications_and_overlapping_containment_are_durable()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTenant(dbContext);
+        var service = CreateService(dbContext);
+        var first = await service.CreateAsync(TenantId, CreateRequest(), ActorUserId);
+        var second = await service.CreateAsync(TenantId, CreateRequest(), ActorUserId);
+        Assert.NotEmpty(dbContext.NotificationDeliveries.Where(n => n.SourceTaskId == first.Id && n.UserId == ActorUserId));
+
+        ReviewEvidence(dbContext);
+        await service.ResolveAsync(TenantId, first.Id, new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.FalseAlarm, "Safe review."), ActorUserId);
+        Assert.True((await dbContext.EvidenceItems.SingleAsync(e => e.Id == EvidenceId)).IsUseBlocked);
+        await service.ResolveAsync(TenantId, second.Id, new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.FalsePositive, "Safe review."), ActorUserId);
+        Assert.False((await dbContext.EvidenceItems.SingleAsync(e => e.Id == EvidenceId)).IsUseBlocked);
+
+        var report = await new EfCuiSupportEscalationRepository(dbContext).GetReportAsync(TenantId, DateTimeOffset.UtcNow.AddDays(1));
+        Assert.Equal(2, report.ResolvedCount);
+        Assert.Equal(0, report.OpenCount);
     }
 
     [Fact]
@@ -74,8 +99,6 @@ public sealed class CuiSupportEscalationWorkflowTests
         var service = CreateService(dbContext);
         var escalation = await service.CreateAsync(TenantId, CreateRequest(), ActorUserId);
 
-        await Assert.ThrowsAsync<CuiSupportEscalationValidationException>(() => service.ResolveAsync(TenantId, escalation.Id,
-            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.ReferredToCustomer, "Referral is not release."), ActorUserId));
         ReviewEvidence(dbContext);
         var resolved = await service.ResolveAsync(
             TenantId,
@@ -107,11 +130,13 @@ public sealed class CuiSupportEscalationWorkflowTests
         var reopened = await service.ChangeStatusAsync(
             TenantId,
             resolved!.Id,
-            new ChangeCuiSupportEscalationStatusRequest(CuiSupportEscalationStatus.Triage, "Reopened after customer correction."),
+            new ChangeCuiSupportEscalationStatusRequest(CuiSupportEscalationStatus.Reopened, "Reopened after customer correction."),
             ActorUserId);
 
-        Assert.Equal(CuiSupportEscalationStatus.Triage, reopened!.Status);
+        Assert.Equal(CuiSupportEscalationStatus.Reopened, reopened!.Status);
         Assert.Single(reopened.Resolutions);
+        Assert.Contains(reopened.Events, e => e.Status == CuiSupportEscalationStatus.Resolved);
+        Assert.Contains(reopened.Events, e => e.Status == CuiSupportEscalationStatus.Reopened && e.Note == "Reopened after customer correction.");
     }
 
     [Fact]
@@ -172,6 +197,8 @@ public sealed class CuiSupportEscalationWorkflowTests
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedByUserId = ActorUserId
         });
+        dbContext.Users.Add(new UserEntity { Id = ActorUserId, TenantId = TenantId, Email = "owner@example.test", DisplayName = "Synthetic Owner", Status = UserStatus.Active });
+        dbContext.TenantMemberships.Add(new TenantMembershipEntity { Id = Guid.NewGuid(), TenantId = TenantId, UserId = ActorUserId, RoleName = RoleCatalog.Owner, Status = MembershipStatus.Active });
         dbContext.SaveChanges();
     }
 

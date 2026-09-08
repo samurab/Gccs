@@ -678,6 +678,11 @@ public static class ApiSecurityExtensions
                         "Tenant data handling mode restricted",
                         modeRestriction.Message,
                         "tenant_data_handling_mode_restricted"),
+                    ContentContainedException contained => (
+                        StatusCodes.Status423Locked,
+                        "Content is contained",
+                        contained.Message,
+                        "content_contained"),
                     ContentClassificationValidationException classification => (
                         StatusCodes.Status400BadRequest,
                         "Content classification invalid",

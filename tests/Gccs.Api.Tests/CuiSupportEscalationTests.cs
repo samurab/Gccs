@@ -83,7 +83,7 @@ public sealed class CuiSupportEscalationTests
         var updated = await service.UpdateSupportFieldsAsync(
             TenantId,
             escalation.Id,
-            new UpdateCuiSupportEscalationRequest("Security Support", CuiSupportEscalationSeverity.Critical, CuiSupportEscalationStatus.Triage),
+            new UpdateCuiSupportEscalationRequest("Security Support", CuiSupportEscalationSeverity.Critical, CuiSupportEscalationStatus.Triage, "Triage assigned."),
             ActorUserId);
 
         Assert.NotNull(updated);
@@ -104,7 +104,7 @@ public sealed class CuiSupportEscalationTests
         await service.UpdateSupportFieldsAsync(
             TenantId,
             escalation.Id,
-            new UpdateCuiSupportEscalationRequest("Support Lead", CuiSupportEscalationSeverity.High, CuiSupportEscalationStatus.Contained),
+            new UpdateCuiSupportEscalationRequest("Support Lead", CuiSupportEscalationSeverity.High, CuiSupportEscalationStatus.Contained, "Containment assigned."),
             ActorUserId);
 
         Assert.Contains(auditWriter.Events, audit => audit.Action == AuditAction.Created && audit.Metadata["lifecycleAction"] == "created");
