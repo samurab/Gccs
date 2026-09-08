@@ -56,6 +56,8 @@ it.each([
   await user.selectOptions(screen.getByLabelText("Content type"), route);
   await user.click(await screen.findByRole("button", { name: "Inspect Synthetic review item" }));
   await screen.findByLabelText("Reviewed classification");
+  expect(screen.getByRole("button", { name: "Inspect Synthetic review item" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("list", { name: "Classification records" })).toHaveAttribute("tabindex", "0");
   expect(screen.getByRole("button", { name: "Save classification review" })).toBeDisabled();
   await user.selectOptions(screen.getByLabelText("Reviewed classification"), "Fci");
   await user.type(screen.getByLabelText("Review reason"), "Verified metadata");

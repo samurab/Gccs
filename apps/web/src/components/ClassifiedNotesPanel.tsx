@@ -22,10 +22,16 @@ export function ClassifiedNotesPanel({ canManage }: { canManage: boolean }) {
     catch { setMessage("This note could not be opened. It may be restricted or unavailable."); }
     finally { setBusy(false); }
   }
-  return <section aria-label="Classified notes" className="upload-panel">
+  return <section aria-label="Classified notes" className="classified-notes">
     <h3>Classified notes</h3>
     <p>No-CUI restrictions apply to note text. Unknown notes need review before reopening. Use Classification review and history above for review or escalation.</p>
-    <ul>{notes.map(note => <li key={note.id}><button type="button" disabled={busy} onClick={() => void open(note.id)}>{note.title}</button> <ClassificationBadge classification={note.classification.classification} /></li>)}</ul>
+    <div className={`classified-notes-workbench${!canManage && !selected ? " classified-notes-workbench--browse" : ""}`}>
+    <div className="classified-notes-library"><h4>Saved notes</h4>
+    <ul tabIndex={0} aria-label="Saved notes">{notes.map(note => <li key={note.id}><button type="button" aria-pressed={selected?.id === note.id} disabled={busy} onClick={() => void open(note.id)}>{note.title}</button> <ClassificationBadge classification={note.classification.classification} /></li>)}</ul>
+    {!notes.length && message === "No classified notes yet." && <p>Saved notes will appear here.</p>}
+    </div>
+    <div className="classified-note-editor">
+    <h4>{selected ? "Selected note" : canManage ? "New note" : "Note details"}</h4>
     {selected && <ClassificationBadge classification={selected.classification.classification} />}
     {canManage ? <form onSubmit={async event => {
       event.preventDefault(); if (busy || !classification) return; setBusy(true);
@@ -41,10 +47,11 @@ export function ClassifiedNotesPanel({ canManage }: { canManage: boolean }) {
         <option value="">Select classification</option>{["Unclassified", "Fci", "Cui", "Unknown", "Prohibited"].map(value => <option key={value}>{value}</option>)}
       </select></label>
       {selected && <p>Reclassification requires an authorized classification reviewer.</p>}
-      <button disabled={busy || !classification} type="submit">{busy ? "Saving…" : "Save note"}</button>
-      <button type="button" disabled={busy} onClick={() => { setSelected(null); setTitle(""); setBody(""); setClassification(""); }}>New note</button>
+      <div className="classified-note-actions"><button className="classification-primary" disabled={busy || !classification} type="submit">{busy ? "Saving…" : "Save note"}</button>
+      <button type="button" disabled={busy} onClick={() => { setSelected(null); setTitle(""); setBody(""); setClassification(""); }}>New note</button></div>
     </form> : <p>Your role can view notes but cannot save changes.</p>}
-    {!canManage && selected && <p>{selected.body}</p>}
+    {!canManage && selected && <p className="classified-note-body">{selected.body}</p>}
+    </div></div>
     <p role="status">{message}</p>
   </section>;
 }

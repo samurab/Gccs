@@ -2405,7 +2405,7 @@ export function App() {
           <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}`} tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} />}
 
         <WorkspaceState state={loadState} onRetry={() => window.location.reload()}>
-          {(activeRoute === "reports" || activeRoute === "contracts") && <label>
+          {(activeRoute === "reports" || activeRoute === "contracts") && <label className="workflow-classification">
             Workflow classification
             <select aria-label="Workflow classification" value={workflowClassification} onChange={event => setWorkflowClassification(event.target.value)}>
               <option value="">Select / confirm classification</option>
@@ -2417,8 +2417,6 @@ export function App() {
           {currentTenant && (activeRoute === "evidence" || activeRoute === "contracts" || activeRoute === "reports") &&
             <ClassificationReviewPanel key={`${currentTenant.id}:${access.userId}:${access.permissions.join(",")}:${activeRoute}`}
               group={activeRoute} tenantId={currentTenant.id} permissions={access.permissions} onChanged={handleClassificationChanged} />}
-          {activeRoute === "evidence" && access.permissions.includes("ViewEvidence") &&
-            <ClassifiedNotesPanel key={`${currentTenant?.id}:${access.userId}:${classificationRefresh}`} canManage={canManageEvidence} />}
           {activeRoute === "dashboard" ? (
             <DashboardView overview={overview} />
           ) : activeRoute === "profile" ? (
@@ -2660,6 +2658,8 @@ export function App() {
           ) : (
             <DashboardView overview={overview} />
           )}
+          {activeRoute === "evidence" && access.permissions.includes("ViewEvidence") &&
+            <ClassifiedNotesPanel key={`${currentTenant?.id}:${access.userId}:${classificationRefresh}`} canManage={canManageEvidence} />}
         </WorkspaceState>
       </main>
     </div>
@@ -2792,7 +2792,7 @@ function CalendarView({
   };
 
   return (
-    <section className="route-panel" aria-label="Compliance calendar">
+    <section className="route-panel calendar-route" aria-label="Compliance calendar">
       <div className="route-panel__intro section-heading--split">
         <div>
           <p className="eyebrow">Compliance calendar</p>
@@ -8177,7 +8177,7 @@ function EvidenceView({
         status={evidenceMetadataStatus}
       />
 
-
+      <div className="evidence-upload-panels">
       <NoCuiAcknowledgementPanel
         acknowledgement={acknowledgement}
         acknowledgementMessage={acknowledgementMessage}
@@ -8275,6 +8275,8 @@ function EvidenceView({
           <p className="form-status form-status--error">{uploadMessage || "The API blocked the upload. Confirm acknowledgement and permissions."}</p>
         ) : null}
       </form>
+
+      </div>
 
       {evidenceItems.length === 0 ? (
         <EmptyState

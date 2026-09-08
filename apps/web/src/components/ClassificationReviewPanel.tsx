@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import "./ClassifiedContent.css";
 import {
   createCuiSupportEscalation, getClassifiedContent, getClassifiedContentDetail, getClassificationHistory,
   getCuiSupportEscalations, resolveCuiSupportEscalation, reviewContentClassification,
@@ -16,7 +17,7 @@ const contentTypes = [
 ] as const;
 
 export function ClassificationBadge({ classification }: { classification: string }) {
-  return <span className={`status status--${classification.toLowerCase()}`}>
+  return <span className={`status classification-badge status--${classification.toLowerCase()}`}>
     {classification === "SyntheticCui" ? "Synthetic demo data" : classification}
   </span>;
 }
@@ -128,27 +129,30 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
   if (!canRead) return <p role="status">You do not have permission to view classification records.</p>;
   return <details className="evidence-metadata classification-review-panel">
     <summary>Classification review and history</summary>
-    <section aria-label="Classification review and history">
-      <p>Unknown and Prohibited content cannot be used. CUI remains subject to tenant handling restrictions. Review does not authorize CUI storage.</p>
-      <div className="form-grid">
+    <section aria-label="Classification review and history" className="classification-review-body">
+      <p className="classification-guidance">Unknown and Prohibited content cannot be used. CUI remains subject to tenant handling restrictions. Review does not authorize CUI storage.</p>
+      <div className="classification-workbench">
+      <div className="classification-browser">
+      <div className="classification-filters">
         <label>Content type<select aria-label="Content type" value={route} disabled={busy} onChange={e => changeList(e.target.value as ClassifiedContentRoute, reviewOnly, 0)}>
           {available.map(t => <option key={t.route} value={t.route}>{t.label}</option>)}
         </select></label>
-        <label><input type="checkbox" checked={reviewOnly} disabled={busy} onChange={e => changeList(route, e.target.checked, 0)} /> Needs classification review only</label>
+        <label className="classification-checkbox"><input type="checkbox" checked={reviewOnly} disabled={busy} onChange={e => changeList(route, e.target.checked, 0)} /> Needs classification review only</label>
       </div>
       {loading ? <p role="status">Loading classification records…</p> : listError ? <p role="alert">{listError}</p> :
         items.length === 0 ? <p>No classification records match this page.</p> :
-          <ul className="evidence-list">{items.map(item => <li key={item.id}>
-            <button type="button" disabled={busy} onClick={() => void open(item.id)}>Inspect {item.title}</button>{" "}
+          <ul className="classification-item-list" tabIndex={0} aria-label="Classification records">{items.map(item => <li key={item.id}>
+            <button type="button" aria-pressed={selected?.id === item.id} disabled={busy} onClick={() => void open(item.id)}>Inspect {item.title}</button>{" "}
             <ClassificationBadge classification={item.classification.classification} />
           </li>)}</ul>}
-      <div className="form-actions">
+      <div className="classification-pagination">
         <button type="button" disabled={busy || loading || offset === 0} onClick={() => changeList(route, reviewOnly, Math.max(0, offset - 100))}>Previous classification page</button>
         <button type="button" disabled={busy || loading || items.length < 100 || offset >= 100000} onClick={() => changeList(route, reviewOnly, offset + 100)}>Next classification page</button>
         <button type="button" disabled={busy || loading} onClick={refreshList}>Refresh classification list</button>
       </div>
-      {selected && <article aria-label="Current classification detail">
-        <h3>{selected.title}</h3><p>{selected.entityType} · {selected.id} · revision {selected.revision}</p>
+      </div>
+      {selected ? <article aria-label="Current classification detail" className="classification-detail">
+        <h3>{selected.title}</h3><p className="classification-reference">{definition.label} · {selected.id} · revision {selected.revision}</p>
         <Metadata value={selected.classification} />
         <button type="button" disabled={busy} onClick={() => void open(selected.id)}>Reload current item</button>
         {canReview ? <form onSubmit={e => { e.preventDefault(); void review(); }}>
@@ -158,7 +162,7 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
           </select></label>
           <label>Review reason<textarea aria-label="Review reason" required maxLength={600} value={reason} disabled={busy || mustReload} onChange={e => setReason(e.target.value)} /></label>
           <p>Use metadata-only reasons. Do not paste file or note contents. Synthetic demo provenance cannot be assigned here.</p>
-          <button type="submit" disabled={busy || mustReload || !reason.trim() || classification === "SyntheticCui"}>Save classification review</button>
+          <button className="classification-primary" type="submit" disabled={busy || mustReload || !reason.trim() || classification === "SyntheticCui"}>Save classification review</button>
         </form> : <p>Your role can inspect classification and history but cannot reclassify this content.</p>}
         {(escalations.length > 0 || ["Prohibited", "Cui"].includes(selected.classification.classification)) && <section aria-label="Data handling escalation">
           <h4>Data handling escalation</h4>
@@ -172,7 +176,7 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
             <p>Release requires a safe review after escalation. A classification change alone does not release contained content.</p>
           </> : <p>Ask a tenant Owner to open a data-handling escalation for the item reference above.</p>}
         </section>}
-        <section aria-label="Classification history"><h4>Classification history</h4>
+        <section aria-label="Classification history" className="classification-history"><h4>Classification history</h4>
           {history.length ? <ol>{history.map(entry => <li key={entry.id}>
             <p>Revision {entry.revision ?? "legacy"}: {entry.previousClassification ?? "Not recorded"} → {entry.newClassification}</p>
             <p>Changed by {entry.changedByUserId} · {new Date(entry.changedAt).toLocaleString()}</p>
@@ -188,7 +192,8 @@ export function ClassificationReviewPanel({ group, tenantId, permissions, onChan
             finally { if (attempt === request.current) setBusy(false); }
           }}>Load older classification history</button>}
         </section>
-      </article>}
+      </article> : items.length > 0 && <p className="classification-empty">Select an item to see its current classification, review details, and change history.</p>}
+      </div>
       {message && <p role="status">{message}</p>}
       {busy && <p role="status">Working on the selected classification…</p>}
     </section>

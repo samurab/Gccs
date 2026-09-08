@@ -1,0 +1,235 @@
+/* Scoped presentation: classification policy and permission behavior live in the API/components. */
+.classification-review-panel,
+.classified-notes,
+.workflow-classification {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  margin-block: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+details.classification-review-panel {
+  display: block;
+  padding: 0;
+  box-shadow: none;
+}
+
+details.data-handling-notice { display: block; padding: 0; }
+.data-handling-notice > summary { cursor: pointer; padding: 16px 20px; font-weight: 650; }
+.data-handling-notice[open] > summary { border-bottom: 1px solid var(--line); }
+.data-handling-notice-body { padding: 20px; max-width: 80ch; }
+.data-handling-notice-body h3 { margin: 20px 0 8px; }
+.data-handling-notice-body p { line-height: 1.65; margin: 10px 0; }
+.data-handling-notice-body label { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+.data-handling-notice-body select { min-height: 44px; padding: 8px 12px; max-width: 100%; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; }
+.data-handling-notice-body input { width: 18px; height: 18px; accent-color: var(--teal); }
+.data-handling-notice-body button { min-height: 44px; padding: 10px 16px; background: var(--ink); color: #fff; border: 0; border-radius: 6px; font: inherit; font-weight: 650; cursor: pointer; }
+.data-handling-notice-body button:disabled { opacity: .6; cursor: not-allowed; }
+.data-handling-notice :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+
+.classification-review-panel > summary {
+  padding: 14px 18px;
+  color: var(--ink);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.classification-review-panel[open] > summary { border-bottom: 1px solid var(--line); }
+.classification-review-body { padding: 16px; }
+.classification-review-panel p,
+.classified-notes p { line-height: 1.6; margin: 0 0 12px; }
+.classification-review-panel h3,
+.classified-notes h3 { margin: 0 0 10px; font-size: 1.05rem; overflow-wrap: anywhere; }
+.classification-review-panel h4,
+.classified-notes h4 { margin: 0 0 14px; font-size: .9rem; }
+
+.classification-guidance {
+  padding: 12px 16px;
+  border-left: 3px solid var(--amber);
+  border-radius: 4px;
+  background: var(--amber-soft);
+  color: var(--ink-soft);
+}
+
+.classification-workbench { display: block; margin-top: 12px; }
+.classified-notes-workbench {
+  display: grid;
+  grid-template-columns: var(--workspace-editor-columns);
+  gap: var(--workspace-card-gap);
+  align-items: start;
+  margin-top: 12px;
+}
+
+.classification-workbench > *,
+.classified-notes-workbench > * { min-width: 0; }
+.classified-notes-library { padding-right: 0; }
+.classification-browser { padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.classification-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 12px; }
+.classification-filters > label:first-child { min-width: 220px; }
+.classification-detail form,
+.classified-note-editor form { display: grid; gap: 16px; }
+.classification-review-panel label,
+.classified-notes label { display: grid; gap: 8px; font-size: .85rem; font-weight: 650; color: var(--ink-soft); }
+
+.classification-review-panel input:not([type="checkbox"]),
+.classification-review-panel select,
+.classification-review-panel textarea,
+.classified-notes input,
+.classified-notes select,
+.classified-notes textarea,
+.workflow-classification select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.classification-review-panel textarea,
+.classified-notes textarea { min-height: 100px; resize: vertical; line-height: 1.6; }
+.classified-notes textarea { min-height: 160px; }
+.classification-review-panel label.classification-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 500;
+  text-transform: none;
+}
+.classification-checkbox input { width: 18px; height: 18px; min-height: 18px; margin: 2px 0 0; flex: 0 0 auto; accent-color: var(--teal); }
+
+.classification-review-panel button,
+.classified-notes button {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--teal);
+  font: inherit;
+  font-size: .85rem;
+  font-weight: 650;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.classification-review-panel button:not(:disabled):hover,
+.classified-notes button:not(:disabled):hover { background: var(--teal-soft); border-color: var(--teal); }
+.classification-review-panel button.classification-primary,
+.classified-notes button.classification-primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.classification-review-panel button.classification-primary:not(:disabled):hover,
+.classified-notes button.classification-primary:not(:disabled):hover { background: var(--teal); color: #fff; }
+.classification-review-panel :disabled,
+.classified-notes :disabled { cursor: not-allowed; opacity: .6; }
+.classification-review-panel :focus-visible,
+.classified-notes :focus-visible,
+.workflow-classification :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+
+.classified-notes-library ul { list-style: none; padding: 4px; margin: 18px 0; display: grid; gap: 10px; max-height: 28rem; overflow-y: auto; overscroll-behavior: contain; }
+.classification-item-list { list-style: none; padding: 4px; margin: 12px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px; max-height: 16rem; overflow-y: auto; }
+.classification-item-list li,
+.classified-notes-library li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.classification-item-list button,
+.classified-notes-library button { width: 100%; text-align: left; }
+.classified-notes-library li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding-bottom: 8px; }
+.classified-notes-library .classification-badge { align-self: center; }
+.classification-item-list button[aria-pressed="true"],
+.classified-notes-library button[aria-pressed="true"] { border-color: var(--teal); background: var(--teal-soft); box-shadow: inset 3px 0 var(--teal); }
+.classification-pagination,
+.classified-note-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.classification-pagination { padding-top: 8px; }
+.classification-pagination button { flex: 0 1 auto; }
+
+.status.classification-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  align-self: start;
+  justify-self: start;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 9px;
+  border-radius: 5px;
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: normal;
+}
+.classification-badge.status--unknown { color: var(--amber); background: var(--amber-soft); }
+.classification-badge.status--prohibited,
+.classification-badge.status--cui { color: var(--red); background: var(--red-soft); }
+.classification-badge.status--unclassified,
+.classification-badge.status--fci { color: var(--teal); background: var(--teal-soft); }
+
+.classification-metadata {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 10px 20px;
+  margin: 18px 0;
+  padding: 16px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: .85rem;
+}
+.classification-metadata dt { color: var(--muted); font-weight: 600; }
+.classification-metadata dd { margin: 0; overflow-wrap: anywhere; color: var(--ink); }
+.classification-reference { font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+.classification-detail { padding-top: 16px; }
+.classification-detail > form { grid-template-columns: minmax(180px, .6fr) minmax(0, 1fr); align-items: start; }
+.classification-detail > form > p,
+.classification-detail > form > button { grid-column: 1 / -1; }
+.classification-detail > form,
+.classification-detail > section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.classification-detail form > button { justify-self: start; }
+.classification-detail section[aria-label="Data handling escalation"] { padding: 16px; border: 1px solid var(--line-strong); border-left: 3px solid var(--red); border-radius: 6px; }
+.classification-detail section[aria-label="Data handling escalation"] button { margin-block: 12px; }
+.classification-history ol { list-style: none; margin: 0; padding: 0 0 0 16px; border-left: 2px solid var(--line); }
+.classification-history li { padding: 0 0 20px 12px; font-size: .82rem; overflow-wrap: anywhere; }
+.classification-history li > p:first-child { font-weight: 700; color: var(--ink); }
+.classification-history summary { cursor: pointer; padding: 8px 0; color: var(--teal); font-weight: 650; }
+.classification-empty { padding: 12px 0 0; }
+.classification-review-panel .classification-empty { margin-bottom: 0; font-size: .85rem; color: var(--muted); }
+.classification-empty p { color: var(--muted); max-width: 45ch; }
+.classification-review-panel [role="alert"] { padding: 12px; color: var(--red); background: var(--red-soft); border-radius: 6px; }
+.classification-review-panel [role="status"] { margin-top: 16px; color: var(--ink-soft); }
+.classified-notes { padding: var(--workspace-card-padding); box-shadow: var(--shadow-soft); }
+.classified-notes > p { color: var(--muted); font-size: .85rem; max-width: 85ch; }
+.classified-note-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.classified-notes-workbench--browse { grid-template-columns: minmax(0, 1fr); }
+.classified-notes-workbench--browse .classified-notes-library ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+
+label.workflow-classification { display: grid; grid-template-columns: max-content minmax(220px, 360px) max-content; justify-content: start; align-items: center; gap: 8px 16px; padding: 14px 18px; font-weight: 650; }
+.workflow-classification small { grid-column: 1 / -1; color: var(--muted); font-weight: 400; line-height: 1.5; }
+
+@media (max-width: 920px) {
+  .classification-review-panel,
+  .classified-notes,
+  .classification-detail,
+  .classification-review-panel :is(input, select, textarea, button),
+  .classified-notes :is(input, select, textarea, button) { scroll-margin-top: 110px; }
+  .classification-workbench,
+  .classified-notes-workbench { grid-template-columns: minmax(0, 1fr); }
+  .classification-detail > form { grid-template-columns: minmax(0, 1fr); }
+  .classified-notes-workbench--browse .classified-notes-library ul { grid-template-columns: minmax(0, 1fr); }
+  .classification-browser,
+  .classified-notes-library { border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 20px; }
+  label.workflow-classification { grid-template-columns: minmax(0, 1fr); }
+  .workflow-classification small { grid-column: 1; }
+}
+
+@media (max-width: 540px) {
+  .classification-review-body,
+  .classified-notes { padding: 16px; }
+  .classification-metadata { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .classification-metadata dd { margin-bottom: 10px; }
+  .classification-pagination button,
+  .classified-note-actions button { flex: 1 1 100%; }
+}

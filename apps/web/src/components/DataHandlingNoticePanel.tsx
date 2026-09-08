@@ -57,8 +57,9 @@ export function DataHandlingNoticePanel({ tenantId, mode }: { tenantId: string; 
     }
   }
 
-  return <details className="posture-notice" open={open} onToggle={event => setOpen(event.currentTarget.open)}>
+  return <details className="posture-notice data-handling-notice" open={open} onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>Current data handling notices</summary>
+    <div className="data-handling-notice-body">
     <label>Notice workflow <select value={workflow} disabled={saving} onChange={event => {
       noticeRevision.current++;
       setNotice(null); setAccepted(false); setChecked(false); setStatus("Loading current notice…"); setWorkflow(event.target.value);
@@ -77,5 +78,6 @@ export function DataHandlingNoticePanel({ tenantId, mode }: { tenantId: string; 
       </>}
     </>}
     {status && <p role="status">{status}</p>}
+    </div>
   </details>;
 }
