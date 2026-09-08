@@ -20,8 +20,8 @@ details.classification-review-panel {
 details.data-handling-notice { display: block; padding: 0; }
 .workflow-notice-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-  gap: var(--workspace-card-gap);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
   margin-block: 16px;
 }
