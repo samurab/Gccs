@@ -5,7 +5,8 @@ namespace Gccs.Api.Tests;
 
 public sealed partial class DevelopmentStoryRegressionCoverageTests
 {
-    private const int ExpectedDocumentedRegressionCaseCount = 628;
+    private const int ExpectedSoftwareCaseCount = 628;
+    private const int ExpectedGovernedEvidenceCaseCount = 45;
 
     private static readonly string[] CommonExpectationSignals =
     [
@@ -19,6 +20,7 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
     private static readonly string[] RequiredCaseExpectationVerbs =
     [
         "verify",
+        "review",
         "confirm",
         "attempt",
         "run",
@@ -154,7 +156,8 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
             .Select(group => group.Key)
             .ToArray();
 
-        Assert.Equal(ExpectedDocumentedRegressionCaseCount, cases.Count);
+        Assert.Equal(ExpectedSoftwareCaseCount + ExpectedGovernedEvidenceCaseCount, cases.Count);
+        Assert.Equal(ExpectedGovernedEvidenceCaseCount, cases.Count(IsGovernedEvidenceCase));
         Assert.Empty(duplicateIds);
         Assert.Equal(
             cases.Select(regressionCase => regressionCase.Id).OrderBy(id => id, StringComparer.Ordinal).ToArray(),
@@ -204,6 +207,14 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
         Assert.Contains("tenant", strategy.InvariantSummary, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("RBAC", strategy.InvariantSummary);
         Assert.Contains("audit", strategy.InvariantSummary, StringComparison.OrdinalIgnoreCase);
+
+        if (IsGovernedEvidenceCase(regressionCase))
+        {
+            Assert.Equal(RegressionLayer.GovernedEvidence, strategy.PrimaryLayer);
+            Assert.Contains("reviewer", strategy.NarrowCommand);
+            Assert.DoesNotContain("npm", strategy.NarrowCommand);
+            return;
+        }
 
         if (regressionCase.ExpectedBehavior.Contains("UI", StringComparison.OrdinalIgnoreCase) ||
             regressionCase.ExpectedBehavior.Contains("render", StringComparison.OrdinalIgnoreCase) ||
@@ -527,6 +538,10 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
     {
         public static RegressionStrategy For(DevelopmentStoryRegressionCase regressionCase)
         {
+            if (IsGovernedEvidenceCase(regressionCase))
+                return new RegressionStrategy(RegressionLayer.GovernedEvidence,
+                    "Review the versioned artifact against the case; record evidence, reviewer, date, result, exceptions, and follow-up owner.",
+                    "Preserve tenant boundaries, RBAC, audit traceability, and No-CUI posture. This strategy check does not execute the human review.");
             var combinedText = $"{regressionCase.Section} {regressionCase.Story} {regressionCase.Title} {regressionCase.ExpectedBehavior}";
             var deliveryScore = CountMatches(combinedText, DeliverySignals);
             var frontendScore = CountMatches(combinedText, FrontendSignals);
@@ -565,10 +580,15 @@ public sealed partial class DevelopmentStoryRegressionCoverageTests
 
     private enum RegressionLayer
     {
+        GovernedEvidence,
         Unclassified,
         Backend,
         Frontend,
         EndToEnd,
         Delivery
     }
+
+    private static bool IsGovernedEvidenceCase(DevelopmentStoryRegressionCase regressionCase) =>
+        regressionCase.Id.StartsWith("TC-0.", StringComparison.Ordinal) ||
+        regressionCase.Id.StartsWith("TC-39.", StringComparison.Ordinal);
 }

@@ -3060,19 +3060,19 @@ export async function resetDemoTenantSeed(): Promise<ApiMutationResult<DemoTenan
 }
 
 export async function createEvidenceUploadIntent(
+  evidenceItemId: string,
   file: File,
   classification: string,
   classificationReason: string,
   noCuiAttestation: boolean
 ): Promise<ApiMutationResult<EvidenceFileAccess>> {
-  const placeholderEvidenceItemId = "00000000-0000-0000-0000-000000000041";
   const form = new FormData();
   form.set("file", file);
   form.set("noCuiAttestation", String(noCuiAttestation));
   form.set("containsPotentialCui", String(classification === "Cui"));
   form.set("classification", classification);
   form.set("classificationReason", classificationReason.trim() || `User selected ${classification} upload classification.`);
-  return postFormResult<EvidenceFileAccess>(`/api/evidence-items/${placeholderEvidenceItemId}/file`, form);
+  return postFormResult<EvidenceFileAccess>(`/api/evidence-items/${evidenceItemId}/file`, form);
 }
 
 export async function createTenantInvitation(
@@ -3434,6 +3434,9 @@ async function readErrorDetails(
 ): Promise<{ error: string; errorSummary?: string; errors?: Record<string, string[]> }> {
   try {
     const problem = await response.json();
+    if (response.status === 428 && problem.errorCode === "data_handling_notice_acknowledgement_required") {
+      window.dispatchEvent(new CustomEvent("fedril:notice-required", { detail: { workflowContext: problem.workflowContext } }));
+    }
     const errors = Object.fromEntries(
       Object.entries(problem.errors ?? {}).map(([field, messages]) => [
         field,

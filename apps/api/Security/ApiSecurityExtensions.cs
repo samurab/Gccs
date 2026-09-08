@@ -678,6 +678,16 @@ public static class ApiSecurityExtensions
                         "Content classification invalid",
                         classification.Message,
                         "content_classification_invalid"),
+                    DataHandlingNoticeValidationException notice => (
+                        StatusCodes.Status400BadRequest,
+                        "Data handling notice invalid",
+                        notice.Message,
+                        "data_handling_notice_invalid"),
+                    DataHandlingNoticeAcknowledgementRequiredException acknowledgement => (
+                        StatusCodes.Status428PreconditionRequired,
+                        "Current notice acknowledgement required",
+                        acknowledgement.Message,
+                        "data_handling_notice_acknowledgement_required"),
                     BadHttpRequestException when exception.InnerException is JsonException => (
                         StatusCodes.Status400BadRequest,
                         "Invalid request body",
@@ -710,7 +720,9 @@ public static class ApiSecurityExtensions
                                 ["entityType"] = restriction.EntityType,
                                 ["entityId"] = restriction.EntityId
                             }
-                            : null)
+                            : exception is DataHandlingNoticeAcknowledgementRequiredException noticeRequired
+                                ? new Dictionary<string, object?> { ["workflowContext"] = noticeRequired.WorkflowContext }
+                                : null)
                     .ExecuteAsync(context);
             });
         });

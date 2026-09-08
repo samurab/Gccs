@@ -802,6 +802,9 @@ const {
 }));
 
 vi.mock("@/lib/api", () => ({
+  getPublishedDataHandlingNotice: vi.fn().mockResolvedValue(null),
+  getDataHandlingNoticeAcknowledgements: vi.fn().mockResolvedValue([]),
+  acknowledgeDataHandlingNotice: vi.fn().mockResolvedValue({ data: null, error: "Not configured" }),
   acceptClauseCandidate: acceptClauseCandidateMock,
   archiveReport: archiveReportMock,
   approveCuiReadyApprovalChecklist: approveCuiReadyApprovalChecklistMock,
@@ -3415,6 +3418,7 @@ describe("App", () => {
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
+    getEvidenceItemsMock.mockResolvedValueOnce([evidenceMetadata]);
     acknowledgeNoCuiNoticeMock.mockResolvedValueOnce({
       data: {
         isAcknowledged: true,
@@ -3484,6 +3488,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /upload evidence/i }));
 
     expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(
+      evidenceMetadata.id,
       expect.objectContaining({ name: "policy.pdf", type: "application/pdf" }),
       "Unclassified",
       "User confirmed upload classification.",
@@ -3498,6 +3503,7 @@ describe("App", () => {
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
+    getEvidenceItemsMock.mockResolvedValueOnce([evidenceMetadata]);
     getNoCuiAcknowledgementStatusMock.mockResolvedValueOnce({
       isAcknowledged: true,
       noticeVersion: "no-cui-mvp-v1",
@@ -3528,6 +3534,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /upload evidence/i }));
 
     expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(
+      evidenceMetadata.id,
       expect.objectContaining({ name: "policy.pdf", type: "application/pdf" }),
       "Unclassified",
       "User confirmed upload classification.",

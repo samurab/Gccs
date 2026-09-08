@@ -94,7 +94,7 @@ them as unique test coverage.
    `TC-0.1.2` in prompts and a case-inventory mismatch. These are broader than
    Phase 1/1A but keep the required repository regression red.
 4. **Secret/data scanner false positives.** The repository scan flags three
-   cancellation-token lambdas (`async token =>`) as assigned credentials and
+   cancellation-token lambda expressions as assigned credentials and
    the synthetic `.invalid` email fixture as customer data. Inspection identifies
    these as test-scanner matching issues, not verified credential exposure.
 5. **Health-test timeout and incomplete broad execution.**

@@ -28,15 +28,12 @@ public sealed class ContractExtractionPostgresTransactionTests : IClassFixture<W
         _factory = factory;
     }
 
-    [Fact]
+    [PostgresFact]
     [Trait("Category", "PostgresIntegration")]
     public async Task Audit_failure_rolls_back_extraction_job_creation()
     {
-        var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            return;
-        }
+        var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")
+            ?? throw new InvalidOperationException("GCCS_TEST_POSTGRES_CONNECTION is required.");
 
         var tenantId = Guid.NewGuid();
         var actorUserId = Guid.NewGuid();
@@ -52,13 +49,13 @@ public sealed class ContractExtractionPostgresTransactionTests : IClassFixture<W
                 services.RemoveAll<GccsDbContext>();
                 services.RemoveAll<DbContextOptions<GccsDbContext>>();
                 services.RemoveAll<IAuditEventWriter>();
-                services.AddDbContext<GccsDbContext>(options => options.UseNpgsql(connectionString));
+                services.AddDbContext<GccsDbContext>(options => options.UseGccsPostgres(connectionString));
                 services.AddScoped<IAuditEventWriter, FailingAuditEventWriter>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-                dbContext.Database.Migrate();
+                PostgresTestDatabase.Migrate(dbContext);
                 dbContext.Tenants.Add(new TenantEntity
                 {
                     Id = tenantId,
@@ -103,6 +100,7 @@ public sealed class ContractExtractionPostgresTransactionTests : IClassFixture<W
                     ClassificationSource = ContentClassificationSource.UserSelected,
                     ClassificationReason = "Synthetic No-CUI transaction verification."
                 });
+                NoticeTestData.Seed(dbContext, actorUserId);
                 dbContext.SaveChanges();
             });
         });
@@ -133,6 +131,7 @@ public sealed class ContractExtractionPostgresTransactionTests : IClassFixture<W
         {
             using var cleanupScope = factory.Services.CreateScope();
             var cleanupDbContext = cleanupScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            await cleanupDbContext.DataHandlingNoticeAcknowledgements.Where(a => a.TenantId == tenantId).ExecuteDeleteAsync();
             var documents = await cleanupDbContext.Set<ContractDocumentEntity>()
                 .Where(document => document.ContractId == contractId)
                 .ToArrayAsync();

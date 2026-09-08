@@ -1,4 +1,5 @@
 using Gccs.Application.Tenancy;
+using Gccs.Domain.Common;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -26,18 +27,21 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         DateTimeOffset createdAt,
         CancellationToken cancellationToken = default)
     {
+        if (!Guid.TryParse(request.AffectedEntityId, out var affectedId) || affectedId == Guid.Empty ||
+            !await ContentExistsAsync(tenantId, request.AffectedEntityType.Trim(), affectedId, cancellationToken))
+            throw new CuiSupportEscalationValidationException("The affected content reference is unavailable in this tenant.");
         var entity = new CuiSupportEscalationEntity
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             SourceWorkflow = Normalize(request.SourceWorkflow),
             AffectedEntityType = Normalize(request.AffectedEntityType),
-            AffectedEntityId = Normalize(request.AffectedEntityId),
+            AffectedEntityId = Guid.TryParse(request.AffectedEntityId, out var contentId) ? contentId.ToString() : Normalize(request.AffectedEntityId),
             Category = request.Category,
             Severity = request.Severity,
             Status = CuiSupportEscalationStatus.Submitted,
             Description = Normalize(request.Description),
-            IsAffectedContentBlocked = request.Category is CuiSupportEscalationCategory.ProhibitedData,
+            IsAffectedContentBlocked = true,
             CreatedAt = createdAt,
             CreatedByUserId = actorUserId
         };
@@ -55,9 +59,7 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         DateTimeOffset updatedAt,
         CancellationToken cancellationToken = default)
     {
-        var entity = await Query(tenantId).SingleOrDefaultAsync(
-            escalation => escalation.TenantId == tenantId && escalation.Id == escalationId,
-            cancellationToken);
+        var entity = await FindForUpdateAsync(tenantId, escalationId, cancellationToken);
         if (entity is null)
         {
             return null;
@@ -81,7 +83,7 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         DateTimeOffset changedAt,
         CancellationToken cancellationToken = default)
     {
-        var entity = await Query(tenantId).SingleOrDefaultAsync(escalation => escalation.Id == escalationId, cancellationToken);
+        var entity = await FindForUpdateAsync(tenantId, escalationId, cancellationToken);
         if (entity is null)
         {
             return null;
@@ -106,12 +108,19 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         DateTimeOffset resolvedAt,
         CancellationToken cancellationToken = default)
     {
-        var entity = await Query(tenantId).SingleOrDefaultAsync(escalation => escalation.Id == escalationId, cancellationToken);
+        var entity = await FindForUpdateAsync(tenantId, escalationId, cancellationToken);
         if (entity is null)
         {
             return null;
         }
 
+        if (entity.Status == CuiSupportEscalationStatus.Resolved)
+            throw new CuiSupportEscalationValidationException("This escalation has already been resolved.");
+        // Referral is not a release decision. Keep it contained until removal or a reviewed false positive.
+        if (request.ResolutionType == CuiSupportEscalationResolutionType.ReferredToCustomer)
+            throw new CuiSupportEscalationValidationException("Customer referral does not release content. Keep the escalation contained.");
+        if (!await CanReleaseAsync(entity, request.ResolutionType, cancellationToken))
+            throw new CuiSupportEscalationValidationException("Release requires reviewed safe content, or completed content removal and private object cleanup.");
         entity.Status = CuiSupportEscalationStatus.Resolved;
         entity.StatusNote = Normalize(request.Summary);
         entity.StatusChangedAt = resolvedAt;
@@ -132,6 +141,49 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity);
     }
+
+    private Task<bool> ContentExistsAsync(Guid tenantId, string type, Guid id, CancellationToken ct) => type switch
+    {
+        "EvidenceItem" => dbContext.EvidenceItems.AnyAsync(e => e.TenantId == tenantId && e.Id == id, ct),
+        "ContractDocument" => dbContext.Set<ContractDocumentEntity>().AnyAsync(e => e.Id == id && e.Contract!.TenantId == tenantId, ct),
+        "Report" => dbContext.Set<ReportEntity>().AnyAsync(e => e.Id == id && e.TenantId == tenantId, ct),
+        _ => Task.FromResult(false)
+    };
+
+    private async Task<bool> CanReleaseAsync(CuiSupportEscalationEntity escalation, CuiSupportEscalationResolutionType resolution, CancellationToken ct)
+    {
+        if (!Guid.TryParse(escalation.AffectedEntityId, out var id)) return false;
+        var tenantId = escalation.TenantId;
+        if (resolution == CuiSupportEscalationResolutionType.ContentRemoved)
+        {
+            // Never interpret archive as deletion of an immutable report artifact.
+            if (escalation.AffectedEntityType == "Report") return false;
+            if (escalation.AffectedEntityType == "EvidenceItem")
+            {
+                // Evidence metadata itself is still retained; a file tombstone is not complete removal.
+                if (await dbContext.EvidenceItems.AnyAsync(e => e.Id == id && e.TenantId == tenantId, ct)) return false;
+            }
+            else if (escalation.AffectedEntityType != "ContractDocument" ||
+                await ContentExistsAsync(tenantId, escalation.AffectedEntityType, id, ct)) return false;
+            // Conservative: no removal claim while any tenant cleanup remains incomplete.
+            return !await dbContext.Set<ObjectCleanupEntity>().AnyAsync(e => e.TenantId == tenantId && e.CompletedAt == null, ct);
+        }
+        if (escalation.AffectedEntityType == "EvidenceItem")
+        {
+            var evidence = await dbContext.EvidenceItems.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId, ct);
+            if (evidence is null || !Safe(evidence.Classification) ||
+                evidence.ClassificationSource != ContentClassificationSource.AdminReviewed ||
+                evidence.ClassificationReviewedByUserId is null || evidence.ClassificationReviewedByUserId == Guid.Empty ||
+                evidence.ClassificationReviewedAt < escalation.CreatedAt || evidence.ClassificationReviewedAt is null) return false;
+            return !await dbContext.EvidenceFileVersions.AnyAsync(v => v.EvidenceItemId == id && v.DeletedAt == null &&
+                v.Classification != ContentClassification.Unclassified && v.Classification != ContentClassification.Fci, ct);
+        }
+        // Document/report release requires a version-bound review workflow; unsupported cases fail closed.
+        return false;
+    }
+
+    private static bool Safe(ContentClassification classification) =>
+        classification is ContentClassification.Unclassified or ContentClassification.Fci;
 
     private static CuiSupportEscalationDto ToDto(CuiSupportEscalationEntity entity) =>
         new(
@@ -160,6 +212,19 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             .Include(escalation => escalation.Resolutions)
             .Where(escalation => escalation.TenantId == tenantId);
 
+    private async Task<CuiSupportEscalationEntity?> FindForUpdateAsync(Guid tenantId, Guid id, CancellationToken ct)
+    {
+        if (!dbContext.Database.IsNpgsql()) return await Query(tenantId).SingleOrDefaultAsync(e => e.Id == id, ct);
+        if (dbContext.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Containment transitions require an application transaction.");
+        var items = await dbContext.CuiSupportEscalations.FromSqlInterpolated($"""
+            SELECT * FROM gccs.cui_support_escalations WHERE tenant_id = {tenantId} AND id = {id} FOR UPDATE
+            """).ToArrayAsync(ct);
+        var item = items.SingleOrDefault();
+        if (item is not null) await dbContext.Entry(item).Collection(e => e.Resolutions).LoadAsync(ct);
+        return item;
+    }
+
     private static CuiSupportEscalationResolutionDto ToResolutionDto(CuiSupportEscalationResolutionEntity entity) =>
         new(
             entity.Id,
@@ -170,7 +235,6 @@ public sealed class EfCuiSupportEscalationRepository(GccsDbContext dbContext) : 
             entity.ResolvedByUserId);
 
     private static bool IsBlocked(CuiSupportEscalationCategory category, CuiSupportEscalationStatus status) =>
-        category is CuiSupportEscalationCategory.ProhibitedData &&
         status is CuiSupportEscalationStatus.Submitted or CuiSupportEscalationStatus.Triage or CuiSupportEscalationStatus.Contained;
 
     private static string Normalize(string value) => value.Trim();

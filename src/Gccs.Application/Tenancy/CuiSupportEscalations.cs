@@ -1,11 +1,13 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Domain.Audit;
 
 namespace Gccs.Application.Tenancy;
 
 public sealed class CuiSupportEscalationService(
     ICuiSupportEscalationRepository repository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    IApplicationTransaction transaction)
 {
     public Task<IReadOnlyList<CuiSupportEscalationDto>> ListAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
         repository.ListAsync(tenantId, cancellationToken);
@@ -17,9 +19,12 @@ public sealed class CuiSupportEscalationService(
         CancellationToken cancellationToken = default)
     {
         ValidateCreate(request);
-        var escalation = await repository.CreateAsync(tenantId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
-        await WriteAuditAsync(escalation, actorUserId, AuditAction.Created, "created", cancellationToken);
-        return escalation;
+        return await transaction.ExecuteAsync(async cancellationToken =>
+        {
+            var escalation = await repository.CreateAsync(tenantId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
+            await WriteAuditAsync(escalation, actorUserId, AuditAction.Created, "created", cancellationToken);
+            return escalation;
+        }, cancellationToken);
     }
 
     public async Task<CuiSupportEscalationDto?> UpdateSupportFieldsAsync(
@@ -30,13 +35,16 @@ public sealed class CuiSupportEscalationService(
         CancellationToken cancellationToken = default)
     {
         ValidateUpdate(request);
-        var escalation = await repository.UpdateSupportFieldsAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
-        if (escalation is not null)
+        return await transaction.ExecuteAsync(async cancellationToken =>
         {
-            await WriteAuditAsync(escalation, actorUserId, AuditAction.Updated, "updated", cancellationToken);
-        }
+            var escalation = await repository.UpdateSupportFieldsAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
+            if (escalation is not null)
+            {
+                await WriteAuditAsync(escalation, actorUserId, AuditAction.Updated, "updated", cancellationToken);
+            }
 
-        return escalation;
+            return escalation;
+        }, cancellationToken);
     }
 
     public async Task<CuiSupportEscalationDto?> ChangeStatusAsync(
@@ -47,13 +55,17 @@ public sealed class CuiSupportEscalationService(
         CancellationToken cancellationToken = default)
     {
         ValidateStatusChange(request.Note);
-        var escalation = await repository.ChangeStatusAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
-        if (escalation is not null)
+        ValidateOpenStatus(request.Status);
+        return await transaction.ExecuteAsync(async cancellationToken =>
         {
-            await WriteAuditAsync(escalation, actorUserId, AuditAction.Updated, "status_changed", cancellationToken);
-        }
+            var escalation = await repository.ChangeStatusAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
+            if (escalation is not null)
+            {
+                await WriteAuditAsync(escalation, actorUserId, AuditAction.Updated, "status_changed", cancellationToken);
+            }
 
-        return escalation;
+            return escalation;
+        }, cancellationToken);
     }
 
     public async Task<CuiSupportEscalationDto?> ResolveAsync(
@@ -63,22 +75,27 @@ public sealed class CuiSupportEscalationService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Summary))
+        if (!Enum.IsDefined(request.ResolutionType) || string.IsNullOrWhiteSpace(request.Summary))
         {
             throw new CuiSupportEscalationValidationException("Resolution summary is required.");
         }
 
-        var escalation = await repository.ResolveAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
-        if (escalation is not null)
+        return await transaction.ExecuteAsync(async cancellationToken =>
         {
-            await WriteAuditAsync(escalation, actorUserId, AuditAction.Updated, "resolved", cancellationToken);
-        }
+            var escalation = await repository.ResolveAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
+            if (escalation is not null)
+            {
+                await WriteAuditAsync(escalation, actorUserId, AuditAction.Updated, "resolved", cancellationToken);
+            }
 
-        return escalation;
+            return escalation;
+        }, cancellationToken);
     }
 
     private static void ValidateCreate(CreateCuiSupportEscalationRequest request)
     {
+        if (!Enum.IsDefined(request.Category) || !Enum.IsDefined(request.Severity))
+            throw new CuiSupportEscalationValidationException("A defined category and severity are required.");
         if (string.IsNullOrWhiteSpace(request.SourceWorkflow))
         {
             throw new CuiSupportEscalationValidationException("Escalation source workflow is required.");
@@ -97,6 +114,9 @@ public sealed class CuiSupportEscalationService(
 
     private static void ValidateUpdate(UpdateCuiSupportEscalationRequest request)
     {
+        ValidateOpenStatus(request.Status);
+        if (!Enum.IsDefined(request.Severity))
+            throw new CuiSupportEscalationValidationException("A defined severity is required.");
         if (string.IsNullOrWhiteSpace(request.Owner))
         {
             throw new CuiSupportEscalationValidationException("Escalation owner is required.");
@@ -109,6 +129,12 @@ public sealed class CuiSupportEscalationService(
         {
             throw new CuiSupportEscalationValidationException("Status change note is required.");
         }
+    }
+
+    private static void ValidateOpenStatus(CuiSupportEscalationStatus status)
+    {
+        if (!Enum.IsDefined(status) || status == CuiSupportEscalationStatus.Resolved)
+            throw new CuiSupportEscalationValidationException("Use the resolution workflow to resolve an escalation.");
     }
 
     private Task WriteAuditAsync(

@@ -208,6 +208,17 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     {
         modelBuilder.HasDefaultSchema("gccs");
 
+        modelBuilder.Entity<ObjectCleanupEntity>(entity =>
+        {
+            entity.ToTable("object_cleanup");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Container).HasConversion<string>().HasMaxLength(32);
+            entity.Property(item => item.ObjectName).HasMaxLength(1024).IsRequired();
+            entity.Property(item => item.LastErrorCode).HasMaxLength(128);
+            entity.HasIndex(item => new { item.CompletedAt, item.NextAttemptAt });
+            entity.HasIndex(item => new { item.TenantId, item.Id });
+        });
+
         ConfigureCore(modelBuilder);
         ConfigureMarketing(modelBuilder);
         ConfigureComplianceContent(modelBuilder);

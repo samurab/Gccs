@@ -124,6 +124,7 @@ public sealed class SubcontractorComplianceReportTests : IClassFixture<WebApplic
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<SubcontractorComplianceReportService>();
                 services.AddScoped<IReportRepository, EfReportRepository>();

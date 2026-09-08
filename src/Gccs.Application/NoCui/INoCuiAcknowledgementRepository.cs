@@ -2,6 +2,9 @@ namespace Gccs.Application.NoCui;
 
 public interface INoCuiAcknowledgementRepository
 {
+    Task<Gccs.Application.Common.ContentClassificationDto?> FindCurrentTenantEvidenceClassificationAsync(
+        Guid evidenceItemId, CancellationToken cancellationToken = default);
+
     Task<NoCuiAcknowledgementStatusDto?> FindCurrentUserAcknowledgementAsync(
         string noticeVersion,
         CancellationToken cancellationToken = default);
@@ -11,6 +14,10 @@ public interface INoCuiAcknowledgementRepository
         string noticeCopy,
         Guid actorUserId,
         DateTimeOffset acknowledgedAt,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> CurrentTenantEvidenceItemExistsAsync(
+        Guid evidenceItemId,
         CancellationToken cancellationToken = default);
 
     Task<EvidenceFileVersionDto> RecordAcceptedEvidenceUploadIntentAsync(

@@ -228,6 +228,8 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
             builder.ConfigureServices(services =>
             {
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddScoped<Gccs.Application.Tenancy.IDataHandlingNoticeAcknowledgementRepository, Gccs.Infrastructure.Tenancy.EfDataHandlingNoticeAcknowledgementRepository>();
+                services.AddScoped<Gccs.Application.Tenancy.ITenantRepository, Gccs.Infrastructure.Tenancy.EfTenantRepository>();
                 services.AddScoped<EvidencePackageReportService>();
                 services.AddScoped<IReportRepository, EfReportRepository>();
                 services.AddScoped<ITenantRepository, EfTenantRepository>();
@@ -240,6 +242,7 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
                 dbContext.Database.EnsureDeleted();
                 dbContext.Database.EnsureCreated();
                 seed?.Invoke(dbContext);
+                NoticeTestData.Seed(dbContext, Guid.Parse("15415415-4154-1541-5415-415415419990"));
                 dbContext.SaveChanges();
             });
         });
@@ -254,7 +257,7 @@ public sealed class EvidencePackageReportTests : IClassFixture<WebApplicationFac
         var request = new HttpRequestMessage(method, requestUri);
         request.Headers.Add("X-Gccs-Dev-Auth", "true");
         request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
-        request.Headers.Add("X-Gccs-Dev-User", Guid.NewGuid().ToString());
+        request.Headers.Add("X-Gccs-Dev-User", "15415415-4154-1541-5415-415415419990");
         request.Headers.Add("X-Gccs-Dev-Permissions", string.Join(",", permissions.Select(permission => permission.ToString())));
         if (content is not null)
         {

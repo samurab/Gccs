@@ -105,6 +105,11 @@ builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSect
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
+builder.Services.AddSingleton(_ => new DataHandlingNoticePackage(
+    ComplianceContentPackageLocator.FindPackageRoot(builder.Environment.ContentRootPath)));
+builder.Services.AddScoped<CurrentDataHandlingNoticeService>();
+builder.Services.AddScoped<ICurrentDataHandlingNoticeGuard>(provider =>
+    provider.GetRequiredService<CurrentDataHandlingNoticeService>());
 if (string.Equals(
     demoOptions.Provider,
     DemoRequestOptions.DevelopmentCaptureProvider,
@@ -147,6 +152,11 @@ if (builder.Configuration.GetValue("ReportExportProcessing:Enabled", true) &&
     !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
 {
     builder.Services.AddHostedService<ReportExportWorker>();
+}
+if (builder.Configuration.GetValue("ObjectCleanupProcessing:Enabled", true) &&
+    !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
+{
+    builder.Services.AddHostedService<ObjectCleanupWorker>();
 }
 if (builder.Environment.IsDevelopment())
 {
@@ -1390,7 +1400,7 @@ api.MapPost("/contracts/{contractId:guid}/documents/file", async (
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (!Enum.TryParse<ContentClassification>(form["classification"], true, out var classification))
+        if (!Enum.TryParse<ContentClassification>(form["classification"], true, out var classification) || !Enum.IsDefined(classification))
         {
             return Results.ValidationProblem(
                 new Dictionary<string, string[]> { ["classification"] = ["A valid classification is required."] },
@@ -3609,8 +3619,23 @@ api.MapPost("/audit-logs/cui-export", async (
     CuiAuditExportRequest request,
     CuiAuditExportService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
-    Results.Ok(await service.ExportAsync(tenantContext.TenantId, tenantContext.UserId, request, cancellationToken)))
+{
+    try
+    {
+        return Results.Ok(await service.ExportAsync(tenantContext.TenantId, tenantContext.UserId, request, cancellationToken));
+    }
+    catch (CuiAuditExportLimitException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Audit export too large", exception.Message,
+            StatusCodes.Status413PayloadTooLarge, "audit_export_too_large");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["filters"] = [exception.Message] });
+    }
+})
 .RequirePermission(Permission.ViewAuditLog)
 .WithName("ExportCuiAuditLogs");
 
@@ -4033,6 +4058,15 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
             StatusCodes.Status428PreconditionRequired,
             "no_cui_acknowledgement_required");
     }
+    catch (EvidenceItemNotFoundException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            exception.Message,
+            StatusCodes.Status404NotFound,
+            "resource_not_found");
+    }
     catch (UploadGuardrailValidationException exception)
     {
         return Results.ValidationProblem(
@@ -4085,6 +4119,14 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/file", async (
             statusCode: StatusCodes.Status400BadRequest);
         }
 
+        if (!Enum.TryParse<ContentClassification>(form["classification"], true, out var classification) ||
+            !Enum.IsDefined(classification))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["classification"] = ["An explicit, valid classification is required."]
+            });
+        }
         var noCuiAttestation = bool.TryParse(form["noCuiAttestation"], out var attestation) && attestation;
         var containsPotentialCui = bool.TryParse(form["containsPotentialCui"], out var potentialCui) && potentialCui;
         await using var stream = file.OpenReadStream();
@@ -4096,7 +4138,8 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/file", async (
                 file.Length,
                 stream,
                 noCuiAttestation,
-                containsPotentialCui),
+                containsPotentialCui,
+                new ContentClassificationRequest(classification, Reason: form["classificationReason"].FirstOrDefault())),
             tenantContext.UserId,
             cancellationToken);
 
@@ -4110,6 +4153,15 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/file", async (
             exception.Message,
             StatusCodes.Status428PreconditionRequired,
             "no_cui_acknowledgement_required");
+    }
+    catch (EvidenceItemNotFoundException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            exception.Message,
+            StatusCodes.Status404NotFound,
+            "resource_not_found");
     }
     catch (UploadGuardrailValidationException exception)
     {
@@ -6789,17 +6841,14 @@ api.MapGet("/shared-responsibility-matrix/published", async (
 .WithName("GetPublishedSharedResponsibilityMatrix");
 
 api.MapGet("/data-handling-notices/published", async (
-    [FromQuery] TenantDataPosture mode,
     [FromQuery] string workflowContext,
-    DataHandlingNoticeService service,
-    IWebHostEnvironment environment,
+    CurrentDataHandlingNoticeService service,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
-        var notice = await service.GetPublishedAsync(packageRoot, mode, workflowContext, cancellationToken);
+        var notice = await service.GetAsync(workflowContext, cancellationToken);
         return notice is null
             ? ApiProblemDetails.Create(httpContext, "Resource not found", "No published data handling notice matched the mode and workflow context.", StatusCodes.Status404NotFound, "resource_not_found")
             : Results.Ok(notice);
@@ -6812,21 +6861,19 @@ api.MapGet("/data-handling-notices/published", async (
         });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequireAuthorization()
 .WithName("GetPublishedDataHandlingNotice");
 
 api.MapGet("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", async (
     Guid tenantId,
-    [FromQuery] TenantDataPosture mode,
     [FromQuery] string workflowContext,
-    DataHandlingNoticeService noticeService,
+    CurrentDataHandlingNoticeService noticeService,
     DataHandlingNoticeAcknowledgementService acknowledgementService,
-    IWebHostEnvironment environment,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
-    var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
-    var notice = await noticeService.GetPublishedAsync(packageRoot, mode, workflowContext, cancellationToken);
+    if (tenantId != tenantContext.TenantId) return Results.NotFound();
+    var notice = await noticeService.GetAsync(workflowContext, cancellationToken);
     if (notice is null)
     {
         return Results.NotFound();
@@ -6834,33 +6881,20 @@ api.MapGet("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", asy
 
     return Results.Ok(await acknowledgementService.ListAsync(tenantId, tenantContext.UserId, notice, cancellationToken));
 })
-.RequirePermission(Permission.ManageTenant)
+.RequireAuthorization()
 .WithName("ListDataHandlingNoticeAcknowledgements");
 
 api.MapPost("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", async (
     Guid tenantId,
     AcknowledgeDataHandlingNoticeRequest request,
-    DataHandlingNoticeService noticeService,
-    DataHandlingNoticeAcknowledgementService acknowledgementService,
-    IWebHostEnvironment environment,
+    CurrentDataHandlingNoticeService noticeService,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
-        var notice = await noticeService.GetPublishedAsync(packageRoot, request.Mode, request.WorkflowContext, cancellationToken);
-        if (notice is null)
-        {
-            return Results.NotFound();
-        }
-
-        var acknowledgement = await acknowledgementService.AcknowledgeAsync(
-            tenantId,
-            tenantContext.UserId,
-            notice,
-            request,
-            cancellationToken);
+        if (tenantId != tenantContext.TenantId) return Results.NotFound();
+        var acknowledgement = await noticeService.AcknowledgeAsync(request, cancellationToken);
         return Results.Created($"/api/tenants/{tenantId}/data-handling-notice-acknowledgements", acknowledgement);
     }
     catch (DataHandlingNoticeAcknowledgementRequiredException exception)
@@ -6871,7 +6905,7 @@ api.MapPost("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", as
         });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequireAuthorization()
 .WithName("AcknowledgeDataHandlingNotice");
 
 api.MapGet("/tenants/{tenantId:guid}/cui-support-escalations", async (

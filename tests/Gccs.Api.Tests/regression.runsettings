@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <!-- Test hosts use fixed fixtures; avoid macOS file-watcher reload storms. -->
+      <DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE>false</DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE>
+    </EnvironmentVariables>
+    <TestSessionTimeout>1800000</TestSessionTimeout>
+  </RunConfiguration>
+  <xUnit>
+    <MaxParallelThreads>4</MaxParallelThreads>
+  </xUnit>
+</RunSettings>

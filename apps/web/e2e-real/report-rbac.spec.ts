@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { acknowledgeCurrentNotice } from "./notices";
 
 const apiURL = process.env.PLAYWRIGHT_API_URL ?? "http://127.0.0.1:5063";
 const tenantId = "11111111-1111-1111-1111-111111111111";
@@ -29,6 +30,7 @@ for (const persona of readOnlyPersonas) {
       "X-Gccs-Dev-Email": "alpha.admin@gccs.local",
       "X-Gccs-Dev-Role": "Admin"
     };
+    await acknowledgeCurrentNotice(request, apiURL, setupHeaders, "ReportGeneration");
     const setupReportResponse = await request.post(`${apiURL}/api/reports/compliance-status`, {
       headers: setupHeaders
     });
@@ -69,6 +71,7 @@ for (const persona of readOnlyPersonas) {
       "X-Gccs-Dev-Email": persona.email,
       "X-Gccs-Dev-Role": persona.role
     };
+    await acknowledgeCurrentNotice(request, apiURL, headers, "ReportGeneration");
     const reportHistoryBefore = await request.get(`${apiURL}/api/reports/recent`, { headers });
     expect(reportHistoryBefore.status()).toBe(200);
     const reportHistory = await reportHistoryBefore.json();

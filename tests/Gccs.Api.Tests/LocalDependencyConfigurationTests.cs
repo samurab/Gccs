@@ -6,9 +6,11 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Gccs.Api.Tests;
 
+[Collection("Local dependency checks")]
 public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private static readonly string[] RequiredDependencyNames =
@@ -29,10 +31,12 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
     ];
 
     private readonly WebApplicationFactory<Program> _factory;
+    private readonly ITestOutputHelper _output;
 
-    public LocalDependencyConfigurationTests(WebApplicationFactory<Program> factory)
+    public LocalDependencyConfigurationTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
     {
         _factory = factory;
+        _output = output;
     }
 
     public static TheoryData<string, string, string> RequiredLocalDependencyConfiguration =>
@@ -46,13 +50,10 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         };
 
     [Trait("Category", "LocalDocker")]
-    [Fact(Timeout = 180_000)]
+    [Fact(Timeout = 240_000)]
     public async Task Documented_one_command_local_services_startup_reports_all_services_healthy()
     {
-        if (!DockerIsAvailable())
-        {
-            return;
-        }
+        Assert.True(DockerIsAvailable(), "LocalDocker tests require a running Docker daemon; exclude Category=LocalDocker when Docker is unavailable.");
 
         var repoRoot = GetRepositoryRoot();
         var readme = await File.ReadAllTextAsync(Path.Combine(repoRoot, "README.md"));
@@ -87,20 +88,22 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
     }
 
     [Trait("Category", "LocalDocker")]
-    [Fact(Timeout = 60_000)]
+    [Fact(Timeout = 240_000)]
     public async Task Api_health_reports_connectivity_for_local_database_cache_storage_and_scanner()
     {
-        if (!DockerIsAvailable())
-        {
-            return;
-        }
-
+        Assert.True(DockerIsAvailable(), "LocalDocker tests require a running Docker daemon; exclude Category=LocalDocker when Docker is unavailable.");
+        var timer = Stopwatch.StartNew();
         await EnsureLocalServicesAreRunningAsync();
+        _output.WriteLine($"Docker startup completed in {timer.Elapsed}.");
 
-        using var client = CreateFactoryWithLocalDependencyConfiguration().CreateClient();
+        using var factory = CreateFactoryWithLocalDependencyConfiguration();
+        using var client = factory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(20);
+        _output.WriteLine($"Test host started after {timer.Elapsed}.");
 
         var response = await client.GetAsync("/health");
         var body = await response.Content.ReadAsStringAsync();
+        _output.WriteLine($"Health response received after {timer.Elapsed}; HTTP {(int)response.StatusCode}.");
         using var document = JsonDocument.Parse(body);
         var root = document.RootElement;
 
@@ -210,13 +213,54 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         Assert.Single(findings);
     }
 
+    [Theory]
+    [InlineData("async token => await UseAsync(token)")]
+    [InlineData("token=>UseAsync(token)")]
+    [InlineData("secret => Transform(secret)")]
+    public void Secret_scanner_ignores_CSharp_lambda_parameters(string source)
+    {
+        var findings = new List<string>();
+        AddSecretFindings(findings, "synthetic.cs", source);
+        Assert.Empty(findings);
+    }
+
+    [Fact]
+    public void Secret_scanner_still_detects_quoted_values_and_non_CSharp_assignments()
+    {
+        var findings = new List<string>();
+        AddSecretFindings(findings, "synthetic.cs", string.Concat("to", "ken = \"", "production-value", "\";"));
+        AddSecretFindings(findings, "synthetic.json", string.Concat("\"to", "ken\": \"", "production-value", "\""));
+        AddSecretFindings(findings, "synthetic.cs", string.Concat("to", "ken = \"", ">production-value", "\";"));
+        AddSecretFindings(findings, "synthetic.cs", string.Concat("public string To", "ken => \"", "production-value", "\";"));
+        Assert.Equal(4, findings.Count);
+    }
+
+    [Fact]
+    public void Customer_data_scanner_accepts_reserved_domains_but_not_suffix_lookalikes()
+    {
+        var findings = new List<string>();
+        AddCustomerDataFindings(findings, "synthetic.cs", "test@example.invalid test@sub.example.test");
+        Assert.Empty(findings);
+        AddCustomerDataFindings(findings, "synthetic.cs", string.Concat("test@", "invalid", ".com test@example.invalid", ".com"));
+        Assert.Equal(2, findings.Count);
+    }
+
     private WebApplicationFactory<Program> CreateFactoryWithLocalDependencyConfiguration(
         Action<IWebHostBuilder>? configure = null)
     {
         return _factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("LocalDependencies:Enabled", "true");
-            builder.UseSetting("ConnectionStrings:GccsDatabase", "Host=localhost;Port=15432;Database=gccs;Username=gccs;Password=gccs_dev_password");
+            // Connectivity tests must not start jobs, send notifications, or seed the developer database.
+            builder.UseSetting("LocalDevelopment:SeedData:Enabled", "false");
+            builder.UseSetting("LocalDependencies:SeedData:Enabled", "false");
+            builder.UseSetting("ExtractionProcessing:Enabled", "false");
+            builder.UseSetting("ReportExportProcessing:Enabled", "false");
+            builder.UseSetting("ObjectCleanupProcessing:Enabled", "false");
+            builder.UseSetting("InvitationDelivery:Enabled", "false");
+            builder.UseSetting("DemoRequests:Enabled", "false");
+            builder.UseSetting("ConnectionStrings:GccsDatabase", Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")
+                ?? "Host=localhost;Port=15432;Database=postgres;Username=gccs;Password=gccs_dev_password");
             builder.UseSetting("LocalDependencies:Redis:ConnectionString", "localhost:16379");
             builder.UseSetting(
                 "ConnectionStrings:AzureStorage",
@@ -313,7 +357,7 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
             foreach (Match match in pattern.Matches(content))
             {
                 var value = match.Groups["value"].Success ? match.Groups["value"].Value : match.Value;
-                if (IsCSharpAssignedCredentialFalsePositive(relativePath, name, match.Value, value))
+                if (IsCSharpAssignedCredentialFalsePositive(relativePath, name, match.Value, value, content.AsSpan(0, match.Index)))
                 {
                     continue;
                 }
@@ -328,7 +372,7 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         }
     }
 
-    private static bool IsCSharpAssignedCredentialFalsePositive(string relativePath, string findingName, string matchText, string value)
+    private static bool IsCSharpAssignedCredentialFalsePositive(string relativePath, string findingName, string matchText, string value, ReadOnlySpan<char> precedingText)
     {
         if (!relativePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(findingName, "assigned credential", StringComparison.Ordinal))
@@ -337,7 +381,11 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         }
 
         var normalizedMatch = matchText.ToLowerInvariant();
-        return value.EndsWith("()", StringComparison.Ordinal)
+        var prefix = precedingText.TrimEnd();
+        var isStringProperty = prefix.EndsWith("string", StringComparison.OrdinalIgnoreCase) ||
+            prefix.EndsWith("string?", StringComparison.OrdinalIgnoreCase);
+        return (!isStringProperty && Regex.IsMatch(matchText, @"\b(?:password|secret|token|api[_-]?key|client[_-]?secret)\s*=>", RegexOptions.IgnoreCase))
+            || value.EndsWith("()", StringComparison.Ordinal)
             || value.Contains(".Length", StringComparison.Ordinal)
             || normalizedMatch.Contains("?token=", StringComparison.Ordinal)
             || normalizedMatch.Contains("&token=", StringComparison.Ordinal);
@@ -348,7 +396,7 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         var customerDataPatterns = new (string Name, Regex Pattern)[]
         {
             ("SSN", new Regex(@"\b\d{3}-\d{2}-\d{4}\b", RegexOptions.Compiled)),
-            ("non-placeholder email", new Regex(@"\b[A-Z0-9._%+-]+@(?!example\.com\b|example\.org\b|gccs\.local\b|localhost\b|[A-Z0-9.-]+\.test\b)[A-Z0-9.-]+\.[A-Z]{2,}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled))
+            ("non-placeholder email", new Regex(@"\b[A-Z0-9._%+-]+@(?!example\.com\b|example\.org\b|gccs\.local\b|localhost\b|[A-Z0-9.-]+\.(?:test|invalid)(?![A-Z0-9.-]))[A-Z0-9.-]+\.[A-Z]{2,}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled))
         };
 
         foreach (var (name, pattern) in customerDataPatterns)
@@ -440,6 +488,7 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
         catch (TimeoutException)
         {
             process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
             return new ProcessResult(fileName, arguments, -1, standardOutput.ToString(), $"Timed out after {timeout}. {standardError}");
         }
 
@@ -455,3 +504,6 @@ public sealed class LocalDependencyConfigurationTests : IClassFixture<WebApplica
 
     private sealed record ProcessResult(string FileName, string Arguments, int ExitCode, string StandardOutput, string StandardError);
 }
+
+[CollectionDefinition("Local dependency checks", DisableParallelization = true)]
+public sealed class LocalDependencyChecksCollection;

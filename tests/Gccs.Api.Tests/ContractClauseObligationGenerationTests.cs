@@ -236,6 +236,7 @@ public sealed class ContractClauseObligationGenerationTests : IClassFixture<WebA
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<ContractService>();
                 services.AddScoped<IContractRepository, EfContractRepository>();

@@ -1,7 +1,6 @@
 using Gccs.Application.NoCui;
 using Gccs.Application.Security;
 using Gccs.Application.Common;
-using Gccs.Domain.Evidence;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -53,47 +52,46 @@ public sealed class EfNoCuiAcknowledgementRepository(
         return ToDto(acknowledgement);
     }
 
+    public Task<bool> CurrentTenantEvidenceItemExistsAsync(
+        Guid evidenceItemId,
+        CancellationToken cancellationToken = default) =>
+        dbContext.EvidenceItems.AnyAsync(
+            candidate => candidate.Id == evidenceItemId && candidate.TenantId == tenantContext.TenantId,
+            cancellationToken);
+
     public async Task<EvidenceFileVersionDto> RecordAcceptedEvidenceUploadIntentAsync(
         EvidenceUploadIntentDto uploadIntent,
         CancellationToken cancellationToken = default)
     {
-        var evidenceItem = await dbContext.EvidenceItems.SingleOrDefaultAsync(
-            candidate =>
-                candidate.Id == uploadIntent.EvidenceItemId &&
-                candidate.TenantId == tenantContext.TenantId,
-            cancellationToken);
+        await using var transaction = dbContext.Database.IsNpgsql() && dbContext.Database.CurrentTransaction is null
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        var evidenceItem = !dbContext.Database.IsNpgsql()
+            ? await FindCurrentTenantEvidenceItemAsync(uploadIntent.EvidenceItemId, cancellationToken)
+            : await dbContext.EvidenceItems
+                .FromSqlInterpolated($"""
+                    SELECT *
+                    FROM gccs.evidence_items
+                    WHERE id = {uploadIntent.EvidenceItemId}
+                      AND tenant_id = {tenantContext.TenantId}
+                    FOR UPDATE
+                    """)
+                .SingleOrDefaultAsync(cancellationToken);
         var now = DateTimeOffset.UtcNow;
 
         if (evidenceItem is null)
         {
-            evidenceItem = new EvidenceItemEntity
+            if (transaction is not null)
             {
-                Id = uploadIntent.EvidenceItemId,
-                TenantId = tenantContext.TenantId,
-                Name = uploadIntent.FileName,
-                Description = "Upload intent metadata captured by No-CUI guardrails. File storage is not enabled for CUI in the MVP.",
-                Type = EvidenceType.Other,
-                Status = EvidenceStatus.InReview,
-                OwnerFunction = "Compliance",
-                TagsJson = "[\"no-cui\",\"upload-intent\"]",
-                Classification = uploadIntent.Classification.Classification,
-                ClassificationSource = uploadIntent.Classification.Source,
-                ClassificationConfidence = uploadIntent.Classification.Confidence,
-                ClassificationReviewedByUserId = uploadIntent.Classification.ReviewedByUserId,
-                ClassificationReviewedAt = uploadIntent.Classification.ReviewedAt,
-                ClassificationReason = uploadIntent.Classification.Reason,
-                ClassificationIsApprovedDemoContent = uploadIntent.Classification.IsApprovedDemoContent,
-                CreatedAt = now,
-                CreatedByUserId = uploadIntent.CreatedByUserId
-            };
+                await transaction.RollbackAsync(cancellationToken);
+            }
 
-            dbContext.EvidenceItems.Add(evidenceItem);
+            throw new EvidenceItemNotFoundException(uploadIntent.EvidenceItemId);
         }
-        else
-        {
-            evidenceItem.UpdatedAt = now;
-            evidenceItem.UpdatedByUserId = uploadIntent.CreatedByUserId;
-        }
+
+        evidenceItem.UpdatedAt = now;
+        evidenceItem.UpdatedByUserId = uploadIntent.CreatedByUserId;
 
         evidenceItem.OriginalFileName = uploadIntent.FileName;
         evidenceItem.ContentType = uploadIntent.ContentType;
@@ -139,8 +137,30 @@ public sealed class EfNoCuiAcknowledgementRepository(
         dbContext.EvidenceFileVersions.Add(version);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+
         return ToDto(version);
     }
+
+    public async Task<ContentClassificationDto?> FindCurrentTenantEvidenceClassificationAsync(
+        Guid evidenceItemId, CancellationToken cancellationToken = default)
+    {
+        var item = await dbContext.EvidenceItems.AsNoTracking().SingleOrDefaultAsync(
+            e => e.Id == evidenceItemId && e.TenantId == tenantContext.TenantId, cancellationToken);
+        return item is null ? null : new ContentClassificationDto(item.Classification, item.ClassificationSource,
+            item.ClassificationConfidence, item.ClassificationReviewedByUserId, item.ClassificationReviewedAt,
+            item.ClassificationReason, item.ClassificationIsApprovedDemoContent);
+    }
+
+    private Task<EvidenceItemEntity?> FindCurrentTenantEvidenceItemAsync(
+        Guid evidenceItemId,
+        CancellationToken cancellationToken) =>
+        dbContext.EvidenceItems.SingleOrDefaultAsync(
+            candidate => candidate.Id == evidenceItemId && candidate.TenantId == tenantContext.TenantId,
+            cancellationToken);
 
     public async Task<EvidenceFileVersionDto?> FindLatestCurrentTenantFileVersionAsync(
         Guid evidenceItemId,
@@ -160,6 +180,15 @@ public sealed class EfNoCuiAcknowledgementRepository(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        // Serialize deletion with replacements until the service commits its audit event.
+        if (dbContext.Database.IsNpgsql())
+        {
+            await dbContext.EvidenceItems.FromSqlInterpolated($"""
+                SELECT * FROM gccs.evidence_items
+                WHERE id = {evidenceItemId} AND tenant_id = {tenantContext.TenantId}
+                FOR UPDATE
+                """).ToListAsync(cancellationToken);
+        }
         var version = await QueryCurrentTenantVersions(evidenceItemId)
             .Where(candidate => candidate.DeletedAt == null)
             .OrderByDescending(candidate => candidate.VersionNumber)

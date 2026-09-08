@@ -14,6 +14,7 @@ public sealed class CuiSupportEscalationWorkflowTests
 {
     private static readonly Guid TenantId = Guid.Parse("1a070200-0000-4000-8000-000000000001");
     private static readonly Guid ActorUserId = Guid.Parse("1a070200-0000-4000-8000-000000000002");
+    private static readonly Guid EvidenceId = Guid.Parse("1a070200-0000-4000-8000-000000000004");
 
     [Fact]
     public async Task TC_1A_7_2_1_Status_changes_require_note()
@@ -53,10 +54,13 @@ public sealed class CuiSupportEscalationWorkflowTests
             Assert.True(escalation.IsAffectedContentBlocked);
         }
 
+        await Assert.ThrowsAsync<CuiSupportEscalationValidationException>(() => service.ResolveAsync(TenantId, escalation.Id,
+            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.ContentRemoved, "File removal alone is insufficient."), ActorUserId));
+        ReviewEvidence(dbContext);
         var resolved = await service.ResolveAsync(
             TenantId,
             escalation.Id,
-            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.ContentRemoved, "Removed prohibited content."),
+            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.FalsePositive, "Reviewed synthetic test content."),
             ActorUserId);
 
         Assert.False(resolved!.IsAffectedContentBlocked);
@@ -70,17 +74,20 @@ public sealed class CuiSupportEscalationWorkflowTests
         var service = CreateService(dbContext);
         var escalation = await service.CreateAsync(TenantId, CreateRequest(), ActorUserId);
 
+        await Assert.ThrowsAsync<CuiSupportEscalationValidationException>(() => service.ResolveAsync(TenantId, escalation.Id,
+            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.ReferredToCustomer, "Referral is not release."), ActorUserId));
+        ReviewEvidence(dbContext);
         var resolved = await service.ResolveAsync(
             TenantId,
             escalation.Id,
-            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.ReferredToCustomer, "Customer instructed to remove source file."),
+            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.FalsePositive, "Reviewed synthetic content."),
             ActorUserId);
 
         var resolution = Assert.Single(resolved!.Resolutions);
-        Assert.Equal(CuiSupportEscalationResolutionType.ReferredToCustomer, resolution.ResolutionType);
+        Assert.Equal(CuiSupportEscalationResolutionType.FalsePositive, resolution.ResolutionType);
         Assert.Equal(ActorUserId, resolution.ResolvedByUserId);
         Assert.NotEqual(default, resolution.ResolvedAt);
-        Assert.Equal("Customer instructed to remove source file.", resolution.Summary);
+        Assert.Equal("Reviewed synthetic content.", resolution.Summary);
     }
 
     [Fact]
@@ -90,6 +97,7 @@ public sealed class CuiSupportEscalationWorkflowTests
         SeedTenant(dbContext);
         var service = CreateService(dbContext);
         var escalation = await service.CreateAsync(TenantId, CreateRequest(), ActorUserId);
+        ReviewEvidence(dbContext);
         var resolved = await service.ResolveAsync(
             TenantId,
             escalation.Id,
@@ -117,7 +125,8 @@ public sealed class CuiSupportEscalationWorkflowTests
 
         await service.ChangeStatusAsync(TenantId, escalation.Id, new ChangeCuiSupportEscalationStatusRequest(CuiSupportEscalationStatus.Triage, "Triage."), ActorUserId);
         await service.ChangeStatusAsync(TenantId, escalation.Id, new ChangeCuiSupportEscalationStatusRequest(CuiSupportEscalationStatus.Contained, "Contained."), ActorUserId);
-        await service.ResolveAsync(TenantId, escalation.Id, new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.ContentRemoved, "Resolved."), ActorUserId);
+        ReviewEvidence(dbContext);
+        await service.ResolveAsync(TenantId, escalation.Id, new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.FalsePositive, "Resolved."), ActorUserId);
 
         Assert.Contains(auditWriter.Events, audit => audit.Metadata["lifecycleAction"] == "created");
         Assert.Contains(auditWriter.Events, audit => audit.Metadata["lifecycleAction"] == "status_changed" && audit.Metadata["status"] == "Triage");
@@ -126,10 +135,20 @@ public sealed class CuiSupportEscalationWorkflowTests
     }
 
     private static CreateCuiSupportEscalationRequest CreateRequest() =>
-        new("UploadRejection", "EvidenceItem", "affected-123", CuiSupportEscalationCategory.ProhibitedData, CuiSupportEscalationSeverity.High, "Prohibited data suspected.");
+        new("UploadRejection", "EvidenceItem", EvidenceId.ToString(), CuiSupportEscalationCategory.ProhibitedData, CuiSupportEscalationSeverity.High, "Prohibited data suspected.");
+
+    private static void ReviewEvidence(GccsDbContext db)
+    {
+        var item = db.EvidenceItems.Single(e => e.Id == EvidenceId);
+        item.Classification = Gccs.Domain.Common.ContentClassification.Unclassified;
+        item.ClassificationSource = Gccs.Domain.Common.ContentClassificationSource.AdminReviewed;
+        item.ClassificationReviewedAt = DateTimeOffset.UtcNow;
+        item.ClassificationReviewedByUserId = ActorUserId;
+        db.SaveChanges();
+    }
 
     private static CuiSupportEscalationService CreateService(GccsDbContext dbContext, IAuditEventWriter? auditWriter = null) =>
-        new(new EfCuiSupportEscalationRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter());
+        new(new EfCuiSupportEscalationRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter(), new TestApplicationTransaction());
 
     private static GccsDbContext CreateDbContext()
     {
@@ -142,6 +161,7 @@ public sealed class CuiSupportEscalationWorkflowTests
 
     private static void SeedTenant(GccsDbContext dbContext)
     {
+        dbContext.EvidenceItems.Add(new EvidenceItemEntity { Id = EvidenceId, TenantId = TenantId, Name = "Synthetic containment fixture" });
         dbContext.Tenants.Add(new TenantEntity
         {
             Id = TenantId,

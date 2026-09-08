@@ -12,6 +12,8 @@ public sealed class CuiAuditExportService(
         CuiAuditExportRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request.From > request.To)
+            throw new ArgumentException("The from date must be before the to date.", nameof(request));
         var query = new AuditLogQuery(
             Page: 1,
             PageSize: 100,
@@ -20,8 +22,15 @@ public sealed class CuiAuditExportService(
             request.EntityType,
             request.From,
             request.To);
-        var page = await repository.ListCurrentTenantAsync(query, cancellationToken);
-        var filtered = page.Items.Where(item => Matches(item, request)).ToArray();
+        var filtered = new List<AuditLogEntryDto>();
+        await foreach (var item in repository.ReadCurrentTenantExportAsync(query, cancellationToken))
+        {
+            if (item.TenantId != tenantId)
+                throw new InvalidOperationException("Audit export tenant scope does not match the active tenant.");
+            if (Matches(item, request)) filtered.Add(item);
+            if (filtered.Count > 10000)
+                throw new CuiAuditExportLimitException("The export exceeds 10,000 matching events. Narrow the date range; no partial export was generated.");
+        }
         var export = new CuiAuditExportDto(
             tenantId,
             actorUserId,
@@ -43,7 +52,7 @@ public sealed class CuiAuditExportService(
                 ["classification"] = request.Classification ?? string.Empty,
                 ["mode"] = request.Mode ?? string.Empty,
                 ["entityType"] = request.EntityType ?? string.Empty,
-                ["exportedCount"] = filtered.Length.ToString()
+                ["exportedCount"] = filtered.Count.ToString()
             },
             cancellationToken);
 
@@ -61,6 +70,8 @@ public sealed class CuiAuditExportService(
         item.Metadata.TryGetValue(key, out var actual) &&
         string.Equals(actual, value, StringComparison.OrdinalIgnoreCase);
 }
+
+public sealed class CuiAuditExportLimitException(string message) : InvalidOperationException(message);
 
 public sealed record CuiAuditExportRequest(
     string? EventType,

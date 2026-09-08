@@ -14,8 +14,7 @@ public sealed class GccsDbContextFactory : IDesignTimeDbContextFactory<GccsDbCon
             ?? DevelopmentConnectionString;
 
         var options = new DbContextOptionsBuilder<GccsDbContext>()
-            .UseNpgsql(connectionString, npgsql =>
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "gccs"))
+            .UseGccsPostgres(connectionString)
             .Options;
 
         return new GccsDbContext(options);

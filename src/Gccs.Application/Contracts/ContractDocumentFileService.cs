@@ -17,7 +17,8 @@ public sealed class ContractDocumentFileService(
     ContentClassificationPolicy classificationPolicy,
     IObjectStorageService objectStorageService,
     IMalwareScanner malwareScanner,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction,
+    IObjectCleanupQueue cleanup)
 {
     public async Task<bool> DeleteAsync(
         Guid contractId,
@@ -39,6 +40,10 @@ public sealed class ContractDocumentFileService(
                 return false;
             }
 
+            if (!string.IsNullOrWhiteSpace(removed.StorageUri) && removed.StorageUri.StartsWith("contracts/", StringComparison.Ordinal))
+                await cleanup.EnqueueAsync(new(tenantContext.TenantId, ObjectStorageContainer.ContractDocuments,
+                    removed.StorageUri), actorUserId, transactionToken);
+
             await auditEventWriter.WriteAsync(
                 tenantContext.TenantId,
                 actorUserId,
@@ -56,13 +61,6 @@ public sealed class ContractDocumentFileService(
                 transactionToken);
             return true;
         }, cancellationToken);
-
-        if (deleted &&
-            !string.IsNullOrWhiteSpace(existing.StorageUri) &&
-            existing.StorageUri.StartsWith("contracts/", StringComparison.Ordinal))
-        {
-            await DeleteStoredObjectAsync(existing.StorageUri, cancellationToken);
-        }
 
         return deleted;
     }
@@ -106,6 +104,7 @@ public sealed class ContractDocumentFileService(
         var classification = metadata.Classification ??
             throw new ContentClassificationValidationException(
                 "Classification metadata is required before a contract document can be uploaded.");
+        ContentClassificationPolicy.ValidateUserSelection(classification);
         await classificationPolicy.EnsureAllowedAsync(
             classification,
             TenantDataHandlingWorkflow.ContractDocumentUpload,

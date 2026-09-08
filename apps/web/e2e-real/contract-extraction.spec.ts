@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { acknowledgeCurrentNotice } from "./notices";
 
 const apiURL = process.env.PLAYWRIGHT_API_URL ?? "http://127.0.0.1:5063";
 const tenantId = "11111111-1111-1111-1111-111111111111";
@@ -40,6 +41,7 @@ test("UAT-04 Start extraction processes uploaded text and displays clause candid
     }
   });
   expect(acknowledgementResponse.status()).toBe(200);
+  await acknowledgeCurrentNotice(request, apiURL, headers(), "ContractIntake");
 
   const contractNumber = `E2E-UAT04-${Date.now()}`;
   const contractResponse = await request.post(`${apiURL}/api/contracts`, {

@@ -125,8 +125,8 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         var response = await client.SendAsync(upload);
         var body = await response.Content.ReadAsStringAsync();
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        Assert.Contains("tenant_data_handling_mode_restricted", body, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("content_classification_invalid", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -297,6 +297,8 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
             builder.ConfigureServices(services =>
             {
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddScoped<Gccs.Application.Tenancy.IDataHandlingNoticeAcknowledgementRepository, Gccs.Infrastructure.Tenancy.EfDataHandlingNoticeAcknowledgementRepository>();
+                services.AddScoped<Gccs.Application.Tenancy.ITenantRepository, Gccs.Infrastructure.Tenancy.EfTenantRepository>();
                 services.AddScoped<TenantDataHandlingModePolicyService>();
                 services.AddScoped<ITenantRepository, EfTenantRepository>();
                 services.AddScoped<ContractService>();
@@ -315,6 +317,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                 dbContext.Database.EnsureDeleted();
                 dbContext.Database.EnsureCreated();
                 seed?.Invoke(dbContext);
+                NoticeTestData.Seed(dbContext);
                 dbContext.SaveChanges();
             });
         });
@@ -463,7 +466,13 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         return new TenantDataHandlingModePolicyService(
             services.BuildServiceProvider(),
             new FixedTenantContext(ids.TenantId, ids.ActorUserId),
-            new NoOpAuditEventWriter());
+            new NoOpAuditEventWriter(), new AcknowledgedNoticeGuard());
+    }
+
+    // These isolated mode-rule tests do not exercise notice enforcement.
+    private sealed class AcknowledgedNoticeGuard : ICurrentDataHandlingNoticeGuard
+    {
+        public Task EnsureAsync(string workflow, Guid actorUserId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed record StoryIds(

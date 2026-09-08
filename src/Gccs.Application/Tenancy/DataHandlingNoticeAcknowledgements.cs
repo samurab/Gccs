@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Tenancy;
 
@@ -6,7 +7,8 @@ namespace Gccs.Application.Tenancy;
 
 public sealed class DataHandlingNoticeAcknowledgementService(
     IDataHandlingNoticeAcknowledgementRepository repository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    IApplicationTransaction transaction)
 {
     public async Task<IReadOnlyList<DataHandlingNoticeAcknowledgementDto>> ListAsync(
         Guid tenantId,
@@ -26,52 +28,57 @@ public sealed class DataHandlingNoticeAcknowledgementService(
         CancellationToken cancellationToken = default)
     {
         ValidateRequest(currentNotice, request);
-        var existing = await repository.FindAsync(
-            tenantId,
-            userId,
-            currentNotice.Mode,
-            request.WorkflowContext,
-            currentNotice.NoticeId,
-            currentNotice.Version,
-            cancellationToken);
-
-        if (existing is not null)
+        request = request with { WorkflowContext = request.WorkflowContext.Trim() };
+        return await transaction.ExecuteAsync(async cancellationToken =>
         {
-            return WithStatus(existing, currentNotice);
-        }
+            await repository.EnsureTenantModeAsync(tenantId, currentNotice.Mode, cancellationToken);
+            var existing = await repository.FindAsync(
+                tenantId,
+                userId,
+                currentNotice.Mode,
+                request.WorkflowContext,
+                currentNotice.NoticeId,
+                currentNotice.Version,
+                cancellationToken);
 
-        var acknowledgedAt = DateTimeOffset.UtcNow;
-        var acknowledgement = await repository.AddAsync(
-            tenantId,
-            userId,
-            currentNotice.Mode,
-            request.WorkflowContext.Trim(),
-            currentNotice.NoticeId,
-            currentNotice.Version,
-            acknowledgedAt,
-            cancellationToken);
-
-        await auditEventWriter.WriteAsync(
-            tenantId,
-            userId,
-            AuditAction.Created,
-            "DataHandlingNoticeAcknowledgement",
-            acknowledgement.Id.ToString(),
-            "Data handling notice was acknowledged for a CUI-relevant workflow.",
-            new Dictionary<string, string>
+            if (existing is not null)
             {
-                ["tenantId"] = tenantId.ToString(),
-                ["userId"] = userId.ToString(),
-                ["mode"] = currentNotice.Mode.ToString(),
-                ["workflowContext"] = request.WorkflowContext.Trim(),
-                ["noticeId"] = currentNotice.NoticeId,
-                ["noticeVersion"] = currentNotice.Version,
-                ["acknowledgedAt"] = acknowledgedAt.ToString("O"),
-                ["result"] = "acknowledged"
-            },
-            cancellationToken);
+                return WithStatus(existing, currentNotice);
+            }
 
-        return WithStatus(acknowledgement, currentNotice);
+            var acknowledgedAt = DateTimeOffset.UtcNow;
+            var acknowledgement = await repository.AddAsync(
+                tenantId,
+                userId,
+                currentNotice.Mode,
+                request.WorkflowContext.Trim(),
+                currentNotice.NoticeId,
+                currentNotice.Version,
+                acknowledgedAt,
+                cancellationToken);
+
+            await auditEventWriter.WriteAsync(
+                tenantId,
+                userId,
+                AuditAction.Created,
+                "DataHandlingNoticeAcknowledgement",
+                acknowledgement.Id.ToString(),
+                "Data handling notice was acknowledged for a CUI-relevant workflow.",
+                new Dictionary<string, string>
+                {
+                    ["tenantId"] = tenantId.ToString(),
+                    ["userId"] = userId.ToString(),
+                    ["mode"] = currentNotice.Mode.ToString(),
+                    ["workflowContext"] = request.WorkflowContext.Trim(),
+                    ["noticeId"] = currentNotice.NoticeId,
+                    ["noticeVersion"] = currentNotice.Version,
+                    ["acknowledgedAt"] = acknowledgedAt.ToString("O"),
+                    ["result"] = "acknowledged"
+                },
+                cancellationToken);
+
+            return WithStatus(acknowledgement, currentNotice);
+        }, cancellationToken);
     }
 
     public async Task EnsureAcknowledgedAsync(
@@ -96,11 +103,13 @@ public sealed class DataHandlingNoticeAcknowledgementService(
         }
 
         throw new DataHandlingNoticeAcknowledgementRequiredException(
-            $"Data handling notice acknowledgement is required for {currentNotice.Mode} {workflowContext} before continuing.");
+            $"Data handling notice acknowledgement is required for {currentNotice.Mode} {workflowContext} before continuing.", workflowContext);
     }
 
     private static void ValidateRequest(DataHandlingNoticeDto currentNotice, AcknowledgeDataHandlingNoticeRequest request)
     {
+        if (currentNotice.State != "Published" || currentNotice.EffectiveAt > DateOnly.FromDateTime(DateTime.UtcNow))
+            throw new DataHandlingNoticeAcknowledgementRequiredException("Only a currently effective published notice can be acknowledged.");
         if (!request.Acknowledged)
         {
             throw new DataHandlingNoticeAcknowledgementRequiredException("Data handling notice acknowledgement is required.");
@@ -110,6 +119,9 @@ public sealed class DataHandlingNoticeAcknowledgementService(
         {
             throw new DataHandlingNoticeAcknowledgementRequiredException("Workflow context is required.");
         }
+
+        if (!currentNotice.WorkflowContexts.Contains(request.WorkflowContext.Trim(), StringComparer.Ordinal))
+            throw new DataHandlingNoticeAcknowledgementRequiredException("The current notice does not cover this workflow.");
 
         if (request.Mode != currentNotice.Mode ||
             !string.Equals(request.NoticeId, currentNotice.NoticeId, StringComparison.Ordinal) ||
@@ -135,6 +147,8 @@ public sealed class DataHandlingNoticeAcknowledgementService(
 
 public interface IDataHandlingNoticeAcknowledgementRepository
 {
+    Task EnsureTenantModeAsync(Guid tenantId, TenantDataPosture mode, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<DataHandlingNoticeAcknowledgementDto>> ListAsync(
         Guid tenantId,
         Guid userId,
@@ -160,7 +174,10 @@ public interface IDataHandlingNoticeAcknowledgementRepository
         CancellationToken cancellationToken = default);
 }
 
-public sealed class DataHandlingNoticeAcknowledgementRequiredException(string message) : InvalidOperationException(message);
+public sealed class DataHandlingNoticeAcknowledgementRequiredException(string message, string? workflowContext = null) : InvalidOperationException(message)
+{
+    public string? WorkflowContext { get; } = workflowContext;
+}
 
 public sealed record AcknowledgeDataHandlingNoticeRequest(
     TenantDataPosture Mode,

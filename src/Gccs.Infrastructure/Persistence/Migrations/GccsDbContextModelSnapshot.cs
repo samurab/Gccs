@@ -5361,6 +5361,63 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.ToTable("notification_preferences", "gccs");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ObjectCleanupEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("Container")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("container");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("last_error_code");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<string>("ObjectName")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("object_name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompletedAt", "NextAttemptAt");
+
+                    b.HasIndex("TenantId", "Id");
+
+                    b.ToTable("object_cleanup", "gccs");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ObligationApplicabilityEvaluationEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -9574,6 +9631,15 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.NotificationPreferenceEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ObjectCleanupEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
                         .WithMany()

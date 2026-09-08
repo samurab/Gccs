@@ -8,7 +8,8 @@ namespace Gccs.Application.Tenancy;
 public sealed class TenantDataHandlingModePolicyService(
     IServiceProvider serviceProvider,
     ICurrentTenantContext tenantContext,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    ICurrentDataHandlingNoticeGuard noticeGuard)
 {
     public async Task EnsureAllowedAsync(
         TenantDataHandlingModePolicyRequest request,
@@ -18,9 +19,16 @@ public sealed class TenantDataHandlingModePolicyService(
         var mode = await FindCurrentModeAsync(cancellationToken);
         var normalized = request.Normalize();
         var denialReason = GetDenialReason(mode, normalized);
+        if (denialReason is null && normalized.EntityType is not null && normalized.EntityId is not null &&
+            serviceProvider.GetService(typeof(IContentContainmentRepository)) is IContentContainmentRepository containment &&
+            await containment.IsBlockedAsync(tenantContext.TenantId, normalized.EntityType, normalized.EntityId, cancellationToken))
+        {
+            denialReason = "An unresolved data handling escalation blocks use of this content.";
+        }
 
         if (denialReason is null)
         {
+            await noticeGuard.EnsureAsync(normalized.Workflow.ToString(), actorUserId, cancellationToken);
             return;
         }
 

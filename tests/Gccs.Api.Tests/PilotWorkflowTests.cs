@@ -346,6 +346,7 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddScoped<IDataHandlingNoticeAcknowledgementRepository, EfDataHandlingNoticeAcknowledgementRepository>();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<CompanyProfileService>();
                 services.AddScoped<ICompanyProfileRepository, EfCompanyProfileRepository>();
@@ -586,6 +587,7 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
         });
         SeedUsers(dbContext, ids);
         SeedNoCuiAcknowledgements(dbContext, ids);
+        NoticeTestData.Seed(dbContext);
         dbContext.Controls.Add(CreateControl());
         dbContext.Clauses.Add(CreateClause());
         dbContext.Obligations.Add(CreateObligation());

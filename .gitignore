@@ -11,6 +11,7 @@ dist/
 coverage/
 playwright-report/
 test-results/
+TestResults/
 .playwright-cli/
 output/playwright/report/
 output/playwright/results/

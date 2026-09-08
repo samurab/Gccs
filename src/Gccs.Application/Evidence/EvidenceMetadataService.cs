@@ -8,7 +8,8 @@ namespace Gccs.Application.Evidence;
 public sealed class EvidenceMetadataService(
     IEvidenceMetadataRepository repository,
     IAuditEventWriter auditEventWriter,
-    ContentClassificationPolicy classificationPolicy)
+    ContentClassificationPolicy classificationPolicy,
+    IApplicationTransaction transaction)
 {
     public Task<IReadOnlyList<EvidenceMetadataDto>> ListCurrentTenantAsync(
         EvidenceMetadataQuery query,
@@ -25,24 +26,27 @@ public sealed class EvidenceMetadataService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var normalized = Normalize(request);
-        Validate(normalized);
-        await ValidateReferencesAsync(normalized, cancellationToken);
-        await classificationPolicy.EnsureAllowedAsync(
-            normalized.Classification ?? ContentClassificationPolicy.DefaultUnclassified(),
-            TenantDataHandlingWorkflow.EvidenceUpload,
-            actorUserId,
-            "EvidenceItem",
-            null,
-            cancellationToken);
-        var created = await repository.CreateCurrentTenantAsync(normalized, actorUserId, cancellationToken);
-        await WriteAuditAsync(
-            created,
-            actorUserId,
-            AuditAction.Created,
-            $"Evidence metadata '{created.Title}' was created.",
-            cancellationToken);
-        return created;
+        return await transaction.ExecuteAsync(async transactionToken =>
+        {
+            var normalized = Normalize(request);
+            Validate(normalized);
+            await ValidateReferencesAsync(normalized, transactionToken);
+            await classificationPolicy.EnsureAllowedAsync(
+                normalized.Classification ?? ContentClassificationPolicy.DefaultUnclassified(),
+                TenantDataHandlingWorkflow.EvidenceUpload,
+                actorUserId,
+                "EvidenceItem",
+                null,
+                transactionToken);
+            var created = await repository.CreateCurrentTenantAsync(normalized, actorUserId, transactionToken);
+            await WriteAuditAsync(
+                created,
+                actorUserId,
+                AuditAction.Created,
+                $"Evidence metadata '{created.Title}' was created.",
+                transactionToken);
+            return created;
+        }, cancellationToken);
     }
 
     public async Task<EvidenceMetadataDto?> UpdateAsync(
@@ -51,35 +55,38 @@ public sealed class EvidenceMetadataService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        if (!await repository.ExistsCurrentTenantAsync(evidenceItemId, cancellationToken))
+        return await transaction.ExecuteAsync(async transactionToken =>
         {
-            return null;
-        }
+            if (!await repository.ExistsCurrentTenantAsync(evidenceItemId, transactionToken))
+            {
+                return null;
+            }
 
-        var normalized = Normalize(request);
-        Validate(normalized);
-        await ValidateReferencesAsync(normalized, cancellationToken);
-        await classificationPolicy.EnsureAllowedAsync(
-            normalized.Classification ?? ContentClassificationPolicy.DefaultUnclassified(),
-            TenantDataHandlingWorkflow.EvidenceUpload,
-            actorUserId,
-            "EvidenceItem",
-            evidenceItemId.ToString(),
-            cancellationToken);
-        var updated = await repository.UpdateCurrentTenantAsync(evidenceItemId, normalized, actorUserId, cancellationToken);
+            var normalized = Normalize(request);
+            Validate(normalized);
+            await ValidateReferencesAsync(normalized, transactionToken);
+            await classificationPolicy.EnsureAllowedAsync(
+                normalized.Classification ?? ContentClassificationPolicy.DefaultUnclassified(),
+                TenantDataHandlingWorkflow.EvidenceUpload,
+                actorUserId,
+                "EvidenceItem",
+                evidenceItemId.ToString(),
+                transactionToken);
+            var updated = await repository.UpdateCurrentTenantAsync(evidenceItemId, normalized, actorUserId, transactionToken);
 
-        if (updated is null)
-        {
-            return null;
-        }
+            if (updated is null)
+            {
+                return null;
+            }
 
-        await WriteAuditAsync(
-            updated,
-            actorUserId,
-            AuditAction.Updated,
-            $"Evidence metadata '{updated.Title}' was updated.",
-            cancellationToken);
-        return updated;
+            await WriteAuditAsync(
+                updated,
+                actorUserId,
+                AuditAction.Updated,
+                $"Evidence metadata '{updated.Title}' was updated.",
+                transactionToken);
+            return updated;
+        }, cancellationToken);
     }
 
     private async Task WriteAuditAsync(
@@ -141,6 +148,7 @@ public sealed class EvidenceMetadataService(
 
     private static void Validate(UpsertEvidenceMetadataRequest request)
     {
+        ContentClassificationPolicy.ValidateUserSelection(request.Classification ?? ContentClassificationPolicy.DefaultUnclassified());
         if (string.IsNullOrWhiteSpace(request.Title))
         {
             throw new EvidenceMetadataValidationException("Evidence title is required.");

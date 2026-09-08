@@ -146,6 +146,7 @@ public sealed class EvidenceRequestSubmissionReviewTests : IClassFixture<WebAppl
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<EvidenceRequestService>();
                 services.AddScoped<IEvidenceRequestRepository, EfEvidenceRequestRepository>();

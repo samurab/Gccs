@@ -55,8 +55,8 @@ public sealed class DataHandlingNoticeAcknowledgementTests
         await using var dbContext = CreateDbContext();
         SeedTenant(dbContext);
         var service = CreateService(dbContext);
-        var original = Notice(TenantDataPosture.CuiReady, "2026.06.phase1a");
-        var updated = Notice(TenantDataPosture.CuiReady, "2026.07.phase1a");
+        var original = Notice(TenantDataPosture.NoCui, "2026.06.phase1a");
+        var updated = Notice(TenantDataPosture.NoCui, "2026.07.phase1a");
 
         await service.AcknowledgeAsync(TenantId, UserId, original, Request(original, "ExtractionJob"));
         var history = await service.ListAsync(TenantId, UserId, updated);
@@ -85,8 +85,8 @@ public sealed class DataHandlingNoticeAcknowledgementTests
         SeedTenant(dbContext);
         var auditWriter = new CapturingAuditEventWriter();
         var service = CreateService(dbContext, auditWriter);
-        var original = Notice(TenantDataPosture.CuiReady, "2026.06.phase1a");
-        var updated = Notice(TenantDataPosture.CuiReady, "2026.07.phase1a");
+        var original = Notice(TenantDataPosture.NoCui, "2026.06.phase1a");
+        var updated = Notice(TenantDataPosture.NoCui, "2026.07.phase1a");
 
         await service.AcknowledgeAsync(TenantId, UserId, original, Request(original, "Support"));
         await service.AcknowledgeAsync(TenantId, UserId, updated, Request(updated, "Support"));
@@ -98,7 +98,7 @@ public sealed class DataHandlingNoticeAcknowledgementTests
     private static DataHandlingNoticeAcknowledgementService CreateService(
         GccsDbContext dbContext,
         IAuditEventWriter? auditWriter = null) =>
-        new(new EfDataHandlingNoticeAcknowledgementRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter());
+        new(new EfDataHandlingNoticeAcknowledgementRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter(), new TestApplicationTransaction());
 
     private static AcknowledgeDataHandlingNoticeRequest Request(DataHandlingNoticeDto notice, string workflowContext) =>
         new(notice.Mode, workflowContext, notice.NoticeId, notice.Version, true);

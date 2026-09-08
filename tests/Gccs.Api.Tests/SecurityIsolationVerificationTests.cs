@@ -193,6 +193,7 @@ public sealed class SecurityIsolationVerificationTests : IClassFixture<WebApplic
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<CompanyProfileService>();
                 services.AddScoped<ICompanyProfileRepository, EfCompanyProfileRepository>();

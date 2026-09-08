@@ -8,13 +8,16 @@ namespace Gccs.Infrastructure.Reports;
 
 public sealed class EfSimpleReportExportRepository(
     GccsDbContext dbContext,
-    ICurrentTenantContext tenantContext) : ISimpleReportExportRepository
+    ICurrentTenantContext tenantContext,
+    Gccs.Application.Common.ContentClassificationPolicy classificationPolicy,
+    Gccs.Application.Tenancy.ICurrentDataHandlingNoticeGuard noticeGuard) : ISimpleReportExportRepository
 {
     public async Task<SimpleReportExportData> GetExportDataAsync(
         SimpleReportExportQuery query,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        await noticeGuard.EnsureAsync("ReportGeneration", actorUserId, cancellationToken);
         var tenantId = tenantContext.TenantId;
         var tenantName = await dbContext.Tenants
             .AsNoTracking()
@@ -171,12 +174,25 @@ public sealed class EfSimpleReportExportRepository(
                 item.ExpiresAt,
                 item.Classification,
                 item.ClassificationSource,
+                item.ClassificationConfidence,
+                item.ClassificationReviewedByUserId,
+                item.ClassificationReviewedAt,
+                item.ClassificationReason,
+                item.ClassificationIsApprovedDemoContent,
                 item.ApprovedByUserId,
                 item.ApprovedAt,
                 item.CreatedAt,
                 item.CreatedByUserId
             })
             .ToArrayAsync(cancellationToken);
+        foreach (var item in items)
+        {
+            await classificationPolicy.EnsureUsableAsync(new Gccs.Application.Common.ContentClassificationDto(
+                item.Classification, item.ClassificationSource, item.ClassificationConfidence,
+                item.ClassificationReviewedByUserId, item.ClassificationReviewedAt, item.ClassificationReason,
+                item.ClassificationIsApprovedDemoContent), Gccs.Application.Tenancy.TenantDataHandlingWorkflow.Report,
+                tenantContext.UserId, "EvidenceItem", item.Id.ToString(), cancellationToken);
+        }
         var rows = items
             .Select(item => (IReadOnlyList<string>)
             [

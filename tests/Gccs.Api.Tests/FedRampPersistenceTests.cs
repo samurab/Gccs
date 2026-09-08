@@ -82,13 +82,13 @@ public sealed class FedRampPersistenceTests : IClassFixture<WebApplicationFactor
                 services.RemoveAll<GccsDbContext>();
                 services.RemoveAll<DbContextOptions<GccsDbContext>>();
                 services.RemoveAll<IAuditEventWriter>();
-                services.AddDbContext<GccsDbContext>(options => options.UseNpgsql(connectionString));
+                services.AddDbContext<GccsDbContext>(options => options.UseGccsPostgres(connectionString));
                 services.AddScoped<IAuditEventWriter, FailingAuditWriter>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-                context.Database.Migrate();
+                PostgresTestDatabase.Migrate(context);
                 context.Tenants.Add(Tenant(tenantId));
                 context.SaveChanges();
             });
@@ -132,13 +132,13 @@ public sealed class FedRampPersistenceTests : IClassFixture<WebApplicationFactor
     {
         var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION") ??
             throw new InvalidOperationException("Set GCCS_TEST_POSTGRES_CONNECTION to run this test.");
-        var options = new DbContextOptionsBuilder<GccsDbContext>().UseNpgsql(connectionString).Options;
+        var options = new DbContextOptionsBuilder<GccsDbContext>().UseGccsPostgres(connectionString).Options;
         var tenantId = Guid.NewGuid();
         Guid mappingId;
 
         await using (var setup = new GccsDbContext(options))
         {
-            await setup.Database.MigrateAsync();
+            await PostgresTestDatabase.MigrateAsync(setup);
             setup.Tenants.Add(Tenant(tenantId));
             await setup.SaveChangesAsync();
             mappingId = (await new EfFedRampControlMappingRepository(setup).CreateAsync(tenantId, ValidMapping(), Guid.NewGuid())).Id;
@@ -183,13 +183,13 @@ public sealed class FedRampPersistenceTests : IClassFixture<WebApplicationFactor
     {
         var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION") ??
             throw new InvalidOperationException("Set GCCS_TEST_POSTGRES_CONNECTION to run this test.");
-        var options = new DbContextOptionsBuilder<GccsDbContext>().UseNpgsql(connectionString).Options;
+        var options = new DbContextOptionsBuilder<GccsDbContext>().UseGccsPostgres(connectionString).Options;
         var tenantId = Guid.NewGuid();
         Guid packageId;
 
         await using (var setup = new GccsDbContext(options))
         {
-            await setup.Database.MigrateAsync();
+            await PostgresTestDatabase.MigrateAsync(setup);
             setup.Tenants.Add(Tenant(tenantId));
             await setup.SaveChangesAsync();
             packageId = (await new EfFedRampReadinessExportPackageRepository(setup).CreateAsync(tenantId, ValidPackage(tenantId, false), Guid.NewGuid())).Id;

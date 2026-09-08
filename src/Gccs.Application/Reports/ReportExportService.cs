@@ -19,6 +19,7 @@ public sealed class ReportExportService(
         CancellationToken cancellationToken = default) =>
         transaction.ExecuteAsync(async transactionCancellationToken =>
         {
+            if (await reports.GetReportArtifactAsync(reportId, transactionCancellationToken) is null) return null;
             var result = await exports.RequestPdfAsync(reportId, actorUserId, transactionCancellationToken);
             if (result is null || !result.Queued)
             {
@@ -57,6 +58,7 @@ public sealed class ReportExportService(
             return null;
         }
 
+        if (await reports.GetReportArtifactAsync(locator.ReportId, cancellationToken) is null) return null;
         var stored = await objectStorage.OpenReadAsync(
             new ObjectStorageReadRequest(
                 locator.TenantId,
@@ -129,6 +131,7 @@ public sealed class ReportExportService(
         {
             var ready = await transaction.ExecuteAsync(async transactionCancellationToken =>
             {
+                if (await reports.GetReportArtifactAsync(claimed.ReportId, transactionCancellationToken) is null) return null;
                 var persisted = await exports.MarkReadyAsync(
                     claimed.ExportId,
                     claimed.LeaseId,

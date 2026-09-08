@@ -95,7 +95,12 @@ public static class DependencyInjection
         services.AddScoped<DataHandlingNoticeAcknowledgementService>();
         services.AddScoped<CuiSupportEscalationService>();
         services.AddScoped<TenantDataHandlingModePolicyService>();
+        services.AddScoped<IContentContainmentRepository>(provider =>
+            new EfContentContainmentRepository(provider.GetRequiredService<GccsDbContext>()));
         services.AddScoped<ContentClassificationPolicy>();
+        services.AddScoped<IObjectCleanupQueue>(provider => new EfObjectCleanupQueue(
+            provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<IObjectStorageService>(),
+            provider.GetRequiredService<IAuditEventWriter>()));
         services.AddScoped<ContentClassificationReviewService>();
         services.AddScoped<SyntheticDemoDatasetService>();
         services.AddScoped<DemoTenantSeedService>();
@@ -342,8 +347,7 @@ public static class DependencyInjection
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
             services.AddDbContext<GccsDbContext>(options =>
-                options.UseNpgsql(connectionString, npgsql =>
-                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "gccs")));
+                options.UseGccsPostgres(connectionString));
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
             services.AddScoped<IPlatformTenantProvisioningRepository, EfPlatformTenantProvisioningRepository>();

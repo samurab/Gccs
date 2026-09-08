@@ -11,6 +11,24 @@ public sealed class EfAuditLogRepository(
     GccsDbContext dbContext,
     ICurrentTenantContext tenantContext) : IAuditLogRepository
 {
+    public async IAsyncEnumerable<AuditLogEntryDto> ReadCurrentTenantExportAsync(
+        AuditLogQuery query,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        // One database statement gives a consistent PostgreSQL statement snapshot;
+        // offset paging across separate statements can omit rows during concurrent writes.
+        var entries = dbContext.AuditLogEntries.AsNoTracking()
+            .Where(entry => entry.TenantId == tenantContext.TenantId);
+        if (query.ActorUserId is not null) entries = entries.Where(e => e.ActorUserId == query.ActorUserId);
+        if (query.Action is not null) entries = entries.Where(e => e.Action == query.Action);
+        if (!string.IsNullOrWhiteSpace(query.EntityType)) entries = entries.Where(e => e.EntityType == query.EntityType);
+        if (query.From is not null) entries = entries.Where(e => e.OccurredAt >= query.From);
+        if (query.To is not null) entries = entries.Where(e => e.OccurredAt <= query.To);
+        await foreach (var entry in entries.OrderByDescending(e => e.OccurredAt).ThenByDescending(e => e.Id)
+            .AsAsyncEnumerable().WithCancellation(cancellationToken))
+            yield return ToDto(entry);
+    }
+
     public async Task<IReadOnlyList<string>> ListEntityTypesCurrentTenantAsync(
         CancellationToken cancellationToken = default)
     {

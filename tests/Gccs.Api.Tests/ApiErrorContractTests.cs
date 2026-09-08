@@ -179,6 +179,7 @@ public sealed class ApiErrorContractTests : IClassFixture<WebApplicationFactory<
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<CompanyProfileService>();
                 services.AddScoped<CompanyEntityLookupService>();

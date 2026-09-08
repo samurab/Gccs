@@ -9,6 +9,19 @@ namespace Gccs.Infrastructure.Tenancy;
 public sealed class EfDataHandlingNoticeAcknowledgementRepository(GccsDbContext dbContext)
     : IDataHandlingNoticeAcknowledgementRepository
 {
+    public async Task EnsureTenantModeAsync(Guid tenantId, TenantDataPosture mode, CancellationToken cancellationToken = default)
+    {
+        if (dbContext.Database.IsNpgsql())
+        {
+            if (dbContext.Database.CurrentTransaction is null)
+                throw new DataHandlingNoticeAcknowledgementRequiredException("Notice acknowledgement requires an application transaction.");
+            await dbContext.Tenants.FromSqlInterpolated($"SELECT * FROM gccs.tenants WHERE id = {tenantId} FOR UPDATE")
+                .AsNoTracking().ToArrayAsync(cancellationToken);
+        }
+        if (!await dbContext.Tenants.AsNoTracking().AnyAsync(t => t.Id == tenantId && t.DataPosture == mode, cancellationToken))
+            throw new DataHandlingNoticeAcknowledgementRequiredException("The tenant mode changed or is unavailable. Retrieve the current notice before acknowledging.");
+    }
+
     public async Task<IReadOnlyList<DataHandlingNoticeAcknowledgementDto>> ListAsync(
         Guid tenantId,
         Guid userId,

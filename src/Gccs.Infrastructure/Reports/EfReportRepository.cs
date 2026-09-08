@@ -81,6 +81,7 @@ public sealed class EfReportRepository(
             return null;
         }
 
+        await EnsureReportUsableAsync(reportId, cancellationToken);
         JsonElement snapshot;
         try
         {
@@ -398,6 +399,7 @@ public sealed class EfReportRepository(
             return null;
         }
 
+        await EnsureReportUsableAsync(reportId, cancellationToken);
         var manifest = JsonSerializer.Deserialize<EvidencePackageManifestDto>(entity.SnapshotJson, JsonOptions) ??
             new EvidencePackageManifestDto(
                 entity.Title,
@@ -896,6 +898,28 @@ public sealed class EfReportRepository(
             entity.GeneratedByUserId,
             snapshot,
             entity.ExportHtml);
+
+    private async Task EnsureReportUsableAsync(Guid reportId, CancellationToken cancellationToken)
+    {
+        var report = await dbContext.Reports.AsNoTracking().SingleAsync(
+            r => r.Id == reportId && r.TenantId == tenantContext.TenantId, cancellationToken);
+        ContentClassificationPolicy.EnsureProcessable(report.Classification, "Report access");
+        await dataHandlingModePolicy.EnsureAllowedAsync(new TenantDataHandlingModePolicyRequest(
+            TenantDataHandlingWorkflow.Report,
+            ContainsRealCui: report.Classification == ContentClassification.Cui,
+            ContainsSyntheticCui: report.Classification == ContentClassification.SyntheticCui,
+            ApprovalChecksPassed: report.Classification != ContentClassification.SyntheticCui ||
+                (report.ClassificationIsApprovedDemoContent && report.ClassificationSource == ContentClassificationSource.ImportedDemoSeed),
+            EntityType: "Report", EntityId: reportId.ToString()), tenantContext.UserId, cancellationToken);
+        var evidenceIds = dbContext.Set<ReportEvidenceEntity>().Where(link => link.ReportId == reportId).Select(link => link.EvidenceItemId);
+        var evidence = await dbContext.EvidenceItems.AsNoTracking()
+            .Where(item => item.TenantId == tenantContext.TenantId && evidenceIds.Contains(item.Id)).ToArrayAsync(cancellationToken);
+        foreach (var item in evidence)
+        {
+            ContentClassificationPolicy.EnsureProcessable(item.Classification, "Report access");
+            await EnsureEvidenceAllowedForReportAsync(item, tenantContext.UserId, cancellationToken);
+        }
+    }
 
     private Task EnsureEvidenceAllowedForReportAsync(
         EvidenceItemEntity evidence,

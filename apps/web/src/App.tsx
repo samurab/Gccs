@@ -25,6 +25,7 @@ import {
   X
 } from "lucide-react";
 import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DataHandlingNoticePanel } from "@/components/DataHandlingNoticePanel";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
 import { controlCoverageTone } from "@/components/controlCoverage";
 import { DevelopmentTestingContextSelector } from "@/components/development/DevelopmentTestingContextSelector";
@@ -1823,11 +1824,18 @@ export function App() {
 
   async function handleEvidenceUploadIntentSubmit(
     event: FormEvent<HTMLFormElement>,
+    evidenceItemId: string | null,
     classification: string,
     classificationReason: string,
     noCuiAttestation: boolean
   ) {
     event.preventDefault();
+
+    if (!evidenceItemId) {
+      setUploadStatus("blocked");
+      setUploadMessage("Create or select an evidence record before uploading a file.");
+      return;
+    }
 
     if (!selectedEvidenceFile) {
       setUploadStatus("blocked");
@@ -1843,7 +1851,13 @@ export function App() {
 
     setUploadStatus("creating");
     setUploadMessage("");
-    const uploadIntent = await createEvidenceUploadIntent(selectedEvidenceFile, classification, classificationReason, noCuiAttestation);
+    const uploadIntent = await createEvidenceUploadIntent(
+      evidenceItemId,
+      selectedEvidenceFile,
+      classification,
+      classificationReason,
+      noCuiAttestation
+    );
 
     if (uploadIntent.data) {
       const classificationLabel = uploadIntent.data.classification?.classification ?? classification;
@@ -2380,6 +2394,8 @@ export function App() {
           <WorkspaceMetricStrip items={workspacePriorityMetrics} />
         </PageHeader>
         <PostureNotice currentTenant={currentTenant} />
+        {currentTenant &&
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}`} tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} />}
 
         <WorkspaceState state={loadState} onRetry={() => window.location.reload()}>
           {activeRoute === "dashboard" ? (
@@ -8077,6 +8093,7 @@ function EvidenceView({
   onSelectEvidence: (evidenceItemId: string | null) => void;
   onUploadIntentSubmit: (
     event: FormEvent<HTMLFormElement>,
+    evidenceItemId: string | null,
     classification: string,
     classificationReason: string,
     noCuiAttestation: boolean
@@ -8165,11 +8182,20 @@ function EvidenceView({
       <form
         className="upload-panel"
         aria-label="Upload area"
-        onSubmit={(event) => onUploadIntentSubmit(event, uploadClassification, uploadClassificationReason, noCuiAttestation)}
+        onSubmit={(event) =>
+          onUploadIntentSubmit(
+            event,
+            selectedEvidenceItemId,
+            uploadClassification,
+            uploadClassificationReason,
+            noCuiAttestation
+          )
+        }
       >
         <div>
           <p className="eyebrow">Evidence files</p>
           <h3>Upload area</h3>
+          <p>{selectedEvidence ? `Adding a new file version to ${selectedEvidence.title}.` : "Select or create an evidence record first."}</p>
         </div>
         <label>
           <span>Evidence file</span>
@@ -8222,7 +8248,10 @@ function EvidenceView({
             I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information.
           </span>
         </label>
-        <button type="submit" disabled={uploadDisabled || !selectedFile || !noCuiAttestation || uploadStatus === "creating"}>
+        <button
+          type="submit"
+          disabled={uploadDisabled || !selectedEvidenceItemId || !selectedFile || !noCuiAttestation || uploadStatus === "creating"}
+        >
           <UploadCloud size={16} aria-hidden="true" />
           <span>{uploadStatus === "creating" ? "Uploading evidence" : "Upload evidence"}</span>
         </button>

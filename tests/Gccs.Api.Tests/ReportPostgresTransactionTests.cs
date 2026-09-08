@@ -27,17 +27,15 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
         _factory = factory;
     }
 
-    [Fact]
+    [PostgresFact]
     [Trait("Category", "PostgresIntegration")]
     public async Task Audit_failure_rolls_back_report_generation_and_archive_lifecycle_changes()
     {
-        var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            return;
-        }
+        var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")
+            ?? throw new InvalidOperationException("GCCS_TEST_POSTGRES_CONNECTION is required.");
 
         var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
         var existingReportId = Guid.NewGuid();
         await using var factory = _factory.WithWebHostBuilder(builder =>
         {
@@ -48,7 +46,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
                 services.RemoveAll<DbContextOptions<GccsDbContext>>();
                 services.RemoveAll<IAuditEventWriter>();
                 services.RemoveAll<IObjectStorageService>();
-                services.AddDbContext<GccsDbContext>(options => options.UseNpgsql(connectionString));
+                services.AddDbContext<GccsDbContext>(options => options.UseGccsPostgres(connectionString));
                 services.AddScoped<IAuditEventWriter, FailingAuditEventWriter>();
                 services.AddSingleton<TestObjectStorageService>();
                 services.AddSingleton<IObjectStorageService>(provider =>
@@ -57,7 +55,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-                dbContext.Database.Migrate();
+                PostgresTestDatabase.Migrate(dbContext);
                 dbContext.Tenants.Add(new TenantEntity
                 {
                     Id = tenantId,
@@ -78,6 +76,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
                     SnapshotJson = "{}",
                     CreatedAt = DateTimeOffset.UtcNow
                 });
+                NoticeTestData.Seed(dbContext, actorUserId);
                 dbContext.SaveChanges();
             });
         });
@@ -88,7 +87,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
             using var request = new HttpRequestMessage(HttpMethod.Post, "/api/reports/compliance-status");
             request.Headers.Add("X-Gccs-Dev-Auth", "true");
             request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
-            request.Headers.Add("X-Gccs-Dev-User", Guid.NewGuid().ToString());
+            request.Headers.Add("X-Gccs-Dev-User", actorUserId.ToString());
             request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageReports.ToString());
 
             using var response = await client.SendAsync(request);
@@ -110,7 +109,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
             };
             archiveRequest.Headers.Add("X-Gccs-Dev-Auth", "true");
             archiveRequest.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
-            archiveRequest.Headers.Add("X-Gccs-Dev-User", Guid.NewGuid().ToString());
+            archiveRequest.Headers.Add("X-Gccs-Dev-User", actorUserId.ToString());
             archiveRequest.Headers.Add("X-Gccs-Dev-Permissions", Permission.ArchiveReports.ToString());
 
             using var archiveResponse = await client.SendAsync(archiveRequest);
@@ -130,7 +129,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
                 $"/api/reports/{existingReportId}/exports/pdf");
             exportRequest.Headers.Add("X-Gccs-Dev-Auth", "true");
             exportRequest.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
-            exportRequest.Headers.Add("X-Gccs-Dev-User", Guid.NewGuid().ToString());
+            exportRequest.Headers.Add("X-Gccs-Dev-User", actorUserId.ToString());
             exportRequest.Headers.Add("X-Gccs-Dev-Permissions", Permission.ExportReports.ToString());
 
             using var exportResponse = await client.SendAsync(exportRequest);
@@ -141,7 +140,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
             Assert.False(await verificationDbContext.ReportExports.AnyAsync(export => export.TenantId == tenantId));
             Assert.False(await verificationDbContext.AuditLogEntries.AnyAsync(audit => audit.TenantId == tenantId));
 
-            var processingActorId = Guid.NewGuid();
+            var processingActorId = actorUserId;
             var processingExportId = Guid.NewGuid();
             var processingLeaseId = Guid.NewGuid();
             verificationDbContext.ReportExports.Add(new ReportExportEntity
@@ -196,6 +195,7 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
         {
             using var cleanupScope = factory.Services.CreateScope();
             var cleanupDbContext = cleanupScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            await cleanupDbContext.DataHandlingNoticeAcknowledgements.Where(a => a.TenantId == tenantId).ExecuteDeleteAsync();
             var reports = await cleanupDbContext.Reports
                 .Where(candidate => candidate.TenantId == tenantId)
                 .ToArrayAsync();

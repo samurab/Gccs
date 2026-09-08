@@ -17,6 +17,19 @@ namespace Gccs.Infrastructure.Demo;
 
 public sealed class EfDemoTenantSeedRepository(GccsDbContext dbContext) : IDemoTenantSeedRepository
 {
+    public async Task EnsureIsolatedDatabaseAsync(Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        if (dbContext.Database.IsNpgsql())
+        {
+            if (dbContext.Database.CurrentTransaction is null)
+                throw new DemoTenantSeedValidationException("Demo seed and reset require an application transaction.");
+            // Prevent provisioning or mode changes while the single-tenant isolation check is consumed.
+            await dbContext.Database.ExecuteSqlRawAsync("LOCK TABLE gccs.tenants IN SHARE ROW EXCLUSIVE MODE", cancellationToken);
+        }
+        if (await dbContext.Tenants.AnyAsync(t => t.Id != tenantId || t.DataPosture != TenantDataPosture.DemoSandbox, cancellationToken))
+            throw new DemoTenantSeedValidationException("Synthetic demonstrations require a dedicated database containing only the selected DemoSandbox tenant. Shared databases cannot be seeded or reset.");
+    }
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly Guid ContractId = Guid.Parse("1a030002-0000-4000-8000-000000000001");
     private static readonly Guid ContractDocumentId = Guid.Parse("1a030002-0000-4000-8000-000000000002");

@@ -15,6 +15,7 @@ public sealed class CuiSupportEscalationTests
     private static readonly Guid TenantId = Guid.Parse("1a070100-0000-4000-8000-000000000001");
     private static readonly Guid OtherTenantId = Guid.Parse("1a070100-0000-4000-8000-000000000003");
     private static readonly Guid ActorUserId = Guid.Parse("1a070100-0000-4000-8000-000000000002");
+    private static readonly Guid EvidenceId = Guid.Parse("1a070100-0000-4000-8000-000000000004");
 
     [Fact]
     public async Task TC_1A_7_1_1_Authorized_users_create_escalations_from_cui_relevant_workflows()
@@ -42,7 +43,9 @@ public sealed class CuiSupportEscalationTests
         var service = CreateService(dbContext);
 
         await service.CreateAsync(TenantId, Request("SupportPage", CuiSupportEscalationCategory.SuspectedCui), ActorUserId);
-        await service.CreateAsync(OtherTenantId, Request("SupportPage", CuiSupportEscalationCategory.ProhibitedData), ActorUserId);
+        await Assert.ThrowsAsync<CuiSupportEscalationValidationException>(() =>
+            service.CreateAsync(OtherTenantId, Request("SupportPage", CuiSupportEscalationCategory.ProhibitedData), ActorUserId));
+        Assert.Empty(await service.ListAsync(OtherTenantId));
 
         var tenantEscalations = await service.ListAsync(TenantId);
 
@@ -62,7 +65,7 @@ public sealed class CuiSupportEscalationTests
 
         Assert.True(escalation.IsAffectedContentBlocked);
         Assert.Equal("EvidenceItem", escalation.AffectedEntityType);
-        Assert.Equal("affected-123", escalation.AffectedEntityId);
+        Assert.Equal(EvidenceId.ToString(), escalation.AffectedEntityId);
     }
 
     [Fact]
@@ -106,10 +109,10 @@ public sealed class CuiSupportEscalationTests
     }
 
     private static CreateCuiSupportEscalationRequest Request(string workflow, CuiSupportEscalationCategory category) =>
-        new(workflow, "EvidenceItem", "affected-123", category, CuiSupportEscalationSeverity.High, "Potential CUI or prohibited data needs review.");
+        new(workflow, "EvidenceItem", EvidenceId.ToString(), category, CuiSupportEscalationSeverity.High, "Potential CUI or prohibited data needs review.");
 
     private static CuiSupportEscalationService CreateService(GccsDbContext dbContext, IAuditEventWriter? auditWriter = null) =>
-        new(new EfCuiSupportEscalationRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter());
+        new(new EfCuiSupportEscalationRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter(), new TestApplicationTransaction());
 
     private static GccsDbContext CreateDbContext()
     {
@@ -122,6 +125,7 @@ public sealed class CuiSupportEscalationTests
 
     private static void SeedTenants(GccsDbContext dbContext)
     {
+        dbContext.EvidenceItems.Add(new EvidenceItemEntity { Id = EvidenceId, TenantId = TenantId, Name = "Synthetic containment fixture" });
         dbContext.Tenants.AddRange(
             CreateTenant(TenantId, "Support Escalation Tenant"),
             CreateTenant(OtherTenantId, "Other Support Escalation Tenant"));

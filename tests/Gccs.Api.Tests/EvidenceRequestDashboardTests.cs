@@ -115,6 +115,7 @@ public sealed class EvidenceRequestDashboardTests : IClassFixture<WebApplication
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<EvidenceRequestService>();
                 services.AddScoped<IEvidenceRequestRepository, EfEvidenceRequestRepository>();

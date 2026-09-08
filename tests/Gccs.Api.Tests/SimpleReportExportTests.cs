@@ -172,6 +172,8 @@ public sealed class SimpleReportExportTests : IClassFixture<WebApplicationFactor
             builder.ConfigureServices(services =>
             {
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddScoped<Gccs.Application.Tenancy.IDataHandlingNoticeAcknowledgementRepository, Gccs.Infrastructure.Tenancy.EfDataHandlingNoticeAcknowledgementRepository>();
+                services.AddScoped<Gccs.Application.Tenancy.ITenantRepository, Gccs.Infrastructure.Tenancy.EfTenantRepository>();
                 services.AddScoped<SimpleReportExportService>();
                 services.AddScoped<ISimpleReportExportRepository, EfSimpleReportExportRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
@@ -182,6 +184,7 @@ public sealed class SimpleReportExportTests : IClassFixture<WebApplicationFactor
                 dbContext.Database.EnsureDeleted();
                 dbContext.Database.EnsureCreated();
                 seed?.Invoke(dbContext);
+                NoticeTestData.Seed(dbContext, Guid.Parse("85858585-8585-8585-8585-858585858585"));
                 dbContext.SaveChanges();
             });
         });

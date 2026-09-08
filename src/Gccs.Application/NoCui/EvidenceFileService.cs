@@ -13,7 +13,9 @@ public sealed class EvidenceFileService(
     IAuditEventWriter auditEventWriter,
     ContentClassificationPolicy classificationPolicy,
     IObjectStorageService objectStorageService,
-    IMalwareScanner malwareScanner)
+    IMalwareScanner malwareScanner,
+    IApplicationTransaction transaction,
+    IObjectCleanupQueue cleanup)
 {
     public async Task<EvidenceUploadIntentDto> CreateEvidenceUploadIntentAsync(
         Guid evidenceItemId,
@@ -21,28 +23,32 @@ public sealed class EvidenceFileService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        await EnsureEvidenceItemExistsAsync(evidenceItemId, cancellationToken);
         var uploadIntent = await ValidateAndBuildUploadIntentAsync(evidenceItemId, request, actorUserId, cancellationToken);
-        var version = await repository.RecordAcceptedEvidenceUploadIntentAsync(uploadIntent, cancellationToken);
-        await auditEventWriter.WriteAsync(
-            tenantContext.TenantId,
-            actorUserId,
-            AuditAction.Uploaded,
-            "EvidenceFileVersion",
-            version.Id.ToString(),
-            "Evidence file upload metadata was accepted and versioned.",
-            new Dictionary<string, string>
-            {
-                ["evidenceItemId"] = evidenceItemId.ToString(),
-                ["versionNumber"] = version.VersionNumber.ToString(),
-                ["fileName"] = version.FileName,
-                ["validationStatus"] = version.ValidationStatus,
-                ["malwareScanStatus"] = version.MalwareScanStatus,
-                ["isUsable"] = version.IsUsable.ToString(),
-                ["noCuiAttestation"] = request.NoCuiAttestation.ToString()
-            },
-            cancellationToken);
+        return await transaction.ExecuteAsync(async token =>
+        {
+            var version = await repository.RecordAcceptedEvidenceUploadIntentAsync(uploadIntent, token);
+            await auditEventWriter.WriteAsync(
+                tenantContext.TenantId,
+                actorUserId,
+                AuditAction.Uploaded,
+                "EvidenceFileVersion",
+                version.Id.ToString(),
+                "Evidence file upload metadata was accepted and versioned.",
+                new Dictionary<string, string>
+                {
+                    ["evidenceItemId"] = evidenceItemId.ToString(),
+                    ["versionNumber"] = version.VersionNumber.ToString(),
+                    ["fileName"] = version.FileName,
+                    ["validationStatus"] = version.ValidationStatus,
+                    ["malwareScanStatus"] = version.MalwareScanStatus,
+                    ["isUsable"] = version.IsUsable.ToString(),
+                    ["noCuiAttestation"] = request.NoCuiAttestation.ToString()
+                },
+                token);
 
-        return uploadIntent;
+            return uploadIntent;
+        }, cancellationToken);
     }
 
     public async Task<EvidenceFileAccessDto> UploadEvidenceFileAsync(
@@ -52,6 +58,7 @@ public sealed class EvidenceFileService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request.Content);
+        await EnsureEvidenceItemExistsAsync(evidenceItemId, cancellationToken);
 
         var uploadIntent = await ValidateAndBuildUploadIntentAsync(
             evidenceItemId,
@@ -97,26 +104,44 @@ public sealed class EvidenceFileService(
         var storedIntent = scannedIntent with { StorageObjectName = objectName };
         try
         {
-            version = await repository.RecordAcceptedEvidenceUploadIntentAsync(storedIntent, cancellationToken);
+            version = await transaction.ExecuteAsync(async token =>
+            {
+                await classificationPolicy.EnsureAllowedAsync(request.Classification ?? ContentClassificationPolicy.FromLegacyCuiFlag(request.ContainsPotentialCui), TenantDataHandlingWorkflow.EvidenceUpload,
+                    actorUserId, "EvidenceItem", evidenceItemId.ToString(), token);
+                var recorded = await repository.RecordAcceptedEvidenceUploadIntentAsync(storedIntent, token);
+                await auditEventWriter.WriteAsync(
+                    tenantContext.TenantId, actorUserId, AuditAction.Uploaded,
+                    "EvidenceFileVersion", recorded.Id.ToString(),
+                    "Evidence file bytes were uploaded to object storage and versioned.",
+                    ToAuditMetadata(recorded), token);
+                return recorded;
+            }, cancellationToken);
         }
         catch
         {
             await objectStorageService.DeleteAsync(
                 new ObjectStorageReadRequest(tenantContext.TenantId, ObjectStorageContainer.Evidence, objectName),
-                cancellationToken);
+                CancellationToken.None);
             throw;
         }
-        await auditEventWriter.WriteAsync(
-            tenantContext.TenantId,
-            actorUserId,
-            AuditAction.Uploaded,
-            "EvidenceFileVersion",
-            version.Id.ToString(),
-            "Evidence file bytes were uploaded to object storage and versioned.",
-            ToAuditMetadata(version),
-            cancellationToken);
 
         return ToAccessDto(version, "Evidence file was uploaded to private object storage.");
+    }
+
+    private async Task EnsureCurrentClassificationUsableAsync(Guid evidenceItemId, Guid actorUserId, CancellationToken cancellationToken)
+    {
+        var classification = await repository.FindCurrentTenantEvidenceClassificationAsync(evidenceItemId, cancellationToken)
+            ?? throw new EvidenceItemNotFoundException(evidenceItemId);
+        await classificationPolicy.EnsureUsableAsync(classification, TenantDataHandlingWorkflow.EvidenceUpload,
+            actorUserId, "EvidenceItem", evidenceItemId.ToString(), cancellationToken);
+    }
+
+    private async Task EnsureEvidenceItemExistsAsync(Guid evidenceItemId, CancellationToken cancellationToken)
+    {
+        if (!await repository.CurrentTenantEvidenceItemExistsAsync(evidenceItemId, cancellationToken))
+        {
+            throw new EvidenceItemNotFoundException(evidenceItemId);
+        }
     }
 
     private async Task<MalwareScanResult> ScanUploadAsync(
@@ -175,6 +200,11 @@ public sealed class EvidenceFileService(
 
         var classification = request.Classification ??
             ContentClassificationPolicy.FromLegacyCuiFlag(request.ContainsPotentialCui);
+        ContentClassificationPolicy.ValidateUserSelection(classification);
+        if (request.ContainsPotentialCui && classification.Classification != Gccs.Domain.Common.ContentClassification.Cui)
+        {
+            throw new ContentClassificationValidationException("Classification conflicts with the supplied CUI indicator.");
+        }
         try
         {
             await classificationPolicy.EnsureAllowedAsync(
@@ -228,6 +258,10 @@ public sealed class EvidenceFileService(
             return null;
         }
 
+        await classificationPolicy.EnsureUsableAsync(version.Classification, TenantDataHandlingWorkflow.EvidenceUpload,
+            actorUserId, "EvidenceItem", evidenceItemId.ToString(), cancellationToken);
+        await EnsureCurrentClassificationUsableAsync(evidenceItemId, actorUserId, cancellationToken);
+
         await auditEventWriter.WriteAsync(
             tenantContext.TenantId,
             actorUserId,
@@ -251,6 +285,10 @@ public sealed class EvidenceFileService(
         {
             return null;
         }
+
+        await classificationPolicy.EnsureUsableAsync(version.Classification, TenantDataHandlingWorkflow.EvidenceUpload,
+            actorUserId, "EvidenceItem", evidenceItemId.ToString(), cancellationToken);
+        await EnsureCurrentClassificationUsableAsync(evidenceItemId, actorUserId, cancellationToken);
 
         if (!version.IsUsable)
         {
@@ -288,39 +326,32 @@ public sealed class EvidenceFileService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var existing = await repository.FindLatestCurrentTenantFileVersionAsync(evidenceItemId, cancellationToken);
-        if (existing is null)
+        var version = await transaction.ExecuteAsync(async token =>
         {
-            return null;
-        }
+            var deleted = await repository.MarkLatestCurrentTenantFileVersionDeletedAsync(evidenceItemId, actorUserId, token);
+            if (deleted is null)
+            {
+                return null;
+            }
 
-        if (!string.IsNullOrWhiteSpace(existing.StorageObjectName))
-        {
-            await objectStorageService.DeleteAsync(
-                new ObjectStorageReadRequest(
-                    tenantContext.TenantId,
-                    ObjectStorageContainer.Evidence,
-                    existing.StorageObjectName),
-                cancellationToken);
-        }
+            if (!string.IsNullOrWhiteSpace(deleted.StorageObjectName))
+                await cleanup.EnqueueAsync(new(tenantContext.TenantId, ObjectStorageContainer.Evidence,
+                    deleted.StorageObjectName), actorUserId, token);
 
-        var version = await repository.MarkLatestCurrentTenantFileVersionDeletedAsync(evidenceItemId, actorUserId, cancellationToken);
-        if (version is null)
-        {
-            return null;
-        }
+            await auditEventWriter.WriteAsync(
+                tenantContext.TenantId,
+                actorUserId,
+                AuditAction.Deleted,
+                "EvidenceFileVersion",
+                deleted.Id.ToString(),
+                "Evidence file version was deleted; private object cleanup is queued.",
+                ToAuditMetadata(deleted),
+                token);
+            return deleted;
+        }, cancellationToken);
 
-        await auditEventWriter.WriteAsync(
-            tenantContext.TenantId,
-            actorUserId,
-            AuditAction.Deleted,
-            "EvidenceFileVersion",
-            version.Id.ToString(),
-            "Evidence file version was deleted.",
-            ToAuditMetadata(version),
-            cancellationToken);
-
-        return ToAccessDto(version, "Evidence file version was deleted.");
+        if (version is null) return null;
+        return ToAccessDto(version, "Evidence file version was deleted; private object cleanup is queued.");
     }
 
     private static string BuildEvidenceObjectName(Guid evidenceItemId, Guid versionId, string fileName)
@@ -498,6 +529,9 @@ public sealed class UploadGuardrailValidationException(IReadOnlyDictionary<strin
 }
 
 public sealed class EvidenceFileDownloadUnavailableException(string message) : InvalidOperationException(message);
+
+public sealed class EvidenceItemNotFoundException(Guid evidenceItemId)
+    : InvalidOperationException($"Evidence item '{evidenceItemId}' was not found.");
 
 public sealed class MalwareScanRejectedException(string message) : InvalidOperationException(message);
 

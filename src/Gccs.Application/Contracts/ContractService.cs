@@ -97,6 +97,7 @@ public sealed partial class ContractService(
         var normalized = NormalizeDocument(request);
         var classification = normalized.Classification ??
             throw new ContentClassificationValidationException("Classification metadata is required before contract document metadata can be stored.");
+        ContentClassificationPolicy.ValidateUserSelection(classification);
         await classificationPolicy.EnsureAllowedAsync(
             classification,
             TenantDataHandlingWorkflow.ContractDocumentUpload,
@@ -187,6 +188,8 @@ public sealed partial class ContractService(
             actorUserId,
             cancellationToken);
         ContentClassificationPolicy.EnsureProcessable(document.Classification.Classification, "Clause extraction");
+        await classificationPolicy.EnsureUsableAsync(document.Classification, TenantDataHandlingWorkflow.ExtractionJob,
+            actorUserId, "ContractDocument", documentId.ToString(), cancellationToken);
 
         var extractionValidationErrors = ValidateExtractionSource(document);
         if (extractionValidationErrors.Count > 0)
@@ -302,6 +305,8 @@ public sealed partial class ContractService(
             actorUserId,
             cancellationToken);
         ContentClassificationPolicy.EnsureProcessable(input.SourceDocument.Classification.Classification, "Clause extraction processing");
+        await classificationPolicy.EnsureUsableAsync(input.SourceDocument.Classification, TenantDataHandlingWorkflow.ExtractionJob,
+            actorUserId, "ContractDocument", input.SourceDocument.Id.ToString(), cancellationToken);
 
         await repository.MarkExtractionJobProcessingAsync(extractionJobId, cancellationToken);
         var extraction = await textExtractor.ExtractTextAsync(input.SourceDocument, cancellationToken);
@@ -322,6 +327,11 @@ public sealed partial class ContractService(
             cancellationToken);
         return await transaction.ExecuteAsync(async transactionToken =>
         {
+            var currentInput = await repository.FindExtractionJobInputAsync(extractionJobId, transactionToken);
+            if (currentInput is null) return null;
+            await classificationPolicy.EnsureUsableAsync(currentInput.SourceDocument.Classification,
+                TenantDataHandlingWorkflow.ExtractionJob, actorUserId, "ContractDocument",
+                currentInput.SourceDocument.Id.ToString(), transactionToken);
             var candidates = await repository.ReplaceClauseCandidatesAsync(
                 extractionJobId,
                 input.Job.SourceDocumentId,
