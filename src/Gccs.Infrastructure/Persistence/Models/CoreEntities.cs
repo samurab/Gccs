@@ -716,6 +716,10 @@ public sealed class AuditLogEntryEntity
     public Guid TenantId { get; set; }
     public Guid? ActorUserId { get; set; }
     public AuditAction Action { get; set; }
+    public string EventType { get; set; } = string.Empty;
+    public string? Classification { get; set; }
+    public string? Mode { get; set; }
+    public string Result { get; set; } = string.Empty;
     public string EntityType { get; set; } = string.Empty;
     public string EntityId { get; set; } = string.Empty;
     public DateTimeOffset OccurredAt { get; set; }

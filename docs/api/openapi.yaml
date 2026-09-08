@@ -6822,6 +6822,8 @@ components:
         - tenantId
         - actorUserId
         - action
+        - eventType
+        - result
         - entityType
         - entityId
         - occurredAt
@@ -6839,6 +6841,19 @@ components:
             - "null"
           format: uuid
         action:
+          type: string
+        eventType:
+          type: string
+          description: Normalized, kebab-case runtime event type.
+        classification:
+          type:
+            - string
+            - "null"
+        mode:
+          type:
+            - string
+            - "null"
+        result:
           type: string
         entityType:
           type: string

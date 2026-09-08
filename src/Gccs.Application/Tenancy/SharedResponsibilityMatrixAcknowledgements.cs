@@ -49,6 +49,7 @@ public sealed class SharedResponsibilityMatrixAcknowledgementService(
             "Shared responsibility matrix was acknowledged by tenant admin.",
             new Dictionary<string, string>
             {
+                ["eventType"] = Phase1ACuiAuditEvents.MatrixAcknowledgement,
                 ["tenantId"] = tenantId.ToString(),
                 ["actorUserId"] = actorUserId.ToString(),
                 ["matrixId"] = currentMatrix.MatrixId,

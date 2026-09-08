@@ -175,6 +175,8 @@ public sealed class TenantService(
                     "CuiReady data handling mode enablement failed approval gate.",
                     new Dictionary<string, string>
                     {
+                        ["eventType"] = Phase1ACuiAuditEvents.FailedModeChange,
+                        ["mode"] = request.DataHandlingMode.ToString(),
                         ["requestedDataHandlingMode"] = request.DataHandlingMode.ToString(),
                         ["result"] = "failed",
                         ["reason"] = exception.Message
@@ -212,6 +214,9 @@ public sealed class TenantService(
             $"Tenant '{tenant.Name}' data handling mode changed to {tenant.DataPosture}.",
             new Dictionary<string, string>
             {
+                ["eventType"] = Phase1ACuiAuditEvents.ModeChange,
+                ["mode"] = tenant.DataPosture.ToString(),
+                ["result"] = "succeeded",
                 ["beforeDataHandlingMode"] = existingTenant.DataPosture.ToString(),
                 ["afterDataHandlingMode"] = tenant.DataPosture.ToString(),
                 ["reason"] = reason,

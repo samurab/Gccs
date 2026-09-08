@@ -51,9 +51,10 @@ public sealed class TenantDataHandlingModePolicyService(
                 "Tenant data handling mode blocked a restricted workflow.",
                 new Dictionary<string, string>
                 {
+                    ["eventType"] = Phase1ACuiAuditEvents.BlockedEventType(normalized.Workflow),
                     ["workflow"] = normalized.Workflow.ToString(),
                     ["mode"] = mode.ToString(),
-                    ["result"] = "Rejected",
+                    ["result"] = "rejected",
                     ["reason"] = denialReason,
                     ["entityType"] = normalized.EntityType ?? string.Empty,
                     ["entityId"] = normalized.EntityId ?? string.Empty,

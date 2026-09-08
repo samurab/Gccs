@@ -1858,6 +1858,12 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.OccurredAt });
             entity.HasIndex(x => new { x.TenantId, x.EntityType, x.EntityId });
+            entity.HasIndex(x => new { x.TenantId, x.EventType, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.Result, x.OccurredAt });
+            entity.Property(x => x.EventType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Classification).HasMaxLength(80);
+            entity.Property(x => x.Mode).HasMaxLength(80);
+            entity.Property(x => x.Result).HasMaxLength(40).IsRequired();
             entity.Property(x => x.CorrelationId).HasMaxLength(120);
             entity.Property(x => x.OldValue).HasColumnType("text");
             entity.Property(x => x.NewValue).HasColumnType("text");

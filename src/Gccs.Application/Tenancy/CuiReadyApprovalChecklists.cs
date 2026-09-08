@@ -242,7 +242,8 @@ public sealed class CuiReadyApprovalChecklistService(
     private Task FailureAsync(Guid tenantId, Guid actor, string operation, string reason, CancellationToken ct) =>
         auditEventWriter.WriteAsync(context?.TenantId ?? tenantId, context?.UserId ?? actor, AuditAction.Rejected,
             "CuiReadyApprovalChecklist", (context?.TenantId ?? tenantId).ToString(), "CUI-ready gate evaluation failed.",
-            new Dictionary<string, string> { ["operation"] = operation, ["reason"] = reason, ["result"] = "failed" }, ct);
+            new Dictionary<string, string> { ["eventType"] = Phase1ACuiAuditEvents.FailedCuiApproval,
+                ["operation"] = operation, ["reason"] = reason, ["result"] = "failed" }, ct);
 
     private static void ValidateCompletedItem(UpdateCuiReadyChecklistItemRequest request)
     {
@@ -287,6 +288,13 @@ public sealed class CuiReadyApprovalChecklistService(
             $"CUI-ready approval checklist {lifecycleAction}.",
             new Dictionary<string, string>
             {
+                ["eventType"] = action switch
+                {
+                    AuditAction.Approved => Phase1ACuiAuditEvents.ChecklistApproval,
+                    AuditAction.Rejected => Phase1ACuiAuditEvents.ChecklistRejection,
+                    _ => $"checklist-{lifecycleAction}"
+                },
+                ["result"] = action == AuditAction.Rejected ? "rejected" : "succeeded",
                 ["tenantId"] = checklist.TenantId.ToString(),
                 ["checklistId"] = checklist.Id.ToString(),
                 ["state"] = checklist.State.ToString(),

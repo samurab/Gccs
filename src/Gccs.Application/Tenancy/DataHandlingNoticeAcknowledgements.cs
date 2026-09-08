@@ -87,6 +87,7 @@ public sealed class DataHandlingNoticeAcknowledgementService(
                     : "Data handling notice was acknowledged for a CUI-relevant workflow.",
                 new Dictionary<string, string>
                 {
+                    ["eventType"] = Phase1ACuiAuditEvents.NoticeAcknowledgement,
                     ["tenantId"] = tenantId.ToString(),
                     ["userId"] = userId.ToString(),
                     ["mode"] = currentNotice.Mode.ToString(),

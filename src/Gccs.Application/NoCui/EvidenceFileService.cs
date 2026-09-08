@@ -115,7 +115,7 @@ public sealed class EvidenceFileService(
                     tenantContext.TenantId, actorUserId, AuditAction.Uploaded,
                     "EvidenceFileVersion", recorded.Id.ToString(),
                     "Evidence file bytes were uploaded to object storage and versioned.",
-                    ToAuditMetadata(recorded), token);
+                    ToAuditMetadata(recorded, "evidence-uploaded"), token);
                 return recorded;
             }, cancellationToken);
         }
@@ -273,7 +273,7 @@ public sealed class EvidenceFileService(
             "EvidenceFileVersion",
             version.Id.ToString(),
             "Evidence file download metadata was requested.",
-            ToAuditMetadata(version),
+            ToAuditMetadata(version, Phase1ACuiAuditEvents.Download),
             cancellationToken);
 
         return ToAccessDto(version, "File storage is represented as metadata in the No-CUI MVP.");
@@ -319,7 +319,7 @@ public sealed class EvidenceFileService(
             "EvidenceFileVersion",
             version.Id.ToString(),
             "Evidence file bytes were streamed from object storage.",
-            ToAuditMetadata(version),
+            ToAuditMetadata(version, Phase1ACuiAuditEvents.Download),
             cancellationToken);
 
         return new EvidenceFileDownloadDto(version, storedFile);
@@ -349,7 +349,7 @@ public sealed class EvidenceFileService(
                 "EvidenceFileVersion",
                 deleted.Id.ToString(),
                 "Evidence file version was deleted; private object cleanup is queued.",
-                ToAuditMetadata(deleted),
+                ToAuditMetadata(deleted, Phase1ACuiAuditEvents.Deletion),
                 token);
             return deleted;
         }, cancellationToken);
@@ -445,6 +445,9 @@ public sealed class EvidenceFileService(
             "Evidence upload metadata was rejected by No-CUI upload guardrails.",
             new Dictionary<string, string>
             {
+                ["eventType"] = Phase1ACuiAuditEvents.BlockedUpload,
+                ["result"] = "rejected",
+                ["classification"] = request.Classification?.Classification.ToString() ?? "Unknown",
                 ["fileName"] = request.FileName ?? string.Empty,
                 ["contentType"] = request.ContentType ?? string.Empty,
                 ["sizeBytes"] = request.SizeBytes.ToString(),
@@ -476,6 +479,9 @@ public sealed class EvidenceFileService(
             "Evidence upload was rejected by malware scanning.",
             new Dictionary<string, string>
             {
+                ["eventType"] = Phase1ACuiAuditEvents.BlockedUpload,
+                ["result"] = "rejected",
+                ["classification"] = uploadIntent.Classification.Classification.ToString(),
                 ["fileName"] = uploadIntent.FileName,
                 ["contentType"] = uploadIntent.ContentType,
                 ["sizeBytes"] = uploadIntent.SizeBytes.ToString(),
@@ -503,9 +509,12 @@ public sealed class EvidenceFileService(
             version.Classification,
             message);
 
-    private static Dictionary<string, string> ToAuditMetadata(EvidenceFileVersionDto version) =>
+    private static Dictionary<string, string> ToAuditMetadata(EvidenceFileVersionDto version, string eventType) =>
         new()
         {
+            ["eventType"] = eventType,
+            ["result"] = "succeeded",
+            ["classification"] = version.Classification.Classification.ToString(),
             ["evidenceItemId"] = version.EvidenceItemId.ToString(),
             ["versionNumber"] = version.VersionNumber.ToString(),
             ["fileName"] = version.FileName,

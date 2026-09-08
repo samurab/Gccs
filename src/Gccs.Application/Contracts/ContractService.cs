@@ -934,6 +934,12 @@ public sealed partial class ContractService(
     {
         var metadata = new Dictionary<string, string>
         {
+            ["eventType"] = action == AuditAction.Created
+                ? Phase1ACuiAuditEvents.ExtractionStart
+                : Phase1ACuiAuditEvents.ExtractionStop,
+            ["result"] = action == AuditAction.Rejected ? "rejected" :
+                job.Status == ExtractionJobStatus.Failed ? "failed" : "succeeded",
+            ["classification"] = job.Classification.Classification.ToString(),
             ["sourceDocumentId"] = job.SourceDocumentId.ToString(),
             ["status"] = job.Status.ToString()
         };

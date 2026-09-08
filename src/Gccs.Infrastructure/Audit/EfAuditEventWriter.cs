@@ -70,6 +70,7 @@ public sealed class EfAuditEventWriter(GccsDbContext dbContext, IAuditRequestMet
         CancellationToken cancellationToken)
     {
         var eventMetadata = SanitizeMetadata(metadata);
+        var dimensions = Phase1ACuiAuditEvents.ResolveDimensions(action, entityType, eventMetadata);
         if (!string.IsNullOrWhiteSpace(requestMetadata.CorrelationId))
         {
             eventMetadata["correlationId"] = requestMetadata.CorrelationId;
@@ -83,6 +84,10 @@ public sealed class EfAuditEventWriter(GccsDbContext dbContext, IAuditRequestMet
                 TenantId = tenantId,
                 ActorUserId = actorUserId,
                 Action = action,
+                EventType = dimensions.EventType,
+                Classification = dimensions.Classification,
+                Mode = dimensions.Mode,
+                Result = dimensions.Result,
                 EntityType = entityType,
                 EntityId = entityId,
                 OccurredAt = DateTimeOffset.UtcNow,
