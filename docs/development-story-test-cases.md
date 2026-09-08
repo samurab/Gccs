@@ -1,6 +1,6 @@
 # Development Story Test Cases
 
-These test cases cover every sprint user story in [development-story-prompts.md](development-story-prompts.md). They are intended to be used with backend xUnit tests, frontend Vitest/React Testing Library tests, API/integration tests, and selected end-to-end smoke tests.
+These test cases cover every software sprint story in [development-story-prompts.md](development-story-prompts.md) plus the governed human-evidence contracts for Phase 0 research and Story 39 SOC 2 assurance. Software cases are intended for backend xUnit tests, frontend Vitest/React Testing Library tests, API/integration tests, and selected end-to-end smoke tests; non-software cases require the evidence review method stated in their sections.
 
 Common expectations for all functional stories:
 
@@ -9,6 +9,66 @@ Common expectations for all functional stories:
 - Compliance-relevant create, update, delete, status, upload, approval, report, and notification actions are audit logged.
 - No-CUI controls are preserved for all upload workflows.
 - User-facing errors are clear and use the standard API/UI error pattern.
+
+Phase 0 and Story 39 are non-software evidence workflows. Their `TC-*` cases are governed human-review contracts, not claims of application automation or deployed control operation.
+
+## 0. Research And Validation
+
+### Story 0.1: Persona Map
+
+- **TC-0.1.1 - Required persona fields:** Review every persona and verify role, context, jobs, pains, outcomes, authority, and No-CUI implications are recorded.
+- **TC-0.1.2 - Evidence traceability:** Sample every material persona claim and verify it links to dated evidence or is explicitly labeled as a hypothesis.
+- **TC-0.1.3 - Conflicts remain visible:** Verify conflicting stakeholder needs and unresolved assumptions have not been silently reconciled.
+- **TC-0.1.4 - Restricted-data review:** Review the artifact for real CUI, secrets, and unnecessary personal data and record disposition for any finding.
+
+### Story 0.2: Regulatory Obligation Map
+
+- **TC-0.2.1 - Required source fields:** Verify every entry contains source, version/date, applicability hypothesis, workflow impact, owner, and review status.
+- **TC-0.2.2 - Draft-only unreviewed content:** Verify entries lacking qualified review remain draft and are not presented as definitive legal requirements.
+- **TC-0.2.3 - Source history:** Verify superseded and conflicting sources retain disposition and review history.
+- **TC-0.2.4 - Provenance and posture:** Verify source provenance is preserved and no entry changes the No-CUI product posture.
+
+### Story 0.3: Competitive Matrix
+
+- **TC-0.3.1 - Comparison evidence:** Verify each comparison contains a source URL, access date, product/tier context, and evidence classification.
+- **TC-0.3.2 - Unknown handling:** Verify missing or inaccessible evidence is recorded as unknown rather than as a negative competitor claim.
+- **TC-0.3.3 - Dimension traceability:** Verify every comparison dimension maps to a documented persona job or procurement constraint.
+- **TC-0.3.4 - Refresh governance:** Verify the matrix records an owner and next review date.
+
+### Story 0.4: Clickable Prototype Validation
+
+- **TC-0.4.1 - Synthetic scenarios:** Verify agreed critical-workflow prototype scenarios use only synthetic or redacted data.
+- **TC-0.4.2 - Session evidence:** Verify every session records scenario completion, observed breakdowns, terminology feedback, and follow-up decisions.
+- **TC-0.4.3 - Accessibility and posture findings:** Verify accessibility and No-CUI messaging issues have an owner and disposition.
+- **TC-0.4.4 - Illustrative labeling:** Verify prototype behavior is labeled illustrative and is not represented as implemented enforcement.
+
+### Story 0.5: Customer And Expert Interviews
+
+- **TC-0.5.1 - Sample and exception record:** Verify the research register records 20-30 completed interviews across the approved segment mix or an explicit approved exception.
+- **TC-0.5.2 - Interview governance:** Verify each interview records consent status, participant category, date, interviewer, and redacted findings.
+- **TC-0.5.3 - Synthesis integrity:** Verify synthesis distinguishes direct evidence, inference, contradiction, and unresolved hypotheses.
+- **TC-0.5.4 - Restricted-data review:** Review notes for real CUI, credentials, contract documents, and unnecessary personal data and record disposition for any finding.
+
+### Story 0.6: Pricing Hypothesis
+
+- **TC-0.6.1 - Testable hypothesis:** Verify segment, value metric, package, price range, assumptions, and falsification threshold are recorded.
+- **TC-0.6.2 - Evidence separation:** Verify evidence links and confidence are recorded separately from approved product decisions.
+- **TC-0.6.3 - Claims boundary:** Verify pricing materials do not imply certification, legal advice, or CUI handling as included services.
+- **TC-0.6.4 - Decision governance:** Verify the hypothesis has an accountable owner and next review date.
+
+### Story 0.7: MVP Requirements Baseline
+
+- **TC-0.7.1 - Roadmap traceability:** Verify every in-scope requirement maps to a roadmap outcome and story or to an owned non-software deliverable.
+- **TC-0.7.2 - Explicit exclusions:** Verify real CUI processing, certification, legal advice, and government endorsement remain out of scope absent a separately approved future decision.
+- **TC-0.7.3 - Verifiable quality attributes:** Verify security, privacy, accessibility, recovery, and content-governance requirements have observable verification methods.
+- **TC-0.7.4 - Change history:** Verify baseline approval and later changes retain owner, rationale, date, and decision history.
+
+### Story 0.8: Advisor Review And Phase Gate
+
+- **TC-0.8.1 - Review package completeness:** Verify artifact versions, reviewers, competencies, review dates, findings, and unresolved risks are identified.
+- **TC-0.8.2 - Finding disposition:** Verify each finding has a disposition, accountable owner, target date, and documented effect on MVP scope.
+- **TC-0.8.3 - Gate decision:** Verify the decision is recorded as proceed, proceed-with-conditions, pivot, or stop with rationale.
+- **TC-0.8.4 - Claims boundary:** Verify advisor review is not represented as legal advice, certification, authorization, or government approval.
 
 ## 1. Delivery Foundation
 
@@ -1149,3 +1209,29 @@ These test cases cover the Phase 4 enterprise and regulated deployment stories a
 - **TC-38.3.3 - Export policy enforced:** Generate enclave exports and verify package type, recipient, watermarking, encryption, and approval requirements are enforced.
 - **TC-38.3.4 - Emergency access controlled:** Use emergency access and verify elevated approval, incident linkage, time limit, and post-access review are required.
 - **TC-38.3.5 - Enclave access audited:** Verify access, export, support, emergency, expiration, and post-access review actions are audit logged.
+
+## 39. SOC 2 Assurance Program
+
+These cases require governed human evidence and, for report issuance, confirmation against the actual independent service-auditor deliverable. They are not application regression tests.
+
+### Story 39.1: Define SOC 2 Scope And Readiness Decision
+
+- **TC-39.1.1 - Scope completeness:** Verify the scope record identifies the system boundary, services, environments, subprocessors, customer responsibilities, exclusions, applicable criteria, version, owner, and review date.
+- **TC-39.1.2 - Ownership and evidence map:** Verify every in-scope criterion maps to a control owner and evidence source or to a documented design gap with remediation ownership.
+- **TC-39.1.3 - Governed decision:** Verify the proceed, defer, or revise decision records approvers, rationale, budget and schedule assumptions, unresolved risks, and next review date.
+- **TC-39.1.4 - Assurance boundary:** Verify qualified input and conflicts are recorded and no readiness artifact is represented as an issued report, certification, legal conclusion, or CUI authorization.
+
+### Story 39.2: Remediate Gaps And Collect Operating Evidence
+
+- **TC-39.2.1 - Gap governance:** Verify every gap has severity, owner, target date, disposition, evidence requirement, and immutable decision history.
+- **TC-39.2.2 - Evidence provenance:** Sample collected evidence and verify control, system/process, period, source, custodian, reviewer, review result, and retention location are recorded without secrets or raw customer documents in the backlog.
+- **TC-39.2.3 - Exceptions and changes:** Verify exceptions, failures, significant changes, accepted risks, corrective actions, approvals, and closure evidence remain traceable.
+- **TC-39.2.4 - Readiness decision:** Verify the final decision identifies proposed examination type and period/as-of date, open exceptions, evidence index version, approvers, and proceed or defer outcome.
+
+### Story 39.3: Govern Independent Examination And Report Distribution
+
+- **TC-39.3.1 - Examination record:** Verify auditor, examination type, scoped system, criteria, period/as-of date, management assertion, status, and issued-report reference are recorded when applicable.
+- **TC-39.3.2 - Issuance proof:** Verify issued status cannot be supported solely by a story, readiness artifact, UI state, or internal approval and instead references the governed independent report plus authorized confirmation.
+- **TC-39.3.3 - Controlled disclosure:** Sample every disclosure and verify recipient, purpose, confidentiality condition, approver, report version, sent date, and revocation/supersession status.
+- **TC-39.3.4 - Claims review:** Verify approved wording identifies the actual report type, covered system, and period without prohibited certification, compliance, government-approval, audit-readiness, FedRAMP, CMMC, or CUI claims.
+- **TC-39.3.5 - Renewal governance:** Verify renewal planning records the next period, owners, evidence-calendar changes, prior exceptions, significant changes, and proceed or defer decision.

@@ -18,7 +18,8 @@ public sealed partial class ContractService(
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
     ContentClassificationPolicy classificationPolicy,
     IContractDocumentTextExtractor textExtractor,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction,
+    Gccs.Application.Security.ICurrentTenantContext currentTenant)
 {
     public Task<IReadOnlyList<ContractDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
         repository.ListCurrentTenantAsync(cancellationToken);
@@ -97,6 +98,7 @@ public sealed partial class ContractService(
         var normalized = NormalizeDocument(request);
         var classification = normalized.Classification ??
             throw new ContentClassificationValidationException("Classification metadata is required before contract document metadata can be stored.");
+        ContentClassificationPolicy.ValidateUserSelection(classification);
         await classificationPolicy.EnsureAllowedAsync(
             classification,
             TenantDataHandlingWorkflow.ContractDocumentUpload,
@@ -120,27 +122,30 @@ public sealed partial class ContractService(
             throw new UploadGuardrailValidationException(validationErrors);
         }
 
-        var document = await repository.CreateDocumentMetadataAsync(
-            contractId,
-            normalized,
-            actorUserId,
-            acknowledgement.NoticeVersion,
-            cancellationToken);
-
-        if (document is not null)
+        return await transaction.ExecuteAsync(async token =>
         {
-            await WriteDocumentAuditAsync(
+            var document = await repository.CreateDocumentMetadataAsync(
                 contractId,
-                document.Id,
                 normalized,
                 actorUserId,
-                AuditAction.Uploaded,
-                $"Contract document '{document.FileName}' was uploaded as metadata.",
-                null,
-                cancellationToken);
-        }
+                acknowledgement.NoticeVersion,
+                token);
 
-        return document;
+            if (document is not null)
+            {
+                await WriteDocumentAuditAsync(
+                    contractId,
+                    document.Id,
+                    normalized,
+                    actorUserId,
+                    AuditAction.Uploaded,
+                    $"Contract document '{document.FileName}' was uploaded as metadata.",
+                    null,
+                    token);
+            }
+
+            return document;
+        }, cancellationToken);
     }
 
     public async Task<bool> DeleteDocumentAsync(
@@ -170,13 +175,19 @@ public sealed partial class ContractService(
         Guid contractId,
         Guid documentId,
         Guid actorUserId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, ContentClassificationRequest? classification = null)
     {
         var document = await repository.FindDocumentInCurrentTenantAsync(contractId, documentId, cancellationToken);
         if (document is null)
         {
             return null;
         }
+
+        ContentClassificationPolicy.EnsureProcessable(document.Classification.Classification, "Clause extraction");
+        await ClassifiedWorkflowValidation.ConfirmAsync(classificationPolicy, classification,
+            TenantDataHandlingWorkflow.ExtractionJob, actorUserId, cancellationToken);
+        if (classification!.Classification != document.Classification.Classification)
+            throw new ContentClassificationValidationException("Confirm the source document's current classification before extraction.");
 
         await dataHandlingModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(
@@ -186,7 +197,8 @@ public sealed partial class ContractService(
                 EntityId: documentId.ToString()),
             actorUserId,
             cancellationToken);
-        ContentClassificationPolicy.EnsureProcessable(document.Classification.Classification, "Clause extraction");
+        await classificationPolicy.EnsureUsableAsync(document.Classification, TenantDataHandlingWorkflow.ExtractionJob,
+            actorUserId, "ContractDocument", documentId.ToString(), cancellationToken);
 
         var extractionValidationErrors = ValidateExtractionSource(document);
         if (extractionValidationErrors.Count > 0)
@@ -302,6 +314,10 @@ public sealed partial class ContractService(
             actorUserId,
             cancellationToken);
         ContentClassificationPolicy.EnsureProcessable(input.SourceDocument.Classification.Classification, "Clause extraction processing");
+        await classificationPolicy.EnsureUsableAsync(input.Job.Classification, TenantDataHandlingWorkflow.ExtractionJob,
+            actorUserId, "ExtractionJob", extractionJobId.ToString(), cancellationToken);
+        await classificationPolicy.EnsureUsableAsync(input.SourceDocument.Classification, TenantDataHandlingWorkflow.ExtractionJob,
+            actorUserId, "ContractDocument", input.SourceDocument.Id.ToString(), cancellationToken);
 
         await repository.MarkExtractionJobProcessingAsync(extractionJobId, cancellationToken);
         var extraction = await textExtractor.ExtractTextAsync(input.SourceDocument, cancellationToken);
@@ -322,6 +338,14 @@ public sealed partial class ContractService(
             cancellationToken);
         return await transaction.ExecuteAsync(async transactionToken =>
         {
+            await repository.LockDocumentClassificationAsync(input.SourceDocument.ContractId, input.SourceDocument.Id, transactionToken);
+            var currentInput = await repository.FindExtractionJobInputAsync(extractionJobId, transactionToken);
+            if (currentInput is null) return null;
+            await classificationPolicy.EnsureUsableAsync(currentInput.Job.Classification,
+                TenantDataHandlingWorkflow.ExtractionJob, actorUserId, "ExtractionJob", extractionJobId.ToString(), transactionToken);
+            await classificationPolicy.EnsureUsableAsync(currentInput.SourceDocument.Classification,
+                TenantDataHandlingWorkflow.ExtractionJob, actorUserId, "ContractDocument",
+                currentInput.SourceDocument.Id.ToString(), transactionToken);
             var candidates = await repository.ReplaceClauseCandidatesAsync(
                 extractionJobId,
                 input.Job.SourceDocumentId,
@@ -335,12 +359,28 @@ public sealed partial class ContractService(
         }, cancellationToken);
     }
 
-    public Task<ContractDocumentExtractionResultsDto?> ListExtractionResultsAsync(
+    public async Task<ContractDocumentExtractionResultsDto?> ListExtractionResultsAsync(
         Guid contractId,
         Guid documentId,
         string? reviewStatus,
-        CancellationToken cancellationToken = default) =>
-        repository.ListExtractionResultsAsync(contractId, documentId, reviewStatus, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        if (!await EnsureExtractionContentUsableAsync(contractId, documentId, currentTenant.UserId, cancellationToken)) return null;
+        return await repository.ListExtractionResultsAsync(contractId, documentId, reviewStatus, cancellationToken);
+    }
+
+    private async Task<bool> EnsureExtractionContentUsableAsync(Guid contractId, Guid documentId, Guid actor, CancellationToken ct)
+    {
+        await repository.LockDocumentClassificationAsync(contractId, documentId, ct);
+        var document = await repository.FindDocumentInCurrentTenantAsync(contractId, documentId, ct);
+        if (document is null) return false;
+        await classificationPolicy.EnsureUsableAsync(document.Classification, TenantDataHandlingWorkflow.ExtractionJob,
+            actor, "ContractDocument", documentId.ToString(), ct);
+        foreach (var job in await repository.ListDocumentExtractionJobsAsync(contractId, documentId, ct))
+            await classificationPolicy.EnsureUsableAsync(job.Classification, TenantDataHandlingWorkflow.ExtractionJob,
+                actor, "ExtractionJob", job.Id.ToString(), ct);
+        return true;
+    }
 
     public async Task<ClauseCandidateDto?> EditClauseCandidateAsync(
         Guid contractId,
@@ -350,15 +390,19 @@ public sealed partial class ContractService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var normalized = NormalizeCandidateEdit(request);
-        ValidateCandidateEdit(normalized);
-        var candidate = await repository.EditClauseCandidateAsync(contractId, documentId, candidateId, normalized, cancellationToken);
-        if (candidate is not null)
+        return await transaction.ExecuteAsync(async token =>
         {
-            await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Updated, "Extraction clause candidate was edited.", cancellationToken);
-        }
+            if (!await EnsureExtractionContentUsableAsync(contractId, documentId, actorUserId, token)) return null;
+            var normalized = NormalizeCandidateEdit(request);
+            ValidateCandidateEdit(normalized);
+            var candidate = await repository.EditClauseCandidateAsync(contractId, documentId, candidateId, normalized, token);
+            if (candidate is not null)
+            {
+                await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Updated, "Extraction clause candidate was edited.", token);
+            }
 
-        return candidate;
+            return candidate;
+        }, cancellationToken);
     }
 
     public async Task<ClauseCandidateDto?> AcceptClauseCandidateAsync(
@@ -369,15 +413,19 @@ public sealed partial class ContractService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var normalized = NormalizeCandidateReview(request);
-        ValidateCandidateReview(normalized, requireClauseLibrary: true);
-        var candidate = await repository.AcceptClauseCandidateAsync(contractId, documentId, candidateId, normalized, actorUserId, cancellationToken);
-        if (candidate is not null)
+        return await transaction.ExecuteAsync(async token =>
         {
-            await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Approved, "Extraction clause candidate was accepted.", cancellationToken);
-        }
+            if (!await EnsureExtractionContentUsableAsync(contractId, documentId, actorUserId, token)) return null;
+            var normalized = NormalizeCandidateReview(request);
+            ValidateCandidateReview(normalized, requireClauseLibrary: true);
+            var candidate = await repository.AcceptClauseCandidateAsync(contractId, documentId, candidateId, normalized, actorUserId, token);
+            if (candidate is not null)
+            {
+                await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Approved, "Extraction clause candidate was accepted.", token);
+            }
 
-        return candidate;
+            return candidate;
+        }, cancellationToken);
     }
 
     public async Task<ClauseCandidateDto?> RejectClauseCandidateAsync(
@@ -388,15 +436,19 @@ public sealed partial class ContractService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var normalized = NormalizeCandidateReview(request);
-        ValidateCandidateReview(normalized, requireClauseLibrary: false);
-        var candidate = await repository.RejectClauseCandidateAsync(contractId, documentId, candidateId, normalized, cancellationToken);
-        if (candidate is not null)
+        return await transaction.ExecuteAsync(async token =>
         {
-            await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Rejected, "Extraction clause candidate was rejected.", cancellationToken);
-        }
+            if (!await EnsureExtractionContentUsableAsync(contractId, documentId, actorUserId, token)) return null;
+            var normalized = NormalizeCandidateReview(request);
+            ValidateCandidateReview(normalized, requireClauseLibrary: false);
+            var candidate = await repository.RejectClauseCandidateAsync(contractId, documentId, candidateId, normalized, token);
+            if (candidate is not null)
+            {
+                await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Rejected, "Extraction clause candidate was rejected.", token);
+            }
 
-        return candidate;
+            return candidate;
+        }, cancellationToken);
     }
 
     public async Task<ClauseCandidateDto?> MarkClauseCandidateNeedsClarificationAsync(
@@ -407,15 +459,19 @@ public sealed partial class ContractService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var normalized = NormalizeCandidateStateChange(request);
-        ValidateCandidateStateChange(normalized);
-        var candidate = await repository.MarkClauseCandidateNeedsClarificationAsync(contractId, documentId, candidateId, normalized, actorUserId, cancellationToken);
-        if (candidate is not null)
+        return await transaction.ExecuteAsync(async token =>
         {
-            await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Updated, "Extraction clause candidate needs clarification.", cancellationToken);
-        }
+            if (!await EnsureExtractionContentUsableAsync(contractId, documentId, actorUserId, token)) return null;
+            var normalized = NormalizeCandidateStateChange(request);
+            ValidateCandidateStateChange(normalized);
+            var candidate = await repository.MarkClauseCandidateNeedsClarificationAsync(contractId, documentId, candidateId, normalized, actorUserId, token);
+            if (candidate is not null)
+            {
+                await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Updated, "Extraction clause candidate needs clarification.", token);
+            }
 
-        return candidate;
+            return candidate;
+        }, cancellationToken);
     }
 
     public async Task<ClauseCandidateDto?> SupersedeClauseCandidateAsync(
@@ -426,15 +482,19 @@ public sealed partial class ContractService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var normalized = NormalizeCandidateStateChange(request);
-        ValidateCandidateStateChange(normalized);
-        var candidate = await repository.SupersedeClauseCandidateAsync(contractId, documentId, candidateId, normalized, actorUserId, cancellationToken);
-        if (candidate is not null)
+        return await transaction.ExecuteAsync(async token =>
         {
-            await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Updated, "Extraction clause candidate was superseded.", cancellationToken);
-        }
+            if (!await EnsureExtractionContentUsableAsync(contractId, documentId, actorUserId, token)) return null;
+            var normalized = NormalizeCandidateStateChange(request);
+            ValidateCandidateStateChange(normalized);
+            var candidate = await repository.SupersedeClauseCandidateAsync(contractId, documentId, candidateId, normalized, actorUserId, token);
+            if (candidate is not null)
+            {
+                await WriteClauseCandidateAuditAsync(candidate, actorUserId, AuditAction.Updated, "Extraction clause candidate was superseded.", token);
+            }
 
-        return candidate;
+            return candidate;
+        }, cancellationToken);
     }
 
     public async Task<ContractDeliverableDto?> CreateDeliverableAsync(
@@ -1068,6 +1128,9 @@ public interface IContractRepository
     Task<ExtractionJobProcessingInputDto?> FindExtractionJobInputAsync(
         Guid extractionJobId,
         CancellationToken cancellationToken = default);
+
+    Task LockDocumentClassificationAsync(Guid contractId, Guid documentId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ExtractionJobDto>> ListDocumentExtractionJobsAsync(Guid contractId, Guid documentId, CancellationToken cancellationToken);
 
     Task<ClauseLibraryMatchDto?> FindPublishedClauseLibraryMatchAsync(
         Guid tenantId,

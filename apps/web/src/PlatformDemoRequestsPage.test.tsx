@@ -139,7 +139,7 @@ describe("PlatformDemoRequestsPage", () => {
 
     render(<PlatformDemoRequestsPage />);
     expect(await screen.findByText(/auto-refresh every 30 seconds/i)).toBeInTheDocument();
-    expect(api.getPlatformDemoRequests).toHaveBeenCalledTimes(1);
-    expect(api.getPlatformDemoRequestCalendar).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(api.getPlatformDemoRequests).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.getPlatformDemoRequestCalendar).toHaveBeenCalledTimes(1));
   });
 });

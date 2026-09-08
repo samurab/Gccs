@@ -65,15 +65,21 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
     {
         var tenantId = Guid.Parse("41414141-4141-4141-4141-4141414141a2");
         var userId = Guid.Parse("41414141-4141-4141-4141-4141414141b2");
+        var evidenceItemId = Guid.NewGuid();
         await using var factory = CreateFactory("tc-4-1-2", dbContext =>
         {
             dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.1.2 Tenant"));
+            dbContext.EvidenceItems.Add(new EvidenceItemEntity
+            {
+                Id = evidenceItemId, TenantId = tenantId, Name = "Synthetic evidence", OwnerFunction = "Compliance",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
             dbContext.SaveChanges();
         });
         using var client = factory.CreateClient();
         using var blockedByPolicyRequest = CreateRequest(
             HttpMethod.Post,
-            $"/api/evidence-items/{Guid.NewGuid()}/upload-intents",
+            $"/api/evidence-items/{evidenceItemId}/upload-intents",
             new EvidenceUploadIntentRequest("policy.pdf", "application/pdf", 1024),
             tenantId,
             userId,
@@ -247,6 +253,11 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         {
             dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.2.1 Tenant"));
             dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.EvidenceItems.Add(new EvidenceItemEntity
+            {
+                Id = evidenceItemId, TenantId = tenantId, Name = "Synthetic evidence", OwnerFunction = "Compliance",
+                Status = Gccs.Domain.Evidence.EvidenceStatus.InReview, CreatedAt = DateTimeOffset.UtcNow
+            });
             dbContext.SaveChanges();
         });
         using var client = factory.CreateClient();
@@ -267,7 +278,8 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
 
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-        Assert.Empty(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        Assert.Single(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        Assert.Empty(await dbContext.EvidenceFileVersions.Where(version => version.EvidenceItemId == evidenceItemId).ToListAsync());
         Assert.Single(await dbContext.AuditLogEntries.Where(candidate =>
             candidate.TenantId == tenantId &&
             candidate.ActorUserId == userId &&
@@ -281,16 +293,22 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
     {
         var tenantId = Guid.Parse("42424242-4242-4242-4242-4242424242a2");
         var userId = Guid.Parse("42424242-4242-4242-4242-4242424242b2");
+        var evidenceItemId = Guid.NewGuid();
         await using var factory = CreateFactory("tc-4-2-2", dbContext =>
         {
             dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.2.2 Tenant"));
             dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.EvidenceItems.Add(new EvidenceItemEntity
+            {
+                Id = evidenceItemId, TenantId = tenantId, Name = "Synthetic evidence", OwnerFunction = "Compliance",
+                Status = Gccs.Domain.Evidence.EvidenceStatus.InReview, CreatedAt = DateTimeOffset.UtcNow
+            });
             dbContext.SaveChanges();
         });
         using var client = factory.CreateClient();
         using var uploadRequest = CreateRequest(
             HttpMethod.Post,
-            $"/api/evidence-items/{Guid.NewGuid()}/upload-intents",
+            $"/api/evidence-items/{evidenceItemId}/upload-intents",
             new EvidenceUploadIntentRequest("large-policy.pdf", "application/pdf", EvidenceUploadGuardrails.MaxSizeBytes + 1, NoCuiAttestation: true),
             tenantId,
             userId,
@@ -304,7 +322,8 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
 
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-        Assert.Empty(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        Assert.Single(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        Assert.Empty(await dbContext.EvidenceFileVersions.Where(version => version.EvidenceItemId == evidenceItemId).ToListAsync());
     }
 
     [Fact]
@@ -317,6 +336,11 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         {
             dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.2.2A Tenant"));
             dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.EvidenceItems.Add(new EvidenceItemEntity
+            {
+                Id = evidenceItemId, TenantId = tenantId, Name = "Synthetic evidence", OwnerFunction = "Compliance",
+                Status = Gccs.Domain.Evidence.EvidenceStatus.InReview, CreatedAt = DateTimeOffset.UtcNow
+            });
             dbContext.SaveChanges();
         });
         using var client = factory.CreateClient();
@@ -337,7 +361,8 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
 
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-        Assert.Empty(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        Assert.Single(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        Assert.Empty(await dbContext.EvidenceFileVersions.Where(version => version.EvidenceItemId == evidenceItemId).ToListAsync());
         var auditEvent = await dbContext.AuditLogEntries.SingleAsync(candidate =>
             candidate.TenantId == tenantId &&
             candidate.ActorUserId == userId &&
@@ -359,6 +384,11 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         {
             dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.2.3 Tenant"));
             dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.EvidenceItems.Add(new EvidenceItemEntity
+            {
+                Id = evidenceItemId, TenantId = tenantId, Name = "Synthetic evidence", OwnerFunction = "Compliance",
+                Status = Gccs.Domain.Evidence.EvidenceStatus.InReview, CreatedAt = DateTimeOffset.UtcNow
+            });
             dbContext.SaveChanges();
         });
         using var client = factory.CreateClient();
@@ -417,6 +447,11 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         {
             dbContext.Tenants.Add(CreateTenant(tenantId, "TC-4.2.4 Tenant"));
             dbContext.NoCuiAcknowledgements.Add(CreateAcknowledgement(tenantId, userId));
+            dbContext.EvidenceItems.Add(new EvidenceItemEntity
+            {
+                Id = evidenceItemId, TenantId = tenantId, Name = "Synthetic evidence", OwnerFunction = "Compliance",
+                Status = Gccs.Domain.Evidence.EvidenceStatus.InReview, CreatedAt = DateTimeOffset.UtcNow
+            });
             dbContext.SaveChanges();
         });
         using var client = factory.CreateClient();
@@ -433,7 +468,8 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-        Assert.Empty(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        Assert.Single(await dbContext.EvidenceItems.Where(candidate => candidate.TenantId == tenantId).ToListAsync());
+        Assert.Empty(await dbContext.EvidenceFileVersions.Where(version => version.EvidenceItemId == evidenceItemId).ToListAsync());
 
         var auditEvent = await dbContext.AuditLogEntries.SingleAsync(candidate =>
             candidate.TenantId == tenantId &&
@@ -457,6 +493,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<NoCuiAcknowledgementService>();
                 services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
@@ -485,7 +522,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static HttpRequestMessage CreateRequest(
@@ -502,7 +539,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
         request.Headers.Add("X-Gccs-Dev-Email", "no.cui.user@example.com");
         request.Headers.Add("X-Gccs-Dev-Permissions", permission.ToString());
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static TenantEntity CreateTenant(Guid tenantId, string name) =>

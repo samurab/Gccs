@@ -6,6 +6,14 @@ namespace Gccs.Application.Common;
 
 public sealed class ContentClassificationPolicy(TenantDataHandlingModePolicyService tenantModePolicy)
 {
+    public async Task EnsureUsableAsync(ContentClassificationDto classification, TenantDataHandlingWorkflow workflow,
+        Guid actorUserId, string entityType, string entityId, CancellationToken cancellationToken = default)
+    {
+        EnsureProcessable(classification.Classification, workflow.ToString());
+        await EnsureAllowedAsync(new ContentClassificationRequest(classification.Classification, classification.Source,
+            classification.Confidence, classification.ReviewedByUserId, classification.ReviewedAt,
+            classification.Reason, classification.IsApprovedDemoContent), workflow, actorUserId, entityType, entityId, cancellationToken);
+    }
     public async Task EnsureAllowedAsync(
         ContentClassificationRequest classification,
         TenantDataHandlingWorkflow workflow,
@@ -19,11 +27,6 @@ public sealed class ContentClassificationPolicy(TenantDataHandlingModePolicyServ
         if (classification.Classification is ContentClassification.Prohibited)
         {
             throw new ContentClassificationValidationException("Prohibited content cannot be stored or processed.");
-        }
-
-        if (classification.Classification is ContentClassification.Unknown)
-        {
-            return;
         }
 
         if (classification.Classification is ContentClassification.SyntheticCui &&
@@ -69,6 +72,10 @@ public sealed class ContentClassificationPolicy(TenantDataHandlingModePolicyServ
 
     public static void Validate(ContentClassificationRequest classification)
     {
+        if (!Enum.IsDefined(classification.Classification) || !Enum.IsDefined(classification.Source))
+        {
+            throw new ContentClassificationValidationException("A defined classification and source are required.");
+        }
         if (classification.Confidence is < 0m or > 1m)
         {
             throw new ContentClassificationValidationException("Classification confidence must be between 0 and 1.");
@@ -84,6 +91,14 @@ public sealed class ContentClassificationPolicy(TenantDataHandlingModePolicyServ
         {
             throw new ContentClassificationValidationException("Classification reason must be 600 characters or fewer.");
         }
+    }
+
+    public static void ValidateUserSelection(ContentClassificationRequest classification)
+    {
+        Validate(classification);
+        if (classification.Source != ContentClassificationSource.UserSelected || classification.IsApprovedDemoContent ||
+            classification.ReviewedByUserId is not null || classification.ReviewedAt is not null)
+            throw new ContentClassificationValidationException("Reviewer identity and approved demo provenance cannot be supplied by an upload or metadata request.");
     }
 }
 

@@ -92,6 +92,7 @@ export type ComplianceOverview = {
 };
 
 export type CurrentUserAccess = {
+  canApproveCuiReadiness?: boolean;
   tenantId: string | null;
   userId: string | null;
   userEmail: string | null;
@@ -471,6 +472,8 @@ export type UpdateTenantDataHandlingModeRequest = {
 };
 
 export type CuiReadyApprovalChecklistItem = {
+  supportingRecordId?: string | null;
+  supportingVersion?: string | null;
   id: string;
   checklistId: string;
   itemKey: string;
@@ -502,6 +505,8 @@ export type CuiReadyApprovalChecklist = {
 };
 
 export type UpdateCuiReadyChecklistItemRequest = {
+  supportingRecordId?: string | null;
+  supportingVersion?: string | null;
   status: "NotStarted" | "InProgress" | "Complete" | "NotApplicable" | string;
   owner: string | null;
   evidenceLink: string | null;
@@ -594,9 +599,9 @@ export type CuiSupportEscalation = {
   sourceWorkflow: string;
   affectedEntityType: string;
   affectedEntityId: string;
-  category: "SuspectedCui" | "ProhibitedData" | "ClassificationQuestion" | string;
+  category: "AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
   severity: "Low" | "Medium" | "High" | "Critical" | string;
-  status: "Submitted" | "Triage" | "Contained" | "Resolved" | string;
+  status: "Submitted" | "Triage" | "Contained" | "CustomerActionRequired" | "Resolved" | "Closed" | "Reopened" | string;
   owner: string | null;
   description: string;
   isAffectedContentBlocked: boolean;
@@ -607,8 +612,13 @@ export type CuiSupportEscalation = {
   createdByUserId: string;
   updatedAt: string | null;
   updatedByUserId: string | null;
+  slaDueAt: string;
+  slaState: string;
   resolutions: CuiSupportEscalationResolution[];
+  events: CuiSupportEscalationEvent[];
 };
+export type CuiSupportEscalationEvent = { id: string; status: string; note: string; occurredAt: string; actorUserId: string };
+export type CuiSupportEscalationReport = { openCount: number; resolvedCount: number; overdueCount: number; byStatus: Record<string, number>; bySeverity: Record<string, number> };
 
 export type CuiSupportEscalationResolution = {
   id: string;
@@ -623,7 +633,7 @@ export type CreateCuiSupportEscalationRequest = {
   sourceWorkflow: string;
   affectedEntityType: string;
   affectedEntityId: string;
-  category: "SuspectedCui" | "ProhibitedData" | "ClassificationQuestion" | string;
+  category: "AccidentalCuiUpload" | "SuspectedCui" | "ProhibitedData" | "Misclassification" | "CustomerQuestion" | "ClassificationQuestion" | string;
   severity: "Low" | "Medium" | "High" | "Critical" | string;
   description: string;
 };
@@ -1242,6 +1252,7 @@ export type ReviewEvidenceRequestRequest = {
 };
 
 export type ApprovedEvidencePackage = {
+  classification?: ContentClassification | null;
   reportId: string;
   tenantId: string;
   type: string;
@@ -1261,6 +1272,7 @@ export type ApprovedEvidencePackage = {
 };
 
 export type ReportHistoryItem = {
+  classification?: ContentClassification | null;
   id: string;
   tenantId: string;
   type: string;
@@ -1293,6 +1305,7 @@ export type ReportExport = {
 };
 
 export type ComplianceStatusReport = {
+  classification?: ContentClassification | null;
   id: string;
   tenantId: string;
   type: string;
@@ -1319,6 +1332,7 @@ export type EvidencePackageGenerateRequest = {
 };
 
 export type EvidencePackageReport = {
+  classification?: ContentClassification | null;
   id: string;
   tenantId: string;
   type: string;
@@ -1550,6 +1564,40 @@ export type ContentClassificationReviewItem = {
   reviewRoute: string;
 };
 
+export type ClassifiedContentRoute = "evidence-items" | "evidence-file-versions" | "notes" | "contract-documents" | "extraction-jobs" | "reports";
+export type ClassifiedContent = {
+  entityType: string;
+  id: string;
+  title: string;
+  classification: ContentClassification;
+  revision: number;
+  createdAt: string;
+};
+export type ClassificationHistory = {
+  id: string;
+  previousClassification: string | null;
+  newClassification: string;
+  source: string;
+  confidence: number | null;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  reason: string | null;
+  changedByUserId: string;
+  changedAt: string;
+  revision: number | null;
+  previousMetadata: ContentClassification | null;
+};
+
+export const getClassifiedContent = (route: ClassifiedContentRoute, reviewOnly = true, offset = 0) =>
+  getRequiredJson<ClassifiedContent[]>(`/api/classified-content/${route}?reviewOnly=${reviewOnly}&offset=${offset}`);
+export const getClassifiedContentDetail = (route: ClassifiedContentRoute, id: string) =>
+  getRequiredJson<ClassifiedContent>(`/api/classified-content/${route}/${encodeURIComponent(id)}`);
+export const getClassificationHistory = (route: ClassifiedContentRoute, id: string, offset = 0) =>
+  getRequiredJson<ClassificationHistory[]>(`/api/classified-content/${route}/${encodeURIComponent(id)}/history?offset=${offset}`);
+export const reviewContentClassification = (route: ClassifiedContentRoute, id: string, expectedRevision: number, classification: string, reason: string) =>
+  patchJsonResult<ClassifiedContent>(`/api/classified-content/${route}/${encodeURIComponent(id)}/classification`,
+    { expectedRevision, classification: { classification, reason } });
+
 export type ReclassifyContentRequest = {
   classification: ContentClassification;
 };
@@ -1607,6 +1655,7 @@ export type DemoTenantSeedResult = {
 };
 
 export type ExtractionJob = {
+  classification?: ContentClassification | null;
   id: string;
   tenantId: string;
   sourceDocumentId: string;
@@ -1639,6 +1688,7 @@ export type ClauseCandidate = {
 };
 
 export type ContractDocumentExtractionResults = {
+  latestJobClassification?: ContentClassification | null;
   contractId: string;
   sourceDocumentId: string;
   latestJobStatus: string | null;
@@ -2246,7 +2296,10 @@ export async function getNotifications(): Promise<NotificationCenterItem[]> {
 }
 
 export async function getCuiSupportEscalations(tenantId: string): Promise<CuiSupportEscalation[]> {
-  return getJson<CuiSupportEscalation[]>(`/api/tenants/${tenantId}/cui-support-escalations`, []);
+  return getRequiredJson<CuiSupportEscalation[]>(`/api/tenants/${tenantId}/cui-support-escalations`);
+}
+export async function getCuiSupportEscalationReport(tenantId: string): Promise<CuiSupportEscalationReport> {
+  return getRequiredJson<CuiSupportEscalationReport>(`/api/tenants/${tenantId}/cui-support-escalations/report`);
 }
 
 export async function markNotificationRead(notificationId: string): Promise<ApiMutationResult<NotificationCenterItem>> {
@@ -2739,9 +2792,10 @@ export async function uploadContractDocumentFile(
 
 export async function startContractDocumentExtraction(
   contractId: string,
-  documentId: string
+  documentId: string,
+  classification: string
 ): Promise<ApiMutationResult<ExtractionJob>> {
-  return postJsonResult<ExtractionJob>(`/api/contracts/${contractId}/documents/${documentId}/extraction-jobs`, {});
+  return postJsonResult<ExtractionJob>(`/api/contracts/${contractId}/documents/${documentId}/extraction-jobs`, { classification: { classification } });
 }
 
 export async function getContractDocumentExtractionResults(
@@ -3004,25 +3058,26 @@ export async function getEvidencePackage(reportId: string): Promise<EvidencePack
   return getRequiredJson<EvidencePackageReport>(`/api/reports/evidence-packages/${reportId}`);
 }
 
-export async function generateComplianceStatusReport(): Promise<ApiMutationResult<ComplianceStatusReport>> {
-  return postJsonResult<ComplianceStatusReport>("/api/reports/compliance-status", {});
+export async function generateComplianceStatusReport(classification: string): Promise<ApiMutationResult<ComplianceStatusReport>> {
+  return postJsonResult<ComplianceStatusReport>("/api/reports/compliance-status", { classification: { classification } });
 }
 
-export async function generateCmmcReadinessReport(assessmentId: string): Promise<ApiMutationResult<CmmcReadinessReport>> {
-  return postJsonResult<CmmcReadinessReport>(`/api/reports/cmmc-readiness?assessmentId=${encodeURIComponent(assessmentId)}`, {});
+export async function generateCmmcReadinessReport(assessmentId: string, classification: string): Promise<ApiMutationResult<CmmcReadinessReport>> {
+  return postJsonResult<CmmcReadinessReport>(`/api/reports/cmmc-readiness?assessmentId=${encodeURIComponent(assessmentId)}`, { classification: { classification } });
 }
 
 export async function generateSubcontractorComplianceReport(
+  classification: string,
   contractId?: string
 ): Promise<ApiMutationResult<SubcontractorComplianceReport>> {
   const query = contractId ? `?contractId=${encodeURIComponent(contractId)}` : "";
-  return postJsonResult<SubcontractorComplianceReport>(`/api/reports/subcontractor-compliance${query}`, {});
+  return postJsonResult<SubcontractorComplianceReport>(`/api/reports/subcontractor-compliance${query}`, { classification: { classification } });
 }
 
 export async function generateEvidencePackage(
-  request: EvidencePackageGenerateRequest
+  request: EvidencePackageGenerateRequest, classification: string
 ): Promise<ApiMutationResult<EvidencePackageReport>> {
-  return postJsonResult<EvidencePackageReport>("/api/reports/evidence-packages", request);
+  return postJsonResult<EvidencePackageReport>("/api/reports/evidence-packages", { ...request, classification: { classification } });
 }
 
 export async function updateEvidenceMetadata(
@@ -3030,6 +3085,17 @@ export async function updateEvidenceMetadata(
   request: UpsertEvidenceMetadataRequest
 ): Promise<ApiMutationResult<EvidenceMetadata>> {
   return putJsonResult<EvidenceMetadata>(`/api/evidence-items/${evidenceItemId}`, request);
+}
+
+export type ClassifiedNote = {
+  id: string; title: string; body: string; revision: number; createdAt: string; updatedAt: string;
+  classification: { classification: string; source: string; reason?: string };
+};
+export const getClassifiedNotes = () => getRequiredJson<ClassifiedNote[]>("/api/classified-notes");
+export const getClassifiedNote = (id: string) => getRequiredJson<ClassifiedNote>(`/api/classified-notes/${id}`);
+export function saveClassifiedNote(id: string | null, title: string, body: string, classification: string, revision: number) {
+  const request = { title, body, classification: { classification }, revision };
+  return id ? putJsonResult<ClassifiedNote>(`/api/classified-notes/${id}`, request) : postJsonResult<ClassifiedNote>("/api/classified-notes", request);
 }
 
 export async function getContentClassificationReviewItems(): Promise<ContentClassificationReviewItem[]> {
@@ -3060,19 +3126,19 @@ export async function resetDemoTenantSeed(): Promise<ApiMutationResult<DemoTenan
 }
 
 export async function createEvidenceUploadIntent(
+  evidenceItemId: string,
   file: File,
   classification: string,
   classificationReason: string,
   noCuiAttestation: boolean
 ): Promise<ApiMutationResult<EvidenceFileAccess>> {
-  const placeholderEvidenceItemId = "00000000-0000-0000-0000-000000000041";
   const form = new FormData();
   form.set("file", file);
   form.set("noCuiAttestation", String(noCuiAttestation));
   form.set("containsPotentialCui", String(classification === "Cui"));
   form.set("classification", classification);
   form.set("classificationReason", classificationReason.trim() || `User selected ${classification} upload classification.`);
-  return postFormResult<EvidenceFileAccess>(`/api/evidence-items/${placeholderEvidenceItemId}/file`, form);
+  return postFormResult<EvidenceFileAccess>(`/api/evidence-items/${evidenceItemId}/file`, form);
 }
 
 export async function createTenantInvitation(
@@ -3155,6 +3221,17 @@ export async function resolveCuiSupportEscalation(
 export async function createCuiReadyApprovalChecklist(tenantId: string): Promise<ApiMutationResult<CuiReadyApprovalChecklist>> {
   return postJsonResult<CuiReadyApprovalChecklist>(`/api/tenants/${tenantId}/cui-ready-checklists`, {});
 }
+
+export type ReadinessSource = { id: string; kind: string; version: string; title: string };
+export type ReadinessEvidence = { id: string; kind: string; version: number; state: string; reviewedAt: string; expiresAt: string; reviewNotes: string };
+export const getReadinessSources = () => getRequiredJson<ReadinessSource[]>("/api/cui-readiness-evidence/sources");
+export const getReadinessEvidence = () => getRequiredJson<ReadinessEvidence[]>("/api/cui-readiness-evidence");
+export const getReadinessNotice = () => getRequiredJson<DataHandlingNotice>("/api/cui-readiness-evidence/notice");
+export const acknowledgeReadinessNotice = (request: AcknowledgeDataHandlingNoticeRequest) =>
+  postJsonResult<DataHandlingNoticeAcknowledgement>("/api/cui-readiness-evidence/notice-acknowledgement", request);
+export const recordReadinessEvidence = (request: { kind: string; expectedVersion: number; expiresAt: string;
+  sourceReference: string; reviewNotes: string; details: unknown; rejected: boolean }) =>
+  postJsonResult<ReadinessEvidence>("/api/cui-readiness-evidence", request);
 
 export async function updateCuiReadyApprovalChecklistItem(
   tenantId: string,
@@ -3434,6 +3511,9 @@ async function readErrorDetails(
 ): Promise<{ error: string; errorSummary?: string; errors?: Record<string, string[]> }> {
   try {
     const problem = await response.json();
+    if (response.status === 428 && problem.errorCode === "data_handling_notice_acknowledgement_required") {
+      window.dispatchEvent(new CustomEvent("fedril:notice-required", { detail: { workflowContext: problem.workflowContext } }));
+    }
     const errors = Object.fromEntries(
       Object.entries(problem.errors ?? {}).map(([field, messages]) => [
         field,

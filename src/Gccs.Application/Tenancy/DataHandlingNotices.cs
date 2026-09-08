@@ -34,6 +34,7 @@ public sealed class DataHandlingNoticeService(IDataHandlingNoticeRepository repo
         var context = NormalizeContext(workflowContext);
         return notices
             .Where(notice => notice.Mode == mode)
+            .Where(notice => notice.EffectiveAt <= DateOnly.FromDateTime(DateTime.UtcNow))
             .Where(notice => notice.WorkflowContexts.Contains(context, StringComparer.OrdinalIgnoreCase))
             .OrderByDescending(notice => notice.EffectiveAt)
             .FirstOrDefault();

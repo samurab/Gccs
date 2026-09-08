@@ -19,6 +19,9 @@
   --radius: 8px;
   --shadow: 0 18px 42px rgb(16 24 32 / 0.1);
   --shadow-soft: 0 8px 22px rgb(16 24 32 / 0.06);
+  --workspace-card-padding: 18px;
+  --workspace-card-gap: 16px;
+  --workspace-editor-columns: minmax(240px, .9fr) minmax(0, 1.6fr);
 }
 
 .hubspot-consent {
@@ -3588,12 +3591,26 @@ main {
 }
 
 .workspace-main {
+  min-width: 0;
   min-height: 100vh;
   padding: 20px 24px;
 }
 
 .workspace-main:focus {
   outline: none;
+}
+
+@media (max-width: 540px) {
+  .workspace-main { --workspace-card-padding: 16px; }
+}
+
+/* New workflow panels share the existing centered page-header/route content rail. */
+.workspace-main > .classification-review-panel,
+.workspace-main > .classified-notes,
+.workspace-main > .workflow-classification,
+.workspace-main > .workflow-notice-grid {
+  max-width: 1180px;
+  margin-inline: auto;
 }
 
 .workspace-topbar,
@@ -5347,8 +5364,8 @@ textarea[aria-invalid="true"] {
 .contract-workspace {
   align-items: start;
   display: grid;
-  gap: 14px;
-  grid-template-columns: 300px minmax(0, 1fr);
+  gap: var(--workspace-card-gap);
+  grid-template-columns: var(--workspace-editor-columns);
 }
 
 .contract-workspace > .notice-panel {
@@ -5634,6 +5651,21 @@ textarea[aria-invalid="true"] {
 .calendar-workspace {
   display: grid;
   gap: 14px;
+}
+
+.route-panel.obligations-route,
+.route-panel.calendar-route {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  padding: 18px;
+  min-width: 0;
+}
+
+@media (max-width: 540px) {
+  .route-panel.obligations-route,
+  .route-panel.calendar-route { padding: 12px; }
 }
 
 .calendar-month-strip {
@@ -6173,15 +6205,15 @@ textarea[aria-invalid="true"] {
   border-radius: var(--radius);
   box-shadow: var(--shadow-soft);
   display: grid;
-  gap: 14px;
-  padding: 14px;
+  gap: var(--workspace-card-gap);
+  padding: var(--workspace-card-padding);
 }
 
 .evidence-metadata__workspace {
   align-items: start;
   display: grid;
-  gap: 14px;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.4fr);
+  gap: var(--workspace-card-gap);
+  grid-template-columns: var(--workspace-editor-columns);
 }
 
 .evidence-metadata__workspace > * {
@@ -6617,6 +6649,27 @@ textarea[aria-invalid="true"] {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   max-width: 860px;
+}
+
+.evidence-upload-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.evidence-upload-panels > :is(.notice-panel, .upload-panel) {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  align-content: start;
+  padding: var(--workspace-card-padding);
+}
+
+@media (max-width: 1100px) {
+  .evidence-upload-panels { grid-template-columns: minmax(0, 1fr); }
 }
 
 .notice-panel {

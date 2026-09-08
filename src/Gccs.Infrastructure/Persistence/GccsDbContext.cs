@@ -45,6 +45,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<DataHandlingNoticeAcknowledgementEntity> DataHandlingNoticeAcknowledgements => Set<DataHandlingNoticeAcknowledgementEntity>();
     public DbSet<CuiSupportEscalationEntity> CuiSupportEscalations => Set<CuiSupportEscalationEntity>();
     public DbSet<CuiSupportEscalationResolutionEntity> CuiSupportEscalationResolutions => Set<CuiSupportEscalationResolutionEntity>();
+    public DbSet<CuiSupportEscalationEventEntity> CuiSupportEscalationEvents => Set<CuiSupportEscalationEventEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
@@ -207,6 +208,41 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("gccs");
+        foreach (var type in new[] { typeof(EvidenceItemEntity), typeof(EvidenceFileVersionEntity), typeof(ContractDocumentEntity),
+            typeof(ExtractionJobEntity), typeof(ClassifiedNoteEntity), typeof(ReportEntity), typeof(ReportClassificationEntity) })
+            modelBuilder.Entity(type).Property<long>("ClassificationRevision").IsConcurrencyToken();
+        modelBuilder.Entity<ReportClassificationEntity>(entity =>
+        {
+            entity.ToTable("report_classifications");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.ClassificationReason).HasMaxLength(600);
+            entity.HasOne<ReportEntity>().WithOne(e => e.CurrentClassification).HasForeignKey<ReportClassificationEntity>(e => e.Id)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ContentClassificationHistoryEntity>().Property(e => e.PreviousMetadataJson).HasColumnType("jsonb");
+        modelBuilder.Entity<ClassifiedNoteEntity>(entity =>
+        {
+            entity.ToTable("classified_notes");
+            entity.HasKey(n => n.Id);
+            entity.HasIndex(n => new { n.TenantId, n.UpdatedAt });
+            entity.Property(n => n.Title).HasMaxLength(240).IsRequired();
+            entity.Property(n => n.Body).HasMaxLength(20000).IsRequired();
+            entity.Property(n => n.ClassificationReason).HasMaxLength(600);
+            entity.Property(n => n.Revision).IsConcurrencyToken();
+            entity.HasOne<TenantEntity>().WithMany().HasForeignKey(n => n.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ObjectCleanupEntity>(entity =>
+        {
+            entity.ToTable("object_cleanup");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Container).HasConversion<string>().HasMaxLength(32);
+            entity.Property(item => item.ObjectName).HasMaxLength(1024).IsRequired();
+            entity.Property(item => item.LastErrorCode).HasMaxLength(128);
+            entity.HasIndex(item => new { item.CompletedAt, item.NextAttemptAt });
+            entity.HasIndex(item => new { item.TenantId, item.Id });
+        });
 
         ConfigureCore(modelBuilder);
         ConfigureMarketing(modelBuilder);
@@ -688,6 +724,18 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             ConfigureAuditColumns(entity);
         });
 
+        modelBuilder.Entity<CuiReadinessEvidenceEntity>(entity =>
+        {
+            entity.ToTable("cui_readiness_evidence");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.Kind, x.Version }).IsUnique();
+            entity.Property(x => x.Kind).HasMaxLength(80);
+            entity.Property(x => x.State).HasMaxLength(40);
+            entity.Property(x => x.SourceReference).HasMaxLength(600);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1200);
+            entity.HasOne<TenantEntity>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<CuiReadyApprovalChecklistItemEntity>(entity =>
         {
             entity.ToTable("cui_ready_approval_checklist_items");
@@ -699,6 +747,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.Owner).HasMaxLength(180);
             entity.Property(x => x.EvidenceLink).HasMaxLength(600);
             entity.Property(x => x.Notes).HasMaxLength(1200);
+            entity.Property(x => x.SupportingVersion).HasMaxLength(80);
             entity.HasOne(x => x.Checklist).WithMany(x => x.Items).HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -751,6 +800,15 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.EscalationId, x.ResolvedAt });
             entity.Property(x => x.Summary).HasMaxLength(1200).IsRequired();
             entity.HasOne(x => x.Escalation).WithMany(x => x.Resolutions).HasForeignKey(x => x.EscalationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CuiSupportEscalationEventEntity>(entity =>
+        {
+            entity.ToTable("cui_support_escalation_events");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.EscalationId, x.OccurredAt });
+            entity.Property(x => x.Note).HasMaxLength(1200).IsRequired();
+            entity.HasOne(x => x.Escalation).WithMany(x => x.Events).HasForeignKey(x => x.EscalationId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<UserEntity>(entity =>
@@ -1809,6 +1867,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 
     private void EnforceAuditLogAppendOnly()
     {
+        if (ChangeTracker.Entries<ContentClassificationHistoryEntity>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Classification history is append-only and cannot be updated or deleted.");
         var invalidAuditLogMutations = ChangeTracker
             .Entries<AuditLogEntryEntity>()
             .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)

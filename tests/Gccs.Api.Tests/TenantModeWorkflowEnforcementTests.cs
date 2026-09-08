@@ -81,7 +81,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                     EntityId: "misclassified-customer-cui"),
                 ids.ActorUserId));
 
-        await policy.EnsureAllowedAsync(
+        await Assert.ThrowsAsync<TenantDataHandlingModeRestrictedException>(() => policy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(
                 TenantDataHandlingWorkflow.ContractDocumentUpload,
                 ContainsRealCui: false,
@@ -89,7 +89,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                 ApprovalChecksPassed: true,
                 EntityType: "ContractDocument",
                 EntityId: "synthetic-demo-seed"),
-            ids.ActorUserId);
+            ids.ActorUserId)); // A caller flag is not persisted seed provenance.
     }
 
     [Fact]
@@ -125,8 +125,8 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         var response = await client.SendAsync(upload);
         var body = await response.Content.ReadAsStringAsync();
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        Assert.Contains("tenant_data_handling_mode_restricted", body, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("content_classification_invalid", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -207,13 +207,13 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                     ClassificationConfirmed: true,
                     ApprovalChecksPassed: false),
                 ids.ActorUserId));
-        await policy.EnsureAllowedAsync(
+        await Assert.ThrowsAsync<TenantDataHandlingModeRestrictedException>(() => policy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(
                 TenantDataHandlingWorkflow.EvidenceUpload,
                 ContainsRealCui: true,
                 ClassificationConfirmed: true,
                 ApprovalChecksPassed: true),
-            ids.ActorUserId);
+            ids.ActorUserId)); // Positive persisted approval is covered by ClassifiedWorkflowTests.
     }
 
     [Fact]
@@ -289,7 +289,50 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         Assert.Equal("Rejected", metadata["result"]);
     }
 
-    private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
+    [Fact]
+    public async Task TC_1A_6_2_1_Upload_and_extraction_endpoints_require_their_current_workflow_notice()
+    {
+        var ids = StoryIds.ForCase("tc-1a-6-2-1");
+        await using var factory = CreateFactory("tc-1a-6-2-1", dbContext =>
+        {
+            SeedTenant(dbContext, ids.TenantId, TenantDataPosture.NoCui);
+            SeedContract(dbContext, ids);
+            SeedPotentialCuiDocument(dbContext, ids);
+            SeedEvidenceRequest(dbContext, ids);
+            SeedAcknowledgement(dbContext, ids);
+        }, seedNotice: false);
+        using var client = factory.CreateClient();
+        var classification = new ContentClassificationRequest(ContentClassification.Unclassified,
+            ContentClassificationSource.UserSelected, Reason: "Synthetic test classification.");
+        var requests = new[]
+        {
+            CreateRequest(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/documents",
+                new ContractDocumentUploadRequest(ContractDocumentType.Contract, "synthetic.txt", "text/plain", 128, false, classification),
+                ids.TenantId, ids.ActorUserId, Permission.ManageContracts),
+            CreateRequest(HttpMethod.Post, $"/api/evidence-items/{ids.EvidenceItemId}/upload-intents",
+                new EvidenceUploadIntentRequest("synthetic.txt", "text/plain", 128, true, false, classification),
+                ids.TenantId, ids.ActorUserId, Permission.ManageEvidence),
+            CreateRequest(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/documents/{ids.DocumentId}/extraction-jobs",
+                new ClassifiedWorkflowRequest(classification), ids.TenantId, ids.ActorUserId, Permission.ManageContracts)
+        };
+
+        foreach (var request in requests)
+        {
+            using (request)
+            using (var response = await client.SendAsync(request))
+            {
+                Assert.Equal((HttpStatusCode)428, response.StatusCode);
+                Assert.Contains("data_handling_notice_acknowledgement_required", await response.Content.ReadAsStringAsync());
+            }
+        }
+        using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(db.EvidenceFileVersions);
+        Assert.Empty(db.Set<ExtractionJobEntity>());
+        Assert.Single(db.Set<ContractDocumentEntity>());
+    }
+
+    private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null,
+        bool seedNotice = true) =>
         _factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("LocalDependencies:Enabled", "false");
@@ -297,6 +340,8 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
             builder.ConfigureServices(services =>
             {
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddScoped<Gccs.Application.Tenancy.IDataHandlingNoticeAcknowledgementRepository, Gccs.Infrastructure.Tenancy.EfDataHandlingNoticeAcknowledgementRepository>();
+                services.AddScoped<Gccs.Application.Tenancy.ITenantRepository, Gccs.Infrastructure.Tenancy.EfTenantRepository>();
                 services.AddScoped<TenantDataHandlingModePolicyService>();
                 services.AddScoped<ITenantRepository, EfTenantRepository>();
                 services.AddScoped<ContractService>();
@@ -315,6 +360,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                 dbContext.Database.EnsureDeleted();
                 dbContext.Database.EnsureCreated();
                 seed?.Invoke(dbContext);
+                if (seedNotice) NoticeTestData.Seed(dbContext);
                 dbContext.SaveChanges();
             });
         });
@@ -337,7 +383,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static UpsertContractRequest CreateContractRequest(DataHandlingPosture posture) =>
@@ -408,7 +454,9 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
             NoticeVersion = NoCuiNotice.CurrentVersion,
             UploadedAt = DateTimeOffset.UtcNow,
             UploadedByUserId = ids.ActorUserId,
-            ContainsPotentialCui = true
+            ContainsPotentialCui = true,
+            Classification = ContentClassification.Unclassified,
+            ClassificationSource = ContentClassificationSource.UserSelected
         });
     }
 
@@ -463,7 +511,13 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         return new TenantDataHandlingModePolicyService(
             services.BuildServiceProvider(),
             new FixedTenantContext(ids.TenantId, ids.ActorUserId),
-            new NoOpAuditEventWriter());
+            new NoOpAuditEventWriter(), new AcknowledgedNoticeGuard());
+    }
+
+    // These isolated mode-rule tests do not exercise notice enforcement.
+    private sealed class AcknowledgedNoticeGuard : ICurrentDataHandlingNoticeGuard
+    {
+        public Task EnsureAsync(string workflow, Guid actorUserId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed record StoryIds(

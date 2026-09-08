@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Gccs.Application.Common;
 using Gccs.Domain.Reports;
 
 namespace Gccs.Application.Reports;
@@ -15,6 +16,7 @@ public sealed record ReportHistoryItemDto(
     Guid? ArchivedByUserId,
     string? ArchiveReason)
 {
+    public ContentClassificationDto? Classification { get; init; }
     public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
 }
 
@@ -31,6 +33,7 @@ public sealed record ReportArtifactDetailDto(
     Guid? ArchivedByUserId,
     string? ArchiveReason)
 {
+    public ContentClassificationDto? Classification { get; init; }
     public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
 }
 

@@ -217,6 +217,7 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<CmmcReadinessReportService>();
                 services.AddScoped<IReportRepository, EfReportRepository>();
@@ -244,7 +245,7 @@ public sealed class CmmcReadinessReportTests : IClassFixture<WebApplicationFacto
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static void SeedScenario(GccsDbContext dbContext, StoryIds ids)

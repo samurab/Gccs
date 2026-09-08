@@ -1,4 +1,5 @@
 using Gccs.Application.Common;
+using Gccs.Domain.Common;
 using Gccs.Domain.Companies;
 using Gccs.Domain.Contracts;
 
@@ -70,7 +71,11 @@ public sealed record ExtractionJobDto(
     DateTimeOffset RequestedAt,
     DateTimeOffset? StartedAt,
     DateTimeOffset? CompletedAt,
-    string? FailureReason);
+    string? FailureReason)
+{
+    public ContentClassificationDto Classification { get; init; } = new(ContentClassification.Unknown,
+        ContentClassificationSource.SystemSuggested, null, null, null, null, false);
+}
 
 public sealed record ExtractionJobProcessingInputDto(
     ExtractionJobDto Job,
@@ -114,7 +119,10 @@ public sealed record ContractDocumentExtractionResultsDto(
     ExtractionJobStatus? LatestJobStatus,
     string? FailureReason,
     int CandidateCount,
-    IReadOnlyList<ClauseCandidateDto> Candidates);
+    IReadOnlyList<ClauseCandidateDto> Candidates)
+{
+    public ContentClassificationDto? LatestJobClassification { get; init; }
+}
 
 public sealed record ClauseCandidateEditRequest(
     string NormalizedCitation,

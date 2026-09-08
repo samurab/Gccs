@@ -73,39 +73,8 @@ public sealed class EfContentClassificationReviewRepository(
             return null;
         }
 
-        var previous = entity.Classification;
-        var now = DateTimeOffset.UtcNow;
-        entity.Classification = request.Classification.Classification;
-        entity.ClassificationSource = request.Classification.Source;
-        entity.ClassificationConfidence = request.Classification.Confidence;
-        entity.ClassificationReviewedByUserId = request.Classification.ReviewedByUserId ?? actorUserId;
-        entity.ClassificationReviewedAt = request.Classification.ReviewedAt ?? now;
-        entity.ClassificationReason = request.Classification.Reason;
-        entity.ClassificationIsApprovedDemoContent = request.Classification.IsApprovedDemoContent;
-        entity.UpdatedAt = now;
-        entity.UpdatedByUserId = actorUserId;
-
-        if (previous != entity.Classification)
-        {
-            dbContext.ContentClassificationHistory.Add(new ContentClassificationHistoryEntity
-            {
-                Id = Guid.NewGuid(),
-                TenantId = entity.TenantId,
-                EntityType = "EvidenceItem",
-                EntityId = entity.Id.ToString(),
-                PreviousClassification = previous,
-                NewClassification = entity.Classification,
-                Source = entity.ClassificationSource,
-                Confidence = entity.ClassificationConfidence,
-                ReviewedByUserId = entity.ClassificationReviewedByUserId,
-                ReviewedAt = entity.ClassificationReviewedAt,
-                Reason = entity.ClassificationReason,
-                ChangedByUserId = actorUserId,
-                ChangedAt = now
-            });
-        }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await new EfClassifiedContentRepository(dbContext, tenantContext).ReclassifyAsync(
+            "EvidenceItem", evidenceItemId, request.Classification, null, actorUserId, cancellationToken);
         return ToEvidenceDto(entity);
     }
 

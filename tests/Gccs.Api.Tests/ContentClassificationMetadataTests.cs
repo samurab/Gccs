@@ -128,7 +128,7 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
         var accepted = await client.SendAsync(approvedDemo);
 
         Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
-        Assert.Equal(HttpStatusCode.Created, accepted.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, accepted.StatusCode); // Client-supplied demo approval is not provenance.
     }
 
     [Fact]
@@ -160,7 +160,11 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
     public async Task TC_1A_2_1_5_Reclassification_preserves_history_metadata()
     {
         var ids = StoryIds.ForCase("tc-1a-2-1-5");
-        await using var factory = CreateFactory("tc-1a-2-1-5", dbContext => SeedTenant(dbContext, ids.TenantId, TenantDataPosture.NoCui));
+        await using var factory = CreateFactory("tc-1a-2-1-5", dbContext =>
+        {
+            SeedTenant(dbContext, ids.TenantId, TenantDataPosture.NoCui);
+            NoticeTestData.Seed(dbContext, ids.ActorUserId);
+        });
         using var client = factory.CreateClient();
         var createBody = EvidenceRequest("Evidence policy", Unclassified("Initial classification."));
         using var create = CreateRequest(HttpMethod.Post, "/api/evidence-items", createBody, ids.TenantId, ids.ActorUserId, Permission.ManageEvidence);
@@ -169,22 +173,18 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.NotNull(evidence);
 
-        var reviewedAt = DateTimeOffset.Parse("2026-06-18T18:00:00Z");
         using var update = CreateRequest(
-            HttpMethod.Put,
-            $"/api/evidence-items/{evidence.Id}",
-            EvidenceRequest(
-                "Evidence policy",
+            HttpMethod.Patch,
+            $"/api/evidence-items/{evidence.Id}/classification",
+            new ReclassifyContentRequest(
                 new ContentClassificationRequest(
                     ContentClassification.Fci,
-                    ContentClassificationSource.AdminReviewed,
+                    ContentClassificationSource.UserSelected,
                     Confidence: 0.96m,
-                    ReviewedByUserId: ids.ActorUserId,
-                    ReviewedAt: reviewedAt,
                     Reason: "Reviewed as FCI, not CUI.")),
             ids.TenantId,
             ids.ActorUserId,
-            Permission.ManageEvidence);
+            Permission.ApproveEvidence);
 
         var updateResponse = await client.SendAsync(update);
 
@@ -204,7 +204,7 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
         Assert.Equal(ContentClassificationSource.AdminReviewed, history[1].Source);
         Assert.Equal(0.96m, history[1].Confidence);
         Assert.Equal(ids.ActorUserId, history[1].ReviewedByUserId);
-        Assert.Equal(reviewedAt, history[1].ReviewedAt);
+        Assert.NotNull(history[1].ReviewedAt);
         Assert.Equal("Reviewed as FCI, not CUI.", history[1].Reason);
     }
 
@@ -219,6 +219,7 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
         {
             SeedTenant(dbContext, tenantA, TenantDataPosture.NoCui);
             SeedTenant(dbContext, tenantB, TenantDataPosture.NoCui);
+            NoticeTestData.Seed(dbContext, actorUserId);
             dbContext.Contracts.Add(new ContractEntity
             {
                 Id = contractB,
@@ -280,6 +281,8 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
             builder.ConfigureServices(services =>
             {
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddScoped<Gccs.Application.Tenancy.IDataHandlingNoticeAcknowledgementRepository, Gccs.Infrastructure.Tenancy.EfDataHandlingNoticeAcknowledgementRepository>();
+                services.AddScoped<Gccs.Application.Tenancy.ITenantRepository, Gccs.Infrastructure.Tenancy.EfTenantRepository>();
                 services.AddScoped<TenantDataHandlingModePolicyService>();
                 services.AddScoped<ContentClassificationPolicy>();
                 services.AddScoped<ITenantRepository, EfTenantRepository>();
@@ -290,6 +293,7 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
                 services.AddScoped<INoCuiAcknowledgementRepository, EfNoCuiAcknowledgementRepository>();
                 services.AddScoped<EvidenceMetadataService>();
                 services.AddScoped<IEvidenceMetadataRepository, EfEvidenceMetadataRepository>();
+                services.AddScoped<IContentClassificationReviewRepository, Gccs.Infrastructure.Common.EfContentClassificationReviewRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
                 using var provider = services.BuildServiceProvider();
@@ -298,6 +302,7 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
                 dbContext.Database.EnsureDeleted();
                 dbContext.Database.EnsureCreated();
                 seed?.Invoke(dbContext);
+                NoticeTestData.Seed(dbContext);
                 dbContext.SaveChanges();
             });
         });
@@ -320,7 +325,7 @@ public sealed class ContentClassificationMetadataTests : IClassFixture<WebApplic
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static ContractDocumentUploadRequest DocumentRequest(string fileName, ContentClassification classification) =>

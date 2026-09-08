@@ -26,14 +26,13 @@ public sealed class DemoTenantSeedTests
         await dbContext.SaveChangesAsync();
         var service = CreateService(dbContext);
 
-        var demoResult = await service.SeedAsync(dataset, demoTenantId, ActorUserId);
+        await Assert.ThrowsAsync<DemoTenantSeedValidationException>(() => service.SeedAsync(dataset, demoTenantId, ActorUserId));
         var noCuiError = await Assert.ThrowsAsync<DemoTenantSeedValidationException>(() => service.SeedAsync(dataset, noCuiTenantId, ActorUserId));
         var cuiReadyError = await Assert.ThrowsAsync<DemoTenantSeedValidationException>(() => service.SeedAsync(dataset, cuiReadyTenantId, ActorUserId));
 
-        Assert.True(demoResult.CreatedCount > 0);
         Assert.Contains("DemoSandbox", noCuiError.Message);
         Assert.Contains("DemoSandbox", cuiReadyError.Message);
-        Assert.Equal(1, await dbContext.Contracts.CountAsync(contract => contract.TenantId == demoTenantId));
+        Assert.Equal(0, await dbContext.Contracts.CountAsync(contract => contract.TenantId == demoTenantId));
         Assert.Empty(await dbContext.Contracts.Where(contract => contract.TenantId == noCuiTenantId || contract.TenantId == cuiReadyTenantId).ToArrayAsync());
     }
 
@@ -151,6 +150,30 @@ public sealed class DemoTenantSeedTests
             audit => AssertAudit(audit, tenantId, "reset", dataset.Metadata.Version, "succeeded"));
     }
 
+    [Theory]
+    [InlineData(TenantDataPosture.NoCui)]
+    [InlineData(TenantDataPosture.DemoSandbox)]
+    public async Task Shared_database_seed_and_reset_are_rejected_without_mutation(TenantDataPosture otherMode)
+    {
+        var dataset = await LoadDatasetAsync();
+        await using var db = CreateDbContext();
+        var tenantId = SeedTenant(db, TenantDataPosture.DemoSandbox);
+        await db.SaveChangesAsync();
+        var audit = new CapturingAuditEventWriter();
+        var service = CreateService(db, audit);
+        await service.SeedAsync(dataset, tenantId, ActorUserId);
+        SeedTenant(db, otherMode);
+        await db.SaveChangesAsync();
+        var contracts = await db.Contracts.CountAsync();
+        var links = await db.Set<EvidenceControlEntity>().CountAsync();
+        var auditCount = audit.Events.Count;
+        await Assert.ThrowsAsync<DemoTenantSeedValidationException>(() => service.ResetAsync(dataset, tenantId, ActorUserId));
+        await Assert.ThrowsAsync<DemoTenantSeedValidationException>(() => service.SeedAsync(dataset, tenantId, ActorUserId));
+        Assert.Equal(contracts, await db.Contracts.CountAsync());
+        Assert.Equal(links, await db.Set<EvidenceControlEntity>().CountAsync());
+        Assert.Equal(auditCount, audit.Events.Count);
+    }
+
     private static async Task<SyntheticDemoDatasetDefinition> LoadDatasetAsync()
     {
         var service = new SyntheticDemoDatasetService(new FileSyntheticDemoDatasetRepository());
@@ -158,7 +181,7 @@ public sealed class DemoTenantSeedTests
     }
 
     private static DemoTenantSeedService CreateService(GccsDbContext dbContext, IAuditEventWriter? auditWriter = null) =>
-        new(new EfDemoTenantSeedRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter());
+        new(new EfDemoTenantSeedRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter(), new TestApplicationTransaction());
 
     private static GccsDbContext CreateDbContext()
     {

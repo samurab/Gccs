@@ -802,6 +802,22 @@ const {
 }));
 
 vi.mock("@/lib/api", () => ({
+  getClassifiedContent: vi.fn().mockResolvedValue([]),
+  getClassifiedContentDetail: vi.fn(),
+  getClassificationHistory: vi.fn().mockResolvedValue([]),
+  reviewContentClassification: vi.fn(),
+  getCuiSupportEscalations: vi.fn().mockResolvedValue([]),
+  getCuiSupportEscalationReport: vi.fn().mockResolvedValue({ openCount: 0, resolvedCount: 0, overdueCount: 0, byStatus: {}, bySeverity: {} }),
+  createCuiSupportEscalation: vi.fn(),
+  updateCuiSupportEscalation: vi.fn(),
+  changeCuiSupportEscalationStatus: vi.fn(),
+  resolveCuiSupportEscalation: vi.fn(),
+  getClassifiedNotes: vi.fn().mockResolvedValue([]),
+  getClassifiedNote: vi.fn(),
+  saveClassifiedNote: vi.fn(),
+  getPublishedDataHandlingNotice: vi.fn().mockResolvedValue(null),
+  getDataHandlingNoticeAcknowledgements: vi.fn().mockResolvedValue([]),
+  acknowledgeDataHandlingNotice: vi.fn().mockResolvedValue({ data: null, error: "Not configured" }),
   acceptClauseCandidate: acceptClauseCandidateMock,
   archiveReport: archiveReportMock,
   approveCuiReadyApprovalChecklist: approveCuiReadyApprovalChecklistMock,
@@ -2179,6 +2195,8 @@ describe("App", () => {
     const fileInput = await screen.findByLabelText("Contract document");
     expect(fileInput).toBeEnabled();
     await user.upload(fileInput, new File(["source"], "sow.pdf", { type: "application/pdf" }));
+    expect(screen.getByRole("button", { name: /upload document/i })).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText("Contract document classification"), "Unclassified");
     await user.click(
       screen.getByRole("checkbox", {
         name: /I confirm this file does not contain CUI, classified information, export-controlled data/i
@@ -2236,7 +2254,10 @@ describe("App", () => {
     await user.click(await screen.findByRole("link", { name: /contracts/i }));
     await user.click(await screen.findByRole("button", { name: /start extraction/i }));
 
-    expect(startContractDocumentExtractionMock).toHaveBeenCalledWith(contract.id, contractDocument.id);
+    expect(startContractDocumentExtractionMock).not.toHaveBeenCalled();
+    await user.selectOptions(screen.getByLabelText("Workflow classification"), "Unclassified");
+    await user.click(screen.getByRole("button", { name: /start extraction/i }));
+    expect(startContractDocumentExtractionMock).toHaveBeenCalledWith(contract.id, contractDocument.id, "Unclassified");
     expect(await screen.findByText(/Extraction job queued with status Queued/i)).toBeInTheDocument();
     expect(screen.getByText(/Extraction Queued/i)).toBeInTheDocument();
     expect(await screen.findByText(/Extraction completed with 1 clause candidate/i, {}, { timeout: 2500 })).toBeInTheDocument();
@@ -3322,8 +3343,7 @@ describe("App", () => {
     expect(screen.getByText("Access control policy")).toBeInTheDocument();
     expect(screen.getByTestId("evidence-item")).toHaveTextContent("Access control policy");
     expect(screen.getByDisplayValue("obligation-fci-safeguards")).toBeInTheDocument();
-    expect(within(screen.getByLabelText("Classification review queue")).getByText("Needs classification")).toBeInTheDocument();
-    expect(within(screen.getByLabelText("Classification review queue")).getByText("Unknown")).toBeInTheDocument();
+    expect(screen.getByText("Classification review and history", { selector: "summary" })).toBeInTheDocument();
     expect(within(screen.getByLabelText("Evidence list")).getByText("Unclassified")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /new evidence/i }));
@@ -3332,6 +3352,8 @@ describe("App", () => {
     await user.selectOptions(screen.getByLabelText("Type"), "AccessReview");
     await user.type(screen.getByLabelText("Tags"), "access-review, quarterly");
     await user.type(screen.getByLabelText("Obligations", { selector: "input" }), "obligation-access-review");
+    expect(screen.getByRole("button", { name: /create metadata/i })).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText("Classification", { exact: true }), "Unclassified");
     await user.click(screen.getByRole("button", { name: /create metadata/i }));
 
     expect(createEvidenceMetadataMock).toHaveBeenCalledWith(
@@ -3359,6 +3381,7 @@ describe("App", () => {
     await user.click(await screen.findByRole("link", { name: /evidence/i }));
     const panel = within(await screen.findByLabelText("Evidence metadata"));
     await user.type(panel.getByLabelText("Title"), "Date validation evidence");
+    await user.selectOptions(panel.getByLabelText("Classification", { exact: true }), "Unclassified");
     fireEvent.change(panel.getByLabelText("Effective"), { target: { value: "2026-08-01" } });
     fireEvent.change(panel.getByLabelText("Expires"), { target: { value: "2026-07-31" } });
 
@@ -3415,6 +3438,7 @@ describe("App", () => {
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
+    getEvidenceItemsMock.mockResolvedValueOnce([evidenceMetadata]);
     acknowledgeNoCuiNoticeMock.mockResolvedValueOnce({
       data: {
         isAcknowledged: true,
@@ -3476,6 +3500,8 @@ describe("App", () => {
     expect(fileInput).toBeEnabled();
 
     await user.upload(fileInput, new File(["policy"], "policy.pdf", { type: "application/pdf" }));
+    expect(screen.getByRole("button", { name: /upload evidence/i })).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText("Upload classification"), "Unclassified");
     await user.click(
       screen.getByLabelText(
         /I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information/i
@@ -3484,9 +3510,10 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /upload evidence/i }));
 
     expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(
+      evidenceMetadata.id,
       expect.objectContaining({ name: "policy.pdf", type: "application/pdf" }),
       "Unclassified",
-      "User confirmed upload classification.",
+      "User selected Unclassified upload classification.",
       true
     );
     expect(await screen.findByText(/Uploaded policy.pdf/i)).toBeInTheDocument();
@@ -3498,6 +3525,7 @@ describe("App", () => {
     getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
     getTenantInvitationsMock.mockResolvedValueOnce(invitations);
     getTenantMembersMock.mockResolvedValueOnce(members);
+    getEvidenceItemsMock.mockResolvedValueOnce([evidenceMetadata]);
     getNoCuiAcknowledgementStatusMock.mockResolvedValueOnce({
       isAcknowledged: true,
       noticeVersion: "no-cui-mvp-v1",
@@ -3520,6 +3548,7 @@ describe("App", () => {
 
     const fileInput = screen.getByLabelText("Evidence file");
     await user.upload(fileInput, new File(["policy"], "policy.pdf", { type: "application/pdf" }));
+    await user.selectOptions(screen.getByLabelText("Upload classification"), "Unclassified");
     await user.click(
       screen.getByLabelText(
         /I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information/i
@@ -3528,9 +3557,10 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /upload evidence/i }));
 
     expect(createEvidenceUploadIntentMock).toHaveBeenCalledWith(
+      evidenceMetadata.id,
       expect.objectContaining({ name: "policy.pdf", type: "application/pdf" }),
       "Unclassified",
-      "User confirmed upload classification.",
+      "User selected Unclassified upload classification.",
       true
     );
     expect(await screen.findByText("File size exceeds the No-CUI MVP upload limit.")).toBeInTheDocument();
@@ -3745,6 +3775,9 @@ describe("App", () => {
 
     await user.click(await screen.findByRole("link", { name: /reports/i }));
     await user.click(screen.getByRole("button", { name: "Generate status" }));
+    expect(generateComplianceStatusReportMock).not.toHaveBeenCalled();
+    await user.selectOptions(screen.getByLabelText("Workflow classification"), "Unclassified");
+    await user.click(screen.getByRole("button", { name: "Generate status" }));
 
     const detail = within(await screen.findByLabelText("Generated report detail"));
     expect(detail.getByRole("heading", { name: "Compliance status report" })).toBeInTheDocument();
@@ -3756,7 +3789,14 @@ describe("App", () => {
     await user.click(detail.getByRole("button", { name: "Close detail" }));
     expect(screen.queryByLabelText("Generated report detail")).not.toBeInTheDocument();
 
+    getReportArtifactMock.mockResolvedValueOnce({
+      id: "33333333-3333-3333-3333-333333333331", tenantId: allWorkflowAccess.tenantId,
+      type: "ComplianceStatus", status: "Complete", title: "Compliance status report",
+      generatedAt: "2026-07-27T20:00:00Z", generatedByUserId: allWorkflowAccess.userId,
+      disclaimer: reportDisclaimer, snapshot: { totalObligations: 12 }
+    });
     await user.click(screen.getByRole("button", { name: /Compliance status report.*View report details/i }));
+    expect(getReportArtifactMock).toHaveBeenCalledWith("33333333-3333-3333-3333-333333333331");
     expect(await screen.findByLabelText("Generated report detail")).toBeInTheDocument();
   });
 

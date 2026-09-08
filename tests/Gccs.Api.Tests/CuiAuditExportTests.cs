@@ -84,14 +84,47 @@ public sealed class CuiAuditExportTests
     private static CuiAuditExportService CreateService(IAuditEventWriter? auditWriter = null) =>
         new(new CapturingAuditLogRepository(), auditWriter ?? new CapturingAuditEventWriter());
 
-    private sealed class CapturingAuditLogRepository : IAuditLogRepository
+    [Fact]
+    public async Task Oversized_export_fails_explicitly_without_a_success_audit_or_partial_response()
     {
+        var audit = new CapturingAuditEventWriter();
+        var service = new CuiAuditExportService(new CapturingAuditLogRepository(10001), audit);
+        await Assert.ThrowsAsync<CuiAuditExportLimitException>(() => service.ExportAsync(TenantId, ActorUserId,
+            new CuiAuditExportRequest(null, null, null, null, null, null, null, null)));
+        Assert.Empty(audit.Events);
+    }
+
+    [Fact]
+    public async Task Invalid_date_range_does_not_generate_or_audit_an_export()
+    {
+        var audit = new CapturingAuditEventWriter();
+        var service = CreateService(audit);
+        await Assert.ThrowsAsync<ArgumentException>(() => service.ExportAsync(TenantId, ActorUserId,
+            new CuiAuditExportRequest(null, null, null, null, null, DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow, null)));
+        Assert.Empty(audit.Events);
+    }
+
+    [Fact]
+    public async Task Export_includes_matching_events_beyond_the_first_hundred()
+    {
+        var repository = new CapturingAuditLogRepository(350);
+        var service = new CuiAuditExportService(repository, new CapturingAuditEventWriter());
+        var export = await service.ExportAsync(TenantId, ActorUserId,
+            new CuiAuditExportRequest("blocked-upload", null, null, null, null, null, null, null));
+        Assert.Equal(350, export.Events.Count);
+        Assert.Equal(350, export.Events.Select(e => e.Id).Distinct().Count());
+    }
+
+    private sealed class CapturingAuditLogRepository(int additionalRows = 0) : IAuditLogRepository
+    {
+        private readonly AuditLogEntryDto[] entries = additionalRows == 0 ? Seed() : Enumerable.Range(0, additionalRows)
+            .Select(_ => Entry(TenantId, "EvidenceUploadIntent", "blocked-upload", "Cui", "NoCui", "blocked")).ToArray();
         public Task<IReadOnlyList<string>> ListEntityTypesCurrentTenantAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<string>>(Seed().Select(item => item.EntityType).Distinct().ToArray());
 
         public Task<PagedResultDto<AuditLogEntryDto>> ListCurrentTenantAsync(AuditLogQuery query, CancellationToken cancellationToken = default)
         {
-            var items = Seed()
+            var items = entries
                 .Where(item => item.TenantId == TenantId)
                 .Where(item => query.ActorUserId is null || item.ActorUserId == query.ActorUserId)
                 .Where(item => query.EntityType is null || item.EntityType == query.EntityType)
@@ -99,7 +132,9 @@ public sealed class CuiAuditExportTests
                 .Where(item => query.To is null || item.OccurredAt <= query.To)
                 .ToArray();
 
-            return Task.FromResult(new PagedResultDto<AuditLogEntryDto>(items, 1, 100, items.Length, false, false));
+            return Task.FromResult(new PagedResultDto<AuditLogEntryDto>(
+                items.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToArray(),
+                query.Page, query.PageSize, items.Length, query.Page * query.PageSize < items.Length, query.Page > 1));
         }
 
         private static AuditLogEntryDto[] Seed() =>

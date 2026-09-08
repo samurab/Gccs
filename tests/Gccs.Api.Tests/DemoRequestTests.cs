@@ -779,13 +779,13 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")!;
         var firstRequest = CreateRecord(Guid.NewGuid(), Convert.ToHexString(Guid.NewGuid().ToByteArray()).PadRight(64, '0'));
         var secondRequest = CreateRecord(Guid.NewGuid(), Convert.ToHexString(Guid.NewGuid().ToByteArray()).PadRight(64, '0'));
-        var options = new DbContextOptionsBuilder<GccsDbContext>().UseNpgsql(connectionString).Options;
+        var options = new DbContextOptionsBuilder<GccsDbContext>().UseGccsPostgres(connectionString).Options;
         var hostUserId = Guid.NewGuid();
         var start = DateTimeOffset.UtcNow.AddDays(10);
 
         await using (var setup = new GccsDbContext(options))
         {
-            await setup.Database.MigrateAsync();
+            await PostgresTestDatabase.MigrateAsync(setup);
             await new EfDemoRequestRepository(setup).CreateIfNewAsync(firstRequest);
             await new EfDemoRequestRepository(setup).CreateIfNewAsync(secondRequest);
         }
@@ -839,7 +839,7 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
     {
         var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")!;
         var demoRequest = CreateRecord(Guid.NewGuid(), Convert.ToHexString(Guid.NewGuid().ToByteArray()).PadRight(64, '0'));
-        var options = new DbContextOptionsBuilder<GccsDbContext>().UseNpgsql(connectionString).Options;
+        var options = new DbContextOptionsBuilder<GccsDbContext>().UseGccsPostgres(connectionString).Options;
         var requestedAt = DateTimeOffset.UtcNow;
         var followUpRequestId = Guid.NewGuid();
         var expiresAt = requestedAt.AddHours(2);
@@ -852,7 +852,7 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
 
         await using (var setup = new GccsDbContext(options))
         {
-            await setup.Database.MigrateAsync();
+            await PostgresTestDatabase.MigrateAsync(setup);
             await new EfDemoRequestRepository(setup).CreateIfNewAsync(demoRequest);
             var queued = await new EfDemoFollowUpRepository(setup, new StubAuditRequestMetadata()).QueueRequestAsync(
                 new DemoFollowUpQueueCommand(
@@ -935,9 +935,9 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
         var key = Convert.ToHexString(Guid.NewGuid().ToByteArray()).PadRight(64, '0');
         var first = CreateRecord(Guid.NewGuid(), key);
         var second = CreateRecord(Guid.NewGuid(), key);
-        var options = new DbContextOptionsBuilder<GccsDbContext>().UseNpgsql(connectionString).Options;
+        var options = new DbContextOptionsBuilder<GccsDbContext>().UseGccsPostgres(connectionString).Options;
 
-        await using (var migrationContext = new GccsDbContext(options)) await migrationContext.Database.MigrateAsync();
+        await using (var migrationContext = new GccsDbContext(options)) await PostgresTestDatabase.MigrateAsync(migrationContext);
         try
         {
             await using var firstContext = new GccsDbContext(options);

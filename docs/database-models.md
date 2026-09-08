@@ -18,6 +18,7 @@ These artifacts turn the MVP domain model into a migration-ready PostgreSQL sche
 - Clause tenant scope migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615040552_AddClauseTenantScope.cs`
 - Contract clause attachment workflow migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260615041300_AddContractClauseAttachmentWorkflow.cs`
 - Content classification metadata migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260618212037_AddContentClassificationMetadata.cs`
+- Versioned CUI-readiness evidence migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260908181858_AddVersionedCuiReadinessEvidence.cs`
 - Generated SQL script: `infra/database/development-schema.sql`
 - Local EF tool manifest: `dotnet-tools.json`
 
@@ -61,7 +62,7 @@ Required fields, source systems, provenance rules, and deferred external integra
 
 | Group | Primary tables | Purpose |
 | --- | --- | --- |
-| Tenancy and RBAC | `tenants`, `tenant_data_handling_mode_history`, `users`, `tenant_memberships`, `tenant_invitations`, `no_cui_acknowledgements`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, active data handling mode, mode-change history, explicit tenant membership assignments, invitation onboarding workflow, user-scoped data handling acknowledgement records, MFA-ready user profile, and role permissions. |
+| Tenancy and RBAC | `tenants`, `tenant_data_handling_mode_history`, `cui_ready_approval_checklists`, `cui_ready_approval_checklist_items`, `cui_readiness_evidence`, `users`, `tenant_memberships`, `tenant_invitations`, `no_cui_acknowledgements`, `roles`, `user_roles`, `role_permissions` | Tenant isolation, active data handling mode, mode-change history, fail-closed CUI-readiness approvals linked to versioned supporting evidence, explicit tenant membership assignments, invitation onboarding workflow, user-scoped data handling acknowledgement records, MFA-ready user profile, and role permissions. |
 | Company profile | `company_profiles`, `company_naics_codes`, `company_certifications`, `company_locations` | SAM/SBA profile data, NAICS size support, certifications, locations, IT posture, and data handling posture. |
 | Compliance content | `clauses`, `obligations`, `mvp_modules` | Source-backed clause and obligation library with source URL, review metadata, confidence, and expert-review flags. |
 | Contract intake | `contracts`, `solicitations`, `contract_documents`, `contract_clauses`, `contract_clause_obligations`, `contract_deliverables`, `contract_reporting_deadlines` | Contract records, document metadata with classification metadata, extracted/manual clauses, obligations, deliverables, reporting dates, and flow-down signals. |
@@ -83,6 +84,7 @@ Required fields, source systems, provenance rules, and deferred external integra
 - Obligation records carry publication review metadata, flow-down flags, trigger logic, required action text, owner, risk, confidence, and linked evidence examples before customer-facing publication.
 - Evidence files are represented by metadata and storage URI only. Upload intents now record original file name, content type, file size, validation status, and malware scan placeholder status before later object storage workflows make files usable.
 - CUI-relevant content tables store classification, classification source, confidence, reviewer, review timestamp, reason, and approved-demo flags; reclassification changes append to `content_classification_history`.
+- CUI-ready checklist items link to exact supporting-record ids and versions. Security review, incident readiness, backup/restore, and support evidence are append-versioned in `cui_readiness_evidence`; a newer, rejected, expired, or superseded record invalidates the earlier link. Current published notice and responsibility-matrix acknowledgements remain their authoritative supporting records.
 - Tenant-scoped operational tables include `tenant_id` indexes to support later tenant isolation enforcement in repositories and query filters.
 - Audit log entries are append-only through normal application APIs and record tenant, actor, action, entity, timestamp, IP address, user agent, correlation ID, summary, and structured metadata.
 

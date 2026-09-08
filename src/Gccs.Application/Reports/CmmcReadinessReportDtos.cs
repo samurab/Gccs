@@ -15,6 +15,7 @@ public sealed record CmmcReadinessReportDto(
     CmmcReadinessSnapshotDto Snapshot,
     string ExportHtml)
 {
+    public Gccs.Application.Common.ContentClassificationDto? Classification { get; init; }
     public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
 }
 

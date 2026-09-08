@@ -1,11 +1,14 @@
 # Development Phase Use Cases, Stories, Tasks, And Acceptance Criteria
 
-This backlog expands the Phase 1 MVP and Phase 2 Govcon Intelligence development phases into a sequential delivery plan. It assumes the MVP posture is No-CUI / compliance management only with synthetic CUI-ready demonstration workflows and that production compliance content is reviewed by qualified subject matter experts before publication. Demo workflows may use synthetic or redacted CUI; real customer CUI requires approved future `CuiReady` tenant status.
+This backlog expands the full MVP roadmap into a sequential delivery plan spanning Phase 0 research, Phase 1 MVP, the Phase 1A CUI Readiness Gate, Phase 2 Govcon Intelligence, Phase 3 Advanced Compliance, and Phase 4 Enterprise / Regulated Deployment. It assumes the MVP posture is No-CUI / compliance management only with synthetic CUI-ready demonstration workflows and that production compliance content is reviewed by qualified subject matter experts before publication. Demo workflows may use synthetic or redacted CUI; real customer CUI requires approved future `CuiReady` tenant status.
+
+Roadmap status labels describe backlog posture, not proof of deployed behavior. `Implemented` and `Partially implemented` claims require current UI, API, authorization, test, and operating evidence. All other stories are `Planned` unless a separately verified status is recorded.
 
 ## Delivery Sequence
 
 | Sequence | Process | Primary Outcome |
 | --- | --- | --- |
+| 0 | Research and validation | Evidence supports a bounded MVP problem, audience, workflow, and commercial hypothesis. |
 | 1 | Delivery foundation | Team can build, test, review, and deploy consistently. |
 | 2 | Tenant, identity, and RBAC | Each customer works inside an isolated tenant with role-based access. |
 | 3 | Authenticated application shell | Users can navigate the SaaS workspace and call protected APIs. |
@@ -40,6 +43,12 @@ This backlog expands the Phase 1 MVP and Phase 2 Govcon Intelligence development
 | 32 | Labor compliance module | Users can manage wage determinations, labor categories, worker classifications, and labor evidence when required by contract. |
 | 33 | AI assistant with guardrails | Users can ask source-backed compliance questions with citations, logging, and human-review controls. |
 | 34 | Prime contractor and auditor portals | External prime and auditor users can review approved packages without modifying tenant workspaces. |
+| 35 | SSO/SAML and SCIM | Enterprise identity lifecycle controls can be configured and verified. |
+| 36 | Government cloud deployment path | Regulated environments and tenants can be governed without implying authorization. |
+| 37 | FedRAMP readiness package | Governed readiness artifacts can be reviewed without claiming FedRAMP status. |
+| 38 | Higher-assurance CUI enclave and customer-managed keys | Future enclave boundaries and key controls remain gated from the No-CUI service. |
+| 39 | SOC 2 assurance program | Scope, evidence, examination decisions, and report distribution are governed without certification claims. |
+| FR-0-FR-10 | FedRAMP decision and readiness track | Activation, boundary, evidence, assessment, package, authorization, and continuous-monitoring work are separately governed. |
 
 ## Acceptance Criteria Testability Standard
 
@@ -51,6 +60,166 @@ Every story acceptance criterion must be testable before the story can be treate
 - The relevant invariant when applicable: tenant isolation, server-side RBAC, audit logging, CUI/data-handling guardrails, source traceability, or standard error handling.
 
 Acceptance criteria should avoid subjective phrases such as "easy," "appropriate," "robust," or "clear" unless paired with an observable check. The executable `TC-*` cases in `docs/development-story-test-cases.md` are the regression contract for these acceptance criteria, and story implementation is incomplete until focused automated coverage exists for each applicable `TC-*` case.
+
+## 0. Research And Validation
+
+### Use Case
+
+As the product team, we need traceable discovery evidence so that the MVP scope, target users, regulatory problem, workflow, and commercial assumptions can be reviewed before delivery commitments are made.
+
+### User Stories
+
+#### Story 0.1: Persona Map
+
+**Roadmap status: Planned.**
+
+As a product owner, I want an evidence-backed persona map so that MVP decisions distinguish buyer, administrator, contributor, reviewer, and external stakeholder needs.
+
+Tasks:
+
+- Define persona roles, company context, jobs, pains, desired outcomes, authority, and data-handling constraints.
+- Link persona claims to interview or source evidence and record confidence.
+- Record conflicts between buyer, operator, and reviewer needs.
+
+Acceptance criteria:
+
+- Each persona records role, context, jobs, pains, outcomes, authority, and No-CUI implications.
+- Every material persona claim links to dated evidence or is labeled as a hypothesis.
+- Conflicting needs and unresolved assumptions are visible in the artifact.
+- Persona content contains no real customer CUI, secrets, or unnecessary personal data.
+
+#### Story 0.2: Regulatory Obligation Map
+
+**Roadmap status: Planned.**
+
+As a compliance product owner, I want a source-backed regulatory obligation map so that MVP workflow decisions are traceable to reviewed authorities without presenting legal determinations.
+
+Tasks:
+
+- Inventory candidate FAR, DFARS, CMMC, SBA, and other high-frequency sources.
+- Record source URL, version/date, applicability hypothesis, workflow impact, owner, reviewer, and review status.
+- Separate authoritative requirements from guidance, product interpretation, and future scope.
+
+Acceptance criteria:
+
+- Every obligation-map entry includes source, version/date, applicability hypothesis, workflow impact, owner, and review status.
+- Entries without qualified review remain draft and are not labeled as definitive legal requirements.
+- Superseded or conflicting sources are retained with disposition and review history.
+- The map preserves source provenance and the No-CUI product posture.
+
+#### Story 0.3: Competitive Matrix
+
+**Roadmap status: Planned.**
+
+As a product strategist, I want a dated competitive matrix so that positioning and scope decisions use verifiable public evidence rather than unsupported assumptions.
+
+Tasks:
+
+- Define comparison dimensions tied to target-persona jobs and buying constraints.
+- Capture source URLs, access dates, product tier, and uncertainty for each comparison.
+- Distinguish observed capability, vendor claim, inference, and unknown.
+
+Acceptance criteria:
+
+- Each comparison has a source URL, access date, product/tier context, and evidence classification.
+- Missing or inaccessible evidence is shown as unknown rather than a negative capability claim.
+- Comparison dimensions trace to documented persona jobs or procurement constraints.
+- The matrix includes a review date and owner for future refresh.
+
+#### Story 0.4: Clickable Prototype Validation
+
+**Roadmap status: Planned.**
+
+As a product designer, I want clickable prototypes of the critical MVP workflow so that target users can validate navigation, terminology, and task sequence before implementation changes.
+
+Tasks:
+
+- Prototype onboarding, contract intake, obligation review, evidence linking, and reporting with synthetic data.
+- Define scenario scripts and observable usability measures.
+- Record participant feedback, failures, revisions, and unresolved accessibility issues.
+
+Acceptance criteria:
+
+- Prototype scenarios cover the agreed critical workflow using synthetic or redacted data only.
+- Each session records scenario completion, observed breakdowns, terminology feedback, and follow-up decisions.
+- Accessibility and No-CUI messaging issues are logged with owner and disposition.
+- Prototype behavior is labeled illustrative and is not represented as implemented product enforcement.
+
+#### Story 0.5: Customer And Expert Interviews
+
+**Roadmap status: Planned.**
+
+As a product researcher, I want 20-30 governed customer and expert interviews so that the team can test problem, workflow, trust, and willingness-to-pay hypotheses across relevant segments.
+
+Tasks:
+
+- Define recruitment segments, consent script, interview guide, and secure note-taking rules.
+- Track completed interviews without storing unnecessary sensitive data.
+- Synthesize evidence by hypothesis, segment, contradiction, and confidence.
+
+Acceptance criteria:
+
+- The research register records 20-30 completed interviews across the approved segment mix or documents an explicit exception.
+- Each interview has consent status, participant category, date, interviewer, and redacted findings.
+- Synthesis distinguishes direct evidence, researcher inference, contradiction, and unresolved hypothesis.
+- Notes exclude real CUI, credentials, contract documents, and unnecessary personally identifiable information.
+
+#### Story 0.6: Pricing Hypothesis
+
+**Roadmap status: Planned.**
+
+As a product owner, I want a testable pricing hypothesis so that packaging and willingness-to-pay assumptions can be evaluated before a commercial commitment.
+
+Tasks:
+
+- Define target segment, value metric, package boundaries, price range, and excluded services.
+- Record interview evidence, competitor context, cost assumptions, and falsification thresholds.
+- Identify legal, tax, support, and payment dependencies outside product implementation.
+
+Acceptance criteria:
+
+- The hypothesis states segment, value metric, package, price range, assumptions, and falsification threshold.
+- Evidence links and confidence are recorded separately from product decisions.
+- Compliance certification, legal advice, and CUI handling are not implied as included services.
+- A named owner and review date govern the next pricing decision.
+
+#### Story 0.7: MVP Requirements Baseline
+
+**Roadmap status: Planned.**
+
+As a delivery lead, I want an approved MVP requirements baseline so that scope, exclusions, quality attributes, dependencies, and release gates are explicit.
+
+Tasks:
+
+- Map validated outcomes to epics, stories, non-functional requirements, and exclusions.
+- Record tenant isolation, RBAC, audit, No-CUI, source-governance, availability, recovery, and accessibility requirements.
+- Establish change control and traceability to roadmap and research evidence.
+
+Acceptance criteria:
+
+- Every in-scope requirement maps to a roadmap outcome and story or an explicitly owned non-software deliverable.
+- Out-of-scope items include real CUI processing, certification, legal advice, and government endorsement unless an approved future decision changes posture.
+- Security, privacy, accessibility, recovery, and content-governance requirements have observable verification methods.
+- Baseline approval and later changes preserve decision history, owner, rationale, and date.
+
+#### Story 0.8: Advisor Review And Phase Gate
+
+**Roadmap status: Planned.**
+
+As an accountable product sponsor, I want qualified advisor review and a recorded Phase 0 gate decision so that unresolved regulatory, security, commercial, and delivery risks are accepted, deferred, or block scope promotion explicitly.
+
+Tasks:
+
+- Define required reviewer competencies and conflict-of-interest disclosures.
+- Package persona, obligation, competitive, prototype, interview, pricing, and requirements evidence.
+- Record findings, dispositions, owners, and proceed/pivot/stop decision.
+
+Acceptance criteria:
+
+- The review package identifies artifact versions, reviewers, competencies, review dates, findings, and unresolved risks.
+- Each finding has a disposition, accountable owner, target date, and effect on MVP scope.
+- The gate decision is recorded as proceed, proceed-with-conditions, pivot, or stop with rationale.
+- Advisor review is not represented as legal advice, certification, authorization, or government approval.
 
 ## 1. Delivery Foundation
 
@@ -2835,6 +3004,7 @@ Phase 4 extends the Phase 3 advanced compliance platform into enterprise and reg
 | 36 | GovCloud or government cloud deployment path | Regulated customers can be provisioned into an approved government cloud environment with controlled release and operations processes. |
 | 37 | FedRAMP readiness package | Direct federal sales readiness artifacts, control mappings, and evidence packages are governed and reviewable. |
 | 38 | Higher-assurance CUI enclave and customer-managed keys | Approved CUI customers can use isolated enclave controls, customer-managed key policies, and restricted workflows. |
+| 39 | SOC 2 assurance program | Scope, remediation, operating evidence, independent examination, and report distribution are governed without treating assurance as a software feature. |
 
 ## 35. SSO/SAML And SCIM
 
@@ -3107,3 +3277,74 @@ Acceptance criteria:
 - Enclave exports enforce package type, recipient, watermarking, encryption, and approval policy.
 - Emergency access requires elevated approval, incident linkage, time limit, and post-access review.
 - Enclave access, export, support, and emergency actions are audit logged.
+
+## 39. SOC 2 Assurance Program
+
+This is a non-software governance and independent-assurance track. Stories `39.1` through `39.3` are excluded from the executable `gccs-story-sequence`; their completion requires governed human evidence and, where applicable, an independent service auditor's report.
+
+### Use Case
+
+As the accountable product and security leadership team, we need a governed SOC 2 assurance program so that enterprise procurement evidence accurately describes the examined FeDril system and period without claiming certification, general compliance, or CUI authorization.
+
+### User Stories
+
+#### Story 39.1: Define SOC 2 Scope And Readiness Decision
+
+**Roadmap status: Planned.**
+
+As the assurance program owner, I want an auditor-supported scope and readiness decision so that FeDril knows which system boundary, services, criteria, owners, and evidence obligations would be examined before committing to an examination.
+
+Tasks:
+
+- Define the candidate FeDril production-system boundary, services, environments, subprocessors, customer responsibilities, exclusions, and applicable Trust Services Criteria.
+- Assign accountable control owners and identify evidence sources, operating dependencies, and unresolved control-design gaps.
+- Obtain qualified readiness input and record whether to proceed, defer, or revise scope, with budget and schedule assumptions.
+- Preserve the No-CUI product posture and separate SOC 2 scope from FedRAMP, CMMC, government approval, and permission to process real CUI.
+
+Acceptance criteria:
+
+- The scope record identifies the system boundary, included services and environments, subprocessors, customer responsibilities, exclusions, applicable criteria, version, owner, and review date.
+- Every in-scope criterion maps to a control owner and an evidence source or a documented design gap with remediation ownership.
+- The proceed, defer, or revise decision records approvers, rationale, budget and schedule assumptions, unresolved risks, and next review date.
+- Qualified reviewer input and conflicts of interest are recorded without representing readiness advice as an issued SOC 2 report, certification, legal conclusion, or authorization to process CUI.
+
+#### Story 39.2: Remediate Gaps And Collect Operating Evidence
+
+**Roadmap status: Planned.**
+
+As the assurance program owner, I want control gaps remediated and operating evidence collected over the selected period so that examination readiness is based on governed evidence rather than policy text or application features alone.
+
+Tasks:
+
+- Maintain a gap register with control, severity, owner, target date, remediation plan, exception, accepted-risk approval, and closure evidence.
+- Define an evidence calendar covering the selected controls, systems, owners, collection cadence, retention, reviewer, and secure storage location.
+- Record control operation, exceptions, failures, corrective actions, significant changes, and management review throughout the selected period.
+- Run a final readiness review and retain the evidence index supplied to the independent service auditor.
+
+Acceptance criteria:
+
+- Every readiness gap has severity, accountable owner, target date, disposition, evidence requirement, and immutable decision history.
+- Each collected evidence item identifies the scoped control, system or process, collection period, source, custodian, reviewer, review result, and retention location without storing secrets or raw customer documents in the backlog.
+- Exceptions, control failures, significant changes, accepted risks, and corrective actions remain visible with approval and closure evidence.
+- The final readiness decision identifies the examination type under consideration, proposed period or as-of date, open exceptions, evidence index version, approvers, and proceed or defer outcome.
+
+#### Story 39.3: Govern Independent Examination And Report Distribution
+
+**Roadmap status: Planned.**
+
+As the executive sponsor, I want the independent examination and issued-report lifecycle governed so that procurement communications match the actual report type, system scope, examination period, exceptions, and permitted audience.
+
+Tasks:
+
+- Record service-auditor independence and engagement details, examination type, scoped system, criteria, as-of date or review period, management assertion, and delivery status.
+- Track auditor requests, management responses, exceptions, remediation commitments, and final disposition without presenting internal readiness artifacts as an issued report.
+- Establish controlled report storage and distribution with audience, NDA or confidentiality requirements, approver, recipient, purpose, sent date, expiration or review date, and revocation history.
+- Maintain a claims register and renewal decision that identifies the exact approved wording, report type, scope, period, owner, reviewer, and expiration.
+
+Acceptance criteria:
+
+- Examination records identify the independent service auditor, examination type, scoped FeDril system, applicable criteria, as-of date or period, management assertion, report status, and issued-report reference when one exists.
+- No story, readiness artifact, UI state, or internal approval is treated as proof that an independent report was issued; issuance status requires the actual governed report reference and authorized reviewer confirmation.
+- Every report disclosure records the authorized recipient, purpose, confidentiality condition, approver, report version, sent date, and revocation or supersession status.
+- Customer-facing wording identifies the actual report type, covered system, and examination period and does not describe FeDril as `SOC 2 certified`, generally `SOC 2 compliant`, government approved, CMMC certified, FedRAMP authorized, audit ready, or authorized to store real CUI.
+- Renewal planning records the next review period, accountable owners, evidence-calendar changes, prior exceptions, significant changes, and proceed or defer decision.

@@ -609,6 +609,12 @@ Acceptance criteria:
 - Stability criteria identify required evidence and approvers.
 - Phase 2 gate decision is recorded before Govcon Intelligence work proceeds.
 
+## Roadmap Assurance Track Cross-Reference
+
+The Phase 4 SOC 2 assurance program is defined by non-software Stories `39.1` through `39.3` in [development-phase-use-cases.md](development-phase-use-cases.md). It is not an MVP launch gate unless an approved customer, procurement, or product decision explicitly makes a scoped examination report a release dependency. PR-5 claims review must continue to reject `SOC 2 certified`, general `SOC 2 compliant`, and `audit ready` language; any future report statement must identify the actual report type, covered system, examination period, approved audience, and current governed report evidence.
+
+The roadmap-to-story and external-gate mapping is maintained in [mvp-roadmap-story-traceability.md](mvp-roadmap-story-traceability.md). Production-readiness `PR-*` stories remain separate from development and independent-assurance stories.
+
 ## Hidden Risks, Edge Cases, And Dependencies
 
 - Malware scanning remains a launch blocker unless enabled or formally excepted with compensating controls.

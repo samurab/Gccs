@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Tenancy;
 
@@ -6,7 +7,8 @@ namespace Gccs.Application.Demo;
 
 public sealed class DemoTenantSeedService(
     IDemoTenantSeedRepository repository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    IApplicationTransaction transaction)
 {
     public async Task<DemoTenantSeedResult> SeedAsync(
         SyntheticDemoDatasetDefinition dataset,
@@ -20,12 +22,16 @@ public sealed class DemoTenantSeedService(
             throw new DemoTenantSeedValidationException("Synthetic demo dataset is not approved for import.");
         }
 
-        var mode = await repository.GetTenantModeAsync(tenantId, cancellationToken);
-        EnsureDemoSandbox(mode);
+        return await transaction.ExecuteAsync(async cancellationToken =>
+        {
+            var mode = await repository.GetTenantModeAsync(tenantId, cancellationToken);
+            EnsureDemoSandbox(mode);
+            await repository.EnsureIsolatedDatabaseAsync(tenantId, cancellationToken);
 
-        var result = await repository.SeedAsync(dataset, tenantId, actorUserId, cancellationToken);
-        await WriteAuditAsync(dataset, tenantId, actorUserId, AuditAction.Created, "seed", result, cancellationToken);
-        return result;
+            var result = await repository.SeedAsync(dataset, tenantId, actorUserId, cancellationToken);
+            await WriteAuditAsync(dataset, tenantId, actorUserId, AuditAction.Created, "seed", result, cancellationToken);
+            return result;
+        }, cancellationToken);
     }
 
     public async Task<DemoTenantSeedResult> ResetAsync(
@@ -34,12 +40,16 @@ public sealed class DemoTenantSeedService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var mode = await repository.GetTenantModeAsync(tenantId, cancellationToken);
-        EnsureDemoSandbox(mode);
+        return await transaction.ExecuteAsync(async cancellationToken =>
+        {
+            var mode = await repository.GetTenantModeAsync(tenantId, cancellationToken);
+            EnsureDemoSandbox(mode);
+            await repository.EnsureIsolatedDatabaseAsync(tenantId, cancellationToken);
 
-        var result = await repository.ResetAsync(dataset, tenantId, actorUserId, cancellationToken);
-        await WriteAuditAsync(dataset, tenantId, actorUserId, AuditAction.Deleted, "reset", result, cancellationToken);
-        return result;
+            var result = await repository.ResetAsync(dataset, tenantId, actorUserId, cancellationToken);
+            await WriteAuditAsync(dataset, tenantId, actorUserId, AuditAction.Deleted, "reset", result, cancellationToken);
+            return result;
+        }, cancellationToken);
     }
 
     private static void EnsureDemoSandbox(TenantDataPosture? mode)
@@ -86,6 +96,8 @@ public sealed class DemoTenantSeedService(
 
 public interface IDemoTenantSeedRepository
 {
+    Task EnsureIsolatedDatabaseAsync(Guid tenantId, CancellationToken cancellationToken = default);
+
     Task<TenantDataPosture?> GetTenantModeAsync(Guid tenantId, CancellationToken cancellationToken = default);
 
     Task<DemoTenantSeedResult> SeedAsync(

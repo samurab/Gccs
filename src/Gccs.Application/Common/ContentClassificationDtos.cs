@@ -3,7 +3,7 @@ using Gccs.Domain.Common;
 namespace Gccs.Application.Common;
 
 public sealed record ContentClassificationRequest(
-    ContentClassification Classification,
+    [property: System.Text.Json.Serialization.JsonRequired] ContentClassification Classification,
     ContentClassificationSource Source = ContentClassificationSource.UserSelected,
     decimal? Confidence = null,
     Guid? ReviewedByUserId = null,
@@ -33,4 +33,6 @@ public sealed record ContentClassificationHistoryDto(
     DateTimeOffset? ReviewedAt,
     string? Reason,
     Guid ChangedByUserId,
-    DateTimeOffset ChangedAt);
+    DateTimeOffset ChangedAt,
+    long? Revision = null,
+    ContentClassificationDto? PreviousMetadata = null);

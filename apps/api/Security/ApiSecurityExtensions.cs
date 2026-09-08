@@ -149,6 +149,9 @@ public static class ApiSecurityExtensions
                 policy.AddAuthenticationSchemes(platformAuthenticationScheme)
                     .RequireAuthenticatedUser()
                     .RequireAssertion(context => PlatformAuthorization.CanProvisionTenants(context.User)));
+            options.AddPolicy(PlatformAuthorization.ApproveCuiReadinessPolicy, policy =>
+                policy.AddAuthenticationSchemes(platformAuthenticationScheme).RequireAuthenticatedUser()
+                    .RequireAssertion(context => PlatformAuthorization.CanApproveCuiReadiness(context.User)));
             options.AddPolicy(PlatformAuthorization.ViewPlatformCustomersPolicy, policy =>
                 policy.AddAuthenticationSchemes(platformAuthenticationScheme)
                     .RequireAuthenticatedUser()
@@ -653,6 +656,8 @@ public static class ApiSecurityExtensions
 
                 var (statusCode, title, detail, errorCode) = exception switch
                 {
+                    ContentRevisionConflictException conflict => (StatusCodes.Status409Conflict,
+                        "Content changed", conflict.Message, "content_revision_conflict"),
                     AuditWriteException => (
                         StatusCodes.Status500InternalServerError,
                         "Critical audit failure",
@@ -673,12 +678,27 @@ public static class ApiSecurityExtensions
                         "Tenant data handling mode restricted",
                         modeRestriction.Message,
                         "tenant_data_handling_mode_restricted"),
+                    ContentContainedException contained => (
+                        StatusCodes.Status423Locked,
+                        "Content is contained",
+                        contained.Message,
+                        "content_contained"),
                     ContentClassificationValidationException classification => (
                         StatusCodes.Status400BadRequest,
                         "Content classification invalid",
                         classification.Message,
                         "content_classification_invalid"),
-                    BadHttpRequestException when exception.InnerException is JsonException => (
+                    DataHandlingNoticeValidationException notice => (
+                        StatusCodes.Status400BadRequest,
+                        "Data handling notice invalid",
+                        notice.Message,
+                        "data_handling_notice_invalid"),
+                    DataHandlingNoticeAcknowledgementRequiredException acknowledgement => (
+                        StatusCodes.Status428PreconditionRequired,
+                        "Current notice acknowledgement required",
+                        acknowledgement.Message,
+                        "data_handling_notice_acknowledgement_required"),
+                    BadHttpRequestException badRequest when badRequest.StatusCode == StatusCodes.Status400BadRequest => (
                         StatusCodes.Status400BadRequest,
                         "Invalid request body",
                         "The request body could not be parsed or contains an unsupported value.",
@@ -710,7 +730,9 @@ public static class ApiSecurityExtensions
                                 ["entityType"] = restriction.EntityType,
                                 ["entityId"] = restriction.EntityId
                             }
-                            : null)
+                            : exception is DataHandlingNoticeAcknowledgementRequiredException noticeRequired
+                                ? new Dictionary<string, object?> { ["workflowContext"] = noticeRequired.WorkflowContext }
+                                : null)
                     .ExecuteAsync(context);
             });
         });

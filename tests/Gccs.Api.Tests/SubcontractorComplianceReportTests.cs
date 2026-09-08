@@ -124,6 +124,7 @@ public sealed class SubcontractorComplianceReportTests : IClassFixture<WebApplic
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<SubcontractorComplianceReportService>();
                 services.AddScoped<IReportRepository, EfReportRepository>();
@@ -156,7 +157,7 @@ public sealed class SubcontractorComplianceReportTests : IClassFixture<WebApplic
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static void SeedScenario(GccsDbContext dbContext, StoryIds ids)

@@ -346,6 +346,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             tenantId,
             userId,
             Permission.ManageContracts);
+        startRequest.Content = JsonContent.Create(new { classification = new { classification = document.Classification.Classification.ToString() } });
         var startResponse = await client.SendAsync(startRequest);
         var job = await startResponse.Content.ReadFromJsonAsync<ExtractionJobDto>(JsonOptions);
         Assert.Equal(HttpStatusCode.Created, startResponse.StatusCode);
@@ -1103,6 +1104,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<ContractService>();
                 services.AddScoped<IContractRepository, EfContractRepository>();
@@ -1145,7 +1147,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
             { new StringContent("false"), "containsPotentialCui" },
             { file, "file", "demo-nc-contract.txt" }
         };
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static UpsertContractRequest CreateRequestBody(string contractNumber, ContractStatus status) =>
@@ -1313,7 +1315,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
     {
         var request = CreateRequest(method, requestUri, tenantId, userId, permission);
         request.Content = JsonContent.Create(content, options: JsonOptions);
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static HttpRequestMessage CreateRequest(
@@ -1328,7 +1330,7 @@ public sealed class ContractRecordTests : IClassFixture<WebApplicationFactory<Pr
         request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
         request.Headers.Add("X-Gccs-Dev-User", userId.ToString());
         request.Headers.Add("X-Gccs-Dev-Permissions", permission.ToString());
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static void SeedTenant(GccsDbContext dbContext, Guid tenantId, string name = "Contract Tenant")

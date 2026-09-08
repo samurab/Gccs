@@ -2,6 +2,7 @@ using Gccs.Application.Audit;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Tenancy;
+using Gccs.Domain.Identity;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Gccs.Infrastructure.Tenancy;
@@ -14,6 +15,7 @@ public sealed class CuiSupportEscalationWorkflowTests
 {
     private static readonly Guid TenantId = Guid.Parse("1a070200-0000-4000-8000-000000000001");
     private static readonly Guid ActorUserId = Guid.Parse("1a070200-0000-4000-8000-000000000002");
+    private static readonly Guid EvidenceId = Guid.Parse("1a070200-0000-4000-8000-000000000004");
 
     [Fact]
     public async Task TC_1A_7_2_1_Status_changes_require_note()
@@ -36,6 +38,30 @@ public sealed class CuiSupportEscalationWorkflowTests
         Assert.Equal("Triage started.", updated.StatusNote);
         Assert.Equal(ActorUserId, updated.StatusChangedByUserId);
         Assert.NotNull(updated.StatusChangedAt);
+        Assert.Collection(updated.Events,
+            created => Assert.Equal(CuiSupportEscalationStatus.Submitted, created.Status),
+            triage => Assert.Equal("Triage started.", triage.Note));
+    }
+
+    [Fact]
+    public async Task Reporting_sla_notifications_and_overlapping_containment_are_durable()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTenant(dbContext);
+        var service = CreateService(dbContext);
+        var first = await service.CreateAsync(TenantId, CreateRequest(), ActorUserId);
+        var second = await service.CreateAsync(TenantId, CreateRequest(), ActorUserId);
+        Assert.NotEmpty(dbContext.NotificationDeliveries.Where(n => n.SourceTaskId == first.Id && n.UserId == ActorUserId));
+
+        ReviewEvidence(dbContext);
+        await service.ResolveAsync(TenantId, first.Id, new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.FalseAlarm, "Safe review."), ActorUserId);
+        Assert.True((await dbContext.EvidenceItems.SingleAsync(e => e.Id == EvidenceId)).IsUseBlocked);
+        await service.ResolveAsync(TenantId, second.Id, new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.FalsePositive, "Safe review."), ActorUserId);
+        Assert.False((await dbContext.EvidenceItems.SingleAsync(e => e.Id == EvidenceId)).IsUseBlocked);
+
+        var report = await new EfCuiSupportEscalationRepository(dbContext).GetReportAsync(TenantId, DateTimeOffset.UtcNow.AddDays(1));
+        Assert.Equal(2, report.ResolvedCount);
+        Assert.Equal(0, report.OpenCount);
     }
 
     [Fact]
@@ -53,10 +79,13 @@ public sealed class CuiSupportEscalationWorkflowTests
             Assert.True(escalation.IsAffectedContentBlocked);
         }
 
+        await Assert.ThrowsAsync<CuiSupportEscalationValidationException>(() => service.ResolveAsync(TenantId, escalation.Id,
+            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.ContentRemoved, "File removal alone is insufficient."), ActorUserId));
+        ReviewEvidence(dbContext);
         var resolved = await service.ResolveAsync(
             TenantId,
             escalation.Id,
-            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.ContentRemoved, "Removed prohibited content."),
+            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.FalsePositive, "Reviewed synthetic test content."),
             ActorUserId);
 
         Assert.False(resolved!.IsAffectedContentBlocked);
@@ -70,17 +99,18 @@ public sealed class CuiSupportEscalationWorkflowTests
         var service = CreateService(dbContext);
         var escalation = await service.CreateAsync(TenantId, CreateRequest(), ActorUserId);
 
+        ReviewEvidence(dbContext);
         var resolved = await service.ResolveAsync(
             TenantId,
             escalation.Id,
-            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.ReferredToCustomer, "Customer instructed to remove source file."),
+            new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.FalsePositive, "Reviewed synthetic content."),
             ActorUserId);
 
         var resolution = Assert.Single(resolved!.Resolutions);
-        Assert.Equal(CuiSupportEscalationResolutionType.ReferredToCustomer, resolution.ResolutionType);
+        Assert.Equal(CuiSupportEscalationResolutionType.FalsePositive, resolution.ResolutionType);
         Assert.Equal(ActorUserId, resolution.ResolvedByUserId);
         Assert.NotEqual(default, resolution.ResolvedAt);
-        Assert.Equal("Customer instructed to remove source file.", resolution.Summary);
+        Assert.Equal("Reviewed synthetic content.", resolution.Summary);
     }
 
     [Fact]
@@ -90,6 +120,7 @@ public sealed class CuiSupportEscalationWorkflowTests
         SeedTenant(dbContext);
         var service = CreateService(dbContext);
         var escalation = await service.CreateAsync(TenantId, CreateRequest(), ActorUserId);
+        ReviewEvidence(dbContext);
         var resolved = await service.ResolveAsync(
             TenantId,
             escalation.Id,
@@ -99,11 +130,13 @@ public sealed class CuiSupportEscalationWorkflowTests
         var reopened = await service.ChangeStatusAsync(
             TenantId,
             resolved!.Id,
-            new ChangeCuiSupportEscalationStatusRequest(CuiSupportEscalationStatus.Triage, "Reopened after customer correction."),
+            new ChangeCuiSupportEscalationStatusRequest(CuiSupportEscalationStatus.Reopened, "Reopened after customer correction."),
             ActorUserId);
 
-        Assert.Equal(CuiSupportEscalationStatus.Triage, reopened!.Status);
+        Assert.Equal(CuiSupportEscalationStatus.Reopened, reopened!.Status);
         Assert.Single(reopened.Resolutions);
+        Assert.Contains(reopened.Events, e => e.Status == CuiSupportEscalationStatus.Resolved);
+        Assert.Contains(reopened.Events, e => e.Status == CuiSupportEscalationStatus.Reopened && e.Note == "Reopened after customer correction.");
     }
 
     [Fact]
@@ -117,7 +150,8 @@ public sealed class CuiSupportEscalationWorkflowTests
 
         await service.ChangeStatusAsync(TenantId, escalation.Id, new ChangeCuiSupportEscalationStatusRequest(CuiSupportEscalationStatus.Triage, "Triage."), ActorUserId);
         await service.ChangeStatusAsync(TenantId, escalation.Id, new ChangeCuiSupportEscalationStatusRequest(CuiSupportEscalationStatus.Contained, "Contained."), ActorUserId);
-        await service.ResolveAsync(TenantId, escalation.Id, new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.ContentRemoved, "Resolved."), ActorUserId);
+        ReviewEvidence(dbContext);
+        await service.ResolveAsync(TenantId, escalation.Id, new ResolveCuiSupportEscalationRequest(CuiSupportEscalationResolutionType.FalsePositive, "Resolved."), ActorUserId);
 
         Assert.Contains(auditWriter.Events, audit => audit.Metadata["lifecycleAction"] == "created");
         Assert.Contains(auditWriter.Events, audit => audit.Metadata["lifecycleAction"] == "status_changed" && audit.Metadata["status"] == "Triage");
@@ -126,10 +160,21 @@ public sealed class CuiSupportEscalationWorkflowTests
     }
 
     private static CreateCuiSupportEscalationRequest CreateRequest() =>
-        new("UploadRejection", "EvidenceItem", "affected-123", CuiSupportEscalationCategory.ProhibitedData, CuiSupportEscalationSeverity.High, "Prohibited data suspected.");
+        new("UploadRejection", "EvidenceItem", EvidenceId.ToString(), CuiSupportEscalationCategory.ProhibitedData, CuiSupportEscalationSeverity.High, "Prohibited data suspected.");
+
+    private static void ReviewEvidence(GccsDbContext db)
+    {
+        var item = db.EvidenceItems.Single(e => e.Id == EvidenceId);
+        item.Classification = Gccs.Domain.Common.ContentClassification.Unclassified;
+        item.ClassificationSource = Gccs.Domain.Common.ContentClassificationSource.AdminReviewed;
+        item.ClassificationReviewedAt = DateTimeOffset.UtcNow;
+        item.ClassificationReviewedByUserId = ActorUserId;
+        db.SaveChanges();
+    }
 
     private static CuiSupportEscalationService CreateService(GccsDbContext dbContext, IAuditEventWriter? auditWriter = null) =>
-        new(new EfCuiSupportEscalationRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter());
+        new(new EfCuiSupportEscalationRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter(), new TestApplicationTransaction(),
+            new AcknowledgedNoticeTestFixture.AcknowledgedNoticeGuard());
 
     private static GccsDbContext CreateDbContext()
     {
@@ -142,6 +187,7 @@ public sealed class CuiSupportEscalationWorkflowTests
 
     private static void SeedTenant(GccsDbContext dbContext)
     {
+        dbContext.EvidenceItems.Add(new EvidenceItemEntity { Id = EvidenceId, TenantId = TenantId, Name = "Synthetic containment fixture" });
         dbContext.Tenants.Add(new TenantEntity
         {
             Id = TenantId,
@@ -151,6 +197,8 @@ public sealed class CuiSupportEscalationWorkflowTests
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedByUserId = ActorUserId
         });
+        dbContext.Users.Add(new UserEntity { Id = ActorUserId, TenantId = TenantId, Email = "owner@example.test", DisplayName = "Synthetic Owner", Status = UserStatus.Active });
+        dbContext.TenantMemberships.Add(new TenantMembershipEntity { Id = Guid.NewGuid(), TenantId = TenantId, UserId = ActorUserId, RoleName = RoleCatalog.Owner, Status = MembershipStatus.Active });
         dbContext.SaveChanges();
     }
 

@@ -14,6 +14,44 @@ Recommended prefix for manual/smoke-test prompts:
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 ```
 
+## 0. Research And Validation
+
+Stories `0.1` through `0.8` are non-software research and decision workflows. Execute these as governed evidence reviews. Do not add application code or report them as automated product tests.
+
+For each story below, inspect the canonical story in [development-phase-use-cases.md](development-phase-use-cases.md), execute every matching `TC-*` case in [development-story-test-cases.md](development-story-test-cases.md), and record artifact version, reviewer, review date, evidence examined, result, exceptions, owner, and follow-up date.
+
+### Story 0.1: Persona Map
+
+Verify required persona fields, dated evidence or hypothesis labels, visible stakeholder conflicts, and absence of real CUI, secrets, and unnecessary personal data using `TC-0.1.1`, `TC-0.1.2`, `TC-0.1.3`, `TC-0.1.4`.
+
+### Story 0.2: Regulatory Obligation Map
+
+Verify source metadata, draft-only treatment of unreviewed content, superseded/conflicting source history, provenance, and No-CUI posture using `TC-0.2.1`, `TC-0.2.2`, `TC-0.2.3`, `TC-0.2.4`.
+
+### Story 0.3: Competitive Matrix
+
+Verify dated comparison evidence, explicit unknowns, persona/procurement traceability, and refresh ownership using `TC-0.3.1`, `TC-0.3.2`, `TC-0.3.3`, `TC-0.3.4`.
+
+### Story 0.4: Clickable Prototype Validation
+
+Verify synthetic scenarios, session evidence, accessibility and No-CUI findings, and illustrative-only labeling using `TC-0.4.1`, `TC-0.4.2`, `TC-0.4.3`, `TC-0.4.4`.
+
+### Story 0.5: Customer And Expert Interviews
+
+Verify sample size or exception, interview consent/governance, evidence-versus-inference synthesis, and restricted-data handling using `TC-0.5.1`, `TC-0.5.2`, `TC-0.5.3`, `TC-0.5.4`.
+
+### Story 0.6: Pricing Hypothesis
+
+Verify the falsifiable pricing hypothesis, separation of evidence from decisions, claims boundaries, and review governance using `TC-0.6.1`, `TC-0.6.2`, `TC-0.6.3`, `TC-0.6.4`.
+
+### Story 0.7: MVP Requirements Baseline
+
+Verify roadmap traceability, explicit product exclusions, observable quality-attribute verification, and decision history using `TC-0.7.1`, `TC-0.7.2`, `TC-0.7.3`, `TC-0.7.4`.
+
+### Story 0.8: Advisor Review And Phase Gate
+
+Verify review-package completeness, finding disposition, the recorded phase-gate decision, and claims boundaries using `TC-0.8.1`, `TC-0.8.2`, `TC-0.8.3`, `TC-0.8.4`.
+
 ## 1. Delivery Foundation
 
 ### Story 1.1: Repository And Project Structure
@@ -1176,3 +1214,21 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-38.3.4:** Use emergency access and verify elevated approval, incident linkage, time limit, and post-access review are required.
 - **TC-38.3.5:** Verify access, export, support, emergency, expiration, and post-access review actions are audit logged.
 #-----------------------------------
+
+## 39. SOC 2 Assurance Program
+
+Stories `39.1` through `39.3` are non-software governance and independent-assurance workflows. Execute these as governed human-evidence reviews. Do not add application code, invoke the software story sequence, or treat an internal artifact as proof that an independent report was issued.
+
+For each story below, inspect the canonical story in [development-phase-use-cases.md](development-phase-use-cases.md), execute every matching `TC-*` case in [development-story-test-cases.md](development-story-test-cases.md), and record artifact version, reviewer, review date, evidence examined, result, exceptions, owner, and follow-up date.
+
+### Story 39.1: Define SOC 2 Scope And Readiness Decision
+
+Verify scope completeness, control ownership and evidence mapping, the governed proceed/defer/revise decision, reviewer qualifications/conflicts, and the assurance/No-CUI claims boundary using `TC-39.1.1`, `TC-39.1.2`, `TC-39.1.3`, `TC-39.1.4`.
+
+### Story 39.2: Remediate Gaps And Collect Operating Evidence
+
+Verify gap governance, evidence provenance, exceptions and significant-change history, absence of secrets/raw customer documents in the backlog, and the final readiness decision using `TC-39.2.1`, `TC-39.2.2`, `TC-39.2.3`, `TC-39.2.4`.
+
+### Story 39.3: Govern Independent Examination And Report Distribution
+
+Verify examination metadata, actual issued-report evidence, controlled disclosures, approved claim wording, and renewal governance using `TC-39.3.1`, `TC-39.3.2`, `TC-39.3.3`, `TC-39.3.4`, `TC-39.3.5`. Fail the case if issuance is supported only by a story, readiness artifact, UI state, or internal approval.

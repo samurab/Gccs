@@ -105,6 +105,11 @@ builder.Services.Configure<LocalDependencyOptions>(builder.Configuration.GetSect
 builder.Services.AddScoped<LocalDependencyHealthService>();
 builder.Services.AddGccsApiSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddGccsInfrastructure(builder.Configuration);
+builder.Services.AddSingleton(_ => new DataHandlingNoticePackage(
+    ComplianceContentPackageLocator.FindPackageRoot(builder.Environment.ContentRootPath)));
+builder.Services.AddScoped<CurrentDataHandlingNoticeService>();
+builder.Services.AddScoped<ICurrentDataHandlingNoticeGuard>(provider =>
+    provider.GetRequiredService<CurrentDataHandlingNoticeService>());
 if (string.Equals(
     demoOptions.Provider,
     DemoRequestOptions.DevelopmentCaptureProvider,
@@ -147,6 +152,11 @@ if (builder.Configuration.GetValue("ReportExportProcessing:Enabled", true) &&
     !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
 {
     builder.Services.AddHostedService<ReportExportWorker>();
+}
+if (builder.Configuration.GetValue("ObjectCleanupProcessing:Enabled", true) &&
+    !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
+{
+    builder.Services.AddHostedService<ObjectCleanupWorker>();
 }
 if (builder.Environment.IsDevelopment())
 {
@@ -971,7 +981,8 @@ api.MapGet("/me/access", (ClaimsPrincipal user, ITenantContext tenantContext) =>
         permissions,
         rolePermissionMatrix = RoleCatalog.PermissionsByRole.ToDictionary(
             role => role.Key,
-            role => role.Value.Select(permission => permission.ToString()).Order().ToArray())
+            role => role.Value.Select(permission => permission.ToString()).Order().ToArray()),
+        canApproveCuiReadiness = PlatformAuthorization.CanApproveCuiReadiness(user)
     });
 })
 .WithName("GetCurrentUserAccess");
@@ -1390,7 +1401,7 @@ api.MapPost("/contracts/{contractId:guid}/documents/file", async (
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (!Enum.TryParse<ContentClassification>(form["classification"], true, out var classification))
+        if (!Enum.TryParse<ContentClassification>(form["classification"], true, out var classification) || !Enum.IsDefined(classification))
         {
             return Results.ValidationProblem(
                 new Dictionary<string, string[]> { ["classification"] = ["A valid classification is required."] },
@@ -1499,6 +1510,7 @@ api.MapDelete("/contracts/{contractId:guid}/documents/{documentId:guid}", async 
 api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/extraction-jobs", async (
     Guid contractId,
     Guid documentId,
+    ClassifiedWorkflowRequest request,
     ContractService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
@@ -1506,7 +1518,7 @@ api.MapPost("/contracts/{contractId:guid}/documents/{documentId:guid}/extraction
 {
     try
     {
-        var job = await service.StartExtractionJobAsync(contractId, documentId, tenantContext.UserId, cancellationToken);
+        var job = await service.StartExtractionJobAsync(contractId, documentId, tenantContext.UserId, cancellationToken, request.Classification);
         return job is null
             ? ApiProblemDetails.Create(
                 httpContext,
@@ -2648,6 +2660,8 @@ api.MapPost("/reports/evidence-packages", async (
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
+    if (request.Classification is null)
+        throw new ContentClassificationValidationException("Explicit report classification is required.");
     if ((request.ObligationIds.Count + request.ContractIds.Count + request.ControlIds.Count + request.SubcontractorIds.Count) == 0)
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -2671,7 +2685,7 @@ api.MapPost("/reports/evidence-packages", async (
         request,
         tenantContext.UserId,
         request.IncludeDraftOrRejectedEvidence,
-        cancellationToken);
+        cancellationToken, request.Classification);
     return Results.Created($"/api/reports/evidence-packages/{report.Id}", report);
 })
 .RequirePermission(Permission.ManageReports)
@@ -2697,11 +2711,12 @@ api.MapGet("/reports/evidence-packages/{reportId:guid}", async (
 .WithName("GetEvidencePackage");
 
 api.MapPost("/reports/compliance-status", async (
+    ClassifiedWorkflowRequest request,
     ComplianceStatusReportService service,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
-    var report = await service.GenerateAsync(tenantContext.UserId, cancellationToken);
+    var report = await service.GenerateAsync(tenantContext.UserId, cancellationToken, request.Classification);
     return Results.Created($"/api/reports/{report.Id}", report);
 })
 .RequirePermission(Permission.ManageReports)
@@ -2709,13 +2724,14 @@ api.MapPost("/reports/compliance-status", async (
 
 api.MapPost("/reports/cmmc-readiness", async (
     Guid assessmentId,
+    ClassifiedWorkflowRequest request,
     CmmcReadinessReportService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     var includeEvidenceLinks = httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewEvidence.ToString());
-    var report = await service.GenerateAsync(assessmentId, tenantContext.UserId, includeEvidenceLinks, cancellationToken);
+    var report = await service.GenerateAsync(assessmentId, tenantContext.UserId, includeEvidenceLinks, cancellationToken, request.Classification);
     return report is null
         ? ApiProblemDetails.Create(
             httpContext,
@@ -2730,11 +2746,12 @@ api.MapPost("/reports/cmmc-readiness", async (
 
 api.MapPost("/reports/subcontractor-compliance", async (
     Guid? contractId,
+    ClassifiedWorkflowRequest request,
     SubcontractorComplianceReportService service,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
-    var report = await service.GenerateAsync(contractId, tenantContext.UserId, cancellationToken);
+    var report = await service.GenerateAsync(contractId, tenantContext.UserId, cancellationToken, request.Classification);
     return Results.Created($"/api/reports/{report.Id}", report);
 })
 .RequirePermission(Permission.ManageReports)
@@ -3609,8 +3626,23 @@ api.MapPost("/audit-logs/cui-export", async (
     CuiAuditExportRequest request,
     CuiAuditExportService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
-    Results.Ok(await service.ExportAsync(tenantContext.TenantId, tenantContext.UserId, request, cancellationToken)))
+{
+    try
+    {
+        return Results.Ok(await service.ExportAsync(tenantContext.TenantId, tenantContext.UserId, request, cancellationToken));
+    }
+    catch (CuiAuditExportLimitException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Audit export too large", exception.Message,
+            StatusCodes.Status413PayloadTooLarge, "audit_export_too_large");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["filters"] = [exception.Message] });
+    }
+})
 .RequirePermission(Permission.ViewAuditLog)
 .WithName("ExportCuiAuditLogs");
 
@@ -3740,10 +3772,55 @@ api.MapPut("/evidence-items/{evidenceItemId:guid}", async (
 .RequirePermission(Permission.ManageEvidence)
 .WithName("UpdateEvidenceItem");
 
+api.MapGet("/classified-notes", async (ClassifiedNoteService service, CancellationToken ct) =>
+    Results.Ok(await service.ListAsync(ct))).RequirePermission(Permission.ViewEvidence).WithName("ListClassifiedNotes");
+api.MapGet("/classified-notes/{id:guid}", async (Guid id, ClassifiedNoteService service, HttpContext httpContext, CancellationToken ct) =>
+    await service.FindAsync(id, ct) is { } note ? Results.Ok(note) : ApiProblemDetails.Create(httpContext,
+        "Resource not found", "Classified note was not found.", StatusCodes.Status404NotFound, "resource_not_found"))
+    .RequirePermission(Permission.ViewEvidence).WithName("GetClassifiedNote");
+api.MapPost("/classified-notes", async (SaveClassifiedNoteRequest request, ClassifiedNoteService service, CancellationToken ct) =>
+{
+    var note = await service.SaveAsync(null, request, ct);
+    return Results.Created($"/api/classified-notes/{note!.Id}", note);
+}).RequirePermission(Permission.ManageEvidence).WithName("CreateClassifiedNote");
+api.MapPut("/classified-notes/{id:guid}", async (Guid id, SaveClassifiedNoteRequest request, ClassifiedNoteService service, HttpContext httpContext, CancellationToken ct) =>
+    await service.SaveAsync(id, request, ct) is { } note ? Results.Ok(note) : ApiProblemDetails.Create(httpContext,
+        "Resource not found", "Classified note was not found.", StatusCodes.Status404NotFound, "resource_not_found"))
+    .RequirePermission(Permission.ManageEvidence).WithName("UpdateClassifiedNote");
+
+foreach (var content in new[] {
+    (Route: "evidence-items", Type: "EvidenceItem", Read: Permission.ViewEvidence, Review: Permission.ApproveEvidence),
+    (Route: "evidence-file-versions", Type: "EvidenceFileVersion", Read: Permission.ViewEvidence, Review: Permission.ApproveEvidence),
+    (Route: "notes", Type: "ClassifiedNote", Read: Permission.ViewEvidence, Review: Permission.ApproveEvidence),
+    (Route: "contract-documents", Type: "ContractDocument", Read: Permission.ViewContracts, Review: Permission.ReviewClauses),
+    (Route: "extraction-jobs", Type: "ExtractionJob", Read: Permission.ViewContracts, Review: Permission.ReviewClauses),
+    (Route: "reports", Type: "Report", Read: Permission.ViewReports, Review: Permission.ManageReports) })
+{
+    var route = $"/classified-content/{content.Route}";
+    api.MapGet(route, async (bool? reviewOnly, int? offset, ClassifiedContentService service, CancellationToken ct) =>
+        Results.Ok(await service.ListAsync(content.Type, reviewOnly ?? false, offset ?? 0, ct)))
+        .RequirePermission(content.Read).WithName($"ListClassified{content.Type}");
+    api.MapGet(route + "/{id:guid}", async (Guid id, ClassifiedContentService service, HttpContext http, CancellationToken ct) =>
+        await service.FindAsync(content.Type, id, ct) is { } item ? Results.Ok(item) :
+            ApiProblemDetails.Create(http, "Resource not found", "Classified content was not found.", 404, "resource_not_found"))
+        .RequirePermission(content.Read).WithName($"GetClassified{content.Type}");
+    api.MapGet(route + "/{id:guid}/history", async (Guid id, int? offset, ClassifiedContentService service, HttpContext http, CancellationToken ct) =>
+        await service.HistoryAsync(content.Type, id, offset ?? 0, ct) is { } history ? Results.Ok(history) :
+            ApiProblemDetails.Create(http, "Resource not found", "Classified content was not found.", 404, "resource_not_found"))
+        .RequirePermission(content.Read).WithName($"Get{content.Type}ClassificationHistory");
+    api.MapPatch(route + "/{id:guid}/classification", async (Guid id, ReviewClassifiedContentRequest request,
+        ClassifiedContentService service, HttpContext http, CancellationToken ct) =>
+        await service.ReclassifyAsync(content.Type, id, request, ct) is { } item ? Results.Ok(item) :
+            ApiProblemDetails.Create(http, "Resource not found", "Classified content was not found.", 404, "resource_not_found"))
+        .RequirePermission(content.Review).WithName($"Review{content.Type}Classification");
+}
+
 api.MapGet("/content-classification-review-items", async (
     ContentClassificationReviewService service,
+    HttpContext http,
     CancellationToken cancellationToken) =>
-    Results.Ok(await service.ListAsync(cancellationToken)))
+    Results.Ok((await service.ListAsync(cancellationToken)).Where(item => item.EntityType != "ContractDocument" ||
+        http.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewContracts.ToString()))))
 .RequirePermission(Permission.ViewEvidence)
 .WithName("ListContentClassificationReviewItems");
 
@@ -4033,6 +4110,15 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/upload-intents", async (
             StatusCodes.Status428PreconditionRequired,
             "no_cui_acknowledgement_required");
     }
+    catch (EvidenceItemNotFoundException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            exception.Message,
+            StatusCodes.Status404NotFound,
+            "resource_not_found");
+    }
     catch (UploadGuardrailValidationException exception)
     {
         return Results.ValidationProblem(
@@ -4085,6 +4171,14 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/file", async (
             statusCode: StatusCodes.Status400BadRequest);
         }
 
+        if (!Enum.TryParse<ContentClassification>(form["classification"], true, out var classification) ||
+            !Enum.IsDefined(classification))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["classification"] = ["An explicit, valid classification is required."]
+            });
+        }
         var noCuiAttestation = bool.TryParse(form["noCuiAttestation"], out var attestation) && attestation;
         var containsPotentialCui = bool.TryParse(form["containsPotentialCui"], out var potentialCui) && potentialCui;
         await using var stream = file.OpenReadStream();
@@ -4096,7 +4190,8 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/file", async (
                 file.Length,
                 stream,
                 noCuiAttestation,
-                containsPotentialCui),
+                containsPotentialCui,
+                new ContentClassificationRequest(classification, Reason: form["classificationReason"].FirstOrDefault())),
             tenantContext.UserId,
             cancellationToken);
 
@@ -4110,6 +4205,15 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/file", async (
             exception.Message,
             StatusCodes.Status428PreconditionRequired,
             "no_cui_acknowledgement_required");
+    }
+    catch (EvidenceItemNotFoundException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Resource not found",
+            exception.Message,
+            StatusCodes.Status404NotFound,
+            "resource_not_found");
     }
     catch (UploadGuardrailValidationException exception)
     {
@@ -6597,21 +6701,19 @@ api.MapPatch("/tenants/{tenantId:guid}/data-handling-mode", async (
     Guid tenantId,
     UpdateTenantDataHandlingModeRequest request,
     TenantService service,
-    IServiceProvider serviceProvider,
-    IWebHostEnvironment environment,
+    IAuditEventWriter audit,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        if (request.DataHandlingMode is TenantDataPosture.CuiReady && !string.IsNullOrWhiteSpace(request.ApprovalRecordReference))
+        if (request.DataHandlingMode is TenantDataPosture.CuiReady && !PlatformAuthorization.CanApproveCuiReadiness(httpContext.User))
         {
-            var matrixService = serviceProvider.GetRequiredService<SharedResponsibilityMatrixService>();
-            var matrixAcknowledgementService = serviceProvider.GetRequiredService<SharedResponsibilityMatrixAcknowledgementService>();
-            var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
-            var matrix = await matrixService.GetPublishedAsync(packageRoot, cancellationToken);
-            await matrixAcknowledgementService.EnsureCurrentAcknowledgedAsync(tenantId, matrix, tenantContext.UserId, cancellationToken);
+            await audit.WriteAsync(tenantContext.TenantId, tenantContext.UserId, Gccs.Domain.Audit.AuditAction.Rejected,
+                "CuiReadyApprovalChecklist", tenantContext.TenantId.ToString(), "CUI-ready mode approval permission denied.",
+                new Dictionary<string, string> { ["result"] = "failed", ["reason"] = "platform_permission_required" }, cancellationToken);
+            return ApiProblemDetails.Create(httpContext, "Permission denied", "Platform readiness approval permission is required.", 403, "permission_denied");
         }
 
         var tenant = await service.UpdateDataHandlingModeAsync(tenantId, request, tenantContext.UserId, cancellationToken);
@@ -6704,10 +6806,20 @@ api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/su
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var checklist = await service.SubmitForReviewAsync(tenantId, checklistId, tenantContext.UserId, cancellationToken);
-    return checklist is null
-        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Checklist was not found.", StatusCodes.Status404NotFound, "resource_not_found")
-        : Results.Ok(checklist);
+    try
+    {
+        var checklist = await service.SubmitForReviewAsync(tenantId, checklistId, tenantContext.UserId, cancellationToken);
+        return checklist is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Checklist was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(checklist);
+    }
+    catch (CuiReadyApprovalChecklistValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["checklist"] = [exception.Message]
+        });
+    }
 })
 .RequirePermission(Permission.ManageTenant)
 .WithName("SubmitCuiReadyApprovalChecklist");
@@ -6717,31 +6829,40 @@ api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/ap
     Guid checklistId,
     ReviewCuiReadyChecklistRequest request,
     CuiReadyApprovalChecklistService service,
-    SharedResponsibilityMatrixService matrixService,
-    SharedResponsibilityMatrixAcknowledgementService matrixAcknowledgementService,
-    IWebHostEnvironment environment,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
-{
-    try
-    {
-        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
-        var matrix = await matrixService.GetPublishedAsync(packageRoot, cancellationToken);
-        await matrixAcknowledgementService.EnsureCurrentAcknowledgedAsync(tenantId, matrix, tenantContext.UserId, cancellationToken);
-    }
-    catch (SharedResponsibilityMatrixAcknowledgementException exception)
-    {
-        return Results.ValidationProblem(new Dictionary<string, string[]>
-        {
-            ["sharedResponsibilityMatrix"] = [exception.Message]
-        });
-    }
-
-    return await ReviewCuiReadyChecklistAsync(tenantId, checklistId, request, service.ApproveAsync, tenantContext, httpContext, cancellationToken);
-})
+    await ReviewCuiReadyChecklistAsync(tenantId, checklistId, request, service.ApproveAsync, tenantContext, httpContext, cancellationToken))
 .RequirePermission(Permission.ManageTenant)
+.RequireAuthorization(PlatformAuthorization.ApproveCuiReadinessPolicy)
 .WithName("ApproveCuiReadyApprovalChecklist");
+
+api.MapGet("/cui-readiness-evidence", async (CuiReadinessEvidenceService service, CancellationToken ct) =>
+    Results.Ok(await service.ListAsync(ct)))
+    .RequirePermission(Permission.ManageTenant).WithName("ListCuiReadinessEvidence");
+api.MapGet("/cui-readiness-evidence/notice", async (CuiReadinessNoticeService service, CancellationToken ct) =>
+    Results.Ok(await service.GetAsync(ct)))
+    .RequirePermission(Permission.ManageTenant).WithName("GetCuiReadinessNotice");
+api.MapPost("/cui-readiness-evidence/notice-acknowledgement", async (AcknowledgeDataHandlingNoticeRequest request,
+    CuiReadinessNoticeService service, HttpContext http, CancellationToken ct) =>
+{
+    try { return Results.Ok(await service.AcknowledgeAsync(request, ct)); }
+    catch (DataHandlingNoticeAcknowledgementRequiredException ex)
+    { return ApiProblemDetails.Create(http, "Notice acknowledgement rejected", ex.Message, 400, "notice_acknowledgement_invalid"); }
+})
+    .RequirePermission(Permission.ManageTenant).WithName("AcknowledgeCuiReadinessNotice");
+api.MapGet("/cui-readiness-evidence/sources", async (CuiReadinessEvidenceService service, CancellationToken ct) =>
+    Results.Ok(await service.SourcesAsync(ct)))
+    .RequirePermission(Permission.ManageTenant).WithName("ListCuiReadinessSupportingRecords");
+api.MapPost("/cui-readiness-evidence", async (RecordCuiReadinessEvidenceRequest request,
+    CuiReadinessEvidenceService service, HttpContext http, CancellationToken ct) =>
+{
+    try { return Results.Ok(await service.RecordAsync(request, ct)); }
+    catch (CuiReadyApprovalChecklistValidationException exception)
+    { return ApiProblemDetails.Create(http, "Readiness evidence rejected", exception.Message, 400, "readiness_evidence_invalid"); }
+})
+    .RequirePermission(Permission.ManageTenant)
+    .RequireAuthorization(PlatformAuthorization.ApproveCuiReadinessPolicy).WithName("RecordCuiReadinessEvidence");
 
 api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/reject", async (
     Guid tenantId,
@@ -6789,17 +6910,14 @@ api.MapGet("/shared-responsibility-matrix/published", async (
 .WithName("GetPublishedSharedResponsibilityMatrix");
 
 api.MapGet("/data-handling-notices/published", async (
-    [FromQuery] TenantDataPosture mode,
     [FromQuery] string workflowContext,
-    DataHandlingNoticeService service,
-    IWebHostEnvironment environment,
+    CurrentDataHandlingNoticeService service,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
-        var notice = await service.GetPublishedAsync(packageRoot, mode, workflowContext, cancellationToken);
+        var notice = await service.GetAsync(workflowContext, cancellationToken);
         return notice is null
             ? ApiProblemDetails.Create(httpContext, "Resource not found", "No published data handling notice matched the mode and workflow context.", StatusCodes.Status404NotFound, "resource_not_found")
             : Results.Ok(notice);
@@ -6812,55 +6930,41 @@ api.MapGet("/data-handling-notices/published", async (
         });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequireAuthorization()
 .WithName("GetPublishedDataHandlingNotice");
 
 api.MapGet("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", async (
     Guid tenantId,
-    [FromQuery] TenantDataPosture mode,
     [FromQuery] string workflowContext,
-    DataHandlingNoticeService noticeService,
+    CurrentDataHandlingNoticeService noticeService,
     DataHandlingNoticeAcknowledgementService acknowledgementService,
-    IWebHostEnvironment environment,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
-    var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
-    var notice = await noticeService.GetPublishedAsync(packageRoot, mode, workflowContext, cancellationToken);
+    if (tenantId != tenantContext.TenantId) return Results.NotFound();
+    var notice = await noticeService.GetAsync(workflowContext, cancellationToken);
     if (notice is null)
     {
         return Results.NotFound();
     }
 
-    return Results.Ok(await acknowledgementService.ListAsync(tenantId, tenantContext.UserId, notice, cancellationToken));
+    return Results.Ok(await acknowledgementService.ListAsync(tenantId, tenantContext.UserId, notice,
+        CurrentDataHandlingNoticeService.NormalizeWorkflow(workflowContext), cancellationToken));
 })
-.RequirePermission(Permission.ManageTenant)
+.RequireAuthorization()
 .WithName("ListDataHandlingNoticeAcknowledgements");
 
 api.MapPost("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", async (
     Guid tenantId,
     AcknowledgeDataHandlingNoticeRequest request,
-    DataHandlingNoticeService noticeService,
-    DataHandlingNoticeAcknowledgementService acknowledgementService,
-    IWebHostEnvironment environment,
+    CurrentDataHandlingNoticeService noticeService,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var packageRoot = ComplianceContentPackageLocator.FindPackageRoot(environment.ContentRootPath);
-        var notice = await noticeService.GetPublishedAsync(packageRoot, request.Mode, request.WorkflowContext, cancellationToken);
-        if (notice is null)
-        {
-            return Results.NotFound();
-        }
-
-        var acknowledgement = await acknowledgementService.AcknowledgeAsync(
-            tenantId,
-            tenantContext.UserId,
-            notice,
-            request,
-            cancellationToken);
+        if (tenantId != tenantContext.TenantId) return Results.NotFound();
+        var acknowledgement = await noticeService.AcknowledgeAsync(request, cancellationToken);
         return Results.Created($"/api/tenants/{tenantId}/data-handling-notice-acknowledgements", acknowledgement);
     }
     catch (DataHandlingNoticeAcknowledgementRequiredException exception)
@@ -6871,7 +6975,7 @@ api.MapPost("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", as
         });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequireAuthorization()
 .WithName("AcknowledgeDataHandlingNotice");
 
 api.MapGet("/tenants/{tenantId:guid}/cui-support-escalations", async (
@@ -6882,15 +6986,34 @@ api.MapGet("/tenants/{tenantId:guid}/cui-support-escalations", async (
 .RequirePermission(Permission.ManageTenant)
 .WithName("ListCuiSupportEscalations");
 
+api.MapGet("/tenants/{tenantId:guid}/cui-support-escalations/report", async (
+    Guid tenantId,
+    CuiSupportEscalationService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.GetReportAsync(tenantId, cancellationToken)))
+.RequirePermission(Permission.ManageTenant)
+.WithName("GetCuiSupportEscalationReport");
+
 api.MapPost("/tenants/{tenantId:guid}/cui-support-escalations", async (
     Guid tenantId,
     CreateCuiSupportEscalationRequest request,
     CuiSupportEscalationService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
+        if (tenantId != tenantContext.TenantId) return Results.NotFound();
+        var requiredPermission = CuiEscalationAuthorization.RequiredReadPermission(request.AffectedEntityType);
+        if (requiredPermission is null ||
+            (!httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, requiredPermission.Value.ToString()) &&
+             !httpContext.User.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ManageTenant.ToString())))
+        {
+            return ApiProblemDetails.Create(httpContext, "Permission required",
+                "You do not have permission to report a concern for this content type.",
+                StatusCodes.Status403Forbidden, "permission_required");
+        }
         var escalation = await service.CreateAsync(tenantId, request, tenantContext.UserId, cancellationToken);
         return Results.Created($"/api/tenants/{tenantId}/cui-support-escalations/{escalation.Id}", escalation);
     }
@@ -6902,7 +7025,7 @@ api.MapPost("/tenants/{tenantId:guid}/cui-support-escalations", async (
         });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequireAuthorization()
 .WithName("CreateCuiSupportEscalation");
 
 api.MapPatch("/tenants/{tenantId:guid}/cui-support-escalations/{escalationId:guid}", async (
@@ -7180,6 +7303,17 @@ internal static class SimpleReportExportAuthorization
             "audit-log" or "auditlog" or "audit" => Permission.ViewAuditLog,
             _ => null
         };
+}
+
+internal static class CuiEscalationAuthorization
+{
+    public static Permission? RequiredReadPermission(string? entityType) => entityType?.Trim() switch
+    {
+        "EvidenceItem" or "EvidenceFileVersion" or "ClassifiedNote" => Permission.ViewEvidence,
+        "ContractDocument" or "ExtractionJob" => Permission.ViewContracts,
+        "Report" => Permission.ViewReports,
+        _ => null
+    };
 }
 
 internal static class ComplianceContentPackageLocator

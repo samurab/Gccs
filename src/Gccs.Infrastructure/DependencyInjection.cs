@@ -89,13 +89,25 @@ public static class DependencyInjection
         services.AddScoped<RegulatedTenantProvisioningService>();
         services.AddScoped<GovernmentCloudReleaseReadinessService>();
         services.AddScoped<CuiReadyApprovalChecklistService>();
+        services.AddScoped<CuiReadinessEvidenceService>();
+        services.AddScoped<CuiReadinessNoticeService>();
         services.AddScoped<SharedResponsibilityMatrixService>();
         services.AddScoped<SharedResponsibilityMatrixAcknowledgementService>();
         services.AddScoped<DataHandlingNoticeService>();
         services.AddScoped<DataHandlingNoticeAcknowledgementService>();
         services.AddScoped<CuiSupportEscalationService>();
         services.AddScoped<TenantDataHandlingModePolicyService>();
+        services.AddScoped<IContentContainmentRepository>(provider =>
+            new EfContentContainmentRepository(provider.GetRequiredService<GccsDbContext>()));
         services.AddScoped<ContentClassificationPolicy>();
+        services.AddScoped<ClassifiedNoteService>();
+        services.AddScoped<ClassifiedContentService>();
+        services.AddScoped<IClassifiedContentRepository>(provider => new EfClassifiedContentRepository(provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
+        services.AddScoped<ISyntheticContentApprovalRepository, UnavailableSyntheticContentApprovalRepository>();
+        services.AddScoped<IClassifiedNoteRepository>(_ => throw new InvalidOperationException("Classified notes require configured persistence."));
+        services.AddScoped<IObjectCleanupQueue>(provider => new EfObjectCleanupQueue(
+            provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<IObjectStorageService>(),
+            provider.GetRequiredService<IAuditEventWriter>()));
         services.AddScoped<ContentClassificationReviewService>();
         services.AddScoped<SyntheticDemoDatasetService>();
         services.AddScoped<DemoTenantSeedService>();
@@ -341,9 +353,10 @@ public static class DependencyInjection
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
+            services.AddScoped<ISyntheticContentApprovalRepository, EfSyntheticContentApprovalRepository>();
+            services.AddScoped<IClassifiedNoteRepository, EfClassifiedNoteRepository>();
             services.AddDbContext<GccsDbContext>(options =>
-                options.UseNpgsql(connectionString, npgsql =>
-                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "gccs")));
+                options.UseGccsPostgres(connectionString));
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
             services.AddScoped<IPlatformTenantProvisioningRepository, EfPlatformTenantProvisioningRepository>();
@@ -353,6 +366,7 @@ public static class DependencyInjection
             services.AddScoped<IRegulatedTenantProvisioningRepository, EfRegulatedTenantProvisioningRepository>();
             services.AddScoped<IGovernmentCloudReleaseReadinessRepository, EfGovernmentCloudReleaseReadinessRepository>();
             services.AddScoped<ICuiReadyApprovalChecklistRepository, EfCuiReadyApprovalChecklistRepository>();
+            services.AddScoped<ICuiReadinessEvidenceRepository, EfCuiReadinessEvidenceRepository>();
             services.AddScoped<ISharedResponsibilityMatrixAcknowledgementRepository, EfSharedResponsibilityMatrixAcknowledgementRepository>();
             services.AddScoped<IDataHandlingNoticeAcknowledgementRepository, EfDataHandlingNoticeAcknowledgementRepository>();
             services.AddScoped<ICuiSupportEscalationRepository, EfCuiSupportEscalationRepository>();
@@ -434,6 +448,7 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Government cloud release readiness persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICuiReadyApprovalChecklistRepository>(_ =>
                 throw new InvalidOperationException("CUI-ready approval checklist persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddSingleton<ICuiReadinessEvidenceRepository, UnavailableCuiReadinessEvidenceRepository>();
             services.AddScoped<ISharedResponsibilityMatrixAcknowledgementRepository>(_ =>
                 throw new InvalidOperationException("Shared responsibility matrix acknowledgement persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IDataHandlingNoticeAcknowledgementRepository>(_ =>

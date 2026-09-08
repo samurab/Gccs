@@ -14,6 +14,7 @@ public sealed record SubcontractorComplianceReportDto(
     SubcontractorComplianceSnapshotDto Snapshot,
     string ExportCsv)
 {
+    public Gccs.Application.Common.ContentClassificationDto? Classification { get; init; }
     public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
 }
 

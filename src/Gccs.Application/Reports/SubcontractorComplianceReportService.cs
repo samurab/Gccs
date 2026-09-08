@@ -9,14 +9,15 @@ public sealed class SubcontractorComplianceReportService(
     IReportRepository repository,
     IAuditEventWriter auditEventWriter,
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction, ContentClassificationPolicy classificationPolicy)
 {
     public Task<SubcontractorComplianceReportDto> GenerateAsync(
         Guid? contractId,
         Guid actorUserId,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default, ContentClassificationRequest? classification = null) =>
         transaction.ExecuteAsync(async transactionCancellationToken =>
     {
+        await ClassifiedWorkflowValidation.ConfirmAsync(classificationPolicy, classification, TenantDataHandlingWorkflow.Report, actorUserId, transactionCancellationToken);
         await dataHandlingModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(
                 TenantDataHandlingWorkflow.Report,
@@ -26,7 +27,7 @@ public sealed class SubcontractorComplianceReportService(
             actorUserId,
             transactionCancellationToken);
 
-        var report = await repository.GenerateSubcontractorComplianceReportAsync(contractId, actorUserId, transactionCancellationToken);
+        var report = await repository.GenerateSubcontractorComplianceReportAsync(contractId, actorUserId, transactionCancellationToken, classification);
         await auditEventWriter.WriteAsync(
             report.TenantId,
             actorUserId,

@@ -2,6 +2,8 @@
 
 Use these prompts to drive implementation or manual verification of each test case in [development-story-test-cases.md](development-story-test-cases.md).
 
+Phase 0 Stories `0.1` through `0.8` and SOC 2 Stories `39.1` through `39.3` are non-software evidence workflows and are intentionally excluded from application smoke testing. Verify them with the governed human-evidence prompts in [development-story-test-prompts.md](development-story-test-prompts.md); do not report an app smoke test as proof of research quality, control operation, or an issued independent report.
+
 
 Recommended prefix for manual/smoke-test prompts:
 

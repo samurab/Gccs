@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Gccs.Application.Common;
+using Gccs.Infrastructure.Common;
 using Gccs.Application.Contracts;
 using Gccs.Application.NoCui;
 using Gccs.Application.Security;
@@ -196,6 +197,8 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         };
 
         dbContext.Set<ContractDocumentEntity>().Add(document);
+        dbContext.ContentClassificationHistory.Add(Gccs.Infrastructure.Common.ClassificationMetadata.History(
+            document, tenantContext.TenantId, "ContractDocument", actorUserId, document.UploadedAt));
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDocumentDto(document);
     }
@@ -285,6 +288,8 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
         };
 
         dbContext.Set<ExtractionJobEntity>().Add(job);
+        dbContext.ContentClassificationHistory.Add(Gccs.Infrastructure.Common.ClassificationMetadata.History(
+            job, tenantContext.TenantId, "ExtractionJob", actorUserId, job.RequestedAt));
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToExtractionJobDto(job);
     }
@@ -369,7 +374,7 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
                 item =>
                     item.Id == extractionJobId &&
                     item.TenantId == tenantContext.TenantId &&
-                    item.SourceDocument != null,
+                    item.SourceDocument != null && item.SourceDocument.Contract!.TenantId == tenantContext.TenantId,
                 cancellationToken);
 
         return job?.SourceDocument is null
@@ -513,7 +518,7 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             latestJob?.Status,
             latestJob?.FailureReason,
             candidates.Length,
-            candidates);
+            candidates) { LatestJobClassification = latestJob is null ? null : ClassificationMetadata.Read(latestJob) };
     }
 
     public async Task<ClauseCandidateDto?> EditClauseCandidateAsync(
@@ -1076,6 +1081,26 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
                     candidate.SourceDocument.Contract.TenantId == tenantContext.TenantId,
                 cancellationToken);
 
+    public async Task LockDocumentClassificationAsync(Guid contractId, Guid documentId, CancellationToken ct)
+    {
+        if (!dbContext.Database.IsNpgsql() || dbContext.Database.CurrentTransaction is null) return;
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            SELECT d.id FROM gccs.contract_documents d
+            WHERE d.id = {documentId} AND d.contract_id = {contractId}
+              AND EXISTS (SELECT 1 FROM gccs.contracts c WHERE c.id = d.contract_id AND c.tenant_id = {tenantContext.TenantId})
+            FOR SHARE
+            """, ct);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            SELECT id FROM gccs.extraction_jobs WHERE source_document_id = {documentId} AND tenant_id = {tenantContext.TenantId} FOR SHARE
+            """, ct);
+    }
+
+    public async Task<IReadOnlyList<ExtractionJobDto>> ListDocumentExtractionJobsAsync(Guid contractId, Guid documentId, CancellationToken ct) =>
+        (await dbContext.Set<ExtractionJobEntity>().AsNoTracking().Where(e => e.TenantId == tenantContext.TenantId &&
+            e.SourceDocumentId == documentId && e.SourceDocument!.ContractId == contractId &&
+            e.SourceDocument.Contract!.TenantId == tenantContext.TenantId).OrderBy(e => e.RequestedAt).ToArrayAsync(ct))
+        .Select(ToExtractionJobDto).ToArray();
+
     private static ExtractionJobDto ToExtractionJobDto(ExtractionJobEntity entity) =>
         new(
             entity.Id,
@@ -1086,7 +1111,7 @@ public sealed class EfContractRepository(GccsDbContext dbContext, ICurrentTenant
             entity.RequestedAt,
             entity.StartedAt,
             entity.CompletedAt,
-            entity.FailureReason);
+            entity.FailureReason) { Classification = Gccs.Infrastructure.Common.ClassificationMetadata.Read(entity) };
 
     private static ClauseCandidateDto ToClauseCandidateDto(ClauseCandidateEntity entity) =>
         new(

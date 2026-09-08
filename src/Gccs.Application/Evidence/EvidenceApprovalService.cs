@@ -1,3 +1,4 @@
+using Gccs.Application.Common;
 using Gccs.Application.Audit;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Evidence;
@@ -6,7 +7,9 @@ namespace Gccs.Application.Evidence;
 
 public sealed class EvidenceApprovalService(
     IEvidenceMetadataRepository repository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    ContentClassificationPolicy classificationPolicy,
+    IApplicationTransaction transaction)
 {
     public async Task<EvidenceReviewDto?> ReviewAsync(
         Guid evidenceItemId,
@@ -14,41 +17,52 @@ public sealed class EvidenceApprovalService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var comment = NormalizeComment(request.Comment);
-        Validate(request.Decision, comment);
-
-        var reviewedAt = DateTimeOffset.UtcNow;
-        var review = await repository.ApplyCurrentTenantReviewAsync(
-            evidenceItemId,
-            request.Decision,
-            comment,
-            actorUserId,
-            reviewedAt,
-            cancellationToken);
-
-        if (review is null)
+        if (request.Decision == EvidenceReviewDecision.Approve)
         {
-            return null;
+            var evidence = await repository.FindCurrentTenantAsync(evidenceItemId, cancellationToken);
+            if (evidence is null) return null;
+            await classificationPolicy.EnsureUsableAsync(evidence.Classification,
+                Gccs.Application.Tenancy.TenantDataHandlingWorkflow.EvidenceSubmission,
+                actorUserId, "EvidenceItem", evidenceItemId.ToString(), cancellationToken);
         }
+        return await transaction.ExecuteAsync(async transactionToken =>
+        {
+            var comment = NormalizeComment(request.Comment);
+            Validate(request.Decision, comment);
 
-        await auditEventWriter.WriteAsync(
-            review.TenantId,
-            actorUserId,
-            ToAuditAction(request.Decision),
-            "EvidenceItem",
-            review.EvidenceItemId.ToString(),
-            $"Evidence review decision '{request.Decision}' was recorded.",
-            new Dictionary<string, string>
+            var reviewedAt = DateTimeOffset.UtcNow;
+            var review = await repository.ApplyCurrentTenantReviewAsync(
+                evidenceItemId,
+                request.Decision,
+                comment,
+                actorUserId,
+                reviewedAt,
+                transactionToken);
+
+            if (review is null)
             {
-                ["decision"] = request.Decision.ToString(),
-                ["status"] = review.Status.ToString(),
-                ["comment"] = comment ?? string.Empty,
-                ["eligibleForReports"] = review.EligibleForReports.ToString(),
-                ["reviewedAt"] = review.ReviewedAt.ToString("O")
-            },
-            cancellationToken);
+                return null;
+            }
 
-        return review;
+            await auditEventWriter.WriteAsync(
+                review.TenantId,
+                actorUserId,
+                ToAuditAction(request.Decision),
+                "EvidenceItem",
+                review.EvidenceItemId.ToString(),
+                $"Evidence review decision '{request.Decision}' was recorded.",
+                new Dictionary<string, string>
+                {
+                    ["decision"] = request.Decision.ToString(),
+                    ["status"] = review.Status.ToString(),
+                    ["comment"] = comment ?? string.Empty,
+                    ["eligibleForReports"] = review.EligibleForReports.ToString(),
+                    ["reviewedAt"] = review.ReviewedAt.ToString("O")
+                },
+                transactionToken);
+
+            return review;
+        }, cancellationToken);
     }
 
     private static string? NormalizeComment(string? comment)

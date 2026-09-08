@@ -10,9 +10,11 @@ Acceptance criteria must satisfy the testability standard in [development-phase-
 
 Phase 1A CUI Readiness Gate stories use the same regression workflow as Phase 1 stories. For Story `1A.1.1` through Story `1A.9.3`, keep tenant data handling mode, classification metadata, CUI upload restrictions, approval gates, shared responsibility acknowledgements, notices, escalation handling, audit event completeness, tenant isolation, server-side RBAC, and standard API/UI error behavior in scope.
 
-Phase 3 Advanced Compliance stories use the same regression workflow as Phase 1 stories. For Story `30.1` through Story `34.3`, keep source traceability, review metadata, draft-only guidance/report language, report/export permissions, AI citation/logging/review controls, external portal scope, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, and standard API/UI error behavior in scope.
+Phase 3 Advanced Compliance stories use the same regression workflow as Phase 1 stories. For Story `29.1` through Story `34.3`, keep SSP source traceability and immutable review packages, review metadata, draft-only guidance/report language, report/export permissions, AI citation/logging/review controls, external portal scope, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, and standard API/UI error behavior in scope.
 
 Phase 4 Enterprise / Regulated Deployment stories use the same regression workflow as Phase 1 stories. For Story `35.1` through Story `38.3`, keep enterprise identity controls, SSO/SAML, SCIM provisioning, government cloud environment governance, regulated tenant provisioning, release readiness, FedRAMP readiness artifacts, trust artifact sharing, CUI enclave boundaries, customer-managed keys, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, source traceability, review metadata, and standard API/UI error behavior in scope.
+
+Phase 0 Stories `0.1` through `0.8` and SOC 2 Stories `39.1` through `39.3` are non-software evidence workflows. Do not apply application regression commands to them; use the governed human-evidence cases in [development-story-test-cases.md](development-story-test-cases.md) and prompts in [development-story-test-prompts.md](development-story-test-prompts.md).
 
 After implementing any user story:
 
@@ -81,7 +83,7 @@ Do not treat the manifest/coverage test as the only regression. Add focused func
 
 ## Phase 3 Regression Prompt
 
-Use this prompt after implementing any Phase 3 Advanced Compliance story from Story `30.1` through Story `34.3`:
+Use this prompt after implementing any Phase 3 Advanced Compliance story from Story `29.1` through Story `34.3`:
 
 ```text
 The implementation for Phase 3 Story <story id>: <story title> is complete.
@@ -97,6 +99,7 @@ Please execute the regression workflow for this Phase 3 Advanced Compliance stor
 7. Report exact commands, pass/fail results, skipped checks, manual verification, and any remaining advisor/SME review, AI review, external sharing, or report/export risk.
 
 Do not treat the manifest/coverage test as the only regression. Add focused functional tests for the Phase 3 story behavior before reporting completion.
+```
 
 ## Phase 4 Regression Prompt
 
@@ -115,7 +118,6 @@ Please execute the regression workflow for this Phase 4 Enterprise / Regulated D
 6. Report commands run, pass/fail results, files changed, remaining risks, and any checks that could not be automated.
 
 Do not treat the manifest/coverage test as the only regression. Add focused functional tests for the Phase 4 story behavior before reporting completion.
-```
 ```
 
 ## Test Case Deep-Dive Prompt

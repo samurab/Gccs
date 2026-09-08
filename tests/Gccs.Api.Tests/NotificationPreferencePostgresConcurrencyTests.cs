@@ -117,12 +117,12 @@ public sealed class NotificationPreferencePostgresConcurrencyTests : IClassFixtu
             {
                 services.RemoveAll<GccsDbContext>();
                 services.RemoveAll<DbContextOptions<GccsDbContext>>();
-                services.AddDbContext<GccsDbContext>(options => options.UseNpgsql(connectionString));
+                services.AddDbContext<GccsDbContext>(options => options.UseGccsPostgres(connectionString));
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-                dbContext.Database.Migrate();
+                PostgresTestDatabase.Migrate(dbContext);
                 dbContext.Tenants.AddRange(tenantIds.Select(tenantId => new TenantEntity
                 {
                     Id = tenantId,

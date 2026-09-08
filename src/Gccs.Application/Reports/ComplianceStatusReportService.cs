@@ -9,19 +9,20 @@ public sealed class ComplianceStatusReportService(
     IReportRepository repository,
     IAuditEventWriter auditEventWriter,
     TenantDataHandlingModePolicyService dataHandlingModePolicy,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction, ContentClassificationPolicy classificationPolicy)
 {
     public Task<ComplianceStatusReportDto> GenerateAsync(
         Guid actorUserId,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default, ContentClassificationRequest? classification = null) =>
         transaction.ExecuteAsync(async transactionCancellationToken =>
     {
+        await ClassifiedWorkflowValidation.ConfirmAsync(classificationPolicy, classification, TenantDataHandlingWorkflow.Report, actorUserId, transactionCancellationToken);
         await dataHandlingModePolicy.EnsureAllowedAsync(
             new TenantDataHandlingModePolicyRequest(TenantDataHandlingWorkflow.Report, ContainsRealCui: false),
             actorUserId,
             transactionCancellationToken);
 
-        var report = await repository.GenerateComplianceStatusReportAsync(actorUserId, transactionCancellationToken);
+        var report = await repository.GenerateComplianceStatusReportAsync(actorUserId, transactionCancellationToken, classification);
         await auditEventWriter.WriteAsync(
             report.TenantId,
             actorUserId,

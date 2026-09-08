@@ -356,6 +356,7 @@ public sealed class EvidenceMetadataTests : IClassFixture<WebApplicationFactory<
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<EvidenceMetadataService>();
                 services.AddScoped<IEvidenceMetadataRepository, EfEvidenceMetadataRepository>();
@@ -388,7 +389,7 @@ public sealed class EvidenceMetadataTests : IClassFixture<WebApplicationFactory<
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static UpsertEvidenceMetadataRequest CreateRequestBody() =>

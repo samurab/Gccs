@@ -193,6 +193,7 @@ public sealed class SecurityIsolationVerificationTests : IClassFixture<WebApplic
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<CompanyProfileService>();
                 services.AddScoped<ICompanyProfileRepository, EfCompanyProfileRepository>();
@@ -383,7 +384,7 @@ public sealed class SecurityIsolationVerificationTests : IClassFixture<WebApplic
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static UpsertCompanyProfileRequest CreateCompanyProfileRequest(string legalName) =>

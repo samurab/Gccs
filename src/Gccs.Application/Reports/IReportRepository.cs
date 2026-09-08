@@ -25,19 +25,19 @@ public interface IReportRepository
 
     Task<ComplianceStatusReportDto> GenerateComplianceStatusReportAsync(
         Guid actorUserId,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null);
 
     Task<CmmcReadinessReportDto?> GenerateCmmcReadinessReportAsync(
         Guid assessmentId,
         Guid actorUserId,
         bool includeEvidenceLinks,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null);
 
     Task<EvidencePackageReportDto> GenerateEvidencePackageAsync(
         EvidencePackageGenerateRequest request,
         Guid actorUserId,
         bool includeDraftOrRejectedEvidence,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null);
 
     Task<EvidencePackageReportDto?> GetEvidencePackageAsync(
         Guid reportId,
@@ -46,7 +46,7 @@ public interface IReportRepository
     Task<SubcontractorComplianceReportDto> GenerateSubcontractorComplianceReportAsync(
         Guid? contractId,
         Guid actorUserId,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null);
 }
 
 public sealed record ComplianceStatusReportDto(
@@ -60,6 +60,7 @@ public sealed record ComplianceStatusReportDto(
     ComplianceStatusReportSnapshotDto Snapshot,
     string ExportHtml)
 {
+    public Gccs.Application.Common.ContentClassificationDto? Classification { get; init; }
     public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
 }
 

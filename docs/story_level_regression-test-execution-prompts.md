@@ -15,9 +15,11 @@ The regression coverage harness is useful, but it is not a substitute for functi
 
 For Phase 1A CUI Readiness Gate stories from Story `1A.1.1` through Story `1A.9.3`, apply this same story-level regression prompt and keep tenant data handling mode, classification metadata, CUI upload restrictions, approval gates, shared responsibility acknowledgements, notices, escalation handling, audit event completeness, tenant isolation, server-side RBAC, and standard API/UI error behavior in scope.
 
-For Phase 3 Advanced Compliance stories from Story `30.1` through Story `34.3`, apply this same story-level regression prompt and keep source traceability, review metadata, draft-only language, report/export permissions, external portal scope, AI citation/logging controls, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, and standard API/UI error behavior in scope.
+For Phase 3 Advanced Compliance stories from Story `29.1` through Story `34.3`, apply this same story-level regression prompt and keep SSP source traceability and immutable review packages, review metadata, draft-only language, report/export permissions, external portal scope, AI citation/logging controls, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, and standard API/UI error behavior in scope.
 
 For Phase 4 Enterprise / Regulated Deployment stories from Story `35.1` through Story `38.3`, apply this same story-level regression prompt and keep enterprise identity controls, SSO/SAML, SCIM provisioning, government cloud environment governance, regulated tenant provisioning, release readiness, FedRAMP readiness artifacts, trust artifact sharing, CUI enclave boundaries, customer-managed keys, tenant isolation, server-side RBAC, audit logging, CUI/data-handling controls, source traceability, review metadata, and standard API/UI error behavior in scope.
+
+Phase 0 Stories `0.1` through `0.8` and SOC 2 Stories `39.1` through `39.3` are non-software evidence workflows. Do not apply application regression commands to them; use the governed human-evidence cases in `docs/development-story-test-cases.md` and prompts in `docs/development-story-test-prompts.md`.
 
 ## Command Selection
 
@@ -50,6 +52,6 @@ Do not treat the manifest/coverage test as the only regression. Add focused func
 
 For Phase 1A stories, also report any remaining CUI-readiness risk, manual reviewer approval gap, or approval-gate behavior that could not be verified automatically.
 
-For Phase 3 stories, also report any remaining advisor/SME review gap, unsupported submission workflow, AI citation/review limitation, external portal sharing risk, or report/export behavior that could not be verified automatically.
+For Phase 3 stories, also report any remaining SSP source/review gap, advisor/SME review gap, unsupported submission workflow, AI citation/review limitation, external portal sharing risk, or report/export behavior that could not be verified automatically.
 
 For Phase 4 stories, also report any remaining identity-provider integration gap, SCIM lifecycle limitation, government cloud operational readiness gap, FedRAMP artifact review gap, CUI enclave boundary risk, customer-managed key limitation, emergency/support access risk, or regulated export behavior that could not be verified automatically.

@@ -312,6 +312,8 @@ public sealed class CuiReadyApprovalChecklistItemEntity
     public Guid? ReviewerUserId { get; set; }
     public DateOnly? ReviewedAt { get; set; }
     public string? Notes { get; set; }
+    public Guid? SupportingRecordId { get; set; }
+    public string? SupportingVersion { get; set; }
 
     public CuiReadyApprovalChecklistEntity? Checklist { get; set; }
 }
@@ -359,9 +361,22 @@ public sealed class CuiSupportEscalationEntity : AuditedEntity
     public string? StatusNote { get; set; }
     public DateTimeOffset? StatusChangedAt { get; set; }
     public Guid? StatusChangedByUserId { get; set; }
+    public DateTimeOffset SlaDueAt { get; set; }
 
     public TenantEntity? Tenant { get; set; }
     public ICollection<CuiSupportEscalationResolutionEntity> Resolutions { get; set; } = [];
+    public ICollection<CuiSupportEscalationEventEntity> Events { get; set; } = [];
+}
+
+public sealed class CuiSupportEscalationEventEntity
+{
+    public Guid Id { get; set; }
+    public Guid EscalationId { get; set; }
+    public CuiSupportEscalationStatus Status { get; set; }
+    public string Note { get; set; } = string.Empty;
+    public DateTimeOffset OccurredAt { get; set; }
+    public Guid ActorUserId { get; set; }
+    public CuiSupportEscalationEntity? Escalation { get; set; }
 }
 
 public sealed class CuiSupportEscalationResolutionEntity
@@ -767,8 +782,9 @@ public sealed class SolicitationEntity : AuditedEntity
     public string SetAside { get; set; } = string.Empty;
 }
 
-public sealed class ContractDocumentEntity
+public sealed class ContractDocumentEntity : IClassifiedContentEntity, IContainableContentEntity
 {
+    public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
     public Guid ContractId { get; set; }
     public ContractDocumentType Type { get; set; }
@@ -790,13 +806,16 @@ public sealed class ContractDocumentEntity
     public DateTimeOffset? ClassificationReviewedAt { get; set; }
     public string? ClassificationReason { get; set; }
     public bool ClassificationIsApprovedDemoContent { get; set; }
+    public bool IsUseBlocked { get; set; }
+    public DateTimeOffset? UseBlockedAt { get; set; }
 
     public ContractEntity? Contract { get; set; }
     public ICollection<ExtractionJobEntity> ExtractionJobs { get; set; } = [];
 }
 
-public sealed class ExtractionJobEntity
+public sealed class ExtractionJobEntity : IClassifiedContentEntity, IContainableContentEntity
 {
+    public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
     public Guid SourceDocumentId { get; set; }
@@ -817,6 +836,8 @@ public sealed class ExtractionJobEntity
     public DateTimeOffset? ClassificationReviewedAt { get; set; }
     public string? ClassificationReason { get; set; }
     public bool ClassificationIsApprovedDemoContent { get; set; }
+    public bool IsUseBlocked { get; set; }
+    public DateTimeOffset? UseBlockedAt { get; set; }
 
     public TenantEntity? Tenant { get; set; }
     public ContractDocumentEntity? SourceDocument { get; set; }

@@ -209,6 +209,7 @@ public sealed class EvidenceApprovalTests : IClassFixture<WebApplicationFactory<
             builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
             builder.ConfigureServices(services =>
             {
+                services.AddAcknowledgedNoticeFixture();
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<EvidenceApprovalService>();
                 services.AddScoped<EvidenceMetadataService>();
@@ -244,7 +245,7 @@ public sealed class EvidenceApprovalTests : IClassFixture<WebApplicationFactory<
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static EvidenceItemEntity CreateEvidence(Guid evidenceItemId, Guid tenantId, EvidenceStatus status) =>

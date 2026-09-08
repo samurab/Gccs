@@ -25,6 +25,12 @@ import {
   X
 } from "lucide-react";
 import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DataHandlingNoticePanel } from "@/components/DataHandlingNoticePanel";
+import { ReadinessEvidencePanel, ReadinessItemEditor } from "@/components/ReadinessEvidencePanel";
+import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
+import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
+import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
+import type { ClassifiedContent } from "@/lib/api";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
 import { controlCoverageTone } from "@/components/controlCoverage";
 import { DevelopmentTestingContextSelector } from "@/components/development/DevelopmentTestingContextSelector";
@@ -114,7 +120,6 @@ import {
   getTenantDataHandlingModeHistory,
   getTenantInvitations,
   getTenantMembers,
-  reclassifyEvidenceItem,
   markClauseCandidateNeedsClarification,
   markNotificationRead,
   runDueDateReminders,
@@ -162,7 +167,6 @@ import {
   type ComplianceStatusReport,
   type ContentClassificationReviewItem,
   type CuiReadyApprovalChecklist,
-  type CuiReadyApprovalChecklistItem,
   type UpdateCuiReadyChecklistItemRequest,
   type SharedResponsibilityMatrix,
   type SharedResponsibilityMatrixAcknowledgement,
@@ -207,7 +211,6 @@ import {
   type UpsertSubcontractorFlowDownRequest,
   type UpsertSubcontractorRequest,
   type UpdateTenantDataHandlingModeRequest,
-  type ReclassifyContentRequest,
   type TenantMember,
 } from "@/lib/api";
 
@@ -624,6 +627,8 @@ export function App() {
   const [subcontractorEvidenceRequests, setSubcontractorEvidenceRequests] = useState<SubcontractorEvidenceRequest[]>([]);
   const [approvedEvidencePackages, setApprovedEvidencePackages] = useState<ApprovedEvidencePackage[]>([]);
   const [generatedReports, setGeneratedReports] = useState<ReportArtifact[]>([]);
+  const [workflowSelection, setWorkflowSelection] = useState({ context: "", value: "" });
+  const [classificationRefresh, setClassificationRefresh] = useState(0);
   const [recentReports, setRecentReports] = useState<ReportHistoryItem[]>([]);
   const [selectedReport, setSelectedReport] = useState<ReportArtifact | null>(null);
   const [reportDetailStatus, setReportDetailStatus] = useState<ReportDetailStatus>("idle");
@@ -745,7 +750,7 @@ export function App() {
         hint: "source-backed obligations"
       },
       {
-        label: "Evidence review",
+        label: "Evidence/doc review",
         value: classificationReviewItems.length,
         tone: classificationReviewItems.length > 0 ? ("warning" as const) : ("success" as const),
         hint: "classification queue"
@@ -771,6 +776,11 @@ export function App() {
   const canExportReports = access.permissions.includes("ExportReports");
   const canViewAuditLog = access.permissions.includes("ViewAuditLog");
   const canManageTenant = access.permissions.includes("ManageTenant");
+
+  const workflowContext = `${access.tenantId}:${access.userId}:${activeRoute}`;
+  if (workflowSelection.context !== workflowContext) setWorkflowSelection({ context: workflowContext, value: "" });
+  const workflowClassification = workflowSelection.context === workflowContext ? workflowSelection.value : "";
+  const setWorkflowClassification = (value: string) => setWorkflowSelection({ context: workflowContext, value });
 
   useEffect(() => {
     function handleHashChange() {
@@ -1596,12 +1606,12 @@ export function App() {
     contractId: string,
     documentType: string,
     file: File | null,
-    classification = "Unclassified",
+    classification = "",
     noCuiAttestation = false
   ): Promise<boolean> {
-    if (!file) {
+    if (!file || !classification) {
       setContractDocumentStatus("failed");
-      setContractDocumentMessage("Select a contract document before upload.");
+      setContractDocumentMessage("Select a contract document and its classification before upload.");
       return false;
     }
 
@@ -1652,9 +1662,10 @@ export function App() {
   }
 
   async function handleStartContractDocumentExtraction(contractId: string, documentId: string) {
+    if (!workflowClassification) { setContractDocumentMessage("Select a workflow classification before extraction."); return; }
     setContractDocumentStatus("saving");
     setContractDocumentMessage("");
-    const result = await startContractDocumentExtraction(contractId, documentId);
+    const result = await startContractDocumentExtraction(contractId, documentId, workflowClassification);
 
     if (result.data) {
       const queuedJob = result.data;
@@ -1823,15 +1834,22 @@ export function App() {
 
   async function handleEvidenceUploadIntentSubmit(
     event: FormEvent<HTMLFormElement>,
+    evidenceItemId: string | null,
     classification: string,
     classificationReason: string,
     noCuiAttestation: boolean
   ) {
     event.preventDefault();
 
-    if (!selectedEvidenceFile) {
+    if (!evidenceItemId) {
       setUploadStatus("blocked");
-      setUploadMessage("Select an allowed evidence file before upload.");
+      setUploadMessage("Create or select an evidence record before uploading a file.");
+      return;
+    }
+
+    if (!selectedEvidenceFile || !classification) {
+      setUploadStatus("blocked");
+      setUploadMessage("Select an allowed evidence file and its classification before upload.");
       return;
     }
 
@@ -1843,7 +1861,13 @@ export function App() {
 
     setUploadStatus("creating");
     setUploadMessage("");
-    const uploadIntent = await createEvidenceUploadIntent(selectedEvidenceFile, classification, classificationReason, noCuiAttestation);
+    const uploadIntent = await createEvidenceUploadIntent(
+      evidenceItemId,
+      selectedEvidenceFile,
+      classification,
+      classificationReason,
+      noCuiAttestation
+    );
 
     if (uploadIntent.data) {
       const classificationLabel = uploadIntent.data.classification?.classification ?? classification;
@@ -1883,21 +1907,22 @@ export function App() {
     setEvidenceMetadataMessage(result.error ?? "Evidence metadata could not be saved.");
   }
 
-  async function handleEvidenceReclassify(evidenceItemId: string, request: ReclassifyContentRequest) {
-    setEvidenceMetadataStatus("saving");
-    setEvidenceMetadataMessage("");
-    const result = await reclassifyEvidenceItem(evidenceItemId, request);
-    if (result.data) {
-      const saved = result.data;
-      setEvidenceItems((currentItems) => currentItems.map((item) => (item.id === saved.id ? saved : item)));
-      setClassificationReviewItems(await getContentClassificationReviewItems());
-      setEvidenceMetadataStatus("saved");
-      setEvidenceMetadataMessage("Classification updated.");
-      return;
+  function handleClassificationChanged(item: ClassifiedContent) {
+    setClassificationRefresh(value => value + 1);
+    setWorkflowClassification("");
+    setSelectedEvidenceFile(null);
+    setSelectedReport(null); setGeneratedReports([]); setReportDetailStatus("idle");
+    setExtractionJobsByDocumentId({}); setExtractionResultsByDocumentId({});
+    if (item.entityType === "EvidenceItem")
+      setEvidenceItems(current => current.map(e => e.id === item.id ? { ...e, classification: item.classification } : e));
+    if (item.entityType === "ContractDocument")
+      setContractDocuments(current => current.map(d => d.id === item.id ? { ...d, classification: item.classification } : d));
+    if (item.entityType === "Report") {
+      setRecentReports(current => current.map(r => r.id === item.id ? { ...r, classification: item.classification } : r));
+      setApprovedEvidencePackages(current => current.map(r => r.reportId === item.id ? { ...r, classification: item.classification } : r));
     }
-
-    setEvidenceMetadataStatus("failed");
-    setEvidenceMetadataMessage(result.error ?? "Classification could not be updated.");
+    setClassificationReviewItems(current => current.flatMap(e => e.entityType !== item.entityType || e.entityId !== item.id ? [e] :
+      ["Unknown", "Cui", "Prohibited"].includes(item.classification.classification) ? [{ ...e, classification: item.classification }] : []));
   }
 
   async function handleCmmcAssessmentSave(assessmentId: string | null, request: UpsertCmmcAssessmentRequest) {
@@ -2096,30 +2121,34 @@ export function App() {
   }
 
   async function handleComplianceReportGenerate() {
+    if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
     setReportMessage("");
-    const result = await generateComplianceStatusReport();
+    const result = await generateComplianceStatusReport(workflowClassification);
     handleGeneratedReportResult(result.data, result.error, "Compliance status report generated.");
   }
 
   async function handleCmmcReportGenerate(assessmentId: string) {
+    if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
     setReportMessage("");
-    const result = await generateCmmcReadinessReport(assessmentId);
+    const result = await generateCmmcReadinessReport(assessmentId, workflowClassification);
     handleGeneratedReportResult(result.data, result.error, "CMMC readiness report generated.");
   }
 
   async function handleSubcontractorReportGenerate(contractId?: string) {
+    if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
     setReportMessage("");
-    const result = await generateSubcontractorComplianceReport(contractId);
+    const result = await generateSubcontractorComplianceReport(workflowClassification, contractId);
     handleGeneratedReportResult(result.data, result.error, "Subcontractor compliance report generated.");
   }
 
   async function handleEvidencePackageGenerate(request: EvidencePackageGenerateRequest) {
+    if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
     setReportMessage("");
-    const result = await generateEvidencePackage(request);
+    const result = await generateEvidencePackage(request, workflowClassification);
 
     if (result.data) {
       setGeneratedReports((currentReports) => [result.data!, ...currentReports]);
@@ -2160,19 +2189,12 @@ export function App() {
   }
 
   async function handleGeneratedReportSelect(report: ReportArtifact | ReportHistoryItem) {
-    if ("snapshot" in report || "manifest" in report) {
-      setSelectedReport(report);
-      setReportDetailStatus("ready");
-      setReportDetailMessage("");
-      return;
-    }
-
     setSelectedReport(null);
     setReportDetailStatus("loading");
     setReportDetailMessage("");
 
     try {
-      const detail = await getReportArtifact(report.id);
+      const detail = "manifest" in report ? await getEvidencePackage(report.id) : await getReportArtifact(report.id);
       setSelectedReport(detail);
       setReportDetailStatus("ready");
     } catch (error) {
@@ -2380,8 +2402,48 @@ export function App() {
           <WorkspaceMetricStrip items={workspacePriorityMetrics} />
         </PageHeader>
         <PostureNotice currentTenant={currentTenant} />
+        {currentTenant && activeRoute === "settings" &&
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Onboarding`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Onboarding" />}
+        {currentTenant && activeRoute === "evidence" && <div className="workflow-notice-grid" aria-label="Evidence and note data handling notices">
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:EvidenceUpload`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="EvidenceUpload" />
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ClassifiedNote`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ClassifiedNote" />
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Support`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Support" />
+        </div>}
+        {currentTenant && activeRoute === "contracts" && <div className="workflow-notice-grid" aria-label="Contract and extraction data handling notices">
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ContractUpload`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ContractUpload" />
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ExtractionJob`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ExtractionJob" />
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Support`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Support" />
+        </div>}
+        {currentTenant && activeRoute === "reports" && <div className="workflow-notice-grid" aria-label="Report and support data handling notices">
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ReportGeneration`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ReportGeneration" />
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Support`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Support" />
+        </div>}
 
         <WorkspaceState state={loadState} onRetry={() => window.location.reload()}>
+          {(activeRoute === "reports" || activeRoute === "contracts") && <label className="workflow-classification">
+            Workflow classification
+            <select aria-label="Workflow classification" value={workflowClassification} onChange={event => setWorkflowClassification(event.target.value)}>
+              <option value="">Select / confirm classification</option>
+              <option value="Unclassified">Unclassified</option><option value="Fci">FCI</option><option value="Cui">CUI (approved workflows only)</option>
+            </select>
+            {workflowClassification && <ClassificationBadge classification={workflowClassification} />}
+            <small>Required for reports and extraction. Extraction must match the source document. No-CUI restrictions still apply.</small>
+          </label>}
+          {currentTenant && (activeRoute === "evidence" || activeRoute === "contracts" || activeRoute === "reports") &&
+            <>
+              <ClassificationReviewPanel key={`${currentTenant.id}:${access.userId}:${access.permissions.join(",")}:${activeRoute}`}
+                group={activeRoute} tenantId={currentTenant.id} permissions={access.permissions} onChanged={handleClassificationChanged} />
+              <CuiEscalationQueue tenantId={currentTenant.id} permissions={access.permissions} />
+            </>}
           {activeRoute === "dashboard" ? (
             <DashboardView overview={overview} />
           ) : activeRoute === "profile" ? (
@@ -2397,6 +2459,8 @@ export function App() {
             />
           ) : activeRoute === "contracts" ? (
             <ContractsView
+              key={`${access.tenantId}:${access.userId}:${selectedContractId}`}
+              workflowClassification={workflowClassification}
               canManageContracts={canManageContracts}
               canReviewClauses={canReviewClauses}
               clauseResults={clauseResults}
@@ -2461,6 +2525,7 @@ export function App() {
             />
           ) : activeRoute === "evidence" ? (
             <EvidenceView
+              key={`${access.tenantId}:${access.userId}:${selectedEvidenceItemId}:${classificationRefresh}`}
               acknowledgement={noCuiAcknowledgement}
               acknowledgementMessage={acknowledgementMessage}
               acknowledgementStatus={acknowledgementStatus}
@@ -2477,9 +2542,8 @@ export function App() {
               classificationReviewItems={classificationReviewItems}
               onAcknowledge={handleNoCuiAcknowledgement}
               onFileSelected={setSelectedEvidenceFile}
-              onReclassifyEvidence={handleEvidenceReclassify}
               onMetadataSave={handleEvidenceMetadataSave}
-              onSelectEvidence={setSelectedEvidenceItemId}
+              onSelectEvidence={id => { setSelectedEvidenceFile(null); setSelectedEvidenceItemId(id); }}
               onUploadIntentSubmit={handleEvidenceUploadIntentSubmit}
             />
           ) : activeRoute === "calendar" ? (
@@ -2534,6 +2598,7 @@ export function App() {
             />
           ) : activeRoute === "reports" ? (
             <ReportsView
+              classificationConfirmed={Boolean(workflowClassification)}
               approvedEvidencePackages={approvedEvidencePackages}
               assessments={cmmcAssessments}
               canArchiveReports={canArchiveReports}
@@ -2620,6 +2685,8 @@ export function App() {
           ) : (
             <DashboardView overview={overview} />
           )}
+          {activeRoute === "evidence" && access.permissions.includes("ViewEvidence") &&
+            <ClassifiedNotesPanel key={`${currentTenant?.id}:${access.userId}:${classificationRefresh}`} canManage={canManageEvidence} />}
         </WorkspaceState>
       </main>
     </div>
@@ -2752,7 +2819,7 @@ function CalendarView({
   };
 
   return (
-    <section className="route-panel" aria-label="Compliance calendar">
+    <section className="route-panel calendar-route" aria-label="Compliance calendar">
       <div className="route-panel__intro section-heading--split">
         <div>
           <p className="eyebrow">Compliance calendar</p>
@@ -4225,6 +4292,7 @@ function mergeClauseSearchResults(
 }
 
 function ContractsView({
+  workflowClassification,
   canManageContracts,
   canReviewClauses,
   clauseResults,
@@ -4270,6 +4338,7 @@ function ContractsView({
   contractClauseStatus: "idle" | "saving" | "saved" | "failed";
   contractDeliverables: ContractDeliverable[];
   contractDocuments: ContractDocument[];
+  workflowClassification: string;
   extractionJobsByDocumentId: Record<string, ExtractionJob>;
   extractionResultsByDocumentId: Record<string, ContractDocumentExtractionResults>;
   clauseCandidateReviewStatusFilter: string;
@@ -4316,7 +4385,7 @@ function ContractsView({
   const selectedContract = contracts.find((contract) => contract.id === selectedContractId) ?? null;
   const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState("Contract");
-  const [documentClassification, setDocumentClassification] = useState("Unclassified");
+  const [documentClassification, setDocumentClassification] = useState("");
   const [documentNoCuiAttestation, setDocumentNoCuiAttestation] = useState(false);
   const [documentInputKey, setDocumentInputKey] = useState(0);
   const [clauseDraft, setClauseDraft] = useState<AttachContractClauseRequest>({
@@ -4782,13 +4851,14 @@ function ContractsView({
               <span>Contract document classification</span>
               <select
                 value={documentClassification}
+                aria-label="Contract document classification"
                 onChange={(event) => setDocumentClassification(event.target.value)}
                 disabled={uploadDisabled}
               >
+                <option value="">Select classification</option>
                 <option value="Unclassified">Unclassified</option>
                 <option value="Fci">FCI</option>
                 <option value="Cui">CUI</option>
-                <option value="SyntheticCui">Synthetic CUI</option>
                 <option value="Unknown">Unknown</option>
                 <option value="Prohibited">Prohibited</option>
               </select>
@@ -4812,7 +4882,7 @@ function ContractsView({
             className="contract-document-upload"
             onSubmit={(event) => {
               event.preventDefault();
-              if (selectedContract) {
+              if (selectedContract && documentClassification) {
                 void onUploadDocument(
                     selectedContract.id,
                     documentType,
@@ -4823,6 +4893,7 @@ function ContractsView({
                   .then((uploaded) => {
                     if (uploaded) {
                       setSelectedDocumentFile(null);
+                      setDocumentClassification("");
                       setDocumentNoCuiAttestation(false);
                       setDocumentInputKey((currentKey) => currentKey + 1);
                     }
@@ -4834,7 +4905,7 @@ function ContractsView({
               key={documentInputKey}
               aria-label="Contract document"
               type="file"
-              onChange={(event) => setSelectedDocumentFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => { setSelectedDocumentFile(event.target.files?.[0] ?? null); setDocumentClassification(""); setDocumentNoCuiAttestation(false); }}
               disabled={uploadDisabled}
             />
             <label>
@@ -4847,7 +4918,7 @@ function ContractsView({
               I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or
               sensitive government-furnished information.
             </label>
-            <button type="submit" disabled={uploadDisabled || !documentNoCuiAttestation}>
+            <button type="submit" disabled={uploadDisabled || !selectedDocumentFile || !documentClassification || !documentNoCuiAttestation}>
               Upload document
             </button>
           </form>
@@ -4870,12 +4941,14 @@ function ContractsView({
                     <span>{document.type} · {document.validationStatus} · {document.malwareScanStatus}</span>
                     <ClassificationBadge classification={document.classification.classification} />
                     {extractionJobsByDocumentId[document.id] ? (
-                      <small>Extraction {extractionJobsByDocumentId[document.id].status}</small>
+                      <small>Extraction {extractionJobsByDocumentId[document.id].status}{" "}
+                        <ClassificationBadge classification={extractionJobsByDocumentId[document.id].classification?.classification ?? "Unknown"} /></small>
                     ) : null}
                     {extractionResultsByDocumentId[document.id] ? (
                       <small>
                         Results {extractionResultsByDocumentId[document.id].latestJobStatus ?? "none"} ·{" "}
                         {extractionResultsByDocumentId[document.id].candidateCount} candidates
+                        {" "}<ClassificationBadge classification={extractionResultsByDocumentId[document.id].latestJobClassification?.classification ?? "Unknown"} />
                         {extractionResultsByDocumentId[document.id].failureReason
                           ? ` · ${extractionResultsByDocumentId[document.id].failureReason}`
                           : ""}
@@ -4899,7 +4972,8 @@ function ContractsView({
                         <button
                           type="button"
                           onClick={() => selectedContract && void onStartExtraction(selectedContract.id, document.id)}
-                          disabled={!canManageContracts || contractDocumentStatus === "saving" || isRunning || !isStoredText}
+                          disabled={!canManageContracts || contractDocumentStatus === "saving" || isRunning || !isStoredText ||
+                            workflowClassification !== document.classification.classification || !workflowClassification}
                           title={
                             isStoredText
                               ? "Queue tenant-scoped clause extraction."
@@ -7172,6 +7246,7 @@ function SubcontractorDetailPanel({
 }
 
 function ReportsView({
+  classificationConfirmed,
   approvedEvidencePackages,
   assessments,
   canArchiveReports,
@@ -7206,6 +7281,7 @@ function ReportsView({
   controls: CmmcControlLibrary[];
   contracts: ContractRecord[];
   evidenceItems: EvidenceMetadata[];
+  classificationConfirmed: boolean;
   generatedReports: ReportArtifact[];
   recentReports: ReportHistoryItem[];
   message: string;
@@ -7276,7 +7352,7 @@ function ReportsView({
               <h3>Compliance status</h3>
               <p>Snapshot obligation status, overdue tasks, evidence state, high-risk items, and readiness gaps.</p>
               <div className="form-actions">
-                <button type="button" disabled={status === "loading"} onClick={() => void onComplianceReportGenerate()}>
+                <button type="button" disabled={!classificationConfirmed || status === "loading"} onClick={() => void onComplianceReportGenerate()}>
                   <ScrollText size={16} aria-hidden="true" />
                   <span>Generate status</span>
                 </button>
@@ -7298,7 +7374,7 @@ function ReportsView({
               <div className="form-actions">
                 <button
                   type="button"
-                  disabled={!assessmentId || status === "loading"}
+                  disabled={!classificationConfirmed || !assessmentId || status === "loading"}
                   onClick={() => void onCmmcReportGenerate(assessmentId)}
                 >
                   <ShieldCheck size={16} aria-hidden="true" />
@@ -7320,7 +7396,7 @@ function ReportsView({
                 </select>
               </label>
               <div className="form-actions">
-                <button type="button" disabled={status === "loading"} onClick={() => void onSubcontractorReportGenerate(contractId || undefined)}>
+                <button type="button" disabled={!classificationConfirmed || status === "loading"} onClick={() => void onSubcontractorReportGenerate(contractId || undefined)}>
                   <UsersRound size={16} aria-hidden="true" />
                   <span>Generate supplier report</span>
                 </button>
@@ -7400,7 +7476,7 @@ function ReportsView({
           </label>
         </div>
         <div className="form-actions">
-          <button type="submit" disabled={!canManageReports || status === "loading"}>
+          <button type="submit" disabled={!canManageReports || !classificationConfirmed || status === "loading"}>
             <FileDown size={16} aria-hidden="true" />
             <span>Generate package</span>
           </button>
@@ -7423,6 +7499,7 @@ function ReportsView({
                   type="button"
                 >
                   <strong>{report.title}</strong>
+                  <ClassificationBadge classification={report.classification?.classification ?? "Unknown"} />
                   <span>
                     {report.type} · {report.status} · {formatUsDateTime(report.generatedAt)}
                   </span>
@@ -7450,6 +7527,7 @@ function ReportsView({
                   type="button"
                 >
                   <strong>{report.title}</strong>
+                  <ClassificationBadge classification={report.classification?.classification ?? "Unknown"} />
                   <span>
                     {report.status} · {report.evidenceItems.length} approved items · {formatUsDateOnly(report.generatedAt)}
                   </span>
@@ -7487,6 +7565,7 @@ function reportHistoryItem(
 ): ReportHistoryItem {
   return {
     id: report.id,
+    classification: report.classification,
     tenantId: report.tenantId,
     type: report.type,
     status: report.status,
@@ -7658,6 +7737,7 @@ function ReportDetailPanel({
         <div>
           <p className="eyebrow">Report artifact</p>
           <h3>{report.title}</h3>
+          <ClassificationBadge classification={report.classification?.classification ?? "Unknown"} />
           <p>
             {formatEnumLabel(report.type)} · {formatEnumLabel(report.status)} · generated{" "}
             {formatUsDateTime(report.generatedAt)}
@@ -8052,7 +8132,6 @@ function EvidenceView({
   onAcknowledge,
   onFileSelected,
   onMetadataSave,
-  onReclassifyEvidence,
   onSelectEvidence,
   onUploadIntentSubmit,
   selectedEvidenceItemId,
@@ -8073,10 +8152,10 @@ function EvidenceView({
   onAcknowledge: () => void;
   onFileSelected: (file: File | null) => void;
   onMetadataSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
-  onReclassifyEvidence: (evidenceItemId: string, request: ReclassifyContentRequest) => Promise<void>;
   onSelectEvidence: (evidenceItemId: string | null) => void;
   onUploadIntentSubmit: (
     event: FormEvent<HTMLFormElement>,
+    evidenceItemId: string | null,
     classification: string,
     classificationReason: string,
     noCuiAttestation: boolean
@@ -8088,7 +8167,7 @@ function EvidenceView({
 }) {
   const uploadDisabled = !canManageEvidence || !acknowledgement.isAcknowledged;
   const selectedEvidence = evidenceItems.find((item) => item.id === selectedEvidenceItemId) ?? null;
-  const [uploadClassification, setUploadClassification] = useState("Unclassified");
+  const [uploadClassification, setUploadClassification] = useState("");
   const [uploadClassificationReason, setUploadClassificationReason] = useState("User confirmed upload classification.");
   const [noCuiAttestation, setNoCuiAttestation] = useState(false);
   const approvedEvidenceCount = evidenceItems.filter((item) => item.status === "Approved").length;
@@ -8108,7 +8187,7 @@ function EvidenceView({
           { label: "Approved", value: approvedEvidenceCount, tone: approvedEvidenceCount > 0 ? "success" : "warning" },
           { label: "Linked", value: linkedEvidenceCount, tone: linkedEvidenceCount > 0 ? "success" : "warning" },
           { label: "Expired", value: expiredEvidenceCount, tone: expiredEvidenceCount > 0 ? "danger" : "success" },
-          { label: "Review queue", value: classificationReviewItems.length, tone: classificationReviewItems.length > 0 ? "warning" : "success" }
+          { label: "Evidence/doc review", value: classificationReviewItems.length, tone: classificationReviewItems.length > 0 ? "warning" : "success" }
         ]}
       />
 
@@ -8120,39 +8199,12 @@ function EvidenceView({
         message={evidenceMetadataMessage}
         obligationItems={obligationItems}
         onSave={onMetadataSave}
-        onReclassifyEvidence={onReclassifyEvidence}
         onSelectEvidence={onSelectEvidence}
         selectedEvidence={selectedEvidence}
         status={evidenceMetadataStatus}
       />
 
-      <section className="evidence-metadata" aria-label="Classification review queue">
-        <div className="section-heading--split">
-          <div>
-            <h3>Classification review</h3>
-            <p>Unknown items are blocked from reports and extraction until reviewed; prohibited items route to escalation.</p>
-          </div>
-          <strong>{classificationReviewItems.length}</strong>
-        </div>
-        <div className="evidence-list">
-          {classificationReviewItems.length > 0 ? (
-            classificationReviewItems.map((item) => (
-              <TaskCard
-                badges={<ClassificationBadge classification={item.classification.classification} />}
-                key={`${item.entityType}-${item.entityId}`}
-                meta={[
-                  { label: "Entity", value: item.entityType },
-                  { label: "Route", value: item.reviewRoute }
-                ]}
-                title={item.title}
-              />
-            ))
-          ) : (
-            <EmptyState title="No classification reviews" body="Unknown and prohibited content will appear here for reviewer action." />
-          )}
-        </div>
-      </section>
-
+      <div className="evidence-upload-panels">
       <NoCuiAcknowledgementPanel
         acknowledgement={acknowledgement}
         acknowledgementMessage={acknowledgementMessage}
@@ -8165,11 +8217,20 @@ function EvidenceView({
       <form
         className="upload-panel"
         aria-label="Upload area"
-        onSubmit={(event) => onUploadIntentSubmit(event, uploadClassification, uploadClassificationReason, noCuiAttestation)}
+        onSubmit={(event) =>
+          onUploadIntentSubmit(
+            event,
+            selectedEvidenceItemId,
+            uploadClassification,
+            uploadClassificationReason,
+            noCuiAttestation
+          )
+        }
       >
         <div>
           <p className="eyebrow">Evidence files</p>
           <h3>Upload area</h3>
+          <p>{selectedEvidence ? `Adding a new file version to ${selectedEvidence.title}.` : "Select or create an evidence record first."}</p>
         </div>
         <label>
           <span>Evidence file</span>
@@ -8177,23 +8238,25 @@ function EvidenceView({
             type="file"
             disabled={uploadDisabled}
             accept=".csv,.docx,.jpg,.jpeg,.pdf,.png,.txt,.xlsx"
-            onChange={(event) => onFileSelected(event.target.files?.[0] ?? null)}
+            onChange={(event) => { onFileSelected(event.target.files?.[0] ?? null); setUploadClassification(""); setNoCuiAttestation(false); }}
           />
         </label>
         <label>
           <span>Upload classification</span>
           <select
             value={uploadClassification}
+            aria-label="Upload classification"
+            required
             onChange={(event) => {
               setUploadClassification(event.target.value);
               setUploadClassificationReason(`User selected ${event.target.value} upload classification.`);
             }}
             disabled={uploadDisabled}
           >
+            <option value="">Select classification</option>
             <option value="Unclassified">Unclassified</option>
             <option value="Fci">FCI</option>
             <option value="Cui">CUI</option>
-            <option value="SyntheticCui">Synthetic CUI</option>
             <option value="Unknown">Unknown</option>
             <option value="Prohibited">Prohibited</option>
           </select>
@@ -8222,7 +8285,10 @@ function EvidenceView({
             I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information.
           </span>
         </label>
-        <button type="submit" disabled={uploadDisabled || !selectedFile || !noCuiAttestation || uploadStatus === "creating"}>
+        <button
+          type="submit"
+          disabled={uploadDisabled || !selectedEvidenceItemId || !selectedFile || !uploadClassification || !noCuiAttestation || uploadStatus === "creating"}
+        >
           <UploadCloud size={16} aria-hidden="true" />
           <span>{uploadStatus === "creating" ? "Uploading evidence" : "Upload evidence"}</span>
         </button>
@@ -8236,6 +8302,8 @@ function EvidenceView({
           <p className="form-status form-status--error">{uploadMessage || "The API blocked the upload. Confirm acknowledgement and permissions."}</p>
         ) : null}
       </form>
+
+      </div>
 
       {evidenceItems.length === 0 ? (
         <EmptyState
@@ -8403,7 +8471,7 @@ const defaultEvidenceMetadataForm: EvidenceMetadataFormState = {
   tags: "",
   obligationIds: "",
   controlIds: "",
-  classification: "Unclassified",
+  classification: "",
   classificationReason: "User confirmed evidence classification.",
   description: ""
 };
@@ -8415,7 +8483,6 @@ function EvidenceMetadataPanel({
   message,
   obligationItems,
   onSave,
-  onReclassifyEvidence,
   onSelectEvidence,
   selectedEvidence,
   status
@@ -8426,7 +8493,6 @@ function EvidenceMetadataPanel({
   message: string;
   obligationItems: ContractObligationDashboardItem[];
   onSave: (evidenceItemId: string | null, request: UpsertEvidenceMetadataRequest) => Promise<void>;
-  onReclassifyEvidence: (evidenceItemId: string, request: ReclassifyContentRequest) => Promise<void>;
   onSelectEvidence: (evidenceItemId: string | null) => void;
   selectedEvidence: EvidenceMetadata | null;
   status: "idle" | "saving" | "saved" | "failed";
@@ -8442,29 +8508,11 @@ function EvidenceMetadataPanel({
   }
 
   function save() {
-    if (evidenceDateError) {
+    if (evidenceDateError || !form.classification) {
       return;
     }
 
     void onSave(selectedEvidence?.id ?? null, evidenceMetadataFormToRequest(form, selectedEvidence));
-  }
-
-  function reclassify() {
-    if (!selectedEvidence) {
-      return;
-    }
-
-    void onReclassifyEvidence(selectedEvidence.id, {
-      classification: {
-        classification: form.classification,
-        source: "AdminReviewed",
-        confidence: null,
-        reviewedByUserId: null,
-        reviewedAt: null,
-        reason: form.classificationReason,
-        isApprovedDemoContent: false
-      }
-    });
   }
 
   return (
@@ -8651,18 +8699,19 @@ function EvidenceMetadataPanel({
               </label>
               <label>
                 <span>Classification</span>
-                <select value={form.classification} onChange={(event) => updateField("classification", event.target.value)}>
+                <select aria-label="Classification" required disabled={Boolean(selectedEvidence)} value={form.classification} onChange={(event) => updateField("classification", event.target.value)}>
+                  <option value="">Select classification</option>
+                  {selectedEvidence && form.classification === "SyntheticCui" && <option value="SyntheticCui">Synthetic demo data (imported)</option>}
                   <option value="Unclassified">Unclassified</option>
                   <option value="Fci">FCI</option>
                   <option value="Cui">CUI</option>
-                  <option value="SyntheticCui">Synthetic CUI</option>
                   <option value="Unknown">Unknown</option>
                   <option value="Prohibited">Prohibited</option>
                 </select>
               </label>
               <label>
                 <span>Classification reason</span>
-                <input value={form.classificationReason} onChange={(event) => updateField("classificationReason", event.target.value)} />
+                <input disabled={Boolean(selectedEvidence)} value={form.classificationReason} onChange={(event) => updateField("classificationReason", event.target.value)} />
               </label>
               <label className="span-2">
                 <span>Description</span>
@@ -8671,12 +8720,10 @@ function EvidenceMetadataPanel({
             </div>
           </fieldset>
           <div className="form-actions">
-            <button type="submit" disabled={!canManageEvidence || status === "saving" || Boolean(evidenceDateError)}>
+            <button type="submit" disabled={!canManageEvidence || !form.classification || status === "saving" || Boolean(evidenceDateError)}>
               {selectedEvidence ? "Update metadata" : "Create metadata"}
             </button>
-            <button type="button" onClick={reclassify} disabled={!selectedEvidence || !canManageEvidence || status === "saving"}>
-              Review classification
-            </button>
+            {selectedEvidence && <p>Use Classification review and history above to review this item's classification.</p>}
           </div>
           {status === "failed" ? (
             <Alert title="Evidence metadata action failed" tone="danger">
@@ -8772,20 +8819,9 @@ function CuiReadyChecklistPanel({
   onReview: (checklistId: string, action: "submit" | "approve" | "reject" | "supersede", reason: string | null) => Promise<void>;
   status: "idle" | "saving" | "saved" | "failed";
 }) {
-  const [reviewReason, setReviewReason] = useState("Approved for CUI-ready mode.");
+  const [reviewReason, setReviewReason] = useState("");
   const latest = checklists[0] ?? null;
   const completedCount = latest?.items.filter((item) => item.status === "Complete").length ?? 0;
-
-  function completeItem(checklistId: string, item: CuiReadyApprovalChecklistItem) {
-    void onItemUpdate(checklistId, item.itemKey, {
-      status: "Complete",
-      owner: item.owner ?? "Security",
-      evidenceLink: item.evidenceLink ?? "https://example.invalid/evidence/cui-ready",
-      reviewerUserId: item.reviewerUserId ?? currentUserId,
-      reviewedAt: item.reviewedAt ?? new Date().toISOString().slice(0, 10),
-      notes: item.notes
-    });
-  }
 
   return (
     <section className="members-section" aria-label="CUI-ready approval checklist">
@@ -8804,6 +8840,8 @@ function CuiReadyChecklistPanel({
         <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
       ) : null}
       {latest ? (
+        <ReadinessEvidencePanel key={`${currentTenant?.id}:${currentUserId}`}>
+        {(sources, canApprove) => (
         <div className="approval-checklist">
           <div className="section-heading--split">
             <div>
@@ -8825,9 +8863,9 @@ function CuiReadyChecklistPanel({
                 <span>
                   Status: {item.status} · Owner: {item.owner ?? "No owner"} · Review date: {item.reviewedAt ?? "No review date"}
                 </span>
-                <button type="button" onClick={() => completeItem(latest.id, item)} disabled={status === "saving"}>
-                  Mark complete
-                </button>
+                <ReadinessItemEditor key={`${item.id}:${latest.version}`} item={item} sources={sources} userId={currentUserId}
+                  disabled={status === "saving" || ["Rejected", "Superseded"].includes(latest.state)}
+                  onSave={request => void onItemUpdate(latest.id, item.itemKey, request)} />
               </article>
             ))}
           </div>
@@ -8836,10 +8874,10 @@ function CuiReadyChecklistPanel({
               <span>Review reason</span>
               <input value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} />
             </label>
-            <button type="button" onClick={() => void onReview(latest.id, "submit", null)} disabled={status === "saving"}>
+            <button type="button" onClick={() => void onReview(latest.id, "submit", null)} disabled={status === "saving" || latest.state !== "Draft"}>
               Submit
             </button>
-            <button type="button" onClick={() => void onReview(latest.id, "approve", reviewReason)} disabled={status === "saving"}>
+            <button type="button" onClick={() => void onReview(latest.id, "approve", reviewReason)} disabled={status === "saving" || !canApprove || latest.state !== "InReview" || !reviewReason.trim()}>
               Approve
             </button>
             <button type="button" onClick={() => void onReview(latest.id, "reject", reviewReason)} disabled={status === "saving"}>
@@ -8854,6 +8892,8 @@ function CuiReadyChecklistPanel({
           ) : null}
           {latest.rejectionReason ? <p className="form-status form-status--error">{latest.rejectionReason}</p> : null}
         </div>
+        )}
+        </ReadinessEvidencePanel>
       ) : (
         <EmptyState title="No CUI-ready checklist" body="Create a checklist before requesting CUI-ready tenant mode." />
       )}
@@ -9739,13 +9779,5 @@ function EmptyState({ body, title }: { body: string; title: string }) {
       <h3>{title}</h3>
       <p>{body}</p>
     </div>
-  );
-}
-
-function ClassificationBadge({ classification }: { classification: string }) {
-  return (
-    <span className={`status status--${classification.toLowerCase()}`}>
-      {classification === "SyntheticCui" ? "Synthetic demo data" : classification}
-    </span>
   );
 }

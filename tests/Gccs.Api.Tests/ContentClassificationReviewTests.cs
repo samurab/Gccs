@@ -155,10 +155,13 @@ public sealed class ContentClassificationReviewTests : IClassFixture<WebApplicat
             builder.ConfigureServices(services =>
             {
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddScoped<Gccs.Application.Tenancy.IDataHandlingNoticeAcknowledgementRepository, Gccs.Infrastructure.Tenancy.EfDataHandlingNoticeAcknowledgementRepository>();
+                services.AddScoped<Gccs.Application.Tenancy.ITenantRepository, Gccs.Infrastructure.Tenancy.EfTenantRepository>();
                 services.AddScoped<TenantDataHandlingModePolicyService>();
                 services.AddScoped<ContentClassificationPolicy>();
                 services.AddScoped<ContentClassificationReviewService>();
                 services.AddScoped<IContentClassificationReviewRepository, EfContentClassificationReviewRepository>();
+                services.AddScoped<Gccs.Application.Evidence.IEvidenceMetadataRepository, Gccs.Infrastructure.Evidence.EfEvidenceMetadataRepository>();
                 services.AddScoped<ITenantRepository, EfTenantRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
@@ -168,6 +171,7 @@ public sealed class ContentClassificationReviewTests : IClassFixture<WebApplicat
                 dbContext.Database.EnsureDeleted();
                 dbContext.Database.EnsureCreated();
                 seed?.Invoke(dbContext);
+                NoticeTestData.Seed(dbContext);
                 dbContext.SaveChanges();
             });
         });
@@ -190,7 +194,7 @@ public sealed class ContentClassificationReviewTests : IClassFixture<WebApplicat
             request.Content = JsonContent.Create(content, options: JsonOptions);
         }
 
-        return request;
+        return ClassifiedWorkflowTestData.Confirm(request);
     }
 
     private static void SeedTenant(GccsDbContext dbContext, Guid tenantId)

@@ -175,11 +175,11 @@ public sealed class PlatformCustomerTests : IClassFixture<WebApplicationFactory<
         var now = DateTimeOffset.UtcNow;
         var tenantIds = new List<Guid>();
         var options = new DbContextOptionsBuilder<GccsDbContext>()
-            .UseNpgsql(connectionString)
+            .UseGccsPostgres(connectionString)
             .Options;
 
         await using var dbContext = new GccsDbContext(options);
-        await dbContext.Database.MigrateAsync();
+        await PostgresTestDatabase.MigrateAsync(dbContext);
         tenantIds.Add(SeedCustomer(dbContext, $"{marker} Alpha", $"{marker}-A", TenantOnboardingType.Pilot, SubscriptionPlan.PilotEvaluation, now.AddDays(5), now.AddMinutes(-2)));
         tenantIds.Add(SeedCustomer(dbContext, $"{marker} Bravo", $"{marker}-B", TenantOnboardingType.Pilot, SubscriptionPlan.PilotEvaluation, now.AddDays(10), now.AddMinutes(-1)));
         await dbContext.SaveChangesAsync();
