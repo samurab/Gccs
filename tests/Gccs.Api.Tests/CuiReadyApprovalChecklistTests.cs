@@ -116,6 +116,24 @@ public sealed class CuiReadyApprovalChecklistTests
     }
 
     [Fact]
+    public async Task Lifecycle_reasons_are_validated_before_persistence()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTenant(dbContext);
+        var service = CreateService(dbContext);
+        var draft = await service.CreateAsync(TenantId, ActorUserId);
+
+        await Assert.ThrowsAsync<CuiReadyApprovalChecklistValidationException>(() =>
+            service.RejectAsync(TenantId, draft.Id, new ReviewCuiReadyChecklistRequest(new string('x', 1001)), ActorUserId));
+
+        var approved = await service.CreateAsync(TenantId, ActorUserId);
+        approved = await CompleteAllItemsAsync(service, approved);
+        approved = (await service.ApproveAsync(TenantId, approved.Id, new ReviewCuiReadyChecklistRequest("Approved."), ActorUserId))!;
+        await Assert.ThrowsAsync<CuiReadyApprovalChecklistValidationException>(() =>
+            service.SupersedeAsync(TenantId, approved.Id, new ReviewCuiReadyChecklistRequest(new string('x', 1001)), ActorUserId));
+    }
+
+    [Fact]
     public async Task TC_1A_4_1_3_Rejected_checklist_records_reason()
     {
         await using var dbContext = CreateDbContext();
