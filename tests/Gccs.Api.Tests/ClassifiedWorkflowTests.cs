@@ -250,12 +250,12 @@ public sealed class ClassifiedWorkflowTests
     }
 
     [Theory]
-    [InlineData("Approved", false, false, 201)]
+    [InlineData("Approved", false, false, 403)]
     [InlineData("Superseded", false, false, 403)]
     [InlineData("Rejected", false, false, 403)]
     [InlineData("Approved", true, false, 403)]
     [InlineData("Approved", false, true, 403)]
-    public async Task Persisted_current_approval_controls_notes(string state, bool expired, bool foreignTenant, int status)
+    public async Task Incomplete_or_stale_persisted_approval_cannot_authorize_notes(string state, bool expired, bool foreignTenant, int status)
     {
         await using var factory = Factory(mode: TenantDataPosture.CuiReady); using var client = factory.CreateClient();
         using (var scope = factory.Services.CreateScope())
