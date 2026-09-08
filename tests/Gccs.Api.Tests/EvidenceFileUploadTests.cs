@@ -335,12 +335,17 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
             var evidence = await db.EvidenceItems.SingleAsync(e => e.Id == evidenceId);
             evidence.Classification = Enum.Parse<Gccs.Domain.Common.ContentClassification>(classification);
-            if (contained) db.CuiSupportEscalations.Add(new CuiSupportEscalationEntity
+            if (contained)
             {
-                Id = Guid.NewGuid(), TenantId = tenantId, AffectedEntityType = "EvidenceItem",
-                AffectedEntityId = evidenceId.ToString(), Category = Gccs.Application.Tenancy.CuiSupportEscalationCategory.SuspectedCui,
-                Status = Gccs.Application.Tenancy.CuiSupportEscalationStatus.Submitted, CreatedAt = DateTimeOffset.UtcNow
-            });
+                evidence.IsUseBlocked = true;
+                evidence.UseBlockedAt = DateTimeOffset.UtcNow;
+                db.CuiSupportEscalations.Add(new CuiSupportEscalationEntity
+                {
+                    Id = Guid.NewGuid(), TenantId = tenantId, AffectedEntityType = "EvidenceItem",
+                    AffectedEntityId = evidenceId.ToString(), Category = Gccs.Application.Tenancy.CuiSupportEscalationCategory.SuspectedCui,
+                    Status = Gccs.Application.Tenancy.CuiSupportEscalationStatus.Submitted, CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
             await db.SaveChangesAsync();
         }
         using var request = CreateRequest<object?>(HttpMethod.Get, $"/api/evidence-items/{evidenceId}/file/content", null,

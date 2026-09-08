@@ -474,6 +474,34 @@ public sealed class ClassifiedContentHistoryTests
         Assert.DoesNotContain(await db.AuditLogEntries.Where(a => a.TenantId == tenant).ToArrayAsync(),
             a => a.Summary.Contains("completed", StringComparison.OrdinalIgnoreCase));
     }
+
+    [PostgresFact, Trait("Category", "PostgresIntegration")]
+    public async Task Concurrent_escalation_resolutions_release_content_only_after_every_case_is_resolved()
+    {
+        await using var factory = Factory(true); using var client = factory.CreateClient();
+        using var initialReview = await client.SendAsync(Request(HttpMethod.Patch,
+            $"/api/classified-content/evidence-items/{ids["EvidenceItem"]}/classification", "ApproveEvidence", Review(0)));
+        Assert.Equal(HttpStatusCode.OK, initialReview.StatusCode);
+        var path = $"/api/tenants/{tenant}/cui-support-escalations";
+        var body = new { sourceWorkflow = "EvidenceDetail", affectedEntityType = "EvidenceItem",
+            affectedEntityId = ids["EvidenceItem"].ToString(), category = "SuspectedCui", severity = "High", description = "Synthetic concurrency concern." };
+        var creates = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ => client.SendAsync(Request(HttpMethod.Post, path, "ViewEvidence", body))));
+        Assert.All(creates, response => Assert.Equal(HttpStatusCode.Created, response.StatusCode));
+        var escalationIds = new List<string>();
+        foreach (var response in creates) { escalationIds.Add((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!); response.Dispose(); }
+        using var postEscalationReview = await client.SendAsync(Request(HttpMethod.Patch,
+            $"/api/classified-content/evidence-items/{ids["EvidenceItem"]}/classification", "ApproveEvidence", Review(1)));
+        Assert.Equal(HttpStatusCode.OK, postEscalationReview.StatusCode);
+        using var versionReview = await client.SendAsync(Request(HttpMethod.Patch,
+            $"/api/classified-content/evidence-file-versions/{ids["EvidenceFileVersion"]}/classification", "ApproveEvidence", Review(0)));
+        Assert.Equal(HttpStatusCode.OK, versionReview.StatusCode);
+        var resolution = new { resolutionType = "FalseAlarm", summary = "Concurrent safe review." };
+        var results = await Task.WhenAll(escalationIds.Select(id => client.SendAsync(Request(HttpMethod.Post, $"{path}/{id}/resolve", "ManageTenant", resolution))));
+        Assert.All(results, response => { Assert.Equal(HttpStatusCode.OK, response.StatusCode); response.Dispose(); });
+        using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.False((await db.EvidenceItems.AsNoTracking().SingleAsync(e => e.Id == ids["EvidenceItem"])).IsUseBlocked);
+        Assert.Equal(2, await db.CuiSupportEscalationResolutions.CountAsync());
+    }
     private sealed class PausedExtractor : Gccs.Application.Contracts.IContractDocumentTextExtractor
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
