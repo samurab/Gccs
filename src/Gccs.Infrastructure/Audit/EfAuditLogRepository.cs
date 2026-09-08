@@ -21,6 +21,10 @@ public sealed class EfAuditLogRepository(
             .Where(entry => entry.TenantId == tenantContext.TenantId);
         if (query.ActorUserId is not null) entries = entries.Where(e => e.ActorUserId == query.ActorUserId);
         if (query.Action is not null) entries = entries.Where(e => e.Action == query.Action);
+        if (query.EventType is not null) entries = entries.Where(e => e.EventType == query.EventType);
+        if (query.Classification is not null) entries = entries.Where(e => e.Classification == query.Classification);
+        if (query.Mode is not null) entries = entries.Where(e => e.Mode == query.Mode);
+        if (query.Result is not null) entries = entries.Where(e => e.Result == query.Result);
         if (!string.IsNullOrWhiteSpace(query.EntityType)) entries = entries.Where(e => e.EntityType == query.EntityType);
         if (query.From is not null) entries = entries.Where(e => e.OccurredAt >= query.From);
         if (query.To is not null) entries = entries.Where(e => e.OccurredAt <= query.To);
@@ -59,6 +63,11 @@ public sealed class EfAuditLogRepository(
         {
             entries = entries.Where(entry => entry.Action == query.Action);
         }
+
+        if (query.EventType is not null) entries = entries.Where(entry => entry.EventType == query.EventType);
+        if (query.Classification is not null) entries = entries.Where(entry => entry.Classification == query.Classification);
+        if (query.Mode is not null) entries = entries.Where(entry => entry.Mode == query.Mode);
+        if (query.Result is not null) entries = entries.Where(entry => entry.Result == query.Result);
 
         if (!string.IsNullOrWhiteSpace(query.EntityType))
         {

@@ -2670,6 +2670,26 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: eventType
+          in: query
+          schema:
+            type: string
+        - name: classification
+          in: query
+          schema:
+            type: string
+        - name: mode
+          in: query
+          schema:
+            type: string
+        - name: result
+          in: query
+          schema:
+            type: string
         - name: entityType
           in: query
           schema:
@@ -2700,6 +2720,36 @@ paths:
                           $ref: "#/components/schemas/AuditLogEntry"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/audit-logs/cui-export:
+    post:
+      tags:
+        - Audit Logs
+      summary: Export all matching normalized CUI audit events within the bounded export limit
+      operationId: exportCuiAuditLogs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CuiAuditExportRequest"
+      responses:
+        "200":
+          description: Tenant-scoped audit export with all matching records and generation metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CuiAuditExport"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          description: More than 10,000 records matched; no partial export was generated.
 
   /api/audit-logs/{auditLogEntryId}:
     parameters:
@@ -6875,6 +6925,52 @@ components:
         metadata:
           type: object
           additionalProperties: true
+
+    CuiAuditExportRequest:
+      type: object
+      properties:
+        action:
+          type: [string, "null"]
+        eventType:
+          type: [string, "null"]
+        classification:
+          type: [string, "null"]
+        mode:
+          type: [string, "null"]
+        actorUserId:
+          type: [string, "null"]
+          format: uuid
+        entityType:
+          type: [string, "null"]
+        from:
+          type: [string, "null"]
+          format: date-time
+        to:
+          type: [string, "null"]
+          format: date-time
+        result:
+          type: [string, "null"]
+
+    CuiAuditExport:
+      type: object
+      required: [tenantId, generatedByUserId, generatedAt, filters, events]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        generatedByUserId:
+          type: string
+          format: uuid
+        generatedAt:
+          type: string
+          format: date-time
+        filters:
+          $ref: "#/components/schemas/CuiAuditExportRequest"
+        events:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: "#/components/schemas/AuditLogEntry"
 
     SourceReference:
       type: object

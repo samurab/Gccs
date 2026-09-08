@@ -1,201 +1,202 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Gccs.Application.Audit;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Identity;
+using Gccs.Domain.Tenancy;
+using Gccs.Infrastructure.Audit;
+using Gccs.Infrastructure.Persistence;
+using Gccs.Infrastructure.Persistence.Models;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Gccs.Api.Tests;
 
 public sealed class CuiAuditExportTests
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly Guid TenantId = Guid.Parse("1a080200-0000-4000-8000-000000000001");
-    private static readonly Guid OtherTenantId = Guid.Parse("1a080200-0000-4000-8000-000000000003");
     private static readonly Guid ActorUserId = Guid.Parse("1a080200-0000-4000-8000-000000000002");
+    private static readonly Guid OtherTenantId = Guid.Parse("1a080200-0000-4000-8000-000000000003");
 
     [Fact]
-    public async Task TC_1A_8_2_1_Cui_audit_filters_return_correct_data()
+    public async Task TC_1A_8_2_1_Actual_list_endpoint_filters_normalized_persisted_columns_and_tenant()
     {
-        var service = CreateService();
+        await using var factory = CreateFactory("cui-audit-filter", db =>
+        {
+            db.AuditLogEntries.AddRange(
+                Entry(TenantId, 1, "blocked-upload", "Cui", "NoCui", "blocked", ActorUserId, "EvidenceUploadIntent"),
+                Entry(TenantId, 2, "blocked-upload", "Fci", "NoCui", "blocked", ActorUserId, "EvidenceUploadIntent"),
+                Entry(TenantId, 3, "escalation-create", "Cui", "NoCui", "succeeded", ActorUserId, "CuiSupportEscalation"),
+                Entry(OtherTenantId, 1, "blocked-upload", "Cui", "NoCui", "blocked", ActorUserId, "EvidenceUploadIntent"));
+        });
+        using var client = factory.CreateClient();
+        var from = Uri.EscapeDataString("2026-09-08T12:00:00Z");
+        var to = Uri.EscapeDataString("2026-09-08T12:02:00Z");
+        using var request = Request(HttpMethod.Get,
+            $"/api/audit-logs?eventType=BLOCKED_UPLOAD&classification=cui&mode=nocui&result=BLOCKED&actorUserId={ActorUserId}&entityType=EvidenceUploadIntent&from={from}&to={to}");
 
-        var export = await service.ExportAsync(TenantId, ActorUserId, new CuiAuditExportRequest(
-            EventType: "blocked-upload",
-            Classification: "Cui",
-            Mode: "NoCui",
-            ActorUserId: ActorUserId,
-            EntityType: "EvidenceUploadIntent",
-            From: DateTimeOffset.UtcNow.AddDays(-1),
-            To: DateTimeOffset.UtcNow.AddDays(1),
-            Result: "blocked"));
+        using var response = await client.SendAsync(request);
+        var page = await response.Content.ReadFromJsonAsync<PagedResultDto<AuditLogEntryDto>>(JsonOptions);
 
-        var item = Assert.Single(export.Events);
-        Assert.Equal("EvidenceUploadIntent", item.EntityType);
-        Assert.Equal("blocked-upload", item.Metadata["eventType"]);
-        Assert.Equal("Cui", item.Metadata["classification"]);
-        Assert.Equal("NoCui", item.Metadata["mode"]);
-        Assert.Equal("blocked", item.Metadata["result"]);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var item = Assert.Single(Assert.IsType<PagedResultDto<AuditLogEntryDto>>(page).Items);
+        Assert.Equal("blocked-upload", item.EventType);
+        Assert.Equal("Cui", item.Classification);
+        Assert.Equal("NoCui", item.Mode);
+        Assert.Equal("blocked", item.Result);
+        Assert.Equal(TenantId, item.TenantId);
+    }
+
+    [Theory]
+    [InlineData("/api/audit-logs")]
+    [InlineData("/api/audit-logs/cui-export")]
+    public async Task TC_1A_8_2_2_Actual_endpoints_deny_callers_without_audit_permission(string path)
+    {
+        await using var factory = CreateFactory($"cui-audit-denied-{path.GetHashCode()}", _ => { });
+        using var client = factory.CreateClient();
+        var isExport = path.EndsWith("cui-export", StringComparison.Ordinal);
+        using var request = Request(isExport ? HttpMethod.Post : HttpMethod.Get, path, Permission.ViewEvidence,
+            isExport ? new CuiAuditExportRequest(null, null, null, null, null, null, null, null) : null);
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var deniedAudit = Assert.Single(await scope.ServiceProvider.GetRequiredService<GccsDbContext>().AuditLogEntries.ToListAsync());
+        Assert.Equal(AuditAction.Rejected, deniedAudit.Action);
+        Assert.Equal("rejected", deniedAudit.Result);
+        Assert.Equal(path, deniedAudit.EntityId);
+        Assert.DoesNotContain("CuiAuditExport", deniedAudit.EntityType, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void TC_1A_8_2_2_Unauthorized_audit_access_is_denied_by_endpoint_permission()
+    public async Task TC_1A_8_2_3_Actual_export_returns_all_matching_rows_and_persists_export_audit()
     {
-        const string requiredPermission = "ViewAuditLog";
+        const int matchingCount = 350;
+        await using var factory = CreateFactory("cui-audit-all-matches", db =>
+        {
+            db.AuditLogEntries.AddRange(Enumerable.Range(1, matchingCount)
+                .Select(index => Entry(TenantId, index, "blocked-upload", "Cui", "NoCui", "blocked", ActorUserId, "EvidenceUploadIntent")));
+            db.AuditLogEntries.Add(Entry(TenantId, matchingCount + 1, "download", "Fci", "NoCui", "succeeded", ActorUserId, "EvidenceFileVersion"));
+            db.AuditLogEntries.Add(Entry(OtherTenantId, matchingCount + 2, "blocked-upload", "Cui", "NoCui", "blocked", ActorUserId, "EvidenceUploadIntent"));
+        });
+        using var client = factory.CreateClient();
+        var filters = new CuiAuditExportRequest("blocked-upload", "Cui", "NoCui", ActorUserId,
+            "EvidenceUploadIntent", null, null, "blocked", "Rejected");
+        using var request = Request(HttpMethod.Post, "/api/audit-logs/cui-export", Permission.ViewAuditLog, filters);
 
-        Assert.Equal("ViewAuditLog", requiredPermission);
-    }
+        using var response = await client.SendAsync(request);
+        var export = await response.Content.ReadFromJsonAsync<CuiAuditExportDto>(JsonOptions);
 
-    [Fact]
-    public async Task TC_1A_8_2_3_Export_tenant_scope_is_enforced()
-    {
-        var service = CreateService();
-
-        var export = await service.ExportAsync(TenantId, ActorUserId, new CuiAuditExportRequest(null, null, null, null, null, null, null, null));
-
-        Assert.DoesNotContain(export.Events, item => item.TenantId == OtherTenantId);
-        Assert.All(export.Events, item => Assert.Equal(TenantId, item.TenantId));
-    }
-
-    [Fact]
-    public async Task TC_1A_8_2_4_Export_metadata_is_included()
-    {
-        var service = CreateService();
-        var request = new CuiAuditExportRequest("blocked-upload", "Cui", "NoCui", ActorUserId, "EvidenceUploadIntent", null, null, "blocked");
-
-        var export = await service.ExportAsync(TenantId, ActorUserId, request);
-
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(export);
         Assert.Equal(TenantId, export.TenantId);
         Assert.Equal(ActorUserId, export.GeneratedByUserId);
         Assert.NotEqual(default, export.GeneratedAt);
-        Assert.Equal(request, export.Filters);
+        Assert.Equal(filters, export.Filters);
+        Assert.Equal(matchingCount, export.Events.Count);
+        Assert.Equal(matchingCount, export.Events.Select(item => item.Id).Distinct().Count());
+        Assert.All(export.Events, item =>
+        {
+            Assert.Equal(TenantId, item.TenantId);
+            Assert.Equal("blocked-upload", item.EventType);
+            Assert.Equal("Cui", item.Classification);
+            Assert.Equal("NoCui", item.Mode);
+            Assert.Equal("blocked", item.Result);
+        });
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var persisted = await db.AuditLogEntries.SingleAsync(item => item.EntityType == "CuiAuditExport");
+        Assert.Equal(Phase1ACuiAuditEvents.Export, persisted.EventType);
+        Assert.Equal("succeeded", persisted.Result);
+        Assert.Equal(ActorUserId, persisted.ActorUserId);
     }
 
     [Fact]
-    public async Task TC_1A_8_2_5_Export_action_is_audited()
+    public async Task Oversized_actual_export_returns_413_without_a_success_audit_or_partial_response()
     {
-        var auditWriter = new CapturingAuditEventWriter();
-        var service = CreateService(auditWriter);
-
-        await service.ExportAsync(TenantId, ActorUserId, new CuiAuditExportRequest("blocked-upload", null, null, null, null, null, null, null));
-
-        Assert.Contains(auditWriter.Events, audit =>
-            audit.Action == AuditAction.Exported &&
-            audit.EntityType == "CuiAuditExport" &&
-            audit.Metadata["result"] == "succeeded" &&
-            audit.Metadata["eventType"] == "blocked-upload");
-    }
-
-    private static CuiAuditExportService CreateService(IAuditEventWriter? auditWriter = null) =>
-        new(new CapturingAuditLogRepository(), auditWriter ?? new CapturingAuditEventWriter());
-
-    [Fact]
-    public async Task Oversized_export_fails_explicitly_without_a_success_audit_or_partial_response()
-    {
-        var audit = new CapturingAuditEventWriter();
-        var service = new CuiAuditExportService(new CapturingAuditLogRepository(10001), audit);
-        await Assert.ThrowsAsync<CuiAuditExportLimitException>(() => service.ExportAsync(TenantId, ActorUserId,
-            new CuiAuditExportRequest(null, null, null, null, null, null, null, null)));
-        Assert.Empty(audit.Events);
-    }
-
-    [Fact]
-    public async Task Invalid_date_range_does_not_generate_or_audit_an_export()
-    {
-        var audit = new CapturingAuditEventWriter();
-        var service = CreateService(audit);
-        await Assert.ThrowsAsync<ArgumentException>(() => service.ExportAsync(TenantId, ActorUserId,
-            new CuiAuditExportRequest(null, null, null, null, null, DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow, null)));
-        Assert.Empty(audit.Events);
-    }
-
-    [Fact]
-    public async Task Export_includes_matching_events_beyond_the_first_hundred()
-    {
-        var repository = new CapturingAuditLogRepository(350);
-        var service = new CuiAuditExportService(repository, new CapturingAuditEventWriter());
-        var export = await service.ExportAsync(TenantId, ActorUserId,
+        await using var factory = CreateFactory("cui-audit-limit", db =>
+            db.AuditLogEntries.AddRange(Enumerable.Range(1, 10001)
+                .Select(index => Entry(TenantId, index, "blocked-upload", "Cui", "NoCui", "blocked", ActorUserId, "EvidenceUploadIntent"))));
+        using var client = factory.CreateClient();
+        using var request = Request(HttpMethod.Post, "/api/audit-logs/cui-export", Permission.ViewAuditLog,
             new CuiAuditExportRequest("blocked-upload", null, null, null, null, null, null, null));
-        Assert.Equal(350, export.Events.Count);
-        Assert.Equal(350, export.Events.Select(e => e.Id).Distinct().Count());
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
+        Assert.Contains("audit_export_too_large", await response.Content.ReadAsStringAsync());
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.False(await db.AuditLogEntries.AnyAsync(item => item.EntityType == "CuiAuditExport"));
     }
 
-    private sealed class CapturingAuditLogRepository(int additionalRows = 0) : IAuditLogRepository
-    {
-        private readonly AuditLogEntryDto[] entries = additionalRows == 0 ? Seed() : Enumerable.Range(0, additionalRows)
-            .Select(_ => Entry(TenantId, "EvidenceUploadIntent", "blocked-upload", "Cui", "NoCui", "blocked")).ToArray();
-        public Task<IReadOnlyList<string>> ListEntityTypesCurrentTenantAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<string>>(Seed().Select(item => item.EntityType).Distinct().ToArray());
-
-        public Task<PagedResultDto<AuditLogEntryDto>> ListCurrentTenantAsync(AuditLogQuery query, CancellationToken cancellationToken = default)
+    private static WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext> seed) =>
+        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
-            var items = entries
-                .Where(item => item.TenantId == TenantId)
-                .Where(item => query.ActorUserId is null || item.ActorUserId == query.ActorUserId)
-                .Where(item => query.EntityType is null || item.EntityType == query.EntityType)
-                .Where(item => query.From is null || item.OccurredAt >= query.From)
-                .Where(item => query.To is null || item.OccurredAt <= query.To)
-                .ToArray();
+            builder.UseSetting("LocalDependencies:Enabled", "false");
+            builder.UseSetting("ConnectionStrings:GccsDatabase", string.Empty);
+            builder.ConfigureServices(services =>
+            {
+                services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
+                services.AddScoped<AuditLogService>();
+                services.AddScoped<CuiAuditExportService>();
+                services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
+                services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
 
-            return Task.FromResult(new PagedResultDto<AuditLogEntryDto>(
-                items.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToArray(),
-                query.Page, query.PageSize, items.Length, query.Page * query.PageSize < items.Length, query.Page > 1));
-        }
+                using var provider = services.BuildServiceProvider();
+                using var scope = provider.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+                db.Database.EnsureDeleted();
+                db.Database.EnsureCreated();
+                db.Tenants.AddRange(
+                    new TenantEntity { Id = TenantId, Name = "Audit tenant", Status = TenantStatus.Active, DataPosture = TenantDataPosture.NoCui },
+                    new TenantEntity { Id = OtherTenantId, Name = "Other audit tenant", Status = TenantStatus.Active, DataPosture = TenantDataPosture.NoCui });
+                seed(db);
+                db.SaveChanges();
+            });
+        });
 
-        private static AuditLogEntryDto[] Seed() =>
-        [
-            Entry(TenantId, "EvidenceUploadIntent", "blocked-upload", "Cui", "NoCui", "blocked"),
-            Entry(TenantId, "CuiSupportEscalation", "escalation-create", "Cui", "CuiReady", "succeeded"),
-            Entry(OtherTenantId, "EvidenceUploadIntent", "blocked-upload", "Cui", "NoCui", "blocked")
-        ];
-
-        private static AuditLogEntryDto Entry(Guid tenantId, string entityType, string eventType, string classification, string mode, string result) =>
-            new(
-                Guid.NewGuid(),
-                tenantId,
-                ActorUserId,
-                AuditAction.Created.ToString(),
-                eventType,
-                classification,
-                mode,
-                result,
-                entityType,
-                Guid.NewGuid().ToString(),
-                DateTimeOffset.UtcNow,
-                "127.0.0.1",
-                "test",
-                "correlation",
-                $"{eventType} recorded.",
-                null,
-                null,
-                new Dictionary<string, string>
-                {
-                    ["eventType"] = eventType,
-                    ["classification"] = classification,
-                    ["mode"] = mode,
-                    ["result"] = result
-                });
-    }
-
-    private sealed class CapturingAuditEventWriter : IAuditEventWriter
+    private static HttpRequestMessage Request(HttpMethod method, string path, Permission permission = Permission.ViewAuditLog, object? body = null)
     {
-        public List<CapturedAuditEvent> Events { get; } = [];
-
-        public Task WriteAsync(
-            Guid tenantId,
-            Guid actorUserId,
-            AuditAction action,
-            string entityType,
-            string entityId,
-            string summary,
-            IReadOnlyDictionary<string, string>? metadata = null,
-            CancellationToken cancellationToken = default)
-        {
-            Events.Add(new CapturedAuditEvent(tenantId, actorUserId, action, entityType, entityId, metadata ?? new Dictionary<string, string>()));
-            return Task.CompletedTask;
-        }
+        var request = new HttpRequestMessage(method, path);
+        request.Headers.Add("X-Gccs-Dev-Auth", "true");
+        request.Headers.Add("X-Gccs-Dev-Tenant", TenantId.ToString());
+        request.Headers.Add("X-Gccs-Dev-User", ActorUserId.ToString());
+        request.Headers.Add("X-Gccs-Dev-Permissions", permission.ToString());
+        if (body is not null) request.Content = JsonContent.Create(body);
+        return request;
     }
 
-    private sealed record CapturedAuditEvent(
-        Guid TenantId,
-        Guid ActorUserId,
-        AuditAction Action,
-        string EntityType,
-        string EntityId,
-        IReadOnlyDictionary<string, string> Metadata);
+    private static AuditLogEntryEntity Entry(Guid tenantId, int sequence, string eventType, string classification,
+        string mode, string result, Guid actorUserId, string entityType) => new()
+    {
+        Id = Guid.NewGuid(),
+        TenantId = tenantId,
+        ActorUserId = actorUserId,
+        Action = result == "blocked" ? AuditAction.Rejected : AuditAction.Created,
+        EventType = eventType,
+        Classification = classification,
+        Mode = mode,
+        Result = result,
+        EntityType = entityType,
+        EntityId = Guid.NewGuid().ToString(),
+        OccurredAt = DateTimeOffset.Parse("2026-09-08T12:00:00Z").AddSeconds(sequence),
+        IpAddress = "203.0.113.10",
+        UserAgent = "test",
+        CorrelationId = $"cui-audit-{sequence}",
+        Summary = $"{eventType} recorded.",
+        MetadataJson = JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["eventType"] = eventType,
+            ["classification"] = classification,
+            ["mode"] = mode,
+            ["result"] = result
+        })
+    };
 }

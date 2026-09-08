@@ -1373,6 +1373,10 @@ export type AuditLogEntry = {
   tenantId: string;
   actorUserId: string | null;
   action: string;
+  eventType: string;
+  classification: string | null;
+  mode: string | null;
+  result: string;
   entityType: string;
   entityId: string;
   occurredAt: string;
@@ -1384,6 +1388,7 @@ export type AuditLogEntry = {
 };
 
 export type CuiAuditExportRequest = {
+  action?: string | null;
   eventType?: string | null;
   classification?: string | null;
   mode?: string | null;
@@ -1874,6 +1879,10 @@ export type AuditLogQueryParams = {
   pageSize?: number;
   actorUserId?: string;
   action?: string;
+  eventType?: string;
+  classification?: string;
+  mode?: string;
+  result?: string;
   entityType?: string;
   from?: string;
   to?: string;

@@ -518,6 +518,38 @@ public sealed class ClassifiedContentHistoryTests
     }
 
     [PostgresFact, Trait("Category", "PostgresIntegration")]
+    public async Task PostgreSQL_escalation_containment_and_runtime_audit_are_atomic()
+    {
+        var failure = new AuditFailure { Enabled = true };
+        await using var factory = Factory(true, failure);
+        using var client = factory.CreateClient();
+        var body = new
+        {
+            sourceWorkflow = "ClassificationReview",
+            affectedEntityType = "EvidenceItem",
+            affectedEntityId = ids["EvidenceItem"].ToString(),
+            category = "ProhibitedData",
+            severity = "Critical",
+            description = "Synthetic transaction rollback concern."
+        };
+
+        using var response = await client.SendAsync(Request(HttpMethod.Post,
+            $"/api/tenants/{tenant}/cui-support-escalations", "ViewEvidence", body));
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        failure.Enabled = false;
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var evidence = await db.EvidenceItems.AsNoTracking().SingleAsync(item => item.Id == ids["EvidenceItem"]);
+        Assert.False(evidence.IsUseBlocked);
+        Assert.Null(evidence.UseBlockedAt);
+        Assert.Empty(await db.CuiSupportEscalations.Where(item => item.TenantId == tenant).ToListAsync());
+        Assert.Empty(await db.CuiSupportEscalationEvents.Where(item => item.ActorUserId == user).ToListAsync());
+        Assert.Empty(await db.NotificationDeliveries.Where(item => item.TenantId == tenant).ToListAsync());
+        Assert.Empty(await db.AuditLogEntries.Where(item => item.TenantId == tenant).ToListAsync());
+    }
+
+    [PostgresFact, Trait("Category", "PostgresIntegration")]
     public async Task PostgreSQL_serializes_every_type_and_rolls_back_failed_audit()
     {
         var failure = new AuditFailure(); await using var factory = Factory(true, failure); using var client = factory.CreateClient();

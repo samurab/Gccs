@@ -127,10 +127,12 @@ public sealed class AuditLogViewerTests : IClassFixture<WebApplicationFactory<Pr
                 CreateTenant(tenantBId, "TC-5.2.4 Tenant B"));
             dbContext.AuditLogEntries.AddRange(
                 CreateAuditEntry(tenantAId, 1, AuditAction.Created, "Tenant", "Wrong action", actorUserId),
-                CreateAuditEntry(tenantAId, 2, AuditAction.Updated, "TenantMembership", "Matching membership", actorUserId),
+                CreateAuditEntry(tenantAId, 2, AuditAction.Updated, "TenantMembership", "Matching membership", actorUserId,
+                    "classification-create-update", "Cui", "NoCui", "succeeded"),
                 CreateAuditEntry(tenantAId, 3, AuditAction.Updated, "Tenant", "Wrong entity", actorUserId),
                 CreateAuditEntry(tenantAId, 4, AuditAction.Updated, "TenantMembership", "Wrong actor", Guid.NewGuid()),
-                CreateAuditEntry(tenantBId, 2, AuditAction.Updated, "TenantMembership", "Wrong tenant", actorUserId));
+                CreateAuditEntry(tenantBId, 2, AuditAction.Updated, "TenantMembership", "Wrong tenant", actorUserId,
+                    "classification-create-update", "Cui", "NoCui", "succeeded"));
             dbContext.SaveChanges();
         });
         using var client = factory.CreateClient();
@@ -138,7 +140,7 @@ public sealed class AuditLogViewerTests : IClassFixture<WebApplicationFactory<Pr
         var to = Uri.EscapeDataString("2026-06-15T12:03:00Z");
         using var request = CreatePermissionRequest(
             HttpMethod.Get,
-            $"/api/audit-logs?actorUserId={actorUserId}&action=updated&entityType=TenantMembership&from={from}&to={to}",
+            $"/api/audit-logs?actorUserId={actorUserId}&action=updated&eventType=CLASSIFICATION_CREATE_UPDATE&classification=cui&mode=nocui&result=SUCCEEDED&entityType=TenantMembership&from={from}&to={to}",
             tenantAId,
             Permission.ViewAuditLog);
 
@@ -151,6 +153,10 @@ public sealed class AuditLogViewerTests : IClassFixture<WebApplicationFactory<Pr
         Assert.Equal(tenantAId, item.TenantId);
         Assert.Equal(actorUserId, item.ActorUserId);
         Assert.Equal(AuditAction.Updated.ToString(), item.Action);
+        Assert.Equal("classification-create-update", item.EventType);
+        Assert.Equal("Cui", item.Classification);
+        Assert.Equal("NoCui", item.Mode);
+        Assert.Equal("succeeded", item.Result);
         Assert.Equal("TenantMembership", item.EntityType);
         Assert.Equal("Matching membership", item.Summary);
     }
@@ -271,13 +277,21 @@ public sealed class AuditLogViewerTests : IClassFixture<WebApplicationFactory<Pr
         AuditAction action,
         string entityType,
         string summary,
-        Guid? actorUserId = null) =>
+        Guid? actorUserId = null,
+        string? eventType = null,
+        string? classification = null,
+        string? mode = null,
+        string result = "succeeded") =>
         new()
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             ActorUserId = actorUserId ?? Guid.NewGuid(),
             Action = action,
+            EventType = eventType ?? $"{entityType}-{action}".ToLowerInvariant(),
+            Classification = classification,
+            Mode = mode,
+            Result = result,
             EntityType = entityType,
             EntityId = Guid.NewGuid().ToString(),
             OccurredAt = DateTimeOffset.Parse("2026-06-15T12:00:00Z").AddMinutes(sequence),
