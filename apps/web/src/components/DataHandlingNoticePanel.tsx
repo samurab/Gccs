@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { acknowledgeDataHandlingNotice, getDataHandlingNoticeAcknowledgements, getPublishedDataHandlingNotice, type DataHandlingNotice } from "@/lib/api";
 
-export function DataHandlingNoticePanel({ tenantId, mode }: { tenantId: string; mode: string }) {
-  const [workflow, setWorkflow] = useState("EvidenceUpload");
+const workflowLabels: Record<string, string> = {
+  Onboarding: "Onboarding",
+  EvidenceUpload: "Evidence upload",
+  ContractUpload: "Contract upload",
+  ClassifiedNote: "Classified notes",
+  ReportGeneration: "Report generation",
+  ExtractionJob: "Extraction",
+  Support: "Support escalation"
+};
+
+export function DataHandlingNoticePanel({ tenantId, mode, workflowContext }: { tenantId: string; mode: string; workflowContext: string }) {
   const [notice, setNotice] = useState<DataHandlingNotice | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [checked, setChecked] = useState(false);
@@ -14,38 +23,39 @@ export function DataHandlingNoticePanel({ tenantId, mode }: { tenantId: string; 
 
   useEffect(() => {
     function renew(event: Event) {
-      noticeRevision.current++;
       const context = (event as CustomEvent<{ workflowContext?: string }>).detail?.workflowContext;
-      if (context && ["EvidenceUpload", "ContractIntake", "ReportGeneration", "Onboarding", "Support"].includes(context)) setWorkflow(context);
+      if (context !== workflowContext) return;
+      noticeRevision.current++;
       setNotice(null); setAccepted(false); setChecked(false); setOpen(true);
       setStatus("A current notice acknowledgement is needed. Review the notice, acknowledge it, then retry your action.");
       setRevision(value => value + 1);
     }
     window.addEventListener("fedril:notice-required", renew);
     return () => window.removeEventListener("fedril:notice-required", renew);
-  }, []);
+  }, [workflowContext]);
 
   useEffect(() => {
     let active = true;
     void Promise.all([
-      getPublishedDataHandlingNotice(mode, workflow),
-      getDataHandlingNoticeAcknowledgements(tenantId, mode, workflow)
+      getPublishedDataHandlingNotice(mode, workflowContext),
+      getDataHandlingNoticeAcknowledgements(tenantId, mode, workflowContext)
     ]).then(([current, history]) => {
       if (!active) return;
-      setNotice(current);
-      setAccepted(Boolean(current && history.some(item => item.tenantId === tenantId && item.mode === current.mode &&
-        item.workflowContext === workflow && item.noticeId === current.noticeId && item.noticeVersion === current.version && item.status === "Current")));
-      setStatus(current ? "" : "The current notice could not be loaded. Refresh before acknowledging.");
+      const matching = current?.mode === mode ? current : null;
+      setNotice(matching);
+      setAccepted(Boolean(matching && history.some(item => item.tenantId === tenantId && item.mode === matching.mode &&
+        item.workflowContext === workflowContext && item.noticeId === matching.noticeId && item.noticeVersion === matching.version && item.status === "Current")));
+      setStatus(matching ? "" : "The current mode-specific notice could not be loaded. Refresh before continuing.");
     }).catch(() => { if (active) setStatus("The current notice could not be loaded."); });
     return () => { active = false; };
-  }, [tenantId, mode, workflow, revision]);
+  }, [tenantId, mode, workflowContext, revision]);
 
   async function acknowledge() {
     if (!notice || !checked || saving) return;
     const submittedRevision = noticeRevision.current;
     setSaving(true);
     const result = await acknowledgeDataHandlingNotice(tenantId, {
-      mode: notice.mode, workflowContext: workflow, noticeId: notice.noticeId, noticeVersion: notice.version, acknowledged: true
+      mode: notice.mode, workflowContext, noticeId: notice.noticeId, noticeVersion: notice.version, acknowledged: true
     });
     setSaving(false);
     if (submittedRevision !== noticeRevision.current) return;
@@ -58,18 +68,8 @@ export function DataHandlingNoticePanel({ tenantId, mode }: { tenantId: string; 
   }
 
   return <details className="posture-notice data-handling-notice" open={open} onToggle={event => setOpen(event.currentTarget.open)}>
-    <summary>Current data handling notices</summary>
+    <summary>{workflowLabels[workflowContext] ?? workflowContext} data handling notice</summary>
     <div className="data-handling-notice-body">
-    <label>Notice workflow <select value={workflow} disabled={saving} onChange={event => {
-      noticeRevision.current++;
-      setNotice(null); setAccepted(false); setChecked(false); setStatus("Loading current notice…"); setWorkflow(event.target.value);
-    }}>
-      <option value="EvidenceUpload">Evidence</option>
-      <option value="ContractIntake">Contracts and extraction</option>
-      <option value="ReportGeneration">Reports</option>
-      <option value="Onboarding">General data handling</option>
-      <option value="Support">Support</option>
-    </select></label>
     {notice && <>
       <h3>{notice.title}</h3><p>Version {notice.version} · {notice.mode}</p><p>{notice.body}</p>
       {accepted ? <p>Current notice acknowledged for this workflow.</p> : <>

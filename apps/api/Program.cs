@@ -6948,7 +6948,8 @@ api.MapGet("/tenants/{tenantId:guid}/data-handling-notice-acknowledgements", asy
         return Results.NotFound();
     }
 
-    return Results.Ok(await acknowledgementService.ListAsync(tenantId, tenantContext.UserId, notice, cancellationToken));
+    return Results.Ok(await acknowledgementService.ListAsync(tenantId, tenantContext.UserId, notice,
+        CurrentDataHandlingNoticeService.NormalizeWorkflow(workflowContext), cancellationToken));
 })
 .RequireAuthorization()
 .WithName("ListDataHandlingNoticeAcknowledgements");

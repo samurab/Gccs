@@ -7,7 +7,8 @@ namespace Gccs.Application.Tenancy;
 public sealed class CuiSupportEscalationService(
     ICuiSupportEscalationRepository repository,
     IAuditEventWriter auditEventWriter,
-    IApplicationTransaction transaction)
+    IApplicationTransaction transaction,
+    ICurrentDataHandlingNoticeGuard noticeGuard)
 {
     public Task<IReadOnlyList<CuiSupportEscalationDto>> ListAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
         repository.ListAsync(tenantId, cancellationToken);
@@ -21,6 +22,7 @@ public sealed class CuiSupportEscalationService(
         ValidateCreate(request);
         return await transaction.ExecuteAsync(async cancellationToken =>
         {
+            await noticeGuard.EnsureAsync("Support", actorUserId, cancellationToken);
             var escalation = await repository.CreateAsync(tenantId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
             await WriteAuditAsync(escalation, actorUserId, AuditAction.Created, "created", cancellationToken);
             return escalation;
@@ -37,6 +39,7 @@ public sealed class CuiSupportEscalationService(
         ValidateUpdate(request);
         return await transaction.ExecuteAsync(async cancellationToken =>
         {
+            await noticeGuard.EnsureAsync("Support", actorUserId, cancellationToken);
             var escalation = await repository.UpdateSupportFieldsAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
             if (escalation is not null)
             {
@@ -58,6 +61,7 @@ public sealed class CuiSupportEscalationService(
         ValidateOpenStatus(request.Status);
         return await transaction.ExecuteAsync(async cancellationToken =>
         {
+            await noticeGuard.EnsureAsync("Support", actorUserId, cancellationToken);
             var escalation = await repository.ChangeStatusAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
             if (escalation is not null)
             {
@@ -82,6 +86,7 @@ public sealed class CuiSupportEscalationService(
 
         return await transaction.ExecuteAsync(async cancellationToken =>
         {
+            await noticeGuard.EnsureAsync("Support", actorUserId, cancellationToken);
             var escalation = await repository.ResolveAsync(tenantId, escalationId, request, actorUserId, DateTimeOffset.UtcNow, cancellationToken);
             if (escalation is not null)
             {

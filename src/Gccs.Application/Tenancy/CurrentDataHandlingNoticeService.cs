@@ -20,7 +20,7 @@ public sealed class CurrentDataHandlingNoticeService(
     {
         var mode = await tenants.FindCurrentTenantDataHandlingModeAsync(cancellationToken)
             ?? throw new DataHandlingNoticeValidationException("The current tenant mode is unavailable.");
-        var context = NormalizeWorkflow(workflow);
+        var context = PublishedNoticeWorkflow(NormalizeWorkflow(workflow));
         return await notices.GetPublishedAsync(package.Root, mode, context, cancellationToken)
             ?? throw new DataHandlingNoticeValidationException("No current published notice covers this workflow.");
     }
@@ -43,13 +43,22 @@ public sealed class CurrentDataHandlingNoticeService(
 
     public static string NormalizeWorkflow(string workflow) => workflow?.Trim() switch
     {
-        "ContractDocumentUpload" or "ExtractionJob" or "ContractIntake" => "ContractIntake",
+        "ContractDocumentUpload" or "ContractUpload" or "ContractIntake" => "ContractUpload",
+        "ExtractionJob" or "Extraction" => "ExtractionJob",
         "EvidenceSubmission" or "EvidenceUpload" => "EvidenceUpload",
         "Report" or "ReportGeneration" => "ReportGeneration",
-        // Notes use the existing published general notice; no new review/approval is invented.
-        "Note" or "ClassifiedNote" => "Onboarding",
+        "Note" or "ClassifiedNote" => "ClassifiedNote",
         "Onboarding" => "Onboarding",
         "Support" => "Support",
         _ => throw new DataHandlingNoticeValidationException("The notice workflow is not supported.")
+    };
+
+    // The reviewed general notices already cover these product areas. Keep the
+    // persisted acknowledgement action-specific without inventing new notice copy.
+    public static string PublishedNoticeWorkflow(string workflow) => NormalizeWorkflow(workflow) switch
+    {
+        "ContractUpload" or "ExtractionJob" => "ContractIntake",
+        "ClassifiedNote" => "Onboarding",
+        var context => context
     };
 }

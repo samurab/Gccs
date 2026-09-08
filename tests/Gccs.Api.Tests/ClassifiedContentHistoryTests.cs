@@ -32,6 +32,7 @@ public sealed class ClassifiedContentHistoryTests
         ["ExtractionJob", "extraction-jobs", "ViewContracts", "ReviewClauses"],
         ["Report", "reports", "ViewReports", "ManageReports"] ];
     private WebApplicationFactory<Program> Factory(bool postgres = false, AuditFailure? failure = null,
+        bool notice = true,
         Gccs.Application.Contracts.IContractDocumentTextExtractor? extractor = null) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -81,13 +82,31 @@ public sealed class ClassifiedContentHistoryTests
                 db.Reports.Add(new() { Id = ids["Report"], TenantId = tenant, Title = "Synthetic report", Type = ReportType.ComplianceStatus,
                     Status = ReportStatus.Complete, GeneratedAt = now, GeneratedByUserId = user, Classification = ContentClassification.Unknown,
                     SnapshotJson = "{\"baseline\":\"immutable\"}", ExportHtml = "<p>Immutable synthetic snapshot</p>" });
-                foreach (var workflow in new[] { "Onboarding", "EvidenceUpload", "ReportGeneration", "ContractIntake" })
+                if (notice) foreach (var workflow in new[] { "Onboarding", "EvidenceUpload", "ContractUpload", "ClassifiedNote", "ReportGeneration", "ExtractionJob", "Support" })
                     db.DataHandlingNoticeAcknowledgements.Add(new() { Id = Guid.NewGuid(), TenantId = tenant, UserId = user,
                         Mode = TenantDataPosture.NoCui, WorkflowContext = workflow, NoticeId = "no-cui-general",
                         NoticeVersion = "2026.06.phase1a", AcknowledgedAt = now });
                 db.SaveChanges();
             });
         });
+
+    [Fact]
+    public async Task Support_escalation_requires_current_support_notice_without_mutating_content()
+    {
+        await using var factory = Factory(notice: false); using var client = factory.CreateClient();
+        var path = $"/api/tenants/{tenant}/cui-support-escalations";
+        var body = new { sourceWorkflow = "ClassificationReview", affectedEntityType = "EvidenceItem",
+            affectedEntityId = ids["EvidenceItem"].ToString(), category = "SuspectedCui", severity = "High",
+            description = "Synthetic metadata-only concern." };
+
+        using var response = await client.SendAsync(Request(HttpMethod.Post, path, "ManageTenant", body));
+
+        Assert.Equal((HttpStatusCode)428, response.StatusCode);
+        Assert.Contains("data_handling_notice_acknowledgement_required", await response.Content.ReadAsStringAsync());
+        using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(db.CuiSupportEscalations);
+        Assert.Empty(db.AuditLogEntries);
+    }
     private HttpRequestMessage Request(HttpMethod method, string path, string permission, object? body = null, Guid? other = null)
     {
         var request = new HttpRequestMessage(method, path);

@@ -48,7 +48,7 @@ public sealed class ClassifiedWorkflowTests
                 var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
                 if (postgres) PostgresTestDatabase.Migrate(db);
                 db.Tenants.Add(new() { Id = tenant, Name = "Synthetic classified workflow", DataPosture = mode });
-                if (notice) foreach (var workflow in new[] { "Onboarding", "ReportGeneration", "ContractIntake" })
+                if (notice) foreach (var workflow in new[] { "Onboarding", "ClassifiedNote", "ReportGeneration", "ContractUpload", "ExtractionJob" })
                     db.DataHandlingNoticeAcknowledgements.Add(new() { Id = Guid.NewGuid(), TenantId = tenant, UserId = user,
                         Mode = mode, WorkflowContext = workflow, NoticeId = mode == TenantDataPosture.NoCui ? "no-cui-general" : mode == TenantDataPosture.DemoSandbox ? "demo-sandbox-general" : "cui-ready-general",
                         NoticeVersion = "2026.06.phase1a", AcknowledgedAt = DateTimeOffset.UtcNow });
@@ -86,6 +86,30 @@ public sealed class ClassifiedWorkflowTests
         Assert.Equal(428, (int)response.StatusCode);
         using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.Empty(db.Set<ClassifiedNoteEntity>()); Assert.Empty(db.ContentClassificationHistory); Assert.Empty(db.AuditLogEntries);
+    }
+    [Fact]
+    public async Task Classified_note_notice_can_be_retrieved_acknowledged_and_then_enforced_by_the_api()
+    {
+        await using var factory = Factory(false); using var client = factory.CreateClient();
+        using var current = await client.SendAsync(Request(HttpMethod.Get,
+            "/api/data-handling-notices/published?workflowContext=ClassifiedNote", permission: "ManageEvidence"));
+        current.EnsureSuccessStatusCode();
+        var notice = (await current.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>());
+        var noticeId = notice.GetProperty("noticeId").GetString()!;
+        var noticeVersion = notice.GetProperty("version").GetString()!;
+        using var acknowledged = await client.SendAsync(Request(HttpMethod.Post,
+            $"/api/tenants/{tenant}/data-handling-notice-acknowledgements",
+            new AcknowledgeDataHandlingNoticeRequest(TenantDataPosture.NoCui, "ClassifiedNote", noticeId, noticeVersion, true)));
+        Assert.Equal(HttpStatusCode.Created, acknowledged.StatusCode);
+
+        using var saved = await client.SendAsync(Request(HttpMethod.Post, "/api/classified-notes", Note()));
+
+        Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
+        using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var record = Assert.Single(db.DataHandlingNoticeAcknowledgements);
+        Assert.Equal("ClassifiedNote", record.WorkflowContext);
+        Assert.Equal(tenant, record.TenantId); Assert.Equal(user, record.UserId);
+        Assert.Contains(db.AuditLogEntries, audit => audit.EntityType == "DataHandlingNoticeAcknowledgement");
     }
     [Theory]
     [InlineData("/api/classified-notes", "ManageEvidence")]

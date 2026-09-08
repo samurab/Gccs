@@ -2401,8 +2401,31 @@ export function App() {
           <WorkspaceMetricStrip items={workspacePriorityMetrics} />
         </PageHeader>
         <PostureNotice currentTenant={currentTenant} />
-        {currentTenant &&
-          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}`} tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} />}
+        {currentTenant && activeRoute === "settings" &&
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Onboarding`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Onboarding" />}
+        {currentTenant && activeRoute === "evidence" && <div className="workflow-notice-grid" aria-label="Evidence and note data handling notices">
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:EvidenceUpload`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="EvidenceUpload" />
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ClassifiedNote`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ClassifiedNote" />
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Support`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Support" />
+        </div>}
+        {currentTenant && activeRoute === "contracts" && <div className="workflow-notice-grid" aria-label="Contract and extraction data handling notices">
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ContractUpload`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ContractUpload" />
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ExtractionJob`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ExtractionJob" />
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Support`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Support" />
+        </div>}
+        {currentTenant && activeRoute === "reports" && <div className="workflow-notice-grid" aria-label="Report and support data handling notices">
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:ReportGeneration`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="ReportGeneration" />
+          <DataHandlingNoticePanel key={`${currentTenant.id}:${currentTenant.dataHandlingMode}:${access.userId}:Support`}
+            tenantId={currentTenant.id} mode={currentTenant.dataHandlingMode} workflowContext="Support" />
+        </div>}
 
         <WorkspaceState state={loadState} onRetry={() => window.location.reload()}>
           {(activeRoute === "reports" || activeRoute === "contracts") && <label className="workflow-classification">

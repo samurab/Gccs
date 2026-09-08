@@ -14,10 +14,11 @@ public sealed class DataHandlingNoticeAcknowledgementService(
         Guid tenantId,
         Guid userId,
         DataHandlingNoticeDto currentNotice,
+        string workflowContext,
         CancellationToken cancellationToken = default)
     {
         var acknowledgements = await repository.ListAsync(tenantId, userId, cancellationToken);
-        return acknowledgements.Select(acknowledgement => WithStatus(acknowledgement, currentNotice)).ToArray();
+        return acknowledgements.Select(acknowledgement => WithStatus(acknowledgement, currentNotice, workflowContext)).ToArray();
     }
 
     public async Task<DataHandlingNoticeAcknowledgementDto> AcknowledgeAsync(
@@ -26,7 +27,8 @@ public sealed class DataHandlingNoticeAcknowledgementService(
         DataHandlingNoticeDto currentNotice,
         AcknowledgeDataHandlingNoticeRequest request,
         CancellationToken cancellationToken = default)
-        => await AcknowledgeCoreAsync(tenantId, userId, currentNotice, request, false, cancellationToken);
+        => await AcknowledgeCoreAsync(tenantId, userId, currentNotice, request,
+            CurrentDataHandlingNoticeService.PublishedNoticeWorkflow(request.WorkflowContext), false, cancellationToken);
 
     // Only the explicit tenant-admin readiness endpoint uses this path. It acknowledges
     // the proposed mode's notice without granting that mode or bypassing its approval gate.
@@ -35,13 +37,14 @@ public sealed class DataHandlingNoticeAcknowledgementService(
     {
         if (notice.Mode != TenantDataPosture.CuiReady || request.WorkflowContext != "Onboarding")
             throw new DataHandlingNoticeAcknowledgementRequiredException("Readiness acknowledgement must cover CuiReady onboarding.");
-        return AcknowledgeCoreAsync(tenantId, userId, notice, request, true, ct);
+        return AcknowledgeCoreAsync(tenantId, userId, notice, request, request.WorkflowContext, true, ct);
     }
 
     private async Task<DataHandlingNoticeAcknowledgementDto> AcknowledgeCoreAsync(Guid tenantId, Guid userId,
-        DataHandlingNoticeDto currentNotice, AcknowledgeDataHandlingNoticeRequest request, bool readiness, CancellationToken cancellationToken)
+        DataHandlingNoticeDto currentNotice, AcknowledgeDataHandlingNoticeRequest request,
+        string publishedWorkflowContext, bool readiness, CancellationToken cancellationToken)
     {
-        ValidateRequest(currentNotice, request);
+        ValidateRequest(currentNotice, request, publishedWorkflowContext);
         request = request with { WorkflowContext = request.WorkflowContext.Trim() };
         return await transaction.ExecuteAsync(async cancellationToken =>
         {
@@ -57,9 +60,12 @@ public sealed class DataHandlingNoticeAcknowledgementService(
 
             if (existing is not null)
             {
-                return WithStatus(existing, currentNotice);
+                return WithStatus(existing, currentNotice, request.WorkflowContext);
             }
 
+            var isRenewal = (await repository.ListAsync(tenantId, userId, cancellationToken)).Any(previous =>
+                previous.Mode == currentNotice.Mode && previous.WorkflowContext == request.WorkflowContext &&
+                (previous.NoticeId != currentNotice.NoticeId || previous.NoticeVersion != currentNotice.Version));
             var acknowledgedAt = DateTimeOffset.UtcNow;
             var acknowledgement = await repository.AddAsync(
                 tenantId,
@@ -74,10 +80,11 @@ public sealed class DataHandlingNoticeAcknowledgementService(
             await auditEventWriter.WriteAsync(
                 tenantId,
                 userId,
-                AuditAction.Created,
+                isRenewal ? AuditAction.Updated : AuditAction.Created,
                 "DataHandlingNoticeAcknowledgement",
                 acknowledgement.Id.ToString(),
-                "Data handling notice was acknowledged for a CUI-relevant workflow.",
+                isRenewal ? "Data handling notice acknowledgement was renewed for a CUI-relevant workflow."
+                    : "Data handling notice was acknowledged for a CUI-relevant workflow.",
                 new Dictionary<string, string>
                 {
                     ["tenantId"] = tenantId.ToString(),
@@ -87,11 +94,11 @@ public sealed class DataHandlingNoticeAcknowledgementService(
                     ["noticeId"] = currentNotice.NoticeId,
                     ["noticeVersion"] = currentNotice.Version,
                     ["acknowledgedAt"] = acknowledgedAt.ToString("O"),
-                    ["result"] = "acknowledged"
+                    ["result"] = isRenewal ? "renewed" : "acknowledged"
                 },
                 cancellationToken);
 
-            return WithStatus(acknowledgement, currentNotice);
+            return WithStatus(acknowledgement, currentNotice, request.WorkflowContext);
         }, cancellationToken);
     }
 
@@ -120,7 +127,8 @@ public sealed class DataHandlingNoticeAcknowledgementService(
             $"Data handling notice acknowledgement is required for {currentNotice.Mode} {workflowContext} before continuing.", workflowContext);
     }
 
-    private static void ValidateRequest(DataHandlingNoticeDto currentNotice, AcknowledgeDataHandlingNoticeRequest request)
+    private static void ValidateRequest(DataHandlingNoticeDto currentNotice, AcknowledgeDataHandlingNoticeRequest request,
+        string publishedWorkflowContext)
     {
         if (currentNotice.State != "Published" || currentNotice.EffectiveAt > DateOnly.FromDateTime(DateTime.UtcNow))
             throw new DataHandlingNoticeAcknowledgementRequiredException("Only a currently effective published notice can be acknowledged.");
@@ -134,7 +142,7 @@ public sealed class DataHandlingNoticeAcknowledgementService(
             throw new DataHandlingNoticeAcknowledgementRequiredException("Workflow context is required.");
         }
 
-        if (!currentNotice.WorkflowContexts.Contains(request.WorkflowContext.Trim(), StringComparer.Ordinal))
+        if (!currentNotice.WorkflowContexts.Contains(publishedWorkflowContext.Trim(), StringComparer.Ordinal))
             throw new DataHandlingNoticeAcknowledgementRequiredException("The current notice does not cover this workflow.");
 
         if (request.Mode != currentNotice.Mode ||
@@ -147,9 +155,11 @@ public sealed class DataHandlingNoticeAcknowledgementService(
 
     private static DataHandlingNoticeAcknowledgementDto WithStatus(
         DataHandlingNoticeAcknowledgementDto acknowledgement,
-        DataHandlingNoticeDto currentNotice)
+        DataHandlingNoticeDto currentNotice,
+        string workflowContext)
     {
         var status = acknowledgement.Mode == currentNotice.Mode &&
+            acknowledgement.WorkflowContext == workflowContext.Trim() &&
             acknowledgement.NoticeId == currentNotice.NoticeId &&
             acknowledgement.NoticeVersion == currentNotice.Version
                 ? DataHandlingNoticeAcknowledgementStatus.Current

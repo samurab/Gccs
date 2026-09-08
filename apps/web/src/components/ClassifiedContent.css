@@ -18,6 +18,14 @@ details.classification-review-panel {
 }
 
 details.data-handling-notice { display: block; padding: 0; }
+.workflow-notice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--workspace-card-gap);
+  align-items: start;
+  margin-block: 16px;
+}
+.workflow-notice-grid .data-handling-notice { width: 100%; margin: 0; }
 .data-handling-notice > summary { cursor: pointer; padding: 16px 20px; font-weight: 650; }
 .data-handling-notice[open] > summary { border-bottom: 1px solid var(--line); }
 .data-handling-notice-body { padding: 20px; max-width: 80ch; }

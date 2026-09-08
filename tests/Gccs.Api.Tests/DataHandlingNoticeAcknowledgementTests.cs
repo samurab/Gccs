@@ -59,7 +59,7 @@ public sealed class DataHandlingNoticeAcknowledgementTests
         var updated = Notice(TenantDataPosture.NoCui, "2026.07.phase1a");
 
         await service.AcknowledgeAsync(TenantId, UserId, original, Request(original, "ExtractionJob"));
-        var history = await service.ListAsync(TenantId, UserId, updated);
+        var history = await service.ListAsync(TenantId, UserId, updated, "ExtractionJob");
 
         Assert.Equal(DataHandlingNoticeAcknowledgementStatus.Outdated, Assert.Single(history).Status);
         await Assert.ThrowsAsync<DataHandlingNoticeAcknowledgementRequiredException>(() =>
@@ -92,7 +92,28 @@ public sealed class DataHandlingNoticeAcknowledgementTests
         await service.AcknowledgeAsync(TenantId, UserId, updated, Request(updated, "Support"));
 
         Assert.Contains(auditWriter.Events, audit => audit.Metadata["noticeVersion"] == original.Version && audit.Metadata["workflowContext"] == "Support");
-        Assert.Contains(auditWriter.Events, audit => audit.Metadata["noticeVersion"] == updated.Version && audit.Metadata["workflowContext"] == "Support");
+        Assert.Contains(auditWriter.Events, audit => audit.Action == AuditAction.Updated &&
+            audit.Metadata["noticeVersion"] == updated.Version && audit.Metadata["workflowContext"] == "Support" && audit.Metadata["result"] == "renewed");
+    }
+
+    [Fact]
+    public async Task Mode_and_workflow_changes_require_distinct_current_acknowledgements()
+    {
+        await using var dbContext = CreateDbContext();
+        SeedTenant(dbContext);
+        var service = CreateService(dbContext);
+        var noCui = Notice(TenantDataPosture.NoCui, "2026.06.phase1a");
+        var cuiReady = Notice(TenantDataPosture.CuiReady, "2026.06.phase1a");
+
+        await service.AcknowledgeAsync(TenantId, UserId, noCui, Request(noCui, "ContractUpload"));
+
+        await service.EnsureAcknowledgedAsync(TenantId, UserId, noCui, "ContractUpload");
+        Assert.Equal(DataHandlingNoticeAcknowledgementStatus.Outdated,
+            Assert.Single(await service.ListAsync(TenantId, UserId, noCui, "ExtractionJob")).Status);
+        await Assert.ThrowsAsync<DataHandlingNoticeAcknowledgementRequiredException>(() =>
+            service.EnsureAcknowledgedAsync(TenantId, UserId, noCui, "ExtractionJob"));
+        await Assert.ThrowsAsync<DataHandlingNoticeAcknowledgementRequiredException>(() =>
+            service.EnsureAcknowledgedAsync(TenantId, UserId, cuiReady, "ContractUpload"));
     }
 
     private static DataHandlingNoticeAcknowledgementService CreateService(
@@ -108,7 +129,7 @@ public sealed class DataHandlingNoticeAcknowledgementTests
             $"{mode.ToString().ToLowerInvariant()}-general",
             version,
             mode,
-            ["Onboarding", "EvidenceUpload", "ClassifiedNote", "ReportGeneration", "ExtractionJob", "Support"],
+            ["Onboarding", "EvidenceUpload", "ContractIntake", "ContractUpload", "ClassifiedNote", "ReportGeneration", "ExtractionJob", "Support"],
             $"{mode} Notice",
             mode switch
             {

@@ -11,7 +11,7 @@ internal static class AcknowledgedNoticeTestFixture
     internal static void AddAcknowledgedNoticeFixture(this IServiceCollection services) =>
         services.AddScoped<ICurrentDataHandlingNoticeGuard, AcknowledgedNoticeGuard>();
 
-    private sealed class AcknowledgedNoticeGuard : ICurrentDataHandlingNoticeGuard
+    internal sealed class AcknowledgedNoticeGuard : ICurrentDataHandlingNoticeGuard
     {
         public Task EnsureAsync(string workflow, Guid actorUserId, CancellationToken cancellationToken = default)
         {

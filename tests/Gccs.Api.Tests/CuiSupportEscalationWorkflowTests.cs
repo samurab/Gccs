@@ -148,7 +148,8 @@ public sealed class CuiSupportEscalationWorkflowTests
     }
 
     private static CuiSupportEscalationService CreateService(GccsDbContext dbContext, IAuditEventWriter? auditWriter = null) =>
-        new(new EfCuiSupportEscalationRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter(), new TestApplicationTransaction());
+        new(new EfCuiSupportEscalationRepository(dbContext), auditWriter ?? new CapturingAuditEventWriter(), new TestApplicationTransaction(),
+            new AcknowledgedNoticeTestFixture.AcknowledgedNoticeGuard());
 
     private static GccsDbContext CreateDbContext()
     {

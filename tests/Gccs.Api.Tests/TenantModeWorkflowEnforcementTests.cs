@@ -289,7 +289,50 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         Assert.Equal("Rejected", metadata["result"]);
     }
 
-    private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
+    [Fact]
+    public async Task TC_1A_6_2_1_Upload_and_extraction_endpoints_require_their_current_workflow_notice()
+    {
+        var ids = StoryIds.ForCase("tc-1a-6-2-1");
+        await using var factory = CreateFactory("tc-1a-6-2-1", dbContext =>
+        {
+            SeedTenant(dbContext, ids.TenantId, TenantDataPosture.NoCui);
+            SeedContract(dbContext, ids);
+            SeedPotentialCuiDocument(dbContext, ids);
+            SeedEvidenceRequest(dbContext, ids);
+            SeedAcknowledgement(dbContext, ids);
+        }, seedNotice: false);
+        using var client = factory.CreateClient();
+        var classification = new ContentClassificationRequest(ContentClassification.Unclassified,
+            ContentClassificationSource.UserSelected, Reason: "Synthetic test classification.");
+        var requests = new[]
+        {
+            CreateRequest(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/documents",
+                new ContractDocumentUploadRequest(ContractDocumentType.Contract, "synthetic.txt", "text/plain", 128, false, classification),
+                ids.TenantId, ids.ActorUserId, Permission.ManageContracts),
+            CreateRequest(HttpMethod.Post, $"/api/evidence-items/{ids.EvidenceItemId}/upload-intents",
+                new EvidenceUploadIntentRequest("synthetic.txt", "text/plain", 128, true, false, classification),
+                ids.TenantId, ids.ActorUserId, Permission.ManageEvidence),
+            CreateRequest(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/documents/{ids.DocumentId}/extraction-jobs",
+                new ClassifiedWorkflowRequest(classification), ids.TenantId, ids.ActorUserId, Permission.ManageContracts)
+        };
+
+        foreach (var request in requests)
+        {
+            using (request)
+            using (var response = await client.SendAsync(request))
+            {
+                Assert.Equal((HttpStatusCode)428, response.StatusCode);
+                Assert.Contains("data_handling_notice_acknowledgement_required", await response.Content.ReadAsStringAsync());
+            }
+        }
+        using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(db.EvidenceFileVersions);
+        Assert.Empty(db.Set<ExtractionJobEntity>());
+        Assert.Single(db.Set<ContractDocumentEntity>());
+    }
+
+    private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null,
+        bool seedNotice = true) =>
         _factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("LocalDependencies:Enabled", "false");
@@ -317,7 +360,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
                 dbContext.Database.EnsureDeleted();
                 dbContext.Database.EnsureCreated();
                 seed?.Invoke(dbContext);
-                NoticeTestData.Seed(dbContext);
+                if (seedNotice) NoticeTestData.Seed(dbContext);
                 dbContext.SaveChanges();
             });
         });
@@ -411,7 +454,9 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
             NoticeVersion = NoCuiNotice.CurrentVersion,
             UploadedAt = DateTimeOffset.UtcNow,
             UploadedByUserId = ids.ActorUserId,
-            ContainsPotentialCui = true
+            ContainsPotentialCui = true,
+            Classification = ContentClassification.Unclassified,
+            ClassificationSource = ContentClassificationSource.UserSelected
         });
     }
 

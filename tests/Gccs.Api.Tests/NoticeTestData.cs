@@ -14,7 +14,7 @@ internal static class NoticeTestData
             var users = db.NoCuiAcknowledgements.Local.Where(a => a.TenantId == tenant.Id).Select(a => a.UserId)
                 .Concat(actor is { } id ? new[] { id } : Array.Empty<Guid>()).Distinct().ToArray();
             foreach (var user in users)
-            foreach (var workflow in new[] { "EvidenceUpload", "ContractIntake", "ReportGeneration" })
+            foreach (var workflow in new[] { "Onboarding", "EvidenceUpload", "ContractUpload", "ClassifiedNote", "ReportGeneration", "ExtractionJob", "Support" })
                 db.DataHandlingNoticeAcknowledgements.Add(new DataHandlingNoticeAcknowledgementEntity
                 {
                     Id = Guid.NewGuid(), TenantId = tenant.Id, UserId = user, Mode = tenant.DataPosture,
