@@ -140,3 +140,7 @@ Before publishing any FedRAMP-related product, sales, security, procurement, or 
 - The statement distinguishes internal readiness tracking from the official status of the FeDril cloud service offering.
 - Any certification, authorization, equivalency, Marketplace, or government-approval wording matches current official evidence and the exact assessed boundary.
 - The statement preserves the No-CUI product posture unless a separately approved and assessed deployment has formally replaced it.
+
+## Agile Story Traceability
+
+The phase-by-phase mapping from roadmap outcomes to canonical user stories, non-software evidence workflows, external gates, test contracts, and executable sequence ranges is maintained in [mvp-roadmap-story-traceability.md](mvp-roadmap-story-traceability.md). Full story text, tasks, and acceptance criteria remain canonical in [development-phase-use-cases.md](development-phase-use-cases.md); they are not duplicated in this roadmap.

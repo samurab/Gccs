@@ -2,6 +2,8 @@
 
 These prompts are designed to be copied into a fresh implementation thread, one story at a time. Each prompt points back to the source backlog in [development-phase-use-cases.md](development-phase-use-cases.md) and should be executed under the project guidance in [../AGENTS.md](../AGENTS.md).
 
+Phase 0 Stories `0.1` through `0.8` and SOC 2 Stories `39.1` through `39.3` are intentionally excluded from this implementation inventory. They are non-software research, governance, decision, and independent-assurance workflows; use the governed human-evidence prompts in [development-story-test-prompts.md](development-story-test-prompts.md). Do not invoke the software story sequence or add application code merely to satisfy those stories.
+
 ## Shared Prompt Requirements
 
 Use these requirements for every story:

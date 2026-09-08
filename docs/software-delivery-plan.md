@@ -471,15 +471,15 @@ Monitor:
 6. Communicate status and resolution.
 7. Add regression test or runbook update for recurring issues.
 
-## 9. Agile Epics, User Stories, And Acceptance Criteria
+## 9. Legacy Agile Examples
 
-See [Development Phase Use Cases, Stories, Tasks, And Acceptance Criteria](development-phase-use-cases.md) for the sequential Phase 1 MVP backlog that expands each development process into use cases, stories, tasks, and acceptance criteria.
+The examples in this section predate the canonical roadmap-backed story numbering and are retained only as historical planning context. Their local numbers are not executable story IDs and must not be used by implementation, test, regression, or sequence tooling. Use [Development Phase Use Cases, Stories, Tasks, And Acceptance Criteria](development-phase-use-cases.md) for canonical story IDs, tasks, and acceptance criteria, and [MVP Roadmap Story Traceability](mvp-roadmap-story-traceability.md) for phase-by-phase coverage.
 
 ### Epic 1: Tenant, Identity, And RBAC Foundation
 
 Goal: Ensure every customer has isolated access, role-based permissions, and auditability from the start.
 
-#### Story 1.1: Tenant Creation
+#### Legacy example 1.1: Tenant Creation
 
 As a platform admin, I want to create a tenant so that a customer organization can use GCCS in an isolated workspace.
 
@@ -489,7 +489,7 @@ Acceptance criteria:
 - Tenant data is not visible to other tenants.
 - Tenant creation is audit logged.
 
-#### Story 1.2: User Invitations
+#### Legacy example 1.2: User Invitations
 
 As a tenant admin, I want to invite users so that my team can collaborate.
 
@@ -500,7 +500,7 @@ Acceptance criteria:
 - Non-admin users cannot invite users.
 - Invitation actions are audit logged.
 
-#### Story 1.3: Role-Based Permissions
+#### Legacy example 1.3: Role-Based Permissions
 
 As a tenant admin, I want role-based permissions so that users only access appropriate workflows.
 
@@ -515,7 +515,7 @@ Acceptance criteria:
 
 Goal: Capture the business facts needed to determine likely obligations and renewal needs.
 
-#### Story 2.1: Create Company Profile
+#### Legacy example 2.1: Create Company Profile
 
 As a compliance manager, I want to create a company profile so that compliance tasks can be based on my business context.
 
@@ -526,7 +526,7 @@ Acceptance criteria:
 - Profile completion percentage is shown.
 - Updates are audit logged.
 
-#### Story 2.2: Certification Tracking
+#### Legacy example 2.2: Certification Tracking
 
 As a compliance manager, I want to track socioeconomic certifications so that renewals do not get missed.
 
@@ -536,7 +536,7 @@ Acceptance criteria:
 - Expiring certifications create calendar tasks.
 - Expired certifications are flagged on the dashboard.
 
-#### Story 2.3: CUI-Ready Gated Posture Disclosure
+#### Legacy example 2.3: CUI-Ready Gated Posture Disclosure
 
 As a product owner, I want users to acknowledge tenant data handling limitations so that upload expectations are clear.
 
@@ -550,7 +550,7 @@ Acceptance criteria:
 
 Goal: Capture contract facts and clauses that drive obligation tracking.
 
-#### Story 3.1: Create Contract Record
+#### Legacy example 3.1: Create Contract Record
 
 As a contracts admin, I want to create a contract record so that obligations can be tracked by contract.
 
@@ -560,7 +560,7 @@ Acceptance criteria:
 - Contract can be saved as draft or active.
 - Contract appears in the tenant contract list.
 
-#### Story 3.2: Upload Contract Documents
+#### Legacy example 3.2: Upload Contract Documents
 
 As a contracts admin, I want to upload allowed contract documents so that evidence and source materials are attached to the contract.
 
@@ -571,7 +571,7 @@ Acceptance criteria:
 - Disallowed file types and oversized files are rejected.
 - Upload creates audit log entry.
 
-#### Story 3.3: Manual Clause Tagging
+#### Legacy example 3.3: Manual Clause Tagging
 
 As a contracts admin, I want to tag contract clauses manually so that obligations can be generated before automated extraction exists.
 
@@ -586,7 +586,7 @@ Acceptance criteria:
 
 Goal: Maintain a governed obligation library that is traceable to sources.
 
-#### Story 4.1: Obligation Record Schema
+#### Legacy example 4.1: Obligation Record Schema
 
 As a compliance content owner, I want a structured obligation schema so that content is consistent and reviewable.
 
@@ -596,7 +596,7 @@ Acceptance criteria:
 - Content without source URL cannot be published.
 - Content without last reviewed date cannot be published.
 
-#### Story 4.2: Obligation Dashboard
+#### Legacy example 4.2: Obligation Dashboard
 
 As a compliance manager, I want a dashboard of obligations so that I know what requires action.
 
@@ -606,7 +606,7 @@ Acceptance criteria:
 - User can filter by contract, risk, owner, and module.
 - Each obligation displays summary, required action, evidence needed, and source link.
 
-#### Story 4.3: Expert Review Flag
+#### Legacy example 4.3: Expert Review Flag
 
 As a compliance content owner, I want to flag obligations requiring expert review so that risky interpretations are not published casually.
 
@@ -620,7 +620,7 @@ Acceptance criteria:
 
 Goal: Convert obligations, renewals, and reviews into trackable work.
 
-#### Story 5.1: Create Obligation Tasks
+#### Legacy example 5.1: Create Obligation Tasks
 
 As a compliance manager, I want obligations to create tasks so that required actions are assigned and tracked.
 
@@ -630,7 +630,7 @@ Acceptance criteria:
 - Task includes owner, due date, status, priority, and notes.
 - Task status changes are audit logged.
 
-#### Story 5.2: Calendar View
+#### Legacy example 5.2: Calendar View
 
 As a compliance manager, I want a calendar view so that upcoming compliance work is visible.
 
@@ -640,7 +640,7 @@ Acceptance criteria:
 - User can filter by owner, status, risk, and module.
 - Overdue tasks are visually distinct.
 
-#### Story 5.3: Notifications
+#### Legacy example 5.3: Notifications
 
 As a user, I want reminders before due dates so that I can act before obligations are overdue.
 
@@ -654,7 +654,7 @@ Acceptance criteria:
 
 Goal: Make evidence easy to organize, reuse, review, and export.
 
-#### Story 6.1: Evidence Metadata
+#### Legacy example 6.1: Evidence Metadata
 
 As a compliance manager, I want to create evidence records so that proof is linked to obligations.
 
@@ -664,7 +664,7 @@ Acceptance criteria:
 - Evidence can satisfy multiple obligations or controls.
 - Evidence status includes draft, submitted, approved, rejected, and expired.
 
-#### Story 6.2: Evidence Upload
+#### Legacy example 6.2: Evidence Upload
 
 As a contributor, I want to upload allowed evidence so that compliance proof is stored with the obligation.
 
@@ -676,7 +676,7 @@ Acceptance criteria:
 - File is unavailable for approval until scan succeeds.
 - Upload and scan outcome are audit logged.
 
-#### Story 6.3: Evidence Package Export
+#### Legacy example 6.3: Evidence Package Export
 
 As a compliance manager, I want to export an evidence package so that I can respond to a prime or auditor request.
 
@@ -691,7 +691,7 @@ Acceptance criteria:
 
 Goal: Provide CMMC readiness tracking without pretending to be a final assessment determination.
 
-#### Story 7.1: CMMC Level 1 Checklist
+#### Legacy example 7.1: CMMC Level 1 Checklist
 
 As a DoD subcontractor, I want a Level 1 checklist so that I can track basic safeguarding readiness.
 
@@ -701,7 +701,7 @@ Acceptance criteria:
 - User can set status, owner, due date, evidence, and notes.
 - Readiness summary shows complete, in progress, not started, and blocked counts.
 
-#### Story 7.2: Level 2 Readiness Workspace
+#### Legacy example 7.2: Level 2 Readiness Workspace
 
 As an IT/security owner, I want a Level 2 readiness workspace so that NIST SP 800-171 Rev. 2 requirements can be tracked.
 
@@ -711,7 +711,7 @@ Acceptance criteria:
 - UI clearly labels content as readiness tracking, not certification.
 - Control export includes source references and last reviewed dates.
 
-#### Story 7.3: POA&M Tracker
+#### Legacy example 7.3: POA&M Tracker
 
 As a security owner, I want a POA&M tracker so that remediation work is visible and assignable.
 
@@ -725,7 +725,7 @@ Acceptance criteria:
 
 Goal: Track subcontractor obligations and evidence requests tied to contract flow-downs.
 
-#### Story 8.1: Subcontractor Profile
+#### Legacy example 8.1: Subcontractor Profile
 
 As a contracts admin, I want to create subcontractor profiles so that flow-down obligations can be managed.
 
@@ -735,7 +735,7 @@ Acceptance criteria:
 - Subcontractor can be linked to contracts.
 - Profile changes are audit logged.
 
-#### Story 8.2: Flow-Down Clause Tracking
+#### Legacy example 8.2: Flow-Down Clause Tracking
 
 As a contracts admin, I want to assign flow-down clauses to subcontractors so that required terms are tracked.
 
@@ -745,7 +745,7 @@ Acceptance criteria:
 - Status includes required, sent, signed, waived, and not applicable.
 - Signed flow-down evidence can be attached.
 
-#### Story 8.3: Subcontractor Evidence Requests
+#### Legacy example 8.3: Subcontractor Evidence Requests
 
 As a compliance manager, I want to request evidence from subcontractors so that prime obligations are supported.
 
@@ -759,7 +759,7 @@ Acceptance criteria:
 
 Goal: Produce practical outputs for management, primes, auditors, and internal reviews.
 
-#### Story 9.1: Compliance Status Report
+#### Legacy example 9.1: Compliance Status Report
 
 As an owner, I want a status report so that I can see compliance health across the company.
 
@@ -769,7 +769,7 @@ Acceptance criteria:
 - Report can be exported.
 - Report includes generated date and data scope.
 
-#### Story 9.2: Contract Obligation Matrix
+#### Legacy example 9.2: Contract Obligation Matrix
 
 As a contracts admin, I want an obligation matrix so that a contract's compliance requirements are clear.
 
@@ -778,7 +778,7 @@ Acceptance criteria:
 - Matrix includes clause, obligation, owner, action, evidence needed, due date, flow-down, risk, source URL, and status.
 - User can filter by contract and export.
 
-#### Story 9.3: Immutable Audit Log
+#### Legacy example 9.3: Immutable Audit Log
 
 As a security/compliance owner, I want an audit log so that sensitive actions are traceable.
 
@@ -792,7 +792,7 @@ Acceptance criteria:
 
 Goal: Operate the SaaS safely with repeatable releases and production support.
 
-#### Story 10.1: CI Pipeline
+#### Legacy example 10.1: CI Pipeline
 
 As a technical lead, I want CI to run on every change so that defects are caught early.
 
@@ -803,7 +803,7 @@ Acceptance criteria:
 - Dependency scan runs.
 - Pipeline fails on test or build failure.
 
-#### Story 10.2: Staging Deployment
+#### Legacy example 10.2: Staging Deployment
 
 As a delivery lead, I want a staging environment so that releases can be verified before production.
 
@@ -813,7 +813,7 @@ Acceptance criteria:
 - Staging has separate test database and object storage.
 - Smoke tests run after deployment.
 
-#### Story 10.3: Production Monitoring
+#### Legacy example 10.3: Production Monitoring
 
 As an operations owner, I want monitoring and alerts so that production issues are detected quickly.
 

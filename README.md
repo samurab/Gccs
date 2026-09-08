@@ -46,6 +46,7 @@ Compliance workflow logic must be reusable from backend services and tests. The 
 - [Design flow diagrams](docs/design-flow-diagrams.md)
 - [Workflow diagram](docs/workflow-diagram.md)
 - [MVP roadmap](docs/mvp-roadmap.md)
+- [MVP roadmap story traceability](docs/mvp-roadmap-story-traceability.md)
 - [Development database models](docs/database-models.md)
 - [Compliance content governance](docs/compliance-content-governance.md)
 - [Glossary and acronyms](docs/glossary-and-acronyms.md)

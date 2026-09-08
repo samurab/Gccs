@@ -41,7 +41,9 @@ docs/
   security-control-implications.md
                                Tenant isolation, RBAC, audit logging, and No-CUI implementation implications.
   database-models.md           EF Core schema, migration commands, model groups.
-  mvp-roadmap.md               Phase 0-2 roadmap snapshot.
+  mvp-roadmap.md               Phase 0-4 roadmap plus FedRAMP decision/readiness track.
+  mvp-roadmap-story-traceability.md
+                               Roadmap outcomes mapped to canonical stories and external gates.
   software-delivery-plan.md    Delivery plan, requirements, roles, cadence.
   glossary-and-acronyms.md     Plain-English govcon, compliance, security, and app terminology.
   compliance-content-governance.md
@@ -262,6 +264,7 @@ ruby -ryaml -e 'doc = YAML.load_file("docs/api/openapi.yaml"); puts doc["openapi
 6. `docs/api/README.md` and `docs/api/openapi.yaml` for API contract work.
 7. `docs/compliance-content-governance.md` before changing obligation content.
 8. `docs/mvp-roadmap.md` for phased delivery priorities.
+9. `docs/mvp-roadmap-story-traceability.md` for canonical story coverage, non-software evidence workflows, and executable ranges.
 
 ## Story 1.1 Status
 
