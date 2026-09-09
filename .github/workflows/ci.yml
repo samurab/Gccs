@@ -202,7 +202,22 @@ jobs:
           dotnet tool restore
 
       - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 10
+        run: |
+          for attempt in 1 2 3; do
+            if npx playwright install --with-deps chromium; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Playwright Chromium installation failed after $attempt attempts."
+              exit 1
+            fi
+
+            delay=$((attempt * 30))
+            echo "::warning::Playwright Chromium installation failed on attempt $attempt; retrying in ${delay}s."
+            sleep "$delay"
+          done
 
       - name: Build API
         run: dotnet build apps/api/Gccs.Api.csproj --no-restore --configuration Release
