@@ -9,7 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Gccs.Infrastructure.Tenancy;
 
 public sealed class EfCuiReadinessEvidenceRepository(GccsDbContext db, ICurrentTenantContext context,
-    DataHandlingNoticeService notices, SharedResponsibilityMatrixService matrices, DataHandlingNoticePackage package)
+    DataHandlingNoticeService notices, SharedResponsibilityMatrixService matrices, DataHandlingNoticePackage package,
+    ISecurityIncidentReadinessRepository? readiness = null)
     : ICuiReadinessEvidenceRepository
 {
     private void Scope(Guid tenantId)
@@ -56,14 +57,33 @@ public sealed class EfCuiReadinessEvidenceRepository(GccsDbContext db, ICurrentT
     {
         Scope(tenantId);
         var now = DateTimeOffset.UtcNow;
+        var authoritativeRecordsEnabled = readiness is not null;
         var current = await db.Set<CuiReadinessEvidenceEntity>().AsNoTracking()
-            .Where(e => e.TenantId == tenantId && e.State == "Approved" && e.ExpiresAt > now &&
+            .Where(e => e.TenantId == tenantId && e.State == "Approved" &&
+                (!authoritativeRecordsEnabled || (e.Kind != "security-review" && e.Kind != "incident-response" && e.Kind != "backup-restore")) && e.ExpiresAt > now &&
                 e.ReviewedAt > now.AddYears(-1) && e.ReviewedByUserId != Guid.Empty &&
                 !db.Set<CuiReadinessEvidenceEntity>().Any(newer => newer.TenantId == tenantId && newer.Kind == e.Kind && newer.Version > e.Version)).ToArrayAsync(ct);
         var result = current.Where(e => e.ReviewedAt <= now && CuiReadinessEvidenceService.Validate(e.Kind, Dto(e).Details, now) is null)
             .Select(e => new CuiReadinessSupportingRecord(e.Id, e.Kind, e.Version.ToString(), $"{e.Kind} v{e.Version}")).ToList();
-        var matrix = await matrices.GetPublishedAsync(package.Root, ct);
+        var security = readiness is null ? null : await readiness.CurrentSecurityAsync(tenantId, ct);
         var today = DateOnly.FromDateTime(now.UtcDateTime);
+        if (security is { State: "Approved", ApprovedAt: not null } && security.ApprovedAt > now.AddYears(-1) &&
+            !security.Findings.Any(f => f.Status == SecurityReviewFindingStatus.Open &&
+                f.Severity is SecurityReviewFindingSeverity.High or SecurityReviewFindingSeverity.Critical) &&
+            !security.AcceptedRisks.Any(r => (r.ExpiresAt ?? r.ReviewAt) <= today))
+            result.Add(new(security.Id, "security-review", security.Version.ToString(), $"Security review v{security.Version}"));
+        var technical = readiness is null ? null : await readiness.CurrentTechnicalAsync(tenantId, ct);
+        string[] requiredControls = ["tenant-isolation", "evidence-storage", "malware-scanner", "backup-restore", "administrator-access", "support-access"];
+        if (technical is { State: "Approved", ApprovedAt: not null } && technical.ApprovedAt > now.AddYears(-1) &&
+            requiredControls.All(type => technical.Evidence.Any(e => e.ControlType == type && e.Result == "Passed" &&
+                e.ExecutedAt > today.AddYears(-1) && (e.ExpiresAt is null || e.ExpiresAt > today))))
+            result.Add(new(technical.Id, "backup-restore", technical.Version.ToString(), $"Technical readiness v{technical.Version}"));
+        var incident = readiness is null ? null : await readiness.CurrentIncidentAsync(tenantId, ct);
+        if (incident is { State: "Approved", ApprovedAt: not null } && incident.ApprovedAt > now.AddYears(-1) &&
+            incident.ReviewDueAt > today && incident.Tabletops.Any(t => t.ExecutedAt > today.AddYears(-1)) &&
+            !incident.FollowUps.Any(f => f.Status == IncidentResponseGapStatus.Open && f.Severity == SecurityReviewFindingSeverity.Critical))
+            result.Add(new(incident.Id, "incident-response", incident.Version.ToString(), $"Incident readiness v{incident.Version}"));
+        var matrix = await matrices.GetPublishedAsync(package.Root, ct);
         if (matrix.EffectiveAt <= today && matrix.ReviewedAt <= today && matrix.ReviewedAt > today.AddYears(-1))
         {
             var ack = await db.SharedResponsibilityMatrixAcknowledgements.AsNoTracking().Where(e => e.TenantId == tenantId &&

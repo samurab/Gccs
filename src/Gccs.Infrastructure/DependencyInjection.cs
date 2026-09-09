@@ -367,6 +367,8 @@ public static class DependencyInjection
             services.AddScoped<IGovernmentCloudReleaseReadinessRepository, EfGovernmentCloudReleaseReadinessRepository>();
             services.AddScoped<ICuiReadyApprovalChecklistRepository, EfCuiReadyApprovalChecklistRepository>();
             services.AddScoped<ICuiReadinessEvidenceRepository, EfCuiReadinessEvidenceRepository>();
+            services.AddScoped<ISecurityIncidentReadinessRepository, EfSecurityIncidentReadinessRepository>();
+            services.AddScoped<SecurityIncidentReadinessService>();
             services.AddScoped<ISharedResponsibilityMatrixAcknowledgementRepository, EfSharedResponsibilityMatrixAcknowledgementRepository>();
             services.AddScoped<IDataHandlingNoticeAcknowledgementRepository, EfDataHandlingNoticeAcknowledgementRepository>();
             services.AddScoped<ICuiSupportEscalationRepository, EfCuiSupportEscalationRepository>();

@@ -12,7 +12,7 @@ export function ReadinessEvidencePanel({ children }: { children: (sources: Readi
   const [message, setMessage] = useState("");
   const [reload, setReload] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [kind, setKind] = useState("security-review");
+  const [kind, setKind] = useState("support-escalation");
   const [source, setSource] = useState("");
   const [notes, setNotes] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -64,12 +64,12 @@ export function ReadinessEvidencePanel({ children }: { children: (sources: Readi
       {canApprove && <form onSubmit={e => { e.preventDefault(); void save(); }}>
         <p>Record a qualified review of actual supporting evidence. Do not paste customer content, CUI, secrets, or credentials. Recording a new version supersedes the previous version.</p>
         <label>Evidence kind<select value={kind} onChange={e => { setKind(e.target.value); setDetails("{}"); }}>
-          {["security-review", "incident-response", "backup-restore", "support-escalation"].map(k => <option key={k}>{k}</option>)}
+          {["support-escalation"].map(k => <option key={k}>{k}</option>)}
         </select></label>
         <label>Source reference<input required maxLength={600} value={source} onChange={e => setSource(e.target.value)} /></label>
         <label>Review notes<textarea required maxLength={1200} value={notes} onChange={e => setNotes(e.target.value)} /></label>
         <label>Expires at<input type="datetime-local" required value={expiry} onChange={e => setExpiry(e.target.value)} /></label>
-        <p>Security: securityItems, securityFindings, acceptedRisks. Incident: playbooks, incidentGaps, tabletop. Restore: backupRestore (verifiedAt, environment, reviewerUserId, result: Passed). Support: supportOwner, escalationContact, runbookReference, coverage.</p>
+        <p>Support evidence requires supportOwner, escalationContact, runbookReference, and coverage. Security, technical, and incident records are managed in the structured readiness section.</p>
         <label>Structured review metadata (JSON)<textarea required maxLength={64000} rows={10} value={details} onChange={e => setDetails(e.target.value)} /></label>
         <label><input type="checkbox" checked={rejected} onChange={e => setRejected(e.target.checked)} />Record rejected evidence</label>
         <button disabled={busy || loading}>Record reviewed version</button>

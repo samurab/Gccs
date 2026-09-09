@@ -3242,6 +3242,22 @@ export const recordReadinessEvidence = (request: { kind: string; expectedVersion
   sourceReference: string; reviewNotes: string; details: unknown; rejected: boolean }) =>
   postJsonResult<ReadinessEvidence>("/api/cui-readiness-evidence", request);
 
+export type SecurityReviewItem = { area: string; status: "NotStarted" | "InReview" | "Passed" | "FindingOpen" | "AcceptedRisk"; reviewerUserId: string | null; reviewedAt: string | null; evidenceLink: string | null; rationale: string | null };
+export type SecurityReviewRecord = { id: string; version: number; state: string; approvedAt: string | null; approvalNotes: string | null; items: SecurityReviewItem[]; findings: Array<{ id: string; area: string; severity: string; status: string; summary: string; remediationOwner: string; dueAt: string | null; closureNotes: string | null }>; acceptedRisks: Array<{ id:string; findingId:string|null; approverUserId:string; acceptedAt:string; scope:string; expiresAt:string|null; reviewAt:string|null; mitigationNote:string }> };
+export type TechnicalReadinessRecord = { id: string; version: number; state: string; approvedAt: string | null; evidence: Array<{ id: string; controlType: string; executedAt: string; environment: string; reviewerUserId: string; result: string; evidenceReference: string; expiresAt: string | null; notes: string }> };
+export type IncidentReadinessRecord = { id: string; version: number; state: string; approvedAt: string | null; reviewDueAt:string; reviewBasis:string; contacts:Array<{id:string;function:string;contact:string;escalationRole:string}>; playbooks: Array<{ id: string; key: string; trigger:string; containmentSteps:string[]; notificationPath:string; evidenceToCollect:string[]; owner: string; closureCriteria:string }>; tabletops: Array<{ id: string; executedAt: string; environment: string; participants:string[]; findings:string[]; evidenceReference: string; reviewerUserId:string }>; followUps: Array<{ id: string; tabletopId:string; severity: string; status: string; summary: string; owner: string; dueAt: string; closureNotes:string|null }> };
+export type ReadinessHistory = { id: string; recordType: string; recordId: string; version: number; action: string; actorUserId: string; occurredAt: string; summary: string };
+export const getSecurityReviewReadiness = () => getRequiredJson<SecurityReviewRecord | null>("/api/security-incident-readiness/security-review");
+export const saveSecurityReviewReadiness = (request: unknown) => putJsonResult<SecurityReviewRecord>("/api/security-incident-readiness/security-review", request);
+export const approveSecurityReviewReadiness = (expectedVersion: number, notes: string) => postJsonResult<SecurityReviewRecord>("/api/security-incident-readiness/security-review/approve", { expectedVersion, notes });
+export const getTechnicalReadiness = () => getRequiredJson<TechnicalReadinessRecord | null>("/api/security-incident-readiness/technical");
+export const saveTechnicalReadiness = (request: unknown) => putJsonResult<TechnicalReadinessRecord>("/api/security-incident-readiness/technical", request);
+export const approveTechnicalReadiness = (expectedVersion: number, notes: string) => postJsonResult<TechnicalReadinessRecord>("/api/security-incident-readiness/technical/approve", { expectedVersion, notes });
+export const getIncidentReadiness = () => getRequiredJson<IncidentReadinessRecord | null>("/api/security-incident-readiness/incident");
+export const saveIncidentReadiness = (request: unknown) => putJsonResult<IncidentReadinessRecord>("/api/security-incident-readiness/incident", request);
+export const approveIncidentReadiness = (expectedVersion: number, notes: string) => postJsonResult<IncidentReadinessRecord>("/api/security-incident-readiness/incident/approve", { expectedVersion, notes });
+export const getSecurityIncidentReadinessHistory = () => getRequiredJson<ReadinessHistory[]>("/api/security-incident-readiness/history");
+
 export async function updateCuiReadyApprovalChecklistItem(
   tenantId: string,
   checklistId: string,

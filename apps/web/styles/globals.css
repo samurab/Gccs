@@ -6225,6 +6225,38 @@ textarea[aria-invalid="true"] {
   gap: 8px;
 }
 
+.readiness-record-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.readiness-record-grid > :first-child {
+  grid-column: 1 / -1;
+}
+
+.readiness-check-grid { display: grid; gap: 4px; overflow-x: auto; }
+.readiness-check-grid__header,
+.readiness-check-grid__row { display: grid; grid-template-columns: minmax(10rem, 1.1fr) minmax(8rem, .7fr) minmax(13rem, 1fr) minmax(13rem, 1.2fr); gap: 8px; align-items: center; min-width: 48rem; }
+.readiness-check-grid__header { color: var(--ink-muted); font-size: .78rem; padding: 0 8px; text-transform: uppercase; }
+.readiness-check-grid__row { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.readiness-check-grid__row > strong { text-transform: capitalize; }
+.readiness-check-grid__row label,
+.readiness-check-grid__row input,
+.readiness-check-grid__row select { margin: 0; min-width: 0; width: 100%; }
+.readiness-record-grid > article:not(:first-child) label { display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(10rem, 1fr); gap: 8px; align-items: center; }
+.readiness-record-grid > article:not(:first-child) input,
+.readiness-record-grid > article:not(:first-child) textarea { margin: 0; min-width: 0; width: 100%; }
+.readiness-child-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin-block: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+.readiness-child-editor label { margin: 0; }
+
+@media (max-width: 900px) {
+  .readiness-record-grid { grid-template-columns: minmax(0, 1fr); }
+  .readiness-record-grid > :first-child { grid-column: auto; }
+  .readiness-child-editor { grid-template-columns: minmax(0, 1fr); }
+}
+
 .evidence-list__item {
   background: var(--surface-strong);
   border: 1px solid var(--line);

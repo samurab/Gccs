@@ -272,7 +272,7 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
     }
 
     [Fact]
-    public async Task Upload_cannot_create_or_attach_to_a_missing_or_cross_tenant_evidence_identity()
+    public async Task TC_1A_9_2_1_Real_api_and_storage_isolate_cross_tenant_classified_records_and_files()
     {
         var tenantId = Guid.Parse("12212212-2122-1221-2212-2122122122a8");
         var otherTenantId = Guid.Parse("12212212-2122-1221-2212-2122122122a9");
@@ -287,6 +287,15 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         });
         using var client = factory.CreateClient();
         await AcknowledgeAsync(client, tenantId, userId);
+        await AcknowledgeAsync(client, otherTenantId, userId);
+        using (var tenantBUpload = await UploadFileBytesAsync(client, otherTenantId, userId, crossTenantEvidenceItemId, "classified tenant B evidence"))
+            Assert.Equal(HttpStatusCode.Created, tenantBUpload.StatusCode);
+        using (var seedScope = factory.Services.CreateScope())
+        {
+            var db = seedScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            (await db.EvidenceItems.SingleAsync(x => x.Id == crossTenantEvidenceItemId)).Classification = Gccs.Domain.Common.ContentClassification.Cui;
+            await db.SaveChangesAsync();
+        }
 
         using var missingRequest = CreateRequest(
             HttpMethod.Post,
@@ -302,13 +311,19 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             userId,
             crossTenantEvidenceItemId,
             "cross-tenant evidence");
+        using var crossTenantDownload = CreateRequest<object?>(HttpMethod.Get,
+            $"/api/evidence-items/{crossTenantEvidenceItemId}/file/content", null, tenantId, userId, Permission.ViewEvidence);
+        using var crossTenantDownloadResponse = await client.SendAsync(crossTenantDownload);
 
         Assert.Equal(HttpStatusCode.NotFound, missingResponse.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, crossTenantResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, crossTenantDownloadResponse.StatusCode);
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.False(await dbContext.EvidenceItems.AnyAsync(item => item.Id == missingEvidenceItemId));
-        Assert.Empty(await dbContext.EvidenceFileVersions.ToArrayAsync());
+        var persistedVersion = await dbContext.EvidenceFileVersions.SingleAsync();
+        Assert.Equal(crossTenantEvidenceItemId, persistedVersion.EvidenceItemId);
+        Assert.Equal(1, ((InMemoryObjectStorageService)factory.Services.GetRequiredService<IObjectStorageService>()).Count);
     }
 
     [Theory]

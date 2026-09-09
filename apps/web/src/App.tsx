@@ -27,6 +27,7 @@ import {
 import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DataHandlingNoticePanel } from "@/components/DataHandlingNoticePanel";
 import { ReadinessEvidencePanel, ReadinessItemEditor } from "@/components/ReadinessEvidencePanel";
+import { SecurityIncidentReadinessPanel } from "@/components/SecurityIncidentReadinessPanel";
 import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
 import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
 import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
@@ -9542,6 +9543,7 @@ function SettingsView({
             onAcknowledge={onSharedResponsibilityMatrixAcknowledge}
             status={sharedResponsibilityMatrixAcknowledgementStatus}
           />
+          <SecurityIncidentReadinessPanel userId={currentUserId} />
           <CuiReadyChecklistPanel
             checklists={cuiReadyChecklists}
             currentTenant={currentTenant}
