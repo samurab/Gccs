@@ -204,10 +204,9 @@ jobs:
       - name: Install Playwright Chromium
         timeout-minutes: 10
         run: |
-          google_chrome_source=/etc/apt/sources.list.d/google-chrome.list
-          if [ -f "$google_chrome_source" ]; then
+          while IFS= read -r google_chrome_source; do
             sudo mv "$google_chrome_source" "${google_chrome_source}.disabled"
-          fi
+          done < <(sudo grep -RIlF "dl.google.com/linux/chrome-stable" /etc/apt/sources.list.d || true)
 
           for attempt in 1 2 3; do
             if npx playwright install --with-deps chromium; then
