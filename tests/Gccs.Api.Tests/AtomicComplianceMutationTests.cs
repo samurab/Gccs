@@ -74,7 +74,7 @@ public sealed class AtomicComplianceMutationTests : IClassFixture<WebApplication
         var tenantId = Guid.NewGuid();
         var invitationId = Guid.NewGuid();
         var actorUserId = Guid.NewGuid();
-        var token = $"atomic-invitation-token-{Guid.NewGuid():N}";
+        var invitationValue = $"atomic-invitation-{Guid.NewGuid():N}";
         const string email = "new.owner@example.com";
         await using var testFactory = CreatePostgresFactory<AlwaysFailAuditEventWriter>(dbContext =>
         {
@@ -85,7 +85,7 @@ public sealed class AtomicComplianceMutationTests : IClassFixture<WebApplication
                 TenantId = tenantId,
                 Email = email,
                 RoleName = "Owner",
-                InvitationTokenHash = HashToken(token),
+                InvitationTokenHash = HashToken(invitationValue),
                 Status = TenantInvitationStatus.Pending,
                 ExpiresAt = DateTimeOffset.UtcNow.AddDays(1),
                 DeliveryStatus = InvitationDeliveryStatus.Sent,
@@ -100,7 +100,7 @@ public sealed class AtomicComplianceMutationTests : IClassFixture<WebApplication
             using var client = testFactory.CreateClient();
             using var request = AuthenticatedRequest(
                 HttpMethod.Post,
-                $"/api/invitations/{token}/accept",
+                $"/api/invitations/{invitationValue}/accept",
                 tenantId,
                 actorUserId,
                 email,
@@ -114,7 +114,7 @@ public sealed class AtomicComplianceMutationTests : IClassFixture<WebApplication
             var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
             var invitation = await dbContext.TenantInvitations.SingleAsync(candidate => candidate.Id == invitationId);
             Assert.Equal(TenantInvitationStatus.Pending, invitation.Status);
-            Assert.Equal(HashToken(token), invitation.InvitationTokenHash);
+            Assert.Equal(HashToken(invitationValue), invitation.InvitationTokenHash);
             Assert.False(await dbContext.Users.AnyAsync(user => user.TenantId == tenantId));
             Assert.False(await dbContext.TenantMemberships.AnyAsync(membership => membership.TenantId == tenantId));
             Assert.False(await dbContext.AuditLogEntries.AnyAsync(audit => audit.TenantId == tenantId));
@@ -177,7 +177,7 @@ public sealed class AtomicComplianceMutationTests : IClassFixture<WebApplication
         var tenantId = Guid.NewGuid();
         var invitationId = Guid.NewGuid();
         var actorUserId = Guid.NewGuid();
-        var token = $"concurrent-invitation-token-{Guid.NewGuid():N}";
+        var invitationValue = $"concurrent-invitation-{Guid.NewGuid():N}";
         const string email = "concurrent.owner@example.com";
         var conflict = new InvitationUserConflictInterceptor(connectionString, tenantId, email);
         await using var testFactory = CreatePostgresFactory<EfAuditEventWriter>(dbContext =>
@@ -189,7 +189,7 @@ public sealed class AtomicComplianceMutationTests : IClassFixture<WebApplication
                 TenantId = tenantId,
                 Email = email,
                 RoleName = "Owner",
-                InvitationTokenHash = HashToken(token),
+                InvitationTokenHash = HashToken(invitationValue),
                 Status = TenantInvitationStatus.Pending,
                 ExpiresAt = DateTimeOffset.UtcNow.AddDays(1),
                 DeliveryStatus = InvitationDeliveryStatus.Sent,
@@ -205,7 +205,7 @@ public sealed class AtomicComplianceMutationTests : IClassFixture<WebApplication
             conflict.Enabled = true;
             using var request = AuthenticatedRequest(
                 HttpMethod.Post,
-                $"/api/invitations/{token}/accept",
+                $"/api/invitations/{invitationValue}/accept",
                 tenantId,
                 actorUserId,
                 email,
@@ -219,7 +219,7 @@ public sealed class AtomicComplianceMutationTests : IClassFixture<WebApplication
             var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
             var invitation = await dbContext.TenantInvitations.SingleAsync(candidate => candidate.Id == invitationId);
             Assert.Equal(TenantInvitationStatus.Pending, invitation.Status);
-            Assert.Equal(HashToken(token), invitation.InvitationTokenHash);
+            Assert.Equal(HashToken(invitationValue), invitation.InvitationTokenHash);
             Assert.Single(await dbContext.Users.Where(user => user.TenantId == tenantId && user.Email == email).ToArrayAsync());
             Assert.False(await dbContext.TenantMemberships.AnyAsync(membership => membership.TenantId == tenantId));
             Assert.False(await dbContext.AuditLogEntries.AnyAsync(audit => audit.TenantId == tenantId));
