@@ -7543,7 +7543,7 @@ function ReportsView({
           </form>
         </>
       ) : null}
-      <div className="report-action-grid">
+      <div className="report-action-grid report-library-grid">
         <section className="evidence-metadata">
           <h3>Recent generated reports</h3>
           {visibleReports.length > 0 ? (
@@ -8916,11 +8916,11 @@ function CuiReadyChecklistPanel({
           ) : null}
           <div className="evidence-list">
             {latest.items.map((item) => (
-              <article className="evidence-list__item" key={item.id}>
+              <article className="evidence-list__item approval-checklist__item" key={item.id}>
                 <strong>{item.section}</strong>
                 <span>{item.description}</span>
-                <span>
-                  Status: {item.status} · Owner: {item.owner ?? "No owner"} · Review date: {item.reviewedAt ?? "No review date"}
+                <span className="approval-checklist__item-meta">
+                  Status: {formatEnumLabel(item.status)} · Owner: {item.owner ?? "No owner"} · Review date: {item.reviewedAt ?? "No review date"}
                 </span>
                 <ReadinessItemEditor key={`${item.id}:${latest.version}`} item={item} sources={sources} userId={currentUserId}
                   disabled={status === "saving" || ["Rejected", "Superseded"].includes(latest.state)}
@@ -9835,14 +9835,16 @@ function SettingsView({
                   onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, to: event.target.value })}
                 />
               </label>
-              <button type="submit" disabled={auditLogStatus === "loading"}>
-                <SlidersHorizontal size={16} />
-                <span>{auditLogStatus === "loading" ? "Filtering" : "Filter"}</span>
-              </button>
-              <button type="button" disabled={auditExportStatus === "exporting"} onClick={onAuditExport}>
-                <FileDown size={16} />
-                <span>{auditExportStatus === "exporting" ? "Exporting" : "Export matching events"}</span>
-              </button>
+              <div className="audit-filter-actions" role="group" aria-label="Audit log actions">
+                <button className="audit-filter-actions__filter" type="submit" disabled={auditLogStatus === "loading"}>
+                  <SlidersHorizontal size={16} aria-hidden="true" />
+                  <span>{auditLogStatus === "loading" ? "Filtering" : "Filter"}</span>
+                </button>
+                <button type="button" disabled={auditExportStatus === "exporting"} onClick={onAuditExport}>
+                  <FileDown size={16} aria-hidden="true" />
+                  <span>{auditExportStatus === "exporting" ? "Exporting" : "Export matching events"}</span>
+                </button>
+              </div>
             </form>
           </div>
           {auditExportMessage ? (

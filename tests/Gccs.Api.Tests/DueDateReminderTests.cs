@@ -103,6 +103,47 @@ public sealed class DueDateReminderTests : IClassFixture<WebApplicationFactory<P
             audit.EntityType == "DueDateReminderRun" && audit.MetadataJson.Contains("\"failed\":\"1\"", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task Automated_batch_does_not_starve_candidates_behind_existing_deliveries()
+    {
+        var ids = StoryIds.ForCase("automated-batch-starvation");
+        var actorUserId = ids.TenantId;
+        await using var factory = CreateFactory("automated-batch-starvation", dbContext =>
+        {
+            dbContext.Tenants.Add(CreateTenant(ids.TenantId));
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var alreadyProcessed = CreateTask(ids.TenantId, ids.OverdueTaskId, "Already processed", today.AddDays(-2));
+            alreadyProcessed.AssignedToUserId = actorUserId;
+            var pending = CreateTask(ids.TenantId, ids.UpcomingTaskId, "Pending reminder", today.AddDays(2));
+            pending.AssignedToUserId = actorUserId;
+            dbContext.ComplianceTasks.AddRange(alreadyProcessed, pending);
+            dbContext.NotificationDeliveries.Add(new NotificationDeliveryEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = ids.TenantId,
+                UserId = actorUserId,
+                SourceTaskId = alreadyProcessed.Id,
+                SourceType = "ComplianceTask",
+                LinkUrl = $"/tasks/{alreadyProcessed.Id}",
+                Category = "overdue",
+                Status = "Delivered",
+                Placeholder = "Existing reminder.",
+                AttemptedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedByUserId = actorUserId
+            });
+        });
+        using var scope = factory.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IDueDateReminderRepository>();
+
+        var created = await repository.RunAutomatedAsync(14, 1);
+
+        Assert.Equal(1, created);
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Contains(await dbContext.NotificationDeliveries.ToArrayAsync(),
+            delivery => delivery.SourceTaskId == ids.UpcomingTaskId);
+    }
+
     private static async Task<DueDateReminderRunResult> RunAsync(
         HttpClient client,
         Guid tenantId,
@@ -143,7 +184,7 @@ public sealed class DueDateReminderTests : IClassFixture<WebApplicationFactory<P
         var request = new HttpRequestMessage(method, requestUri);
         request.Headers.Add("X-Gccs-Dev-Auth", "true");
         request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
-        request.Headers.Add("X-Gccs-Dev-User", Guid.NewGuid().ToString());
+        request.Headers.Add("X-Gccs-Dev-User", tenantId.ToString());
         request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageTasks.ToString());
         if (content is not null)
         {

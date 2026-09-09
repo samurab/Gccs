@@ -286,7 +286,7 @@ public sealed class TenantModeWorkflowEnforcementTests : IClassFixture<WebApplic
         Assert.Equal(AuditAction.Rejected, audit.Action);
         Assert.Equal("ContractIntake", metadata["workflow"]);
         Assert.Equal("NoCui", metadata["mode"]);
-        Assert.Equal("Rejected", metadata["result"]);
+        Assert.Equal("rejected", metadata["result"]);
     }
 
     [Fact]

@@ -72,6 +72,10 @@ public sealed class ExecutedControlEvidenceEntity
     public string Environment { get; set; } = "";
     public Guid ReviewerUserId { get; set; }
     public string Result { get; set; } = ""; public string EvidenceReference { get; set; } = "";
+    public string EvidenceSourceType { get; set; } = "Legacy";
+    public Guid? EvidenceFileVersionId { get; set; }
+    public string? ExternalUri { get; set; }
+    public string? Sha256Digest { get; set; }
     public DateOnly? ExpiresAt { get; set; }
     public string Notes { get; set; } = ""; public TechnicalReadinessRecordEntity? Readiness { get; set; }
 }
@@ -113,6 +117,10 @@ public sealed class IncidentTabletopRecordEntity
     public DateOnly ExecutedAt { get; set; }
     public string Environment { get; set; } = ""; public string ParticipantsJson { get; set; } = "[]"; public string FindingsJson { get; set; } = "[]";
     public string EvidenceReference { get; set; } = ""; public Guid ReviewerUserId { get; set; }
+    public string EvidenceSourceType { get; set; } = "Legacy";
+    public Guid? EvidenceFileVersionId { get; set; }
+    public string? ExternalUri { get; set; }
+    public string? Sha256Digest { get; set; }
     public IncidentReadinessRecordEntity? Readiness { get; set; }
 }
 public sealed class IncidentFollowUpRecordEntity

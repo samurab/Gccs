@@ -86,15 +86,23 @@ export function ReadinessItemEditor({ item, sources, userId, disabled, onSave }:
   const [recordId, setRecordId] = useState(item.supportingRecordId ?? "");
   const linkedKind = ["security-review", "incident-response", "backup-restore", "support-escalation", "data-handling-notice", "shared-responsibility-matrix"].includes(item.itemKey);
   const selected = sources.find(s => s.id === recordId && s.kind === item.itemKey);
-  return <form onSubmit={e => { e.preventDefault(); onSave({ status: "Complete", owner, notes, evidenceLink: item.evidenceLink,
+  const supportingRecordMessageId = `readiness-supporting-record-${item.id}`;
+  return <form
+    aria-label={`${item.section} checklist item`}
+    className={`readiness-item-editor${linkedKind ? " readiness-item-editor--linked" : ""}`}
+    onSubmit={e => { e.preventDefault(); onSave({ status: "Complete", owner, notes, evidenceLink: item.evidenceLink,
     reviewerUserId: userId, reviewedAt: new Date().toISOString().slice(0, 10), supportingRecordId: selected?.id ?? null, supportingVersion: selected?.version ?? null }); }}>
-    <label>Owner<input required value={owner} onChange={e => setOwner(e.target.value)} maxLength={180} /></label>
-    <label>Review notes<textarea required value={notes} onChange={e => setNotes(e.target.value)} maxLength={1200} /></label>
-    {linkedKind && <label>Current supporting record<select required value={recordId} onChange={e => setRecordId(e.target.value)}>
+    <label><span>Owner</span><input required value={owner} onChange={e => setOwner(e.target.value)} maxLength={180} /></label>
+    <label><span>Review notes</span><textarea required value={notes} onChange={e => setNotes(e.target.value)} maxLength={1200} /></label>
+    {linkedKind && <label className="readiness-item-editor__supporting"><span>Current supporting record</span><select
+      aria-describedby={!selected ? supportingRecordMessageId : undefined}
+      required
+      value={recordId}
+      onChange={e => setRecordId(e.target.value)}>
       <option value="">Select current supporting evidence</option>
       {sources.filter(s => s.kind === item.itemKey).map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
     </select></label>}
-    {linkedKind && !selected && <p>A current supporting record must be linked before completing this item.</p>}
-    <button disabled={disabled || !userId || (linkedKind && !selected)}>Save reviewed item</button>
+    {linkedKind && !selected && <p className="readiness-item-editor__requirement" id={supportingRecordMessageId}>A current supporting record must be linked before completing this item.</p>}
+    <button className="readiness-item-editor__action" disabled={disabled || !userId || (linkedKind && !selected)}>Save reviewed item</button>
   </form>;
 }

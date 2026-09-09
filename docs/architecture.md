@@ -17,6 +17,15 @@ Known runtime, local infrastructure, test, source-content, and deferred integrat
 - `src/Gccs.Infrastructure`: database, object storage, queue, search, AI, and external API adapters.
 - `packages/compliance-content`: source-backed obligation seed data reviewed by compliance experts before production use.
 
+### Transaction And Audit Boundary
+
+Current state: **Implemented for authenticated relational API mutations; external effects use explicit workflow boundaries**.
+
+- Unsafe authenticated API operations run inside a scoped relational transaction, so repository saves and required audit appends commit or roll back together before the API result is executed.
+- Workflows that require their own serializable transaction or perform filesystem, scanner, object-storage, or external lookup work are explicitly excluded from the request transaction. Their application service or repository owns the short database transaction and, where applicable, compensation or durable cleanup.
+- Invitation acceptance owns its application transaction because the endpoint maps concurrency conflicts to `409`; the invitation claim, user, membership, onboarding, subscription, and audit writes therefore roll back before the error result is returned.
+- Rejected-attempt audit entries are retained after the failed business transaction is rolled back. This replay is not a substitute for a transactional outbox and does not guarantee survival of a process failure between rollback and replay.
+
 ## Subscription Boundary
 
 Current state: **Implemented for provider-independent pilot lifecycle enforcement; partially implemented for commercial billing**.

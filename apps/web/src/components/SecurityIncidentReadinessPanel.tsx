@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { approveIncidentReadiness, approveSecurityReviewReadiness, approveTechnicalReadiness, getCurrentUserAccess, getIncidentReadiness, getSecurityIncidentReadinessHistory,
+import { approveIncidentReadiness, approveSecurityReviewReadiness, approveTechnicalReadiness, getCurrentUserAccess, getIncidentReadiness, getSecurityIncidentReadinessHistory, getSecurityIncidentReadinessEvidenceOptions,
   getSecurityReviewReadiness, getTechnicalReadiness, saveSecurityReviewReadiness, type IncidentReadinessRecord,
-  saveIncidentReadiness, saveTechnicalReadiness, type ReadinessHistory, type SecurityReviewItem, type SecurityReviewRecord, type TechnicalReadinessRecord } from "@/lib/api";
+  saveIncidentReadiness, saveTechnicalReadiness, type ReadinessEvidenceOption, type ReadinessEvidenceSource, type ReadinessHistory, type SecurityReviewItem, type SecurityReviewRecord, type TechnicalReadinessRecord } from "@/lib/api";
 
 const areas = ["tenant-isolation","evidence-storage","encryption","malware-scanning","retention","backup","restore","admin-access","support-access","antitrust-procurement-integrity","logging","monitoring","incident-response"];
 const defaultReviewDueAt = new Date(Date.now()+365*86400000).toISOString().slice(0,10);
@@ -12,14 +12,16 @@ export function SecurityIncidentReadinessPanel({ userId }: { userId: string | nu
   const [incident, setIncident] = useState<IncidentReadinessRecord | null>(null);
   const [history, setHistory] = useState<ReadinessHistory[]>([]);
   const [canApprove, setCanApprove] = useState(false);
+  const [evidenceOptions, setEvidenceOptions] = useState<ReadinessEvidenceOption[]>([]);
   const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false); const [message, setMessage] = useState("");
   const [items, setItems] = useState<SecurityReviewItem[]>([]); const [approvalNotes, setApprovalNotes] = useState("");
   const [findings,setFindings]=useState<SecurityReviewRecord["findings"]>([]);const [risks,setRisks]=useState<SecurityReviewRecord["acceptedRisks"]>([]);
   async function load() {
     setLoading(true);
     try {
-      const [s,t,i,h,a] = await Promise.all([getSecurityReviewReadiness(),getTechnicalReadiness(),getIncidentReadiness(),getSecurityIncidentReadinessHistory(),getCurrentUserAccess()]);
+      const [s,t,i,h,a,e] = await Promise.all([getSecurityReviewReadiness(),getTechnicalReadiness(),getIncidentReadiness(),getSecurityIncidentReadinessHistory(),getCurrentUserAccess(),getSecurityIncidentReadinessEvidenceOptions()]);
       setSecurity(s); setTechnical(t); setIncident(i); setHistory(h); setCanApprove(a.canApproveCuiReadiness === true);
+      setEvidenceOptions(e);
       setItems(s?.items ?? areas.map(area => ({ area, status:"NotStarted", reviewerUserId:null, reviewedAt:null, evidenceLink:null, rationale:null })));
       setFindings(s?.findings??[]);setRisks(s?.acceptedRisks??[]);
       setMessage("");
@@ -63,40 +65,41 @@ export function SecurityIncidentReadinessPanel({ userId }: { userId: string | nu
         {security && <form onSubmit={e=>{e.preventDefault();void approve();}}><label>Approval notes<textarea required maxLength={1200} value={approvalNotes} onChange={e=>setApprovalNotes(e.target.value)}/></label>
           <button disabled={busy || !canApprove || security.state!=="Draft" || !approvalNotes.trim()}>Approve security review</button>{!canApprove&&<p>Platform readiness approval permission is required.</p>}</form>}
       </article>
-      <TechnicalEditor record={technical} userId={userId} canApprove={canApprove} busy={busy} setBusy={setBusy} setMessage={setMessage} reload={load} />
-      <IncidentEditor record={incident} userId={userId} canApprove={canApprove} busy={busy} setBusy={setBusy} setMessage={setMessage} reload={load} />
+      <TechnicalEditor record={technical} evidenceOptions={evidenceOptions} userId={userId} canApprove={canApprove} busy={busy} setBusy={setBusy} setMessage={setMessage} reload={load} />
+      <IncidentEditor record={incident} evidenceOptions={evidenceOptions} userId={userId} canApprove={canApprove} busy={busy} setBusy={setBusy} setMessage={setMessage} reload={load} />
     </div>}
     <details><summary>Readiness history</summary>{history.length===0?<p>No readiness history.</p>:<ul>{history.map(h=><li key={h.id}>{new Date(h.occurredAt).toLocaleString()} · {h.recordType} v{h.version} · {h.action}</li>)}</ul>}</details>
   </section>;
 }
 
 const controlTypes=["tenant-isolation","evidence-storage","malware-scanner","backup-restore","administrator-access","support-access"];
-function TechnicalEditor({record,userId,canApprove,busy,setBusy,setMessage,reload}:{record:TechnicalReadinessRecord|null;userId:string|null;canApprove:boolean;busy:boolean;setBusy:(v:boolean)=>void;setMessage:(v:string)=>void;reload:()=>Promise<void>}) {
-  const [environment,setEnvironment]=useState("staging");const [executedAt,setExecutedAt]=useState(new Date().toISOString().slice(0,10));const [references,setReferences]=useState<Record<string,string>>({});const [notes,setNotes]=useState("");
-  async function save(){setBusy(true);const result=await saveTechnicalReadiness({expectedVersion:record?.version??0,evidence:controlTypes.map(controlType=>({id:null,controlType,executedAt,environment,reviewerUserId:userId,result:"Passed",evidenceReference:references[controlType]??"",expiresAt:null,notes:"Executed and reviewed control verification."}))});setBusy(false);if(!result.data){setMessage(result.error??"Technical readiness was not saved.");return;}await reload();}
+function TechnicalEditor({record,evidenceOptions,userId,canApprove,busy,setBusy,setMessage,reload}:{record:TechnicalReadinessRecord|null;evidenceOptions:ReadinessEvidenceOption[];userId:string|null;canApprove:boolean;busy:boolean;setBusy:(v:boolean)=>void;setMessage:(v:string)=>void;reload:()=>Promise<void>}) {
+  const [environment,setEnvironment]=useState("staging");const [executedAt,setExecutedAt]=useState(new Date().toISOString().slice(0,10));const [sources,setSources]=useState<Record<string,ReadinessEvidenceSource>>({});const [notes,setNotes]=useState("");
+  const sourceFor=(type:string):ReadinessEvidenceSource=>sources[type]??record?.evidence.find(x=>x.controlType===type)??{evidenceSourceType:"EvidenceFileVersion",evidenceFileVersionId:null,externalUri:null,sha256Digest:null};
+  async function save(){setBusy(true);const result=await saveTechnicalReadiness({expectedVersion:record?.version??0,evidence:controlTypes.map(controlType=>{const source=sourceFor(controlType);const option=evidenceOptions.find(x=>x.evidenceFileVersionId===source.evidenceFileVersionId);return{id:null,controlType,executedAt,environment,reviewerUserId:userId,result:"Passed",evidenceReference:source.evidenceSourceType==="EvidenceFileVersion"?(option?`${option.title} · ${option.fileName} v${option.versionNumber}`:""):source.externalUri??"",...source,expiresAt:null,notes:"Executed and reviewed control verification."};})});setBusy(false);if(!result.data){setMessage(result.error??"Technical readiness was not saved.");return;}await reload();}
   async function approve(){if(!record)return;setBusy(true);const result=await approveTechnicalReadiness(record.version,notes);setBusy(false);if(!result.data){setMessage(result.error??"Technical readiness was not approved.");return;}await reload();}
   return <article className="evidence-list__item"><h3>Technical control verification</h3><p>{record?.state??"Not created"} · {record?.evidence.length??0} executed control records</p>
     <label>Environment<input value={environment} onChange={e=>setEnvironment(e.target.value)}/></label><label>Execution date<input type="date" value={executedAt} onChange={e=>setExecutedAt(e.target.value)}/></label>
-    {controlTypes.map(type=><label key={type}>{type.replaceAll("-"," ")} evidence reference<input value={references[type]??record?.evidence.find(x=>x.controlType===type)?.evidenceReference??""} onChange={e=>setReferences(v=>({...v,[type]:e.target.value}))}/></label>)}
-    <button type="button" disabled={busy||!userId} onClick={()=>void save()}>Save executed controls</button>
+    {controlTypes.map(type=><EvidenceSourceEditor key={type} label={`${type.replaceAll("-"," ")} evidence`} value={sourceFor(type)} options={evidenceOptions} onChange={value=>setSources(v=>({...v,[type]:value}))}/>)}
+    <button type="button" disabled={busy||!userId||controlTypes.some(type=>!sourceComplete(sourceFor(type)))} onClick={()=>void save()}>Save executed controls</button>
     {record&&<><label>Approval notes<textarea value={notes} onChange={e=>setNotes(e.target.value)}/></label><button type="button" disabled={busy||!canApprove||record.state!=="Draft"||!notes.trim()} onClick={()=>void approve()}>Approve technical readiness</button></>}
   </article>;
 }
 
-function IncidentEditor({record,userId,canApprove,busy,setBusy,setMessage,reload}:{record:IncidentReadinessRecord|null;userId:string|null;canApprove:boolean;busy:boolean;setBusy:(v:boolean)=>void;setMessage:(v:string)=>void;reload:()=>Promise<void>}) {
+function IncidentEditor({record,evidenceOptions,userId,canApprove,busy,setBusy,setMessage,reload}:{record:IncidentReadinessRecord|null;evidenceOptions:ReadinessEvidenceOption[];userId:string|null;canApprove:boolean;busy:boolean;setBusy:(v:boolean)=>void;setMessage:(v:string)=>void;reload:()=>Promise<void>}) {
   const keys=["accidental-cui-upload","suspected-cui-in-no-cui-tenant","prohibited-data-upload","cross-tenant-exposure-suspicion","malware-detection","failed-deletion-export-request"];
   const functions=["security","support","legal-compliance","engineering","customer-success"];
-  const [owner,setOwner]=useState("");const [contacts,setContacts]=useState<Record<string,string>>({});const [trigger,setTrigger]=useState("");const [tabletopRef,setTabletopRef]=useState("");const [notes,setNotes]=useState("");
+  const [owner,setOwner]=useState("");const [contacts,setContacts]=useState<Record<string,string>>({});const [trigger,setTrigger]=useState("");const [tabletopSource,setTabletopSource]=useState<ReadinessEvidenceSource>({evidenceSourceType:"EvidenceFileVersion",evidenceFileVersionId:null,externalUri:null,sha256Digest:null});const [notes,setNotes]=useState("");
   const [reviewDueAt,setReviewDueAt]=useState(defaultReviewDueAt);
   const [reviewBasis,setReviewBasis]=useState("Annual");
   const [followUps,setFollowUps]=useState<IncidentReadinessRecord["followUps"]>([]);
-  useEffect(()=>{const timer=window.setTimeout(()=>{if(!record)return;setOwner(record.playbooks[0]?.owner??record.contacts[0]?.escalationRole??"");setContacts(Object.fromEntries(record.contacts.map(x=>[x.function,x.contact])));setTrigger(record.playbooks[0]?.trigger??"");setTabletopRef(record.tabletops[0]?.evidenceReference??"");setReviewDueAt(record.reviewDueAt);setReviewBasis(record.reviewBasis);setFollowUps(record.followUps);},0);return()=>window.clearTimeout(timer);},[record]);
+  useEffect(()=>{const timer=window.setTimeout(()=>{if(!record)return;setOwner(record.playbooks[0]?.owner??record.contacts[0]?.escalationRole??"");setContacts(Object.fromEntries(record.contacts.map(x=>[x.function,x.contact])));setTrigger(record.playbooks[0]?.trigger??"");if(record.tabletops[0])setTabletopSource(record.tabletops[0]);setReviewDueAt(record.reviewDueAt);setReviewBasis(record.reviewBasis);setFollowUps(record.followUps);},0);return()=>window.clearTimeout(timer);},[record]);
   async function save(){
     const tabletopId=record?.tabletops[0]?.id??crypto.randomUUID();setBusy(true);
     const result=await saveIncidentReadiness({expectedVersion:record?.version??0,reviewDueAt,reviewBasis,
       contacts:functions.map(fn=>({id:record?.contacts.find(x=>x.function===fn)?.id??null,function:fn,contact:contacts[fn]??"",escalationRole:owner})),
       playbooks:keys.map(key=>{const existing=record?.playbooks.find(x=>x.key===key);return {id:existing?.id??null,key,trigger:trigger||existing?.trigger||"",containmentSteps:existing?.containmentSteps??["Contain affected content and preserve tenant boundaries"],notificationPath:existing?.notificationPath??"Security, support, legal/compliance, engineering, and customer success",evidenceToCollect:existing?.evidenceToCollect??["Audit events and affected record identifiers"],owner,closureCriteria:existing?.closureCriteria??"Containment verified and follow-up actions assigned"};}),
-      tabletops:[{id:tabletopId,executedAt:record?.tabletops[0]?.executedAt??new Date().toISOString().slice(0,10),environment:record?.tabletops[0]?.environment??"staging",participants:record?.tabletops[0]?.participants??[owner],findings:record?.tabletops[0]?.findings??["Exercise completed; follow-ups recorded"],evidenceReference:tabletopRef,reviewerUserId:record?.tabletops[0]?.reviewerUserId??userId}],
+      tabletops:[{id:tabletopId,executedAt:record?.tabletops[0]?.executedAt??new Date().toISOString().slice(0,10),environment:record?.tabletops[0]?.environment??"staging",participants:record?.tabletops[0]?.participants??[owner],findings:record?.tabletops[0]?.findings??["Exercise completed; follow-ups recorded"],evidenceReference:tabletopSource.evidenceSourceType==="EvidenceFileVersion"?(evidenceOptions.find(x=>x.evidenceFileVersionId===tabletopSource.evidenceFileVersionId)?.title??""):tabletopSource.externalUri??"",...tabletopSource,reviewerUserId:record?.tabletops[0]?.reviewerUserId??userId}],
       followUps:followUps.map(x=>({...x,tabletopId}))});
     setBusy(false);if(!result.data){setMessage(result.error??"Incident readiness was not saved.");return;}await reload();
   }
@@ -104,10 +107,17 @@ function IncidentEditor({record,userId,canApprove,busy,setBusy,setMessage,reload
   return <article className="evidence-list__item"><h3>Incident readiness</h3><p>{record?.state??"Not created"} · {record?.playbooks.length??0} playbooks · {record?.tabletops.length??0} exercises · {followUps.filter(f=>f.status==="Open").length} open follow-ups{record?` · ${record.reviewBasis} review due ${record.reviewDueAt}`:""}</p>
     <label>Escalation owner<input value={owner} onChange={e=>setOwner(e.target.value)}/></label>{functions.map(fn=><label key={fn}>{fn.replaceAll("-"," ")} contact<input value={contacts[fn]??""} onChange={e=>setContacts(v=>({...v,[fn]:e.target.value}))}/></label>)}
     <label>Review basis<select value={reviewBasis} onChange={e=>setReviewBasis(e.target.value)}><option>Annual</option><option>Release</option></select></label><label>Next review date<input type="date" value={reviewDueAt} onChange={e=>setReviewDueAt(e.target.value)}/></label>
-    <label>Reviewed trigger criteria<textarea value={trigger} onChange={e=>setTrigger(e.target.value)}/></label><label>Executed tabletop evidence reference<input value={tabletopRef} onChange={e=>setTabletopRef(e.target.value)}/></label>
+    <label>Reviewed trigger criteria<textarea value={trigger} onChange={e=>setTrigger(e.target.value)}/></label><EvidenceSourceEditor label="Executed tabletop evidence" value={tabletopSource} options={evidenceOptions} onChange={setTabletopSource}/>
     <h4>Exercise follow-ups</h4>{followUps.map((item,index)=><div className="readiness-child-editor" key={item.id}><label>Summary<input value={item.summary} onChange={e=>setFollowUps(v=>v.map((x,n)=>n===index?{...x,summary:e.target.value}:x))}/></label><label>Severity<select value={item.severity} onChange={e=>setFollowUps(v=>v.map((x,n)=>n===index?{...x,severity:e.target.value}:x))}>{["Low","Medium","High","Critical"].map(x=><option key={x}>{x}</option>)}</select></label><label>Status<select value={item.status} onChange={e=>setFollowUps(v=>v.map((x,n)=>n===index?{...x,status:e.target.value}:x))}><option>Open</option><option>Closed</option></select></label><label>Owner<input value={item.owner} onChange={e=>setFollowUps(v=>v.map((x,n)=>n===index?{...x,owner:e.target.value}:x))}/></label><label>Due date<input type="date" value={item.dueAt} onChange={e=>setFollowUps(v=>v.map((x,n)=>n===index?{...x,dueAt:e.target.value}:x))}/></label><label>Closure notes<textarea value={item.closureNotes??""} onChange={e=>setFollowUps(v=>v.map((x,n)=>n===index?{...x,closureNotes:e.target.value||null}:x))}/></label></div>)}
     <button type="button" disabled={busy||!owner.trim()} onClick={()=>setFollowUps(v=>[...v,{id:crypto.randomUUID(),tabletopId:record?.tabletops[0]?.id??"",severity:"Medium",status:"Open",summary:"",owner,dueAt:new Date(Date.now()+30*86400000).toISOString().slice(0,10),closureNotes:null}])}>Add follow-up</button>
-    <button type="button" disabled={busy||!userId||!owner.trim()||functions.some(fn=>!(contacts[fn]??"").trim())||!trigger.trim()||!tabletopRef.trim()||!reviewDueAt} onClick={()=>void save()}>Save playbooks and exercise</button>
+    <button type="button" disabled={busy||!userId||!owner.trim()||functions.some(fn=>!(contacts[fn]??"").trim())||!trigger.trim()||!sourceComplete(tabletopSource)||!reviewDueAt} onClick={()=>void save()}>Save playbooks and exercise</button>
     {record&&<><label>Approval notes<textarea value={notes} onChange={e=>setNotes(e.target.value)}/></label><button type="button" disabled={busy||!canApprove||record.state!=="Draft"||!notes.trim()} onClick={()=>void approve()}>Approve incident readiness</button></>}
   </article>;
+}
+
+function sourceComplete(value:ReadinessEvidenceSource){return value.evidenceSourceType==="EvidenceFileVersion"?Boolean(value.evidenceFileVersionId):Boolean(value.externalUri?.startsWith("https://")&&/^[a-fA-F0-9]{64}$/.test(value.sha256Digest??""));}
+function EvidenceSourceEditor({label,value,options,onChange}:{label:string;value:ReadinessEvidenceSource;options:ReadinessEvidenceOption[];onChange:(value:ReadinessEvidenceSource)=>void}){
+  return <fieldset className="readiness-evidence-source"><legend>{label}</legend><label>Source type<select value={value.evidenceSourceType} onChange={e=>onChange(e.target.value==="ExternalArtifact"?{evidenceSourceType:"ExternalArtifact",evidenceFileVersionId:null,externalUri:"",sha256Digest:""}:{evidenceSourceType:"EvidenceFileVersion",evidenceFileVersionId:null,externalUri:null,sha256Digest:null})}><option value="EvidenceFileVersion">Approved evidence file</option><option value="ExternalArtifact">External immutable artifact</option></select></label>
+    {value.evidenceSourceType==="EvidenceFileVersion"?<label>Evidence version<select required value={value.evidenceFileVersionId??""} onChange={e=>onChange({...value,evidenceFileVersionId:e.target.value||null})}><option value="">Select approved, clean evidence</option>{options.map(option=><option key={option.evidenceFileVersionId} value={option.evidenceFileVersionId}>{option.title} · {option.fileName} v{option.versionNumber}</option>)}</select></label>:<><label>HTTPS artifact URI<input type="url" required value={value.externalUri??""} onChange={e=>onChange({...value,externalUri:e.target.value})}/></label><label>SHA-256 digest<input required minLength={64} maxLength={64} pattern="[a-fA-F0-9]{64}" value={value.sha256Digest??""} onChange={e=>onChange({...value,sha256Digest:e.target.value})}/></label></>}
+  </fieldset>;
 }

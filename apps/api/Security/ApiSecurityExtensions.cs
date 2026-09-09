@@ -22,6 +22,8 @@ public sealed record RequiredPermissionMetadata(Permission Permission);
 
 public sealed record RequiredAnyPermissionMetadata(IReadOnlyList<Permission> Permissions);
 
+public sealed record SuppressAtomicMutationTransactionMetadata;
+
 public static class ApiSecurityExtensions
 {
     public const string DevelopmentAuthenticationScheme = "Development";
@@ -427,6 +429,30 @@ public static class ApiSecurityExtensions
             }
 
             return await next(context);
+        });
+
+        return group;
+    }
+
+    public static RouteGroupBuilder RequireAtomicMutations(this RouteGroupBuilder group)
+    {
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            var request = context.HttpContext.Request;
+            if (HttpMethods.IsGet(request.Method) ||
+                HttpMethods.IsHead(request.Method) ||
+                HttpMethods.IsOptions(request.Method) ||
+                context.HttpContext.GetEndpoint()?.Metadata
+                    .GetMetadata<SuppressAtomicMutationTransactionMetadata>() is not null)
+            {
+                return await next(context);
+            }
+
+            var transaction = request.HttpContext.RequestServices
+                .GetRequiredService<IApplicationTransaction>();
+            return await transaction.ExecuteAsync<object?>(
+                async _ => await next(context),
+                request.HttpContext.RequestAborted);
         });
 
         return group;

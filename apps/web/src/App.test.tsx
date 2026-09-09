@@ -3289,6 +3289,7 @@ describe("App", () => {
 
     await user.click(await screen.findByRole("link", { name: /settings/i }));
     expect(await screen.findByRole("table", { name: /tenant audit logs/i })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Audit log actions" })).toContainElement(screen.getByRole("button", { name: "Export matching events" }));
     expect(screen.getByText("Invitation was created.")).toBeInTheDocument();
     expect(screen.getAllByTestId("audit-row")[0]).toHaveTextContent("Invitation was created.");
     expect(screen.getByText("Current record: Access control policy")).toBeInTheDocument();

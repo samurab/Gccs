@@ -24,10 +24,12 @@ public sealed record TechnicalReadinessRecordDto(Guid Id, Guid TenantId, int Ver
     DateTimeOffset CreatedAt, Guid CreatedByUserId, DateTimeOffset? ApprovedAt, Guid? ApprovedByUserId,
     string? ApprovalNotes, IReadOnlyList<ExecutedControlEvidenceDto> Evidence);
 public sealed record ExecutedControlEvidenceDto(Guid Id, string ControlType, DateOnly ExecutedAt, string Environment,
-    Guid ReviewerUserId, string Result, string EvidenceReference, DateOnly? ExpiresAt, string Notes);
+    Guid ReviewerUserId, string Result, string EvidenceReference, DateOnly? ExpiresAt, string Notes,
+    string EvidenceSourceType = "Legacy", Guid? EvidenceFileVersionId = null, string? ExternalUri = null, string? Sha256Digest = null);
 public sealed record SaveTechnicalReadinessRequest(int ExpectedVersion, IReadOnlyList<SaveExecutedControlEvidenceRequest> Evidence);
 public sealed record SaveExecutedControlEvidenceRequest(Guid? Id, string ControlType, DateOnly ExecutedAt, string Environment,
-    Guid ReviewerUserId, string Result, string EvidenceReference, DateOnly? ExpiresAt, string Notes);
+    Guid ReviewerUserId, string Result, string EvidenceReference, DateOnly? ExpiresAt, string Notes,
+    string EvidenceSourceType = "Legacy", Guid? EvidenceFileVersionId = null, string? ExternalUri = null, string? Sha256Digest = null);
 
 public sealed record IncidentReadinessRecordDto(Guid Id, Guid TenantId, int Version, string State,
     DateTimeOffset CreatedAt, Guid CreatedByUserId, DateTimeOffset? ApprovedAt, Guid? ApprovedByUserId,
@@ -37,7 +39,8 @@ public sealed record IncidentReadinessRecordDto(Guid Id, Guid TenantId, int Vers
 public sealed record IncidentPlaybookRecordDto(Guid Id, string Key, string Trigger, IReadOnlyList<string> ContainmentSteps,
     string NotificationPath, IReadOnlyList<string> EvidenceToCollect, string Owner, string ClosureCriteria);
 public sealed record IncidentTabletopRecordDto(Guid Id, DateOnly ExecutedAt, string Environment,
-    IReadOnlyList<string> Participants, IReadOnlyList<string> Findings, string EvidenceReference, Guid ReviewerUserId);
+    IReadOnlyList<string> Participants, IReadOnlyList<string> Findings, string EvidenceReference, Guid ReviewerUserId,
+    string EvidenceSourceType = "Legacy", Guid? EvidenceFileVersionId = null, string? ExternalUri = null, string? Sha256Digest = null);
 public sealed record IncidentFollowUpRecordDto(Guid Id, Guid TabletopId, SecurityReviewFindingSeverity Severity,
     IncidentResponseGapStatus Status, string Summary, string Owner, DateOnly DueAt, string? ClosureNotes);
 public sealed record IncidentContactRecordDto(Guid Id, string Function, string Contact, string EscalationRole);
@@ -47,7 +50,8 @@ public sealed record SaveIncidentReadinessRequest(int ExpectedVersion, DateOnly 
 public sealed record SaveIncidentPlaybookRequest(Guid? Id, string Key, string Trigger, IReadOnlyList<string> ContainmentSteps,
     string NotificationPath, IReadOnlyList<string> EvidenceToCollect, string Owner, string ClosureCriteria);
 public sealed record SaveIncidentTabletopRequest(Guid? Id, DateOnly ExecutedAt, string Environment,
-    IReadOnlyList<string> Participants, IReadOnlyList<string> Findings, string EvidenceReference, Guid ReviewerUserId);
+    IReadOnlyList<string> Participants, IReadOnlyList<string> Findings, string EvidenceReference, Guid ReviewerUserId,
+    string EvidenceSourceType = "Legacy", Guid? EvidenceFileVersionId = null, string? ExternalUri = null, string? Sha256Digest = null);
 public sealed record SaveIncidentFollowUpRequest(Guid? Id, Guid TabletopId, SecurityReviewFindingSeverity Severity,
     IncidentResponseGapStatus Status, string Summary, string Owner, DateOnly DueAt, string? ClosureNotes);
 public sealed record SaveIncidentContactRequest(Guid? Id, string Function, string Contact, string EscalationRole);
@@ -57,6 +61,8 @@ public sealed record ReadinessHistoryDto(Guid Id, string RecordType, Guid Record
 public sealed record ReadinessReleaseSummaryDto(IReadOnlyList<string> PassedChecks,
     IReadOnlyList<SecurityReviewFindingRecordDto> OpenFindings, IReadOnlyList<AcceptedSecurityRiskRecordDto> AcceptedRisks,
     IReadOnlyList<IncidentFollowUpRecordDto> OpenIncidentGaps, string ReleaseRecommendation);
+public sealed record ReadinessEvidenceOptionDto(Guid EvidenceFileVersionId, Guid EvidenceItemId, int VersionNumber,
+    string Title, string FileName, string Sha256Digest, DateTimeOffset UploadedAt);
 
 public interface ISecurityIncidentReadinessRepository
 {
@@ -71,7 +77,11 @@ public interface ISecurityIncidentReadinessRepository
     Task<IncidentReadinessRecordDto> SaveIncidentAsync(Guid tenantId, Guid actor, SaveIncidentReadinessRequest request, CancellationToken ct);
     Task<IncidentReadinessRecordDto?> ApproveIncidentAsync(Guid tenantId, Guid actor, ApproveReadinessRecordRequest request, CancellationToken ct);
     Task<IReadOnlyList<ReadinessHistoryDto>> HistoryAsync(Guid tenantId, CancellationToken ct);
+    Task ValidateEvidenceSourcesAsync(Guid tenantId, IReadOnlyList<ReadinessEvidenceSource> sources, CancellationToken ct);
+    Task<IReadOnlyList<ReadinessEvidenceOptionDto>> ListEvidenceOptionsAsync(Guid tenantId, CancellationToken ct);
 }
+
+public sealed record ReadinessEvidenceSource(string SourceType, Guid? EvidenceFileVersionId, string? ExternalUri, string? Sha256Digest);
 
 public sealed class SecurityIncidentReadinessService(ISecurityIncidentReadinessRepository repository,
     ICurrentTenantContext context, IApplicationTransaction transaction, IAuditEventWriter audit)
@@ -80,6 +90,7 @@ public sealed class SecurityIncidentReadinessService(ISecurityIncidentReadinessR
     public Task<TechnicalReadinessRecordDto?> GetTechnicalAsync(CancellationToken ct) => repository.CurrentTechnicalAsync(context.TenantId, ct);
     public Task<IncidentReadinessRecordDto?> GetIncidentAsync(CancellationToken ct) => repository.CurrentIncidentAsync(context.TenantId, ct);
     public Task<IReadOnlyList<ReadinessHistoryDto>> HistoryAsync(CancellationToken ct) => repository.HistoryAsync(context.TenantId, ct);
+    public Task<IReadOnlyList<ReadinessEvidenceOptionDto>> ListEvidenceOptionsAsync(CancellationToken ct) => repository.ListEvidenceOptionsAsync(context.TenantId, ct);
     public async Task<ReadinessReleaseSummaryDto> SummaryAsync(CancellationToken ct)
     {
         var security = await repository.CurrentSecurityAsync(context.TenantId, ct);
@@ -122,21 +133,23 @@ public sealed class SecurityIncidentReadinessService(ISecurityIncidentReadinessR
             return await repository.ApproveSecurityAsync(context.TenantId, context.UserId, request, token);
         }, ct);
     public Task<TechnicalReadinessRecordDto> SaveTechnicalAsync(SaveTechnicalReadinessRequest request, CancellationToken ct) =>
-        MutateAsync("TechnicalReadiness", "saved", token => { ValidateTechnical(request, false); return repository.SaveTechnicalAsync(context.TenantId, context.UserId, request, token); }, ct);
+        MutateAsync("TechnicalReadiness", "saved", async token => { ValidateTechnical(request, false); await ValidateSourcesAsync(request.Evidence.Select(Source), token); return await repository.SaveTechnicalAsync(context.TenantId, context.UserId, request, token); }, ct);
     public Task<TechnicalReadinessRecordDto?> ApproveTechnicalAsync(ApproveReadinessRecordRequest request, CancellationToken ct) =>
         MutateAsync<TechnicalReadinessRecordDto?>("TechnicalReadiness", "approved", async token =>
         {
             var record = await repository.CurrentTechnicalAsync(context.TenantId, token) ?? throw Invalid("Technical readiness evidence has not been created.");
-            ValidateTechnical(new(record.Version, record.Evidence.Select(e => new SaveExecutedControlEvidenceRequest(e.Id, e.ControlType, e.ExecutedAt, e.Environment, e.ReviewerUserId, e.Result, e.EvidenceReference, e.ExpiresAt, e.Notes)).ToArray()), true);
+            ValidateTechnical(new(record.Version, record.Evidence.Select(e => new SaveExecutedControlEvidenceRequest(e.Id, e.ControlType, e.ExecutedAt, e.Environment, e.ReviewerUserId, e.Result, e.EvidenceReference, e.ExpiresAt, e.Notes, e.EvidenceSourceType, e.EvidenceFileVersionId, e.ExternalUri, e.Sha256Digest)).ToArray()), true);
+            await ValidateSourcesAsync(record.Evidence.Select(Source), token);
             return await repository.ApproveTechnicalAsync(context.TenantId, context.UserId, request, token);
         }, ct);
     public Task<IncidentReadinessRecordDto> SaveIncidentAsync(SaveIncidentReadinessRequest request, CancellationToken ct) =>
-        MutateAsync("IncidentReadiness", "saved", token => { ValidateIncident(request, false); return repository.SaveIncidentAsync(context.TenantId, context.UserId, request, token); }, ct);
+        MutateAsync("IncidentReadiness", "saved", async token => { ValidateIncident(request, false); await ValidateSourcesAsync(request.Tabletops.Select(Source), token); return await repository.SaveIncidentAsync(context.TenantId, context.UserId, request, token); }, ct);
     public Task<IncidentReadinessRecordDto?> ApproveIncidentAsync(ApproveReadinessRecordRequest request, CancellationToken ct) =>
         MutateAsync<IncidentReadinessRecordDto?>("IncidentReadiness", "approved", async token =>
         {
             var record = await repository.CurrentIncidentAsync(context.TenantId, token) ?? throw Invalid("Incident readiness has not been created.");
-            ValidateIncident(new(record.Version, record.ReviewDueAt, record.ReviewBasis, record.Contacts.Select(c => new SaveIncidentContactRequest(c.Id, c.Function, c.Contact, c.EscalationRole)).ToArray(), record.Playbooks.Select(p => new SaveIncidentPlaybookRequest(p.Id, p.Key, p.Trigger, p.ContainmentSteps, p.NotificationPath, p.EvidenceToCollect, p.Owner, p.ClosureCriteria)).ToArray(), record.Tabletops.Select(t => new SaveIncidentTabletopRequest(t.Id, t.ExecutedAt, t.Environment, t.Participants, t.Findings, t.EvidenceReference, t.ReviewerUserId)).ToArray(), record.FollowUps.Select(f => new SaveIncidentFollowUpRequest(f.Id, f.TabletopId, f.Severity, f.Status, f.Summary, f.Owner, f.DueAt, f.ClosureNotes)).ToArray()), true);
+            ValidateIncident(new(record.Version, record.ReviewDueAt, record.ReviewBasis, record.Contacts.Select(c => new SaveIncidentContactRequest(c.Id, c.Function, c.Contact, c.EscalationRole)).ToArray(), record.Playbooks.Select(p => new SaveIncidentPlaybookRequest(p.Id, p.Key, p.Trigger, p.ContainmentSteps, p.NotificationPath, p.EvidenceToCollect, p.Owner, p.ClosureCriteria)).ToArray(), record.Tabletops.Select(t => new SaveIncidentTabletopRequest(t.Id, t.ExecutedAt, t.Environment, t.Participants, t.Findings, t.EvidenceReference, t.ReviewerUserId, t.EvidenceSourceType, t.EvidenceFileVersionId, t.ExternalUri, t.Sha256Digest)).ToArray(), record.FollowUps.Select(f => new SaveIncidentFollowUpRequest(f.Id, f.TabletopId, f.Severity, f.Status, f.Summary, f.Owner, f.DueAt, f.ClosureNotes)).ToArray()), true);
+            await ValidateSourcesAsync(record.Tabletops.Select(Source), token);
             return await repository.ApproveIncidentAsync(context.TenantId, context.UserId, request, token);
         }, ct);
 
@@ -176,7 +189,7 @@ public sealed class SecurityIncidentReadinessService(ISecurityIncidentReadinessR
     {
         if (request.ExpectedVersion < 0 || request.Evidence is null) throw Invalid("Technical readiness payload is invalid.");
         if (request.Evidence.Where(e => e.Id.HasValue).GroupBy(e => e.Id).Any(g => g.Count() > 1)) throw Invalid("Executed-control identifiers must be unique within a readiness version.");
-        if (request.Evidence.Any(e => !ControlTypes.Contains(e.ControlType) || e.ExecutedAt == default || string.IsNullOrWhiteSpace(e.Environment) || e.ReviewerUserId == Guid.Empty || string.IsNullOrWhiteSpace(e.Result) || string.IsNullOrWhiteSpace(e.EvidenceReference))) throw Invalid("Executed control evidence requires type, date, environment, reviewer, result, and source reference.");
+        if (request.Evidence.Any(e => !ControlTypes.Contains(e.ControlType) || e.ExecutedAt == default || string.IsNullOrWhiteSpace(e.Environment) || e.ReviewerUserId == Guid.Empty || string.IsNullOrWhiteSpace(e.Result) || string.IsNullOrWhiteSpace(e.EvidenceReference) || !ValidSource(e.EvidenceSourceType, e.EvidenceFileVersionId, e.ExternalUri, e.Sha256Digest))) throw Invalid("Executed control evidence requires a typed, immutable evidence source.");
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         if (approval && ControlTypes.Any(type => !request.Evidence.Any(e => e.ControlType == type && e.Result == "Passed" && e.ExecutedAt > today.AddYears(-1) && (e.ExpiresAt is null || e.ExpiresAt > today)))) throw Invalid("Every required technical control needs current executed and passed evidence.");
     }
@@ -190,7 +203,7 @@ public sealed class SecurityIncidentReadinessService(ISecurityIncidentReadinessR
         var playbooks = request.Playbooks.Select(p => new IncidentResponsePlaybookDto(p.Key, p.Trigger, p.ContainmentSteps, p.NotificationPath, p.EvidenceToCollect, p.Owner, p.ClosureCriteria)).ToArray();
         var errors = IncidentResponseReadiness.ValidatePlaybooks(playbooks);
         if (errors.Count != 0) throw Invalid(errors[0]);
-        if (request.Tabletops.Any(t => t.ExecutedAt == default || string.IsNullOrWhiteSpace(t.Environment) || t.Participants.Count == 0 || t.Findings.Count == 0 || string.IsNullOrWhiteSpace(t.EvidenceReference) || t.ReviewerUserId == Guid.Empty)) throw Invalid("Tabletop evidence requires execution context, participants, findings, source, and reviewer.");
+        if (request.Tabletops.Any(t => t.ExecutedAt == default || string.IsNullOrWhiteSpace(t.Environment) || t.Participants.Count == 0 || t.Findings.Count == 0 || string.IsNullOrWhiteSpace(t.EvidenceReference) || t.ReviewerUserId == Guid.Empty || !ValidSource(t.EvidenceSourceType, t.EvidenceFileVersionId, t.ExternalUri, t.Sha256Digest))) throw Invalid("Tabletop evidence requires execution context, participants, findings, reviewer, and a typed immutable source.");
         var tabletopIds = request.Tabletops.Where(t => t.Id.HasValue).Select(t => t.Id!.Value).ToHashSet();
         if (request.FollowUps.Any(f => !tabletopIds.Contains(f.TabletopId))) throw Invalid("Every incident follow-up must reference a tabletop in the same readiness version.");
         if (request.FollowUps.Any(f => string.IsNullOrWhiteSpace(f.Summary) || string.IsNullOrWhiteSpace(f.Owner) || f.DueAt == default || (f.Status == IncidentResponseGapStatus.Closed && string.IsNullOrWhiteSpace(f.ClosureNotes)))) throw Invalid("Incident follow-up metadata is incomplete.");
@@ -199,4 +212,16 @@ public sealed class SecurityIncidentReadinessService(ISecurityIncidentReadinessR
         if (approval && (request.Tabletops.All(t => t.ExecutedAt <= today.AddYears(-1)) || request.FollowUps.Any(f => f.Status == IncidentResponseGapStatus.Open && f.Severity == SecurityReviewFindingSeverity.Critical))) throw Invalid("Incident readiness requires a current tabletop and no open critical gaps.");
     }
     private static CuiReadyApprovalChecklistValidationException Invalid(string message) => new(message);
+    private Task ValidateSourcesAsync(IEnumerable<ReadinessEvidenceSource> sources, CancellationToken ct) =>
+        repository.ValidateEvidenceSourcesAsync(context.TenantId, sources.ToArray(), ct);
+    private static ReadinessEvidenceSource Source(SaveExecutedControlEvidenceRequest value) => new(value.EvidenceSourceType, value.EvidenceFileVersionId, value.ExternalUri, value.Sha256Digest);
+    private static ReadinessEvidenceSource Source(ExecutedControlEvidenceDto value) => new(value.EvidenceSourceType, value.EvidenceFileVersionId, value.ExternalUri, value.Sha256Digest);
+    private static ReadinessEvidenceSource Source(SaveIncidentTabletopRequest value) => new(value.EvidenceSourceType, value.EvidenceFileVersionId, value.ExternalUri, value.Sha256Digest);
+    private static ReadinessEvidenceSource Source(IncidentTabletopRecordDto value) => new(value.EvidenceSourceType, value.EvidenceFileVersionId, value.ExternalUri, value.Sha256Digest);
+    private static bool ValidSource(string type, Guid? versionId, string? externalUri, string? digest)
+    {
+        if (type == "EvidenceFileVersion") return versionId.HasValue && versionId != Guid.Empty && string.IsNullOrWhiteSpace(externalUri) && string.IsNullOrWhiteSpace(digest);
+        return type == "ExternalArtifact" && versionId is null && Uri.TryCreate(externalUri, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps &&
+            digest is { Length: 64 } && digest.All(Uri.IsHexDigit);
+    }
 }

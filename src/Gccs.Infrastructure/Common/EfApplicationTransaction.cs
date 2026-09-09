@@ -1,5 +1,4 @@
 using Gccs.Application.Common;
-using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Infrastructure.Persistence.Models;
 using Gccs.Infrastructure.Persistence;
@@ -24,6 +23,9 @@ public sealed class EfApplicationTransaction(IServiceProvider serviceProvider) :
             return await operation(cancellationToken);
         }
 
+        var preexistingAuditIds = dbContext.ChangeTracker.Entries<AuditLogEntryEntity>()
+            .Select(entry => entry.Entity.Id)
+            .ToHashSet();
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -31,16 +33,15 @@ public sealed class EfApplicationTransaction(IServiceProvider serviceProvider) :
             await transaction.CommitAsync(cancellationToken);
             return result;
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            // Policy rejections describe a denied attempt, not a committed mutation.
-            // Keep only those events after rolling the entire business transaction back.
-            var rejections = exception is TenantDataHandlingModeRestrictedException or CuiReadyApprovalChecklistValidationException
-                ? dbContext.ChangeTracker.Entries<AuditLogEntryEntity>()
-                    .Where(entry => entry.Entity.Action == AuditAction.Rejected &&
-                        entry.Entity.EntityType is "TenantDataHandlingModePolicy" or "CuiReadyApprovalChecklist" or "TenantDataHandlingMode")
-                    .Select(entry => entry.Entity).ToArray()
-                : [];
+            // Rejected attempts are audit evidence, not committed business state. Preserve
+            // every rejection event after rolling back the failed mutation transaction.
+            var rejections = dbContext.ChangeTracker.Entries<AuditLogEntryEntity>()
+                .Where(entry => entry.Entity.Action == AuditAction.Rejected &&
+                    !preexistingAuditIds.Contains(entry.Entity.Id))
+                .Select(entry => entry.Entity)
+                .ToArray();
             await transaction.RollbackAsync(CancellationToken.None);
             await transaction.DisposeAsync();
             dbContext.ChangeTracker.Clear();

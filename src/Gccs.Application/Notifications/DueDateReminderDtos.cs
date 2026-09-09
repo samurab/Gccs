@@ -27,4 +27,5 @@ public interface IDueDateReminderRepository
         Guid actorUserId,
         RunDueDateReminderRequest request,
         CancellationToken cancellationToken = default);
+    Task<int> RunAutomatedAsync(int leadTimeDays, int batchSize, CancellationToken cancellationToken = default);
 }

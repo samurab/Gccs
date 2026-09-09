@@ -46,8 +46,9 @@ it("requires explicit proposed-mode consent without changing mode", async () => 
 
 it("requires a real current link and never manufactures evidence URLs", async () => {
   const save = vi.fn();
-  const item = { id: "item", itemKey: "security-review", notes: null, owner: null, evidenceLink: null } as api.CuiReadyApprovalChecklistItem;
+  const item = { id: "item", itemKey: "security-review", section: "Security review", notes: null, owner: null, evidenceLink: null } as api.CuiReadyApprovalChecklistItem;
   const { rerender } = render(<ReadinessItemEditor item={item} sources={[]} userId="actor" disabled={false} onSave={save} />);
+  expect(screen.getByRole("form", { name: "Security review checklist item" })).toHaveClass("readiness-item-editor--linked");
   expect(screen.getByRole("button", { name: "Save reviewed item" })).toBeDisabled();
   rerender(<ReadinessItemEditor item={item} sources={[{ id: "source", kind: "security-review", version: "3", title: "Security review v3" }]} userId="actor" disabled={false} onSave={save} />);
   await userEvent.type(screen.getByLabelText("Owner"), "Reviewer");

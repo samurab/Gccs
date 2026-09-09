@@ -4,8 +4,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.Tenancy;
+using Gccs.Application.Notifications;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Tenancy;
+using Gccs.Domain.Compliance;
+using Gccs.Domain.Evidence;
 using Gccs.Infrastructure.Audit;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
@@ -60,9 +63,46 @@ public sealed class SecurityIncidentReadinessApiTests
     }
 
     [Fact]
+    public async Task Typed_internal_evidence_is_tenant_validated_and_rechecked_on_approval()
+    {
+        await using var f = Factory(); using var client = Client(f, tenantA, userA); var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var ownVersion = Guid.NewGuid(); var foreignVersion = Guid.NewGuid();
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            AddEvidence(db, tenantA, ownVersion, "Own executed evidence"); AddEvidence(db, tenantB, foreignVersion, "Foreign executed evidence"); await db.SaveChangesAsync();
+        }
+        SaveTechnicalReadinessRequest Request(Guid version) => new(0, [new(null, "backup-restore", today, "staging", userA, "Passed", "Approved evidence file", today.AddMonths(3), "Verified", "EvidenceFileVersion", version)]);
+        var foreign = await client.PutAsJsonAsync("/api/security-incident-readiness/technical", Request(foreignVersion), Json);
+        Assert.Equal(HttpStatusCode.BadRequest, foreign.StatusCode);
+        var saved = await client.PutAsJsonAsync("/api/security-incident-readiness/technical", Request(ownVersion), Json); saved.EnsureSuccessStatusCode();
+        var record = (await saved.Content.ReadFromJsonAsync<TechnicalReadinessRecordDto>(Json))!;
+        var options = (await client.GetFromJsonAsync<ReadinessEvidenceOptionDto[]>("/api/security-incident-readiness/evidence-options", Json))!;
+        Assert.Contains(options, x => x.EvidenceFileVersionId == ownVersion); Assert.DoesNotContain(options, x => x.EvidenceFileVersionId == foreignVersion);
+        using (var scope = f.Services.CreateScope()) { var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>(); (await db.EvidenceFileVersions.SingleAsync(x => x.Id == ownVersion)).DeletedAt = DateTimeOffset.UtcNow; await db.SaveChangesAsync(); }
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/security-incident-readiness/technical/approve", new ApproveReadinessRecordRequest(record.Version, "Attempt"), Json)).StatusCode);
+        using var verify = f.Services.CreateScope(); var verifyDb = verify.ServiceProvider.GetRequiredService<GccsDbContext>(); Assert.Empty(await verifyDb.ReadinessApprovals.ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task Automated_due_date_sweep_is_idempotent()
+    {
+        await using var f = Factory();
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>(); db.ComplianceTasks.Add(new ComplianceTaskEntity { Id=Guid.NewGuid(), TenantId=tenantA, Title="Incident readiness review", Description="Review", Type=ComplianceTaskType.PolicyReview, Status=ComplianceTaskStatus.Open, RiskLevel=RiskLevel.High, AssignedToUserId=userA, OwnerFunction="Security", DueAt=DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2)), CreatedAt=DateTimeOffset.UtcNow, CreatedByUserId=userA }); await db.SaveChangesAsync();
+            var repository = new Gccs.Infrastructure.Notifications.EfDueDateReminderRepository(db);
+            Assert.Equal(1, await repository.RunAutomatedAsync(14, 200)); Assert.Equal(0, await repository.RunAutomatedAsync(14, 200));
+            (await db.ComplianceTasks.SingleAsync(x => x.TenantId == tenantA)).AssignedToUserId = userB; await db.SaveChangesAsync();
+            Assert.Equal(1, await repository.RunAutomatedAsync(14, 200));
+            Assert.Equal(2, await db.NotificationDeliveries.CountAsync(x => x.TenantId == tenantA));
+        }
+    }
+
+    [Fact]
     public async Task Restricted_roles_and_missing_platform_approval_are_rejected_without_mutation()
     {
-        await using var f = Factory(); using var denied = Client(f, tenantA, userA, false); Assert.Equal(HttpStatusCode.Forbidden, (await denied.PutAsJsonAsync("/api/security-incident-readiness/security-review", Security(), Json)).StatusCode);
+        await using var f = Factory(); using var denied = Client(f, tenantA, userA, false); Assert.Equal(HttpStatusCode.Forbidden, (await denied.PutAsJsonAsync("/api/security-incident-readiness/security-review", Security(), Json)).StatusCode); Assert.Equal(HttpStatusCode.Forbidden, (await denied.GetAsync("/api/security-incident-readiness/evidence-options")).StatusCode);
         using var admin = Client(f, tenantA, userA, true, false); var saved = await admin.PutAsJsonAsync("/api/security-incident-readiness/security-review", Security(), Json); saved.EnsureSuccessStatusCode(); var r = (await saved.Content.ReadFromJsonAsync<SecurityReviewRecordDto>(Json))!;
         Assert.Equal(HttpStatusCode.Forbidden, (await admin.PostAsJsonAsync("/api/security-incident-readiness/security-review/approve", new ApproveReadinessRecordRequest(r.Version, "Attempt"), Json)).StatusCode);
         using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>(); Assert.Empty(await db.ReadinessApprovals.ToArrayAsync());
@@ -87,11 +127,11 @@ public sealed class SecurityIncidentReadinessApiTests
     public async Task Technical_and_incident_evidence_are_relational_records_not_dto_snapshots()
     {
         await using var f = Factory(); using var c = Client(f, tenantA, userA); var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var controls = new[] { "tenant-isolation", "evidence-storage", "malware-scanner", "backup-restore", "administrator-access", "support-access" }.Select(x => new SaveExecutedControlEvidenceRequest(null, x, today, "staging", userA, "Passed", $"artifact:{x}", today.AddMonths(6), "Executed synthetic verification")).ToArray();
+        var controls = new[] { "tenant-isolation", "evidence-storage", "malware-scanner", "backup-restore", "administrator-access", "support-access" }.Select(x => new SaveExecutedControlEvidenceRequest(null, x, today, "staging", userA, "Passed", $"https://evidence.example.test/{x}", today.AddMonths(6), "Executed synthetic verification", "ExternalArtifact", null, $"https://evidence.example.test/{x}", new string('a', 64))).ToArray();
         var technical = await c.PutAsJsonAsync("/api/security-incident-readiness/technical", new SaveTechnicalReadinessRequest(0, controls), Json); technical.EnsureSuccessStatusCode(); var tr = (await technical.Content.ReadFromJsonAsync<TechnicalReadinessRecordDto>(Json))!; (await c.PostAsJsonAsync("/api/security-incident-readiness/technical/approve", new ApproveReadinessRecordRequest(tr.Version, "Reviewed"), Json)).EnsureSuccessStatusCode();
         var tablet = Guid.NewGuid(); var playbooks = IncidentResponseReadiness.RequiredPlaybooks.Select(k => new SaveIncidentPlaybookRequest(null, k, "Synthetic trigger", ["Contain"], "Security then support", ["Audit record"], "Security", "Evidence retained and follow-ups assigned")).ToArray();
         var contacts = new[] { "security", "support", "legal-compliance", "engineering", "customer-success" }.Select(function => new SaveIncidentContactRequest(null, function, $"{function}@example.test", "Incident owner")).ToArray();
-        var incident = await c.PutAsJsonAsync("/api/security-incident-readiness/incident", new SaveIncidentReadinessRequest(0, today.AddMonths(11), "Annual", contacts, playbooks, [new SaveIncidentTabletopRequest(tablet, today, "staging", ["Security", "Support"], ["Synthetic gap review"], "artifact:tabletop", userA)], [new SaveIncidentFollowUpRequest(null, tablet, SecurityReviewFindingSeverity.Medium, IncidentResponseGapStatus.Closed, "Synthetic follow-up", "Security", today, "Verified closed")]), Json); incident.EnsureSuccessStatusCode(); var ir = (await incident.Content.ReadFromJsonAsync<IncidentReadinessRecordDto>(Json))!; (await c.PostAsJsonAsync("/api/security-incident-readiness/incident/approve", new ApproveReadinessRecordRequest(ir.Version, "Reviewed"), Json)).EnsureSuccessStatusCode();
+        var incident = await c.PutAsJsonAsync("/api/security-incident-readiness/incident", new SaveIncidentReadinessRequest(0, today.AddMonths(11), "Annual", contacts, playbooks, [new SaveIncidentTabletopRequest(tablet, today, "staging", ["Security", "Support"], ["Synthetic gap review"], "https://evidence.example.test/tabletop", userA, "ExternalArtifact", null, "https://evidence.example.test/tabletop", new string('b', 64))], [new SaveIncidentFollowUpRequest(null, tablet, SecurityReviewFindingSeverity.Medium, IncidentResponseGapStatus.Closed, "Synthetic follow-up", "Security", today, "Verified closed")]), Json); incident.EnsureSuccessStatusCode(); var ir = (await incident.Content.ReadFromJsonAsync<IncidentReadinessRecordDto>(Json))!; (await c.PostAsJsonAsync("/api/security-incident-readiness/incident/approve", new ApproveReadinessRecordRequest(ir.Version, "Reviewed"), Json)).EnsureSuccessStatusCode();
         using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>(); Assert.Equal(6, await db.ExecutedControlEvidence.CountAsync()); Assert.Equal(5, await db.IncidentContacts.CountAsync()); Assert.Equal(6, await db.IncidentPlaybooks.CountAsync()); Assert.Single(await db.IncidentTabletops.ToArrayAsync()); Assert.Single(await db.IncidentFollowUps.ToArrayAsync()); Assert.Single(await db.ComplianceTasks.Where(x => x.TenantId == tenantA && x.ControlId == "incident-readiness-review" && x.DueAt == today.AddMonths(11)).ToArrayAsync());
     }
 
@@ -102,7 +142,7 @@ public sealed class SecurityIncidentReadinessApiTests
         var contacts = new[] { "security", "support", "legal-compliance", "engineering", "customer-success" }.Select(function => new SaveIncidentContactRequest(null, function, $"{function}@example.test", "Incident owner")).ToArray();
         var playbooks = IncidentResponseReadiness.RequiredPlaybooks.Select(key => new SaveIncidentPlaybookRequest(null, key, "Synthetic trigger", ["Contain"], "Security then support", ["Audit records"], "Security", "Contained and reviewed")).ToArray();
         var request = new SaveIncidentReadinessRequest(0, today.AddMonths(6), "Release", contacts, playbooks,
-            [new(tabletopId, today, "staging", ["Security"], ["Critical response gap"], "artifact:tabletop", userA)],
+            [new(tabletopId, today, "staging", ["Security"], ["Critical response gap"], "https://evidence.example.test/tabletop", userA, "ExternalArtifact", null, "https://evidence.example.test/tabletop", new string('c', 64))],
             [new(null, tabletopId, SecurityReviewFindingSeverity.Critical, IncidentResponseGapStatus.Open, "Critical response gap", "Security", today.AddDays(7), null)]);
         var saved = await c.PutAsJsonAsync("/api/security-incident-readiness/incident", request, Json); saved.EnsureSuccessStatusCode();
         var record = (await saved.Content.ReadFromJsonAsync<IncidentReadinessRecordDto>(Json))!;
@@ -124,12 +164,39 @@ public sealed class SecurityIncidentReadinessApiTests
         var sources = (await c.GetFromJsonAsync<CuiReadinessSupportingRecord[]>("/api/cui-readiness-evidence/sources", Json))!;
         Assert.DoesNotContain(sources, x => x.Kind == "security-review");
     }
+
+    private static void AddEvidence(GccsDbContext db, Guid tenantId, Guid versionId, string name)
+    {
+        var item = new EvidenceItemEntity { Id=Guid.NewGuid(), TenantId=tenantId, Name=name, Description="Synthetic", Type=EvidenceType.SystemConfiguration, OwnerFunction="Security", Status=EvidenceStatus.Approved, CreatedAt=DateTimeOffset.UtcNow };
+        item.FileVersions.Add(new EvidenceFileVersionEntity { Id=versionId, EvidenceItemId=item.Id, VersionNumber=1, FileName="evidence.pdf", ContentType="application/pdf", SizeBytes=10, ValidationStatus="accepted", MalwareScanStatus="clean", StorageUri="evidence/object", FileHash=new string('e',64), UploadedAt=DateTimeOffset.UtcNow, UploadedByUserId=Guid.NewGuid() }); db.EvidenceItems.Add(item);
+    }
 }
 
 public sealed class SecurityIncidentReadinessPostgresTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> factory;
     public SecurityIncidentReadinessPostgresTests(WebApplicationFactory<Program> factory) => this.factory = factory;
+    [PostgresFact]
+    [Trait("Category", "PostgresIntegration")]
+    public async Task Concurrent_automated_reminder_sweeps_create_one_delivery()
+    {
+        var connection = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION") ?? throw new InvalidOperationException("GCCS_TEST_POSTGRES_CONNECTION is required.");
+        var tenant = Guid.NewGuid(); var user = Guid.NewGuid(); var task = Guid.NewGuid();
+        await using var f = factory.WithWebHostBuilder(b => { b.UseSetting("ConnectionStrings:GccsDatabase", connection); b.UseSetting("LocalDependencies:Enabled", "false"); b.UseSetting("DueDateReminderProcessing:Enabled", "false"); });
+        using var startup = f.CreateClient();
+        using (var setupScope = f.Services.CreateScope()) { var setup = setupScope.ServiceProvider.GetRequiredService<GccsDbContext>(); setup.Tenants.Add(new TenantEntity { Id=tenant, Name="Reminder concurrency tenant", Status=TenantStatus.Active, DataPosture=TenantDataPosture.NoCui }); setup.ComplianceTasks.Add(new ComplianceTaskEntity { Id=task, TenantId=tenant, Title="Incident readiness review", Description="Review", Type=ComplianceTaskType.PolicyReview, Status=ComplianceTaskStatus.Open, RiskLevel=RiskLevel.High, AssignedToUserId=user, OwnerFunction="Security", DueAt=DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2)), CreatedAt=DateTimeOffset.UtcNow, CreatedByUserId=user }); await setup.SaveChangesAsync(); }
+        try
+        {
+            using var scopeA = f.Services.CreateScope(); using var scopeB = f.Services.CreateScope(); var dbA = scopeA.ServiceProvider.GetRequiredService<GccsDbContext>(); var dbB = scopeB.ServiceProvider.GetRequiredService<GccsDbContext>();
+            var results = await Task.WhenAll(new Gccs.Infrastructure.Notifications.EfDueDateReminderRepository(dbA).RunAutomatedAsync(14, 200), new Gccs.Infrastructure.Notifications.EfDueDateReminderRepository(dbB).RunAutomatedAsync(14, 200));
+            Assert.Equal(1, results.Sum());
+            using var verifyScope = f.Services.CreateScope(); var verify = verifyScope.ServiceProvider.GetRequiredService<GccsDbContext>(); Assert.Single(await verify.NotificationDeliveries.Where(x => x.TenantId == tenant && x.SourceTaskId == task).ToArrayAsync());
+        }
+        finally
+        {
+            using var cleanupScope = f.Services.CreateScope(); var cleanup = cleanupScope.ServiceProvider.GetRequiredService<GccsDbContext>(); await cleanup.NotificationDeliveries.Where(x => x.TenantId == tenant).ExecuteDeleteAsync(); await cleanup.ComplianceTasks.Where(x => x.TenantId == tenant).ExecuteDeleteAsync(); await cleanup.Tenants.Where(x => x.Id == tenant).ExecuteDeleteAsync();
+        }
+    }
     [PostgresFact]
     [Trait("Category", "PostgresIntegration")]
     public async Task Audit_failure_rolls_back_readiness_record_children_and_history()
@@ -157,7 +224,7 @@ public sealed class SecurityIncidentReadinessPostgresTests : IClassFixture<WebAp
             var today = DateOnly.FromDateTime(DateTime.UtcNow); var tabletopId = Guid.NewGuid();
             var contacts = new[] { "security", "support", "legal-compliance", "engineering", "customer-success" }.Select(x => new SaveIncidentContactRequest(null, x, $"{x}@example.test", "Incident owner")).ToArray();
             var playbooks = IncidentResponseReadiness.RequiredPlaybooks.Select(x => new SaveIncidentPlaybookRequest(null, x, "Synthetic trigger", ["Contain"], "Security then support", ["Audit record"], "Security", "Closed after verification")).ToArray();
-            var request = new SaveIncidentReadinessRequest(0, today.AddMonths(6), "Release", contacts, playbooks, [new(tabletopId, today, "staging", ["Security"], ["Synthetic exercise"], "artifact:tabletop", user)], [new(null, tabletopId, SecurityReviewFindingSeverity.Medium, IncidentResponseGapStatus.Open, "Follow-up", "Security", today.AddDays(14), null)]);
+            var request = new SaveIncidentReadinessRequest(0, today.AddMonths(6), "Release", contacts, playbooks, [new(tabletopId, today, "staging", ["Security"], ["Synthetic exercise"], "https://evidence.example.test/tabletop", user, "ExternalArtifact", null, "https://evidence.example.test/tabletop", new string('d', 64))], [new(null, tabletopId, SecurityReviewFindingSeverity.Medium, IncidentResponseGapStatus.Open, "Follow-up", "Security", today.AddDays(14), null)]);
             Assert.Equal(HttpStatusCode.InternalServerError, (await client.PutAsJsonAsync("/api/security-incident-readiness/incident", request)).StatusCode);
             using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>(); Assert.False(await db.IncidentReadinessRecords.AnyAsync(x => x.TenantId == tenant)); Assert.False(await db.IncidentPlaybooks.AnyAsync(x => x.TenantId == tenant)); Assert.False(await db.IncidentFollowUps.AnyAsync(x => x.TenantId == tenant)); Assert.False(await db.ComplianceTasks.AnyAsync(x => x.TenantId == tenant && x.ControlId == "incident-readiness-review")); Assert.False(await db.ReadinessHistory.AnyAsync(x => x.TenantId == tenant));
         }

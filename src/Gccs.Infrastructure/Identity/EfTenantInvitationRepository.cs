@@ -133,7 +133,8 @@ public sealed class EfTenantInvitationRepository(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = dbContext.Database.IsRelational()
+        await using var transaction = dbContext.Database.IsRelational() &&
+            dbContext.Database.CurrentTransaction is null
             ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
             : null;
         TenantInvitationEntity? invitation;
