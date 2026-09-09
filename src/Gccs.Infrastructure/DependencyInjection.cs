@@ -128,9 +128,9 @@ public static class DependencyInjection
         services.AddSingleton<IPortalPackageRepository, InMemoryPortalPackageRepository>();
         services.AddSingleton<IPortalPackageLifecycleRepository, InMemoryPortalPackageLifecycleRepository>();
         services.AddSingleton<ITrustArtifactLibraryRepository, InMemoryTrustArtifactLibraryRepository>();
-        services.AddSingleton<ISspSectionRepository, InMemorySspSectionRepository>();
-        services.AddSingleton<ISspNarrativeRepository>(provider => (InMemorySspSectionRepository)provider.GetRequiredService<ISspSectionRepository>());
-        services.AddSingleton<ISspExportPackageRepository>(provider => (InMemorySspSectionRepository)provider.GetRequiredService<ISspSectionRepository>());
+        services.AddSingleton<InMemorySspSectionRepository>();
+        services.AddSingleton<ISspNarrativeRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
+        services.AddSingleton<ISspExportPackageRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
         services.AddSingleton<ICuiEnclaveBoundaryRepository, InMemoryCuiEnclaveBoundaryRepository>();
         services.AddSingleton<ICustomerManagedKeyPolicyRepository, InMemoryCustomerManagedKeyPolicyRepository>();
         services.AddSingleton<ICuiEnclaveAccessControlRepository, InMemoryCuiEnclaveAccessControlRepository>();
@@ -430,9 +430,13 @@ public static class DependencyInjection
             services.AddScoped<IDemoTenantSeedRepository, EfDemoTenantSeedRepository>();
             services.AddScoped<IFedRampControlMappingRepository, EfFedRampControlMappingRepository>();
             services.AddScoped<IFedRampReadinessExportPackageRepository, EfFedRampReadinessExportPackageRepository>();
+            services.AddScoped<ISspSectionRepository, EfSspSectionRepository>();
+            services.AddScoped<ISspSectionLinkValidator, EfSspSectionLinkValidator>();
         }
         else
         {
+            services.AddSingleton<ISspSectionRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
+            services.AddSingleton<ISspSectionLinkValidator, PermissiveSspSectionLinkValidator>();
             services.AddSingleton<IClauseLibraryRepository, InMemoryClauseLibraryRepository>();
             services.AddSingleton<IObligationRepository, InMemoryObligationRepository>();
             services.AddScoped<ITenantRepository>(_ =>

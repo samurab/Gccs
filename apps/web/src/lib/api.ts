@@ -943,6 +943,22 @@ export type CmmcPoamItem = {
 
 export type UpsertCmmcPoamItemRequest = Omit<CmmcPoamItem, "id" | "tenantId" | "assessmentId" | "isOverdue" | "createdAt" | "updatedAt">;
 
+export type SspSectionType = "SystemDescription" | "AuthorizationBoundary" | "Environment" | "Interconnections" | "Users" | "Roles" | "DataTypes" | "CuiHandlingPosture" | "ControlImplementationNarratives" | "InheritedResponsibilities" | "ExternalServiceProviders" | "EvidenceReferences";
+export type SspSectionStatus = "Draft" | "InReview" | "Approved" | "Superseded" | "Archived";
+export type SspLinkedRecordType = "CompanyProfile" | "SystemBoundary" | "Asset" | "CmmcControl" | "ResponsibilityMatrix" | "Policy" | "PoamItem" | "Evidence";
+export type SspLinkedRecord = { recordType: SspLinkedRecordType; recordId: string; relationship: string };
+export type SspSourceReference = { source: string; sourceUrl: string; lastReviewedAt: string };
+export type SspSectionHistory = { status: SspSectionStatus; actorUserId: string; actorName: string; changedAt: string; notes: string | null };
+export type SspSection = {
+  id: string; tenantId: string; sectionType: SspSectionType; title: string; owner: string; status: SspSectionStatus;
+  reviewer: string | null; reviewDate: string | null; approvalRationale: string | null; isRequired: boolean; version: number;
+  linkedRecords: SspLinkedRecord[]; sourceReferences: SspSourceReference[]; history: SspSectionHistory[];
+  createdAt: string; updatedAt: string;
+};
+export type CreateSspSectionRequest = Pick<SspSection, "sectionType" | "title" | "owner" | "linkedRecords" | "sourceReferences">;
+export type UpdateSspSectionRequest = CreateSspSectionRequest & { expectedVersion: number };
+export type SspSectionStatusRequest = { status: SspSectionStatus; actorName: string; expectedVersion: number; reviewDate?: string | null; reviewer?: string | null; approvalRationale?: string | null };
+
 export type Subcontractor = {
   id: string;
   tenantId: string;
@@ -2388,6 +2404,22 @@ export async function getCmmcReadinessGaps(assessmentId: string): Promise<CmmcRe
 
 export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamItem[]> {
   return getJson<CmmcPoamItem[]>(`/api/cmmc/assessments/${assessmentId}/poam-items`, []);
+}
+
+export async function getSspSections(): Promise<SspSection[]> {
+  return getRequiredJson<SspSection[]>("/api/compliance/ssp/sections");
+}
+
+export async function createSspSection(request: CreateSspSectionRequest): Promise<ApiMutationResult<SspSection>> {
+  return postJsonResult<SspSection>("/api/compliance/ssp/sections", request);
+}
+
+export async function updateSspSection(sectionId: string, request: UpdateSspSectionRequest): Promise<ApiMutationResult<SspSection>> {
+  return putJsonResult<SspSection>(`/api/compliance/ssp/sections/${sectionId}`, request);
+}
+
+export async function changeSspSectionStatus(sectionId: string, request: SspSectionStatusRequest): Promise<ApiMutationResult<SspSection>> {
+  return postJsonResult<SspSection>(`/api/compliance/ssp/sections/${sectionId}/status`, request);
 }
 
 export async function getSubcontractors(): Promise<Subcontractor[]> {

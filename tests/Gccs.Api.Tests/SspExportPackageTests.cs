@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.Compliance;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Compliance;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure.Compliance;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -130,12 +131,14 @@ public sealed class SspExportPackageTests : IClassFixture<WebApplicationFactory<
             SspSectionType.AuthorizationBoundary,
             "Authorization boundary",
             "security owner",
-            [new SspLinkedRecordDto("systemBoundary", "boundary-1", "Defines reviewed system boundary.")],
+            [new SspLinkedRecordDto(SspLinkedRecordType.SystemBoundary, "boundary-1", "Defines reviewed system boundary.")],
             [new SspSourceReferenceDto("NIST SP 800-171 Rev. 2", "https://csrc.nist.gov/publications/detail/sp/800-171/rev-2/final", new DateOnly(2026, 6, 19))]), ids));
         Assert.Equal(HttpStatusCode.Created, sectionResponse.StatusCode);
         var section = Assert.IsType<SspSectionDto>(await sectionResponse.Content.ReadFromJsonAsync<SspSectionDto>(JsonOptions));
 
-        var approveSection = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{section.Id}/status", new SspSectionStatusRequest(SspSectionStatus.Approved, "reviewer", new DateOnly(2026, 6, 19), "security reviewer"), ids));
+        var reviewSection = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{section.Id}/status", new SspSectionStatusRequest(SspSectionStatus.InReview, "owner", section.Version), ids));
+        var reviewed = Assert.IsType<SspSectionDto>(await reviewSection.Content.ReadFromJsonAsync<SspSectionDto>(JsonOptions));
+        var approveSection = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{section.Id}/status", new SspSectionStatusRequest(SspSectionStatus.Approved, "reviewer", reviewed.Version, new DateOnly(2026, 6, 19), "security reviewer"), ids));
         Assert.Equal(HttpStatusCode.OK, approveSection.StatusCode);
 
         var narrativeResponse = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{section.Id}/narratives", new GenerateSspNarrativeDraftRequest([new SspNarrativeSourceRecordDto("evidence", "evidence-1", ids.TenantId, "Boundary evidence reviewed.", "https://internal.example.com/evidence/evidence-1", true, false)], false), ids));

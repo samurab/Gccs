@@ -130,6 +130,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<FedRampReadinessPackageEntity> FedRampReadinessPackages => Set<FedRampReadinessPackageEntity>();
     public DbSet<FedRampPackageRecordEntity> FedRampPackageRecords => Set<FedRampPackageRecordEntity>();
     public DbSet<FedRampReadinessPackageHistoryEntity> FedRampReadinessPackageHistory => Set<FedRampReadinessPackageHistoryEntity>();
+    public DbSet<SspSectionEntity> SspSections => Set<SspSectionEntity>();
+    public DbSet<SspSectionLinkEntity> SspSectionLinks => Set<SspSectionLinkEntity>();
+    public DbSet<SspSectionSourceReferenceEntity> SspSectionSourceReferences => Set<SspSectionSourceReferenceEntity>();
+    public DbSet<SspSectionHistoryEntity> SspSectionHistory => Set<SspSectionHistoryEntity>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -202,6 +206,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<SsoEnforcementMode>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorEvidenceRequestStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspSectionType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspSectionStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspLinkedRecordType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<InvitationDeliveryStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
@@ -221,6 +228,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("gccs");
+        ConfigureSsp(modelBuilder);
         foreach (var type in new[] { typeof(EvidenceItemEntity), typeof(EvidenceFileVersionEntity), typeof(ContractDocumentEntity),
             typeof(ExtractionJobEntity), typeof(ClassifiedNoteEntity), typeof(ReportEntity), typeof(ReportClassificationEntity) })
             modelBuilder.Entity(type).Property<long>("ClassificationRevision").IsConcurrencyToken();
@@ -1353,6 +1361,56 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasIndex(x => new { x.ContractId, x.DueAt });
             entity.Property(x => x.SourceClauseNumbersJson).HasColumnType("jsonb");
             entity.HasOne(x => x.Contract).WithMany(x => x.ReportingDeadlines).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureSsp(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SspSectionEntity>(entity =>
+        {
+            entity.ToTable("ssp_sections");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.SectionType });
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Owner).HasMaxLength(200);
+            entity.Property(x => x.Reviewer).HasMaxLength(200);
+            entity.Property(x => x.ApprovalRationale).HasMaxLength(2000);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SspSectionLinkEntity>(entity =>
+        {
+            entity.ToTable("ssp_section_links");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.RecordType, x.RecordId });
+            entity.HasIndex(x => new { x.TenantId, x.SectionId, x.RecordType, x.RecordId }).IsUnique();
+            entity.Property(x => x.RecordId).HasMaxLength(120);
+            entity.Property(x => x.Relationship).HasMaxLength(200);
+            entity.HasOne(x => x.Section).WithMany(x => x.LinkedRecords).HasForeignKey(x => new { x.TenantId, x.SectionId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspSectionSourceReferenceEntity>(entity =>
+        {
+            entity.ToTable("ssp_section_source_references");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SectionId });
+            entity.Property(x => x.Source).HasMaxLength(200);
+            entity.Property(x => x.SourceUrl).HasMaxLength(1000);
+            entity.HasOne(x => x.Section).WithMany(x => x.SourceReferences).HasForeignKey(x => new { x.TenantId, x.SectionId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspSectionHistoryEntity>(entity =>
+        {
+            entity.ToTable("ssp_section_status_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SectionId, x.ChangedAt });
+            entity.Property(x => x.ActorName).HasMaxLength(200);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasOne(x => x.Section).WithMany(x => x.History).HasForeignKey(x => new { x.TenantId, x.SectionId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
         });
     }
 

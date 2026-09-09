@@ -143,6 +143,16 @@ If SEO or public content becomes a requirement, add a separate public site rathe
 
 Shared design tokens, brand assets, and API contracts should be factored so both surfaces feel consistent without coupling the authenticated app to an SEO framework.
 
+## SSP Section Boundary
+
+Current state: **Implemented for structured, tenant-scoped section management; automated SSP generation remains outside this boundary**.
+
+- SSP sections are durable relational aggregates with typed links to governed tenant or compliance records and append-only lifecycle history.
+- The server validates tenant ownership and evidence eligibility before accepting links. Raw client identifiers never establish tenant scope.
+- Draft and in-review sections may be edited. Approval requires the ordered review transition, owner, reviewer, review date, and source references, eligible governed-record links, or documented rationale.
+- Section mutation, lifecycle history, and audit append use the authenticated relational transaction boundary.
+- This feature organizes compliance-management records. It does not certify the tenant, authorize CUI processing, or produce an assessor or government determination.
+
 ## Planned Services
 
 - PostgreSQL for transactional tenant data.

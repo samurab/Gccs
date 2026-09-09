@@ -1,6 +1,8 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Compliance;
 
 namespace Gccs.Application.Compliance;
 
@@ -8,8 +10,10 @@ public sealed class SspSectionService(
     ISspSectionRepository repository,
     ISspNarrativeRepository narrativeRepository,
     ISspExportPackageRepository exportPackageRepository,
+    ISspSectionLinkValidator linkValidator,
     ICurrentTenantContext tenantContext,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    IApplicationTransaction transaction)
 {
     public async Task<IReadOnlyList<SspSectionDto>> ListAsync(CancellationToken cancellationToken = default) =>
         await repository.ListAsync(tenantContext.TenantId, cancellationToken);
@@ -20,50 +24,54 @@ public sealed class SspSectionService(
     public async Task<SspSectionDto> CreateAsync(CreateSspSectionRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
         ValidateSection(request.SectionType, request.Title, request.Owner, request.SourceReferences, request.LinkedRecords);
-        var section = await repository.CreateAsync(tenantContext.TenantId, request, actorUserId, cancellationToken);
-        await WriteAuditAsync(section, actorUserId, AuditAction.Created, "SSP section was created.", cancellationToken);
-        return section;
+        ValidateText(tenantContext.UserEmail, "Authenticated actor", 320);
+        return await transaction.ExecuteAsync(async token =>
+        {
+            await linkValidator.ValidateAsync(tenantContext.TenantId, request.LinkedRecords, token);
+            var section = await repository.CreateAsync(tenantContext.TenantId, request, actorUserId, tenantContext.UserEmail.Trim(), token);
+            await WriteAuditAsync(section, actorUserId, AuditAction.Created, "SSP section was created.", token);
+            return section;
+        }, cancellationToken);
     }
 
     public async Task<SspSectionDto?> UpdateAsync(Guid sectionId, UpdateSspSectionRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
         ValidateSection(request.SectionType, request.Title, request.Owner, request.SourceReferences, request.LinkedRecords);
-        var section = await repository.UpdateAsync(tenantContext.TenantId, sectionId, request, actorUserId, cancellationToken);
-        if (section is not null)
+        return await transaction.ExecuteAsync(async token =>
         {
-            await WriteAuditAsync(section, actorUserId, AuditAction.Updated, "SSP section was updated.", cancellationToken);
-        }
-
-        return section;
+            var current = await repository.GetAsync(tenantContext.TenantId, sectionId, token);
+            if (current is null) return null;
+            if (!SspSectionLifecycle.CanEdit(current.Status))
+                throw new SspSectionValidationException("Only draft or in-review SSP sections can be edited.");
+            await linkValidator.ValidateAsync(tenantContext.TenantId, request.LinkedRecords, token);
+            var section = await repository.UpdateAsync(tenantContext.TenantId, sectionId, request, actorUserId, token);
+            if (section is not null)
+                await WriteAuditAsync(section, actorUserId, AuditAction.Updated, "SSP section was updated.", token);
+            return section;
+        }, cancellationToken);
     }
 
     public async Task<SspSectionDto?> ChangeStatusAsync(Guid sectionId, SspSectionStatusRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.ActorName))
-        {
-            throw new SspSectionValidationException("Actor name is required.");
-        }
+        ValidateText(tenantContext.UserEmail, "Authenticated actor", 320);
 
-        var current = await repository.GetAsync(tenantContext.TenantId, sectionId, cancellationToken);
-        if (current is null)
+        return await transaction.ExecuteAsync(async token =>
         {
-            return null;
-        }
-
-        ValidateStatusChange(current, request);
-        var section = await repository.ChangeStatusAsync(tenantContext.TenantId, sectionId, request, actorUserId, cancellationToken);
-        if (section is not null)
-        {
+            var current = await repository.GetAsync(tenantContext.TenantId, sectionId, token);
+            if (current is null) return null;
+            ValidateStatusChange(current, request);
+            var authenticatedRequest = request with { ActorName = tenantContext.UserEmail.Trim() };
+            var section = await repository.ChangeStatusAsync(tenantContext.TenantId, sectionId, authenticatedRequest, actorUserId, token);
+            if (section is null) return null;
             var action = request.Status switch
             {
                 SspSectionStatus.Approved => AuditAction.Approved,
                 SspSectionStatus.Archived or SspSectionStatus.Superseded => AuditAction.Archived,
                 _ => AuditAction.Updated
             };
-            await WriteAuditAsync(section, actorUserId, action, $"SSP section moved to {section.Status}.", cancellationToken);
-        }
-
-        return section;
+            await WriteAuditAsync(section, actorUserId, action, $"SSP section moved to {section.Status}.", token);
+            return section;
+        }, cancellationToken);
     }
 
     private static void ValidateSection(SspSectionType sectionType, string title, string owner, SspSourceReferenceDto[] sourceReferences, SspLinkedRecordDto[] linkedRecords)
@@ -73,6 +81,8 @@ public sealed class SspSectionService(
             throw new SspSectionValidationException("A valid SSP section type is required.");
         }
 
+        if (sourceReferences is null || linkedRecords is null)
+            throw new SspSectionValidationException("Source references and linked records are required arrays.");
         ValidateText(title, "Title", 200);
         ValidateText(owner, "Owner", 200);
         if (sourceReferences.Length == 0 && linkedRecords.Length == 0)
@@ -82,20 +92,27 @@ public sealed class SspSectionService(
 
         foreach (var source in sourceReferences)
         {
+            if (source is null) throw new SspSectionValidationException("Source references cannot contain null items.");
             ValidateText(source.Source, "Source", 200);
             ValidateText(source.SourceUrl, "Source URL", 1000);
-            if (!Uri.TryCreate(source.SourceUrl, UriKind.Absolute, out _))
+            if (!Uri.TryCreate(source.SourceUrl, UriKind.Absolute, out var sourceUri) || sourceUri.Scheme is not ("http" or "https"))
             {
                 throw new SspSectionValidationException("Source URL must be absolute.");
             }
+            if (source.LastReviewedAt == default || source.LastReviewedAt > DateOnly.FromDateTime(DateTime.UtcNow))
+                throw new SspSectionValidationException("Source last-reviewed date is required and cannot be in the future.");
         }
 
         foreach (var record in linkedRecords)
         {
-            ValidateText(record.RecordType, "Linked record type", 100);
+            if (record is null) throw new SspSectionValidationException("Linked records cannot contain null items.");
+            if (!Enum.IsDefined(record.RecordType))
+                throw new SspSectionValidationException("A valid linked record type is required.");
             ValidateText(record.RecordId, "Linked record ID", 120);
             ValidateText(record.Relationship, "Linked record relationship", 200);
         }
+        if (linkedRecords.GroupBy(record => new { record.RecordType, Id = record.RecordId.Trim() }).Any(group => group.Count() > 1))
+            throw new SspSectionValidationException("Duplicate linked records are not allowed.");
     }
 
     private static void ValidateStatusChange(SspSectionDto current, SspSectionStatusRequest request)
@@ -105,17 +122,28 @@ public sealed class SspSectionService(
             throw new SspSectionValidationException("A valid SSP section status is required.");
         }
 
+        if (request.ExpectedVersion != current.Version)
+            throw new ContentRevisionConflictException();
+
+        if (!SspSectionLifecycle.CanTransition(current.Status, request.Status))
+            throw new SspSectionValidationException($"SSP section cannot move from {current.Status} to {request.Status}.");
+
         if (request.Status is SspSectionStatus.Approved)
         {
             if (string.IsNullOrWhiteSpace(request.Reviewer) || !request.ReviewDate.HasValue)
             {
                 throw new SspSectionValidationException("Approval requires reviewer and review date.");
             }
+            ValidateText(request.Reviewer, "Reviewer", 200);
+            if (request.ReviewDate > DateOnly.FromDateTime(DateTime.UtcNow))
+                throw new SspSectionValidationException("Review date cannot be in the future.");
 
-            if (current.SourceReferences.Length == 0 && string.IsNullOrWhiteSpace(request.ApprovalRationale))
+            if (current.SourceReferences.Length == 0 && current.LinkedRecords.Length == 0 && string.IsNullOrWhiteSpace(request.ApprovalRationale))
             {
                 throw new SspSectionValidationException("Approval requires source references or approval rationale.");
             }
+            if (!string.IsNullOrWhiteSpace(request.ApprovalRationale))
+                ValidateText(request.ApprovalRationale, "Approval rationale", 2000);
         }
     }
 
@@ -360,9 +388,19 @@ public interface ISspSectionRepository
 {
     Task<IReadOnlyList<SspSectionDto>> ListAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<SspSectionDto?> GetAsync(Guid tenantId, Guid sectionId, CancellationToken cancellationToken = default);
-    Task<SspSectionDto> CreateAsync(Guid tenantId, CreateSspSectionRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<SspSectionDto> CreateAsync(Guid tenantId, CreateSspSectionRequest request, Guid actorUserId, string actorName, CancellationToken cancellationToken = default);
     Task<SspSectionDto?> UpdateAsync(Guid tenantId, Guid sectionId, UpdateSspSectionRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<SspSectionDto?> ChangeStatusAsync(Guid tenantId, Guid sectionId, SspSectionStatusRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
+}
+
+public interface ISspSectionLinkValidator
+{
+    Task ValidateAsync(Guid tenantId, IReadOnlyCollection<SspLinkedRecordDto> records, CancellationToken cancellationToken = default);
+}
+
+public sealed class PermissiveSspSectionLinkValidator : ISspSectionLinkValidator
+{
+    public Task ValidateAsync(Guid tenantId, IReadOnlyCollection<SspLinkedRecordDto> records, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
 public interface ISspNarrativeRepository
@@ -381,12 +419,12 @@ public interface ISspExportPackageRepository
 }
 
 public sealed record CreateSspSectionRequest(SspSectionType SectionType, string Title, string Owner, SspLinkedRecordDto[] LinkedRecords, SspSourceReferenceDto[] SourceReferences);
-public sealed record UpdateSspSectionRequest(SspSectionType SectionType, string Title, string Owner, SspLinkedRecordDto[] LinkedRecords, SspSourceReferenceDto[] SourceReferences);
-public sealed record SspSectionStatusRequest(SspSectionStatus Status, string ActorName, DateOnly? ReviewDate = null, string? Reviewer = null, string? ApprovalRationale = null);
-public sealed record SspLinkedRecordDto(string RecordType, string RecordId, string Relationship);
+public sealed record UpdateSspSectionRequest(SspSectionType SectionType, string Title, string Owner, SspLinkedRecordDto[] LinkedRecords, SspSourceReferenceDto[] SourceReferences, long ExpectedVersion);
+public sealed record SspSectionStatusRequest(SspSectionStatus Status, string ActorName, long ExpectedVersion, DateOnly? ReviewDate = null, string? Reviewer = null, string? ApprovalRationale = null);
+public sealed record SspLinkedRecordDto(SspLinkedRecordType RecordType, string RecordId, string Relationship);
 public sealed record SspSourceReferenceDto(string Source, string SourceUrl, DateOnly LastReviewedAt);
 public sealed record SspSectionHistoryDto(SspSectionStatus Status, Guid ActorUserId, string ActorName, DateTimeOffset ChangedAt, string? Notes);
-public sealed record SspSectionDto(Guid Id, Guid TenantId, SspSectionType SectionType, string Title, string Owner, SspSectionStatus Status, string? Reviewer, DateOnly? ReviewDate, SspLinkedRecordDto[] LinkedRecords, SspSourceReferenceDto[] SourceReferences, SspSectionHistoryDto[] History, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+public sealed record SspSectionDto(Guid Id, Guid TenantId, SspSectionType SectionType, string Title, string Owner, SspSectionStatus Status, string? Reviewer, DateOnly? ReviewDate, string? ApprovalRationale, bool IsRequired, long Version, SspLinkedRecordDto[] LinkedRecords, SspSourceReferenceDto[] SourceReferences, SspSectionHistoryDto[] History, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 public sealed record GenerateSspNarrativeDraftRequest(SspNarrativeSourceRecordDto[] SourceRecords, bool AiAssisted, string? ReviewerNotes = null);
 public sealed record EditSspNarrativeDraftRequest(string EditedText, string? ReviewerNotes = null);
 public sealed record ApproveSspNarrativeRequest(string Reviewer, DateOnly? ReviewDate);
@@ -399,23 +437,6 @@ public sealed record SspExportSectionDto(Guid SectionId, SspSectionType SectionT
 public sealed record SspExportHistoryDto(string PackageVersion, Guid ActorUserId, DateTimeOffset GeneratedAt, string Action);
 public sealed record SspExportPackageDto(Guid Id, Guid TenantId, DateTimeOffset GeneratedAt, string PackageVersion, string SystemBoundary, string Reviewer, SspExportFormat Format, string AuthorizationLanguage, string HumanReadableReport, SspExportSectionDto[] Sections, SspExportRecordDto[] IncludedEvidence, string[] PoamReferences, SspExportHistoryDto[] History);
 
-public enum SspSectionType
-{
-    SystemDescription,
-    AuthorizationBoundary,
-    Environment,
-    Interconnections,
-    Users,
-    Roles,
-    DataTypes,
-    CuiHandlingPosture,
-    ControlImplementationNarratives,
-    InheritedResponsibilities,
-    ExternalServiceProviders,
-    EvidenceReferences
-}
-
-public enum SspSectionStatus { Draft, InReview, Approved, Superseded, Archived }
 public enum SspNarrativeStatus { Draft, Approved, Superseded, Archived }
 public enum SspExportFormat { HumanReadable, MachineReadable, Both }
 public enum SspExportRecordStatus { Draft, InReview, Approved, Superseded, Archived }

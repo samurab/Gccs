@@ -28,6 +28,7 @@ import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect,
 import { DataHandlingNoticePanel } from "@/components/DataHandlingNoticePanel";
 import { ReadinessEvidencePanel, ReadinessItemEditor } from "@/components/ReadinessEvidencePanel";
 import { SecurityIncidentReadinessPanel } from "@/components/SecurityIncidentReadinessPanel";
+import { SspSectionsPanel } from "@/components/SspSectionsPanel";
 import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
 import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
 import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
@@ -2617,6 +2618,7 @@ export function App() {
               key={selectedCmmcAssessmentId ?? "new-assessment"}
               assessments={cmmcAssessments}
               canManageCmmc={canManageCmmc}
+              canManageSsp={canManageTenant}
               controls={cmmcControls}
               contracts={contracts}
               message={cmmcMessage}
@@ -5944,6 +5946,7 @@ const defaultCmmcPoamForm: CmmcPoamFormState = {
 function CmmcView({
   assessments,
   canManageCmmc,
+  canManageSsp,
   controls,
   contracts,
   message,
@@ -5959,6 +5962,7 @@ function CmmcView({
 }: {
   assessments: CmmcAssessment[];
   canManageCmmc: boolean;
+  canManageSsp: boolean;
   controls: CmmcControlStatus[];
   contracts: ContractRecord[];
   message: string;
@@ -6399,6 +6403,8 @@ function CmmcView({
           <EmptyState title="No POA&M items yet" body="Create remediation items for control gaps that need owner-tracked follow-up." />
         )}
       </WorkflowColumn>
+
+      <SspSectionsPanel canManage={canManageSsp} />
     </section>
   );
 }
