@@ -60,8 +60,8 @@ public sealed class EfNoCuiAcknowledgementRepository(
             candidate => candidate.Id == evidenceItemId && candidate.TenantId == tenantContext.TenantId,
             cancellationToken);
 
-    public async Task<EvidenceFileVersionDto> RecordAcceptedEvidenceUploadIntentAsync(
-        EvidenceUploadIntentDto uploadIntent,
+    public async Task<EvidenceFileVersionDto> RecordAcceptedEvidenceFileVersionAsync(
+        EvidenceUploadIntentDto acceptedFile,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = dbContext.Database.IsNpgsql() && dbContext.Database.CurrentTransaction is null
@@ -69,12 +69,12 @@ public sealed class EfNoCuiAcknowledgementRepository(
             : null;
 
         var evidenceItem = !dbContext.Database.IsNpgsql()
-            ? await FindCurrentTenantEvidenceItemAsync(uploadIntent.EvidenceItemId, cancellationToken)
+            ? await FindCurrentTenantEvidenceItemAsync(acceptedFile.EvidenceItemId, cancellationToken)
             : await dbContext.EvidenceItems
                 .FromSqlInterpolated($"""
                     SELECT *
                     FROM gccs.evidence_items
-                    WHERE id = {uploadIntent.EvidenceItemId}
+                    WHERE id = {acceptedFile.EvidenceItemId}
                       AND tenant_id = {tenantContext.TenantId}
                     FOR UPDATE
                     """)
@@ -88,25 +88,25 @@ public sealed class EfNoCuiAcknowledgementRepository(
                 await transaction.RollbackAsync(cancellationToken);
             }
 
-            throw new EvidenceItemNotFoundException(uploadIntent.EvidenceItemId);
+            throw new EvidenceItemNotFoundException(acceptedFile.EvidenceItemId);
         }
 
         evidenceItem.UpdatedAt = now;
-        evidenceItem.UpdatedByUserId = uploadIntent.CreatedByUserId;
+        evidenceItem.UpdatedByUserId = acceptedFile.CreatedByUserId;
 
-        evidenceItem.OriginalFileName = uploadIntent.FileName;
-        evidenceItem.ContentType = uploadIntent.ContentType;
-        evidenceItem.SizeBytes = uploadIntent.SizeBytes;
-        evidenceItem.UploadValidationStatus = uploadIntent.ValidationStatus;
-        evidenceItem.MalwareScanStatus = uploadIntent.MalwareScanStatus;
-        evidenceItem.StorageUri = uploadIntent.StorageObjectName;
+        evidenceItem.OriginalFileName = acceptedFile.FileName;
+        evidenceItem.ContentType = acceptedFile.ContentType;
+        evidenceItem.SizeBytes = acceptedFile.SizeBytes;
+        evidenceItem.UploadValidationStatus = acceptedFile.ValidationStatus;
+        evidenceItem.MalwareScanStatus = acceptedFile.MalwareScanStatus;
+        evidenceItem.StorageUri = acceptedFile.StorageObjectName;
         evidenceItem.FileHash = null;
         // A replacement cannot erase a review, downgrade its parent, or release quarantined content.
         ContentClassificationPolicy.EnsureProcessable(evidenceItem.Classification, "Evidence replacement");
         if (evidenceItem.Classification == ContentClassification.SyntheticCui)
             throw new ContentClassificationValidationException("Imported synthetic seed content cannot be replaced through customer uploads.");
         var previous = Gccs.Infrastructure.Common.ClassificationMetadata.Read(evidenceItem);
-        var incoming = uploadIntent.Classification;
+        var incoming = acceptedFile.Classification;
         var promote = incoming.Classification == ContentClassification.Unknown ||
             (incoming.Classification == ContentClassification.Cui && evidenceItem.Classification != ContentClassification.Cui) ||
             (incoming.Classification == ContentClassification.Fci && evidenceItem.Classification == ContentClassification.Unclassified);
@@ -121,7 +121,7 @@ public sealed class EfNoCuiAcknowledgementRepository(
             evidenceItem.ClassificationIsApprovedDemoContent = false;
             evidenceItem.ClassificationRevision++;
             dbContext.ContentClassificationHistory.Add(Gccs.Infrastructure.Common.ClassificationMetadata.History(
-                evidenceItem, tenantContext.TenantId, "EvidenceItem", uploadIntent.CreatedByUserId, now, previous));
+                evidenceItem, tenantContext.TenantId, "EvidenceItem", acceptedFile.CreatedByUserId, now, previous));
         }
 
         var nextVersionNumber = await dbContext.EvidenceFileVersions
@@ -130,29 +130,29 @@ public sealed class EfNoCuiAcknowledgementRepository(
             .MaxAsync(cancellationToken) ?? 0;
         var version = new EvidenceFileVersionEntity
         {
-            Id = uploadIntent.Id,
+            Id = acceptedFile.Id,
             EvidenceItemId = evidenceItem.Id,
             VersionNumber = nextVersionNumber + 1,
-            FileName = uploadIntent.FileName,
-            ContentType = uploadIntent.ContentType,
-            SizeBytes = uploadIntent.SizeBytes,
-            ValidationStatus = uploadIntent.ValidationStatus,
-            MalwareScanStatus = uploadIntent.MalwareScanStatus,
-            StorageUri = uploadIntent.StorageObjectName,
+            FileName = acceptedFile.FileName,
+            ContentType = acceptedFile.ContentType,
+            SizeBytes = acceptedFile.SizeBytes,
+            ValidationStatus = acceptedFile.ValidationStatus,
+            MalwareScanStatus = acceptedFile.MalwareScanStatus,
+            StorageUri = acceptedFile.StorageObjectName,
             FileHash = null,
             UploadedAt = now,
-            UploadedByUserId = uploadIntent.CreatedByUserId,
-            Classification = uploadIntent.Classification.Classification,
-            ClassificationSource = uploadIntent.Classification.Source,
-            ClassificationConfidence = uploadIntent.Classification.Confidence,
-            ClassificationReviewedByUserId = uploadIntent.Classification.ReviewedByUserId,
-            ClassificationReviewedAt = uploadIntent.Classification.ReviewedAt,
-            ClassificationReason = uploadIntent.Classification.Reason,
-            ClassificationIsApprovedDemoContent = uploadIntent.Classification.IsApprovedDemoContent
+            UploadedByUserId = acceptedFile.CreatedByUserId,
+            Classification = acceptedFile.Classification.Classification,
+            ClassificationSource = acceptedFile.Classification.Source,
+            ClassificationConfidence = acceptedFile.Classification.Confidence,
+            ClassificationReviewedByUserId = acceptedFile.Classification.ReviewedByUserId,
+            ClassificationReviewedAt = acceptedFile.Classification.ReviewedAt,
+            ClassificationReason = acceptedFile.Classification.Reason,
+            ClassificationIsApprovedDemoContent = acceptedFile.Classification.IsApprovedDemoContent
         };
         dbContext.EvidenceFileVersions.Add(version);
         dbContext.ContentClassificationHistory.Add(Gccs.Infrastructure.Common.ClassificationMetadata.History(
-            version, tenantContext.TenantId, "EvidenceFileVersion", uploadIntent.CreatedByUserId, now));
+            version, tenantContext.TenantId, "EvidenceFileVersion", acceptedFile.CreatedByUserId, now));
 
         await dbContext.SaveChangesAsync(cancellationToken);
         if (transaction is not null)

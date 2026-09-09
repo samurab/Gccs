@@ -56,6 +56,7 @@ const {
   getReportExportMock,
   getAuditLogEntityTypesMock,
   getAuditLogsMock,
+  exportCuiAuditLogsMock,
   getNoCuiAcknowledgementStatusMock,
   getNotificationPreferencesMock,
   getNotificationsMock,
@@ -144,6 +145,7 @@ const {
   deleteContractDocumentMock: vi.fn(),
   getAuditLogEntityTypesMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
+  exportCuiAuditLogsMock: vi.fn(),
   getCalendarEventsMock: vi.fn(),
   getCmmcAssessmentsMock: vi.fn(),
   getCmmcControlLibraryMock: vi.fn(),
@@ -928,6 +930,7 @@ vi.mock("@/lib/api", () => ({
   getTenantDataHandlingModeHistory: getTenantDataHandlingModeHistoryMock,
   getAuditLogEntityTypes: getAuditLogEntityTypesMock,
   getAuditLogs: getAuditLogsMock,
+  exportCuiAuditLogs: exportCuiAuditLogsMock,
   fallbackAuditLogs: {
     items: [],
     page: 1,
@@ -1010,6 +1013,7 @@ describe("App", () => {
     getTenantDataHandlingModeHistoryMock.mockReset();
     getAuditLogEntityTypesMock.mockReset();
     getAuditLogsMock.mockReset();
+    exportCuiAuditLogsMock.mockReset();
     getCalendarEventsMock.mockReset();
     getCmmcAssessmentsMock.mockReset();
     getCmmcControlLibraryMock.mockReset();
@@ -1098,6 +1102,7 @@ describe("App", () => {
       hasPreviousPage: false
     });
     getAuditLogEntityTypesMock.mockResolvedValue([]);
+    exportCuiAuditLogsMock.mockResolvedValue({ data: null, error: null });
     getApprovedEvidencePackagesMock.mockResolvedValue([]);
     getRecentReportsMock.mockResolvedValue([]);
     getSubcontractorFlowDownsMock.mockResolvedValue([]);
@@ -1631,6 +1636,10 @@ describe("App", () => {
           tenantId: captureAccess.tenantId,
           actorUserId: captureAccess.userId,
           action: "Updated",
+          eventType: "ComplianceTask-Updated",
+          classification: null,
+          mode: "NoCui",
+          result: "succeeded",
           entityType: "ComplianceTask",
           entityId: "16131613-1613-1613-1613-161316131632",
           occurredAt: "2026-07-27T21:00:00Z",
@@ -2902,6 +2911,7 @@ describe("App", () => {
     expect(getObligationAssignmentCandidatesMock).not.toHaveBeenCalled();
     expect(getTenantInvitationsMock).not.toHaveBeenCalled();
     expect(getNoCuiAcknowledgementStatusMock).not.toHaveBeenCalled();
+    expect(exportCuiAuditLogsMock).not.toHaveBeenCalled();
   });
 
   it("UAT-02 lets auditors open report detail while generation and archive actions remain unavailable", async () => {
@@ -3183,6 +3193,10 @@ describe("App", () => {
           tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
           actorUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
           action: "Created",
+          eventType: "notice-acknowledgement",
+          classification: "Unclassified",
+          mode: "NoCui",
+          result: "succeeded",
           entityType: "TenantInvitation",
           entityId: "dddddddd-dddd-dddd-dddd-ddddddddddd1",
           occurredAt: "2026-06-15T12:00:00Z",
@@ -3197,6 +3211,10 @@ describe("App", () => {
           tenantId: evidenceMetadata.tenantId,
           actorUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
           action: "Created",
+          eventType: "EvidenceItem-Created",
+          classification: "Fci",
+          mode: "NoCui",
+          result: "succeeded",
           entityType: "EvidenceItem",
           entityId: evidenceMetadata.id,
           occurredAt: "2026-06-15T12:01:00Z",
@@ -3211,6 +3229,10 @@ describe("App", () => {
           tenantId: cmmcAssessment.tenantId,
           actorUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
           action: "Created",
+          eventType: "CmmcAssessment-Created",
+          classification: null,
+          mode: "NoCui",
+          result: "succeeded",
           entityType: "CmmcAssessment",
           entityId: cmmcAssessment.id,
           occurredAt: "2026-06-15T12:02:00Z",
@@ -3225,6 +3247,10 @@ describe("App", () => {
           tenantId: cmmcPoamItem.tenantId,
           actorUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
           action: "Created",
+          eventType: "CmmcPoamItem-Created",
+          classification: null,
+          mode: "NoCui",
+          result: "succeeded",
           entityType: "CmmcPoamItem",
           entityId: cmmcPoamItem.id,
           occurredAt: "2026-06-15T12:03:00Z",
@@ -3263,6 +3289,7 @@ describe("App", () => {
 
     await user.click(await screen.findByRole("link", { name: /settings/i }));
     expect(await screen.findByRole("table", { name: /tenant audit logs/i })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Audit log actions" })).toContainElement(screen.getByRole("button", { name: "Export matching events" }));
     expect(screen.getByText("Invitation was created.")).toBeInTheDocument();
     expect(screen.getAllByTestId("audit-row")[0]).toHaveTextContent("Invitation was created.");
     expect(screen.getByText("Current record: Access control policy")).toBeInTheDocument();
@@ -3274,7 +3301,11 @@ describe("App", () => {
     expect(getAuditLogsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, pageSize: 5 }));
 
     await user.type(screen.getByLabelText("Actor ID"), "cccccccc-cccc-cccc-cccc-ccccccccccc1");
+    await user.selectOptions(screen.getByLabelText("Event type"), "blocked-upload");
     await user.selectOptions(screen.getByLabelText("Action"), "Created");
+    await user.selectOptions(screen.getByLabelText("Classification"), "Cui");
+    await user.selectOptions(screen.getByLabelText("Mode"), "NoCui");
+    await user.selectOptions(screen.getByLabelText("Result"), "blocked");
     expect(screen.getByRole("option", { name: "Contract" })).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Entity"), "TenantInvitation");
     await user.click(screen.getByRole("button", { name: /filter/i }));
@@ -3285,10 +3316,75 @@ describe("App", () => {
         pageSize: 5,
         actorUserId: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
         action: "Created",
+        eventType: "blocked-upload",
+        classification: "Cui",
+        mode: "NoCui",
+        result: "blocked",
         entityType: "TenantInvitation"
       })
     );
     expect(await screen.findByText("No audit events match")).toBeInTheDocument();
+  });
+
+  it("Story 1A.8.2 exports every matching normalized CUI audit event for an authorized user", async () => {
+    getComplianceOverviewMock.mockResolvedValueOnce(fallbackOverview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce([]);
+    getTenantMembersMock.mockResolvedValueOnce([]);
+    const createObjectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:audit-export");
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    exportCuiAuditLogsMock.mockResolvedValueOnce({
+      data: {
+        tenantId: allWorkflowAccess.tenantId,
+        generatedByUserId: allWorkflowAccess.userId,
+        generatedAt: "2026-09-08T20:00:00Z",
+        filters: { eventType: "blocked-upload", classification: "Cui", mode: "NoCui", result: "blocked" },
+        events: [
+          {
+            id: "51515151-5151-5151-5151-515151515105",
+            tenantId: allWorkflowAccess.tenantId,
+            actorUserId: allWorkflowAccess.userId,
+            action: "Rejected",
+            eventType: "blocked-upload",
+            classification: "Cui",
+            mode: "NoCui",
+            result: "blocked",
+            entityType: "EvidenceUploadIntent",
+            entityId: "upload-1",
+            occurredAt: "2026-09-08T19:59:00Z",
+            ipAddress: "203.0.113.10",
+            userAgent: "test",
+            correlationId: "audit-export",
+            summary: "Upload was blocked by the active handling policy.",
+            metadata: {}
+          }
+        ]
+      },
+      error: null
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.click(await screen.findByRole("link", { name: /settings/i }));
+    await user.selectOptions(screen.getByLabelText("Event type"), "blocked-upload");
+    await user.selectOptions(screen.getByLabelText("Action"), "Rejected");
+    await user.selectOptions(screen.getByLabelText("Classification"), "Cui");
+    await user.selectOptions(screen.getByLabelText("Mode"), "NoCui");
+    await user.selectOptions(screen.getByLabelText("Result"), "blocked");
+    await user.click(screen.getByRole("button", { name: "Export matching events" }));
+
+    expect(exportCuiAuditLogsMock).toHaveBeenCalledWith(expect.objectContaining({
+      eventType: "blocked-upload",
+      action: "Rejected",
+      classification: "Cui",
+      mode: "NoCui",
+      result: "blocked"
+    }));
+    expect(await screen.findByText("1 matching audit events exported.")).toHaveAttribute("role", "status");
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:audit-export");
   });
 
   it("TC-4.1.1 and TC-4.1.2 shows the No-CUI notice before upload and disables upload controls", async () => {

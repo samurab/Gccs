@@ -132,6 +132,8 @@ builder.Services.Configure<ExtractionProcessingOptions>(
     builder.Configuration.GetSection(ExtractionProcessingOptions.SectionName));
 builder.Services.Configure<ReportExportProcessingOptions>(
     builder.Configuration.GetSection(ReportExportProcessingOptions.SectionName));
+builder.Services.Configure<DueDateReminderProcessingOptions>(
+    builder.Configuration.GetSection(DueDateReminderProcessingOptions.SectionName));
 if (builder.Environment.IsDevelopment() &&
     builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
     builder.Configuration.GetValue("Security:DevelopmentAuth:Enabled", false))
@@ -157,6 +159,11 @@ if (builder.Configuration.GetValue("ObjectCleanupProcessing:Enabled", true) &&
     !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
 {
     builder.Services.AddHostedService<ObjectCleanupWorker>();
+}
+if (builder.Configuration.GetValue("DueDateReminderProcessing:Enabled", true) &&
+    !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
+{
+    builder.Services.AddHostedService<DueDateReminderWorker>();
 }
 if (builder.Environment.IsDevelopment())
 {
@@ -332,6 +339,7 @@ app.MapPost("/api/public/demo-request-details/responses", async (
 var platformApi = app.MapGroup("/api/platform")
     .RequireAuthorization()
     .RequireRateLimiting("api")
+    .RequireAtomicMutations()
     .AllowWithoutTenantMembership();
 
 platformApi.MapGet("/me/access", (
@@ -423,7 +431,9 @@ platformApi.MapPost("/demo-requests/{requestId:guid}/responses", async (
     {
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["templateKey"] = [exception.Message] });
     }
-}).RequireDemoRequestManagementPermission().WithName("QueuePlatformDemoRequestResponse");
+}).RequireDemoRequestManagementPermission()
+.WithMetadata(new SuppressAtomicMutationTransactionMetadata())
+.WithName("QueuePlatformDemoRequestResponse");
 
 if (app.Environment.IsDevelopment() &&
     string.Equals(
@@ -490,7 +500,9 @@ platformApi.MapPost("/demo-requests/{requestId:guid}/appointment-confirmation", 
             StatusCodes.Status409Conflict,
             "appointment_confirmation_conflict");
     }
-}).RequireDemoRequestManagementPermission().WithName("ConfirmPlatformDemoAppointment");
+}).RequireDemoRequestManagementPermission()
+.WithMetadata(new SuppressAtomicMutationTransactionMetadata())
+.WithName("ConfirmPlatformDemoAppointment");
 
 platformApi.MapPost("/tenants", async (
     PlatformTenantProvisioningRequest request,
@@ -875,7 +887,8 @@ platformApi.MapPost("/tenant-invitations/{invitationId:guid}/resend", async (
 var api = app.MapGroup("/api")
     .RequireAuthorization()
     .RequireRateLimiting("api")
-    .RequireRouteTenantScope();
+    .RequireRouteTenantScope()
+    .RequireAtomicMutations();
 
 var currentUserApi = api.MapGroup("/me")
     .AllowWithoutTenantMembership();
@@ -1149,6 +1162,7 @@ api.MapPost("/company-profile/sam-lookup/search", async (
     }
 })
 .RequirePermission(Permission.ViewCompanyProfile)
+.WithMetadata(new SuppressAtomicMutationTransactionMetadata())
 .WithName("SearchCompanyProfileSamLookup");
 
 api.MapPost("/company-profile/sam-lookup/apply", async (
@@ -1484,6 +1498,7 @@ api.MapPost("/contracts/{contractId:guid}/documents/file", async (
     }
 })
 .RequirePermission(Permission.ManageContracts)
+.WithMetadata(new SuppressAtomicMutationTransactionMetadata())
 .WithName("UploadContractDocumentFile");
 
 api.MapDelete("/contracts/{contractId:guid}/documents/{documentId:guid}", async (
@@ -1569,6 +1584,7 @@ api.MapPost("/extraction-jobs/{extractionJobId:guid}/process", async (
         : Results.Ok(result);
 })
 .RequirePermission(Permission.ManageContracts)
+.WithMetadata(new SuppressAtomicMutationTransactionMetadata())
 .WithName("ProcessExtractionJob");
 
 api.MapGet("/contracts/{contractId:guid}/documents/{documentId:guid}/extraction-results", async (
@@ -2886,6 +2902,7 @@ api.MapPost("/subcontractors/{subcontractorId:guid}/sam-lookup/search", async (
     }
 })
 .RequirePermission(Permission.ViewSubcontractors)
+.WithMetadata(new SuppressAtomicMutationTransactionMetadata())
 .WithName("SearchSubcontractorSamLookup");
 
 api.MapPost("/subcontractors/{subcontractorId:guid}/sam-lookup/apply", async (
@@ -3586,6 +3603,10 @@ api.MapGet("/audit-logs", async (
     int? pageSize,
     Guid? actorUserId,
     string? action,
+    string? eventType,
+    string? classification,
+    string? mode,
+    string? result,
     string? entityType,
     DateTimeOffset? from,
     DateTimeOffset? to,
@@ -3598,6 +3619,10 @@ api.MapGet("/audit-logs", async (
             pageSize ?? 25,
             actorUserId,
             action,
+            eventType,
+            classification,
+            mode,
+            result,
             entityType,
             from,
             to);
@@ -4255,6 +4280,7 @@ api.MapPost("/evidence-items/{evidenceItemId:guid}/file", async (
     }
 })
 .RequirePermission(Permission.ManageEvidence)
+.WithMetadata(new SuppressAtomicMutationTransactionMetadata())
 .WithName("UploadEvidenceFile");
 
 api.MapGet("/cmmc/assessments", async (
@@ -4990,6 +5016,7 @@ api.MapPost("/invitations/{token}/accept", async (
     }
 })
 .AllowWithoutTenantMembership()
+.WithMetadata(new SuppressAtomicMutationTransactionMetadata())
 .WithName("AcceptTenantInvitation");
 
 api.MapGet("/invitations/{token}", async (
@@ -6864,6 +6891,49 @@ api.MapPost("/cui-readiness-evidence", async (RecordCuiReadinessEvidenceRequest 
     .RequirePermission(Permission.ManageTenant)
     .RequireAuthorization(PlatformAuthorization.ApproveCuiReadinessPolicy).WithName("RecordCuiReadinessEvidence");
 
+api.MapGet("/security-incident-readiness/security-review", async ([FromServices] SecurityIncidentReadinessService service, CancellationToken ct) =>
+{ var record = await service.GetSecurityAsync(ct); return record is null ? Results.Text("null", "application/json") : Results.Ok(record); }).RequirePermission(Permission.ManageTenant).WithName("GetSecurityReviewReadiness");
+api.MapPut("/security-incident-readiness/security-review", async (SaveSecurityReviewRequest request, [FromServices] SecurityIncidentReadinessService service, HttpContext http, CancellationToken ct) =>
+{
+    try { return Results.Ok(await service.SaveSecurityAsync(request, ct)); }
+    catch (CuiReadyApprovalChecklistValidationException ex) { return ApiProblemDetails.Create(http, "Security review rejected", ex.Message, 400, "security_review_invalid"); }
+}).RequirePermission(Permission.ManageTenant).WithName("SaveSecurityReviewReadiness");
+api.MapPost("/security-incident-readiness/security-review/approve", async (ApproveReadinessRecordRequest request, [FromServices] SecurityIncidentReadinessService service, HttpContext http, CancellationToken ct) =>
+{
+    try { return Results.Ok(await service.ApproveSecurityAsync(request, ct)); }
+    catch (CuiReadyApprovalChecklistValidationException ex) { return ApiProblemDetails.Create(http, "Security review approval rejected", ex.Message, 400, "security_review_approval_invalid"); }
+}).RequirePermission(Permission.ManageTenant).RequireAuthorization(PlatformAuthorization.ApproveCuiReadinessPolicy).WithName("ApproveSecurityReviewReadiness");
+api.MapGet("/security-incident-readiness/technical", async ([FromServices] SecurityIncidentReadinessService service, CancellationToken ct) =>
+{ var record = await service.GetTechnicalAsync(ct); return record is null ? Results.Text("null", "application/json") : Results.Ok(record); }).RequirePermission(Permission.ManageTenant).WithName("GetTechnicalReadiness");
+api.MapPut("/security-incident-readiness/technical", async (SaveTechnicalReadinessRequest request, [FromServices] SecurityIncidentReadinessService service, HttpContext http, CancellationToken ct) =>
+{
+    try { return Results.Ok(await service.SaveTechnicalAsync(request, ct)); }
+    catch (CuiReadyApprovalChecklistValidationException ex) { return ApiProblemDetails.Create(http, "Technical readiness rejected", ex.Message, 400, "technical_readiness_invalid"); }
+}).RequirePermission(Permission.ManageTenant).WithName("SaveTechnicalReadiness");
+api.MapPost("/security-incident-readiness/technical/approve", async (ApproveReadinessRecordRequest request, [FromServices] SecurityIncidentReadinessService service, HttpContext http, CancellationToken ct) =>
+{
+    try { return Results.Ok(await service.ApproveTechnicalAsync(request, ct)); }
+    catch (CuiReadyApprovalChecklistValidationException ex) { return ApiProblemDetails.Create(http, "Technical readiness approval rejected", ex.Message, 400, "technical_readiness_approval_invalid"); }
+}).RequirePermission(Permission.ManageTenant).RequireAuthorization(PlatformAuthorization.ApproveCuiReadinessPolicy).WithName("ApproveTechnicalReadiness");
+api.MapGet("/security-incident-readiness/incident", async ([FromServices] SecurityIncidentReadinessService service, CancellationToken ct) =>
+{ var record = await service.GetIncidentAsync(ct); return record is null ? Results.Text("null", "application/json") : Results.Ok(record); }).RequirePermission(Permission.ManageTenant).WithName("GetIncidentReadiness");
+api.MapPut("/security-incident-readiness/incident", async (SaveIncidentReadinessRequest request, [FromServices] SecurityIncidentReadinessService service, HttpContext http, CancellationToken ct) =>
+{
+    try { return Results.Ok(await service.SaveIncidentAsync(request, ct)); }
+    catch (CuiReadyApprovalChecklistValidationException ex) { return ApiProblemDetails.Create(http, "Incident readiness rejected", ex.Message, 400, "incident_readiness_invalid"); }
+}).RequirePermission(Permission.ManageTenant).WithName("SaveIncidentReadiness");
+api.MapPost("/security-incident-readiness/incident/approve", async (ApproveReadinessRecordRequest request, [FromServices] SecurityIncidentReadinessService service, HttpContext http, CancellationToken ct) =>
+{
+    try { return Results.Ok(await service.ApproveIncidentAsync(request, ct)); }
+    catch (CuiReadyApprovalChecklistValidationException ex) { return ApiProblemDetails.Create(http, "Incident readiness approval rejected", ex.Message, 400, "incident_readiness_approval_invalid"); }
+}).RequirePermission(Permission.ManageTenant).RequireAuthorization(PlatformAuthorization.ApproveCuiReadinessPolicy).WithName("ApproveIncidentReadiness");
+api.MapGet("/security-incident-readiness/history", async ([FromServices] SecurityIncidentReadinessService service, CancellationToken ct) =>
+    Results.Ok(await service.HistoryAsync(ct))).RequirePermission(Permission.ManageTenant).WithName("ListSecurityIncidentReadinessHistory");
+api.MapGet("/security-incident-readiness/summary", async ([FromServices] SecurityIncidentReadinessService service, CancellationToken ct) =>
+    Results.Ok(await service.SummaryAsync(ct))).RequirePermission(Permission.ManageTenant).WithName("GetSecurityIncidentReadinessSummary");
+api.MapGet("/security-incident-readiness/evidence-options", async ([FromServices] SecurityIncidentReadinessService service, CancellationToken ct) =>
+    Results.Ok(await service.ListEvidenceOptionsAsync(ct))).RequirePermission(Permission.ManageTenant).WithName("ListSecurityIncidentReadinessEvidenceOptions");
+
 api.MapPost("/tenants/{tenantId:guid}/cui-ready-checklists/{checklistId:guid}/reject", async (
     Guid tenantId,
     Guid checklistId,
@@ -7286,6 +7356,7 @@ if (app.Environment.IsDevelopment())
             : Results.BadRequest(report);
     })
     .RequirePermission(Permission.ManageObligations)
+    .WithMetadata(new SuppressAtomicMutationTransactionMetadata())
     .WithName("ImportDevelopmentComplianceContent");
 }
 

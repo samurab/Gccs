@@ -46,6 +46,19 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<CuiSupportEscalationEntity> CuiSupportEscalations => Set<CuiSupportEscalationEntity>();
     public DbSet<CuiSupportEscalationResolutionEntity> CuiSupportEscalationResolutions => Set<CuiSupportEscalationResolutionEntity>();
     public DbSet<CuiSupportEscalationEventEntity> CuiSupportEscalationEvents => Set<CuiSupportEscalationEventEntity>();
+    public DbSet<SecurityReviewRecordEntity> SecurityReviewRecords => Set<SecurityReviewRecordEntity>();
+    public DbSet<SecurityReviewChecklistItemRecordEntity> SecurityReviewChecklistItems => Set<SecurityReviewChecklistItemRecordEntity>();
+    public DbSet<SecurityReviewFindingRecordEntity> SecurityReviewFindings => Set<SecurityReviewFindingRecordEntity>();
+    public DbSet<AcceptedSecurityRiskRecordEntity> AcceptedSecurityRisks => Set<AcceptedSecurityRiskRecordEntity>();
+    public DbSet<TechnicalReadinessRecordEntity> TechnicalReadinessRecords => Set<TechnicalReadinessRecordEntity>();
+    public DbSet<ExecutedControlEvidenceEntity> ExecutedControlEvidence => Set<ExecutedControlEvidenceEntity>();
+    public DbSet<IncidentReadinessRecordEntity> IncidentReadinessRecords => Set<IncidentReadinessRecordEntity>();
+    public DbSet<IncidentContactRecordEntity> IncidentContacts => Set<IncidentContactRecordEntity>();
+    public DbSet<IncidentPlaybookRecordEntity> IncidentPlaybooks => Set<IncidentPlaybookRecordEntity>();
+    public DbSet<IncidentTabletopRecordEntity> IncidentTabletops => Set<IncidentTabletopRecordEntity>();
+    public DbSet<IncidentFollowUpRecordEntity> IncidentFollowUps => Set<IncidentFollowUpRecordEntity>();
+    public DbSet<ReadinessApprovalEntity> ReadinessApprovals => Set<ReadinessApprovalEntity>();
+    public DbSet<ReadinessHistoryEntity> ReadinessHistory => Set<ReadinessHistoryEntity>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<TenantMembershipEntity> TenantMemberships => Set<TenantMembershipEntity>();
     public DbSet<TenantInvitationEntity> TenantInvitations => Set<TenantInvitationEntity>();
@@ -117,6 +130,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<FedRampReadinessPackageEntity> FedRampReadinessPackages => Set<FedRampReadinessPackageEntity>();
     public DbSet<FedRampPackageRecordEntity> FedRampPackageRecords => Set<FedRampPackageRecordEntity>();
     public DbSet<FedRampReadinessPackageHistoryEntity> FedRampReadinessPackageHistory => Set<FedRampReadinessPackageHistoryEntity>();
+    public DbSet<SspSectionEntity> SspSections => Set<SspSectionEntity>();
+    public DbSet<SspSectionLinkEntity> SspSectionLinks => Set<SspSectionLinkEntity>();
+    public DbSet<SspSectionSourceReferenceEntity> SspSectionSourceReferences => Set<SspSectionSourceReferenceEntity>();
+    public DbSet<SspSectionHistoryEntity> SspSectionHistory => Set<SspSectionHistoryEntity>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -189,6 +206,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<SsoEnforcementMode>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SubcontractorEvidenceRequestStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspSectionType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspSectionStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspLinkedRecordType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<InvitationDeliveryStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
@@ -208,6 +228,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("gccs");
+        ConfigureSsp(modelBuilder);
         foreach (var type in new[] { typeof(EvidenceItemEntity), typeof(EvidenceFileVersionEntity), typeof(ContractDocumentEntity),
             typeof(ExtractionJobEntity), typeof(ClassifiedNoteEntity), typeof(ReportEntity), typeof(ReportClassificationEntity) })
             modelBuilder.Entity(type).Property<long>("ClassificationRevision").IsConcurrencyToken();
@@ -750,6 +771,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.SupportingVersion).HasMaxLength(80);
             entity.HasOne(x => x.Checklist).WithMany(x => x.Items).HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        ConfigureReadinessRecords(modelBuilder);
 
         modelBuilder.Entity<SharedResponsibilityMatrixAcknowledgementEntity>(entity =>
         {
@@ -1341,6 +1364,56 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         });
     }
 
+    private static void ConfigureSsp(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SspSectionEntity>(entity =>
+        {
+            entity.ToTable("ssp_sections");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.SectionType });
+            entity.HasIndex(x => new { x.TenantId, x.Status });
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Owner).HasMaxLength(200);
+            entity.Property(x => x.Reviewer).HasMaxLength(200);
+            entity.Property(x => x.ApprovalRationale).HasMaxLength(2000);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SspSectionLinkEntity>(entity =>
+        {
+            entity.ToTable("ssp_section_links");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.RecordType, x.RecordId });
+            entity.HasIndex(x => new { x.TenantId, x.SectionId, x.RecordType, x.RecordId }).IsUnique();
+            entity.Property(x => x.RecordId).HasMaxLength(120);
+            entity.Property(x => x.Relationship).HasMaxLength(200);
+            entity.HasOne(x => x.Section).WithMany(x => x.LinkedRecords).HasForeignKey(x => new { x.TenantId, x.SectionId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspSectionSourceReferenceEntity>(entity =>
+        {
+            entity.ToTable("ssp_section_source_references");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SectionId });
+            entity.Property(x => x.Source).HasMaxLength(200);
+            entity.Property(x => x.SourceUrl).HasMaxLength(1000);
+            entity.HasOne(x => x.Section).WithMany(x => x.SourceReferences).HasForeignKey(x => new { x.TenantId, x.SectionId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspSectionHistoryEntity>(entity =>
+        {
+            entity.ToTable("ssp_section_status_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.SectionId, x.ChangedAt });
+            entity.Property(x => x.ActorName).HasMaxLength(200);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasOne(x => x.Section).WithMany(x => x.History).HasForeignKey(x => new { x.TenantId, x.SectionId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
     private static void ConfigureEvidence(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<EvidenceItemEntity>(entity =>
@@ -1858,6 +1931,12 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.OccurredAt });
             entity.HasIndex(x => new { x.TenantId, x.EntityType, x.EntityId });
+            entity.HasIndex(x => new { x.TenantId, x.EventType, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.Result, x.OccurredAt });
+            entity.Property(x => x.EventType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Classification).HasMaxLength(80);
+            entity.Property(x => x.Mode).HasMaxLength(80);
+            entity.Property(x => x.Result).HasMaxLength(40).IsRequired();
             entity.Property(x => x.CorrelationId).HasMaxLength(120);
             entity.Property(x => x.OldValue).HasColumnType("text");
             entity.Property(x => x.NewValue).HasColumnType("text");
@@ -1908,6 +1987,42 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             throw new InvalidOperationException("Tenant subscription transitions are append-only and cannot be updated or deleted.");
         }
+    }
+
+    private static void ConfigureReadinessRecords(ModelBuilder modelBuilder)
+    {
+        void Record<TEntity>(string table) where TEntity : ReadinessRecordEntity
+        {
+            modelBuilder.Entity<TEntity>(entity =>
+            {
+                entity.ToTable(table); entity.HasKey(x => x.Id);
+                entity.HasIndex(x => new { x.TenantId, x.Version }).IsUnique();
+                entity.HasIndex(x => new { x.TenantId, x.State });
+                entity.Property(x => x.State).HasMaxLength(32).IsRequired();
+                entity.Property(x => x.ApprovalNotes).HasMaxLength(1200);
+            });
+        }
+        Record<SecurityReviewRecordEntity>("security_review_records");
+        Record<TechnicalReadinessRecordEntity>("technical_readiness_records");
+        Record<IncidentReadinessRecordEntity>("incident_readiness_records");
+        modelBuilder.Entity<IncidentReadinessRecordEntity>(e => e.Property(x => x.ReviewBasis).HasMaxLength(40));
+        modelBuilder.Entity<SecurityReviewChecklistItemRecordEntity>(e => { e.ToTable("security_review_checklist_items"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.ReviewId,x.Area}).IsUnique(); e.Property(x=>x.Area).HasMaxLength(120); e.Property(x=>x.EvidenceLink).HasMaxLength(600); e.Property(x=>x.Rationale).HasMaxLength(1200); e.HasOne(x=>x.Review).WithMany(x=>x.Items).HasForeignKey(x=>x.ReviewId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<SecurityReviewFindingRecordEntity>(e => { e.ToTable("security_review_findings"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.Status,x.Severity}); e.Property(x=>x.Area).HasMaxLength(120); e.Property(x=>x.Summary).HasMaxLength(1200); e.Property(x=>x.RemediationOwner).HasMaxLength(180); e.Property(x=>x.ClosureNotes).HasMaxLength(1200); e.HasOne(x=>x.Review).WithMany(x=>x.Findings).HasForeignKey(x=>x.ReviewId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<AcceptedSecurityRiskRecordEntity>(e => { e.ToTable("accepted_security_risks"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.ReviewId}); e.Property(x=>x.Scope).HasMaxLength(1200); e.Property(x=>x.MitigationNote).HasMaxLength(1200); e.HasOne(x=>x.Review).WithMany(x=>x.AcceptedRisks).HasForeignKey(x=>x.ReviewId).OnDelete(DeleteBehavior.Cascade); e.HasOne(x=>x.Finding).WithMany().HasForeignKey(x=>x.FindingId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<ExecutedControlEvidenceEntity>(e => { e.ToTable("executed_control_evidence"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.ReadinessId,x.ControlType}); e.Property(x=>x.ControlType).HasMaxLength(120); e.Property(x=>x.Environment).HasMaxLength(160); e.Property(x=>x.Result).HasMaxLength(80); e.Property(x=>x.EvidenceReference).HasMaxLength(600); e.Property(x=>x.EvidenceSourceType).HasMaxLength(40); e.Property(x=>x.ExternalUri).HasMaxLength(2000); e.Property(x=>x.Sha256Digest).HasMaxLength(64); e.Property(x=>x.Notes).HasMaxLength(1200); e.HasOne(x=>x.Readiness).WithMany(x=>x.Evidence).HasForeignKey(x=>x.ReadinessId).OnDelete(DeleteBehavior.Cascade); e.HasOne<EvidenceFileVersionEntity>().WithMany().HasForeignKey(x=>x.EvidenceFileVersionId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<IncidentPlaybookRecordEntity>(e => { e.ToTable("incident_playbooks"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.ReadinessId,x.Key}).IsUnique(); e.Property(x=>x.Key).HasMaxLength(160); e.Property(x=>x.Trigger).HasMaxLength(1200); e.Property(x=>x.NotificationPath).HasMaxLength(1200); e.Property(x=>x.Owner).HasMaxLength(180); e.Property(x=>x.ClosureCriteria).HasMaxLength(1200); e.HasOne(x=>x.Readiness).WithMany(x=>x.Playbooks).HasForeignKey(x=>x.ReadinessId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<IncidentContactRecordEntity>(e => { e.ToTable("incident_contacts"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.ReadinessId,x.Function}).IsUnique(); e.Property(x=>x.Function).HasMaxLength(80); e.Property(x=>x.Contact).HasMaxLength(240); e.Property(x=>x.EscalationRole).HasMaxLength(180); e.HasOne(x=>x.Readiness).WithMany(x=>x.Contacts).HasForeignKey(x=>x.ReadinessId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<IncidentTabletopRecordEntity>(e => { e.ToTable("incident_tabletops"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.ExecutedAt}); e.Property(x=>x.Environment).HasMaxLength(160); e.Property(x=>x.EvidenceReference).HasMaxLength(600); e.Property(x=>x.EvidenceSourceType).HasMaxLength(40); e.Property(x=>x.ExternalUri).HasMaxLength(2000); e.Property(x=>x.Sha256Digest).HasMaxLength(64); e.HasOne(x=>x.Readiness).WithMany(x=>x.Tabletops).HasForeignKey(x=>x.ReadinessId).OnDelete(DeleteBehavior.Cascade); e.HasOne<EvidenceFileVersionEntity>().WithMany().HasForeignKey(x=>x.EvidenceFileVersionId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<IncidentFollowUpRecordEntity>(e => { e.ToTable("incident_follow_ups"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.Status,x.Severity}); e.Property(x=>x.Summary).HasMaxLength(1200); e.Property(x=>x.Owner).HasMaxLength(180); e.Property(x=>x.ClosureNotes).HasMaxLength(1200); e.HasOne(x=>x.Readiness).WithMany(x=>x.FollowUps).HasForeignKey(x=>x.ReadinessId).OnDelete(DeleteBehavior.Cascade); e.HasOne(x=>x.Tabletop).WithMany().HasForeignKey(x=>x.TabletopId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<ReadinessApprovalEntity>(e => { e.ToTable("readiness_approvals"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.RecordType,x.RecordId,x.Version}).IsUnique(); e.Property(x=>x.RecordType).HasMaxLength(80); e.Property(x=>x.Notes).HasMaxLength(1200); });
+        modelBuilder.Entity<ReadinessHistoryEntity>(e => { e.ToTable("readiness_history"); e.HasKey(x=>x.Id); e.HasIndex(x=>new{x.TenantId,x.OccurredAt}); e.Property(x=>x.RecordType).HasMaxLength(80); e.Property(x=>x.Action).HasMaxLength(80); e.Property(x=>x.Summary).HasMaxLength(1200); });
+        modelBuilder.Entity<SecurityReviewFindingRecordEntity>().HasIndex(x => new { x.ReviewId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<AcceptedSecurityRiskRecordEntity>().HasIndex(x => new { x.ReviewId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<ExecutedControlEvidenceEntity>().HasIndex(x => new { x.ReadinessId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<IncidentContactRecordEntity>().HasIndex(x => new { x.ReadinessId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<IncidentPlaybookRecordEntity>().HasIndex(x => new { x.ReadinessId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<IncidentTabletopRecordEntity>().HasIndex(x => new { x.ReadinessId, x.LogicalId }).IsUnique();
+        modelBuilder.Entity<IncidentFollowUpRecordEntity>().HasIndex(x => new { x.ReadinessId, x.LogicalId }).IsUnique();
     }
 
     private static void ConfigureAuditColumns<T>(EntityTypeBuilder<T> entity)

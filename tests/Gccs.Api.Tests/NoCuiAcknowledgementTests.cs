@@ -375,7 +375,7 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
     }
 
     [Fact]
-    public async Task TC_4_2_3_Valid_upload_metadata_records_validation_and_scan_status()
+    public async Task TC_4_2_3_Valid_upload_metadata_records_validation_and_scan_status_without_creating_file_identity()
     {
         var tenantId = Guid.Parse("42424242-4242-4242-4242-4242424242a3");
         var userId = Guid.Parse("42424242-4242-4242-4242-4242424242b3");
@@ -418,23 +418,21 @@ public sealed class NoCuiAcknowledgementTests : IClassFixture<WebApplicationFact
             candidate.TenantId == tenantId &&
             candidate.Id == evidenceItemId);
 
-        Assert.Equal("policy.pdf", evidenceItem.OriginalFileName);
-        Assert.Equal("application/pdf", evidenceItem.ContentType);
-        Assert.Equal(2048, evidenceItem.SizeBytes);
-        Assert.Equal(EvidenceUploadGuardrails.AcceptedValidationStatus, evidenceItem.UploadValidationStatus);
-        Assert.Equal(EvidenceUploadGuardrails.PendingMalwareScanStatus, evidenceItem.MalwareScanStatus);
+        Assert.Null(evidenceItem.OriginalFileName);
+        Assert.Null(evidenceItem.ContentType);
+        Assert.Null(evidenceItem.SizeBytes);
+        Assert.Null(evidenceItem.UploadValidationStatus);
+        Assert.Null(evidenceItem.MalwareScanStatus);
         Assert.Equal(Gccs.Domain.Evidence.EvidenceStatus.InReview, evidenceItem.Status);
         Assert.Null(evidenceItem.StorageUri);
         Assert.Null(evidenceItem.FileHash);
-        var auditEvent = await dbContext.AuditLogEntries.SingleAsync(candidate =>
+        Assert.Empty(await dbContext.EvidenceFileVersions
+            .Where(version => version.EvidenceItemId == evidenceItemId)
+            .ToArrayAsync());
+        Assert.DoesNotContain(await dbContext.AuditLogEntries.ToArrayAsync(), candidate =>
             candidate.TenantId == tenantId &&
-            candidate.ActorUserId == userId &&
             candidate.Action == AuditAction.Uploaded &&
-            candidate.EntityType == "EvidenceFileVersion" &&
-            candidate.EntityId == uploadIntent.Id.ToString());
-        Assert.Contains("noCuiAttestation", auditEvent.MetadataJson, StringComparison.Ordinal);
-        Assert.DoesNotContain("fileContent", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("contentBytes", auditEvent.MetadataJson, StringComparison.OrdinalIgnoreCase);
+            candidate.EntityType == "EvidenceFileVersion");
     }
 
     [Fact]

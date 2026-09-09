@@ -17,6 +17,15 @@ Known runtime, local infrastructure, test, source-content, and deferred integrat
 - `src/Gccs.Infrastructure`: database, object storage, queue, search, AI, and external API adapters.
 - `packages/compliance-content`: source-backed obligation seed data reviewed by compliance experts before production use.
 
+### Transaction And Audit Boundary
+
+Current state: **Implemented for authenticated relational API mutations; external effects use explicit workflow boundaries**.
+
+- Unsafe authenticated API operations run inside a scoped relational transaction, so repository saves and required audit appends commit or roll back together before the API result is executed.
+- Workflows that require their own serializable transaction or perform filesystem, scanner, object-storage, or external lookup work are explicitly excluded from the request transaction. Their application service or repository owns the short database transaction and, where applicable, compensation or durable cleanup.
+- Invitation acceptance owns its application transaction because the endpoint maps concurrency conflicts to `409`; the invitation claim, user, membership, onboarding, subscription, and audit writes therefore roll back before the error result is returned.
+- Rejected-attempt audit entries are retained after the failed business transaction is rolled back. This replay is not a substitute for a transactional outbox and does not guarantee survival of a process failure between rollback and replay.
+
 ## Subscription Boundary
 
 Current state: **Implemented for provider-independent pilot lifecycle enforcement; partially implemented for commercial billing**.
@@ -133,6 +142,16 @@ If SEO or public content becomes a requirement, add a separate public site rathe
 - `www.<domain>`: Optional Next.js marketing, pricing, documentation, and compliance content site.
 
 Shared design tokens, brand assets, and API contracts should be factored so both surfaces feel consistent without coupling the authenticated app to an SEO framework.
+
+## SSP Section Boundary
+
+Current state: **Implemented for structured, tenant-scoped section management; automated SSP generation remains outside this boundary**.
+
+- SSP sections are durable relational aggregates with typed links to governed tenant or compliance records and append-only lifecycle history.
+- The server validates tenant ownership and evidence eligibility before accepting links. Raw client identifiers never establish tenant scope.
+- Draft and in-review sections may be edited. Approval requires the ordered review transition, owner, reviewer, review date, and source references, eligible governed-record links, or documented rationale.
+- Section mutation, lifecycle history, and audit append use the authenticated relational transaction boundary.
+- This feature organizes compliance-management records. It does not certify the tenant, authorize CUI processing, or produce an assessor or government determination.
 
 ## Planned Services
 

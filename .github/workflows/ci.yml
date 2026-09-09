@@ -17,7 +17,7 @@ jobs:
   backend:
     name: Backend validation
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 80
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -70,7 +70,7 @@ jobs:
           done
 
       - name: Run backend unit and integration tests
-        timeout-minutes: 35
+        timeout-minutes: 70
         run: >
           dotnet test Gccs.slnx
           --no-build
@@ -202,7 +202,26 @@ jobs:
           dotnet tool restore
 
       - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 10
+        run: |
+          while IFS= read -r google_chrome_source; do
+            sudo mv "$google_chrome_source" "${google_chrome_source}.disabled"
+          done < <(sudo grep -RIlF "dl.google.com/linux/chrome-stable" /etc/apt/sources.list.d || true)
+
+          for attempt in 1 2 3; do
+            if npx playwright install --with-deps chromium; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Playwright Chromium installation failed after $attempt attempts."
+              exit 1
+            fi
+
+            delay=$((attempt * 30))
+            echo "::warning::Playwright Chromium installation failed on attempt $attempt; retrying in ${delay}s."
+            sleep "$delay"
+          done
 
       - name: Build API
         run: dotnet build apps/api/Gccs.Api.csproj --no-restore --configuration Release

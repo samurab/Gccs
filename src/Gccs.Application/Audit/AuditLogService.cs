@@ -41,23 +41,18 @@ public sealed class AuditLogService(IAuditLogRepository repository)
             throw new ArgumentException("The from date must be before the to date.", nameof(request));
         }
 
-        AuditAction? action = null;
-        if (!string.IsNullOrWhiteSpace(request.Action))
-        {
-            if (!Enum.TryParse<AuditAction>(request.Action.Trim(), true, out var parsedAction))
-            {
-                throw new ArgumentException("Audit action filter is not recognized.", nameof(request));
-            }
-
-            action = parsedAction;
-        }
+        var action = AuditLogFilterNormalizer.Action(request.Action);
 
         return new AuditLogQuery(
             request.Page,
             request.PageSize,
             request.ActorUserId,
             action,
-            string.IsNullOrWhiteSpace(request.EntityType) ? null : request.EntityType.Trim(),
+            AuditLogFilterNormalizer.EventType(request.EventType),
+            AuditLogFilterNormalizer.Classification(request.Classification),
+            AuditLogFilterNormalizer.Mode(request.Mode),
+            AuditLogFilterNormalizer.Result(request.Result),
+            AuditLogFilterNormalizer.Text(request.EntityType),
             request.From,
             request.To);
     }

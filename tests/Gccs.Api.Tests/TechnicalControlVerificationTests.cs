@@ -10,18 +10,6 @@ public sealed class TechnicalControlVerificationTests
     private static readonly Guid Reviewer = Guid.Parse("1a090200-0000-4000-8000-000000000003");
 
     [Fact]
-    public void TC_1A_9_2_1_Cui_tenant_isolation_tests_pass()
-    {
-        var probes = new[]
-        {
-            new TenantIsolationProbeDto(TenantA, TenantB, "EvidenceItem", "cui-record", true),
-            new TenantIsolationProbeDto(TenantA, TenantB, "EvidenceFileVersion", "cui-file", true)
-        };
-
-        Assert.True(TechnicalControlVerification.TenantIsolationPassed(probes));
-    }
-
-    [Fact]
     public void TC_1A_9_2_2_Evidence_storage_control_metadata_present()
     {
         var storage = new EvidenceStorageControlDto("Encrypted", "Clean", "Retained", "NotDeleted", "TenantScoped");

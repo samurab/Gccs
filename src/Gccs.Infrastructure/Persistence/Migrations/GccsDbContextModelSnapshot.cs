@@ -23,6 +23,69 @@ namespace Gccs.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AcceptedSecurityRiskRecordEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("AcceptedAt")
+                        .HasColumnType("date")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<Guid>("ApproverUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approver_user_id");
+
+                    b.Property<DateOnly?>("ExpiresAt")
+                        .HasColumnType("date")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid?>("FindingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("finding_id");
+
+                    b.Property<Guid>("LogicalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("logical_id");
+
+                    b.Property<string>("MitigationNote")
+                        .IsRequired()
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("mitigation_note");
+
+                    b.Property<DateOnly?>("ReviewAt")
+                        .HasColumnType("date")
+                        .HasColumnName("review_at");
+
+                    b.Property<Guid>("ReviewId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("review_id");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("scope");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FindingId");
+
+                    b.HasIndex("ReviewId", "LogicalId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ReviewId");
+
+                    b.ToTable("accepted_security_risks", "gccs");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AnnualAffirmationEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -381,6 +444,11 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("actor_user_id");
 
+                    b.Property<string>("Classification")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("classification");
+
                     b.Property<string>("CorrelationId")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -397,6 +465,12 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("entity_type");
 
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("event_type");
+
                     b.Property<string>("IpAddress")
                         .IsRequired()
                         .HasColumnType("text")
@@ -406,6 +480,11 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("metadata_json");
+
+                    b.Property<string>("Mode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("mode");
 
                     b.Property<string>("NewValue")
                         .HasColumnType("text")
@@ -418,6 +497,12 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Property<string>("OldValue")
                         .HasColumnType("text")
                         .HasColumnName("old_value");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("result");
 
                     b.Property<string>("Summary")
                         .IsRequired()
@@ -438,6 +523,10 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "OccurredAt");
 
                     b.HasIndex("TenantId", "EntityType", "EntityId");
+
+                    b.HasIndex("TenantId", "EventType", "OccurredAt");
+
+                    b.HasIndex("TenantId", "Result", "OccurredAt");
 
                     b.ToTable("audit_log_entries", "gccs");
                 });
@@ -3878,6 +3967,101 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.ToTable("evidence_vendors", "gccs");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExecutedControlEvidenceEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ControlType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("control_type");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("environment");
+
+                    b.Property<Guid?>("EvidenceFileVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evidence_file_version_id");
+
+                    b.Property<string>("EvidenceReference")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)")
+                        .HasColumnName("evidence_reference");
+
+                    b.Property<string>("EvidenceSourceType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("evidence_source_type");
+
+                    b.Property<DateOnly>("ExecutedAt")
+                        .HasColumnType("date")
+                        .HasColumnName("executed_at");
+
+                    b.Property<DateOnly?>("ExpiresAt")
+                        .HasColumnType("date")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("ExternalUri")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("external_uri");
+
+                    b.Property<Guid>("LogicalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("logical_id");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("ReadinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("readiness_id");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("result");
+
+                    b.Property<Guid>("ReviewerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewer_user_id");
+
+                    b.Property<string>("Sha256Digest")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256_digest");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EvidenceFileVersionId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ReadinessId", "ControlType");
+
+                    b.HasIndex("ReadinessId", "LogicalId")
+                        .IsUnique();
+
+                    b.ToTable("executed_control_evidence", "gccs");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExpertReviewItemEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5223,6 +5407,335 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.ToTable("government_cloud_release_readiness", "gccs");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentContactRecordEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Contact")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)")
+                        .HasColumnName("contact");
+
+                    b.Property<string>("EscalationRole")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)")
+                        .HasColumnName("escalation_role");
+
+                    b.Property<string>("Function")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("function");
+
+                    b.Property<Guid>("LogicalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("logical_id");
+
+                    b.Property<Guid>("ReadinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("readiness_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ReadinessId", "Function")
+                        .IsUnique();
+
+                    b.HasIndex("ReadinessId", "LogicalId")
+                        .IsUnique();
+
+                    b.ToTable("incident_contacts", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentFollowUpRecordEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ClosureNotes")
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("closure_notes");
+
+                    b.Property<DateOnly>("DueAt")
+                        .HasColumnType("date")
+                        .HasColumnName("due_at");
+
+                    b.Property<Guid>("LogicalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("logical_id");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)")
+                        .HasColumnName("owner");
+
+                    b.Property<Guid>("ReadinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("readiness_id");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("integer")
+                        .HasColumnName("severity");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("summary");
+
+                    b.Property<Guid>("TabletopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tabletop_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TabletopId");
+
+                    b.HasIndex("ReadinessId", "LogicalId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "Status", "Severity");
+
+                    b.ToTable("incident_follow_ups", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentPlaybookRecordEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ClosureCriteria")
+                        .IsRequired()
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("closure_criteria");
+
+                    b.Property<string>("ContainmentStepsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("containment_steps_json");
+
+                    b.Property<string>("EvidenceToCollectJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("evidence_to_collect_json");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("key");
+
+                    b.Property<Guid>("LogicalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("logical_id");
+
+                    b.Property<string>("NotificationPath")
+                        .IsRequired()
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("notification_path");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)")
+                        .HasColumnName("owner");
+
+                    b.Property<Guid>("ReadinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("readiness_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Trigger")
+                        .IsRequired()
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("trigger");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ReadinessId", "Key")
+                        .IsUnique();
+
+                    b.HasIndex("ReadinessId", "LogicalId")
+                        .IsUnique();
+
+                    b.ToTable("incident_playbooks", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentReadinessRecordEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("approval_notes");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by_user_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("ReviewBasis")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("review_basis");
+
+                    b.Property<DateOnly>("ReviewDueAt")
+                        .HasColumnType("date")
+                        .HasColumnName("review_due_at");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("state");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "State");
+
+                    b.HasIndex("TenantId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("incident_readiness_records", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentTabletopRecordEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("environment");
+
+                    b.Property<Guid?>("EvidenceFileVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evidence_file_version_id");
+
+                    b.Property<string>("EvidenceReference")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)")
+                        .HasColumnName("evidence_reference");
+
+                    b.Property<string>("EvidenceSourceType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("evidence_source_type");
+
+                    b.Property<DateOnly>("ExecutedAt")
+                        .HasColumnType("date")
+                        .HasColumnName("executed_at");
+
+                    b.Property<string>("ExternalUri")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("external_uri");
+
+                    b.Property<string>("FindingsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("findings_json");
+
+                    b.Property<Guid>("LogicalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("logical_id");
+
+                    b.Property<string>("ParticipantsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("participants_json");
+
+                    b.Property<Guid>("ReadinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("readiness_id");
+
+                    b.Property<Guid>("ReviewerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewer_user_id");
+
+                    b.Property<string>("Sha256Digest")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256_digest");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EvidenceFileVersionId");
+
+                    b.HasIndex("ReadinessId", "LogicalId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ExecutedAt");
+
+                    b.ToTable("incident_tabletops", "gccs");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.LaborCategoryRateEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6379,6 +6892,105 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.ToTable("policy_template_versions", "gccs");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ReadinessApprovalEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid>("ApprovedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by_user_id");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("record_id");
+
+                    b.Property<string>("RecordType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("record_type");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "RecordType", "RecordId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("readiness_approvals", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ReadinessHistoryEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("action");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("record_id");
+
+                    b.Property<string>("RecordType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("record_type");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("summary");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "OccurredAt");
+
+                    b.ToTable("readiness_history", "gccs");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.RegulatedProvisioningApprovalEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7519,6 +8131,175 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.ToTable("scim_provisioning_configurations", "gccs");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SecurityReviewChecklistItemRecordEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Area")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("area");
+
+                    b.Property<string>("EvidenceLink")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)")
+                        .HasColumnName("evidence_link");
+
+                    b.Property<string>("Rationale")
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("rationale");
+
+                    b.Property<Guid>("ReviewId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("review_id");
+
+                    b.Property<DateOnly?>("ReviewedAt")
+                        .HasColumnType("date")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewer_user_id");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ReviewId", "Area")
+                        .IsUnique();
+
+                    b.ToTable("security_review_checklist_items", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SecurityReviewFindingRecordEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Area")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("area");
+
+                    b.Property<string>("ClosureNotes")
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("closure_notes");
+
+                    b.Property<DateOnly?>("DueAt")
+                        .HasColumnType("date")
+                        .HasColumnName("due_at");
+
+                    b.Property<Guid>("LogicalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("logical_id");
+
+                    b.Property<string>("RemediationOwner")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)")
+                        .HasColumnName("remediation_owner");
+
+                    b.Property<Guid>("ReviewId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("review_id");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("integer")
+                        .HasColumnName("severity");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("summary");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewId", "LogicalId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "Status", "Severity");
+
+                    b.ToTable("security_review_findings", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SecurityReviewRecordEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("approval_notes");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by_user_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("state");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "State");
+
+                    b.HasIndex("TenantId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("security_review_records", "gccs");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SharedResponsibilityMatrixAcknowledgementEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7649,6 +8430,219 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("solicitations", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SspSectionEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ApprovalRationale")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("approval_rationale");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_required");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("owner");
+
+                    b.Property<DateOnly?>("ReviewDate")
+                        .HasColumnType("date")
+                        .HasColumnName("review_date");
+
+                    b.Property<string>("Reviewer")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("reviewer");
+
+                    b.Property<string>("SectionType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("section_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt", "UpdatedAt");
+
+                    b.HasIndex("TenantId", "SectionType");
+
+                    b.HasIndex("TenantId", "Status");
+
+                    b.ToTable("ssp_sections", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SspSectionHistoryEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("actor_name");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("SectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("section_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "SectionId", "ChangedAt");
+
+                    b.ToTable("ssp_section_status_history", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SspSectionLinkEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("RecordId")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("record_id");
+
+                    b.Property<string>("RecordType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("record_type");
+
+                    b.Property<string>("Relationship")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("relationship");
+
+                    b.Property<Guid>("SectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("section_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "RecordType", "RecordId");
+
+                    b.HasIndex("TenantId", "SectionId", "RecordType", "RecordId")
+                        .IsUnique();
+
+                    b.ToTable("ssp_section_links", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SspSectionSourceReferenceEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("LastReviewedAt")
+                        .HasColumnType("date")
+                        .HasColumnName("last_reviewed_at");
+
+                    b.Property<Guid>("SectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("section_id");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("source_url");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "SectionId");
+
+                    b.ToTable("ssp_section_source_references", "gccs");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SubcontractorEntity", b =>
@@ -8174,6 +9168,58 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.HasIndex("VendorId");
 
                     b.ToTable("system_boundary_external_service_providers", "gccs");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.TechnicalReadinessRecordEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasMaxLength(1200)
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("approval_notes");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by_user_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("state");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "State");
+
+                    b.HasIndex("TenantId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("technical_readiness_records", "gccs");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.TenantDataHandlingModeHistoryEntity", b =>
@@ -8990,6 +10036,30 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.ToTable("wage_determinations", "gccs");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AcceptedSecurityRiskRecordEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.SecurityReviewFindingRecordEntity", "Finding")
+                        .WithMany()
+                        .HasForeignKey("FindingId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.SecurityReviewRecordEntity", "Review")
+                        .WithMany("AcceptedRisks")
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Finding");
+
+                    b.Navigation("Review");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.AnnualAffirmationEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
@@ -9655,6 +10725,28 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("Vendor");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExecutedControlEvidenceEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.EvidenceFileVersionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("EvidenceFileVersionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TechnicalReadinessRecordEntity", "Readiness")
+                        .WithMany("Evidence")
+                        .HasForeignKey("ReadinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Readiness");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExpertReviewItemEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
@@ -9956,6 +11048,96 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("Environment");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentContactRecordEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.IncidentReadinessRecordEntity", "Readiness")
+                        .WithMany("Contacts")
+                        .HasForeignKey("ReadinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Readiness");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentFollowUpRecordEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.IncidentReadinessRecordEntity", "Readiness")
+                        .WithMany("FollowUps")
+                        .HasForeignKey("ReadinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.IncidentTabletopRecordEntity", "Tabletop")
+                        .WithMany()
+                        .HasForeignKey("TabletopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Readiness");
+
+                    b.Navigation("Tabletop");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentPlaybookRecordEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.IncidentReadinessRecordEntity", "Readiness")
+                        .WithMany("Playbooks")
+                        .HasForeignKey("ReadinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Readiness");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentReadinessRecordEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentTabletopRecordEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.EvidenceFileVersionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("EvidenceFileVersionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.IncidentReadinessRecordEntity", "Readiness")
+                        .WithMany("Tabletops")
+                        .HasForeignKey("ReadinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Readiness");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.LaborCategoryRateEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.WageDeterminationEntity", "WageDetermination")
@@ -10112,6 +11294,24 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Template");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ReadinessApprovalEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ReadinessHistoryEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.RegulatedProvisioningApprovalEntity", b =>
@@ -10350,6 +11550,49 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SecurityReviewChecklistItemRecordEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.SecurityReviewRecordEntity", "Review")
+                        .WithMany("Items")
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Review");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SecurityReviewFindingRecordEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.SecurityReviewRecordEntity", "Review")
+                        .WithMany("Findings")
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Review");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SecurityReviewRecordEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SharedResponsibilityMatrixAcknowledgementEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", "Tenant")
@@ -10368,6 +11611,71 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SspSectionEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SspSectionHistoryEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.SspSectionEntity", "Section")
+                        .WithMany("History")
+                        .HasForeignKey("TenantId", "SectionId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Section");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SspSectionLinkEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.SspSectionEntity", "Section")
+                        .WithMany("LinkedRecords")
+                        .HasForeignKey("TenantId", "SectionId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Section");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SspSectionSourceReferenceEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.SspSectionEntity", "Section")
+                        .WithMany("SourceReferences")
+                        .HasForeignKey("TenantId", "SectionId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Section");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SubcontractorEntity", b =>
@@ -10509,6 +11817,15 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("SystemBoundary");
 
                     b.Navigation("Vendor");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.TechnicalReadinessRecordEntity", b =>
+                {
+                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.TenantDataHandlingModeHistoryEntity", b =>
@@ -10779,6 +12096,17 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("Gaps");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.IncidentReadinessRecordEntity", b =>
+                {
+                    b.Navigation("Contacts");
+
+                    b.Navigation("FollowUps");
+
+                    b.Navigation("Playbooks");
+
+                    b.Navigation("Tabletops");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ObligationEntity", b =>
                 {
                     b.Navigation("ContractClauses");
@@ -10823,6 +12151,24 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("UserRoles");
                 });
 
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SecurityReviewRecordEntity", b =>
+                {
+                    b.Navigation("AcceptedRisks");
+
+                    b.Navigation("Findings");
+
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SspSectionEntity", b =>
+                {
+                    b.Navigation("History");
+
+                    b.Navigation("LinkedRecords");
+
+                    b.Navigation("SourceReferences");
+                });
+
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.SubcontractorEntity", b =>
                 {
                     b.Navigation("Contracts");
@@ -10841,6 +12187,11 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("EvidenceItems");
 
                     b.Navigation("ExternalServiceProviders");
+                });
+
+            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.TechnicalReadinessRecordEntity", b =>
+                {
+                    b.Navigation("Evidence");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.TenantEntity", b =>

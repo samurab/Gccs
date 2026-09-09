@@ -14,20 +14,33 @@ public sealed class CuiAuditExportService(
     {
         if (request.From > request.To)
             throw new ArgumentException("The from date must be before the to date.", nameof(request));
+        var effectiveRequest = request with
+        {
+            Action = AuditLogFilterNormalizer.Action(request.Action)?.ToString(),
+            EventType = AuditLogFilterNormalizer.EventType(request.EventType),
+            Classification = AuditLogFilterNormalizer.Classification(request.Classification),
+            Mode = AuditLogFilterNormalizer.Mode(request.Mode),
+            EntityType = AuditLogFilterNormalizer.Text(request.EntityType),
+            Result = AuditLogFilterNormalizer.Result(request.Result)
+        };
         var query = new AuditLogQuery(
             Page: 1,
             PageSize: 100,
-            request.ActorUserId,
-            null,
-            request.EntityType,
-            request.From,
-            request.To);
+            effectiveRequest.ActorUserId,
+            AuditLogFilterNormalizer.Action(effectiveRequest.Action),
+            effectiveRequest.EventType,
+            effectiveRequest.Classification,
+            effectiveRequest.Mode,
+            effectiveRequest.Result,
+            effectiveRequest.EntityType,
+            effectiveRequest.From,
+            effectiveRequest.To);
         var filtered = new List<AuditLogEntryDto>();
         await foreach (var item in repository.ReadCurrentTenantExportAsync(query, cancellationToken))
         {
             if (item.TenantId != tenantId)
                 throw new InvalidOperationException("Audit export tenant scope does not match the active tenant.");
-            if (Matches(item, request)) filtered.Add(item);
+            filtered.Add(item);
             if (filtered.Count > 10000)
                 throw new CuiAuditExportLimitException("The export exceeds 10,000 matching events. Narrow the date range; no partial export was generated.");
         }
@@ -35,7 +48,7 @@ public sealed class CuiAuditExportService(
             tenantId,
             actorUserId,
             DateTimeOffset.UtcNow,
-            request,
+            effectiveRequest,
             filtered);
 
         await auditEventWriter.WriteAsync(
@@ -48,10 +61,13 @@ public sealed class CuiAuditExportService(
             new Dictionary<string, string>
             {
                 ["result"] = "succeeded",
-                ["eventType"] = request.EventType ?? string.Empty,
-                ["classification"] = request.Classification ?? string.Empty,
-                ["mode"] = request.Mode ?? string.Empty,
-                ["entityType"] = request.EntityType ?? string.Empty,
+                ["eventType"] = Phase1ACuiAuditEvents.Export,
+                ["filterEventType"] = effectiveRequest.EventType ?? string.Empty,
+                ["filterClassification"] = effectiveRequest.Classification ?? string.Empty,
+                ["filterMode"] = effectiveRequest.Mode ?? string.Empty,
+                ["filterEntityType"] = effectiveRequest.EntityType ?? string.Empty,
+                ["filterResult"] = effectiveRequest.Result ?? string.Empty,
+                ["filterAction"] = effectiveRequest.Action ?? string.Empty,
                 ["exportedCount"] = filtered.Count.ToString()
             },
             cancellationToken);
@@ -59,16 +75,6 @@ public sealed class CuiAuditExportService(
         return export;
     }
 
-    private static bool Matches(AuditLogEntryDto item, CuiAuditExportRequest request) =>
-        MatchesMetadata(item, "eventType", request.EventType) &&
-        MatchesMetadata(item, "classification", request.Classification) &&
-        MatchesMetadata(item, "mode", request.Mode) &&
-        MatchesMetadata(item, "result", request.Result);
-
-    private static bool MatchesMetadata(AuditLogEntryDto item, string key, string? value) =>
-        string.IsNullOrWhiteSpace(value) ||
-        item.Metadata.TryGetValue(key, out var actual) &&
-        string.Equals(actual, value, StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class CuiAuditExportLimitException(string message) : InvalidOperationException(message);
@@ -81,7 +87,8 @@ public sealed record CuiAuditExportRequest(
     string? EntityType,
     DateTimeOffset? From,
     DateTimeOffset? To,
-    string? Result);
+    string? Result,
+    string? Action = null);
 
 public sealed record CuiAuditExportDto(
     Guid TenantId,

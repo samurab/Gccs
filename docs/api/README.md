@@ -12,8 +12,9 @@ The specification covers the MVP API for a No-CUI government contractor complian
 - Clause capture and contract-specific obligation evaluation
 - Source-backed obligation library
 - Compliance tasks and calendar events
-- Evidence vault metadata, upload intents, versions, and reviews
+- Evidence vault metadata, stateless upload guardrail preflights, durable file versions, and reviews
 - CMMC readiness assessments, control statuses, and POA&M item metadata
+- Structured, source-backed SSP section lifecycle management
 - Subcontractor profiles, flow-down clauses, and evidence requests
 - Report generation and downloads
 - Tenant audit logs
@@ -25,9 +26,9 @@ The specification covers the MVP API for a No-CUI government contractor complian
 - `Authorization: Bearer <token>` is the default security model, even if local development starts with simplified auth.
 - Local development may send `X-Gccs-Dev-Auth: true` to use the development-only auth handler. Optional headers are `X-Gccs-Dev-Tenant`, `X-Gccs-Dev-User`, `X-Gccs-Dev-Email`, and `X-Gccs-Dev-Permissions`.
 - The MVP data posture is **No-CUI / compliance management only**.
-- Document and evidence upload intents require a positive No-CUI attestation.
+- Document upload intents and evidence upload preflights require a positive No-CUI attestation. An accepted evidence preflight does not create or increment a durable file version; successful byte upload does.
 - All source-backed compliance records include source URL, source type, last-reviewed date, confidence, and expert-review flags where applicable.
-- SPRS score calculation, eSRS integration, SSP generation, and full AI assistant workflows are deferred from the MVP unless a pilot deal requires explicit scope approval.
+- Structured SSP section management is implemented. Automated SSP generation, SPRS submission, eSRS integration, and unrestricted AI assistant workflows remain outside this contract.
 - Long-running work, such as SAM lookup, contract extraction, obligation evaluation, and report generation, returns `202 Accepted` with a job ID.
 - Paged list endpoints use `page` and `pageSize`, with `pageSize` capped at 100.
 

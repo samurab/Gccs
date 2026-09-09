@@ -943,6 +943,22 @@ export type CmmcPoamItem = {
 
 export type UpsertCmmcPoamItemRequest = Omit<CmmcPoamItem, "id" | "tenantId" | "assessmentId" | "isOverdue" | "createdAt" | "updatedAt">;
 
+export type SspSectionType = "SystemDescription" | "AuthorizationBoundary" | "Environment" | "Interconnections" | "Users" | "Roles" | "DataTypes" | "CuiHandlingPosture" | "ControlImplementationNarratives" | "InheritedResponsibilities" | "ExternalServiceProviders" | "EvidenceReferences";
+export type SspSectionStatus = "Draft" | "InReview" | "Approved" | "Superseded" | "Archived";
+export type SspLinkedRecordType = "CompanyProfile" | "SystemBoundary" | "Asset" | "CmmcControl" | "ResponsibilityMatrix" | "Policy" | "PoamItem" | "Evidence";
+export type SspLinkedRecord = { recordType: SspLinkedRecordType; recordId: string; relationship: string };
+export type SspSourceReference = { source: string; sourceUrl: string; lastReviewedAt: string };
+export type SspSectionHistory = { status: SspSectionStatus; actorUserId: string; actorName: string; changedAt: string; notes: string | null };
+export type SspSection = {
+  id: string; tenantId: string; sectionType: SspSectionType; title: string; owner: string; status: SspSectionStatus;
+  reviewer: string | null; reviewDate: string | null; approvalRationale: string | null; isRequired: boolean; version: number;
+  linkedRecords: SspLinkedRecord[]; sourceReferences: SspSourceReference[]; history: SspSectionHistory[];
+  createdAt: string; updatedAt: string;
+};
+export type CreateSspSectionRequest = Pick<SspSection, "sectionType" | "title" | "owner" | "linkedRecords" | "sourceReferences">;
+export type UpdateSspSectionRequest = CreateSspSectionRequest & { expectedVersion: number };
+export type SspSectionStatusRequest = { status: SspSectionStatus; actorName: string; expectedVersion: number; reviewDate?: string | null; reviewer?: string | null; approvalRationale?: string | null };
+
 export type Subcontractor = {
   id: string;
   tenantId: string;
@@ -1373,6 +1389,10 @@ export type AuditLogEntry = {
   tenantId: string;
   actorUserId: string | null;
   action: string;
+  eventType: string;
+  classification: string | null;
+  mode: string | null;
+  result: string;
   entityType: string;
   entityId: string;
   occurredAt: string;
@@ -1384,6 +1404,7 @@ export type AuditLogEntry = {
 };
 
 export type CuiAuditExportRequest = {
+  action?: string | null;
   eventType?: string | null;
   classification?: string | null;
   mode?: string | null;
@@ -1874,6 +1895,10 @@ export type AuditLogQueryParams = {
   pageSize?: number;
   actorUserId?: string;
   action?: string;
+  eventType?: string;
+  classification?: string;
+  mode?: string;
+  result?: string;
   entityType?: string;
   from?: string;
   to?: string;
@@ -2379,6 +2404,22 @@ export async function getCmmcReadinessGaps(assessmentId: string): Promise<CmmcRe
 
 export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamItem[]> {
   return getJson<CmmcPoamItem[]>(`/api/cmmc/assessments/${assessmentId}/poam-items`, []);
+}
+
+export async function getSspSections(): Promise<SspSection[]> {
+  return getRequiredJson<SspSection[]>("/api/compliance/ssp/sections");
+}
+
+export async function createSspSection(request: CreateSspSectionRequest): Promise<ApiMutationResult<SspSection>> {
+  return postJsonResult<SspSection>("/api/compliance/ssp/sections", request);
+}
+
+export async function updateSspSection(sectionId: string, request: UpdateSspSectionRequest): Promise<ApiMutationResult<SspSection>> {
+  return putJsonResult<SspSection>(`/api/compliance/ssp/sections/${sectionId}`, request);
+}
+
+export async function changeSspSectionStatus(sectionId: string, request: SspSectionStatusRequest): Promise<ApiMutationResult<SspSection>> {
+  return postJsonResult<SspSection>(`/api/compliance/ssp/sections/${sectionId}/status`, request);
 }
 
 export async function getSubcontractors(): Promise<Subcontractor[]> {
@@ -3232,6 +3273,25 @@ export const acknowledgeReadinessNotice = (request: AcknowledgeDataHandlingNotic
 export const recordReadinessEvidence = (request: { kind: string; expectedVersion: number; expiresAt: string;
   sourceReference: string; reviewNotes: string; details: unknown; rejected: boolean }) =>
   postJsonResult<ReadinessEvidence>("/api/cui-readiness-evidence", request);
+
+export type SecurityReviewItem = { area: string; status: "NotStarted" | "InReview" | "Passed" | "FindingOpen" | "AcceptedRisk"; reviewerUserId: string | null; reviewedAt: string | null; evidenceLink: string | null; rationale: string | null };
+export type SecurityReviewRecord = { id: string; version: number; state: string; approvedAt: string | null; approvalNotes: string | null; items: SecurityReviewItem[]; findings: Array<{ id: string; area: string; severity: string; status: string; summary: string; remediationOwner: string; dueAt: string | null; closureNotes: string | null }>; acceptedRisks: Array<{ id:string; findingId:string|null; approverUserId:string; acceptedAt:string; scope:string; expiresAt:string|null; reviewAt:string|null; mitigationNote:string }> };
+export type ReadinessEvidenceSource = { evidenceSourceType:string; evidenceFileVersionId:string|null; externalUri:string|null; sha256Digest:string|null };
+export type ReadinessEvidenceOption = { evidenceFileVersionId:string; evidenceItemId:string; versionNumber:number; title:string; fileName:string; sha256Digest:string; uploadedAt:string };
+export type TechnicalReadinessRecord = { id: string; version: number; state: string; approvedAt: string | null; evidence: Array<{ id: string; controlType: string; executedAt: string; environment: string; reviewerUserId: string; result: string; evidenceReference: string; expiresAt: string | null; notes: string } & ReadinessEvidenceSource> };
+export type IncidentReadinessRecord = { id: string; version: number; state: string; approvedAt: string | null; reviewDueAt:string; reviewBasis:string; contacts:Array<{id:string;function:string;contact:string;escalationRole:string}>; playbooks: Array<{ id: string; key: string; trigger:string; containmentSteps:string[]; notificationPath:string; evidenceToCollect:string[]; owner: string; closureCriteria:string }>; tabletops: Array<{ id: string; executedAt: string; environment: string; participants:string[]; findings:string[]; evidenceReference: string; reviewerUserId:string } & ReadinessEvidenceSource>; followUps: Array<{ id: string; tabletopId:string; severity: string; status: string; summary: string; owner: string; dueAt: string; closureNotes:string|null }> };
+export type ReadinessHistory = { id: string; recordType: string; recordId: string; version: number; action: string; actorUserId: string; occurredAt: string; summary: string };
+export const getSecurityReviewReadiness = () => getRequiredJson<SecurityReviewRecord | null>("/api/security-incident-readiness/security-review");
+export const saveSecurityReviewReadiness = (request: unknown) => putJsonResult<SecurityReviewRecord>("/api/security-incident-readiness/security-review", request);
+export const approveSecurityReviewReadiness = (expectedVersion: number, notes: string) => postJsonResult<SecurityReviewRecord>("/api/security-incident-readiness/security-review/approve", { expectedVersion, notes });
+export const getTechnicalReadiness = () => getRequiredJson<TechnicalReadinessRecord | null>("/api/security-incident-readiness/technical");
+export const saveTechnicalReadiness = (request: unknown) => putJsonResult<TechnicalReadinessRecord>("/api/security-incident-readiness/technical", request);
+export const approveTechnicalReadiness = (expectedVersion: number, notes: string) => postJsonResult<TechnicalReadinessRecord>("/api/security-incident-readiness/technical/approve", { expectedVersion, notes });
+export const getIncidentReadiness = () => getRequiredJson<IncidentReadinessRecord | null>("/api/security-incident-readiness/incident");
+export const saveIncidentReadiness = (request: unknown) => putJsonResult<IncidentReadinessRecord>("/api/security-incident-readiness/incident", request);
+export const approveIncidentReadiness = (expectedVersion: number, notes: string) => postJsonResult<IncidentReadinessRecord>("/api/security-incident-readiness/incident/approve", { expectedVersion, notes });
+export const getSecurityIncidentReadinessHistory = () => getRequiredJson<ReadinessHistory[]>("/api/security-incident-readiness/history");
+export const getSecurityIncidentReadinessEvidenceOptions = () => getRequiredJson<ReadinessEvidenceOption[]>("/api/security-incident-readiness/evidence-options");
 
 export async function updateCuiReadyApprovalChecklistItem(
   tenantId: string,

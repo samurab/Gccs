@@ -12,7 +12,7 @@ export function ReadinessEvidencePanel({ children }: { children: (sources: Readi
   const [message, setMessage] = useState("");
   const [reload, setReload] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [kind, setKind] = useState("security-review");
+  const [kind, setKind] = useState("support-escalation");
   const [source, setSource] = useState("");
   const [notes, setNotes] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -64,12 +64,12 @@ export function ReadinessEvidencePanel({ children }: { children: (sources: Readi
       {canApprove && <form onSubmit={e => { e.preventDefault(); void save(); }}>
         <p>Record a qualified review of actual supporting evidence. Do not paste customer content, CUI, secrets, or credentials. Recording a new version supersedes the previous version.</p>
         <label>Evidence kind<select value={kind} onChange={e => { setKind(e.target.value); setDetails("{}"); }}>
-          {["security-review", "incident-response", "backup-restore", "support-escalation"].map(k => <option key={k}>{k}</option>)}
+          {["support-escalation"].map(k => <option key={k}>{k}</option>)}
         </select></label>
         <label>Source reference<input required maxLength={600} value={source} onChange={e => setSource(e.target.value)} /></label>
         <label>Review notes<textarea required maxLength={1200} value={notes} onChange={e => setNotes(e.target.value)} /></label>
         <label>Expires at<input type="datetime-local" required value={expiry} onChange={e => setExpiry(e.target.value)} /></label>
-        <p>Security: securityItems, securityFindings, acceptedRisks. Incident: playbooks, incidentGaps, tabletop. Restore: backupRestore (verifiedAt, environment, reviewerUserId, result: Passed). Support: supportOwner, escalationContact, runbookReference, coverage.</p>
+        <p>Support evidence requires supportOwner, escalationContact, runbookReference, and coverage. Security, technical, and incident records are managed in the structured readiness section.</p>
         <label>Structured review metadata (JSON)<textarea required maxLength={64000} rows={10} value={details} onChange={e => setDetails(e.target.value)} /></label>
         <label><input type="checkbox" checked={rejected} onChange={e => setRejected(e.target.checked)} />Record rejected evidence</label>
         <button disabled={busy || loading}>Record reviewed version</button>
@@ -86,15 +86,23 @@ export function ReadinessItemEditor({ item, sources, userId, disabled, onSave }:
   const [recordId, setRecordId] = useState(item.supportingRecordId ?? "");
   const linkedKind = ["security-review", "incident-response", "backup-restore", "support-escalation", "data-handling-notice", "shared-responsibility-matrix"].includes(item.itemKey);
   const selected = sources.find(s => s.id === recordId && s.kind === item.itemKey);
-  return <form onSubmit={e => { e.preventDefault(); onSave({ status: "Complete", owner, notes, evidenceLink: item.evidenceLink,
+  const supportingRecordMessageId = `readiness-supporting-record-${item.id}`;
+  return <form
+    aria-label={`${item.section} checklist item`}
+    className={`readiness-item-editor${linkedKind ? " readiness-item-editor--linked" : ""}`}
+    onSubmit={e => { e.preventDefault(); onSave({ status: "Complete", owner, notes, evidenceLink: item.evidenceLink,
     reviewerUserId: userId, reviewedAt: new Date().toISOString().slice(0, 10), supportingRecordId: selected?.id ?? null, supportingVersion: selected?.version ?? null }); }}>
-    <label>Owner<input required value={owner} onChange={e => setOwner(e.target.value)} maxLength={180} /></label>
-    <label>Review notes<textarea required value={notes} onChange={e => setNotes(e.target.value)} maxLength={1200} /></label>
-    {linkedKind && <label>Current supporting record<select required value={recordId} onChange={e => setRecordId(e.target.value)}>
+    <label><span>Owner</span><input required value={owner} onChange={e => setOwner(e.target.value)} maxLength={180} /></label>
+    <label><span>Review notes</span><textarea required value={notes} onChange={e => setNotes(e.target.value)} maxLength={1200} /></label>
+    {linkedKind && <label className="readiness-item-editor__supporting"><span>Current supporting record</span><select
+      aria-describedby={!selected ? supportingRecordMessageId : undefined}
+      required
+      value={recordId}
+      onChange={e => setRecordId(e.target.value)}>
       <option value="">Select current supporting evidence</option>
       {sources.filter(s => s.kind === item.itemKey).map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
     </select></label>}
-    {linkedKind && !selected && <p>A current supporting record must be linked before completing this item.</p>}
-    <button disabled={disabled || !userId || (linkedKind && !selected)}>Save reviewed item</button>
+    {linkedKind && !selected && <p className="readiness-item-editor__requirement" id={supportingRecordMessageId}>A current supporting record must be linked before completing this item.</p>}
+    <button className="readiness-item-editor__action" disabled={disabled || !userId || (linkedKind && !selected)}>Save reviewed item</button>
   </form>;
 }

@@ -160,6 +160,10 @@ public sealed class CuiSupportEscalationService(
             $"CUI support escalation {lifecycleAction}.",
             new Dictionary<string, string>
             {
+                ["eventType"] = action == AuditAction.Created
+                    ? Phase1ACuiAuditEvents.EscalationCreate
+                    : Phase1ACuiAuditEvents.EscalationUpdate,
+                ["result"] = "succeeded",
                 ["tenantId"] = escalation.TenantId.ToString(),
                 ["sourceWorkflow"] = escalation.SourceWorkflow,
                 ["affectedEntityType"] = escalation.AffectedEntityType,

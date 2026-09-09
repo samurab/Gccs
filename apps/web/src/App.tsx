@@ -27,6 +27,8 @@ import {
 import { type FormEvent, type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DataHandlingNoticePanel } from "@/components/DataHandlingNoticePanel";
 import { ReadinessEvidencePanel, ReadinessItemEditor } from "@/components/ReadinessEvidencePanel";
+import { SecurityIncidentReadinessPanel } from "@/components/SecurityIncidentReadinessPanel";
+import { SspSectionsPanel } from "@/components/SspSectionsPanel";
 import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
 import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
 import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
@@ -107,6 +109,7 @@ import {
   getCuiReadyApprovalChecklists,
   getAuditLogEntityTypes,
   getAuditLogs,
+  exportCuiAuditLogs,
   getComplianceOverview,
   getCurrentUserAccess,
   getEvidenceItems,
@@ -151,6 +154,7 @@ import {
   uploadContractDocumentFile,
   type ApprovedEvidencePackage,
   type AuditLogEntry,
+  type CuiAuditExportRequest,
   type ClauseLibraryItem,
   type ClauseSearchParams,
   type CalendarEvent,
@@ -250,6 +254,10 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
 type AuditLogFilters = {
   actorUserId: string;
   action: string;
+  eventType: string;
+  classification: string;
+  mode: string;
+  result: string;
   entityType: string;
   from: string;
   to: string;
@@ -467,10 +475,34 @@ const ownerFunctionOptions = [
 const defaultAuditLogFilters: AuditLogFilters = {
   actorUserId: "",
   action: "",
+  eventType: "",
+  classification: "",
+  mode: "",
+  result: "",
   entityType: "",
   from: "",
   to: ""
 };
+const cuiAuditEventTypes = [
+  "mode-change",
+  "classification-create-update",
+  "blocked-upload",
+  "blocked-extraction",
+  "blocked-report",
+  "failed-mode-change",
+  "failed-cui-approval",
+  "checklist-approval",
+  "checklist-rejection",
+  "matrix-acknowledgement",
+  "notice-acknowledgement",
+  "download",
+  "export",
+  "deletion",
+  "escalation-create",
+  "escalation-update",
+  "extraction-start",
+  "extraction-stop"
+] as const;
 
 const defaultProfileForm: ProfileFormState = {
   legalEntityName: "",
@@ -643,6 +675,8 @@ export function App() {
   const [auditLogEntityTypeStatus, setAuditLogEntityTypeStatus] = useState<"idle" | "ready" | "failed">("idle");
   const [auditLogFilters, setAuditLogFilters] = useState<AuditLogFilters>(defaultAuditLogFilters);
   const [auditLogStatus, setAuditLogStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
+  const [auditExportStatus, setAuditExportStatus] = useState<"idle" | "exporting" | "ready" | "failed">("idle");
+  const [auditExportMessage, setAuditExportMessage] = useState("");
   const [noCuiAcknowledgement, setNoCuiAcknowledgement] = useState<NoCuiAcknowledgementStatus>(
     fallbackNoCuiAcknowledgementStatus
   );
@@ -2266,6 +2300,29 @@ export function App() {
     await loadAuditLogs(1, auditLogFilters);
   }
 
+  async function handleAuditExport() {
+    setAuditExportStatus("exporting");
+    setAuditExportMessage("");
+    const exportFilters = Object.fromEntries(
+      Object.entries(auditLogFilters).filter(([, value]) => value !== "")
+    ) as CuiAuditExportRequest;
+    const result = await exportCuiAuditLogs(exportFilters);
+    if (!result.data || result.error) {
+      setAuditExportStatus("failed");
+      setAuditExportMessage(result.errorSummary ?? result.error ?? "CUI audit export could not be generated.");
+      return;
+    }
+    const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `fedril-cui-audit-${result.data.generatedAt.replace(/[:.]/g, "-")}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setAuditExportStatus("ready");
+    setAuditExportMessage(`${result.data.events.length} matching audit events exported.`);
+  }
+
   async function handleCalendarFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCalendarStatus("loading");
@@ -2561,6 +2618,7 @@ export function App() {
               key={selectedCmmcAssessmentId ?? "new-assessment"}
               assessments={cmmcAssessments}
               canManageCmmc={canManageCmmc}
+              canManageSsp={canManageTenant}
               controls={cmmcControls}
               contracts={contracts}
               message={cmmcMessage}
@@ -2635,6 +2693,8 @@ export function App() {
               auditLogEntityTypeStatus={auditLogEntityTypeStatus}
               auditLogFilters={auditLogFilters}
               auditLogStatus={auditLogStatus}
+              auditExportStatus={auditExportStatus}
+              auditExportMessage={auditExportMessage}
               auditLogs={auditLogs}
               cmmcAssessments={cmmcAssessments}
               cmmcPoamItems={cmmcPoamItems}
@@ -2669,6 +2729,7 @@ export function App() {
               onAuditLogFilterChange={setAuditLogFilters}
               onAuditLogFilterSubmit={handleAuditLogFilterSubmit}
               onAuditLogPageChange={handleAuditLogPageChange}
+              onAuditExport={handleAuditExport}
               onDueDateReminderRun={handleDueDateReminderRun}
               onCuiReadyChecklistCreate={handleCuiReadyChecklistCreate}
               onCuiReadyChecklistItemUpdate={handleCuiReadyChecklistItemUpdate}
@@ -5885,6 +5946,7 @@ const defaultCmmcPoamForm: CmmcPoamFormState = {
 function CmmcView({
   assessments,
   canManageCmmc,
+  canManageSsp,
   controls,
   contracts,
   message,
@@ -5900,6 +5962,7 @@ function CmmcView({
 }: {
   assessments: CmmcAssessment[];
   canManageCmmc: boolean;
+  canManageSsp: boolean;
   controls: CmmcControlStatus[];
   contracts: ContractRecord[];
   message: string;
@@ -6340,6 +6403,8 @@ function CmmcView({
           <EmptyState title="No POA&M items yet" body="Create remediation items for control gaps that need owner-tracked follow-up." />
         )}
       </WorkflowColumn>
+
+      <SspSectionsPanel canManage={canManageSsp} />
     </section>
   );
 }
@@ -7484,7 +7549,7 @@ function ReportsView({
           </form>
         </>
       ) : null}
-      <div className="report-action-grid">
+      <div className="report-action-grid report-library-grid">
         <section className="evidence-metadata">
           <h3>Recent generated reports</h3>
           {visibleReports.length > 0 ? (
@@ -8857,11 +8922,11 @@ function CuiReadyChecklistPanel({
           ) : null}
           <div className="evidence-list">
             {latest.items.map((item) => (
-              <article className="evidence-list__item" key={item.id}>
+              <article className="evidence-list__item approval-checklist__item" key={item.id}>
                 <strong>{item.section}</strong>
                 <span>{item.description}</span>
-                <span>
-                  Status: {item.status} · Owner: {item.owner ?? "No owner"} · Review date: {item.reviewedAt ?? "No review date"}
+                <span className="approval-checklist__item-meta">
+                  Status: {formatEnumLabel(item.status)} · Owner: {item.owner ?? "No owner"} · Review date: {item.reviewedAt ?? "No review date"}
                 </span>
                 <ReadinessItemEditor key={`${item.id}:${latest.version}`} item={item} sources={sources} userId={currentUserId}
                   disabled={status === "saving" || ["Rejected", "Superseded"].includes(latest.state)}
@@ -9309,6 +9374,8 @@ function InvitationListItem({
 }
 
 function SettingsView({
+  auditExportMessage,
+  auditExportStatus,
   auditLogEntityTypes,
   auditLogEntityTypeStatus,
   auditLogFilters,
@@ -9351,6 +9418,7 @@ function SettingsView({
   onAuditLogFilterChange,
   onAuditLogFilterSubmit,
   onAuditLogPageChange,
+  onAuditExport,
   onCuiReadyChecklistCreate,
   onCuiReadyChecklistItemUpdate,
   onCuiReadyChecklistReview,
@@ -9364,6 +9432,8 @@ function SettingsView({
   onSharedResponsibilityMatrixAcknowledge,
   onTenantModeUpdate
 }: {
+  auditExportMessage: string;
+  auditExportStatus: "idle" | "exporting" | "ready" | "failed";
   auditLogEntityTypes: string[];
   auditLogEntityTypeStatus: "idle" | "ready" | "failed";
   auditLogFilters: AuditLogFilters;
@@ -9406,6 +9476,7 @@ function SettingsView({
   onAuditLogFilterChange: (filters: AuditLogFilters) => void;
   onAuditLogFilterSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onAuditLogPageChange: (page: number) => void;
+  onAuditExport: () => Promise<void>;
   onCuiReadyChecklistCreate: () => Promise<void>;
   onCuiReadyChecklistItemUpdate: (
     checklistId: string,
@@ -9478,6 +9549,7 @@ function SettingsView({
             onAcknowledge={onSharedResponsibilityMatrixAcknowledge}
             status={sharedResponsibilityMatrixAcknowledgementStatus}
           />
+          <SecurityIncidentReadinessPanel userId={currentUserId} />
           <CuiReadyChecklistPanel
             checklists={cuiReadyChecklists}
             currentTenant={currentTenant}
@@ -9634,7 +9706,7 @@ function SettingsView({
               <p className="eyebrow">Audit trail</p>
               <h2>Audit log</h2>
               <p className="section-summary">
-                Filter by Action and Entity, then verify the expected text in the results table Summary column. From and To are optional date filters.
+                Filter normalized CUI audit events by event, handling context, actor, entity, result, or date. Export applies the same filters to every matching record.
               </p>
             </div>
             <form className="audit-filter-form" onSubmit={onAuditLogFilterSubmit}>
@@ -9647,6 +9719,18 @@ function SettingsView({
                   />
                 </label>
               ) : null}
+              <label>
+                <span>Event type</span>
+                <select
+                  value={auditLogFilters.eventType}
+                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, eventType: event.target.value })}
+                >
+                  <option value="">Any</option>
+                  {cuiAuditEventTypes.map((eventType) => (
+                    <option key={eventType} value={eventType}>{eventType}</option>
+                  ))}
+                </select>
+              </label>
               <label>
                 <span>Action</span>
                 <select
@@ -9668,6 +9752,48 @@ function SettingsView({
                   <option value="SignedIn">Signed in</option>
                   <option value="SignedOut">Signed out</option>
                   <option value="PermissionChanged">Permission changed</option>
+                </select>
+              </label>
+              <label>
+                <span>Classification</span>
+                <select
+                  value={auditLogFilters.classification}
+                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, classification: event.target.value })}
+                >
+                  <option value="">Any</option>
+                  <option value="Unknown">Unknown</option>
+                  <option value="Unclassified">Unclassified</option>
+                  <option value="Fci">FCI</option>
+                  <option value="Cui">CUI</option>
+                  <option value="SyntheticCui">Synthetic CUI</option>
+                  <option value="Prohibited">Prohibited</option>
+                </select>
+              </label>
+              <label>
+                <span>Mode</span>
+                <select
+                  value={auditLogFilters.mode}
+                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, mode: event.target.value })}
+                >
+                  <option value="">Any</option>
+                  <option value="NoCui">No-CUI</option>
+                  <option value="DemoSandbox">Demo sandbox</option>
+                  <option value="CuiReady">CUI-ready</option>
+                </select>
+              </label>
+              <label>
+                <span>Result</span>
+                <select
+                  value={auditLogFilters.result}
+                  onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, result: event.target.value })}
+                >
+                  <option value="">Any</option>
+                  <option value="succeeded">Succeeded</option>
+                  <option value="acknowledged">Acknowledged</option>
+                  <option value="renewed">Renewed</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="failed">Failed</option>
                 </select>
               </label>
               <label>
@@ -9715,12 +9841,23 @@ function SettingsView({
                   onChange={(event) => onAuditLogFilterChange({ ...auditLogFilters, to: event.target.value })}
                 />
               </label>
-              <button type="submit" disabled={auditLogStatus === "loading"}>
-                <SlidersHorizontal size={16} />
-                <span>{auditLogStatus === "loading" ? "Filtering" : "Filter"}</span>
-              </button>
+              <div className="audit-filter-actions" role="group" aria-label="Audit log actions">
+                <button className="audit-filter-actions__filter" type="submit" disabled={auditLogStatus === "loading"}>
+                  <SlidersHorizontal size={16} aria-hidden="true" />
+                  <span>{auditLogStatus === "loading" ? "Filtering" : "Filter"}</span>
+                </button>
+                <button type="button" disabled={auditExportStatus === "exporting"} onClick={onAuditExport}>
+                  <FileDown size={16} aria-hidden="true" />
+                  <span>{auditExportStatus === "exporting" ? "Exporting" : "Export matching events"}</span>
+                </button>
+              </div>
             </form>
           </div>
+          {auditExportMessage ? (
+            <p className={`form-status ${auditExportStatus === "failed" ? "form-status--error" : "form-status--ok"}`} role="status">
+              {auditExportMessage}
+            </p>
+          ) : null}
           {auditLogs.items.length > 0 ? (
             <div className="table-section">
               <div className="table-section__header">
@@ -9731,7 +9868,7 @@ function SettingsView({
                 <div className="member-row member-row--header" role="row">
                   <span role="columnheader">Date</span>
                   <span role="columnheader">Actor</span>
-                  <span role="columnheader">Action</span>
+                  <span role="columnheader">Event / result</span>
                   <span role="columnheader">Entity</span>
                   <span role="columnheader">Summary</span>
                 </div>
@@ -9742,7 +9879,10 @@ function SettingsView({
                     <article className="member-row" data-testid="audit-row" role="row" key={entry.id}>
                       <span role="cell">{formatUsDateTime(entry.occurredAt)}</span>
                       <span role="cell">{isDemoCaptureMode() && entry.actorUserId ? "Tenant user" : (entry.actorUserId ?? "System")}</span>
-                      <span role="cell">{entry.action}</span>
+                      <span role="cell">
+                        {entry.eventType}
+                        <small className="audit-current-entity-label">{entry.action} · {entry.result}</small>
+                      </span>
                       <span role="cell">{entry.entityType}</span>
                       <span role="cell">
                         {entry.summary}

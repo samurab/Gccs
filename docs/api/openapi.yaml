@@ -41,6 +41,8 @@ tags:
     description: No-CUI acknowledgement, evidence vault metadata, upload intents, versions, and reviews.
   - name: CMMC
     description: CMMC and NIST readiness assessments, controls, and POA&M metadata. SPRS scoring is deferred from the MVP.
+  - name: SSP
+    description: Tenant-scoped, source-backed System Security Plan section lifecycle management.
   - name: Subcontractors
     description: Subcontractor profiles, flow-down clauses, and evidence requests.
   - name: Reports
@@ -1633,7 +1635,11 @@ paths:
     post:
       tags:
         - Evidence
-      summary: Create a No-CUI evidence file upload intent
+      summary: Validate a No-CUI evidence file upload preflight
+      description: >-
+        Performs stateless guardrail validation and returns pending scan metadata.
+        This operation does not create or increment a durable evidence file version;
+        file-version identity is assigned only after a successful byte upload.
       operationId: createEvidenceUploadIntent
       requestBody:
         required: true
@@ -1643,7 +1649,7 @@ paths:
               $ref: "#/components/schemas/EvidenceUploadIntentRequest"
       responses:
         "201":
-          description: Upload intent created.
+          description: Stateless upload preflight accepted; no file version was created.
           content:
             application/json:
               schema:
@@ -2670,6 +2676,26 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: eventType
+          in: query
+          schema:
+            type: string
+        - name: classification
+          in: query
+          schema:
+            type: string
+        - name: mode
+          in: query
+          schema:
+            type: string
+        - name: result
+          in: query
+          schema:
+            type: string
         - name: entityType
           in: query
           schema:
@@ -2700,6 +2726,36 @@ paths:
                           $ref: "#/components/schemas/AuditLogEntry"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/audit-logs/cui-export:
+    post:
+      tags:
+        - Audit Logs
+      summary: Export all matching normalized CUI audit events within the bounded export limit
+      operationId: exportCuiAuditLogs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CuiAuditExportRequest"
+      responses:
+        "200":
+          description: Tenant-scoped audit export with all matching records and generation metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CuiAuditExport"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          description: More than 10,000 records matched; no partial export was generated.
 
   /api/audit-logs/{auditLogEntryId}:
     parameters:
@@ -2758,6 +2814,107 @@ paths:
                           $ref: "#/components/schemas/SourceReference"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /api/compliance/ssp/sections:
+    get:
+      tags: [SSP]
+      summary: List SSP sections for the current tenant
+      operationId: listSspSections
+      responses:
+        "200":
+          description: Tenant-scoped SSP sections.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SspSection" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [SSP]
+      summary: Create a source-backed SSP section
+      operationId: createSspSection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateSspSectionRequest" }
+      responses:
+        "201":
+          description: SSP section created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SspSection" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/compliance/ssp/sections/{sectionId}:
+    parameters:
+      - name: sectionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [SSP]
+      summary: Get an SSP section from the current tenant
+      operationId: getSspSection
+      responses:
+        "200":
+          description: SSP section.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SspSection" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [SSP]
+      summary: Update a draft or in-review SSP section
+      operationId: updateSspSection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateSspSectionRequest" }
+      responses:
+        "200":
+          description: SSP section updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SspSection" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/compliance/ssp/sections/{sectionId}/status:
+    parameters:
+      - name: sectionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [SSP]
+      summary: Transition an SSP section lifecycle state
+      operationId: changeSspSectionStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SspSectionStatusRequest" }
+      responses:
+        "200":
+          description: SSP section status changed and history appended.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SspSection" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
 components:
   securitySchemes:
@@ -2855,6 +3012,12 @@ components:
         format: uuid
 
   responses:
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
     BadRequest:
       description: Request validation failed.
       content:
@@ -2875,6 +3038,12 @@ components:
             $ref: "#/components/schemas/ProblemDetails"
     NotFound:
       description: Resource was not found in the current tenant scope.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetails"
+    Conflict:
+      description: The resource changed; reload it and retry using the current version.
       content:
         application/problem+json:
           schema:
@@ -6822,6 +6991,8 @@ components:
         - tenantId
         - actorUserId
         - action
+        - eventType
+        - result
         - entityType
         - entityId
         - occurredAt
@@ -6839,6 +7010,19 @@ components:
             - "null"
           format: uuid
         action:
+          type: string
+        eventType:
+          type: string
+          description: Normalized, kebab-case runtime event type.
+        classification:
+          type:
+            - string
+            - "null"
+        mode:
+          type:
+            - string
+            - "null"
+        result:
           type: string
         entityType:
           type: string
@@ -6860,6 +7044,52 @@ components:
         metadata:
           type: object
           additionalProperties: true
+
+    CuiAuditExportRequest:
+      type: object
+      properties:
+        action:
+          type: [string, "null"]
+        eventType:
+          type: [string, "null"]
+        classification:
+          type: [string, "null"]
+        mode:
+          type: [string, "null"]
+        actorUserId:
+          type: [string, "null"]
+          format: uuid
+        entityType:
+          type: [string, "null"]
+        from:
+          type: [string, "null"]
+          format: date-time
+        to:
+          type: [string, "null"]
+          format: date-time
+        result:
+          type: [string, "null"]
+
+    CuiAuditExport:
+      type: object
+      required: [tenantId, generatedByUserId, generatedAt, filters, events]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        generatedByUserId:
+          type: string
+          format: uuid
+        generatedAt:
+          type: string
+          format: date-time
+        filters:
+          $ref: "#/components/schemas/CuiAuditExportRequest"
+        events:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: "#/components/schemas/AuditLogEntry"
 
     SourceReference:
       type: object
@@ -7141,6 +7371,101 @@ components:
         - Complete
         - Failed
         - Archived
+
+    SspSectionType:
+      type: string
+      enum: [SystemDescription, AuthorizationBoundary, Environment, Interconnections, Users, Roles, DataTypes, CuiHandlingPosture, ControlImplementationNarratives, InheritedResponsibilities, ExternalServiceProviders, EvidenceReferences]
+
+    SspSectionStatus:
+      type: string
+      enum: [Draft, InReview, Approved, Superseded, Archived]
+
+    SspLinkedRecordType:
+      type: string
+      enum: [CompanyProfile, SystemBoundary, Asset, CmmcControl, ResponsibilityMatrix, Policy, PoamItem, Evidence]
+
+    SspLinkedRecord:
+      type: object
+      required: [recordType, recordId, relationship]
+      properties:
+        recordType: { $ref: "#/components/schemas/SspLinkedRecordType" }
+        recordId: { type: string, maxLength: 120 }
+        relationship: { type: string, maxLength: 200 }
+
+    SspSourceReference:
+      type: object
+      required: [source, sourceUrl, lastReviewedAt]
+      properties:
+        source: { type: string, maxLength: 200 }
+        sourceUrl: { type: string, format: uri, maxLength: 1000 }
+        lastReviewedAt: { type: string, format: date }
+
+    SspSectionHistory:
+      type: object
+      required: [status, actorUserId, actorName, changedAt]
+      properties:
+        status: { $ref: "#/components/schemas/SspSectionStatus" }
+        actorUserId: { type: string, format: uuid }
+        actorName: { type: string }
+        changedAt: { type: string, format: date-time }
+        notes: { type: [string, "null"] }
+
+    CreateSspSectionRequest:
+      type: object
+      required: [sectionType, title, owner, linkedRecords, sourceReferences]
+      properties:
+        sectionType: { $ref: "#/components/schemas/SspSectionType" }
+        title: { type: string, maxLength: 200 }
+        owner: { type: string, maxLength: 200 }
+        linkedRecords:
+          type: array
+          items: { $ref: "#/components/schemas/SspLinkedRecord" }
+        sourceReferences:
+          type: array
+          items: { $ref: "#/components/schemas/SspSourceReference" }
+
+    UpdateSspSectionRequest:
+      allOf:
+        - $ref: "#/components/schemas/CreateSspSectionRequest"
+        - type: object
+          required: [expectedVersion]
+          properties:
+            expectedVersion: { type: integer, format: int64, minimum: 1 }
+
+    SspSectionStatusRequest:
+      type: object
+      required: [status, actorName, expectedVersion]
+      properties:
+        status: { $ref: "#/components/schemas/SspSectionStatus" }
+        actorName:
+          type: string
+          maxLength: 200
+          deprecated: true
+          description: Retained for compatibility; lifecycle history uses the authenticated server-side identity.
+        expectedVersion: { type: integer, format: int64, minimum: 1 }
+        reviewDate: { type: [string, "null"], format: date }
+        reviewer: { type: [string, "null"], maxLength: 200 }
+        approvalRationale: { type: [string, "null"], maxLength: 2000 }
+
+    SspSection:
+      allOf:
+        - $ref: "#/components/schemas/CreateSspSectionRequest"
+        - type: object
+          required: [id, tenantId, status, isRequired, version, history, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            tenantId: { type: string, format: uuid }
+            status: { $ref: "#/components/schemas/SspSectionStatus" }
+            reviewer: { type: [string, "null"] }
+            reviewDate: { type: [string, "null"], format: date }
+            approvalRationale: { type: [string, "null"] }
+            isRequired: { type: boolean }
+            version: { type: integer, format: int64 }
+            history:
+              type: array
+              items: { $ref: "#/components/schemas/SspSectionHistory" }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
 
     SourceType:
       type: string

@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.Compliance;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Compliance;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure.Compliance;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -33,15 +34,18 @@ public sealed class SspSectionTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Equal(ids.TenantId, created.TenantId);
         Assert.Equal(SspSectionType.AuthorizationBoundary, created.SectionType);
         Assert.Equal(SspSectionStatus.Draft, created.Status);
-        Assert.Contains(created.LinkedRecords, record => record.RecordType == "systemBoundary");
+        Assert.Contains(created.LinkedRecords, record => record.RecordType == SspLinkedRecordType.SystemBoundary);
         Assert.Contains(created.SourceReferences, source => source.Source == "NIST SP 800-171 Rev. 2");
+        var creationHistory = Assert.Single(created.History);
+        Assert.Equal(ids.ActorUserId, creationHistory.ActorUserId);
+        Assert.Equal("po@example.com", creationHistory.ActorName);
 
         var update = new UpdateSspSectionRequest(
             SspSectionType.Environment,
             "Cloud environment",
             "security lead",
-            [new SspLinkedRecordDto("asset", "asset-1", "Hosts assessed workload.")],
-            [Source()]);
+            [new SspLinkedRecordDto(SspLinkedRecordType.Asset, "asset-1", "Hosts assessed workload.")],
+            [Source()], created.Version);
         var response = await client.SendAsync(Request(HttpMethod.Put, $"/api/compliance/ssp/sections/{created.Id}", update, ids));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -58,10 +62,11 @@ public sealed class SspSectionTests : IClassFixture<WebApplicationFactory<Progra
         var ids = Ids();
         var created = await CreateSectionAsync(client, ids);
 
-        var missingMetadata = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{created.Id}/status", new SspSectionStatusRequest(SspSectionStatus.Approved, "owner"), ids));
+        var missingMetadata = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{created.Id}/status", new SspSectionStatusRequest(SspSectionStatus.Approved, "owner", created.Version), ids));
         Assert.Equal(HttpStatusCode.BadRequest, missingMetadata.StatusCode);
 
-        var approved = await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.Approved, "owner", new DateOnly(2026, 6, 19), "security reviewer"));
+        var inReview = await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.InReview, "owner", created.Version));
+        var approved = await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.Approved, "owner", inReview.Version, new DateOnly(2026, 6, 19), "security reviewer"));
         Assert.Equal(SspSectionStatus.Approved, approved.Status);
         Assert.Equal("security reviewer", approved.Reviewer);
         Assert.Equal(new DateOnly(2026, 6, 19), approved.ReviewDate);
@@ -74,21 +79,26 @@ public sealed class SspSectionTests : IClassFixture<WebApplicationFactory<Progra
         var ids = Ids();
         var created = await CreateSectionAsync(client, ids);
 
-        var inReview = await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.InReview, "owner", null, null, "Ready for SME review."));
-        var approved = await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.Approved, "reviewer", new DateOnly(2026, 6, 19), "security reviewer"));
+        var inReview = await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.InReview, "owner", created.Version, null, null, "Ready for SME review."));
+        var approved = await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.Approved, "reviewer", inReview.Version, new DateOnly(2026, 6, 19), "security reviewer"));
 
         Assert.Equal(SspSectionStatus.InReview, inReview.Status);
         Assert.Equal(SspSectionStatus.Approved, approved.Status);
         Assert.True(approved.History.Length >= 3);
         Assert.Contains(approved.History, item => item.Status == SspSectionStatus.Draft);
-        Assert.Contains(approved.History, item => item.Status == SspSectionStatus.InReview);
+        var reviewHistory = Assert.Single(approved.History, item => item.Status == SspSectionStatus.InReview);
+        Assert.Equal(ids.ActorUserId, reviewHistory.ActorUserId);
+        Assert.Equal("po@example.com", reviewHistory.ActorName);
+        Assert.Equal("Ready for SME review.", reviewHistory.Notes);
+        Assert.NotEqual(default, reviewHistory.ChangedAt);
         Assert.Contains(approved.History, item => item.Status == SspSectionStatus.Approved);
     }
 
     [Fact]
     public async Task TC_29_1_4_Cross_tenant_sections_are_not_visible()
     {
-        using var client = CreateClient();
+        var audit = new CapturingAuditWriter();
+        using var client = CreateClient(audit);
         var ids = Ids();
         var otherIds = Ids();
         var created = await CreateSectionAsync(client, ids);
@@ -100,6 +110,14 @@ public sealed class SspSectionTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         var otherTenantSections = Assert.IsType<SspSectionDto[]>(await listResponse.Content.ReadFromJsonAsync<SspSectionDto[]>(JsonOptions));
         Assert.Empty(otherTenantSections);
+
+        var update = await client.SendAsync(Request(HttpMethod.Put, $"/api/compliance/ssp/sections/{created.Id}",
+            new UpdateSspSectionRequest(created.SectionType, "Cross-tenant update", created.Owner, created.LinkedRecords, created.SourceReferences, created.Version), otherIds));
+        var status = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{created.Id}/status",
+            new SspSectionStatusRequest(SspSectionStatus.InReview, "attacker", created.Version), otherIds));
+        Assert.Equal(HttpStatusCode.NotFound, update.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, status.StatusCode);
+        Assert.Single(audit.Events, item => item.Action == AuditAction.Created);
     }
 
     [Fact]
@@ -110,36 +128,85 @@ public sealed class SspSectionTests : IClassFixture<WebApplicationFactory<Progra
         var ids = Ids();
         var created = await CreateSectionAsync(client, ids);
 
-        await client.SendAsync(Request(HttpMethod.Put, $"/api/compliance/ssp/sections/{created.Id}", new UpdateSspSectionRequest(created.SectionType, "Updated boundary", created.Owner, created.LinkedRecords, created.SourceReferences), ids));
-        await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.Approved, "reviewer", new DateOnly(2026, 6, 19), "security reviewer"));
-        await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.Archived, "owner", null, null, "Replaced by a new section."));
+        var updateResponse = await client.SendAsync(Request(HttpMethod.Put, $"/api/compliance/ssp/sections/{created.Id}", new UpdateSspSectionRequest(created.SectionType, "Updated boundary", created.Owner, created.LinkedRecords, created.SourceReferences, created.Version), ids));
+        var updated = Assert.IsType<SspSectionDto>(await updateResponse.Content.ReadFromJsonAsync<SspSectionDto>(JsonOptions));
+        var inReview = await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.InReview, "owner", updated.Version));
+        var approved = await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.Approved, "reviewer", inReview.Version, new DateOnly(2026, 6, 19), "security reviewer"));
+        await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.Archived, "owner", approved.Version, null, null, "Replaced by a new section."));
 
         Assert.Contains(audit.Events, item => item.Action == AuditAction.Created && item.EntityType == "SspSection");
         Assert.Contains(audit.Events, item => item.Action == AuditAction.Updated && item.EntityType == "SspSection");
         Assert.Contains(audit.Events, item => item.Action == AuditAction.Approved && item.EntityType == "SspSection");
         Assert.Contains(audit.Events, item => item.Action == AuditAction.Archived && item.EntityType == "SspSection");
+        Assert.All(audit.Events.Where(item => item.EntityType == "SspSection"), item =>
+        {
+            Assert.Contains(item.Metadata["sectionType"], new[] { "AuthorizationBoundary", "Environment" });
+            Assert.False(string.IsNullOrWhiteSpace(item.Metadata["owner"]));
+            Assert.False(string.IsNullOrWhiteSpace(item.Metadata["status"]));
+        });
+    }
+
+    [Fact]
+    public async Task SSP_mutations_require_server_side_permission()
+    {
+        using var client = CreateClient();
+        var ids = Ids();
+        var request = Request(HttpMethod.Post, "/api/compliance/ssp/sections", ValidCreateRequest(), ids);
+        request.Headers.Remove("X-Gccs-Dev-Permissions");
+        request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ViewObligations.ToString());
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Invalid_or_stale_lifecycle_changes_leave_section_unchanged()
+    {
+        var audit = new CapturingAuditWriter();
+        using var client = CreateClient(audit);
+        var ids = Ids();
+        var created = await CreateSectionAsync(client, ids);
+
+        var invalid = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{created.Id}/status",
+            new SspSectionStatusRequest(SspSectionStatus.Approved, "reviewer", created.Version, new DateOnly(2026, 6, 19), "reviewer"), ids));
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+
+        var reviewed = await ChangeStatusAsync(client, ids, created.Id, new SspSectionStatusRequest(SspSectionStatus.InReview, "owner", created.Version));
+        var stale = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{created.Id}/status",
+            new SspSectionStatusRequest(SspSectionStatus.Draft, "owner", created.Version), ids));
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+
+        var currentResponse = await client.SendAsync(Request(HttpMethod.Get, $"/api/compliance/ssp/sections/{created.Id}", ids));
+        var current = Assert.IsType<SspSectionDto>(await currentResponse.Content.ReadFromJsonAsync<SspSectionDto>(JsonOptions));
+        Assert.Equal(SspSectionStatus.InReview, current.Status);
+        Assert.Equal(reviewed.Version, current.Version);
+        Assert.Single(audit.Events, item => item.EntityType == "SspSection" && item.Action == AuditAction.Updated);
     }
 
     private static async Task<SspSectionDto> CreateSectionAsync(HttpClient client, TestIds ids)
     {
-        var request = new CreateSspSectionRequest(
-            SspSectionType.AuthorizationBoundary,
-            "Authorization boundary",
-            "security owner",
-            [
-                new SspLinkedRecordDto("companyProfile", "company-1", "Identifies legal entity."),
-                new SspLinkedRecordDto("systemBoundary", "boundary-1", "Defines assessed environment."),
-                new SspLinkedRecordDto("cmmcControl", "AC.L2-3.1.1", "Provides control context."),
-                new SspLinkedRecordDto("responsibilityMatrix", "matrix-1", "Identifies inherited responsibility."),
-                new SspLinkedRecordDto("poamItem", "poam-1", "Tracks open remediation."),
-                new SspLinkedRecordDto("evidence", "evidence-1", "Supports boundary assertion.")
-            ],
-            [Source()]);
+        var request = ValidCreateRequest();
 
         var response = await client.SendAsync(Request(HttpMethod.Post, "/api/compliance/ssp/sections", request, ids));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return Assert.IsType<SspSectionDto>(await response.Content.ReadFromJsonAsync<SspSectionDto>(JsonOptions));
     }
+
+    private static CreateSspSectionRequest ValidCreateRequest() =>
+        new(
+            SspSectionType.AuthorizationBoundary,
+            "Authorization boundary",
+            "security owner",
+            [
+                new SspLinkedRecordDto(SspLinkedRecordType.CompanyProfile, "company-1", "Identifies legal entity."),
+                new SspLinkedRecordDto(SspLinkedRecordType.SystemBoundary, "boundary-1", "Defines assessed environment."),
+                new SspLinkedRecordDto(SspLinkedRecordType.CmmcControl, "AC.L2-3.1.1", "Provides control context."),
+                new SspLinkedRecordDto(SspLinkedRecordType.ResponsibilityMatrix, "matrix-1", "Identifies inherited responsibility."),
+                new SspLinkedRecordDto(SspLinkedRecordType.PoamItem, "poam-1", "Tracks open remediation."),
+                new SspLinkedRecordDto(SspLinkedRecordType.Evidence, "evidence-1", "Supports boundary assertion.")
+            ],
+            [Source()]);
 
     private static async Task<SspSectionDto> ChangeStatusAsync(HttpClient client, TestIds ids, Guid sectionId, SspSectionStatusRequest request)
     {
@@ -162,6 +229,7 @@ public sealed class SspSectionTests : IClassFixture<WebApplicationFactory<Progra
                 services.AddSingleton<ISspNarrativeRepository>(repository);
                 services.AddSingleton<ISspExportPackageRepository>(repository);
                 services.AddScoped<SspSectionService>();
+                services.AddSingleton<ISspSectionLinkValidator, PermissiveSspSectionLinkValidator>();
                 services.AddSingleton(auditWriter);
             });
         }).CreateClient();
@@ -197,10 +265,10 @@ public sealed class SspSectionTests : IClassFixture<WebApplicationFactory<Progra
 
         public Task WriteAsync(Guid tenantId, Guid actorUserId, AuditAction action, string entityType, string entityId, string summary, IReadOnlyDictionary<string, string>? metadata = null, CancellationToken cancellationToken = default)
         {
-            Events.Add(new CapturedAudit(action, entityType, summary));
+            Events.Add(new CapturedAudit(action, entityType, summary, metadata ?? new Dictionary<string, string>()));
             return Task.CompletedTask;
         }
     }
 
-    private sealed record CapturedAudit(AuditAction Action, string EntityType, string Summary);
+    private sealed record CapturedAudit(AuditAction Action, string EntityType, string Summary, IReadOnlyDictionary<string, string> Metadata);
 }

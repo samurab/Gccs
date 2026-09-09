@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Gccs.Application.Compliance;
+using Gccs.Domain.Compliance;
 
 namespace Gccs.Infrastructure.Compliance;
 
@@ -15,7 +16,7 @@ public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNa
     public Task<SspSectionDto?> GetAsync(Guid tenantId, Guid sectionId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_sections.GetOrAdd(tenantId, _ => []).SingleOrDefault(section => section.Id == sectionId));
 
-    public Task<SspSectionDto> CreateAsync(Guid tenantId, CreateSspSectionRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
+    public Task<SspSectionDto> CreateAsync(Guid tenantId, CreateSspSectionRequest request, Guid actorUserId, string actorName, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
         var section = new SspSectionDto(
@@ -27,9 +28,12 @@ public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNa
             SspSectionStatus.Draft,
             null,
             null,
+            null,
+            true,
+            1,
             Normalize(request.LinkedRecords),
             Normalize(request.SourceReferences),
-            [new SspSectionHistoryDto(SspSectionStatus.Draft, actorUserId, "system", now, "Section created.")],
+            [new SspSectionHistoryDto(SspSectionStatus.Draft, actorUserId, actorName, now, "Section created.")],
             now,
             now);
 
@@ -37,25 +41,36 @@ public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNa
         return Task.FromResult(section);
     }
 
-    public Task<SspSectionDto?> UpdateAsync(Guid tenantId, Guid sectionId, UpdateSspSectionRequest request, Guid actorUserId, CancellationToken cancellationToken = default) =>
-        UpdateAsync(tenantId, sectionId, section => section with
+    public Task<SspSectionDto?> UpdateAsync(Guid tenantId, Guid sectionId, UpdateSspSectionRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
+    {
+        var current = _sections.GetOrAdd(tenantId, _ => []).SingleOrDefault(section => section.Id == sectionId);
+        if (current is not null && current.Version != request.ExpectedVersion)
+            throw new Gccs.Application.Common.ContentRevisionConflictException();
+        return UpdateAsync(tenantId, sectionId, section => section with
         {
             SectionType = request.SectionType,
             Title = request.Title.Trim(),
             Owner = request.Owner.Trim(),
             LinkedRecords = Normalize(request.LinkedRecords),
             SourceReferences = Normalize(request.SourceReferences),
+            Version = section.Version + 1,
             UpdatedAt = DateTimeOffset.UtcNow
         });
+    }
 
     public Task<SspSectionDto?> ChangeStatusAsync(Guid tenantId, Guid sectionId, SspSectionStatusRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
+        var current = _sections.GetOrAdd(tenantId, _ => []).SingleOrDefault(section => section.Id == sectionId);
+        if (current is not null && current.Version != request.ExpectedVersion)
+            throw new Gccs.Application.Common.ContentRevisionConflictException();
         return UpdateAsync(tenantId, sectionId, section => section with
         {
             Status = request.Status,
             Reviewer = request.Reviewer?.Trim(),
             ReviewDate = request.ReviewDate,
+            ApprovalRationale = request.ApprovalRationale?.Trim(),
+            Version = section.Version + 1,
             UpdatedAt = now,
             History = section.History.Append(new SspSectionHistoryDto(request.Status, actorUserId, request.ActorName.Trim(), now, request.ApprovalRationale?.Trim())).ToArray()
         });
@@ -76,7 +91,7 @@ public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNa
 
     private static SspLinkedRecordDto[] Normalize(SspLinkedRecordDto[] records) =>
         records
-            .Select(record => new SspLinkedRecordDto(record.RecordType.Trim(), record.RecordId.Trim(), record.Relationship.Trim()))
+            .Select(record => new SspLinkedRecordDto(record.RecordType, record.RecordId.Trim(), record.Relationship.Trim()))
             .ToArray();
 
     private static SspSourceReferenceDto[] Normalize(SspSourceReferenceDto[] references) =>

@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.Compliance;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Compliance;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure.Compliance;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -120,7 +121,7 @@ public sealed class SspNarrativeTests : IClassFixture<WebApplicationFactory<Prog
             SspSectionType.ControlImplementationNarratives,
             "Control implementation narratives",
             "security owner",
-            [new SspLinkedRecordDto("cmmcControl", "AC.L2-3.1.1", "Narrative source.")],
+            [new SspLinkedRecordDto(SspLinkedRecordType.CmmcControl, "AC.L2-3.1.1", "Narrative source.")],
             [new SspSourceReferenceDto("NIST SP 800-171 Rev. 2", "https://csrc.nist.gov/publications/detail/sp/800-171/rev-2/final", new DateOnly(2026, 6, 19))]), ids));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return Assert.IsType<SspSectionDto>(await response.Content.ReadFromJsonAsync<SspSectionDto>(JsonOptions));

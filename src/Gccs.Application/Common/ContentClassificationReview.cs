@@ -55,6 +55,8 @@ public sealed class ContentClassificationReviewService(
                     "Evidence item classification was updated by an authorized reviewer.",
                     new Dictionary<string, string>
                     {
+                        ["eventType"] = Phase1ACuiAuditEvents.ClassificationChange,
+                        ["result"] = "succeeded",
                         ["classification"] = updated.Classification.Classification.ToString(),
                         ["classificationSource"] = updated.Classification.Source.ToString(),
                         ["reason"] = updated.Classification.Reason ?? string.Empty

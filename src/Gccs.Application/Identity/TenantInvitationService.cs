@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Common;
@@ -10,7 +11,8 @@ namespace Gccs.Application.Identity;
 public sealed class TenantInvitationService(
     ITenantInvitationRepository invitationRepository,
     ICurrentTenantContext tenantContext,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    IApplicationTransaction transaction)
 {
     private const int MaximumExpirationDays = 30;
 
@@ -74,12 +76,22 @@ public sealed class TenantInvitationService(
         return createdInvitation;
     }
 
-    public async Task<TenantInvitationDto?> AcceptAsync(
+    public Task<TenantInvitationDto?> AcceptAsync(
         string invitationToken,
         AcceptTenantInvitationRequest request,
         Guid actorUserId,
         string actorEmail,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        transaction.ExecuteAsync(
+            token => AcceptCoreAsync(invitationToken, request, actorUserId, actorEmail, token),
+            cancellationToken);
+
+    private async Task<TenantInvitationDto?> AcceptCoreAsync(
+        string invitationToken,
+        AcceptTenantInvitationRequest request,
+        Guid actorUserId,
+        string actorEmail,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(invitationToken))
         {
