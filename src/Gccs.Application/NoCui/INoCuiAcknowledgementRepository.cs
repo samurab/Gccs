@@ -20,8 +20,8 @@ public interface INoCuiAcknowledgementRepository
         Guid evidenceItemId,
         CancellationToken cancellationToken = default);
 
-    Task<EvidenceFileVersionDto> RecordAcceptedEvidenceUploadIntentAsync(
-        EvidenceUploadIntentDto uploadIntent,
+    Task<EvidenceFileVersionDto> RecordAcceptedEvidenceFileVersionAsync(
+        EvidenceUploadIntentDto acceptedFile,
         CancellationToken cancellationToken = default);
 
     Task<EvidenceFileVersionDto?> FindLatestCurrentTenantFileVersionAsync(

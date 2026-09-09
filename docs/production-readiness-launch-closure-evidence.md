@@ -116,9 +116,9 @@ Current compensating controls:
 - MVP launch posture remains No-CUI / compliance management only.
 - Prohibited upload guardrails reject real CUI, classified data, export-controlled data, credentials, payroll, SSNs, health or disability data, unrestricted security logs, and sensitive incident details.
 - Evidence upload requires No-CUI attestation.
-- Metadata-only upload intents receive `scan-pending` malware status; byte uploads must receive a clean scanner verdict before persistence.
+- Stateless upload preflights return `scan-pending` malware status without changing evidence identity; byte uploads must receive a clean scanner verdict before persistence.
 - File content download remains unavailable unless validation and malware scanning allow it.
-- Upload intent and upload actions are audit logged.
+- Rejected upload preflights and successful byte-upload actions are audit logged. Accepted stateless preflights do not create a file version or emit an `Uploaded` event.
 - Support intake routes evidence upload, malware scanning, prohibited upload, and suspected CUI cases before launch.
 
 Allowed launch paths:

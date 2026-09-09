@@ -51,16 +51,14 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         });
         using var client = factory.CreateClient();
 
-        using var request = CreateRequest(
-            HttpMethod.Post,
-            $"/api/evidence-items/{evidenceItemId}/upload-intents",
-            CreateUploadRequest("policy.pdf"),
-            tenantId,
-            userId,
-            Permission.ManageEvidence);
-        var response = await client.SendAsync(request);
+        using var response = await UploadFileBytesAsync(
+            client, tenantId, userId, evidenceItemId, "policy evidence");
 
         Assert.Equal((HttpStatusCode)428, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await dbContext.EvidenceFileVersions.ToArrayAsync());
+        Assert.Equal(0, ((InMemoryObjectStorageService)factory.Services.GetRequiredService<IObjectStorageService>()).Count);
     }
 
     [Fact]
@@ -77,12 +75,32 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         using var client = factory.CreateClient();
         await AcknowledgeAsync(client, tenantId, userId);
 
-        await UploadAsync(client, tenantId, userId, evidenceItemId, "policy.pdf");
-        var file = await DownloadAsync(client, tenantId, userId, evidenceItemId);
+        using var intentResponse = await CreateUploadIntentAsync(
+            client, tenantId, userId, evidenceItemId, "policy.pdf");
+        Assert.Equal(HttpStatusCode.Created, intentResponse.StatusCode);
+        var intent = await intentResponse.Content.ReadFromJsonAsync<EvidenceUploadIntentDto>(JsonOptions);
+        Assert.NotNull(intent);
+        Assert.Equal("accepted", intent.ValidationStatus);
+        Assert.Equal("scan-pending", intent.MalwareScanStatus);
+
+        using (var preflightScope = factory.Services.CreateScope())
+        {
+            var preflightDb = preflightScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            Assert.Empty(await preflightDb.EvidenceFileVersions.ToArrayAsync());
+            Assert.DoesNotContain(await preflightDb.AuditLogEntries.ToArrayAsync(), audit =>
+                audit.Action == AuditAction.Uploaded && audit.EntityType == "EvidenceFileVersion");
+        }
+
+        using var uploadResponse = await UploadFileBytesAsync(
+            client, tenantId, userId, evidenceItemId, "policy evidence");
+        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
+        var file = await uploadResponse.Content.ReadFromJsonAsync<EvidenceFileAccessDto>(JsonOptions);
+        Assert.NotNull(file);
 
         Assert.Equal("accepted", file.ValidationStatus);
-        Assert.Equal("scan-pending", file.MalwareScanStatus);
-        Assert.False(file.IsUsable);
+        Assert.Equal("clean", file.MalwareScanStatus);
+        Assert.True(file.IsUsable);
+        Assert.Equal(1, file.VersionNumber);
     }
 
     [Fact]
@@ -101,9 +119,22 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         using var client = factory.CreateClient();
         await AcknowledgeAsync(client, tenantId, userId);
 
-        await UploadAsync(client, tenantId, userId, evidenceItemId, "policy-v1.pdf");
-        await UploadAsync(client, tenantId, userId, otherEvidenceItemId, "separate-record-v1.pdf");
-        await UploadAsync(client, tenantId, userId, evidenceItemId, "policy-v2.pdf");
+        using var firstUploadResponse = await UploadFileBytesAsync(
+            client, tenantId, userId, evidenceItemId, "policy version one", "policy-v1.txt");
+        using var separateUploadResponse = await UploadFileBytesAsync(
+            client, tenantId, userId, otherEvidenceItemId, "separate evidence", "separate-record-v1.txt");
+        using var preflightResponse = await CreateUploadIntentAsync(
+            client, tenantId, userId, evidenceItemId, "replacement-preflight.pdf");
+        using var secondUploadResponse = await UploadFileBytesAsync(
+            client, tenantId, userId, evidenceItemId, "policy version two", "policy-v2.txt");
+        Assert.Equal(HttpStatusCode.Created, firstUploadResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, separateUploadResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, preflightResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, secondUploadResponse.StatusCode);
+        var firstUpload = await firstUploadResponse.Content.ReadFromJsonAsync<EvidenceFileAccessDto>(JsonOptions);
+        var secondUpload = await secondUploadResponse.Content.ReadFromJsonAsync<EvidenceFileAccessDto>(JsonOptions);
+        Assert.NotNull(firstUpload);
+        Assert.NotNull(secondUpload);
 
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
@@ -112,11 +143,18 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             .OrderBy(version => version.VersionNumber)
             .ToArrayAsync();
         Assert.Equal([1, 2], versions.Select(version => version.VersionNumber).ToArray());
-        Assert.Equal("policy-v1.pdf", versions[0].FileName);
-        Assert.Equal("policy-v2.pdf", versions[1].FileName);
+        Assert.Equal("policy-v1.txt", versions[0].FileName);
+        Assert.Equal("policy-v2.txt", versions[1].FileName);
+        Assert.Equal(firstUpload.VersionId, versions[0].Id);
+        Assert.Equal(secondUpload.VersionId, versions[1].Id);
+        Assert.NotEqual(firstUpload.VersionId, secondUpload.VersionId);
+        var evidenceItem = await dbContext.EvidenceItems.SingleAsync(item => item.Id == evidenceItemId);
+        Assert.Equal("policy-v2.txt", evidenceItem.OriginalFileName);
+        Assert.Equal(versions[1].StorageUri, evidenceItem.StorageUri);
         var separateVersion = await dbContext.EvidenceFileVersions.SingleAsync(
             version => version.EvidenceItemId == otherEvidenceItemId);
         Assert.Equal(1, separateVersion.VersionNumber);
+        Assert.Equal(3, ((InMemoryObjectStorageService)factory.Services.GetRequiredService<IObjectStorageService>()).Count);
     }
 
     [Fact]
@@ -132,7 +170,9 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         });
         using var client = factory.CreateClient();
         await AcknowledgeAsync(client, tenantId, userId);
-        await UploadAsync(client, tenantId, userId, evidenceItemId, "policy.pdf");
+        using var uploadResponse = await UploadFileBytesAsync(
+            client, tenantId, userId, evidenceItemId, "policy evidence");
+        Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
 
         await DownloadAsync(client, tenantId, userId, evidenceItemId);
         using var forbiddenDeleteRequest = CreateRequest<object?>(
@@ -385,15 +425,17 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         using var client = factory.CreateClient();
         try
         {
-            await UploadAsync(client, tenantId, userId, evidenceId, "original.pdf");
+            using var originalUpload = await UploadFileBytesAsync(
+                client, tenantId, userId, evidenceId, "original bytes", "original.txt");
+            Assert.Equal(HttpStatusCode.Created, originalUpload.StatusCode);
             failure.Enabled = true;
             using var upload = CreateRequest(HttpMethod.Post, $"/api/evidence-items/{evidenceId}/upload-intents",
                 CreateUploadRequest("replacement.pdf"), tenantId, userId, Permission.ManageEvidence);
             using var response = await client.SendAsync(upload);
-            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
             using var bytesResponse = await UploadFileBytesAsync(client, tenantId, userId, evidenceId, "replacement bytes");
             Assert.Equal(HttpStatusCode.InternalServerError, bytesResponse.StatusCode);
-            Assert.Equal(0, ((InMemoryObjectStorageService)factory.Services.GetRequiredService<IObjectStorageService>()).Count);
+            Assert.Equal(1, ((InMemoryObjectStorageService)factory.Services.GetRequiredService<IObjectStorageService>()).Count);
             using var delete = CreateRequest<object?>(HttpMethod.Delete, $"/api/evidence-items/{evidenceId}/file",
                 null, tenantId, userId, Permission.ManageEvidence);
             using var deleteResponse = await client.SendAsync(delete);
@@ -402,8 +444,8 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
             var version = await db.EvidenceFileVersions.SingleAsync(v => v.EvidenceItemId == evidenceId);
             Assert.Null(version.DeletedAt);
-            Assert.Equal("original.pdf", version.FileName);
-            Assert.Equal("original.pdf", (await db.EvidenceItems.SingleAsync(e => e.Id == evidenceId)).OriginalFileName);
+            Assert.Equal("original.txt", version.FileName);
+            Assert.Equal("original.txt", (await db.EvidenceItems.SingleAsync(e => e.Id == evidenceId)).OriginalFileName);
             Assert.Equal(1, await db.AuditLogEntries.CountAsync(e => e.TenantId == tenantId));
         }
         finally
@@ -654,7 +696,12 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         Assert.Equal(HttpStatusCode.Created, noticeResponse.StatusCode);
     }
 
-    private async Task UploadAsync(HttpClient client, Guid tenantId, Guid userId, Guid evidenceItemId, string fileName)
+    private async Task<HttpResponseMessage> CreateUploadIntentAsync(
+        HttpClient client,
+        Guid tenantId,
+        Guid userId,
+        Guid evidenceItemId,
+        string fileName)
     {
         using var request = CreateRequest(
             HttpMethod.Post,
@@ -663,8 +710,7 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
             tenantId,
             userId,
             Permission.ManageEvidence);
-        var response = await client.SendAsync(request);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return await client.SendAsync(request);
     }
 
     private async Task<EvidenceFileAccessDto> DownloadAsync(HttpClient client, Guid tenantId, Guid userId, Guid evidenceItemId)
@@ -687,7 +733,8 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         Guid tenantId,
         Guid userId,
         Guid evidenceItemId,
-        string contentText)
+        string contentText,
+        string fileName = "policy.txt")
     {
         using var uploadRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/evidence-items/{evidenceItemId}/file");
         uploadRequest.Headers.Add("X-Gccs-Dev-Auth", "true");
@@ -700,7 +747,7 @@ public sealed class EvidenceFileUploadTests : IClassFixture<WebApplicationFactor
         {
             { new StringContent("Unclassified"), "classification" },
             { new StringContent("true"), "noCuiAttestation" },
-            { fileContent, "file", "policy.txt" }
+            { fileContent, "file", fileName }
         };
         uploadRequest.Content = content;
         return await client.SendAsync(uploadRequest);

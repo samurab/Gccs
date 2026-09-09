@@ -19,7 +19,7 @@ function headers() {
   };
 }
 
-test("Story 12.2 creates evidence metadata, uploads bytes, and retrieves the PostgreSQL-backed version", async ({
+test("Story 12.2 preserves PostgreSQL-backed file identity across preflight and replacement", async ({
   page,
   request
 }) => {
@@ -136,9 +136,72 @@ test("Story 12.2 creates evidence metadata, uploads bytes, and retrieves the Pos
     isUsable: true
   });
 
+  const preflightResponse = await request.post(
+    `${apiURL}/api/evidence-items/${evidence.id}/upload-intents`,
+    {
+      headers: headers(),
+      data: {
+        fileName: "replacement-preflight.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 2048,
+        noCuiAttestation: true,
+        containsPotentialCui: false,
+        classification: {
+          classification: "Unclassified",
+          source: "UserSelected",
+          reason: "Synthetic Story 12.2 stateless preflight."
+        }
+      }
+    }
+  );
+  expect(preflightResponse.status()).toBe(201);
+
+  const afterPreflightResponse = await request.get(
+    `${apiURL}/api/evidence-items/${evidence.id}/download`,
+    { headers: headers() }
+  );
+  expect(afterPreflightResponse.status()).toBe(200);
+  expect(await afterPreflightResponse.json()).toMatchObject({
+    versionId: uploadedVersion.versionId,
+    versionNumber: 1,
+    fileName
+  });
+
+  const replacementName = `synthetic-story-12-2-replacement-${Date.now()}.txt`;
+  const replacementBytes = Buffer.from("Synthetic Story 12.2 replacement evidence bytes.");
+  await uploadForm.getByLabel("Evidence file").setInputFiles({
+    name: replacementName,
+    mimeType: "text/plain",
+    buffer: replacementBytes
+  });
+  await uploadForm.getByLabel("Upload classification", { exact: true }).selectOption("Unclassified");
+  await uploadForm
+    .getByLabel(
+      "I confirm this file does not contain CUI, classified information, export-controlled data, ITAR data, or sensitive government-furnished information."
+    )
+    .check();
+  const replacementResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url() === `${apiURL}/api/evidence-items/${evidence.id}/file` &&
+      response.request().method() === "POST"
+  );
+  await uploadForm.getByRole("button", { name: "Upload evidence" }).click();
+  const replacementResponse = await replacementResponsePromise;
+  expect(replacementResponse.status()).toBe(201);
+  const replacementVersion = await replacementResponse.json();
+  expect(replacementVersion).toMatchObject({
+    evidenceItemId: evidence.id,
+    versionNumber: 2,
+    fileName: replacementName,
+    validationStatus: "accepted",
+    malwareScanStatus: "clean",
+    isUsable: true
+  });
+  expect(replacementVersion.versionId).not.toBe(uploadedVersion.versionId);
+
   const contentResponse = await request.get(`${apiURL}/api/evidence-items/${evidence.id}/file/content`, {
     headers: headers()
   });
   expect(contentResponse.status()).toBe(200);
-  expect(await contentResponse.body()).toEqual(fileBytes);
+  expect(await contentResponse.body()).toEqual(replacementBytes);
 });

@@ -1633,7 +1633,11 @@ paths:
     post:
       tags:
         - Evidence
-      summary: Create a No-CUI evidence file upload intent
+      summary: Validate a No-CUI evidence file upload preflight
+      description: >-
+        Performs stateless guardrail validation and returns pending scan metadata.
+        This operation does not create or increment a durable evidence file version;
+        file-version identity is assigned only after a successful byte upload.
       operationId: createEvidenceUploadIntent
       requestBody:
         required: true
@@ -1643,7 +1647,7 @@ paths:
               $ref: "#/components/schemas/EvidenceUploadIntentRequest"
       responses:
         "201":
-          description: Upload intent created.
+          description: Stateless upload preflight accepted; no file version was created.
           content:
             application/json:
               schema:

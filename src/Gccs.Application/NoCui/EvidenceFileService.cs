@@ -26,30 +26,7 @@ public sealed class EvidenceFileService(
         await EnsureEvidenceItemExistsAsync(evidenceItemId, cancellationToken);
         var uploadIntent = await ValidateAndBuildUploadIntentAsync(evidenceItemId, request, actorUserId, cancellationToken);
         await EnsureCurrentClassificationUsableAsync(evidenceItemId, actorUserId, cancellationToken, uploading: true);
-        return await transaction.ExecuteAsync(async token =>
-        {
-            var version = await repository.RecordAcceptedEvidenceUploadIntentAsync(uploadIntent, token);
-            await auditEventWriter.WriteAsync(
-                tenantContext.TenantId,
-                actorUserId,
-                AuditAction.Uploaded,
-                "EvidenceFileVersion",
-                version.Id.ToString(),
-                "Evidence file upload metadata was accepted and versioned.",
-                new Dictionary<string, string>
-                {
-                    ["evidenceItemId"] = evidenceItemId.ToString(),
-                    ["versionNumber"] = version.VersionNumber.ToString(),
-                    ["fileName"] = version.FileName,
-                    ["validationStatus"] = version.ValidationStatus,
-                    ["malwareScanStatus"] = version.MalwareScanStatus,
-                    ["isUsable"] = version.IsUsable.ToString(),
-                    ["noCuiAttestation"] = request.NoCuiAttestation.ToString()
-                },
-                token);
-
-            return uploadIntent;
-        }, cancellationToken);
+        return uploadIntent;
     }
 
     public async Task<EvidenceFileAccessDto> UploadEvidenceFileAsync(
@@ -110,7 +87,7 @@ public sealed class EvidenceFileService(
             {
                 await classificationPolicy.EnsureAllowedAsync(request.Classification ?? ContentClassificationPolicy.FromLegacyCuiFlag(request.ContainsPotentialCui), TenantDataHandlingWorkflow.EvidenceUpload,
                     actorUserId, "EvidenceItem", evidenceItemId.ToString(), token);
-                var recorded = await repository.RecordAcceptedEvidenceUploadIntentAsync(storedIntent, token);
+                var recorded = await repository.RecordAcceptedEvidenceFileVersionAsync(storedIntent, token);
                 await auditEventWriter.WriteAsync(
                     tenantContext.TenantId, actorUserId, AuditAction.Uploaded,
                     "EvidenceFileVersion", recorded.Id.ToString(),
