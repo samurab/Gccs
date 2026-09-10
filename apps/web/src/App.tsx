@@ -6070,7 +6070,7 @@ function CmmcView({
         ]}
       />
 
-      <form className="cmmc-create" onSubmit={submit}>
+      <form className="cmmc-create cmmc-form" onSubmit={submit}>
         <div className="section-heading section-heading--split">
           <div>
             <h3>{selectedAssessment ? "Edit readiness assessment" : "Create readiness assessment"}</h3>
@@ -6091,7 +6091,7 @@ function CmmcView({
           </Button>
         </div>
         <fieldset disabled={!canManageCmmc || status === "saving"}>
-          <div className="form-grid">
+          <div className="form-grid cmmc-form-grid">
             <label>
               <span>Assessment name</span>
               <input value={form.name} onChange={(event) => updateField("name", event.target.value)} required />
@@ -6284,9 +6284,9 @@ function CmmcView({
         title="POA&M remediation"
         description="Track control gaps, remediation owners, due dates, risk, and task-backed calendar work."
       >
-        <form className="cmmc-create" onSubmit={submitPoam}>
+        <form className="cmmc-create cmmc-form" onSubmit={submitPoam}>
           <fieldset disabled={!canManageCmmc || poamStatus === "saving" || !selectedAssessment || activeControls.length === 0}>
-            <div className="form-grid">
+            <div className="form-grid cmmc-form-grid">
               <label>
                 <span>Control</span>
                 <select value={poamForm.controlId} onChange={(event) => updatePoamField("controlId", event.target.value)} required>

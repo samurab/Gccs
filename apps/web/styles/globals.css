@@ -6602,6 +6602,38 @@ textarea[aria-invalid="true"] {
   padding: 0;
 }
 
+.cmmc-form {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.form-grid.cmmc-form-grid {
+  column-gap: 20px;
+  row-gap: 16px;
+}
+
+.form-grid.cmmc-form-grid label {
+  gap: 8px;
+  min-width: 0;
+}
+
+.form-grid.cmmc-form-grid select {
+  min-width: 0;
+  padding-right: 34px;
+  text-overflow: ellipsis;
+}
+
+.cmmc-form-help {
+  color: var(--muted);
+  line-height: 1.45;
+  margin-top: -8px;
+}
+
+.cmmc-form > .form-actions {
+  margin-top: 0;
+}
+
 .contract-clause-item {
   align-items: flex-start;
 }
