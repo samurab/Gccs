@@ -137,6 +137,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SspNarrativeEntity> SspNarratives => Set<SspNarrativeEntity>();
     public DbSet<SspNarrativeSourceEntity> SspNarrativeSources => Set<SspNarrativeSourceEntity>();
     public DbSet<SspExportPackageEntity> SspExportPackages => Set<SspExportPackageEntity>();
+    public DbSet<SspExportPolicyEntity> SspExportPolicies => Set<SspExportPolicyEntity>();
     public DbSet<SspExportPackageHistoryEntity> SspExportPackageHistory => Set<SspExportPackageHistoryEntity>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -1470,6 +1471,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.SystemBoundary).HasMaxLength(4_000);
             entity.Property(x => x.Reviewer).HasMaxLength(200);
             entity.Property(x => x.Format).HasMaxLength(40);
+            entity.Property(x => x.LanguagePolicyVersion).HasMaxLength(40);
             entity.Property(x => x.Disclaimer).HasMaxLength(2_000);
             entity.Property(x => x.HumanReadableReport).HasColumnType("text");
             entity.Property(x => x.MachineReadableMetadata).HasColumnType("jsonb");
@@ -1480,6 +1482,15 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.ExternalShareApprovalReason).HasMaxLength(1_000);
             entity.Property(x => x.SharedRecipient).HasMaxLength(320);
             entity.Property(x => x.SharedPurpose).HasMaxLength(1_000);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SspExportPolicyEntity>(entity =>
+        {
+            entity.ToTable("ssp_export_policies");
+            entity.HasKey(x => x.TenantId);
             entity.Property(x => x.Version).IsConcurrencyToken();
             entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             ConfigureAuditColumns(entity);

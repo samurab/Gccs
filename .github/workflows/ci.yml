@@ -241,7 +241,7 @@ jobs:
         run: >
           dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
           --no-restore
-          --filter "FullyQualifiedName~ReportPostgresTransactionTests|FullyQualifiedName~ContractExtractionPostgresTransactionTests|FullyQualifiedName~FedRampPersistenceTests"
+          --filter "FullyQualifiedName~ReportPostgresTransactionTests|FullyQualifiedName~ContractExtractionPostgresTransactionTests|FullyQualifiedName~FedRampPersistenceTests|FullyQualifiedName~SspExportPackagePersistenceTests"
 
       - name: Run real-stack report authorization tests
         run: npm run test:e2e:real

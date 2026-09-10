@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<SspSectionService>();
         services.AddScoped<SspNarrativeService>();
         services.AddScoped<SspExportPackageService>();
+        services.AddSingleton<SspExportLanguagePolicy>();
         services.AddSingleton<ISspNarrativeAiGenerator, UnavailableSspNarrativeAiGenerator>();
         services.AddScoped<CuiEnclaveBoundaryService>();
         services.AddScoped<CustomerManagedKeyPolicyService>();
@@ -134,6 +135,7 @@ public static class DependencyInjection
         services.AddSingleton<InMemorySspSectionRepository>();
         services.AddSingleton<InMemorySspExportPackageRepository>();
         services.AddSingleton<ISspExportPackageRepository>(provider => provider.GetRequiredService<InMemorySspExportPackageRepository>());
+        services.AddSingleton<ISspExportPolicyRepository, InMemorySspExportPolicyRepository>();
         services.AddSingleton<ICuiEnclaveBoundaryRepository, InMemoryCuiEnclaveBoundaryRepository>();
         services.AddSingleton<ICustomerManagedKeyPolicyRepository, InMemoryCustomerManagedKeyPolicyRepository>();
         services.AddSingleton<ICuiEnclaveAccessControlRepository, InMemoryCuiEnclaveAccessControlRepository>();
@@ -441,6 +443,7 @@ public static class DependencyInjection
             services.AddScoped<ISspNarrativeSourceResolver, EfSspNarrativeSourceResolver>();
             services.AddScoped<ISspExportPackageRepository, EfSspExportPackageRepository>();
             services.AddScoped<ISspExportSourceRepository, EfSspExportSourceRepository>();
+            services.AddScoped<ISspExportPolicyRepository, EfSspExportPolicyRepository>();
         }
         else
         {

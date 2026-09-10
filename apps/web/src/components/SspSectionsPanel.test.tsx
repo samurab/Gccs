@@ -7,10 +7,15 @@ import * as api from "@/lib/api";
 vi.mock("@/lib/api", () => ({
   getSspSections: vi.fn(), createSspSection: vi.fn(), updateSspSection: vi.fn(), changeSspSectionStatus: vi.fn(),
   getSspNarratives: vi.fn(), generateSspNarrative: vi.fn(), editSspNarrative: vi.fn(),
-  approveSspNarrative: vi.fn(), compareSspNarrative: vi.fn(), getSspExportPackages: vi.fn(), createSspExportPackage: vi.fn()
+  approveSspNarrative: vi.fn(), compareSspNarrative: vi.fn(), getSspExportPackages: vi.fn(), createSspExportPackage: vi.fn(),
+  getSspExportPolicy: vi.fn(), updateSspExportPolicy: vi.fn()
 }));
 afterEach(cleanup);
-beforeEach(() => { vi.clearAllMocks(); vi.mocked(api.getSspSections).mockResolvedValue([]); vi.mocked(api.getSspNarratives).mockResolvedValue([]); vi.mocked(api.getSspExportPackages).mockResolvedValue([]); });
+beforeEach(() => {
+  vi.clearAllMocks(); vi.mocked(api.getSspSections).mockResolvedValue([]); vi.mocked(api.getSspNarratives).mockResolvedValue([]);
+  vi.mocked(api.getSspExportPackages).mockResolvedValue([]);
+  vi.mocked(api.getSspExportPolicy).mockResolvedValue({ requireIndependentApproval: true, version: 0, updatedAt: null, updatedByUserId: null });
+});
 
 it("renders empty and permission-denied states and fails closed", async () => {
   render(<SspSectionsPanel canManage={false} />);
@@ -85,7 +90,7 @@ it("shows source-backed narrative drafts, guardrails, and comparison", async () 
 it("fails closed without ExportReports and generates an internal SSP review package from record IDs", async () => {
   const packageRecord = {
     id: "package-1", tenantId: "tenant-1", tenantName: "Tenant Alpha", generatedAt: "2026-09-10T12:00:00Z",
-    packageVersion: "ssp-1", systemBoundary: "Boundary A", reviewer: "Security reviewer", format: "Both",
+    packageVersion: "ssp-1", systemBoundary: "Boundary A", reviewer: "Security reviewer", format: "Both", languagePolicyVersion: "2026-09-10.1",
     disclaimer: "Draft SSP review package for human review only.", humanReadableReport: "Review package content",
     machineReadableMetadata: { draftOnly: true }, sections: [], includedEvidence: [], poamReferences: [],
     status: "InternalReview", externalShareApprovedByUserId: null, externalShareApprovedAt: null,
@@ -114,4 +119,30 @@ it("fails closed without ExportReports and generates an internal SSP review pack
   }));
   expect(await screen.findByText(/External sharing requires separate approval/)).toBeInTheDocument();
   expect(screen.getByText("Review package content")).toBeInTheDocument();
+});
+
+it("shows record-only sharing posture and updates independent approval policy for tenant managers", async () => {
+  vi.mocked(api.updateSspExportPolicy).mockResolvedValue({
+    data: { requireIndependentApproval: false, version: 1, updatedAt: "2026-09-10T13:00:00Z", updatedByUserId: "user-2" }, error: null
+  });
+  render(<SspSectionsPanel canManage canExport canManageExportPolicy />);
+  expect(await screen.findByText(/different authorized user must approve/)).toBeInTheDocument();
+  expect(screen.getByText(/does not deliver the package/)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("checkbox", { name: /Require independent approval/ }));
+  await userEvent.type(screen.getByLabelText("Policy change reason"), "Tenant workflow exception");
+  await userEvent.click(screen.getByRole("button", { name: "Save external-share policy" }));
+  await waitFor(() => expect(api.updateSspExportPolicy).toHaveBeenCalledWith({
+    requireIndependentApproval: false, expectedVersion: 0, reason: "Tenant workflow exception"
+  }));
+  expect(await screen.findByText(/policy updated and audit logged/)).toBeInTheDocument();
+});
+
+it("allows a tenant manager to administer export policy without package-export access", async () => {
+  render(<SspSectionsPanel canManage={false} canExport={false} canManageExportPolicy />);
+
+  expect(await screen.findByLabelText("SSP external-share policy")).toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: /Require independent approval/ })).toBeChecked();
+  expect(screen.queryByRole("form", { name: "Generate SSP review package" })).not.toBeInTheDocument();
+  expect(api.getSspExportPackages).not.toHaveBeenCalled();
+  expect(api.getSspExportPolicy).toHaveBeenCalledTimes(1);
 });

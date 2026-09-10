@@ -3079,6 +3079,27 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /api/compliance/ssp/export-policy:
+    get:
+      tags: [SSP]
+      summary: Get the current tenant SSP external-share approval policy
+      operationId: getSspExportPolicy
+      responses:
+        "200": { description: Tenant-scoped SSP export policy., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPolicy" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [SSP]
+      summary: Update the current tenant SSP external-share approval policy
+      operationId: updateSspExportPolicy
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UpdateSspExportPolicyRequest" } } }
+      responses:
+        "200": { description: Tenant-scoped SSP export policy updated and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPolicy" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /api/compliance/ssp/export-packages/{packageId}:
     parameters:
       - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -3114,13 +3135,31 @@ paths:
       - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       tags: [SSP]
-      summary: Record one external share after explicit package approval
-      operationId: shareSspExportPackage
+      summary: Deprecated compatibility alias that records one external share after explicit package approval
+      operationId: shareSspExportPackageCompatibilityAlias
+      deprecated: true
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: "#/components/schemas/SspExternalShareRequest" } } }
       responses:
         "200": { description: External share recorded and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPackage" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/compliance/ssp/export-packages/{packageId}/external-share-record:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [SSP]
+      summary: Record one external share after explicit package approval; no package delivery occurs
+      operationId: recordSspExportPackageExternalShare
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SspExternalShareRequest" } } }
+      responses:
+        "200": { description: External-share metadata recorded and audit logged; no recipient delivery is performed., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPackage" } } } }
         "400": { $ref: "#/components/responses/ValidationError" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -7880,9 +7919,27 @@ components:
         recipient: { type: string, minLength: 1, maxLength: 320 }
         purpose: { type: string, minLength: 1, maxLength: 1000 }
 
+    UpdateSspExportPolicyRequest:
+      type: object
+      additionalProperties: false
+      required: [requireIndependentApproval, expectedVersion, reason]
+      properties:
+        requireIndependentApproval: { type: boolean }
+        expectedVersion: { type: integer, format: int64, minimum: 0 }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+
+    SspExportPolicy:
+      type: object
+      required: [requireIndependentApproval, version]
+      properties:
+        requireIndependentApproval: { type: boolean, default: true }
+        version: { type: integer, format: int64, minimum: 0 }
+        updatedAt: { type: [string, "null"], format: date-time }
+        updatedByUserId: { type: [string, "null"], format: uuid }
+
     SspExportPackage:
       type: object
-      required: [id, tenantId, tenantName, generatedAt, packageVersion, systemBoundary, reviewer, format, disclaimer, humanReadableReport, machineReadableMetadata, sections, includedEvidence, poamReferences, status, history]
+      required: [id, tenantId, tenantName, generatedAt, packageVersion, systemBoundary, reviewer, format, languagePolicyVersion, disclaimer, humanReadableReport, machineReadableMetadata, sections, includedEvidence, poamReferences, status, history]
       properties:
         id: { type: string, format: uuid }
         tenantId: { type: string, format: uuid }
@@ -7892,13 +7949,14 @@ components:
         systemBoundary: { type: string }
         reviewer: { type: string }
         format: { type: string, enum: [HumanReadable, MachineReadable, Both] }
+        languagePolicyVersion: { type: string, description: Version of the normalized prohibited-claim policy applied when the immutable package was generated. }
         disclaimer: { type: string, description: "Draft-only review language that disclaims certification, assessment determination, authorization, legal advice, and government approval or endorsement." }
         humanReadableReport: { type: string }
         machineReadableMetadata: { type: object, description: Immutable JSON metadata snapshot. }
         sections: { type: array, items: { type: object } }
         includedEvidence: { type: array, items: { type: object } }
         poamReferences: { type: array, items: { type: object } }
-        status: { type: string, enum: [InternalReview, ExternalShareApproved, Shared] }
+        status: { type: string, enum: [InternalReview, ExternalShareApproved, Shared], description: "Lifecycle status. Shared means external-share metadata was recorded; it does not indicate package delivery." }
         externalShareApprovedByUserId: { type: [string, "null"], format: uuid }
         externalShareApprovedAt: { type: [string, "null"], format: date-time }
         externalShareApprovalReason: { type: [string, "null"] }

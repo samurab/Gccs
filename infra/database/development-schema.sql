@@ -4312,3 +4312,29 @@ INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260910150656_AddDurableSspExportPackages', '10.0.4');
 
 COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.ssp_export_packages ADD language_policy_version character varying(40);
+
+UPDATE gccs.ssp_export_packages SET language_policy_version = 'legacy-29.3.0' WHERE language_policy_version IS NULL;
+
+ALTER TABLE gccs.ssp_export_packages ALTER COLUMN language_policy_version SET NOT NULL;
+
+CREATE TABLE gccs.ssp_export_policies (
+    tenant_id uuid NOT NULL,
+    require_independent_approval boolean NOT NULL,
+    version bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_ssp_export_policies" PRIMARY KEY (tenant_id),
+    CONSTRAINT "FK_ssp_export_policies_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_ssp_export_policies_created_at_updated_at" ON gccs.ssp_export_policies (created_at, updated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910161637_HardenSspExportReviewPackages', '10.0.4');
+
+COMMIT;

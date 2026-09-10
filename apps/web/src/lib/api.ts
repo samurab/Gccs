@@ -1003,12 +1003,14 @@ export type SspExportSection = {
 export type SspExportHistory = { id: string; action: string; actorUserId: string; actorName: string; occurredAt: string; notes: string | null };
 export type SspExportPackage = {
   id: string; tenantId: string; tenantName: string; generatedAt: string; packageVersion: string; systemBoundary: string;
-  reviewer: string; format: SspExportFormat; disclaimer: string; humanReadableReport: string; machineReadableMetadata: Record<string, unknown>;
+  reviewer: string; format: SspExportFormat; languagePolicyVersion: string; disclaimer: string; humanReadableReport: string; machineReadableMetadata: Record<string, unknown>;
   sections: SspExportSection[]; includedEvidence: SspExportEvidenceReference[]; poamReferences: SspExportPoamReference[];
   status: SspExportPackageStatus; externalShareApprovedByUserId: string | null; externalShareApprovedAt: string | null;
   externalShareApprovalReason: string | null; sharedByUserId: string | null; sharedAt: string | null;
   sharedRecipient: string | null; sharedPurpose: string | null; history: SspExportHistory[];
 };
+export type SspExportPolicy = { requireIndependentApproval: boolean; version: number; updatedAt: string | null; updatedByUserId: string | null };
+export type UpdateSspExportPolicyRequest = { requireIndependentApproval: boolean; expectedVersion: number; reason: string };
 export type CreateSspExportPackageRequest = {
   packageVersion: string; systemBoundary: string; reviewer: string; format: SspExportFormat;
   externalShareRequested: boolean; evidenceItemIds: string[]; poamItemIds: string[];
@@ -2510,6 +2512,14 @@ export async function getSspExportPackages(): Promise<SspExportPackage[]> {
 
 export async function createSspExportPackage(request: CreateSspExportPackageRequest): Promise<ApiMutationResult<SspExportPackage>> {
   return postJsonResult<SspExportPackage>("/api/compliance/ssp/export-packages", request);
+}
+
+export async function getSspExportPolicy(): Promise<SspExportPolicy> {
+  return getRequiredJson<SspExportPolicy>("/api/compliance/ssp/export-policy");
+}
+
+export async function updateSspExportPolicy(request: UpdateSspExportPolicyRequest): Promise<ApiMutationResult<SspExportPolicy>> {
+  return putJsonResult<SspExportPolicy>("/api/compliance/ssp/export-policy", request);
 }
 
 export async function getSubcontractors(): Promise<Subcontractor[]> {

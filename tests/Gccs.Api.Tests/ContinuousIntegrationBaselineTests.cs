@@ -160,6 +160,10 @@ public sealed class ContinuousIntegrationBaselineTests
             "ReportPostgresTransactionTests");
         AssertCiStepContains(
             "Real-stack report RBAC",
+            "Verify report and audit transaction rollback",
+            "SspExportPackagePersistenceTests");
+        AssertCiStepContains(
+            "Real-stack report RBAC",
             "Run real-stack report authorization tests",
             "npm run test:e2e:real");
 

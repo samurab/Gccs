@@ -38,6 +38,7 @@ public sealed class SspExportPackageTests : IClassFixture<WebApplicationFactory<
         Assert.Equal("ssp-1", package.PackageVersion);
         Assert.Equal("Boundary A", package.SystemBoundary);
         Assert.Equal("security reviewer", package.Reviewer);
+        Assert.Equal(SspExportLanguagePolicy.Version, package.LanguagePolicyVersion);
         Assert.Equal(SspExportPackageStatus.InternalReview, package.Status);
         Assert.Contains("Tenant Alpha", package.HumanReadableReport);
         Assert.Contains("Approved boundary narrative.", package.HumanReadableReport);
@@ -112,17 +113,21 @@ public sealed class SspExportPackageTests : IClassFixture<WebApplicationFactory<
     [Fact]
     public async Task TC_29_3_6_External_share_is_blocked_until_separately_approved()
     {
-        using var client = CreateClient(); var ids = Ids(); await CreateApprovedSectionAndNarrativeAsync(client, ids);
+        var audit = new CapturingAuditWriter(); using var client = CreateClient(audit); var ids = Ids(); await CreateApprovedSectionAndNarrativeAsync(client, ids);
         var selfApproved = await client.SendAsync(Request(HttpMethod.Post, "/api/compliance/ssp/export-packages", ValidExportRequest() with { ExternalShareRequested = true }, ids));
         Assert.Equal(HttpStatusCode.BadRequest, selfApproved.StatusCode);
         var package = await ExportAsync(client, ids, "ssp-2");
         var blocked = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/export-packages/{package.Id}/share", new SspExternalShareRequest("advisor@example.invalid", "Independent review"), ids));
         Assert.Equal(HttpStatusCode.BadRequest, blocked.StatusCode);
-        var approval = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/export-packages/{package.Id}/external-share-approval", new SspExternalShareApprovalRequest("Leadership approved advisor review."), ids));
+        var approvalActor = ids with { ActorUserId = Guid.NewGuid() };
+        var selfApproval = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/export-packages/{package.Id}/external-share-approval", new SspExternalShareApprovalRequest("Self approval"), ids));
+        Assert.Equal(HttpStatusCode.BadRequest, selfApproval.StatusCode);
+        Assert.Contains(audit.Events, item => item.EntityType == "SspExportPackage" && item.Action == AuditAction.Rejected);
+        var approval = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/export-packages/{package.Id}/external-share-approval", new SspExternalShareApprovalRequest("Leadership approved advisor review."), approvalActor));
         Assert.Equal(HttpStatusCode.OK, approval.StatusCode);
-        var repeatedApproval = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/export-packages/{package.Id}/external-share-approval", new SspExternalShareApprovalRequest("Duplicate approval"), ids));
+        var repeatedApproval = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/export-packages/{package.Id}/external-share-approval", new SspExternalShareApprovalRequest("Duplicate approval"), approvalActor));
         Assert.Equal(HttpStatusCode.BadRequest, repeatedApproval.StatusCode);
-        var shared = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/export-packages/{package.Id}/share", new SspExternalShareRequest("advisor@example.invalid", "Independent review"), ids));
+        var shared = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/export-packages/{package.Id}/external-share-record", new SspExternalShareRequest("advisor@example.invalid", "Independent review"), ids));
         var sharedPackage = Assert.IsType<SspExportPackageDto>(await shared.Content.ReadFromJsonAsync<SspExportPackageDto>(JsonOptions));
         Assert.Equal(SspExportPackageStatus.Shared, sharedPackage.Status);
         Assert.Equal(new[] { "Generated", "ExternalShareApproved", "Shared" }, sharedPackage.History.Select(item => item.Action));
@@ -139,6 +144,43 @@ public sealed class SspExportPackageTests : IClassFixture<WebApplicationFactory<
         var package = await ExportAsync(client, ids);
         var deniedApproval = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/export-packages/{package.Id}/external-share-approval", new SspExternalShareApprovalRequest("Approval"), ids, Permission.ExportReports));
         Assert.Equal(HttpStatusCode.Forbidden, deniedApproval.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("This system is fully\u00a0compliant.")]
+    [InlineData("Government‑approved boundary")]
+    [InlineData("Ａｓｓｅｓｓｏｒ　ｄｅｔｅｒｍｉｎａｔｉｏｎ issued")]
+    [InlineData("Certification—achieved")]
+    [InlineData("certi.fied system")]
+    [InlineData("certífied system")]
+    public async Task Export_language_policy_rejects_normalized_positive_assurance_variants(string unsafeBoundary)
+    {
+        using var client = CreateClient(); var ids = Ids(); await CreateApprovedSectionAndNarrativeAsync(client, ids);
+        var response = await client.SendAsync(Request(HttpMethod.Post, "/api/compliance/ssp/export-packages", ValidExportRequest() with { SystemBoundary = unsafeBoundary }, ids));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Tenant_manager_can_disable_independent_approval_with_versioned_audited_policy()
+    {
+        var audit = new CapturingAuditWriter(); using var client = CreateClient(audit); var ids = Ids();
+        await CreateApprovedSectionAndNarrativeAsync(client, ids); var package = await ExportAsync(client, ids);
+        var initial = await client.SendAsync(Request(HttpMethod.Get, "/api/compliance/ssp/export-policy", ids, Permission.ManageTenant));
+        var policy = Assert.IsType<SspExportPolicyDto>(await initial.Content.ReadFromJsonAsync<SspExportPolicyDto>(JsonOptions));
+        Assert.True(policy.RequireIndependentApproval); Assert.Equal(0, policy.Version);
+
+        var denied = await client.SendAsync(Request(HttpMethod.Put, "/api/compliance/ssp/export-policy", new UpdateSspExportPolicyRequest(false, 0, "Small tenant workflow"), ids, Permission.ExportReports));
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        var updated = await client.SendAsync(Request(HttpMethod.Put, "/api/compliance/ssp/export-policy", new UpdateSspExportPolicyRequest(false, 0, "Small tenant workflow"), ids, Permission.ManageTenant));
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        var stale = await client.SendAsync(Request(HttpMethod.Put, "/api/compliance/ssp/export-policy", new UpdateSspExportPolicyRequest(true, 0, "Stale change"), ids, Permission.ManageTenant));
+        Assert.Equal(HttpStatusCode.BadRequest, stale.StatusCode);
+        var otherTenantPolicyResponse = await client.SendAsync(Request(HttpMethod.Get, "/api/compliance/ssp/export-policy", Ids(), Permission.ExportReports));
+        var otherTenantPolicy = Assert.IsType<SspExportPolicyDto>(await otherTenantPolicyResponse.Content.ReadFromJsonAsync<SspExportPolicyDto>(JsonOptions));
+        Assert.True(otherTenantPolicy.RequireIndependentApproval); Assert.Equal(0, otherTenantPolicy.Version);
+        var selfApproval = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/export-packages/{package.Id}/external-share-approval", new SspExternalShareApprovalRequest("Policy permits owner approval"), ids));
+        Assert.Equal(HttpStatusCode.OK, selfApproval.StatusCode);
+        Assert.Single(audit.Events, item => item.EntityType == "SspExportPolicy" && item.Action == AuditAction.Updated);
     }
 
     private static async Task CreateApprovedSectionAndNarrativeAsync(HttpClient client, TestIds ids)
@@ -175,10 +217,12 @@ public sealed class SspExportPackageTests : IClassFixture<WebApplicationFactory<
                 var ssp = new InMemorySspSectionRepository();
                 services.RemoveAll<ISspSectionRepository>(); services.RemoveAll<ISspNarrativeRepository>(); services.RemoveAll<ISspNarrativeSourceResolver>();
                 services.RemoveAll<ISspExportSourceRepository>(); services.RemoveAll<ISspExportPackageRepository>(); services.RemoveAll<IAuditEventWriter>();
+                services.RemoveAll<ISspExportPolicyRepository>();
                 services.RemoveAll<ICurrentDataHandlingNoticeGuard>(); services.RemoveAll<IContentContainmentRepository>();
                 services.AddSingleton<ISspSectionRepository>(ssp); services.AddSingleton<ISspNarrativeRepository>(ssp);
                 services.AddSingleton<ISspNarrativeSourceResolver, ExportNarrativeSourceResolver>(); services.AddSingleton<ISspExportSourceRepository, ExportSourceRepository>();
                 services.AddSingleton<ISspExportPackageRepository>(packageRepository); services.AddSingleton(audit);
+                services.AddSingleton<ISspExportPolicyRepository, InMemorySspExportPolicyRepository>();
                 services.AddSingleton<ICurrentDataHandlingNoticeGuard, AcknowledgedNoticeGuard>(); services.AddSingleton<IContentContainmentRepository, AllowContentContainment>();
             });
         }).CreateClient();

@@ -132,6 +132,7 @@ public sealed class EfSspExportPackageRepository(GccsDbContext dbContext) : ISsp
             SystemBoundary = package.SystemBoundary,
             Reviewer = package.Reviewer,
             Format = package.Format.ToString(),
+            LanguagePolicyVersion = package.LanguagePolicyVersion,
             Disclaimer = package.Disclaimer,
             HumanReadableReport = package.HumanReadableReport,
             MachineReadableMetadata = package.MachineReadableMetadata.GetRawText(),
@@ -165,7 +166,7 @@ public sealed class EfSspExportPackageRepository(GccsDbContext dbContext) : ISsp
         DateTimeOffset approvedAt,
         CancellationToken cancellationToken = default)
     {
-        var entity = await QueryTracked(tenantId).SingleOrDefaultAsync(item => item.Id == packageId, cancellationToken);
+        var entity = await GetTrackedForLifecycleAsync(tenantId, packageId, cancellationToken);
         if (entity is null) return null;
         if (!Enum.TryParse<SspExportPackageStatus>(entity.Status, out var status) || status != SspExportPackageStatus.InternalReview)
             throw new SspExportPackageValidationException("Only an internal-review SSP package can receive external-share approval.");
@@ -176,7 +177,7 @@ public sealed class EfSspExportPackageRepository(GccsDbContext dbContext) : ISsp
         entity.Version++;
         entity.UpdatedAt = approvedAt;
         entity.UpdatedByUserId = actorUserId;
-        entity.History.Add(new SspExportPackageHistoryEntity
+        dbContext.SspExportPackageHistory.Add(new SspExportPackageHistoryEntity
         {
             Id = Guid.NewGuid(), TenantId = tenantId, PackageId = packageId, Action = "ExternalShareApproved",
             ActorUserId = actorUserId, ActorName = actorName, OccurredAt = approvedAt, Notes = reason
@@ -185,7 +186,7 @@ public sealed class EfSspExportPackageRepository(GccsDbContext dbContext) : ISsp
         return ToDto(entity);
     }
 
-    public async Task<SspExportPackageDto?> ShareAsync(
+    public async Task<SspExportPackageDto?> RecordExternalShareAsync(
         Guid tenantId,
         Guid packageId,
         string recipient,
@@ -195,7 +196,7 @@ public sealed class EfSspExportPackageRepository(GccsDbContext dbContext) : ISsp
         DateTimeOffset sharedAt,
         CancellationToken cancellationToken = default)
     {
-        var entity = await QueryTracked(tenantId).SingleOrDefaultAsync(item => item.Id == packageId, cancellationToken);
+        var entity = await GetTrackedForLifecycleAsync(tenantId, packageId, cancellationToken);
         if (entity is null) return null;
         if (entity.ExternalShareApprovedAt is null ||
             !Enum.TryParse<SspExportPackageStatus>(entity.Status, out var status) ||
@@ -209,7 +210,7 @@ public sealed class EfSspExportPackageRepository(GccsDbContext dbContext) : ISsp
         entity.Version++;
         entity.UpdatedAt = sharedAt;
         entity.UpdatedByUserId = actorUserId;
-        entity.History.Add(new SspExportPackageHistoryEntity
+        dbContext.SspExportPackageHistory.Add(new SspExportPackageHistoryEntity
         {
             Id = Guid.NewGuid(), TenantId = tenantId, PackageId = packageId, Action = "Shared",
             ActorUserId = actorUserId, ActorName = actorName, OccurredAt = sharedAt, Notes = purpose
@@ -233,8 +234,18 @@ public sealed class EfSspExportPackageRepository(GccsDbContext dbContext) : ISsp
     private IQueryable<SspExportPackageEntity> Query(Guid tenantId) =>
         dbContext.SspExportPackages.AsNoTracking().Where(item => item.TenantId == tenantId).Include(item => item.History);
 
-    private IQueryable<SspExportPackageEntity> QueryTracked(Guid tenantId) =>
-        dbContext.SspExportPackages.Where(item => item.TenantId == tenantId).Include(item => item.History);
+    private Task<SspExportPackageEntity?> GetTrackedForLifecycleAsync(Guid tenantId, Guid packageId, CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.IsRelational() && dbContext.Database.CurrentTransaction is not null)
+            return dbContext.SspExportPackages
+                .FromSqlInterpolated($"SELECT * FROM gccs.ssp_export_packages WHERE tenant_id = {tenantId} AND id = {packageId} FOR UPDATE")
+                .Include(item => item.History)
+                .SingleOrDefaultAsync(cancellationToken);
+        return dbContext.SspExportPackages
+            .Where(item => item.TenantId == tenantId && item.Id == packageId)
+            .Include(item => item.History)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
 
     private static SspExportPackageHistoryEntity ToEntity(Guid tenantId, Guid packageId, SspExportHistoryDto history) => new()
     {
@@ -257,6 +268,7 @@ public sealed class EfSspExportPackageRepository(GccsDbContext dbContext) : ISsp
         entity.SystemBoundary,
         entity.Reviewer,
         Enum.Parse<SspExportFormat>(entity.Format),
+        entity.LanguagePolicyVersion,
         entity.Disclaimer,
         entity.HumanReadableReport,
         JsonSerializer.Deserialize<JsonElement>(entity.MachineReadableMetadata, JsonOptions),
@@ -275,4 +287,77 @@ public sealed class EfSspExportPackageRepository(GccsDbContext dbContext) : ISsp
             new SspExportHistoryDto(item.Id, item.Action, item.ActorUserId, item.ActorName, item.OccurredAt, item.Notes)).ToArray());
 
     private static T[] Deserialize<T>(string json) => JsonSerializer.Deserialize<T[]>(json, JsonOptions) ?? [];
+}
+
+public sealed class EfSspExportPolicyRepository(GccsDbContext dbContext) : ISspExportPolicyRepository
+{
+    public async Task<SspExportPolicyDto> GetAsync(Guid tenantId, bool lockForDecision, CancellationToken cancellationToken = default)
+    {
+        SspExportPolicyEntity? entity;
+        if (lockForDecision && dbContext.Database.IsRelational() && dbContext.Database.CurrentTransaction is not null)
+        {
+            entity = await dbContext.SspExportPolicies
+                .FromSqlInterpolated($"SELECT * FROM gccs.ssp_export_policies WHERE tenant_id = {tenantId} FOR SHARE")
+                .AsNoTracking()
+                .SingleOrDefaultAsync(cancellationToken);
+        }
+        else
+        {
+            entity = await dbContext.SspExportPolicies.AsNoTracking()
+                .SingleOrDefaultAsync(item => item.TenantId == tenantId, cancellationToken);
+        }
+        return entity is null ? DefaultPolicy() : ToDto(entity);
+    }
+
+    public async Task<SspExportPolicyDto> UpdateAsync(
+        Guid tenantId,
+        bool requireIndependentApproval,
+        long expectedVersion,
+        Guid actorUserId,
+        DateTimeOffset updatedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.SspExportPolicies.SingleOrDefaultAsync(item => item.TenantId == tenantId, cancellationToken);
+        if (entity is null)
+        {
+            if (expectedVersion != 0) throw Conflict();
+            entity = new SspExportPolicyEntity
+            {
+                TenantId = tenantId,
+                RequireIndependentApproval = requireIndependentApproval,
+                Version = 1,
+                CreatedAt = updatedAt,
+                CreatedByUserId = actorUserId
+            };
+            dbContext.SspExportPolicies.Add(entity);
+        }
+        else
+        {
+            if (entity.Version != expectedVersion) throw Conflict();
+            entity.RequireIndependentApproval = requireIndependentApproval;
+            entity.Version++;
+            entity.UpdatedAt = updatedAt;
+            entity.UpdatedByUserId = actorUserId;
+        }
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw Conflict();
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw Conflict();
+        }
+        return ToDto(entity);
+    }
+
+    private static SspExportPolicyDto DefaultPolicy() => new(true, 0, null, null);
+    private static SspExportPolicyDto ToDto(SspExportPolicyEntity entity) =>
+        new(entity.RequireIndependentApproval, entity.Version, entity.UpdatedAt ?? entity.CreatedAt, entity.UpdatedByUserId ?? entity.CreatedByUserId);
+    private static SspExportPackageValidationException Conflict() =>
+        new("The SSP export policy changed. Reload the policy and retry.");
 }
