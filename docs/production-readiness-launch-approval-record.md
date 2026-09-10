@@ -6,7 +6,7 @@ Record status: approved for solo-controlled pilot launch-candidate tagging and p
 
 Record date: 2026-07-03.
 
-Latest candidate-specific reapproval date: 2026-09-04.
+Latest candidate-specific reapproval date: 2026-09-10.
 
 Record owner: Product owner.
 
@@ -321,6 +321,26 @@ This approval is not independent legal, security, compliance, accessibility, ass
 | Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, assessment determination, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, tenant isolation, RBAC, audit atomicity, SSP source eligibility, or immutable snapshot behavior weakens, the No-CUI posture changes, or customer-facing language expands beyond the reviewed candidate scope.
+
+## SPRS Scoring Baseline Candidate Reapproval - 2026-09-10
+
+The repository owner and deployment operator, `samurab`, explicitly requested committing and pushing the worktree, deploying it to staging, merging it, creating a launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-09-10-2` within the existing solo-controlled No-CUI pilot production scope after the exact merge commit passed CI and staging deployment.
+
+This approval is not independent legal, security, compliance, accessibility, CMMC assessor, or separation-of-duties review. It does not publish the draft SPRS rule baseline, authorize use of draft rules for an official score, authorize broader customer launch or CUI processing, or establish certification, assessment determination, system authorization, government approval, or government endorsement.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-09-10 |
+| Candidate | `launch-candidate-2026-09-10-2` at `57e0db9cffe7eda68467f62babbcd225b93ffd8e` |
+| Scope | PR #103 adds a source-backed 110-requirement SPRS scoring-rule baseline, validates governed inventory and deduction policies, preserves draft-only status pending qualified review, adds deterministic calculation and lifecycle coverage, and refines responsive CMMC and SSP form layouts. Internal `Gccs.*` compatibility identifiers and the No-CUI product posture remain unchanged. |
+| Exact-candidate automated evidence | PR CI run `34522438984`; exact-branch staging run `34522453059`; main CI run `34523464568`; main staging run `34523464710`; Static Web Apps run `34523464523`. Exact-main CI passed 1,839 backend tests with 3 provider-dependent skips and 0 failures, 7 PostgreSQL real-stack authorization/rollback tests, frontend validation, dependency scans, secret scan, EF migration validation, Terraform validation, and extraction evaluation. |
+| Exact-candidate staging evidence | Runs `34522453059` and `34523464710` built and deployed the exact candidate, generated and applied the idempotent migration script, enforced synthetic-only staging and No-CUI guardrails, and passed API and web smoke checks. Main staging artifact `10170731561` contains the smoke evidence. Independent verification returned API status `ok`, healthy PostgreSQL, Redis, object storage, and background jobs, plus HTTP 200 from the staging web application. |
+| Compliance and calculation boundary | The governed package must contain complete source, version, integrity, ownership, reviewer, effective-date, and requirement metadata before publication. The checked-in baseline remains `Draft`, has no reviewer or review date, and cannot be used by the calculation service until a qualified, distinct reviewer completes the controlled lifecycle. Calculations retain the rule-set identifier, version, source hash, line-item deductions, and audit event. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No authenticated staging or production tenant workflow smoke identity was supplied. The source-controlled SPRS baseline is draft-only and requires qualified review before publication. UI layout changes passed component tests, lint, build, and hosted smoke checks but do not have automated screenshot-diff coverage at every viewport. Terraform was validated but not applied or checked against live drift. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, official SPRS submission, certification, assessment determination, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, incomplete or unreviewed SPRS rules become usable for calculation, scoring traceability or lifecycle controls weaken, the No-CUI posture changes, or customer-facing language expands beyond the reviewed candidate scope.
 
 ## Evidence Package Reviewed
 
