@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend:
-    name: Backend validation
+  backend-prerequisites:
+    name: Backend prerequisites
     runs-on: ubuntu-latest
     timeout-minutes: 80
     steps:
@@ -69,20 +69,6 @@ jobs:
             terraform -chdir="infra/terraform/environments/$environment" validate
           done
 
-      - name: Run backend unit and integration tests
-        timeout-minutes: 70
-        run: >
-          dotnet test Gccs.slnx
-          --no-build
-          --configuration Release
-          --settings tests/Gccs.Api.Tests/regression.runsettings
-          --filter "Category!=LocalDocker&Category!=PostgresIntegration"
-          --logger "trx;LogFileName=gccs-backend-tests.trx"
-          --results-directory TestResults/backend
-          --blame-hang
-          --blame-hang-timeout 10m
-          --blame-hang-dump-type mini
-
       - name: Run extraction precision and recall evaluation
         run: >
           python3 tools/extraction-evaluation/evaluate_corpus.py
@@ -91,14 +77,80 @@ jobs:
           --min-precision 0.95
           --min-recall 0.95
 
+      - name: Upload backend prerequisite results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-prerequisite-results
+          path: TestResults/extraction-evaluation
+
+  backend-tests:
+    name: Backend regression (shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore backend dependencies
+        run: dotnet restore Gccs.slnx
+
+      - name: Build backend solution
+        run: dotnet build Gccs.slnx --no-restore --configuration Release
+
+      - name: Create deterministic backend test shard
+        run: |
+          tools/ci/create-backend-test-shard-filter.sh \
+            "${{ matrix.shard }}" \
+            "4" \
+            "$RUNNER_TEMP/backend-test-filter.txt"
+
+      - name: Run backend unit and integration tests
+        timeout-minutes: 35
+        run: >
+          dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
+          --no-build
+          --configuration Release
+          --settings tests/Gccs.Api.Tests/regression.runsettings
+          --filter "$(cat "$RUNNER_TEMP/backend-test-filter.txt")"
+          --logger "trx;LogFileName=gccs-backend-tests-${{ matrix.shard }}.trx"
+          --results-directory "TestResults/backend/${{ matrix.shard }}"
+          --blame-hang
+          --blame-hang-timeout 10m
+          --blame-hang-dump-type mini
+
       - name: Upload backend test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: backend-test-results
-          path: |
-            TestResults/backend
-            TestResults/extraction-evaluation
+          name: backend-test-results-${{ matrix.shard }}
+          path: TestResults/backend/${{ matrix.shard }}
+
+  backend:
+    name: Backend validation
+    if: always()
+    needs: [backend-prerequisites, backend-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify backend validation gates
+        env:
+          PREREQUISITE_RESULT: ${{ needs.backend-prerequisites.result }}
+          REGRESSION_RESULT: ${{ needs.backend-tests.result }}
+        run: |
+          if [[ "$PREREQUISITE_RESULT" != "success" || "$REGRESSION_RESULT" != "success" ]]; then
+            echo "Backend prerequisites: $PREREQUISITE_RESULT"
+            echo "Backend regression shards: $REGRESSION_RESULT"
+            exit 1
+          fi
 
   frontend:
     name: Frontend validation

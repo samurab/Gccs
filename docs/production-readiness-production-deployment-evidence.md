@@ -2,15 +2,15 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
+Deployment status: current approved candidate is awaiting protected production CI/CD execution.
 
-Current candidate execution status: `launch-candidate-2026-09-08-1` deployed successfully in production workflow run `34293871057`.
+Current candidate execution status: `launch-candidate-2026-09-10-1` is approved but not yet deployed.
 
-Latest evidence date: 2026-09-08. Historical evidence dates are retained below.
+Latest evidence date: 2026-09-10. Historical evidence dates are retained below.
 
 Evidence owner: Engineering lead.
 
-Approved launch candidate tag: `launch-candidate-2026-09-08-1`.
+Approved launch candidate tag: `launch-candidate-2026-09-10-1`.
 
 Approved launch candidate manifest: `docs/release/approved-launch-candidate.json`.
 
@@ -36,10 +36,10 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-09-08-1` at `fa7d5edca3a45804c79cf7bad1e858c3eb1ab173`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Passed | PR #96 CI run `34285009886`, pre-merge staging run `34288088514`, main CI run `34288562954`, main staging run `34288562920`, Static Web Apps run `34288562937`, approval PR #97 CI run `34291478953`, approval-main staging run `34293821249`, and protected production run `34293871057` passed. Current candidate `launch-candidate-2026-09-08-1` completed protected production workflow execution in run `34293871057`. |
+| Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-09-10-1` at `0ed3b8461108c2e09728dd8fc0f1a0833334f153`; see `docs/production-readiness-launch-candidate-tag.md`. |
+| Approved production CI/CD path | Ready; exact-candidate execution pending | PR #96 CI run `34285009886`, pre-merge staging run `34288088514`, main CI run `34288562954`, main staging run `34288562920`, Static Web Apps run `34288562937`, approval PR #97 CI run `34291478953`, approval-main staging run `34293821249`, and protected production run `34293871057` passed. Current candidate `launch-candidate-2026-09-10-1` still requires protected production workflow execution after this launch-candidate gate merges. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Passed | Current candidate `launch-candidate-2026-09-08-1` resolved the required production environment secrets in run `34293871057` without exposing their values. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
+| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-09-10-1` still requires protected production workflow execution. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
 | Production No-CUI posture validation | Passed | Run `34293871057` validated the production No-CUI deployment guardrails. |
 | Production migrations | Passed | Run `34293871057` generated and applied the idempotent production migration script through approved CI/CD. |
 | Production storage, cache, queue, and background jobs | Passed | Run `34293871057` production health returned `ok` for PostgreSQL, Redis, object storage, and background jobs after API and web deployment. |

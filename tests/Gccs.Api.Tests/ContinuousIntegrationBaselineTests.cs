@@ -14,22 +14,22 @@ public sealed class ContinuousIntegrationBaselineTests
     public static TheoryData<string, string, string[]> RequiredCiSteps => new()
     {
         {
-            "Backend validation",
+            "Backend prerequisites",
             "Restore backend dependencies",
             ["dotnet restore Gccs.slnx"]
         },
         {
-            "Backend validation",
+            "Backend prerequisites",
             "Scan backend dependencies for known vulnerabilities",
             ["dotnet list Gccs.slnx package --vulnerable --include-transitive"]
         },
         {
-            "Backend validation",
+            "Backend prerequisites",
             "Build backend solution",
             ["dotnet build Gccs.slnx --no-restore --configuration Release"]
         },
         {
-            "Backend validation",
+            "Backend prerequisites",
             "Validate EF Core migrations",
             [
                 "dotnet tool restore",
@@ -41,18 +41,26 @@ public sealed class ContinuousIntegrationBaselineTests
             ]
         },
         {
-            "Backend validation",
+            "Backend regression (shard ${{ matrix.shard }})",
+            "Create deterministic backend test shard",
+            [
+                "tools/ci/create-backend-test-shard-filter.sh",
+                "backend-test-filter.txt"
+            ]
+        },
+        {
+            "Backend regression (shard ${{ matrix.shard }})",
             "Run backend unit and integration tests",
             [
-                "dotnet test Gccs.slnx",
+                "dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj",
                 "--configuration Release",
-                "--filter \"Category!=LocalDocker&Category!=PostgresIntegration\"",
-                "gccs-backend-tests.trx",
+                "backend-test-filter.txt",
+                "gccs-backend-tests-${{ matrix.shard }}.trx",
                 "TestResults/backend"
             ]
         },
         {
-            "Backend validation",
+            "Backend prerequisites",
             "Run extraction precision and recall evaluation",
             [
                 "python3 tools/extraction-evaluation/evaluate_corpus.py",
@@ -113,14 +121,15 @@ public sealed class ContinuousIntegrationBaselineTests
 
     public static TheoryData<string, string> ControlledFailureScenarios => new()
     {
-        { "Backend validation", "Build backend solution" },
-        { "Backend validation", "Validate EF Core migrations" },
-        { "Backend validation", "Run backend unit and integration tests" },
-        { "Backend validation", "Run extraction precision and recall evaluation" },
+        { "Backend prerequisites", "Build backend solution" },
+        { "Backend prerequisites", "Validate EF Core migrations" },
+        { "Backend regression (shard ${{ matrix.shard }})", "Create deterministic backend test shard" },
+        { "Backend regression (shard ${{ matrix.shard }})", "Run backend unit and integration tests" },
+        { "Backend prerequisites", "Run extraction precision and recall evaluation" },
         { "Frontend validation", "Lint frontend workspace" },
         { "Frontend validation", "Run frontend unit tests" },
         { "Frontend validation", "Build frontend workspace" },
-        { "Backend validation", "Scan backend dependencies for known vulnerabilities" },
+        { "Backend prerequisites", "Scan backend dependencies for known vulnerabilities" },
         { "Frontend validation", "Scan frontend dependencies for known vulnerabilities" },
         { "Secret scan", "Scan repository for committed secrets" }
     };
@@ -138,17 +147,18 @@ public sealed class ContinuousIntegrationBaselineTests
             Assert.Contains($"name: {requiredCheck}", workflow);
         }
 
-        AssertCiStepContains("Backend validation", "Restore backend dependencies", "dotnet restore Gccs.slnx");
-        AssertCiStepContains("Backend validation", "Build backend solution", "dotnet build Gccs.slnx --no-restore --configuration Release");
-        AssertCiStepContains("Backend validation", "Validate EF Core migrations", "migrations has-pending-model-changes");
-        AssertCiStepContains("Backend validation", "Validate EF Core migrations", "migrations script --idempotent");
-        AssertCiStepContains("Backend validation", "Run backend unit and integration tests", "dotnet test Gccs.slnx");
+        AssertCiStepContains("Backend prerequisites", "Restore backend dependencies", "dotnet restore Gccs.slnx");
+        AssertCiStepContains("Backend prerequisites", "Build backend solution", "dotnet build Gccs.slnx --no-restore --configuration Release");
+        AssertCiStepContains("Backend prerequisites", "Validate EF Core migrations", "migrations has-pending-model-changes");
+        AssertCiStepContains("Backend prerequisites", "Validate EF Core migrations", "migrations script --idempotent");
+        AssertCiStepContains("Backend regression (shard ${{ matrix.shard }})", "Create deterministic backend test shard", "tools/ci/create-backend-test-shard-filter.sh");
+        AssertCiStepContains("Backend regression (shard ${{ matrix.shard }})", "Run backend unit and integration tests", "dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj");
         AssertCiStepContains(
-            "Backend validation",
+            "Backend regression (shard ${{ matrix.shard }})",
             "Run backend unit and integration tests",
-            "--filter \"Category!=LocalDocker&Category!=PostgresIntegration\"");
-        AssertCiStepContains("Backend validation", "Run extraction precision and recall evaluation", "tools/extraction-evaluation/evaluate_corpus.py");
-        AssertCiStepContains("Backend validation", "Run extraction precision and recall evaluation", "TestResults/extraction-evaluation");
+            "backend-test-filter.txt");
+        AssertCiStepContains("Backend prerequisites", "Run extraction precision and recall evaluation", "tools/extraction-evaluation/evaluate_corpus.py");
+        AssertCiStepContains("Backend prerequisites", "Run extraction precision and recall evaluation", "TestResults/extraction-evaluation");
 
         AssertCiStepContains("Frontend validation", "Restore frontend dependencies", "npm ci");
         AssertCiStepContains("Frontend validation", "Lint frontend workspace", "npm run lint:web");
@@ -163,9 +173,24 @@ public sealed class ContinuousIntegrationBaselineTests
             "Run real-stack report authorization tests",
             "npm run test:e2e:real");
 
-        AssertCiStepContains("Backend validation", "Scan backend dependencies for known vulnerabilities", "dotnet list Gccs.slnx package --vulnerable --include-transitive");
+        AssertCiStepContains("Backend prerequisites", "Scan backend dependencies for known vulnerabilities", "dotnet list Gccs.slnx package --vulnerable --include-transitive");
         AssertCiStepContains("Frontend validation", "Scan frontend dependencies for known vulnerabilities", "npm audit --audit-level=high");
         AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "gitleaks/gitleaks-action@v3");
+    }
+
+    [Fact]
+    public void Tc_1_3_1_backend_regression_is_sharded_and_aggregated_into_the_required_check()
+    {
+        var workflow = ReadWorkflow();
+        var aggregateJob = GetJobBlock(workflow, "Backend validation");
+        var shardJob = GetJobBlock(workflow, "Backend regression (shard ${{ matrix.shard }})");
+
+        Assert.Contains("shard: [0, 1, 2, 3]", shardJob);
+        Assert.Contains("fail-fast: false", shardJob);
+        Assert.Contains("needs: [backend-prerequisites, backend-tests]", aggregateJob);
+        Assert.Contains("needs.backend-prerequisites.result", aggregateJob);
+        Assert.Contains("needs.backend-tests.result", aggregateJob);
+        Assert.DoesNotContain("continue-on-error: true", aggregateJob);
     }
 
     [Theory]
@@ -196,7 +221,7 @@ public sealed class ContinuousIntegrationBaselineTests
 
         var simulatedPullRequestChecks = RequiredBranchProtectionChecks.ToDictionary(
             checkName => checkName,
-            checkName => checkName == failedCheck ? CheckConclusion.Failure : CheckConclusion.Success);
+            checkName => checkName == RequiredCheckForJob(failedCheck) ? CheckConclusion.Failure : CheckConclusion.Success);
 
         Assert.False(
             BranchProtectionAllowsMerge(simulatedPullRequestChecks),
@@ -222,14 +247,15 @@ public sealed class ContinuousIntegrationBaselineTests
     public void Tc_1_3_3_test_failures_upload_focused_backend_and_frontend_artifacts()
     {
         var workflow = ReadWorkflow();
-        var backendUpload = GetStepBlock(workflow, "Backend validation", "Upload backend test results");
+        var backendUpload = GetStepBlock(workflow, "Backend regression (shard ${{ matrix.shard }})", "Upload backend test results");
+        var prerequisiteUpload = GetStepBlock(workflow, "Backend prerequisites", "Upload backend prerequisite results");
         var frontendUpload = GetStepBlock(workflow, "Frontend validation", "Upload frontend test results");
 
         Assert.Contains("if: always()", backendUpload);
-        Assert.Contains("backend-test-results", backendUpload);
+        Assert.Contains("backend-test-results-${{ matrix.shard }}", backendUpload);
         Assert.Contains("TestResults/backend", backendUpload);
-        Assert.Contains("TestResults/extraction-evaluation", backendUpload);
-        Assert.Contains("gccs-backend-tests.trx", GetStepBlock(workflow, "Backend validation", "Run backend unit and integration tests"));
+        Assert.Contains("TestResults/extraction-evaluation", prerequisiteUpload);
+        Assert.Contains("gccs-backend-tests-${{ matrix.shard }}.trx", GetStepBlock(workflow, "Backend regression (shard ${{ matrix.shard }})", "Run backend unit and integration tests"));
 
         Assert.Contains("if: always()", frontendUpload);
         Assert.Contains("frontend-test-results", frontendUpload);
@@ -238,7 +264,7 @@ public sealed class ContinuousIntegrationBaselineTests
     }
 
     [Theory]
-    [InlineData("Backend validation", "Scan backend dependencies for known vulnerabilities")]
+    [InlineData("Backend prerequisites", "Scan backend dependencies for known vulnerabilities")]
     [InlineData("Frontend validation", "Scan frontend dependencies for known vulnerabilities")]
     [InlineData("Secret scan", "Scan repository for committed secrets")]
     public void Tc_1_3_4_dependency_and_secret_scan_findings_are_visible_in_required_pull_request_checks(string failedCheck, string failedStep)
@@ -251,7 +277,7 @@ public sealed class ContinuousIntegrationBaselineTests
 
         var simulatedPullRequestChecks = RequiredBranchProtectionChecks.ToDictionary(
             checkName => checkName,
-            checkName => checkName == failedCheck ? CheckConclusion.Failure : CheckConclusion.Success);
+            checkName => checkName == RequiredCheckForJob(failedCheck) ? CheckConclusion.Failure : CheckConclusion.Success);
 
         Assert.False(BranchProtectionAllowsMerge(simulatedPullRequestChecks));
     }
@@ -264,7 +290,7 @@ public sealed class ContinuousIntegrationBaselineTests
         Assert.Contains("permissions:", workflow);
         Assert.Contains("contents: read", workflow);
         Assert.Contains("security-events: write", workflow);
-        AssertCiStepContains("Backend validation", "Scan backend dependencies for known vulnerabilities", "dotnet list Gccs.slnx package --vulnerable --include-transitive");
+        AssertCiStepContains("Backend prerequisites", "Scan backend dependencies for known vulnerabilities", "dotnet list Gccs.slnx package --vulnerable --include-transitive");
         AssertCiStepContains("Frontend validation", "Scan frontend dependencies for known vulnerabilities", "npm audit --audit-level=high");
         AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "gitleaks/gitleaks-action@v3");
         AssertCiStepContains("Secret scan", "Scan repository for committed secrets", "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
@@ -277,9 +303,16 @@ public sealed class ContinuousIntegrationBaselineTests
             conclusion == CheckConclusion.Success);
     }
 
+    private static string RequiredCheckForJob(string jobName) =>
+        jobName.StartsWith("Backend ", StringComparison.Ordinal)
+            ? "Backend validation"
+            : jobName;
+
     private static bool StepIdentifiesProjectOrWorkspace(string stepBlock, string jobName)
     {
         if (stepBlock.Contains("Gccs.slnx", StringComparison.Ordinal) ||
+            stepBlock.Contains("tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj", StringComparison.Ordinal) ||
+            stepBlock.Contains("tools/ci/create-backend-test-shard-filter.sh", StringComparison.Ordinal) ||
             stepBlock.Contains("src/Gccs.Infrastructure/Gccs.Infrastructure.csproj", StringComparison.Ordinal) ||
             stepBlock.Contains("apps/api/Gccs.Api.csproj", StringComparison.Ordinal) ||
             stepBlock.Contains("tools/extraction-evaluation/evaluate_corpus.py", StringComparison.Ordinal) ||

@@ -302,6 +302,26 @@ This approval is not a FedRAMP authorization, FedRAMP Ready determination, 3PAO 
 
 The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, tenant isolation or audit atomicity weakens, client input can influence official status, the No-CUI posture changes, or customer-facing language represents preparation artifacts as FedRAMP authorization.
 
+## Compliance Workflow Hardening and SSP Export Candidate Reapproval - 2026-09-10
+
+The repository owner and deployment operator, `samurab`, explicitly requested committing and pushing the worktree, deploying it to staging, merging it, creating a launch candidate, and deploying it to production. This records combined-role approval for `launch-candidate-2026-09-10-1` within the existing solo-controlled No-CUI pilot production scope after the exact merge commit passed CI and staging deployment.
+
+This approval is not independent legal, security, compliance, accessibility, assessor, or separation-of-duties review. It does not authorize broader customer launch, real CUI processing, classified information, export-controlled data, sensitive government-furnished information, certification, assessment determination, system authorization, or government approval or endorsement.
+
+| Approval metadata | Recorded value |
+| --- | --- |
+| Approver | Repository owner and deployment operator `samurab`, acting as the accountable combined-role solo-controlled pilot approver |
+| Approval date | 2026-09-10 |
+| Candidate | `launch-candidate-2026-09-10-1` at `0ed3b8461108c2e09728dd8fc0f1a0833334f153` |
+| Scope | PR #100 hardens tenant-scoped compliance-task assignment and linked-record validation; keeps SSP approval source freshness validation inside the application transaction; repairs fresh-database predeployment behavior; adds missing No-CUI notice mappings; adds server-authoritative, tenant-scoped, durable SSP review-package snapshots and external-share lifecycle recording; and bounds the complete backend CI suite while retaining its per-test hang detector. The SSP share endpoint records an externally performed share but does not transmit an artifact. |
+| Exact-candidate automated evidence | PR CI run `34497513080`; exact-branch staging run `34502897334`; main CI run `34503577921`; main staging run `34503577905`; Static Web Apps run `34503577973`. Exact-main CI passed 1,821 backend tests with 3 provider-dependent skips and 0 failures, 209 frontend tests, dependency scans, secret scan, EF migration validation, Terraform validation, extraction precision and recall at 1.0, and the real-stack report RBAC/rollback gate. Local fresh PostgreSQL verification passed all 39 selected integration tests. |
+| Exact-candidate staging evidence | Runs `34502897334` and `34503577905` generated and applied the idempotent migration script, deployed API and web artifacts, and passed the No-CUI and dependency smoke checks. Independent live verification returned API status `ok`, the No-CUI posture, healthy PostgreSQL, Redis, object storage, and background jobs, plus HTTP 200 from the staging web application. |
+| Security and migration scope | The change touches tenant isolation, task RBAC, audit atomicity, No-CUI controls, SSP source eligibility, immutable compliance-report snapshots, external-share approval state, and an additive EF Core migration. Approval relies on server-side permission tests, cross-tenant and rejected-mutation tests, transaction rollback coverage, authoritative source resolution, fresh-database migration validation, and exact-candidate staging application. |
+| Unresolved limitations | Review is solo-controlled rather than independent. No authenticated staging or production tenant workflow smoke identity was supplied. The SSP share endpoint records an external share but does not deliver the artifact. Terraform was validated but not applied or checked against live drift. Local full-history scanning still identifies pre-existing historical findings even though the candidate patch and GitHub secret scan are clean. |
+| Approval limitation | Solo-controlled No-CUI pilot production deployment only; no broader customer launch, certification, assessment determination, government approval, secure CUI storage, legal advice, or independent professional approval is claimed. |
+
+The approval is invalid if the candidate SHA changes, any cited exact-candidate workflow is unsuccessful, staging health regresses, tenant isolation, RBAC, audit atomicity, SSP source eligibility, or immutable snapshot behavior weakens, the No-CUI posture changes, or customer-facing language expands beyond the reviewed candidate scope.
+
 ## Evidence Package Reviewed
 
 Required approval reviewers must inspect these artifacts before approval can be recorded:
