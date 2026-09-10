@@ -289,7 +289,7 @@ jobs:
           --startup-project apps/api/Gccs.Api.csproj
           --context GccsDbContext
 
-      - name: Verify report and audit transaction rollback
+      - name: Verify report, SPRS calculation, and audit transaction rollback
         run: >
           dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
           --no-restore

@@ -2,12 +2,15 @@ using System.Net;
 using System.Net.Http.Json;
 using Gccs.Application.Reports;
 using Gccs.Application.Audit;
+using Gccs.Application.Cmmc;
 using Gccs.Application.Storage;
 using Gccs.Api.Security;
+using Gccs.Domain.Cmmc;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Reports;
 using Gccs.Domain.Tenancy;
+using Gccs.Infrastructure.Audit;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -25,6 +28,156 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
     public ReportPostgresTransactionTests(WebApplicationFactory<Program> factory)
     {
         _factory = factory;
+    }
+
+    [PostgresFact]
+    [Trait("Category", "PostgresIntegration")]
+    public async Task Sprs_report_audit_failure_rolls_back_calculation_report_and_prior_audit_event()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")
+            ?? throw new InvalidOperationException("GCCS_TEST_POSTGRES_CONNECTION is required.");
+
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var assessmentId = Guid.NewGuid();
+        var controlId = $"AC.L2-{Guid.NewGuid():N}-3.1.1";
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("LocalDependencies:Enabled", "false");
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<GccsDbContext>();
+                services.RemoveAll<DbContextOptions<GccsDbContext>>();
+                services.RemoveAll<IAuditEventWriter>();
+                services.RemoveAll<ISprsScoringRuleRepository>();
+                services.AddDbContext<GccsDbContext>(options => options.UseGccsPostgres(connectionString));
+                services.AddSingleton<ISprsScoringRuleRepository, ReviewedSprsRuleRepository>();
+                services.AddScoped<IAuditEventWriter, FailOnSecondAuditEventWriter>();
+
+                using var provider = services.BuildServiceProvider();
+                using var scope = provider.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+                PostgresTestDatabase.Migrate(dbContext);
+                dbContext.Tenants.Add(new TenantEntity
+                {
+                    Id = tenantId,
+                    Name = "Atomic SPRS report tenant",
+                    Status = TenantStatus.Active,
+                    DataPosture = TenantDataPosture.NoCui,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+                dbContext.Controls.Add(new ControlEntity
+                {
+                    Id = controlId,
+                    Framework = ControlFramework.Cmmc,
+                    CmmcLevel = CmmcLevel.Level2,
+                    Family = "AC",
+                    Title = "Authorized access",
+                    Requirement = "Limit access.",
+                    AssessmentObjective = "Assess access.",
+                    SourceName = "NIST SP 800-171 Rev. 2",
+                    SourceUrl = "https://csrc.nist.gov/pubs/sp/800/171/r2/upd1/final",
+                    SourceLastReviewedAt = new DateOnly(2026, 9, 1),
+                    SourceConfidence = "high"
+                });
+                dbContext.Assessments.Add(new AssessmentEntity
+                {
+                    Id = assessmentId,
+                    TenantId = tenantId,
+                    Name = "Atomic Level 2 assessment",
+                    Type = AssessmentType.Readiness,
+                    Level = CmmcLevel.Level2,
+                    Framework = "NIST-SP-800-171-Rev2",
+                    Status = AssessmentStatus.InProgress,
+                    StartedAt = new DateOnly(2026, 9, 1),
+                    OwnerFunction = "Security",
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+                dbContext.ControlAssessments.Add(new ControlAssessmentEntity
+                {
+                    AssessmentId = assessmentId,
+                    ControlId = controlId,
+                    ImplementationStatus = ControlImplementationStatus.NotStarted,
+                    Result = AssessmentResult.NotMet,
+                    EvidenceItemIdsJson = "[]",
+                    PoamItemIdsJson = "[]"
+                });
+                NoticeTestData.Seed(dbContext, actorUserId);
+                dbContext.SaveChanges();
+            });
+        });
+
+        try
+        {
+            using var client = factory.CreateClient();
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/reports/sprs-readiness?assessmentId={assessmentId}")
+            {
+                Content = JsonContent.Create(new SprsReadinessReportRequest(
+                    "reviewed-rules",
+                    null,
+                    "Pending",
+                    null,
+                    new Gccs.Application.Common.ContentClassificationRequest(
+                        Gccs.Domain.Common.ContentClassification.Unclassified)))
+            };
+            request.Headers.Add("X-Gccs-Dev-Auth", "true");
+            request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
+            request.Headers.Add("X-Gccs-Dev-User", actorUserId.ToString());
+            request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageReports.ToString());
+
+            using var response = await client.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+            Assert.Contains("audit_write_failed", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+            await using var verificationScope = factory.Services.CreateAsyncScope();
+            var verificationDbContext = verificationScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            Assert.False(await verificationDbContext.SprsScoreCalculations.AnyAsync(row => row.TenantId == tenantId));
+            Assert.False(await verificationDbContext.SprsScoreCalculationNotes.AnyAsync(row => row.TenantId == tenantId));
+            Assert.False(await verificationDbContext.Reports.AnyAsync(row => row.TenantId == tenantId));
+            Assert.False(await verificationDbContext.ReportExports.AnyAsync(row => row.TenantId == tenantId));
+            Assert.False(await verificationDbContext.ContentClassificationHistory.AnyAsync(row => row.TenantId == tenantId));
+            Assert.False(await verificationDbContext.AuditLogEntries.AnyAsync(row => row.TenantId == tenantId));
+        }
+        finally
+        {
+            await using var cleanupScope = factory.Services.CreateAsyncScope();
+            var cleanupDbContext = cleanupScope.ServiceProvider.GetRequiredService<GccsDbContext>();
+            await cleanupDbContext.ReportExports
+                .Where(row => row.TenantId == tenantId)
+                .ExecuteDeleteAsync();
+            await cleanupDbContext.ContentClassificationHistory
+                .Where(row => row.TenantId == tenantId)
+                .ExecuteDeleteAsync();
+            await cleanupDbContext.Reports
+                .Where(row => row.TenantId == tenantId)
+                .ExecuteDeleteAsync();
+            await cleanupDbContext.SprsScoreCalculationNotes
+                .Where(row => row.TenantId == tenantId)
+                .ExecuteDeleteAsync();
+            await cleanupDbContext.SprsScoreCalculations
+                .Where(row => row.TenantId == tenantId)
+                .ExecuteDeleteAsync();
+            await cleanupDbContext.AuditLogEntries
+                .Where(row => row.TenantId == tenantId)
+                .ExecuteDeleteAsync();
+            await cleanupDbContext.DataHandlingNoticeAcknowledgements
+                .Where(row => row.TenantId == tenantId)
+                .ExecuteDeleteAsync();
+            await cleanupDbContext.ControlAssessments
+                .Where(row => row.AssessmentId == assessmentId)
+                .ExecuteDeleteAsync();
+            await cleanupDbContext.Assessments
+                .Where(row => row.Id == assessmentId)
+                .ExecuteDeleteAsync();
+            await cleanupDbContext.Controls
+                .Where(row => row.Id == controlId)
+                .ExecuteDeleteAsync();
+            await cleanupDbContext.Tenants
+                .Where(row => row.Id == tenantId)
+                .ExecuteDeleteAsync();
+        }
     }
 
     [PostgresFact]
@@ -223,5 +376,71 @@ public sealed class ReportPostgresTransactionTests : IClassFixture<WebApplicatio
             IReadOnlyDictionary<string, string>? metadata = null,
             CancellationToken cancellationToken = default) =>
             throw new AuditWriteException("Synthetic audit persistence failure.");
+    }
+
+    private sealed class FailOnSecondAuditEventWriter(
+        GccsDbContext dbContext,
+        IAuditRequestMetadata requestMetadata) : IAuditEventWriter
+    {
+        private readonly EfAuditEventWriter _inner = new(dbContext, requestMetadata);
+        private int _writeCount;
+
+        public Task WriteAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            AuditAction action,
+            string entityType,
+            string entityId,
+            string summary,
+            IReadOnlyDictionary<string, string>? metadata = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Increment(ref _writeCount) == 2)
+            {
+                throw new AuditWriteException("Synthetic SPRS report audit persistence failure.");
+            }
+
+            return _inner.WriteAsync(
+                tenantId,
+                actorUserId,
+                action,
+                entityType,
+                entityId,
+                summary,
+                metadata,
+                cancellationToken);
+        }
+    }
+
+    private sealed class ReviewedSprsRuleRepository : ISprsScoringRuleRepository
+    {
+        private static readonly SprsScoringRuleSetDto RuleSet = new(
+            "reviewed-rules",
+            "2026.09-reviewed",
+            SprsScoringRuleSetState.Published,
+            "Reviewed methodology fixture",
+            "https://example.test/reviewed-sprs-methodology",
+            new DateOnly(2026, 1, 1),
+            new DateOnly(2026, 9, 1),
+            "Content owner",
+            "Qualified reviewer",
+            new DateOnly(2026, 9, 1),
+            110,
+            [new SprsScoringRuleDto(
+                "3.1.1",
+                "Authorized access",
+                5,
+                "Subtract five points when not met.",
+                "https://example.test/reviewed-sprs-methodology")],
+            1,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+
+        public Task<IReadOnlyList<SprsScoringRuleSetDto>> ListAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<SprsScoringRuleSetDto>>([RuleSet]);
+
+        public Task<SprsScoringRuleSetDto?> FindAsync(
+            string ruleSetId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<SprsScoringRuleSetDto?>(ruleSetId == RuleSet.Id ? RuleSet : null);
     }
 }

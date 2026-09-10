@@ -64,6 +64,7 @@ This register identifies the known GCCS dependencies for local development, test
 | `TaskSearch:CursorSigningKey` | Every API environment | Base64-encoded key containing at least 32 random bytes. The same key must be supplied to every API instance. Rotation first moves the old value to `TaskSearch:PreviousCursorSigningKey`, deploys the new current key, waits at least 15 minutes, and then removes the previous key. |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Production API | Connects ASP.NET Core structured logs, including compatibility observations and collector heartbeats, to the existing Application Insights resource. |
 | `VITE_API_BASE_URL` | Web app | API base URL for frontend calls. |
+| `GCCS_TEST_POSTGRES_CONNECTION` | PostgreSQL integration tests and real-stack CI | Enables relational transaction, rollback, concurrency, and tenant-isolation verification. An absent value skips `PostgresFact` tests and is incomplete evidence for an SPRS readiness staging gate. |
 
 ## Source And Compliance Content Dependencies
 
@@ -74,6 +75,7 @@ This register identifies the known GCCS dependencies for local development, test
 | eCFR | 32 CFR Part 170 source reference | Yes as governed source reference | Used for CMMC-related obligations. |
 | DoD CMMC resources | CMMC readiness reference | Yes as source reference | SME review required for customer-facing interpretation. |
 | NIST CSRC | NIST SP 800-171 references | Yes as source reference | Rev. 2/Rev. 3 distinction must remain explicit. |
+| NIST SP 800-171 DoD Assessment Methodology Version 1.2.1 and qualified reviewer | SPRS scoring-rule baseline and readiness reports | Source is checked in; reviewer approval is pending | The rule package remains draft and runtime-unusable until a reviewer distinct from the owner verifies the source hash, all 110 requirements, deductions, conditional and blocking rules, applicability conditions, version, and review metadata. See `docs/sprs-readiness-release-gates.md`. |
 | SBA sources | Size standards, governing rules, certifications context | Identified | Direct integration deferred. |
 | SAM.gov / GSA Entity API | Entity lookup and SAM profile assist | Deferred | Requires credentials/config, provenance, limits, stale-data handling. |
 | NARA CUI Registry | CUI category reference | Identified | MVP must not store CUI; mapping integration deferred. |
@@ -99,3 +101,4 @@ This register identifies the known GCCS dependencies for local development, test
 - Any new dependency that stores, processes, searches, exports, or transmits customer data must be reviewed for tenant isolation, RBAC, audit logging, CUI/data-handling posture, retention, and support impact.
 - Any dependency used for compliance content or AI output must preserve source URL, review metadata, confidence, and customer-facing limitations.
 - Production launch dependencies must appear in this register before launch approval.
+- SPRS readiness promotion must follow `docs/sprs-readiness-release-gates.md`; missing qualified-review or PostgreSQL evidence is not equivalent to a passed gate.
