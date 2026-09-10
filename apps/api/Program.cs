@@ -1232,6 +1232,102 @@ api.MapGet("/contracts/{contractId:guid}", async (
 .RequirePermission(Permission.ViewContracts)
 .WithName("GetContractById");
 
+api.MapGet("/contracts/{contractId:guid}/esrs-applicabilities", async (
+    Guid contractId,
+    EsrsApplicabilityService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var items = await service.ListForContractAsync(contractId, cancellationToken);
+    return items is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(items);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractEsrsApplicabilities");
+
+api.MapPost("/contracts/{contractId:guid}/esrs-applicabilities", async (
+    Guid contractId,
+    EsrsApplicabilityRequest request,
+    EsrsApplicabilityService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.ActivateAsync(request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/esrs-applicabilities/{created.Id}", created);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractEsrsApplicability");
+
+api.MapPut("/contracts/{contractId:guid}/esrs-applicabilities/{applicabilityId:guid}", async (
+    Guid contractId,
+    Guid applicabilityId,
+    EsrsApplicabilityRequest request,
+    EsrsApplicabilityService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(applicabilityId, request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The eSRS applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractEsrsApplicability");
+
+api.MapPatch("/contracts/{contractId:guid}/esrs-applicabilities/{applicabilityId:guid}/status", async (
+    Guid contractId,
+    Guid applicabilityId,
+    UpdateEsrsStatusRequest request,
+    EsrsApplicabilityService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateStatusAsync(contractId, applicabilityId, request.Status, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The eSRS applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS status invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractEsrsApplicabilityStatus");
+
+api.MapGet("/esrs/schedule-templates", (int fiscalYear) =>
+{
+    try { return Results.Ok(EsrsApplicabilityService.GetDefaultSchedule(fiscalYear)); }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS schedule invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListEsrsScheduleTemplates");
+
 api.MapGet("/contracts/{contractId:guid}/size-checks", async (
     Guid contractId,
     ContractSizeCheckService service,

@@ -118,7 +118,9 @@ public static class DependencyInjection
         services.AddSingleton<ISharedResponsibilityMatrixRepository, FileSharedResponsibilityMatrixRepository>();
         services.AddSingleton<IDataHandlingNoticeRepository, FileDataHandlingNoticeRepository>();
         services.AddSingleton<ISprsScoringRuleRepository, FileSprsScoringRuleRepository>();
-        services.AddSingleton<IEsrsApplicabilityRepository, InMemoryEsrsApplicabilityRepository>();
+        services.AddScoped<IEsrsApplicabilityRepository>(provider => new EfEsrsApplicabilityRepository(
+            provider.GetRequiredService<GccsDbContext>(),
+            provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddSingleton<ISubcontractingReportDataRepository, InMemorySubcontractingReportDataRepository>();
         services.AddSingleton<IEsrsReportPackageRepository, InMemoryEsrsReportPackageRepository>();
         services.AddSingleton<ILaborApplicabilityRepository, InMemoryLaborApplicabilityRepository>();

@@ -6112,7 +6112,8 @@ textarea[aria-invalid="true"] {
 
 .contract-documents,
 .contract-clauses,
-.contract-deliverables {
+.contract-deliverables,
+.contract-esrs {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -6120,6 +6121,41 @@ textarea[aria-invalid="true"] {
   gap: 10px;
   grid-column: 2;
   padding: 14px;
+}
+
+.contract-esrs article,
+.contract-esrs form {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.contract-esrs article > span,
+.contract-esrs article > small,
+.contract-esrs form > p {
+  color: var(--muted);
+}
+
+.contract-esrs form label {
+  display: grid;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 4px;
+}
+
+.contract-esrs input,
+.contract-esrs select,
+.contract-esrs textarea {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  padding: 7px 9px;
+}
+
+.contract-esrs button {
+  min-height: 36px;
 }
 
 .contract-documents__header,
@@ -7482,7 +7518,8 @@ textarea[aria-invalid="true"] {
 
   .contract-documents,
   .contract-clauses,
-  .contract-deliverables {
+  .contract-deliverables,
+  .contract-esrs {
     grid-column: auto;
   }
 

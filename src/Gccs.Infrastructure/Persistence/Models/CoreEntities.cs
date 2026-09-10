@@ -1,4 +1,5 @@
 using Gccs.Application.Identity;
+using Gccs.Application.Reports;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Companies;
@@ -771,7 +772,33 @@ public sealed class ContractEntity : AuditedEntity
     public ICollection<ContractClauseEntity> Clauses { get; set; } = [];
     public ICollection<ContractDeliverableEntity> Deliverables { get; set; } = [];
     public ICollection<ContractReportingDeadlineEntity> ReportingDeadlines { get; set; } = [];
+    public ICollection<EsrsApplicabilityEntity> EsrsApplicabilities { get; set; } = [];
     public ICollection<ContractSubcontractorEntity> Subcontractors { get; set; } = [];
+}
+
+public sealed class EsrsApplicabilityEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContractId { get; set; }
+    public Guid TaskId { get; set; }
+    public string ContractType { get; set; } = string.Empty;
+    public string Agency { get; set; } = string.Empty;
+    public string SubcontractingPlanType { get; set; } = string.Empty;
+    public string PrimeOrLowerTierRole { get; set; } = string.Empty;
+    public EsrsReportType ReportType { get; set; }
+    public DateOnly PeriodStart { get; set; }
+    public DateOnly PeriodEnd { get; set; }
+    public DateOnly DueDate { get; set; }
+    public string? SourceClause { get; set; }
+    public string? Rationale { get; set; }
+    public string OwnerFunction { get; set; } = string.Empty;
+    public Guid? AssignedToUserId { get; set; }
+    public Guid ReviewedByUserId { get; set; }
+    public DateTimeOffset ReviewedAt { get; set; }
+
+    public ContractEntity? Contract { get; set; }
+    public ComplianceTaskEntity? Task { get; set; }
 }
 
 public sealed class SolicitationEntity : AuditedEntity

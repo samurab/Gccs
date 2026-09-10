@@ -32,6 +32,7 @@ import { SspSectionsPanel } from "@/components/SspSectionsPanel";
 import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
 import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
 import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
+import { EsrsApplicabilityPanel } from "@/components/EsrsApplicabilityPanel";
 import type { ClassifiedContent } from "@/lib/api";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
 import { controlCoverageTone } from "@/components/controlCoverage";
@@ -4730,6 +4731,8 @@ function ContractsView({
             />
           </section>
         ) : null}
+
+        {selectedContract ? <EsrsApplicabilityPanel contractId={selectedContract.id} canManage={canManageContracts} /> : null}
 
         <section className="contract-clauses" aria-label="Attached contract clauses">
           <div className="contract-documents__header">

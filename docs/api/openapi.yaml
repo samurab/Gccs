@@ -759,6 +759,165 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/contracts/{contractId}/esrs-applicabilities:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    get:
+      tags:
+        - Contracts
+      summary: List current-tenant eSRS applicability records for a contract
+      operationId: listContractEsrsApplicabilities
+      responses:
+        "200":
+          description: Source-backed eSRS applicability records and their task status.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EsrsApplicability"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - Contracts
+      summary: Activate a source-backed eSRS reporting obligation
+      operationId: createContractEsrsApplicability
+      description: Creates the applicability record and linked report task atomically. A source clause or documented rationale is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EsrsApplicabilityRequest"
+      responses:
+        "201":
+          description: eSRS applicability and linked task created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EsrsApplicability"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/contracts/{contractId}/esrs-applicabilities/{applicabilityId}:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - name: applicabilityId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags:
+        - Contracts
+      summary: Update a source-backed eSRS reporting obligation
+      operationId: updateContractEsrsApplicability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EsrsApplicabilityRequest"
+      responses:
+        "200":
+          description: eSRS applicability and linked task updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EsrsApplicability"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/contracts/{contractId}/esrs-applicabilities/{applicabilityId}/status:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - name: applicabilityId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags:
+        - Contracts
+      summary: Update an eSRS reporting task status
+      operationId: updateContractEsrsApplicabilityStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  $ref: "#/components/schemas/EsrsReportTaskStatus"
+      responses:
+        "200":
+          description: eSRS applicability and linked task status updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EsrsApplicability"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/esrs/schedule-templates:
+    get:
+      tags:
+        - Contracts
+      summary: List source-backed suggested ISR and SSR schedule dates
+      operationId: listEsrsScheduleTemplates
+      description: Suggested dates require confirmation against the governing subcontracting plan and agency instructions.
+      parameters:
+        - name: fiscalYear
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2200
+      responses:
+        "200":
+          description: Suggested source-backed schedules.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EsrsScheduleTemplate"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/contracts/{contractId}/documents:
     parameters:
       - $ref: "#/components/parameters/ContractId"
@@ -4309,6 +4468,159 @@ components:
             updatedAt:
               type: string
               format: date-time
+
+    EsrsApplicabilityRequest:
+      type: object
+      required:
+        - contractType
+        - agency
+        - subcontractingPlanType
+        - primeOrLowerTierRole
+        - reportType
+        - periodStart
+        - periodEnd
+        - dueDate
+      properties:
+        contractId:
+          type: string
+          format: uuid
+          description: Ignored in favor of the server-routed contract identifier.
+        contractType:
+          type: string
+          maxLength: 120
+        agency:
+          type: string
+          maxLength: 240
+        subcontractingPlanType:
+          type: string
+          maxLength: 120
+        primeOrLowerTierRole:
+          type: string
+          maxLength: 80
+        reportType:
+          $ref: "#/components/schemas/EsrsReportType"
+        periodStart:
+          type: string
+          format: date
+        periodEnd:
+          type: string
+          format: date
+        dueDate:
+          type: string
+          format: date
+        sourceClause:
+          type:
+            - string
+            - "null"
+          maxLength: 240
+        rationale:
+          type:
+            - string
+            - "null"
+          maxLength: 2000
+        ownerFunction:
+          type:
+            - string
+            - "null"
+          maxLength: 120
+        assignedToUserId:
+          type:
+            - string
+            - "null"
+          format: uuid
+
+    EsrsApplicability:
+      allOf:
+        - $ref: "#/components/schemas/EsrsApplicabilityRequest"
+        - type: object
+          required:
+            - id
+            - tenantId
+            - contractId
+            - taskId
+            - status
+            - reviewedByUserId
+            - reviewedAt
+            - createdAt
+            - isOverdue
+          properties:
+            id:
+              type: string
+              format: uuid
+            tenantId:
+              type: string
+              format: uuid
+            contractId:
+              type: string
+              format: uuid
+            taskId:
+              type: string
+              format: uuid
+            status:
+              $ref: "#/components/schemas/EsrsReportTaskStatus"
+            reviewedByUserId:
+              type: string
+              format: uuid
+            reviewedAt:
+              type: string
+              format: date-time
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+            isOverdue:
+              type: boolean
+
+    EsrsScheduleTemplate:
+      type: object
+      required:
+        - key
+        - reportType
+        - periodStart
+        - periodEnd
+        - dueDate
+        - sourceCitation
+        - sourceUrl
+        - guidance
+      properties:
+        key:
+          type: string
+        reportType:
+          $ref: "#/components/schemas/EsrsReportType"
+        periodStart:
+          type: string
+          format: date
+        periodEnd:
+          type: string
+          format: date
+        dueDate:
+          type: string
+          format: date
+        sourceCitation:
+          type: string
+        sourceUrl:
+          type: string
+          format: uri
+        guidance:
+          type: string
+
+    EsrsReportType:
+      type: string
+      enum:
+        - Isr
+        - Ssr
+
+    EsrsReportTaskStatus:
+      type: string
+      enum:
+        - Open
+        - InProgress
+        - Completed
+        - Canceled
 
     ContractCreateRequest:
       type: object

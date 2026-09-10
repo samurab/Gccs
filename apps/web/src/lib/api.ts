@@ -1678,6 +1678,47 @@ export type ContractRecord = {
 
 export type UpsertContractRequest = Omit<ContractRecord, "id" | "tenantId" | "createdAt" | "updatedAt">;
 
+export type EsrsApplicability = {
+  id: string;
+  tenantId: string;
+  contractId: string;
+  taskId: string;
+  contractType: string;
+  agency: string;
+  subcontractingPlanType: string;
+  primeOrLowerTierRole: string;
+  reportType: "Isr" | "Ssr";
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  sourceClause: string | null;
+  rationale: string | null;
+  status: "Open" | "InProgress" | "Completed" | "Canceled";
+  ownerFunction: string;
+  assignedToUserId: string | null;
+  reviewedByUserId: string;
+  reviewedAt: string;
+  createdAt: string;
+  updatedAt: string | null;
+  isOverdue: boolean;
+};
+
+export type UpsertEsrsApplicabilityRequest = Omit<
+  EsrsApplicability,
+  "id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "createdAt" | "updatedAt" | "isOverdue"
+>;
+
+export type EsrsScheduleTemplate = {
+  key: string;
+  reportType: "Isr" | "Ssr";
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  sourceCitation: string;
+  sourceUrl: string;
+  guidance: string;
+};
+
 export type ContractDocument = {
   id: string;
   contractId: string;
@@ -2984,6 +3025,21 @@ export async function updateContract(
 ): Promise<ApiMutationResult<ContractRecord>> {
   return putJsonResult<ContractRecord>(`/api/contracts/${contractId}`, request);
 }
+
+export const getContractEsrsApplicabilities = (contractId: string) =>
+  getRequiredJson<EsrsApplicability[]>(`/api/contracts/${contractId}/esrs-applicabilities`);
+
+export const getEsrsScheduleTemplates = (fiscalYear: number) =>
+  getRequiredJson<EsrsScheduleTemplate[]>(`/api/esrs/schedule-templates?fiscalYear=${fiscalYear}`);
+
+export const createEsrsApplicability = (contractId: string, request: UpsertEsrsApplicabilityRequest) =>
+  postJsonResult<EsrsApplicability>(`/api/contracts/${contractId}/esrs-applicabilities`, request);
+
+export const updateEsrsApplicability = (contractId: string, applicabilityId: string, request: UpsertEsrsApplicabilityRequest) =>
+  putJsonResult<EsrsApplicability>(`/api/contracts/${contractId}/esrs-applicabilities/${applicabilityId}`, request);
+
+export const updateEsrsApplicabilityStatus = (contractId: string, applicabilityId: string, status: EsrsApplicability["status"]) =>
+  patchJsonResult<EsrsApplicability>(`/api/contracts/${contractId}/esrs-applicabilities/${applicabilityId}/status`, { status });
 
 export async function createContractDocument(
   contractId: string,

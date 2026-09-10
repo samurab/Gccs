@@ -92,6 +92,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<ContractSizeCheckEntity> ContractSizeChecks => Set<ContractSizeCheckEntity>();
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
+    public DbSet<EsrsApplicabilityEntity> EsrsApplicabilities => Set<EsrsApplicabilityEntity>();
     public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
     public DbSet<EvidenceRequestEntity> EvidenceRequests => Set<EvidenceRequestEntity>();
     public DbSet<EvidenceFileVersionEntity> EvidenceFileVersions => Set<EvidenceFileVersionEntity>();
@@ -1168,6 +1169,25 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.AgencyOrPrimeName).HasMaxLength(240).IsRequired();
             entity.Property(x => x.PlaceOfPerformance).HasMaxLength(240).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(1200);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<EsrsApplicabilityEntity>(entity =>
+        {
+            entity.ToTable("esrs_applicabilities");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.DueDate });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.ReportType, x.PeriodStart, x.PeriodEnd }).IsUnique();
+            entity.HasIndex(x => x.TaskId).IsUnique();
+            entity.Property(x => x.ContractType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Agency).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.SubcontractingPlanType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.PrimeOrLowerTierRole).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.SourceClause).HasMaxLength(240);
+            entity.Property(x => x.Rationale).HasMaxLength(2000);
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.Contract).WithMany(x => x.EsrsApplicabilities).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Task).WithOne().HasForeignKey<EsrsApplicabilityEntity>(x => x.TaskId).OnDelete(DeleteBehavior.Restrict);
             ConfigureAuditColumns(entity);
         });
 
