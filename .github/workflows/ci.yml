@@ -75,6 +75,7 @@ jobs:
           dotnet test Gccs.slnx
           --no-build
           --configuration Release
+          --settings tests/Gccs.Api.Tests/regression.runsettings
           --filter "Category!=LocalDocker&Category!=PostgresIntegration"
           --logger "trx;LogFileName=gccs-backend-tests.trx"
           --results-directory TestResults/backend
