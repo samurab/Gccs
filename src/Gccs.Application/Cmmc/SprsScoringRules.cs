@@ -36,6 +36,7 @@ public sealed class SprsScoringRuleService(
             ruleSet.Id,
             ruleSet.Version,
             ruleSet.SourceUrl,
+            ruleSet.SourceSha256!,
             ruleSet.EffectiveDate!.Value,
             DateTimeOffset.UtcNow);
     }
@@ -193,13 +194,14 @@ public static class SprsScoringRuleGovernance
             string.IsNullOrWhiteSpace(ruleSet.SourceName) ||
             string.IsNullOrWhiteSpace(ruleSet.Owner) ||
             string.IsNullOrWhiteSpace(ruleSet.Reviewer) ||
+            !IsSha256(ruleSet.SourceSha256) ||
             !IsValidSourceUrl(ruleSet.SourceUrl) ||
             ruleSet.EffectiveDate is null ||
             ruleSet.ReviewDate is null ||
             ruleSet.LastReviewedAt is null)
         {
             throw new SprsScoringRuleValidationException(
-                "Published SPRS scoring rules require ID, source name, HTTPS source URL, version, owner, reviewer, review date, last reviewed date, and effective date.");
+                "Published SPRS scoring rules require ID, source name, HTTPS source URL, source SHA-256, version, owner, reviewer, review date, last reviewed date, and effective date.");
         }
 
         if (string.Equals(ruleSet.Owner.Trim(), ruleSet.Reviewer.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -245,13 +247,65 @@ public static class SprsScoringRuleGovernance
             if (string.IsNullOrWhiteSpace(rule.RequirementId) ||
                 string.IsNullOrWhiteSpace(rule.Title) ||
                 string.IsNullOrWhiteSpace(rule.AssessmentObjective) ||
-                rule.Deduction <= 0 ||
-                rule.Deduction > ruleSet.MaximumScore ||
                 !IsValidSourceUrl(rule.SourceUrl))
             {
                 throw new SprsScoringRuleValidationException(
-                    "Each published SPRS scoring rule requires requirement ID, title, assessment objective, a positive bounded deduction, and an HTTPS source URL.");
+                    "Each published SPRS scoring rule requires requirement ID, title, assessment objective, and an HTTPS source URL.");
             }
+
+            ValidateDeductionPolicy(rule, ruleSet.MaximumScore);
+        }
+    }
+
+    private static void ValidateDeductionPolicy(SprsScoringRuleDto rule, int maximumScore)
+    {
+        var options = rule.ConditionalDeductions ?? [];
+        switch (rule.RuleType)
+        {
+            case SprsScoringRuleType.FixedDeduction:
+                if (rule.Deduction <= 0 || rule.Deduction > maximumScore || options.Count != 0)
+                {
+                    throw new SprsScoringRuleValidationException(
+                        $"Fixed SPRS rule '{rule.RequirementId}' requires one positive bounded deduction and no conditional options.");
+                }
+                break;
+
+            case SprsScoringRuleType.ConditionalDeduction:
+                if (rule.Deduction <= 0 || rule.Deduction > maximumScore || options.Count < 2)
+                {
+                    throw new SprsScoringRuleValidationException(
+                        $"Conditional SPRS rule '{rule.RequirementId}' requires a positive maximum deduction and at least two options.");
+                }
+
+                if (options.GroupBy(option => option.Code, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1) ||
+                    options.Any(option => string.IsNullOrWhiteSpace(option.Code) ||
+                        string.IsNullOrWhiteSpace(option.When) ||
+                        option.Deduction <= 0 ||
+                        option.Deduction > rule.Deduction) ||
+                    options.Max(option => option.Deduction) != rule.Deduction)
+                {
+                    throw new SprsScoringRuleValidationException(
+                        $"Conditional SPRS rule '{rule.RequirementId}' has invalid or duplicate deduction options.");
+                }
+                break;
+
+            case SprsScoringRuleType.AssessmentBlocking:
+                if (rule.Deduction != 0 || options.Count != 0)
+                {
+                    throw new SprsScoringRuleValidationException(
+                        $"Assessment-blocking SPRS rule '{rule.RequirementId}' cannot define point deductions.");
+                }
+                break;
+
+            default:
+                throw new SprsScoringRuleValidationException(
+                    $"SPRS rule '{rule.RequirementId}' has an unsupported deduction policy.");
+        }
+
+        if (rule.NotApplicableWhen is not null && string.IsNullOrWhiteSpace(rule.NotApplicableWhen))
+        {
+            throw new SprsScoringRuleValidationException(
+                $"SPRS rule '{rule.RequirementId}' has an empty not-applicable condition.");
         }
     }
 
@@ -259,6 +313,9 @@ public static class SprsScoringRuleGovernance
         Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) &&
         uri.Scheme == Uri.UriSchemeHttps &&
         !string.IsNullOrWhiteSpace(uri.Host);
+
+    private static bool IsSha256(string? value) =>
+        value is { Length: 64 } && value.All(Uri.IsHexDigit);
 }
 
 public sealed record SprsScoringRuleSetDto(
@@ -274,14 +331,32 @@ public sealed record SprsScoringRuleSetDto(
     DateOnly? ReviewDate,
     int MaximumScore,
     IReadOnlyList<SprsScoringRuleDto> Rules,
-    int? ExpectedRequirementCount = null);
+    int? ExpectedRequirementCount = null,
+    string? SourceSha256 = null);
 
 public sealed record SprsScoringRuleDto(
     string RequirementId,
     string Title,
     int Deduction,
     string AssessmentObjective,
-    string SourceUrl);
+    string SourceUrl,
+    SprsScoringRuleType RuleType = SprsScoringRuleType.FixedDeduction,
+    IReadOnlyList<SprsConditionalDeductionOptionDto>? ConditionalDeductions = null,
+    string? NotApplicableWhen = null,
+    string? SourceComment = null,
+    bool IsBasicSafeguardingRequirement = false);
+
+public sealed record SprsConditionalDeductionOptionDto(
+    string Code,
+    int Deduction,
+    string When);
+
+public enum SprsScoringRuleType
+{
+    FixedDeduction,
+    ConditionalDeduction,
+    AssessmentBlocking
+}
 
 public sealed record ChangeSprsScoringRuleSetStateRequest(
     SprsScoringRuleSetState State,
@@ -292,6 +367,7 @@ public sealed record SprsCalculationRuleReferenceDto(
     string RuleSetId,
     string RuleSetVersion,
     string SourceUrl,
+    string SourceSha256,
     DateOnly EffectiveDate,
     DateTimeOffset GeneratedAt);
 

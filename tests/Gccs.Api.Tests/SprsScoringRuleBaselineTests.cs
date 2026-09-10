@@ -23,6 +23,7 @@ public sealed class SprsScoringRuleBaselineTests
         Assert.False(string.IsNullOrWhiteSpace(published.Version));
         Assert.False(string.IsNullOrWhiteSpace(published.Owner));
         Assert.False(string.IsNullOrWhiteSpace(published.Reviewer));
+        Assert.Matches("^[a-f0-9]{64}$", published.SourceSha256!);
         Assert.NotNull(published.ReviewDate);
         Assert.NotNull(published.EffectiveDate);
         Assert.NotEmpty(published.Rules);
@@ -45,8 +46,34 @@ public sealed class SprsScoringRuleBaselineTests
         Assert.Null(baseline.Reviewer);
         Assert.Null(baseline.ReviewDate);
         Assert.Equal(110, baseline.ExpectedRequirementCount);
-        Assert.Equal(3, baseline.Rules.Count);
+        Assert.Equal(110, baseline.Rules.Count);
         Assert.EndsWith("NIST-SP-800-171-Assessment-Methodology-Version-1.2.1-6.24.2020.pdf", baseline.SourceUrl);
+        Assert.Equal("dd88416ca43f34e817c05b9cb416ffce47f615765a9fd0e1cdc52b9f2de60835", baseline.SourceSha256);
+
+        Assert.Equal(107, baseline.Rules.Count(rule => rule.RuleType is SprsScoringRuleType.FixedDeduction));
+        Assert.Equal(2, baseline.Rules.Count(rule => rule.RuleType is SprsScoringRuleType.ConditionalDeduction));
+        Assert.Single(baseline.Rules, rule => rule.RuleType is SprsScoringRuleType.AssessmentBlocking);
+        Assert.Equal(51, baseline.Rules.Count(rule => rule.RuleType is SprsScoringRuleType.FixedDeduction && rule.Deduction == 1));
+        Assert.Equal(14, baseline.Rules.Count(rule => rule.RuleType is SprsScoringRuleType.FixedDeduction && rule.Deduction == 3));
+        Assert.Equal(42, baseline.Rules.Count(rule => rule.RuleType is SprsScoringRuleType.FixedDeduction && rule.Deduction == 5));
+        Assert.Equal(17, baseline.Rules.Count(rule => rule.IsBasicSafeguardingRequirement));
+        Assert.Equal(5, baseline.Rules.Count(rule => rule.NotApplicableWhen is not null));
+        Assert.Equal(110, baseline.Rules.Select(rule => rule.RequirementId).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+
+        var mfa = Assert.Single(baseline.Rules, rule => rule.RequirementId == "3.5.3");
+        Assert.Equal([3, 5], mfa.ConditionalDeductions!.Select(option => option.Deduction).Order().ToArray());
+        var cryptography = Assert.Single(baseline.Rules, rule => rule.RequirementId == "3.13.11");
+        Assert.Equal([3, 5], cryptography.ConditionalDeductions!.Select(option => option.Deduction).Order().ToArray());
+        var systemSecurityPlan = Assert.Single(baseline.Rules, rule => rule.RequirementId == "3.12.4");
+        Assert.Equal(0, systemSecurityPlan.Deduction);
+
+        SprsScoringRuleGovernance.ValidatePublished(baseline with
+        {
+            State = SprsScoringRuleSetState.Published,
+            Reviewer = "Independent reviewer fixture",
+            ReviewDate = new DateOnly(2026, 9, 10),
+            LastReviewedAt = new DateOnly(2026, 9, 10)
+        });
     }
 
     [Fact]
@@ -100,6 +127,7 @@ public sealed class SprsScoringRuleBaselineTests
         Assert.Equal(activeRuleSet.Id, reference.RuleSetId);
         Assert.Equal(activeRuleSet.Version, reference.RuleSetVersion);
         Assert.Equal(activeRuleSet.SourceUrl, reference.SourceUrl);
+        Assert.Equal(activeRuleSet.SourceSha256, reference.SourceSha256);
         Assert.Equal(activeRuleSet.EffectiveDate, reference.EffectiveDate);
     }
 
@@ -188,6 +216,28 @@ public sealed class SprsScoringRuleBaselineTests
             }));
         Assert.Throws<SprsScoringRuleValidationException>(() =>
             SprsScoringRuleGovernance.ValidatePublished(valid with { ExpectedRequirementCount = 2 }));
+        Assert.Throws<SprsScoringRuleValidationException>(() =>
+            SprsScoringRuleGovernance.ValidatePublished(valid with { SourceSha256 = "not-a-sha256" }));
+        Assert.Throws<SprsScoringRuleValidationException>(() =>
+            SprsScoringRuleGovernance.ValidatePublished(valid with
+            {
+                Rules = [valid.Rules[0] with { RuleType = SprsScoringRuleType.AssessmentBlocking }]
+            }));
+        Assert.Throws<SprsScoringRuleValidationException>(() =>
+            SprsScoringRuleGovernance.ValidatePublished(valid with
+            {
+                Rules =
+                [
+                    valid.Rules[0] with
+                    {
+                        RuleType = SprsScoringRuleType.ConditionalDeduction,
+                        ConditionalDeductions =
+                        [
+                            new SprsConditionalDeductionOptionDto("only-option", 5, "Only one option is invalid.")
+                        ]
+                    }
+                ]
+            }));
     }
 
     [Fact]
@@ -243,7 +293,8 @@ public sealed class SprsScoringRuleBaselineTests
                     "Deduct if not implemented.",
                     "https://www.acq.osd.mil/asda/dpc/cp/cyber/safeguarding.html")
             ],
-            1);
+            1,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 
     private sealed class InMemorySprsScoringRuleRepository(params SprsScoringRuleSetDto[] seed) :
         ISprsScoringRuleRepository,

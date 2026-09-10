@@ -36,7 +36,8 @@ public sealed class SprsScoreCalculationService(
         var generatedAt = DateTimeOffset.UtcNow;
         var ruleSet = await GetPublishedRuleSetAsync(request.RuleSetId, generatedAt, cancellationToken);
         var normalizedNotes = request.ManualNotes?.Trim() ?? string.Empty;
-        var lineItems = CalculateLineItems(ruleSet, statuses);
+        var conditionalSelections = NormalizeConditionalSelections(ruleSet, request.ConditionalDeductionSelections);
+        var lineItems = CalculateLineItems(ruleSet, statuses, conditionalSelections);
         var totalDeduction = lineItems.Sum(item => item.AppliedDeduction);
         var score = Math.Max(0, ruleSet.MaximumScore - totalDeduction);
         var unresolvedGaps = lineItems
@@ -53,6 +54,7 @@ public sealed class SprsScoreCalculationService(
             assessment.Id,
             ruleSet.Id,
             ruleSet.Version,
+            ruleSet.SourceSha256!,
             ruleSet.MaximumScore,
             score,
             totalDeduction,
@@ -74,6 +76,7 @@ public sealed class SprsScoreCalculationService(
                 ["assessmentId"] = assessment.Id.ToString(),
                 ["ruleSetId"] = ruleSet.Id,
                 ["ruleSetVersion"] = ruleSet.Version,
+                ["ruleSetSourceSha256"] = ruleSet.SourceSha256!,
                 ["score"] = score.ToString(),
                 ["totalDeduction"] = totalDeduction.ToString(),
                 ["generatedAt"] = generatedAt.ToString("O")
@@ -107,19 +110,22 @@ public sealed class SprsScoreCalculationService(
 
     private static IReadOnlyList<SprsScoreCalculationLineItemDto> CalculateLineItems(
         SprsScoringRuleSetDto ruleSet,
-        IReadOnlyList<CmmcControlStatusDto> statuses)
+        IReadOnlyList<CmmcControlStatusDto> statuses,
+        IReadOnlyDictionary<string, string> conditionalSelections)
     {
         return ruleSet.Rules.Select(rule =>
         {
             var status = statuses.FirstOrDefault(candidate => MatchesRequirement(candidate.ControlId, rule.RequirementId));
             if (status is null)
             {
+                EnsureAssessmentIsNotBlocked(rule, null);
+                var deduction = ResolveDeduction(rule, conditionalSelections);
                 return new SprsScoreCalculationLineItemDto(
                     rule.RequirementId,
                     null,
                     rule.Title,
                     rule.Deduction,
-                    rule.Deduction,
+                    deduction,
                     "control-not-assessed",
                     null,
                     null);
@@ -128,6 +134,25 @@ public sealed class SprsScoreCalculationService(
             if (status.Status is ControlImplementationStatus.NotApplicable ||
                 status.Result is AssessmentResult.NotApplicable)
             {
+                if (string.IsNullOrWhiteSpace(rule.NotApplicableWhen))
+                {
+                    throw new SprsScoreCalculationException(
+                        $"SPRS requirement '{rule.RequirementId}' cannot be marked not applicable under the published scoring rule.");
+                }
+
+                if (string.IsNullOrWhiteSpace(status.Notes))
+                {
+                    throw new SprsScoreCalculationException(
+                        $"SPRS requirement '{rule.RequirementId}' requires a documented not-applicable rationale matching the published rule condition.");
+                }
+                if (status.ReviewedBy is null ||
+                    status.ReviewedAtUtc is null ||
+                    !string.Equals(status.ReviewStatus, "approved", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new SprsScoreCalculationException(
+                        $"SPRS requirement '{rule.RequirementId}' requires approved review metadata before a not-applicable exception can affect scoring.");
+                }
+
                 return new SprsScoreCalculationLineItemDto(
                     rule.RequirementId,
                     status.ControlId,
@@ -141,8 +166,12 @@ public sealed class SprsScoreCalculationService(
 
             var isMet = status.Status is ControlImplementationStatus.Implemented &&
                 status.Result is AssessmentResult.Met;
+            EnsureAssessmentIsNotBlocked(rule, isMet);
+            var appliedDeduction = isMet ? 0 : ResolveDeduction(rule, conditionalSelections);
             var reason = isMet
                 ? "implemented-and-met"
+                : rule.RuleType is SprsScoringRuleType.ConditionalDeduction
+                    ? $"conditional-{conditionalSelections[rule.RequirementId]}"
                 : status.Status switch
                 {
                     ControlImplementationStatus.NotStarted => "control-not-implemented",
@@ -156,11 +185,80 @@ public sealed class SprsScoreCalculationService(
                 status.ControlId,
                 rule.Title,
                 rule.Deduction,
-                isMet ? 0 : rule.Deduction,
+                appliedDeduction,
                 reason,
                 status.Status,
                 status.Result);
         }).ToArray();
+    }
+
+    private static IReadOnlyDictionary<string, string> NormalizeConditionalSelections(
+        SprsScoringRuleSetDto ruleSet,
+        IReadOnlyList<SprsConditionalDeductionSelection>? selections)
+    {
+        selections ??= [];
+        var duplicate = selections
+            .GroupBy(selection => selection.RequirementId, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null)
+        {
+            throw new SprsScoreCalculationException(
+                $"Multiple conditional deduction selections were supplied for SPRS requirement '{duplicate.Key}'.");
+        }
+
+        var conditionalRuleIds = ruleSet.Rules
+            .Where(rule => rule.RuleType is SprsScoringRuleType.ConditionalDeduction)
+            .Select(rule => rule.RequirementId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unsupported = selections.FirstOrDefault(selection =>
+            string.IsNullOrWhiteSpace(selection.RequirementId) ||
+            string.IsNullOrWhiteSpace(selection.OptionCode) ||
+            !conditionalRuleIds.Contains(selection.RequirementId));
+        if (unsupported is not null)
+        {
+            throw new SprsScoreCalculationException(
+                $"Conditional deduction selection for SPRS requirement '{unsupported.RequirementId}' is not supported by the published rule set.");
+        }
+
+        return selections.ToDictionary(
+            selection => selection.RequirementId,
+            selection => selection.OptionCode,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static int ResolveDeduction(
+        SprsScoringRuleDto rule,
+        IReadOnlyDictionary<string, string> conditionalSelections)
+    {
+        if (rule.RuleType is not SprsScoringRuleType.ConditionalDeduction)
+        {
+            return rule.Deduction;
+        }
+
+        if (!conditionalSelections.TryGetValue(rule.RequirementId, out var optionCode))
+        {
+            throw new SprsScoreCalculationException(
+                $"SPRS requirement '{rule.RequirementId}' requires an explicit conditional deduction selection.");
+        }
+
+        var option = rule.ConditionalDeductions?.FirstOrDefault(candidate =>
+            string.Equals(candidate.Code, optionCode, StringComparison.OrdinalIgnoreCase));
+        if (option is null)
+        {
+            throw new SprsScoreCalculationException(
+                $"Conditional deduction option '{optionCode}' is invalid for SPRS requirement '{rule.RequirementId}'.");
+        }
+
+        return option.Deduction;
+    }
+
+    private static void EnsureAssessmentIsNotBlocked(SprsScoringRuleDto rule, bool? isMet)
+    {
+        if (rule.RuleType is SprsScoringRuleType.AssessmentBlocking && isMet is not true)
+        {
+            throw new SprsScoreCalculationException(
+                $"SPRS assessment cannot be completed because assessment-blocking requirement '{rule.RequirementId}' is not met.");
+        }
     }
 
     private static bool MatchesRequirement(string controlId, string requirementId) =>
@@ -175,7 +273,12 @@ public interface ISprsScoreCalculationHistoryRepository
 
 public sealed record SprsScoreCalculationRequest(
     string RuleSetId,
-    string? ManualNotes);
+    string? ManualNotes,
+    IReadOnlyList<SprsConditionalDeductionSelection>? ConditionalDeductionSelections = null);
+
+public sealed record SprsConditionalDeductionSelection(
+    string RequirementId,
+    string OptionCode);
 
 public sealed record SprsScoreCalculationDto(
     Guid Id,
@@ -183,6 +286,7 @@ public sealed record SprsScoreCalculationDto(
     Guid AssessmentId,
     string RuleSetId,
     string RuleSetVersion,
+    string RuleSetSourceSha256,
     int MaximumScore,
     int Score,
     int TotalDeduction,

@@ -119,6 +119,7 @@ public sealed class SprsScoreCalculationWorkspaceTests
         Assert.Equal(AuditAction.Created, auditEvent.Action);
         Assert.Equal("SprsScoreCalculation", auditEvent.EntityType);
         Assert.Equal("2026.06", auditEvent.Metadata["ruleSetVersion"]);
+        Assert.Equal("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", auditEvent.Metadata["ruleSetSourceSha256"]);
         Assert.Equal("105", auditEvent.Metadata["score"]);
         Assert.Equal("5", auditEvent.Metadata["totalDeduction"]);
     }
@@ -144,6 +145,201 @@ public sealed class SprsScoreCalculationWorkspaceTests
         Assert.Equal(calculation.RuleSetId, stored.RuleSetId);
         Assert.Equal(calculation.RuleSetVersion, stored.RuleSetVersion);
         Assert.Equal("2026.06", stored.RuleSetVersion);
+        Assert.Equal("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", stored.RuleSetSourceSha256);
+    }
+
+    [Theory]
+    [InlineData("privileged-and-remote-only", 3, 107)]
+    [InlineData("not-implemented", 5, 105)]
+    public async Task Conditional_rules_apply_only_the_selected_governed_deduction(
+        string optionCode,
+        int expectedDeduction,
+        int expectedScore)
+    {
+        var ids = StoryIds.Create();
+        var rule = new SprsScoringRuleDto(
+            "3.5.3",
+            "Use multifactor authentication.",
+            5,
+            "Apply the selected conditional deduction.",
+            "https://example.test/sprs",
+            SprsScoringRuleType.ConditionalDeduction,
+            [
+                new SprsConditionalDeductionOptionDto("not-implemented", 5, "MFA is not implemented."),
+                new SprsConditionalDeductionOptionDto("privileged-and-remote-only", 3, "MFA excludes general users.")
+            ]);
+        var service = CreateService(
+            CreateAssessmentRepository(ids, [
+                CreateStatus(ids.AssessmentId, rule.RequirementId, ControlImplementationStatus.PartiallyImplemented, AssessmentResult.NotMet)
+            ]),
+            ruleSet: CreatePublishedRuleSet(rule));
+
+        var calculation = await service.CalculateAsync(
+            ids.AssessmentId,
+            new SprsScoreCalculationRequest(
+                "sprs-rules",
+                null,
+                [new SprsConditionalDeductionSelection(rule.RequirementId, optionCode)]),
+            ids.ActorUserId);
+
+        Assert.NotNull(calculation);
+        Assert.Equal(expectedDeduction, calculation.TotalDeduction);
+        Assert.Equal(expectedScore, calculation.Score);
+        Assert.Equal($"conditional-{optionCode}", Assert.Single(calculation.LineItems).Reason);
+    }
+
+    [Fact]
+    public async Task Missing_conditional_selection_rejects_calculation_without_history_or_audit()
+    {
+        var ids = StoryIds.Create();
+        var history = new CapturingCalculationHistoryRepository();
+        var audit = new CapturingAuditEventWriter();
+        var rule = new SprsScoringRuleDto(
+            "3.13.11",
+            "Employ FIPS-validated cryptography.",
+            5,
+            "Apply the selected conditional deduction.",
+            "https://example.test/sprs",
+            SprsScoringRuleType.ConditionalDeduction,
+            [
+                new SprsConditionalDeductionOptionDto("no-cryptography", 5, "No cryptography is employed."),
+                new SprsConditionalDeductionOptionDto("mostly-not-fips-validated", 3, "Cryptography is mostly not FIPS validated.")
+            ]);
+        var service = CreateService(
+            CreateAssessmentRepository(ids, [
+                CreateStatus(ids.AssessmentId, rule.RequirementId, ControlImplementationStatus.NotStarted, AssessmentResult.NotMet)
+            ]),
+            history,
+            audit,
+            CreatePublishedRuleSet(rule));
+
+        var exception = await Assert.ThrowsAsync<SprsScoreCalculationException>(() => service.CalculateAsync(
+            ids.AssessmentId,
+            new SprsScoreCalculationRequest("sprs-rules", null),
+            ids.ActorUserId));
+
+        Assert.Contains("explicit conditional deduction", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(history.Calculations);
+        Assert.Empty(audit.Events);
+    }
+
+    [Fact]
+    public async Task Missing_system_security_plan_blocks_calculation_without_history_or_audit()
+    {
+        var ids = StoryIds.Create();
+        var history = new CapturingCalculationHistoryRepository();
+        var audit = new CapturingAuditEventWriter();
+        var rule = new SprsScoringRuleDto(
+            "3.12.4",
+            "Develop and maintain a system security plan.",
+            0,
+            "Block calculation when the system security plan is absent.",
+            "https://example.test/sprs",
+            SprsScoringRuleType.AssessmentBlocking);
+        var service = CreateService(
+            CreateAssessmentRepository(ids, [
+                CreateStatus(ids.AssessmentId, rule.RequirementId, ControlImplementationStatus.NotStarted, AssessmentResult.NotMet)
+            ]),
+            history,
+            audit,
+            CreatePublishedRuleSet(rule));
+
+        var exception = await Assert.ThrowsAsync<SprsScoreCalculationException>(() => service.CalculateAsync(
+            ids.AssessmentId,
+            new SprsScoreCalculationRequest("sprs-rules", null),
+            ids.ActorUserId));
+
+        Assert.Contains("cannot be completed", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(history.Calculations);
+        Assert.Empty(audit.Events);
+    }
+
+    [Fact]
+    public async Task Not_applicable_requires_an_explicit_rule_applicability_condition()
+    {
+        var ids = StoryIds.Create();
+        var fixedRule = new SprsScoringRuleDto(
+            "3.1.3",
+            "Control the flow of CUI.",
+            1,
+            "Subtract one point when not met.",
+            "https://example.test/sprs");
+        var service = CreateService(
+            CreateAssessmentRepository(ids, [
+                CreateStatus(ids.AssessmentId, fixedRule.RequirementId, ControlImplementationStatus.NotApplicable, AssessmentResult.NotApplicable)
+            ]),
+            ruleSet: CreatePublishedRuleSet(fixedRule));
+
+        var exception = await Assert.ThrowsAsync<SprsScoreCalculationException>(() => service.CalculateAsync(
+            ids.AssessmentId,
+            new SprsScoreCalculationRequest("sprs-rules", null),
+            ids.ActorUserId));
+
+        Assert.Contains("cannot be marked not applicable", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Governed_not_applicable_condition_requires_and_preserves_documented_rationale()
+    {
+        var ids = StoryIds.Create();
+        var rule = new SprsScoringRuleDto(
+            "3.1.12",
+            "Monitor and control remote access sessions.",
+            5,
+            "Subtract five points when not met.",
+            "https://example.test/sprs",
+            NotApplicableWhen: "Remote access is not permitted.");
+        var notApplicableStatus = CreateStatus(
+                ids.AssessmentId,
+                rule.RequirementId,
+                ControlImplementationStatus.NotApplicable,
+                AssessmentResult.NotApplicable,
+                "Remote access is prohibited by the assessed boundary policy.") with
+            {
+                ReviewedBy = ids.ActorUserId,
+                ReviewedAtUtc = DateTimeOffset.UtcNow,
+                ReviewStatus = "approved"
+            };
+        var repository = CreateAssessmentRepository(ids, [notApplicableStatus]);
+        var service = CreateService(repository, ruleSet: CreatePublishedRuleSet(rule));
+
+        var calculation = await service.CalculateAsync(
+            ids.AssessmentId,
+            new SprsScoreCalculationRequest("sprs-rules", null),
+            ids.ActorUserId);
+
+        Assert.NotNull(calculation);
+        Assert.Equal(110, calculation.Score);
+        Assert.Equal("not-applicable", Assert.Single(calculation.LineItems).Reason);
+    }
+
+    [Fact]
+    public async Task Governed_not_applicable_condition_rejects_unreviewed_rationale()
+    {
+        var ids = StoryIds.Create();
+        var rule = new SprsScoringRuleDto(
+            "3.1.12",
+            "Monitor and control remote access sessions.",
+            5,
+            "Subtract five points when not met.",
+            "https://example.test/sprs",
+            NotApplicableWhen: "Remote access is not permitted.");
+        var repository = CreateAssessmentRepository(ids, [
+            CreateStatus(
+                ids.AssessmentId,
+                rule.RequirementId,
+                ControlImplementationStatus.NotApplicable,
+                AssessmentResult.NotApplicable,
+                "Remote access is prohibited by policy.")
+        ]);
+        var service = CreateService(repository, ruleSet: CreatePublishedRuleSet(rule));
+
+        var exception = await Assert.ThrowsAsync<SprsScoreCalculationException>(() => service.CalculateAsync(
+            ids.AssessmentId,
+            new SprsScoreCalculationRequest("sprs-rules", null),
+            ids.ActorUserId));
+
+        Assert.Contains("approved review metadata", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static SprsScoreCalculationService CreateService(
@@ -156,12 +352,20 @@ public sealed class SprsScoreCalculationWorkspaceTests
     private static SprsScoreCalculationService CreateService(
         FakeCmmcAssessmentRepository assessmentRepository,
         CapturingCalculationHistoryRepository? history = null,
-        CapturingAuditEventWriter? auditWriter = null) =>
+        CapturingAuditEventWriter? auditWriter = null,
+        SprsScoringRuleSetDto? ruleSet = null) =>
         new(
             assessmentRepository,
-            new FakeSprsScoringRuleRepository(),
+            new FakeSprsScoringRuleRepository(ruleSet),
             history ?? new CapturingCalculationHistoryRepository(),
             auditWriter ?? new CapturingAuditEventWriter());
+
+    private static SprsScoringRuleSetDto CreatePublishedRuleSet(params SprsScoringRuleDto[] rules) =>
+        FakeSprsScoringRuleRepository.DefaultRuleSet with
+        {
+            Rules = rules,
+            ExpectedRequirementCount = rules.Length
+        };
 
     private static FakeCmmcAssessmentRepository CreateAssessmentRepository(
         StoryIds ids,
@@ -172,7 +376,8 @@ public sealed class SprsScoreCalculationWorkspaceTests
         Guid assessmentId,
         string controlId,
         ControlImplementationStatus status,
-        AssessmentResult result) =>
+        AssessmentResult result,
+        string notes = "") =>
         new(
             assessmentId,
             controlId,
@@ -192,7 +397,7 @@ public sealed class SprsScoreCalculationWorkspaceTests
             [],
             null,
             null,
-            string.Empty,
+            notes,
             string.Empty,
             false,
             null,
@@ -280,9 +485,9 @@ public sealed class SprsScoreCalculationWorkspaceTests
             throw new NotSupportedException();
     }
 
-    private sealed class FakeSprsScoringRuleRepository : ISprsScoringRuleRepository
+    private sealed class FakeSprsScoringRuleRepository(SprsScoringRuleSetDto? ruleSet = null) : ISprsScoringRuleRepository
     {
-        private static readonly SprsScoringRuleSetDto RuleSet = new(
+        public static readonly SprsScoringRuleSetDto DefaultRuleSet = new(
             "sprs-rules",
             "2026.06",
             SprsScoringRuleSetState.Published,
@@ -299,13 +504,16 @@ public sealed class SprsScoreCalculationWorkspaceTests
                 new SprsScoringRuleDto("3.1.2", "Access control two", 5, "Assess 3.1.2.", "https://example.test/sprs"),
                 new SprsScoringRuleDto("3.5.3", "MFA", 5, "Assess MFA.", "https://example.test/sprs")
             ],
-            3);
+            3,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+
+        private readonly SprsScoringRuleSetDto _ruleSet = ruleSet ?? DefaultRuleSet;
 
         public Task<IReadOnlyList<SprsScoringRuleSetDto>> ListAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<SprsScoringRuleSetDto>>([RuleSet]);
+            Task.FromResult<IReadOnlyList<SprsScoringRuleSetDto>>([_ruleSet]);
 
         public Task<SprsScoringRuleSetDto?> FindAsync(string ruleSetId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<SprsScoringRuleSetDto?>(ruleSetId == RuleSet.Id ? RuleSet : null);
+            Task.FromResult<SprsScoringRuleSetDto?>(ruleSetId == _ruleSet.Id ? _ruleSet : null);
 
         public Task<SprsScoringRuleSetDto> UpdateStateAsync(string ruleSetId, SprsScoringRuleSetState state, string? reviewer, DateOnly? reviewDate, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
