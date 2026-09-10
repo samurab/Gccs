@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Net;
 using Gccs.Application.Common;
 using Gccs.Application.Reports;
 using Gccs.Application.Security;
@@ -33,6 +34,7 @@ public sealed class EfReportRepository(
                 report.TenantId == tenantContext.TenantId &&
                 (report.Type == ReportType.ComplianceStatus ||
                  report.Type == ReportType.CmmcReadiness ||
+                 report.Type == ReportType.SprsReadiness ||
                  report.Type == ReportType.SubcontractorCompliance))
             .OrderByDescending(report => report.GeneratedAt)
             .ThenByDescending(report => report.Id)
@@ -68,6 +70,7 @@ public sealed class EfReportRepository(
                 candidate.TenantId == tenantContext.TenantId &&
                 (candidate.Type == ReportType.ComplianceStatus ||
                  candidate.Type == ReportType.CmmcReadiness ||
+                 candidate.Type == ReportType.SprsReadiness ||
                  candidate.Type == ReportType.SubcontractorCompliance))
             .Select(candidate => new
             {
@@ -135,6 +138,7 @@ public sealed class EfReportRepository(
                 candidate.TenantId == tenantContext.TenantId &&
                 (candidate.Type == ReportType.ComplianceStatus ||
                  candidate.Type == ReportType.CmmcReadiness ||
+                 candidate.Type == ReportType.SprsReadiness ||
                  candidate.Type == ReportType.SubcontractorCompliance),
             cancellationToken);
         if (report is null)
@@ -919,6 +923,73 @@ public sealed class EfReportRepository(
             entity.GeneratedByUserId,
             snapshot,
             entity.ExportHtml) { Classification = ClassificationMetadata.Read(entity.CurrentClassification ?? (IClassifiedContentEntity)entity) };
+    }
+
+    public async Task<SprsReadinessReportDto> SaveSprsReadinessReportAsync(
+        SprsReadinessSnapshotDto snapshot,
+        string assessmentName,
+        Guid actorUserId,
+        ContentClassificationRequest classification,
+        CancellationToken cancellationToken = default)
+    {
+        var assessmentBelongsToTenant = await dbContext.Assessments
+            .AsNoTracking()
+            .AnyAsync(
+                assessment => assessment.Id == snapshot.AssessmentId && assessment.TenantId == tenantContext.TenantId,
+                cancellationToken);
+        if (!assessmentBelongsToTenant)
+        {
+            throw new InvalidOperationException("The SPRS readiness snapshot assessment is outside the current tenant.");
+        }
+
+        var generatedAt = snapshot.GeneratedAt;
+        var exportHtml = BuildSprsReadinessHtml(snapshot);
+        var entity = new ReportEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantContext.TenantId,
+            Type = ReportType.SprsReadiness,
+            Title = $"SPRS readiness report - {assessmentName}",
+            Status = ReportStatus.Complete,
+            GeneratedAt = generatedAt,
+            GeneratedByUserId = actorUserId,
+            SnapshotJson = JsonSerializer.Serialize(snapshot, JsonOptions),
+            ExportHtml = exportHtml,
+            CreatedAt = generatedAt,
+            CreatedByUserId = actorUserId
+        };
+
+        ApplyInitialClassification(entity, classification);
+        dbContext.Reports.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new SprsReadinessReportDto(
+            entity.Id,
+            entity.TenantId,
+            entity.Type,
+            entity.Status,
+            entity.Title,
+            entity.GeneratedAt,
+            entity.GeneratedByUserId,
+            snapshot,
+            entity.ExportHtml)
+        {
+            Classification = ClassificationMetadata.Read(entity.CurrentClassification ?? (IClassifiedContentEntity)entity)
+        };
+    }
+
+    private static string BuildSprsReadinessHtml(SprsReadinessSnapshotDto snapshot)
+    {
+        static string Encode(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
+        var rows = string.Join(string.Empty, snapshot.UnresolvedControls.Select(control =>
+            $"<li><strong>{Encode(control.RequirementId)}</strong> - {Encode(control.Title)}; " +
+            $"evidence {Encode(control.EvidenceStatus)}; POA&amp;M references {control.PoamItemIds.Count}</li>"));
+        return $"""
+            <!doctype html><html><head><meta charset="utf-8"><title>{Encode(snapshot.AssessmentName)} SPRS readiness report</title></head>
+            <body><h1>SPRS readiness report</h1><p><strong>{Encode(snapshot.SubmissionStatement)}</strong></p>
+            <p>Score {snapshot.Score} of {snapshot.MaximumScore}; deductions {snapshot.TotalDeduction}; scoring rule {Encode(snapshot.RuleSetVersion)}.</p>
+            <p>Assessment date {snapshot.AssessmentDate:yyyy-MM-dd}; generated {snapshot.GeneratedAt:O}; status {Encode(snapshot.ArtifactStatus)}.</p>
+            <h2>Unresolved controls</h2><ul>{rows}</ul><p>{Encode(ReportArtifactLanguage.WorkflowGuidanceDisclaimer)}</p></body></html>
+            """;
     }
 
     private static ComplianceStatusReportDto ToDto(ReportEntity entity, ComplianceStatusReportSnapshotDto snapshot) =>

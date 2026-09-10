@@ -2688,6 +2688,36 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/reports/sprs-readiness:
+    post:
+      tags: [Reports]
+      summary: Generate a draft SPRS readiness report
+      operationId: generateSprsReadinessReport
+      parameters:
+        - name: assessmentId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      description: >
+        Generates and persists a tenant-scoped leadership review snapshot. FeDril
+        does not submit the score to SPRS. Generation requires report-management
+        permission; history/detail and export use their existing report permissions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SprsReadinessReportRequest" }
+      responses:
+        "201":
+          description: Draft SPRS readiness report generated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SprsReadinessReport" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /api/reports/subcontractor-compliance:
     post:
       tags:
@@ -6811,6 +6841,81 @@ components:
         exportHtml:
           type: string
 
+    SprsReadinessReportRequest:
+      type: object
+      required: [ruleSetId, classification]
+      properties:
+        ruleSetId: { type: string, maxLength: 200 }
+        reviewerNotes: { type: [string, "null"], maxLength: 2000 }
+        leadershipReviewStatus: { type: [string, "null"], enum: [Pending, Reviewed, NeedsChanges, null] }
+        conditionalDeductionSelections:
+          type: [array, "null"]
+          maxItems: 110
+          items:
+            type: object
+            required: [requirementId, optionCode]
+            properties:
+              requirementId: { type: string, maxLength: 120 }
+              optionCode: { type: string, maxLength: 120 }
+        classification:
+          type: object
+          required: [classification]
+          properties:
+            classification: { type: string, enum: [Unknown, Unclassified, Fci, Cui, SyntheticCui, Prohibited] }
+
+    SprsReadinessReport:
+      allOf:
+        - $ref: "#/components/schemas/ComplianceStatusReport"
+        - type: object
+          properties:
+            snapshot: { $ref: "#/components/schemas/SprsReadinessSnapshot" }
+
+    SprsReadinessSnapshot:
+      type: object
+      required: [assessmentId, assessmentName, assessmentDate, calculationId, score, maximumScore, totalDeduction, ruleSetId, ruleSetVersion, ruleSetSourceUrl, ruleSetSourceSha256, generatedAt, artifactStatus, submissionStatement, reviewerNotes, deductions, unresolvedControls]
+      properties:
+        assessmentId: { type: string, format: uuid }
+        assessmentName: { type: string }
+        assessmentDate: { type: string, format: date }
+        calculationId: { type: string, format: uuid }
+        score: { type: integer }
+        maximumScore: { type: integer }
+        totalDeduction: { type: integer }
+        ruleSetId: { type: string }
+        ruleSetVersion: { type: string }
+        ruleSetSourceUrl: { type: string, format: uri }
+        ruleSetSourceSha256: { type: string }
+        generatedAt: { type: string, format: date-time }
+        artifactStatus: { type: string, enum: [Draft] }
+        submissionStatement: { type: string }
+        leadershipReviewStatus: { type: [string, "null"], enum: [Pending, Reviewed, NeedsChanges, null] }
+        reviewerNotes: { type: string }
+        deductions:
+          type: array
+          items:
+            type: object
+            required: [requirementId, title, deduction, reason]
+            properties:
+              requirementId: { type: string }
+              controlId: { type: [string, "null"] }
+              title: { type: string }
+              deduction: { type: integer }
+              reason: { type: string }
+        unresolvedControls:
+          type: array
+          items:
+            type: object
+            required: [requirementId, title, reason, poamItemIds, evidenceStatus]
+            properties:
+              requirementId: { type: string }
+              controlId: { type: [string, "null"] }
+              title: { type: string }
+              reason: { type: string }
+              poamItemIds:
+                type: array
+                items: { type: string, format: uuid }
+              evidenceStatus: { type: string, enum: [Linked, Missing] }
+
     CmmcReadinessSnapshot:
       type: object
       required:
@@ -7837,6 +7942,7 @@ components:
         - subcontractor-compliance
         - audit-trail
         - executive-risk-dashboard
+        - sprs-readiness
 
     ReportStatus:
       type: string

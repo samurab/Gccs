@@ -17,7 +17,7 @@ public sealed record ReportHistoryItemDto(
     string? ArchiveReason)
 {
     public ContentClassificationDto? Classification { get; init; }
-    public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
+    public string Disclaimer => ReportArtifactLanguage.For(Type);
 }
 
 public sealed record ReportArtifactDetailDto(
@@ -34,7 +34,7 @@ public sealed record ReportArtifactDetailDto(
     string? ArchiveReason)
 {
     public ContentClassificationDto? Classification { get; init; }
-    public string Disclaimer => ReportArtifactLanguage.WorkflowGuidanceDisclaimer;
+    public string Disclaimer => ReportArtifactLanguage.For(Type);
 }
 
 public sealed record ReportLifecycleRequest(string Reason);

@@ -33,6 +33,13 @@ public interface IReportRepository
         bool includeEvidenceLinks,
         CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null);
 
+    Task<SprsReadinessReportDto> SaveSprsReadinessReportAsync(
+        SprsReadinessSnapshotDto snapshot,
+        string assessmentName,
+        Guid actorUserId,
+        Gccs.Application.Common.ContentClassificationRequest classification,
+        CancellationToken cancellationToken = default);
+
     Task<EvidencePackageReportDto> GenerateEvidencePackageAsync(
         EvidencePackageGenerateRequest request,
         Guid actorUserId,

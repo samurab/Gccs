@@ -82,6 +82,7 @@ import {
   fallbackNoCuiAcknowledgementStatus,
   fallbackOverview,
   generateCmmcReadinessReport,
+  generateSprsReadinessReport,
   generateComplianceStatusReport,
   generateContractClauseObligations,
   generateEvidencePackage,
@@ -201,6 +202,7 @@ import {
   type ObligationAssignmentCandidate,
   type PagedResult,
   type ReportHistoryItem,
+  type SprsReadinessReport,
   type Subcontractor,
   type SubcontractorEntityLookupResult,
   type SubcontractorComplianceReport,
@@ -238,7 +240,7 @@ type WorkspaceRoute =
 
 type LoadState = "loading" | "ready" | "error";
 type AccessLoadState = "loading" | "ready" | "error";
-type ReportArtifact = ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | EvidencePackageReport;
+type ReportArtifact = ComplianceStatusReport | CmmcReadinessReport | SprsReadinessReport | SubcontractorComplianceReport | EvidencePackageReport;
 type ReportDetailStatus = "idle" | "loading" | "ready" | "failed";
 
 const tenantModeUpdateTimeoutMs = 15000;
@@ -2235,6 +2237,29 @@ export function App() {
     handleGeneratedReportResult(result.data, result.error, "CMMC readiness report generated.");
   }
 
+  async function handleSprsReportGenerate(
+    assessmentId: string,
+    ruleSetId: string,
+    reviewerNotes: string,
+    leadershipReviewStatus: "Pending" | "Reviewed" | "NeedsChanges" | null,
+    conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string }>
+  ) {
+    if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
+    setReportStatus("loading");
+    setReportMessage("");
+    const result = await generateSprsReadinessReport(
+      assessmentId,
+      {
+        ruleSetId,
+        reviewerNotes: reviewerNotes.trim() || null,
+        leadershipReviewStatus,
+        conditionalDeductionSelections
+      },
+      workflowClassification
+    );
+    handleGeneratedReportResult(result.data, result.error, "Draft SPRS readiness report generated. No score was submitted to SPRS.");
+  }
+
   async function handleSubcontractorReportGenerate(contractId?: string) {
     if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
@@ -2265,7 +2290,7 @@ export function App() {
   }
 
   function handleGeneratedReportResult(
-    report: ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport | null,
+    report: ComplianceStatusReport | CmmcReadinessReport | SprsReadinessReport | SubcontractorComplianceReport | null,
     error: string | null,
     successMessage: string
   ) {
@@ -2744,10 +2769,12 @@ export function App() {
               reportDetailMessage={reportDetailMessage}
               reportDetailStatus={reportDetailStatus}
               selectedReport={selectedReport}
+              sprsRuleSets={sprsRuleSets}
               status={reportStatus}
               subcontractors={subcontractors}
               onApprovedEvidencePackageSelect={handleApprovedEvidencePackageSelect}
               onCmmcReportGenerate={handleCmmcReportGenerate}
+              onSprsReportGenerate={handleSprsReportGenerate}
               onComplianceReportGenerate={handleComplianceReportGenerate}
               onEvidencePackageGenerate={handleEvidencePackageGenerate}
               onGeneratedReportSelect={handleGeneratedReportSelect}
@@ -7575,6 +7602,7 @@ function ReportsView({
   obligationItems,
   onApprovedEvidencePackageSelect,
   onCmmcReportGenerate,
+  onSprsReportGenerate,
   onComplianceReportGenerate,
   onEvidencePackageGenerate,
   onGeneratedReportSelect,
@@ -7584,6 +7612,7 @@ function ReportsView({
   reportDetailMessage,
   reportDetailStatus,
   selectedReport,
+  sprsRuleSets,
   status,
   subcontractors
 }: {
@@ -7602,6 +7631,13 @@ function ReportsView({
   obligationItems: ContractObligationDashboardItem[];
   onApprovedEvidencePackageSelect: (reportId: string) => Promise<void>;
   onCmmcReportGenerate: (assessmentId: string) => Promise<void>;
+  onSprsReportGenerate: (
+    assessmentId: string,
+    ruleSetId: string,
+    reviewerNotes: string,
+    leadershipReviewStatus: "Pending" | "Reviewed" | "NeedsChanges" | null,
+    conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string }>
+  ) => Promise<void>;
   onComplianceReportGenerate: () => Promise<void>;
   onEvidencePackageGenerate: (request: EvidencePackageGenerateRequest) => Promise<void>;
   onGeneratedReportSelect: (report: ReportArtifact | ReportHistoryItem) => Promise<void>;
@@ -7611,6 +7647,7 @@ function ReportsView({
   reportDetailMessage: string;
   reportDetailStatus: ReportDetailStatus;
   selectedReport: ReportArtifact | null;
+  sprsRuleSets: SprsScoringRuleSet[];
   status: "idle" | "loading" | "ready" | "failed";
   subcontractors: Subcontractor[];
 }) {
@@ -7620,6 +7657,13 @@ function ReportsView({
     ...recentReports.filter((report) => !generatedReportIds.has(report.id))
   ];
   const [assessmentId, setAssessmentId] = useState(assessments[0]?.id ?? "");
+  const publishedSprsRuleSets = sprsRuleSets.filter((ruleSet) => ruleSet.state === "Published");
+  const [sprsRuleSetId, setSprsRuleSetId] = useState(publishedSprsRuleSets[0]?.id ?? "");
+  const effectiveSprsRuleSetId = sprsRuleSetId || publishedSprsRuleSets[0]?.id || "";
+  const selectedSprsRuleSet = publishedSprsRuleSets.find((ruleSet) => ruleSet.id === effectiveSprsRuleSetId);
+  const [sprsReviewerNotes, setSprsReviewerNotes] = useState("");
+  const [leadershipReviewStatus, setLeadershipReviewStatus] = useState<"Pending" | "Reviewed" | "NeedsChanges" | "">("");
+  const [sprsConditionalSelections, setSprsConditionalSelections] = useState<Record<string, string>>({});
   const [contractId, setContractId] = useState("");
   const [packageTitle, setPackageTitle] = useState("Prime review evidence package");
   const [packageScope, setPackageScope] = useState({
@@ -7693,6 +7737,87 @@ function ReportsView({
                 >
                   <ShieldCheck size={16} aria-hidden="true" />
                   <span>Generate readiness</span>
+                </button>
+              </div>
+            </section>
+            <section className="evidence-metadata">
+              <h3>SPRS readiness</h3>
+              <p>Generate a draft leadership review artifact. FeDril does not submit scores to SPRS.</p>
+              <label>
+                <span>Scoring rule</span>
+                <select value={effectiveSprsRuleSetId} onChange={(event) => setSprsRuleSetId(event.target.value)}>
+                  <option value="">Select published rule</option>
+                  {publishedSprsRuleSets.map((ruleSet) => (
+                    <option key={ruleSet.id} value={ruleSet.id}>{ruleSet.version}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Leadership review</span>
+                <select
+                  value={leadershipReviewStatus}
+                  onChange={(event) => setLeadershipReviewStatus(event.target.value as typeof leadershipReviewStatus)}
+                >
+                  <option value="">Not set</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Reviewed">Reviewed</option>
+                  <option value="NeedsChanges">Needs changes</option>
+                </select>
+              </label>
+              {selectedSprsRuleSet
+                ?.rules.filter((rule) => rule.ruleType === "ConditionalDeduction")
+                .map((rule) => (
+                  <label key={rule.requirementId}>
+                    <span>{rule.requirementId} assessed condition</span>
+                    <select
+                      required
+                      value={sprsConditionalSelections[rule.requirementId] ?? ""}
+                      onChange={(event) => setSprsConditionalSelections((current) => ({
+                        ...current,
+                        [rule.requirementId]: event.target.value
+                      }))}
+                    >
+                      <option value="">Select condition</option>
+                      {(rule.conditionalDeductions ?? []).map((option) => (
+                        <option key={option.code} value={option.code}>{option.when} (-{option.deduction})</option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              <label>
+                <span>Reviewer notes</span>
+                <textarea
+                  maxLength={2000}
+                  value={sprsReviewerNotes}
+                  onChange={(event) => setSprsReviewerNotes(event.target.value)}
+                />
+              </label>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  disabled={
+                    !classificationConfirmed ||
+                    !assessmentId ||
+                    !effectiveSprsRuleSetId ||
+                    status === "loading" ||
+                    selectedSprsRuleSet?.rules.some((rule) =>
+                      rule.ruleType === "ConditionalDeduction" && !sprsConditionalSelections[rule.requirementId]) === true
+                  }
+                  onClick={() => void onSprsReportGenerate(
+                    assessmentId,
+                    effectiveSprsRuleSetId,
+                    sprsReviewerNotes,
+                    leadershipReviewStatus || null,
+                    selectedSprsRuleSet
+                      ?.rules.filter((rule) => rule.ruleType === "ConditionalDeduction")
+                      .map((rule) => ({
+                        requirementId: rule.requirementId,
+                        optionCode: sprsConditionalSelections[rule.requirementId] ?? ""
+                      })) ?? []
+                  )}
+                >
+                  <ScrollText size={16} aria-hidden="true" />
+                  <span>Generate SPRS report</span>
                 </button>
               </div>
             </section>
@@ -7875,7 +8000,7 @@ function ReportsView({
 }
 
 function reportHistoryItem(
-  report: ComplianceStatusReport | CmmcReadinessReport | SubcontractorComplianceReport
+  report: ComplianceStatusReport | CmmcReadinessReport | SprsReadinessReport | SubcontractorComplianceReport
 ): ReportHistoryItem {
   return {
     id: report.id,
@@ -8176,6 +8301,17 @@ function reportDetailMetrics(report: ReportArtifact): Array<{ label: string; val
     ];
   }
 
+  if (report.type === "SprsReadiness") {
+    return [
+      { label: "Draft score", value: snapshotText(snapshot, "score") },
+      { label: "Maximum score", value: snapshotText(snapshot, "maximumScore") },
+      { label: "Deductions", value: snapshotText(snapshot, "totalDeduction") },
+      { label: "Unresolved controls", value: snapshotArrayLength(snapshot, "unresolvedControls") },
+      { label: "Scoring rule", value: snapshotText(snapshot, "ruleSetVersion") },
+      { label: "Leadership review", value: formatEnumLabel(snapshotText(snapshot, "leadershipReviewStatus", "Not set")) }
+    ];
+  }
+
   if (report.type === "SubcontractorCompliance") {
     return [
       { label: "Subcontractors", value: snapshotText(snapshot, "totalSubcontractors") },
@@ -8213,6 +8349,19 @@ function reportDetailItems(report: ReportArtifact): string[] {
         .filter((value) => value && value !== "Not available")
         .join(" · ")
     );
+  }
+
+  if (report.type === "SprsReadiness") {
+    return snapshotRecordItems(snapshot, "unresolvedControls", (item) => {
+      const poamIds = item.poamItemIds;
+      const poamCount = Array.isArray(poamIds) ? poamIds.length : 0;
+      return [
+        recordText(item, "requirementId"),
+        recordText(item, "title"),
+        `Evidence ${recordText(item, "evidenceStatus")}`,
+        `${poamCount} POA&M reference${poamCount === 1 ? "" : "s"}`
+      ].join(" · ");
+    });
   }
 
   if (report.type === "SubcontractorCompliance") {

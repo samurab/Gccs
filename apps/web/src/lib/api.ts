@@ -1466,7 +1466,15 @@ export type ComplianceStatusReport = {
 };
 
 export type CmmcReadinessReport = ComplianceStatusReport;
+export type SprsReadinessReport = ComplianceStatusReport;
 export type SubcontractorComplianceReport = ComplianceStatusReport;
+
+export type SprsReadinessReportRequest = {
+  ruleSetId: string;
+  reviewerNotes: string | null;
+  leadershipReviewStatus: "Pending" | "Reviewed" | "NeedsChanges" | null;
+  conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string }> | null;
+};
 
 export type EvidencePackageGenerateRequest = {
   title: string;
@@ -3280,6 +3288,17 @@ export async function generateComplianceStatusReport(classification: string): Pr
 
 export async function generateCmmcReadinessReport(assessmentId: string, classification: string): Promise<ApiMutationResult<CmmcReadinessReport>> {
   return postJsonResult<CmmcReadinessReport>(`/api/reports/cmmc-readiness?assessmentId=${encodeURIComponent(assessmentId)}`, { classification: { classification } });
+}
+
+export async function generateSprsReadinessReport(
+  assessmentId: string,
+  request: SprsReadinessReportRequest,
+  classification: string
+): Promise<ApiMutationResult<SprsReadinessReport>> {
+  return postJsonResult<SprsReadinessReport>(
+    `/api/reports/sprs-readiness?assessmentId=${encodeURIComponent(assessmentId)}`,
+    { ...request, classification: { classification } }
+  );
 }
 
 export async function generateSubcontractorComplianceReport(

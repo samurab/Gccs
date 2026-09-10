@@ -96,6 +96,7 @@ const {
   runDueDateRemindersMock,
   revokeTenantInvitationMock,
   generateCmmcReadinessReportMock,
+  generateSprsReadinessReportMock,
   generateComplianceStatusReportMock,
   generateContractClauseObligationsMock,
   generateEvidencePackageMock,
@@ -192,6 +193,7 @@ const {
   getPublishedSharedResponsibilityMatrixMock: vi.fn(),
   getSharedResponsibilityMatrixAcknowledgementsMock: vi.fn(),
   generateCmmcReadinessReportMock: vi.fn(),
+  generateSprsReadinessReportMock: vi.fn(),
   generateComplianceStatusReportMock: vi.fn(),
   generateContractClauseObligationsMock: vi.fn(),
   generateEvidencePackageMock: vi.fn(),
@@ -890,6 +892,7 @@ vi.mock("@/lib/api", () => ({
   getPublishedSharedResponsibilityMatrix: getPublishedSharedResponsibilityMatrixMock,
   getSharedResponsibilityMatrixAcknowledgements: getSharedResponsibilityMatrixAcknowledgementsMock,
   generateCmmcReadinessReport: generateCmmcReadinessReportMock,
+  generateSprsReadinessReport: generateSprsReadinessReportMock,
   generateComplianceStatusReport: generateComplianceStatusReportMock,
   generateContractClauseObligations: generateContractClauseObligationsMock,
   generateEvidencePackage: generateEvidencePackageMock,
@@ -1008,6 +1011,7 @@ describe("App", () => {
     runDueDateRemindersMock.mockReset();
     revokeTenantInvitationMock.mockReset();
     generateCmmcReadinessReportMock.mockReset();
+    generateSprsReadinessReportMock.mockReset();
     generateComplianceStatusReportMock.mockReset();
     generateContractClauseObligationsMock.mockReset();
     generateEvidencePackageMock.mockReset();
@@ -3885,6 +3889,85 @@ describe("App", () => {
     expect(currentResult.getByText("Leadership review context.")).toBeInTheDocument();
     expect(currentResult.getByText(/Rule 2026.09-reviewed/)).toBeInTheDocument();
     expect(within(workspace).getByText("Calculation history (1)")).toBeInTheDocument();
+  });
+
+  it("Story 30.3 generates and renders a draft not-submitted SPRS readiness report", async () => {
+    const level2Assessment = {
+      ...cmmcAssessment,
+      id: "c303c303-c303-c303-c303-c303c303c303",
+      name: "Leadership SPRS review",
+      level: "Level2"
+    };
+    const ruleSet = {
+      id: "reviewed-rules",
+      version: "2026.09-reviewed",
+      state: "Published",
+      sourceName: "Reviewed methodology",
+      sourceUrl: "https://example.test/sprs",
+      sourceSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      effectiveDate: "2026-01-01",
+      lastReviewedAt: "2026-09-01",
+      owner: "Content owner",
+      reviewer: "Qualified reviewer",
+      reviewDate: "2026-09-01",
+      maximumScore: 110,
+      rules: []
+    };
+    const report = {
+      id: "30330330-3303-3033-0330-330330330303",
+      tenantId: level2Assessment.tenantId,
+      type: "SprsReadiness",
+      status: "Complete",
+      title: "SPRS readiness report - Leadership SPRS review",
+      generatedAt: "2026-09-10T15:00:00Z",
+      generatedByUserId: allWorkflowAccess.userId,
+      disclaimer: "Draft readiness tracking only. FeDril has not submitted this score to SPRS.",
+      snapshot: {
+        assessmentId: level2Assessment.id,
+        assessmentName: level2Assessment.name,
+        score: 105,
+        maximumScore: 110,
+        totalDeduction: 5,
+        ruleSetVersion: ruleSet.version,
+        leadershipReviewStatus: "Pending",
+        unresolvedControls: [{
+          requirementId: "3.1.1",
+          title: "Authorized access",
+          evidenceStatus: "Missing",
+          poamItemIds: ["aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+        }]
+      }
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getCmmcAssessmentsMock.mockResolvedValueOnce([level2Assessment]);
+    getSprsScoringRuleSetsMock.mockResolvedValueOnce([ruleSet]);
+    generateSprsReadinessReportMock.mockResolvedValueOnce({ data: report, error: null });
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.click(await screen.findByRole("link", { name: /reports/i }));
+    await user.selectOptions(screen.getByLabelText("Workflow classification"), "Unclassified");
+    await user.selectOptions(screen.getByLabelText("Leadership review"), "Pending");
+    await user.type(screen.getByLabelText("Reviewer notes"), "Leadership review context.");
+    await user.click(screen.getByRole("button", { name: "Generate SPRS report" }));
+
+    expect(generateSprsReadinessReportMock).toHaveBeenCalledWith(
+      level2Assessment.id,
+      {
+        ruleSetId: ruleSet.id,
+        reviewerNotes: "Leadership review context.",
+        leadershipReviewStatus: "Pending",
+        conditionalDeductionSelections: []
+      },
+      "Unclassified"
+    );
+    expect(await screen.findByText("Draft SPRS readiness report generated. No score was submitted to SPRS.")).toBeInTheDocument();
+    const detail = screen.getByLabelText("Generated report detail");
+    expect(within(detail).getByText(/has not submitted this score to SPRS/i)).toBeInTheDocument();
+    expect(within(detail).getByText("3.1.1 · Authorized access · Evidence Missing · 1 POA&M reference")).toBeInTheDocument();
   });
 
   it("TC-14.1 renders subcontractor profiles and creates a linked subcontractor", async () => {

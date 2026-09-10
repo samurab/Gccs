@@ -2773,6 +2773,42 @@ api.MapPost("/reports/cmmc-readiness", async (
 .RequirePermission(Permission.ManageReports)
 .WithName("GenerateCmmcReadinessReport");
 
+api.MapPost("/reports/sprs-readiness", async (
+    Guid assessmentId,
+    SprsReadinessReportRequest request,
+    SprsReadinessReportService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var report = await service.GenerateAsync(
+            assessmentId,
+            request,
+            tenantContext.UserId,
+            cancellationToken);
+        return report is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC assessment '{assessmentId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/reports/{report.Id}", report);
+    }
+    catch (Exception exception) when (exception is SprsReadinessReportException or SprsScoreCalculationException)
+    {
+        return Results.ValidationProblem(
+            new Dictionary<string, string[]> { ["sprsReadinessReport"] = [exception.Message] },
+            title: "SPRS readiness report invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("GenerateSprsReadinessReport");
+
 api.MapPost("/reports/subcontractor-compliance", async (
     Guid? contractId,
     ClassifiedWorkflowRequest request,

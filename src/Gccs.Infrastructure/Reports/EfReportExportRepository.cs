@@ -23,6 +23,7 @@ public sealed class EfReportExportRepository(
                 candidate.TenantId == tenantContext.TenantId &&
                 (candidate.Type == ReportType.ComplianceStatus ||
                  candidate.Type == ReportType.CmmcReadiness ||
+                 candidate.Type == ReportType.SprsReadiness ||
                  candidate.Type == ReportType.SubcontractorCompliance) &&
                 (candidate.Status == ReportStatus.Complete || candidate.Status == ReportStatus.Archived))
             .Select(candidate => new { candidate.Id, candidate.Title })
