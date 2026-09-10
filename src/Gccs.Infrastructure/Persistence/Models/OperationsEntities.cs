@@ -6,6 +6,7 @@ using Gccs.Domain.Labor;
 using Gccs.Domain.People;
 using Gccs.Domain.Reports;
 using Gccs.Domain.Vendors;
+using Gccs.Application.Reports;
 
 namespace Gccs.Infrastructure.Persistence.Models;
 
@@ -47,6 +48,7 @@ public sealed class EvidenceItemEntity : AuditedEntity, IClassifiedContentEntity
     public ICollection<EvidenceVendorEntity> Vendors { get; set; } = [];
     public ICollection<EvidenceEmployeeEntity> Employees { get; set; } = [];
     public ICollection<EvidenceFileVersionEntity> FileVersions { get; set; } = [];
+    public ICollection<SubcontractingReportDataEvidenceEntity> SubcontractingReportDataRows { get; set; } = [];
 }
 
 public sealed class EvidenceRequestEntity : AuditedEntity
@@ -447,6 +449,45 @@ public sealed class SubcontractorEntity : AuditedEntity
     public ICollection<ContractSubcontractorEntity> Contracts { get; set; } = [];
     public ICollection<SubcontractorEvidenceEntity> EvidenceItems { get; set; } = [];
     public ICollection<SubcontractorEvidenceRequestEntity> EvidenceRequests { get; set; } = [];
+    public ICollection<SubcontractingReportDataRowEntity> ReportDataRows { get; set; } = [];
+}
+
+public sealed class SubcontractingReportDataRowEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContractId { get; set; }
+    public Guid SubcontractorId { get; set; }
+    public EsrsReportType ReportType { get; set; }
+    public DateOnly ReportPeriodStart { get; set; }
+    public DateOnly ReportPeriodEnd { get; set; }
+    public DateOnly RowPeriodStart { get; set; }
+    public DateOnly RowPeriodEnd { get; set; }
+    public string SocioeconomicCategory { get; set; } = string.Empty;
+    public string SocioeconomicCategoryKey { get; set; } = string.Empty;
+    public string PlanCategory { get; set; } = string.Empty;
+    public string PlanCategoryKey { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string SourceReference { get; set; } = string.Empty;
+    public SubcontractingReportDataReviewStatus ReviewStatus { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? ReviewerNotes { get; set; }
+    public int Version { get; set; }
+
+    public ContractEntity? Contract { get; set; }
+    public SubcontractorEntity? Subcontractor { get; set; }
+    public UserEntity? Reviewer { get; set; }
+    public ICollection<SubcontractingReportDataEvidenceEntity> EvidenceLinks { get; set; } = [];
+}
+
+public sealed class SubcontractingReportDataEvidenceEntity
+{
+    public Guid TenantId { get; set; }
+    public Guid ReportDataRowId { get; set; }
+    public Guid EvidenceItemId { get; set; }
+    public SubcontractingReportDataRowEntity? ReportDataRow { get; set; }
+    public EvidenceItemEntity? EvidenceItem { get; set; }
 }
 
 public sealed class FlowDownClauseEntity : AuditedEntity

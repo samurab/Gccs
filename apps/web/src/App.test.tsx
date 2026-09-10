@@ -875,6 +875,7 @@ vi.mock("@/lib/api", () => ({
   getContractClauses: getContractClausesMock,
   getContractDeliverables: getContractDeliverablesMock,
   getContractEsrsApplicabilities: vi.fn().mockResolvedValue([]),
+  getContractEsrsReportData: vi.fn().mockResolvedValue([]),
   getEsrsScheduleTemplates: vi.fn().mockResolvedValue([]),
   createEsrsApplicability: vi.fn(),
   updateEsrsApplicability: vi.fn(),

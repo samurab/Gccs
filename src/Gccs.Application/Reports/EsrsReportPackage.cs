@@ -19,7 +19,6 @@ public sealed class EsrsReportPackageService(
         EnsurePermission(request.HasReportPermission);
         var packageRows = await reportDataService.PreparePackageRowsAsync(
             new SubcontractingReportPackageRowsRequest(
-                request.TenantId,
                 request.ContractId,
                 request.ReportType,
                 request.PeriodStart,

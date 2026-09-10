@@ -773,6 +773,7 @@ public sealed class ContractEntity : AuditedEntity
     public ICollection<ContractDeliverableEntity> Deliverables { get; set; } = [];
     public ICollection<ContractReportingDeadlineEntity> ReportingDeadlines { get; set; } = [];
     public ICollection<EsrsApplicabilityEntity> EsrsApplicabilities { get; set; } = [];
+    public ICollection<SubcontractingReportDataRowEntity> SubcontractingReportDataRows { get; set; } = [];
     public ICollection<ContractSubcontractorEntity> Subcontractors { get; set; } = [];
 }
 

@@ -1719,6 +1719,19 @@ export type EsrsScheduleTemplate = {
   guidance: string;
 };
 
+export type SubcontractingReportDataReviewStatus = "Draft" | "PendingReview" | "Reviewed" | "Accepted" | "Rejected";
+export type SubcontractingReportDataRow = {
+  id: string; tenantId: string; contractId: string; subcontractorId: string; reportType: "Isr" | "Ssr";
+  reportPeriodStart: string; reportPeriodEnd: string; rowPeriodStart: string; rowPeriodEnd: string;
+  socioeconomicCategory: string; planCategory: string; amount: number; supportingEvidenceItemIds: string[];
+  sourceReference: string | null; reviewStatus: SubcontractingReportDataReviewStatus;
+  reviewedByUserId: string | null; reviewedAt: string | null; reviewerNotes: string | null;
+  version: number; createdAt: string; updatedAt: string | null; isPackageEligible: boolean;
+};
+export type UpsertSubcontractingReportDataRowRequest = Omit<SubcontractingReportDataRow,
+  "id" | "tenantId" | "reviewStatus" | "reviewedByUserId" | "reviewedAt" | "reviewerNotes" |
+  "version" | "createdAt" | "updatedAt" | "isPackageEligible"> & { expectedVersion?: number | null };
+
 export type ContractDocument = {
   id: string;
   contractId: string;
@@ -3040,6 +3053,31 @@ export const updateEsrsApplicability = (contractId: string, applicabilityId: str
 
 export const updateEsrsApplicabilityStatus = (contractId: string, applicabilityId: string, status: EsrsApplicability["status"]) =>
   patchJsonResult<EsrsApplicability>(`/api/contracts/${contractId}/esrs-applicabilities/${applicabilityId}/status`, { status });
+
+export const getContractEsrsReportData = (contractId: string) =>
+  getRequiredJson<SubcontractingReportDataRow[]>(`/api/contracts/${contractId}/esrs-report-data`);
+
+export const createContractEsrsReportData = (contractId: string, request: UpsertSubcontractingReportDataRowRequest) =>
+  postJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/esrs-report-data`, request);
+
+export const updateContractEsrsReportData = (contractId: string, rowId: string, request: UpsertSubcontractingReportDataRowRequest) =>
+  putJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/esrs-report-data/${rowId}`, request);
+
+export const reviewContractEsrsReportData = (contractId: string, rowId: string,
+  status: "Reviewed" | "Accepted" | "Rejected", reviewerNotes: string | null, expectedVersion: number) =>
+  patchJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/esrs-report-data/${rowId}/review`, { status, reviewerNotes, expectedVersion });
+
+export const importEsrsReportDataCsv = (csvContent: string) =>
+  postJsonResult<SubcontractingReportDataRow[]>("/api/esrs/report-data/import", { csvContent });
+
+export async function downloadEsrsReportDataTemplate(): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/esrs/report-data/import-template`, { headers: await getApiHeaders() });
+    if (!response.ok) return { data: null, error: await readErrorMessage(response) };
+    return { data: { blob: await response.blob(), fileName: "subcontracting-report-data-template.csv" }, error: null };
+  } catch { return { data: null, error: "The import template could not be downloaded." }; }
+}
 
 export async function createContractDocument(
   contractId: string,

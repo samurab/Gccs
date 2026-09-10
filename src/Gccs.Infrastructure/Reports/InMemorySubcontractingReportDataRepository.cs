@@ -2,138 +2,83 @@ using Gccs.Application.Reports;
 
 namespace Gccs.Infrastructure.Reports;
 
-public sealed class InMemorySubcontractingReportDataRepository : ISubcontractingReportDataRepository
+public sealed class InMemorySubcontractingReportDataRepository(Guid tenantId) : ISubcontractingReportDataRepository
 {
-    private readonly List<SubcontractingReportDataRowDto> _rows = [];
+    private readonly object gate = new();
+    private readonly List<SubcontractingReportDataRowDto> rows = [];
 
-    public Task<SubcontractingReportDataRowDto> CreateAsync(
-        SubcontractingReportDataRowRequest request,
-        Guid tenantId,
-        Guid actorUserId,
-        CancellationToken cancellationToken = default)
+    public Task<SubcontractingReportDataRowDto> CreateAsync(SubcontractingReportDataRowRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
-        var row = new SubcontractingReportDataRowDto(
-            Guid.NewGuid(),
-            tenantId,
-            request.ContractId,
-            request.SubcontractorId,
-            request.ReportType,
-            request.ReportPeriodStart,
-            request.ReportPeriodEnd,
-            request.RowPeriodStart,
-            request.RowPeriodEnd,
-            request.SocioeconomicCategory,
-            request.PlanCategory,
-            request.Amount,
-            request.SupportingEvidenceItemIds.ToArray(),
-            request.SourceReference,
-            SubcontractingReportDataReviewStatus.Draft,
-            null,
-            DateTimeOffset.UtcNow,
-            null);
-        _rows.Add(row);
-        return Task.FromResult(row);
-    }
-
-    public Task<SubcontractingReportDataRowDto?> UpdateAsync(
-        Guid rowId,
-        SubcontractingReportDataRowRequest request,
-        Guid actorUserId,
-        CancellationToken cancellationToken = default)
-    {
-        var existing = _rows.SingleOrDefault(row => row.Id == rowId);
-        if (existing is null)
+        lock (gate)
         {
-            return Task.FromResult<SubcontractingReportDataRowDto?>(null);
+            var row = new SubcontractingReportDataRowDto(Guid.NewGuid(), tenantId, request.ContractId, request.SubcontractorId,
+                request.ReportType, request.ReportPeriodStart, request.ReportPeriodEnd, request.RowPeriodStart, request.RowPeriodEnd,
+                request.SocioeconomicCategory, request.PlanCategory, request.Amount, request.SupportingEvidenceItemIds.ToArray(),
+                request.SourceReference, SubcontractingReportDataReviewStatus.Draft, null, null, null, 1, DateTimeOffset.UtcNow, null);
+            rows.Add(row); return Task.FromResult(row);
         }
-
-        var updated = existing with
-        {
-            ContractId = request.ContractId,
-            SubcontractorId = request.SubcontractorId,
-            ReportType = request.ReportType,
-            ReportPeriodStart = request.ReportPeriodStart,
-            ReportPeriodEnd = request.ReportPeriodEnd,
-            RowPeriodStart = request.RowPeriodStart,
-            RowPeriodEnd = request.RowPeriodEnd,
-            SocioeconomicCategory = request.SocioeconomicCategory,
-            PlanCategory = request.PlanCategory,
-            Amount = request.Amount,
-            SupportingEvidenceItemIds = request.SupportingEvidenceItemIds.ToArray(),
-            SourceReference = request.SourceReference,
-            ReviewStatus = SubcontractingReportDataReviewStatus.PendingReview,
-            UpdatedAt = DateTimeOffset.UtcNow
-        };
-        Replace(existing, updated);
-        return Task.FromResult<SubcontractingReportDataRowDto?>(updated);
     }
 
-    public Task<SubcontractingReportDataRowDto?> FindAsync(Guid rowId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(_rows.SingleOrDefault(row => row.Id == rowId));
-
-    public Task<IReadOnlyList<SubcontractingReportDataRowDto>> ListAsync(
-        SubcontractingReportDataQuery query,
-        CancellationToken cancellationToken = default)
+    public Task<SubcontractingReportDataRowDto?> UpdateAsync(Guid rowId, SubcontractingReportDataRowRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
-        var rows = _rows
-            .Where(row => row.TenantId == query.TenantId)
-            .Where(row => query.ContractId is null || row.ContractId == query.ContractId)
-            .Where(row => query.ReportType is null || row.ReportType == query.ReportType)
-            .Where(row => query.ReportPeriodStart is null || row.ReportPeriodStart == query.ReportPeriodStart)
-            .Where(row => query.ReportPeriodEnd is null || row.ReportPeriodEnd == query.ReportPeriodEnd)
-            .OrderBy(row => row.SubcontractorId)
-            .ThenBy(row => row.SocioeconomicCategory)
-            .ToArray();
-        return Task.FromResult<IReadOnlyList<SubcontractingReportDataRowDto>>(rows);
-    }
-
-    public Task<SubcontractingReportDataRowDto?> UpdateReviewStatusAsync(
-        Guid rowId,
-        SubcontractingReportDataReviewStatus status,
-        string? reviewerNotes,
-        Guid actorUserId,
-        CancellationToken cancellationToken = default)
-    {
-        var existing = _rows.SingleOrDefault(row => row.Id == rowId);
-        if (existing is null)
+        lock (gate)
         {
-            return Task.FromResult<SubcontractingReportDataRowDto?>(null);
+            var existing = rows.SingleOrDefault(row => row.Id == rowId && row.TenantId == tenantId);
+            if (existing is null) return Task.FromResult<SubcontractingReportDataRowDto?>(null);
+            var updated = existing with { ContractId = request.ContractId, SubcontractorId = request.SubcontractorId,
+                ReportType = request.ReportType, ReportPeriodStart = request.ReportPeriodStart, ReportPeriodEnd = request.ReportPeriodEnd,
+                RowPeriodStart = request.RowPeriodStart, RowPeriodEnd = request.RowPeriodEnd,
+                SocioeconomicCategory = request.SocioeconomicCategory, PlanCategory = request.PlanCategory, Amount = request.Amount,
+                SupportingEvidenceItemIds = request.SupportingEvidenceItemIds.ToArray(), SourceReference = request.SourceReference,
+                ReviewStatus = SubcontractingReportDataReviewStatus.PendingReview, ReviewedByUserId = null, ReviewedAt = null,
+                ReviewerNotes = null, Version = existing.Version + 1, UpdatedAt = DateTimeOffset.UtcNow };
+            Replace(existing, updated); return Task.FromResult<SubcontractingReportDataRowDto?>(updated);
         }
-
-        var updated = existing with
-        {
-            ReviewStatus = status,
-            ReviewerNotes = reviewerNotes,
-            UpdatedAt = DateTimeOffset.UtcNow
-        };
-        Replace(existing, updated);
-        return Task.FromResult<SubcontractingReportDataRowDto?>(updated);
     }
 
-    public Task<bool> ExistsDuplicateAsync(
-        Guid tenantId,
-        SubcontractingReportDataRowRequest request,
-        Guid? existingRowId,
-        CancellationToken cancellationToken = default)
+    public Task<SubcontractingReportDataRowDto?> FindCurrentTenantAsync(Guid rowId, CancellationToken cancellationToken = default)
+    { lock (gate) return Task.FromResult(rows.SingleOrDefault(row => row.Id == rowId && row.TenantId == tenantId)); }
+
+    public Task<IReadOnlyList<SubcontractingReportDataRowDto>> ListCurrentTenantAsync(SubcontractingReportDataQuery query, CancellationToken cancellationToken = default)
     {
-        var exists = _rows.Any(row =>
-            row.TenantId == tenantId &&
-            row.Id != existingRowId &&
-            row.ContractId == request.ContractId &&
-            row.SubcontractorId == request.SubcontractorId &&
-            row.ReportType == request.ReportType &&
-            row.ReportPeriodStart == request.ReportPeriodStart &&
-            row.ReportPeriodEnd == request.ReportPeriodEnd &&
-            row.RowPeriodStart == request.RowPeriodStart &&
-            row.RowPeriodEnd == request.RowPeriodEnd &&
+        lock (gate)
+        {
+            var result = rows.Where(row => row.TenantId == tenantId)
+                .Where(row => query.ContractId is null || row.ContractId == query.ContractId)
+                .Where(row => query.ReportType is null || row.ReportType == query.ReportType)
+                .Where(row => query.ReportPeriodStart is null || row.ReportPeriodStart == query.ReportPeriodStart)
+                .Where(row => query.ReportPeriodEnd is null || row.ReportPeriodEnd == query.ReportPeriodEnd).ToArray();
+            return Task.FromResult<IReadOnlyList<SubcontractingReportDataRowDto>>(result);
+        }
+    }
+
+    public Task<SubcontractingReportDataRowDto?> UpdateReviewStatusAsync(Guid rowId, SubcontractingReportDataReviewStatus status, string? reviewerNotes, Guid actorUserId, CancellationToken cancellationToken = default)
+    {
+        lock (gate)
+        {
+            var existing = rows.SingleOrDefault(row => row.Id == rowId && row.TenantId == tenantId);
+            if (existing is null) return Task.FromResult<SubcontractingReportDataRowDto?>(null);
+            var now = DateTimeOffset.UtcNow;
+            var updated = existing with { ReviewStatus = status, ReviewerNotes = reviewerNotes, ReviewedByUserId = actorUserId,
+                ReviewedAt = now, Version = existing.Version + 1, UpdatedAt = now };
+            Replace(existing, updated); return Task.FromResult<SubcontractingReportDataRowDto?>(updated);
+        }
+    }
+
+    public Task<bool> ExistsDuplicateCurrentTenantAsync(SubcontractingReportDataRowRequest request, Guid? existingRowId, CancellationToken cancellationToken = default)
+    {
+        lock (gate) return Task.FromResult(rows.Any(row => row.TenantId == tenantId && row.Id != existingRowId &&
+            row.ContractId == request.ContractId && row.SubcontractorId == request.SubcontractorId && row.ReportType == request.ReportType &&
+            row.ReportPeriodStart == request.ReportPeriodStart && row.ReportPeriodEnd == request.ReportPeriodEnd &&
+            row.RowPeriodStart == request.RowPeriodStart && row.RowPeriodEnd == request.RowPeriodEnd &&
             string.Equals(row.SocioeconomicCategory, request.SocioeconomicCategory, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(row.PlanCategory, request.PlanCategory, StringComparison.OrdinalIgnoreCase));
-        return Task.FromResult(exists);
+            string.Equals(row.PlanCategory, request.PlanCategory, StringComparison.OrdinalIgnoreCase)));
     }
 
-    private void Replace(SubcontractingReportDataRowDto existing, SubcontractingReportDataRowDto updated)
-    {
-        _rows.Remove(existing);
-        _rows.Add(updated);
-    }
+    public Task<IReadOnlyDictionary<string, string[]>> ValidateReferencesCurrentTenantAsync(SubcontractingReportDataRowRequest request, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyDictionary<string, string[]>>(new Dictionary<string, string[]>());
+
+    public Task<bool> ContractExistsCurrentTenantAsync(Guid contractId, CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+    private void Replace(SubcontractingReportDataRowDto existing, SubcontractingReportDataRowDto updated) { rows.Remove(existing); rows.Add(updated); }
 }

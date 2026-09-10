@@ -918,6 +918,166 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/contracts/{contractId}/esrs-report-data:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    get:
+      tags: [Reports]
+      summary: List tenant-scoped subcontracting report data rows
+      operationId: listContractEsrsReportData
+      responses:
+        "200":
+          description: Current-tenant report data rows.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubcontractingReportDataRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Reports]
+      summary: Create a subcontracting report data row
+      operationId: createContractEsrsReportData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubcontractingReportDataRequest" }
+      responses:
+        "201":
+          description: Draft report data row created and audited.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractingReportDataRow" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/contracts/{contractId}/esrs-report-data/{rowId}:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - name: rowId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Reports]
+      summary: Get a tenant-scoped subcontracting report data row
+      operationId: getContractEsrsReportData
+      responses:
+        "200":
+          description: Report data row with evidence and review metadata.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractingReportDataRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Reports]
+      summary: Update a subcontracting report data row and reset its review eligibility
+      operationId: updateContractEsrsReportData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubcontractingReportDataRequest" }
+      responses:
+        "200":
+          description: Updated row in PendingReview state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractingReportDataRow" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/contracts/{contractId}/esrs-report-data/{rowId}/review:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - name: rowId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Reports]
+      summary: Review, accept, or reject a subcontracting report data row
+      operationId: reviewContractEsrsReportData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubcontractingReportDataReviewRequest" }
+      responses:
+        "200":
+          description: Review decision and reviewer metadata persisted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractingReportDataRow" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/contracts/{contractId}/esrs-report-data/package-eligibility:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - { name: reportType, in: query, required: true, schema: { $ref: "#/components/schemas/EsrsReportType" } }
+      - { name: periodStart, in: query, required: true, schema: { type: string, format: date } }
+      - { name: periodEnd, in: query, required: true, schema: { type: string, format: date } }
+    get:
+      tags: [Reports]
+      summary: Check whether report data can be included in a final package
+      operationId: getEsrsReportDataPackageEligibility
+      responses:
+        "200":
+          description: Eligibility counts; every row must be reviewed or explicitly accepted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractingReportDataPackageEligibility" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/esrs/report-data/import-template:
+    get:
+      tags: [Reports]
+      summary: Download the current subcontracting report CSV template
+      operationId: downloadEsrsReportDataImportTemplate
+      responses:
+        "200":
+          description: CSV header template.
+          content:
+            text/csv:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/esrs/report-data/import:
+    post:
+      tags: [Reports]
+      summary: Validate and atomically import subcontracting report CSV rows
+      operationId: importEsrsReportData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubcontractingReportDataImportRequest" }
+      responses:
+        "200":
+          description: Imported draft rows.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubcontractingReportDataRow" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /api/contracts/{contractId}/documents:
     parameters:
       - $ref: "#/components/parameters/ContractId"
@@ -4613,6 +4773,73 @@ components:
       enum:
         - Isr
         - Ssr
+
+    SubcontractingReportDataRequest:
+      type: object
+      required: [contractId, subcontractorId, reportType, reportPeriodStart, reportPeriodEnd, rowPeriodStart, rowPeriodEnd, socioeconomicCategory, planCategory, amount, supportingEvidenceItemIds, sourceReference]
+      properties:
+        contractId: { type: string, format: uuid }
+        subcontractorId: { type: string, format: uuid }
+        reportType: { $ref: "#/components/schemas/EsrsReportType" }
+        reportPeriodStart: { type: string, format: date }
+        reportPeriodEnd: { type: string, format: date }
+        rowPeriodStart: { type: string, format: date }
+        rowPeriodEnd: { type: string, format: date }
+        socioeconomicCategory: { type: string, maxLength: 120 }
+        planCategory: { type: string, maxLength: 120 }
+        amount: { type: number, format: decimal, minimum: 0, maximum: 999999999999.99 }
+        supportingEvidenceItemIds:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        sourceReference: { type: string, maxLength: 500 }
+        expectedVersion:
+          type: [integer, "null"]
+          minimum: 1
+
+    SubcontractingReportDataRow:
+      allOf:
+        - $ref: "#/components/schemas/SubcontractingReportDataRequest"
+        - type: object
+          required: [id, tenantId, reviewStatus, version, createdAt, isPackageEligible]
+          properties:
+            id: { type: string, format: uuid }
+            tenantId: { type: string, format: uuid }
+            reviewStatus:
+              type: string
+              enum: [Draft, PendingReview, Reviewed, Accepted, Rejected]
+            reviewedByUserId: { type: [string, "null"], format: uuid }
+            reviewedAt: { type: [string, "null"], format: date-time }
+            reviewerNotes: { type: [string, "null"], maxLength: 2000 }
+            version: { type: integer, minimum: 1 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: [string, "null"], format: date-time }
+            isPackageEligible: { type: boolean }
+
+    SubcontractingReportDataReviewRequest:
+      type: object
+      required: [status, expectedVersion]
+      properties:
+        status:
+          type: string
+          enum: [Reviewed, Accepted, Rejected]
+        reviewerNotes: { type: [string, "null"], maxLength: 2000 }
+        expectedVersion: { type: integer, minimum: 1 }
+
+    SubcontractingReportDataImportRequest:
+      type: object
+      required: [csvContent]
+      properties:
+        csvContent: { type: string, maxLength: 2000000 }
+
+    SubcontractingReportDataPackageEligibility:
+      type: object
+      required: [eligible, eligibleRows, blockedRows]
+      properties:
+        eligible: { type: boolean }
+        eligibleRows: { type: integer, minimum: 0 }
+        blockedRows: { type: integer, minimum: 0 }
 
     EsrsReportTaskStatus:
       type: string

@@ -33,6 +33,7 @@ import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
 import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
 import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
 import { EsrsApplicabilityPanel } from "@/components/EsrsApplicabilityPanel";
+import { EsrsReportDataPanel } from "@/components/EsrsReportDataPanel";
 import type { ClassifiedContent } from "@/lib/api";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
 import { controlCoverageTone } from "@/components/controlCoverage";
@@ -2619,6 +2620,8 @@ export function App() {
               key={`${access.tenantId}:${access.userId}:${selectedContractId}`}
               workflowClassification={workflowClassification}
               canManageContracts={canManageContracts}
+              canViewReports={access.permissions.includes("ViewReports")}
+              canManageReports={canManageReports}
               canReviewClauses={canReviewClauses}
               clauseResults={clauseResults}
               contracts={contracts}
@@ -4465,6 +4468,8 @@ function mergeClauseSearchResults(
 function ContractsView({
   workflowClassification,
   canManageContracts,
+  canViewReports,
+  canManageReports,
   canReviewClauses,
   clauseResults,
   contracts,
@@ -4501,6 +4506,8 @@ function ContractsView({
   onSelectContract
 }: {
   canManageContracts: boolean;
+  canViewReports: boolean;
+  canManageReports: boolean;
   canReviewClauses: boolean;
   clauseResults: ClauseLibraryItem[];
   contracts: ContractRecord[];
@@ -4733,6 +4740,8 @@ function ContractsView({
         ) : null}
 
         {selectedContract ? <EsrsApplicabilityPanel contractId={selectedContract.id} canManage={canManageContracts} /> : null}
+        {selectedContract && canViewReports ?
+          <EsrsReportDataPanel contractId={selectedContract.id} canManage={canManageReports} /> : null}
 
         <section className="contract-clauses" aria-label="Attached contract clauses">
           <div className="contract-documents__header">

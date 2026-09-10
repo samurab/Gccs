@@ -1,5 +1,6 @@
 using System.Text;
 using Gccs.Application.Compliance;
+using Gccs.Application.Reports;
 using Gccs.Application.Identity;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
@@ -93,6 +94,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
     public DbSet<EsrsApplicabilityEntity> EsrsApplicabilities => Set<EsrsApplicabilityEntity>();
+    public DbSet<SubcontractingReportDataRowEntity> SubcontractingReportDataRows => Set<SubcontractingReportDataRowEntity>();
+    public DbSet<SubcontractingReportDataEvidenceEntity> SubcontractingReportDataEvidence => Set<SubcontractingReportDataEvidenceEntity>();
     public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
     public DbSet<EvidenceRequestEntity> EvidenceRequests => Set<EvidenceRequestEntity>();
     public DbSet<EvidenceFileVersionEntity> EvidenceFileVersions => Set<EvidenceFileVersionEntity>();
@@ -218,6 +221,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<SspLinkedRecordType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SspNarrativeStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SspNarrativeSourceType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SubcontractingReportDataReviewStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<InvitationDeliveryStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
@@ -1162,6 +1166,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("contracts");
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.ContractNumber }).IsUnique();
             entity.HasIndex(x => new { x.TenantId, x.Status });
             entity.Property(x => x.ContractNumber).HasMaxLength(120).IsRequired();
@@ -1532,6 +1537,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
                     "CK_evidence_items_effective_expiration_range",
                     "effective_at IS NULL OR expires_at IS NULL OR expires_at >= effective_at"));
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.Status });
             entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });
             entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
@@ -1821,6 +1827,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("subcontractors");
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.Name });
             entity.HasIndex(x => new { x.TenantId, x.Uei });
             entity.Property(x => x.RoleDescription).HasMaxLength(160).HasDefaultValue("").IsRequired();
@@ -2005,6 +2012,53 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 
     private static void ConfigureReports(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<SubcontractingReportDataRowEntity>(entity =>
+        {
+            entity.ToTable("esrs_report_data_rows", table =>
+            {
+                table.HasCheckConstraint("CK_esrs_report_data_rows_amount_nonnegative", "amount >= 0");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_report_period", "report_period_end >= report_period_start");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_row_period", "row_period_end >= row_period_start AND row_period_start >= report_period_start AND row_period_end <= report_period_end");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.ReportType, x.ReportPeriodStart, x.ReportPeriodEnd });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.SubcontractorId, x.ReportType,
+                x.ReportPeriodStart, x.ReportPeriodEnd, x.RowPeriodStart, x.RowPeriodEnd,
+                x.SocioeconomicCategoryKey, x.PlanCategoryKey }).IsUnique();
+            entity.Property(x => x.SocioeconomicCategory).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.SocioeconomicCategoryKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.PlanCategory).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.PlanCategoryKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ReportType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Amount).HasPrecision(14, 2);
+            entity.Property(x => x.SourceReference).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ReviewerNotes).HasMaxLength(2_000);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Contract).WithMany(x => x.SubcontractingReportDataRows)
+                .HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Subcontractor).WithMany(x => x.ReportDataRows)
+                .HasForeignKey(x => new { x.TenantId, x.SubcontractorId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Reviewer).WithMany()
+                .HasForeignKey(x => x.ReviewedByUserId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SubcontractingReportDataEvidenceEntity>(entity =>
+        {
+            entity.ToTable("esrs_report_data_evidence");
+            entity.HasKey(x => new { x.TenantId, x.ReportDataRowId, x.EvidenceItemId });
+            entity.HasIndex(x => new { x.TenantId, x.EvidenceItemId });
+            entity.HasOne(x => x.ReportDataRow).WithMany(x => x.EvidenceLinks)
+                .HasForeignKey(x => new { x.TenantId, x.ReportDataRowId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany(x => x.SubcontractingReportDataRows)
+                .HasForeignKey(x => new { x.TenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<ReportEntity>(entity =>
         {
             entity.ToTable("reports");

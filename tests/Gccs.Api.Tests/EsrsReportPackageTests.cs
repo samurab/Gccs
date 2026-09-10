@@ -12,7 +12,7 @@ public sealed class EsrsReportPackageTests
     public async Task TC_31_3_1_Generate_package_with_spend_summaries_exceptions_evidence_and_generated_date()
     {
         var ids = StoryIds.Create();
-        var service = CreateServices(out var reportDataService, out _);
+        var service = CreateServices(ids.TenantId, out var reportDataService, out _);
         var rowWithEvidence = await CreateAcceptedRowAsync(reportDataService, ids, ids.SubcontractorId, [ids.EvidenceItemId]);
         await CreateAcceptedRowAsync(reportDataService, ids, ids.SecondSubcontractorId, []);
 
@@ -37,7 +37,7 @@ public sealed class EsrsReportPackageTests
     public async Task TC_31_3_2_Package_states_gccs_has_not_submitted_report_to_esrs()
     {
         var ids = StoryIds.Create();
-        var service = CreateServices(out var reportDataService, out _);
+        var service = CreateServices(ids.TenantId, out var reportDataService, out _);
         await CreateAcceptedRowAsync(reportDataService, ids, ids.SubcontractorId, [ids.EvidenceItemId]);
 
         var package = await service.GenerateAsync(CreateGenerateRequest(ids), ids.ActorUserId);
@@ -50,7 +50,7 @@ public sealed class EsrsReportPackageTests
     public async Task TC_31_3_3_Approve_package_stores_reviewer_approval_date_version_and_notes()
     {
         var ids = StoryIds.Create();
-        var service = CreateServices(out var reportDataService, out _);
+        var service = CreateServices(ids.TenantId, out var reportDataService, out _);
         await CreateAcceptedRowAsync(reportDataService, ids, ids.SubcontractorId, [ids.EvidenceItemId]);
         var package = await service.GenerateAsync(CreateGenerateRequest(ids), ids.ActorUserId);
 
@@ -71,7 +71,7 @@ public sealed class EsrsReportPackageTests
     public async Task TC_31_3_4_Package_generation_approval_and_viewing_permissions_are_enforced()
     {
         var ids = StoryIds.Create();
-        var service = CreateServices(out var reportDataService, out _);
+        var service = CreateServices(ids.TenantId, out var reportDataService, out _);
         await CreateAcceptedRowAsync(reportDataService, ids, ids.SubcontractorId, [ids.EvidenceItemId]);
         var package = await service.GenerateAsync(CreateGenerateRequest(ids), ids.ActorUserId);
 
@@ -87,7 +87,7 @@ public sealed class EsrsReportPackageTests
     public async Task TC_31_3_5_Generation_approval_supersede_and_archive_are_audit_logged()
     {
         var ids = StoryIds.Create();
-        var service = CreateServices(out var reportDataService, out var auditWriter);
+        var service = CreateServices(ids.TenantId, out var reportDataService, out var auditWriter);
         await CreateAcceptedRowAsync(reportDataService, ids, ids.SubcontractorId, [ids.EvidenceItemId]);
         var package = await service.GenerateAsync(CreateGenerateRequest(ids), ids.ActorUserId);
         await service.ApproveAsync(package.Id, new EsrsReportPackageReviewRequest("Reviewer", "Approved."), ids.ActorUserId);
@@ -108,12 +108,12 @@ public sealed class EsrsReportPackageTests
         });
     }
 
-    private static EsrsReportPackageService CreateServices(
+    private static EsrsReportPackageService CreateServices(Guid tenantId,
         out SubcontractingReportDataService reportDataService,
         out CapturingAuditEventWriter auditWriter)
     {
         auditWriter = new CapturingAuditEventWriter();
-        reportDataService = new SubcontractingReportDataService(new InMemorySubcontractingReportDataRepository(), auditWriter);
+        reportDataService = new SubcontractingReportDataService(new InMemorySubcontractingReportDataRepository(tenantId), auditWriter, new TestApplicationTransaction());
         return new EsrsReportPackageService(reportDataService, new InMemoryEsrsReportPackageRepository(), auditWriter);
     }
 
@@ -137,9 +137,8 @@ public sealed class EsrsReportPackageTests
                 12500m,
                 evidenceIds,
                 "FAR 52.219-9"),
-            ids.TenantId,
             ids.ActorUserId);
-        return await service.UpdateReviewStatusAsync(row.Id, SubcontractingReportDataReviewStatus.Accepted, ids.ActorUserId) ??
+        return await service.UpdateReviewStatusAsync(row.Id, new(SubcontractingReportDataReviewStatus.Accepted, null, row.Version), ids.ActorUserId) ??
             throw new InvalidOperationException("Expected report data row to be accepted.");
     }
 

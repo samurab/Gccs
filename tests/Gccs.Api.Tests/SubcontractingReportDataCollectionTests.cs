@@ -12,9 +12,9 @@ public sealed class SubcontractingReportDataCollectionTests
     public async Task TC_31_2_1_Create_report_data_linked_to_contract_and_subcontractor()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
+        var service = CreateService(ids.TenantId, out _);
 
-        var row = await service.CreateAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
+        var row = await service.CreateAsync(CreateRequest(ids), ids.ActorUserId);
 
         Assert.Equal(ids.TenantId, row.TenantId);
         Assert.Equal(ids.ContractId, row.ContractId);
@@ -30,15 +30,15 @@ public sealed class SubcontractingReportDataCollectionTests
     public async Task TC_31_2_2_Validation_rejects_negative_missing_duplicate_and_period_mismatch()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
-        await service.CreateAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
+        var service = CreateService(ids.TenantId, out _);
+        await service.CreateAsync(CreateRequest(ids), ids.ActorUserId);
 
         await Assert.ThrowsAsync<SubcontractingReportDataValidationException>(() =>
-            service.CreateAsync(CreateRequest(ids) with { Amount = -1 }, ids.TenantId, ids.ActorUserId));
+            service.CreateAsync(CreateRequest(ids) with { Amount = -1 }, ids.ActorUserId));
         await Assert.ThrowsAsync<SubcontractingReportDataValidationException>(() =>
-            service.CreateAsync(CreateRequest(ids) with { SocioeconomicCategory = " " }, ids.TenantId, ids.ActorUserId));
+            service.CreateAsync(CreateRequest(ids) with { SocioeconomicCategory = " " }, ids.ActorUserId));
         await Assert.ThrowsAsync<SubcontractingReportDataValidationException>(() =>
-            service.CreateAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId));
+            service.CreateAsync(CreateRequest(ids), ids.ActorUserId));
         await Assert.ThrowsAsync<SubcontractingReportDataValidationException>(() =>
             service.CreateAsync(
                 CreateRequest(ids) with
@@ -46,7 +46,6 @@ public sealed class SubcontractingReportDataCollectionTests
                     SubcontractorId = ids.SecondSubcontractorId,
                     RowPeriodStart = new DateOnly(2025, 12, 31)
                 },
-                ids.TenantId,
                 ids.ActorUserId));
     }
 
@@ -54,11 +53,11 @@ public sealed class SubcontractingReportDataCollectionTests
     public async Task TC_31_2_3_Evidence_link_is_returned_in_detail_and_package_preparation()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
-        var row = await service.CreateAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
-        await service.UpdateReviewStatusAsync(row.Id, SubcontractingReportDataReviewStatus.Accepted, ids.ActorUserId);
+        var service = CreateService(ids.TenantId, out _);
+        var row = await service.CreateAsync(CreateRequest(ids), ids.ActorUserId);
+        await service.UpdateReviewStatusAsync(row.Id, new(SubcontractingReportDataReviewStatus.Accepted, null, row.Version), ids.ActorUserId);
 
-        var detail = await service.FindAsync(row.Id);
+        var detail = await service.FindCurrentTenantAsync(row.Id);
         var packageRows = await service.PreparePackageRowsAsync(CreatePackageRequest(ids, FinalPackage: true));
 
         Assert.NotNull(detail);
@@ -72,13 +71,13 @@ public sealed class SubcontractingReportDataCollectionTests
     public async Task TC_31_2_4_Final_package_blocks_unreviewed_rows_unless_accepted()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
-        var row = await service.CreateAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
+        var service = CreateService(ids.TenantId, out _);
+        var row = await service.CreateAsync(CreateRequest(ids), ids.ActorUserId);
 
         await Assert.ThrowsAsync<SubcontractingReportDataValidationException>(() =>
             service.PreparePackageRowsAsync(CreatePackageRequest(ids, FinalPackage: true)));
 
-        await service.UpdateReviewStatusAsync(row.Id, SubcontractingReportDataReviewStatus.Accepted, ids.ActorUserId);
+        await service.UpdateReviewStatusAsync(row.Id, new(SubcontractingReportDataReviewStatus.Accepted, null, row.Version), ids.ActorUserId);
 
         var packageRows = await service.PreparePackageRowsAsync(CreatePackageRequest(ids, FinalPackage: true));
         Assert.Single(packageRows);
@@ -88,11 +87,11 @@ public sealed class SubcontractingReportDataCollectionTests
     public async Task TC_31_2_5_Create_update_accept_and_reject_report_data_rows_are_audited()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out var auditWriter);
-        var row = await service.CreateAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
-        await service.UpdateAsync(row.Id, CreateRequest(ids) with { Amount = 15000m }, ids.ActorUserId);
-        await service.UpdateReviewStatusAsync(row.Id, SubcontractingReportDataReviewStatus.Accepted, ids.ActorUserId, "Ready for package.");
-        await service.UpdateReviewStatusAsync(row.Id, SubcontractingReportDataReviewStatus.Rejected, ids.ActorUserId, "Needs correction.");
+        var service = CreateService(ids.TenantId, out var auditWriter);
+        var row = await service.CreateAsync(CreateRequest(ids), ids.ActorUserId);
+        await service.UpdateAsync(row.Id, CreateRequest(ids) with { Amount = 15000m, ExpectedVersion = row.Version }, ids.ActorUserId);
+        await service.UpdateReviewStatusAsync(row.Id, new(SubcontractingReportDataReviewStatus.Accepted, "Ready for package.", 2), ids.ActorUserId);
+        await service.UpdateReviewStatusAsync(row.Id, new(SubcontractingReportDataReviewStatus.Rejected, "Needs correction.", 3), ids.ActorUserId);
 
         Assert.Equal(4, auditWriter.Events.Count);
         Assert.All(auditWriter.Events, auditEvent =>
@@ -118,10 +117,10 @@ public sealed class SubcontractingReportDataCollectionTests
         Assert.Contains("supportingEvidenceItemIds", template.Columns);
     }
 
-    private static SubcontractingReportDataService CreateService(out CapturingAuditEventWriter auditWriter)
+    private static SubcontractingReportDataService CreateService(Guid tenantId, out CapturingAuditEventWriter auditWriter)
     {
         auditWriter = new CapturingAuditEventWriter();
-        return new SubcontractingReportDataService(new InMemorySubcontractingReportDataRepository(), auditWriter);
+        return new SubcontractingReportDataService(new InMemorySubcontractingReportDataRepository(tenantId), auditWriter, new TestApplicationTransaction());
     }
 
     private static SubcontractingReportDataRowRequest CreateRequest(StoryIds ids) =>
@@ -141,7 +140,6 @@ public sealed class SubcontractingReportDataCollectionTests
 
     private static SubcontractingReportPackageRowsRequest CreatePackageRequest(StoryIds ids, bool FinalPackage) =>
         new(
-            ids.TenantId,
             ids.ContractId,
             EsrsReportType.Isr,
             new DateOnly(2026, 1, 1),

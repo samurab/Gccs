@@ -121,7 +121,9 @@ public static class DependencyInjection
         services.AddScoped<IEsrsApplicabilityRepository>(provider => new EfEsrsApplicabilityRepository(
             provider.GetRequiredService<GccsDbContext>(),
             provider.GetRequiredService<ICurrentTenantContext>()));
-        services.AddSingleton<ISubcontractingReportDataRepository, InMemorySubcontractingReportDataRepository>();
+        services.AddScoped<ISubcontractingReportDataRepository>(provider => new EfSubcontractingReportDataRepository(
+            provider.GetRequiredService<GccsDbContext>(),
+            provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddSingleton<IEsrsReportPackageRepository, InMemoryEsrsReportPackageRepository>();
         services.AddSingleton<ILaborApplicabilityRepository, InMemoryLaborApplicabilityRepository>();
         services.AddSingleton<ILaborClassificationRepository, InMemoryLaborClassificationRepository>();

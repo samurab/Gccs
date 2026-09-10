@@ -1328,6 +1328,159 @@ api.MapGet("/esrs/schedule-templates", (int fiscalYear) =>
 .RequirePermission(Permission.ViewContracts)
 .WithName("ListEsrsScheduleTemplates");
 
+api.MapGet("/contracts/{contractId:guid}/esrs-report-data", async (
+    Guid contractId,
+    SubcontractingReportDataService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The contract was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    return Results.Ok(await service.ListCurrentTenantAsync(new SubcontractingReportDataQuery(ContractId: contractId), cancellationToken));
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("ListContractEsrsReportData");
+
+api.MapGet("/contracts/{contractId:guid}/esrs-report-data/{rowId:guid}", async (
+    Guid contractId,
+    Guid rowId,
+    SubcontractingReportDataService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var row = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+    return row is null || row.ContractId != contractId
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(row);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetContractEsrsReportData");
+
+api.MapPost("/contracts/{contractId:guid}/esrs-report-data", async (
+    Guid contractId,
+    SubcontractingReportDataRowRequest request,
+    SubcontractingReportDataService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        var created = await service.CreateAsync(request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/contracts/{contractId}/esrs-report-data/{created.Id}", created);
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("CreateContractEsrsReportData");
+
+api.MapPut("/contracts/{contractId:guid}/esrs-report-data/{rowId:guid}", async (
+    Guid contractId,
+    Guid rowId,
+    SubcontractingReportDataRowRequest request,
+    SubcontractingReportDataService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var existing = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+        if (existing is null || existing.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.UpdateAsync(rowId, request with { ContractId = contractId }, tenantContext.UserId, cancellationToken));
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("UpdateContractEsrsReportData");
+
+api.MapPatch("/contracts/{contractId:guid}/esrs-report-data/{rowId:guid}/review", async (
+    Guid contractId,
+    Guid rowId,
+    SubcontractingReportDataReviewRequest request,
+    SubcontractingReportDataService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var existing = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+        if (existing is null || existing.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.UpdateReviewStatusAsync(rowId, request, tenantContext.UserId, cancellationToken));
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS report data review invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("ReviewContractEsrsReportData");
+
+api.MapGet("/esrs/report-data/import-template", () =>
+{
+    var template = SubcontractingReportDataService.GetImportTemplate();
+    return Results.File(System.Text.Encoding.UTF8.GetBytes(template.CsvContent), "text/csv", template.FileName);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("DownloadEsrsReportDataImportTemplate");
+
+api.MapPost("/esrs/report-data/import", async (
+    SubcontractingReportDataImportRequest request,
+    SubcontractingReportDataService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try { return Results.Ok(await service.ImportCsvAsync(request.CsvContent, tenantContext.UserId, cancellationToken)); }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS report data import invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("ImportEsrsReportData");
+
+api.MapGet("/contracts/{contractId:guid}/esrs-report-data/package-eligibility", async (
+    Guid contractId,
+    EsrsReportType reportType,
+    DateOnly periodStart,
+    DateOnly periodEnd,
+    SubcontractingReportDataService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The contract was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    var rows = await service.ListCurrentTenantAsync(new SubcontractingReportDataQuery(contractId, reportType, periodStart, periodEnd), cancellationToken);
+    var eligible = rows.Count(row => row.IsPackageEligible);
+    return Results.Ok(new { eligible = rows.Count > 0 && eligible == rows.Count, eligibleRows = eligible, blockedRows = rows.Count - eligible });
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetEsrsReportDataPackageEligibility");
+
 api.MapGet("/contracts/{contractId:guid}/size-checks", async (
     Guid contractId,
     ContractSizeCheckService service,
