@@ -5,7 +5,8 @@
       <!-- Test hosts use fixed fixtures; avoid macOS file-watcher reload storms. -->
       <DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE>false</DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE>
     </EnvironmentVariables>
-    <TestSessionTimeout>1800000</TestSessionTimeout>
+    <!-- GitHub-hosted runners need more than 30 minutes for the complete suite. -->
+    <TestSessionTimeout>3600000</TestSessionTimeout>
   </RunConfiguration>
   <xUnit>
     <MaxParallelThreads>4</MaxParallelThreads>
