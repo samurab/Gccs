@@ -6462,24 +6462,38 @@ api.MapGet("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:gu
 .WithName("CompareSspNarrative");
 
 api.MapGet("/compliance/ssp/export-packages", async (
-    SspSectionService service,
+    SspExportPackageService service,
     CancellationToken cancellationToken) =>
 {
-    var packages = await service.ListExportPackagesAsync(cancellationToken);
+    var packages = await service.ListAsync(cancellationToken);
     return Results.Ok(packages);
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ExportReports)
 .WithName("ListSspExportPackages");
+
+api.MapGet("/compliance/ssp/export-packages/{packageId:guid}", async (
+    Guid packageId,
+    SspExportPackageService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var package = await service.GetAsync(packageId, cancellationToken);
+    return package is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP export package was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(package);
+})
+.RequirePermission(Permission.ExportReports)
+.WithName("GetSspExportPackage");
 
 api.MapPost("/compliance/ssp/export-packages", async (
     CreateSspExportPackageRequest request,
-    SspSectionService service,
+    SspExportPackageService service,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var package = await service.GenerateExportPackageAsync(request, tenantContext.UserId, cancellationToken);
+        var package = await service.GenerateAsync(request, tenantContext.UserId, cancellationToken);
         return Results.Created($"/api/compliance/ssp/export-packages/{package.Id}", package);
     }
     catch (SspExportPackageValidationException exception)
@@ -6487,8 +6501,54 @@ api.MapPost("/compliance/ssp/export-packages", async (
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspExportPackage"] = [exception.Message] });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ExportReports)
 .WithName("GenerateSspExportPackage");
+
+api.MapPost("/compliance/ssp/export-packages/{packageId:guid}/external-share-approval", async (
+    Guid packageId,
+    SspExternalShareApprovalRequest request,
+    SspExportPackageService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var package = await service.ApproveExternalShareAsync(packageId, request, tenantContext.UserId, cancellationToken);
+        return package is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP export package was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(package);
+    }
+    catch (SspExportPackageValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspExportPackage"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ApproveSspExportPackageExternalShare");
+
+api.MapPost("/compliance/ssp/export-packages/{packageId:guid}/share", async (
+    Guid packageId,
+    SspExternalShareRequest request,
+    SspExportPackageService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var package = await service.ShareAsync(packageId, request, tenantContext.UserId, cancellationToken);
+        return package is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP export package was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(package);
+    }
+    catch (SspExportPackageValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspExportPackage"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ExportReports)
+.WithName("ShareSspExportPackage");
 
 api.MapPost("/enterprise/cui/enclaves", async (
     CreateCuiEnclaveBoundaryRequest request,

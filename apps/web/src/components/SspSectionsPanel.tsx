@@ -1,16 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
   approveSspNarrative, changeSspSectionStatus, compareSspNarrative, createSspSection, editSspNarrative,
-  generateSspNarrative, getSspNarratives, getSspSections, updateSspSection,
+  createSspExportPackage, generateSspNarrative, getSspExportPackages, getSspNarratives, getSspSections, updateSspSection,
   type SspLinkedRecordType, type SspNarrative, type SspNarrativeComparison, type SspNarrativeSourceType,
-  type SspSection, type SspSectionStatus, type SspSectionType
+  type SspExportPackage, type SspSection, type SspSectionStatus, type SspSectionType
 } from "@/lib/api";
 
 const sectionTypes: SspSectionType[] = ["SystemDescription", "AuthorizationBoundary", "Environment", "Interconnections", "Users", "Roles", "DataTypes", "CuiHandlingPosture", "ControlImplementationNarratives", "InheritedResponsibilities", "ExternalServiceProviders", "EvidenceReferences"];
 const linkTypes: SspLinkedRecordType[] = ["CompanyProfile", "SystemBoundary", "Asset", "CmmcControl", "ResponsibilityMatrix", "Policy", "PoamItem", "Evidence"];
 const emptyForm = { sectionType: "SystemDescription" as SspSectionType, title: "", owner: "", source: "", sourceUrl: "", lastReviewedAt: "", recordType: "CompanyProfile" as SspLinkedRecordType, recordId: "", relationship: "" };
 
-export function SspSectionsPanel({ canManage }: { canManage: boolean }) {
+export function SspSectionsPanel({ canManage, canExport = false }: { canManage: boolean; canExport?: boolean }) {
   const [sections, setSections] = useState<SspSection[]>([]);
   const [selected, setSelected] = useState<SspSection | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -110,8 +110,101 @@ export function SspSectionsPanel({ canManage }: { canManage: boolean }) {
       {selected.status === "Superseded" && <button disabled={busy} type="button" onClick={() => void transition(selected, "Archived")}>Archive</button>}
     </div>}
     {selected && <SspNarrativeWorkspace key={selected.id} section={selected} canManage={canManage} />}
+    <SspExportWorkspace canExport={canExport} />
     {message && <p role="status">{message}</p>}
   </section>;
+}
+
+function SspExportWorkspace({ canExport }: { canExport: boolean }) {
+  const [packages, setPackages] = useState<SspExportPackage[]>([]);
+  const [selected, setSelected] = useState<SspExportPackage | null>(null);
+  const [packageVersion, setPackageVersion] = useState("");
+  const [systemBoundary, setSystemBoundary] = useState("");
+  const [reviewer, setReviewer] = useState("");
+  const [evidenceIds, setEvidenceIds] = useState("");
+  const [poamIds, setPoamIds] = useState("");
+  const [loading, setLoading] = useState(canExport);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function load(preferredId?: string) {
+    if (!canExport) return;
+    setLoading(true); setError("");
+    try {
+      const records = await getSspExportPackages();
+      setPackages(records);
+      setSelected(records.find(item => item.id === preferredId) ?? records[0] ?? null);
+    } catch (reason) {
+      setPackages([]); setSelected(null);
+      setError(reason instanceof Error ? reason.message : "SSP package history could not be loaded.");
+    } finally { setLoading(false); }
+  }
+
+  useEffect(() => {
+    if (!canExport) return;
+    let active = true;
+    getSspExportPackages().then(records => {
+      if (!active) return;
+      setPackages(records); setSelected(records[0] ?? null); setError(""); setLoading(false);
+    }).catch(reason => {
+      if (!active) return;
+      setPackages([]); setSelected(null); setError(reason instanceof Error ? reason.message : "SSP package history could not be loaded."); setLoading(false);
+    });
+    return () => { active = false; };
+  }, [canExport]);
+
+  async function generate(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try {
+      const result = await createSspExportPackage({
+        packageVersion: packageVersion.trim(), systemBoundary: systemBoundary.trim(), reviewer: reviewer.trim(),
+        format: "Both", externalShareRequested: false,
+        evidenceItemIds: parseIds(evidenceIds), poamItemIds: parseIds(poamIds)
+      });
+      if (!result.data) { setError(result.error ?? "SSP review package could not be generated."); return; }
+      setMessage("Internal SSP review package generated and audit logged. External sharing requires separate approval.");
+      setPackageVersion(""); setEvidenceIds(""); setPoamIds(""); await load(result.data.id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "SSP review package could not be generated.");
+    } finally { setBusy(false); }
+  }
+
+  return <section aria-label="SSP export packages" className="cmmc-create">
+    <div className="section-heading"><h4>SSP review packages</h4>
+      <p>Create immutable internal-review snapshots from approved, current-tenant records. Packages remain draft review material and do not represent certification, an assessment determination, authorization, or government endorsement.</p></div>
+    {!canExport && <p role="note">ExportReports permission is required to generate or view SSP package history.</p>}
+    {loading && <p role="status">Loading SSP package history…</p>}
+    {error && <p role="alert" className="form-status form-status--error">{error}</p>}
+    {canExport && !loading && !error && packages.length === 0 && <p>No SSP review packages exist for this tenant.</p>}
+    {canExport && <form onSubmit={generate} aria-label="Generate SSP review package">
+      <fieldset disabled={busy}>
+        <label><span>Package version</span><input required maxLength={80} value={packageVersion} onChange={event => setPackageVersion(event.target.value)} /></label>
+        <label><span>System boundary</span><textarea required maxLength={4000} rows={4} value={systemBoundary} onChange={event => setSystemBoundary(event.target.value)} /></label>
+        <label><span>Package reviewer</span><input required maxLength={200} value={reviewer} onChange={event => setReviewer(event.target.value)} /></label>
+        <label><span>Approved evidence IDs</span><textarea aria-describedby="ssp-evidence-help" rows={3} value={evidenceIds} onChange={event => setEvidenceIds(event.target.value)} /></label>
+        <small id="ssp-evidence-help">Enter UUIDs separated by commas or new lines. The server rejects unavailable, unapproved, expired, prohibited, unknown, CUI, or cross-tenant evidence.</small>
+        <label><span>POA&amp;M item IDs</span><textarea rows={3} value={poamIds} onChange={event => setPoamIds(event.target.value)} /></label>
+      </fieldset>
+      <button disabled={busy}>{busy ? "Generating package" : "Generate internal review package"}</button>
+    </form>}
+    {packages.length > 0 && <div className="evidence-list" aria-label="SSP package history">{packages.map(item =>
+      <button type="button" key={item.id} onClick={() => setSelected(item)} aria-pressed={selected?.id === item.id}>
+        <strong>{item.packageVersion}</strong><span>{item.status} · {new Date(item.generatedAt).toLocaleString()} · {item.sections.length} sections</span>
+      </button>)}</div>}
+    {selected && <article aria-label="Selected SSP review package">
+      <h5>{selected.tenantName} · {selected.packageVersion}</h5>
+      <p role="note">{selected.disclaimer}</p>
+      <p>{selected.includedEvidence.length} approved evidence reference(s) · {selected.poamReferences.length} POA&amp;M reference(s) · {selected.history.length} history event(s)</p>
+      <details><summary>Human-readable report</summary><pre>{selected.humanReadableReport}</pre></details>
+      <details><summary>Machine-readable metadata</summary><pre>{JSON.stringify(selected.machineReadableMetadata, null, 2)}</pre></details>
+    </article>}
+    {message && <p role="status">{message}</p>}
+  </section>;
+}
+
+function parseIds(value: string): string[] {
+  return value.split(/[\s,]+/).map(item => item.trim()).filter(Boolean);
 }
 
 const narrativeSourceTypes: SspNarrativeSourceType[] = ["Evidence", "GeneratedPolicy", "Clause", "Obligation"];

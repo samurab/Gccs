@@ -136,6 +136,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SspSectionHistoryEntity> SspSectionHistory => Set<SspSectionHistoryEntity>();
     public DbSet<SspNarrativeEntity> SspNarratives => Set<SspNarrativeEntity>();
     public DbSet<SspNarrativeSourceEntity> SspNarrativeSources => Set<SspNarrativeSourceEntity>();
+    public DbSet<SspExportPackageEntity> SspExportPackages => Set<SspExportPackageEntity>();
+    public DbSet<SspExportPackageHistoryEntity> SspExportPackageHistory => Set<SspExportPackageHistoryEntity>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -1454,6 +1456,47 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
                 .HasForeignKey(x => new { x.TenantId, x.NarrativeId })
                 .HasPrincipalKey(x => new { x.TenantId, x.Id })
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspExportPackageEntity>(entity =>
+        {
+            entity.ToTable("ssp_export_packages");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.PackageVersion }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.GeneratedAt });
+            entity.Property(x => x.TenantName).HasMaxLength(240);
+            entity.Property(x => x.PackageVersion).HasMaxLength(80);
+            entity.Property(x => x.SystemBoundary).HasMaxLength(4_000);
+            entity.Property(x => x.Reviewer).HasMaxLength(200);
+            entity.Property(x => x.Format).HasMaxLength(40);
+            entity.Property(x => x.Disclaimer).HasMaxLength(2_000);
+            entity.Property(x => x.HumanReadableReport).HasColumnType("text");
+            entity.Property(x => x.MachineReadableMetadata).HasColumnType("jsonb");
+            entity.Property(x => x.SectionsJson).HasColumnType("jsonb");
+            entity.Property(x => x.EvidenceReferencesJson).HasColumnType("jsonb");
+            entity.Property(x => x.PoamReferencesJson).HasColumnType("jsonb");
+            entity.Property(x => x.Status).HasMaxLength(40);
+            entity.Property(x => x.ExternalShareApprovalReason).HasMaxLength(1_000);
+            entity.Property(x => x.SharedRecipient).HasMaxLength(320);
+            entity.Property(x => x.SharedPurpose).HasMaxLength(1_000);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SspExportPackageHistoryEntity>(entity =>
+        {
+            entity.ToTable("ssp_export_package_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.PackageId, x.OccurredAt });
+            entity.Property(x => x.Action).HasMaxLength(80);
+            entity.Property(x => x.ActorName).HasMaxLength(320);
+            entity.Property(x => x.Notes).HasMaxLength(1_000);
+            entity.HasOne(x => x.Package).WithMany(x => x.History)
+                .HasForeignKey(x => new { x.TenantId, x.PackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 

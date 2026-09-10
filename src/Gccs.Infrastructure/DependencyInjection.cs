@@ -66,6 +66,7 @@ public static class DependencyInjection
         services.AddScoped<FedRampReadinessExportPackageService>();
         services.AddScoped<SspSectionService>();
         services.AddScoped<SspNarrativeService>();
+        services.AddScoped<SspExportPackageService>();
         services.AddSingleton<ISspNarrativeAiGenerator, UnavailableSspNarrativeAiGenerator>();
         services.AddScoped<CuiEnclaveBoundaryService>();
         services.AddScoped<CustomerManagedKeyPolicyService>();
@@ -131,7 +132,8 @@ public static class DependencyInjection
         services.AddSingleton<IPortalPackageLifecycleRepository, InMemoryPortalPackageLifecycleRepository>();
         services.AddSingleton<ITrustArtifactLibraryRepository, InMemoryTrustArtifactLibraryRepository>();
         services.AddSingleton<InMemorySspSectionRepository>();
-        services.AddSingleton<ISspExportPackageRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
+        services.AddSingleton<InMemorySspExportPackageRepository>();
+        services.AddSingleton<ISspExportPackageRepository>(provider => provider.GetRequiredService<InMemorySspExportPackageRepository>());
         services.AddSingleton<ICuiEnclaveBoundaryRepository, InMemoryCuiEnclaveBoundaryRepository>();
         services.AddSingleton<ICustomerManagedKeyPolicyRepository, InMemoryCustomerManagedKeyPolicyRepository>();
         services.AddSingleton<ICuiEnclaveAccessControlRepository, InMemoryCuiEnclaveAccessControlRepository>();
@@ -437,6 +439,8 @@ public static class DependencyInjection
             services.AddScoped<ISspSectionLinkValidator, EfSspSectionLinkValidator>();
             services.AddScoped<ISspNarrativeRepository, EfSspNarrativeRepository>();
             services.AddScoped<ISspNarrativeSourceResolver, EfSspNarrativeSourceResolver>();
+            services.AddScoped<ISspExportPackageRepository, EfSspExportPackageRepository>();
+            services.AddScoped<ISspExportSourceRepository, EfSspExportSourceRepository>();
         }
         else
         {
@@ -444,6 +448,7 @@ public static class DependencyInjection
             services.AddSingleton<ISspSectionLinkValidator, PermissiveSspSectionLinkValidator>();
             services.AddSingleton<ISspNarrativeRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
             services.AddSingleton<ISspNarrativeSourceResolver, UnavailableSspNarrativeSourceResolver>();
+            services.AddSingleton<ISspExportSourceRepository, UnavailableSspExportSourceRepository>();
             services.AddSingleton<IClauseLibraryRepository, InMemoryClauseLibraryRepository>();
             services.AddSingleton<IObligationRepository, InMemoryObligationRepository>();
             services.AddScoped<ITenantRepository>(_ =>

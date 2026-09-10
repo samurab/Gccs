@@ -921,7 +921,6 @@ INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260610031239_InitialDevelopmentSchema', '10.0.4');
 
 COMMIT;
-
 START TRANSACTION;
 ALTER TABLE gccs.contract_clauses ADD review_state character varying(64) NOT NULL DEFAULT 'Draft';
 
@@ -4250,5 +4249,66 @@ WHERE evidence.id IN (
 
 INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260910011549_AddGeneratedPolicyClassification', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.ssp_export_packages (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    tenant_name character varying(240) NOT NULL,
+    generated_at timestamp with time zone NOT NULL,
+    package_version character varying(80) NOT NULL,
+    system_boundary character varying(4000) NOT NULL,
+    reviewer character varying(200) NOT NULL,
+    format character varying(40) NOT NULL,
+    disclaimer character varying(2000) NOT NULL,
+    human_readable_report text NOT NULL,
+    machine_readable_metadata jsonb NOT NULL,
+    sections_json jsonb NOT NULL,
+    evidence_references_json jsonb NOT NULL,
+    poam_references_json jsonb NOT NULL,
+    status character varying(40) NOT NULL,
+    external_share_approved_by_user_id uuid,
+    external_share_approved_at timestamp with time zone,
+    external_share_approval_reason character varying(1000),
+    shared_by_user_id uuid,
+    shared_at timestamp with time zone,
+    shared_recipient character varying(320),
+    shared_purpose character varying(1000),
+    version bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_ssp_export_packages" PRIMARY KEY (id),
+    CONSTRAINT "AK_ssp_export_packages_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_ssp_export_packages_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.ssp_export_package_history (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    action character varying(80) NOT NULL,
+    actor_user_id uuid NOT NULL,
+    actor_name character varying(320) NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    notes character varying(1000),
+    CONSTRAINT "PK_ssp_export_package_history" PRIMARY KEY (id),
+    CONSTRAINT "FK_ssp_export_package_history_ssp_export_packages_tenant_id_pa~" FOREIGN KEY (tenant_id, package_id) REFERENCES gccs.ssp_export_packages (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_ssp_export_package_history_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_ssp_export_package_history_tenant_id_package_id_occurred_at" ON gccs.ssp_export_package_history (tenant_id, package_id, occurred_at);
+
+CREATE INDEX "IX_ssp_export_packages_created_at_updated_at" ON gccs.ssp_export_packages (created_at, updated_at);
+
+CREATE INDEX "IX_ssp_export_packages_tenant_id_generated_at" ON gccs.ssp_export_packages (tenant_id, generated_at);
+
+CREATE UNIQUE INDEX "IX_ssp_export_packages_tenant_id_package_version" ON gccs.ssp_export_packages (tenant_id, package_version);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910150656_AddDurableSspExportPackages', '10.0.4');
 
 COMMIT;

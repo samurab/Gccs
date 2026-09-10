@@ -33,6 +33,19 @@ public sealed class EfSspNarrativeRepository(GccsDbContext dbContext) : ISspNarr
         return entity is null ? null : ToDto(entity);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, SspNarrativeDto>> ListCurrentApprovedNarrativesAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> sectionIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (sectionIds.Count == 0) return new Dictionary<Guid, SspNarrativeDto>();
+        var entities = await dbContext.SspNarratives.AsNoTracking()
+            .Where(item => item.TenantId == tenantId && sectionIds.Contains(item.SectionId) && item.Status == SspNarrativeStatus.Approved)
+            .Include(item => item.Sources)
+            .ToArrayAsync(cancellationToken);
+        return entities.ToDictionary(item => item.SectionId, ToDto);
+    }
+
     public async Task<SspNarrativeDto> CreateDraftAsync(
         Guid tenantId,
         Guid sectionId,

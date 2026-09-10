@@ -3057,6 +3057,75 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /api/compliance/ssp/export-packages:
+    get:
+      tags: [SSP]
+      summary: List immutable SSP review package history for the current tenant
+      operationId: listSspExportPackages
+      responses:
+        "200": { description: Tenant-scoped SSP package history., content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SspExportPackage" } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [SSP]
+      summary: Generate an immutable internal SSP review package from server-resolved records
+      operationId: generateSspExportPackage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateSspExportPackageRequest" } } }
+      responses:
+        "201": { description: Internal review package generated and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPackage" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/compliance/ssp/export-packages/{packageId}:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [SSP]
+      summary: Get an SSP review package in the current tenant scope
+      operationId: getSspExportPackage
+      responses:
+        "200": { description: SSP review package snapshot., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPackage" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/compliance/ssp/export-packages/{packageId}/external-share-approval:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [SSP]
+      summary: Record explicit administrative approval for external sharing
+      operationId: approveSspExportPackageExternalShare
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SspExternalShareApprovalRequest" } } }
+      responses:
+        "200": { description: External-share approval recorded., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPackage" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/compliance/ssp/export-packages/{packageId}/share:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [SSP]
+      summary: Record one external share after explicit package approval
+      operationId: shareSspExportPackage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SspExternalShareRequest" } } }
+      responses:
+        "200": { description: External share recorded and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPackage" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -7781,6 +7850,63 @@ components:
         proposedReviewerNotes: { type: [string, "null"] }
         proposedSources: { type: array, items: { $ref: "#/components/schemas/SspNarrativeSource" } }
         currentApprovedSources: { type: array, items: { $ref: "#/components/schemas/SspNarrativeSource" } }
+
+    CreateSspExportPackageRequest:
+      type: object
+      additionalProperties: false
+      required: [packageVersion, systemBoundary, reviewer, format, externalShareRequested, evidenceItemIds, poamItemIds]
+      properties:
+        packageVersion: { type: string, minLength: 1, maxLength: 80 }
+        systemBoundary: { type: string, minLength: 1, maxLength: 4000 }
+        reviewer: { type: string, minLength: 1, maxLength: 200 }
+        format: { type: string, enum: [HumanReadable, MachineReadable, Both] }
+        externalShareRequested:
+          type: boolean
+          description: Must be false during generation. External sharing requires the separate administrative approval lifecycle.
+        evidenceItemIds: { type: array, maxItems: 500, uniqueItems: true, items: { type: string, format: uuid } }
+        poamItemIds: { type: array, maxItems: 500, uniqueItems: true, items: { type: string, format: uuid } }
+
+    SspExternalShareApprovalRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties: { reason: { type: string, minLength: 1, maxLength: 1000 } }
+
+    SspExternalShareRequest:
+      type: object
+      additionalProperties: false
+      required: [recipient, purpose]
+      properties:
+        recipient: { type: string, minLength: 1, maxLength: 320 }
+        purpose: { type: string, minLength: 1, maxLength: 1000 }
+
+    SspExportPackage:
+      type: object
+      required: [id, tenantId, tenantName, generatedAt, packageVersion, systemBoundary, reviewer, format, disclaimer, humanReadableReport, machineReadableMetadata, sections, includedEvidence, poamReferences, status, history]
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        tenantName: { type: string }
+        generatedAt: { type: string, format: date-time }
+        packageVersion: { type: string }
+        systemBoundary: { type: string }
+        reviewer: { type: string }
+        format: { type: string, enum: [HumanReadable, MachineReadable, Both] }
+        disclaimer: { type: string, description: "Draft-only review language that disclaims certification, assessment determination, authorization, legal advice, and government approval or endorsement." }
+        humanReadableReport: { type: string }
+        machineReadableMetadata: { type: object, description: Immutable JSON metadata snapshot. }
+        sections: { type: array, items: { type: object } }
+        includedEvidence: { type: array, items: { type: object } }
+        poamReferences: { type: array, items: { type: object } }
+        status: { type: string, enum: [InternalReview, ExternalShareApproved, Shared] }
+        externalShareApprovedByUserId: { type: [string, "null"], format: uuid }
+        externalShareApprovedAt: { type: [string, "null"], format: date-time }
+        externalShareApprovalReason: { type: [string, "null"] }
+        sharedByUserId: { type: [string, "null"], format: uuid }
+        sharedAt: { type: [string, "null"], format: date-time }
+        sharedRecipient: { type: [string, "null"] }
+        sharedPurpose: { type: [string, "null"] }
+        history: { type: array, items: { type: object } }
 
     SourceType:
       type: string

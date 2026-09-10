@@ -854,6 +854,8 @@ vi.mock("@/lib/api", () => ({
   editSspNarrative: vi.fn(),
   approveSspNarrative: vi.fn(),
   compareSspNarrative: vi.fn(),
+  getSspExportPackages: vi.fn().mockResolvedValue([]),
+  createSspExportPackage: vi.fn(),
   getSubcontractors: getSubcontractorsMock,
   getSubcontractorEvidenceRequests: getSubcontractorEvidenceRequestsMock,
   getSubcontractorFlowDowns: getSubcontractorFlowDownsMock,

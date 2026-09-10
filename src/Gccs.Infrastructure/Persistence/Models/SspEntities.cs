@@ -99,3 +99,45 @@ public sealed class SspSectionHistoryEntity
     public string? Notes { get; set; }
     public SspSectionEntity? Section { get; set; }
 }
+
+public sealed class SspExportPackageEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string TenantName { get; set; } = string.Empty;
+    public DateTimeOffset GeneratedAt { get; set; }
+    public string PackageVersion { get; set; } = string.Empty;
+    public string SystemBoundary { get; set; } = string.Empty;
+    public string Reviewer { get; set; } = string.Empty;
+    public string Format { get; set; } = string.Empty;
+    public string Disclaimer { get; set; } = string.Empty;
+    public string HumanReadableReport { get; set; } = string.Empty;
+    public string MachineReadableMetadata { get; set; } = "{}";
+    public string SectionsJson { get; set; } = "[]";
+    public string EvidenceReferencesJson { get; set; } = "[]";
+    public string PoamReferencesJson { get; set; } = "[]";
+    public string Status { get; set; } = string.Empty;
+    public Guid? ExternalShareApprovedByUserId { get; set; }
+    public DateTimeOffset? ExternalShareApprovedAt { get; set; }
+    public string? ExternalShareApprovalReason { get; set; }
+    public Guid? SharedByUserId { get; set; }
+    public DateTimeOffset? SharedAt { get; set; }
+    public string? SharedRecipient { get; set; }
+    public string? SharedPurpose { get; set; }
+    public long Version { get; set; }
+    public TenantEntity? Tenant { get; set; }
+    public ICollection<SspExportPackageHistoryEntity> History { get; set; } = [];
+}
+
+public sealed class SspExportPackageHistoryEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid PackageId { get; set; }
+    public string Action { get; set; } = string.Empty;
+    public Guid ActorUserId { get; set; }
+    public string ActorName { get; set; } = string.Empty;
+    public DateTimeOffset OccurredAt { get; set; }
+    public string? Notes { get; set; }
+    public SspExportPackageEntity? Package { get; set; }
+}

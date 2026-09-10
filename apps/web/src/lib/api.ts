@@ -984,6 +984,35 @@ export type EditSspNarrativeRequest = {
   editedText: string; reviewerNotes: string | null; expectedVersion: number;
   classification: { classification: "Unclassified" | "Fci" | "Cui"; source: "UserSelected" };
 };
+export type SspExportFormat = "HumanReadable" | "MachineReadable" | "Both";
+export type SspExportPackageStatus = "InternalReview" | "ExternalShareApproved" | "Shared";
+export type SspExportEvidenceReference = {
+  id: string; title: string; status: string; classification: string; ownerFunction: string;
+  approvedAt: string; approvedByUserId: string; effectiveAt: string | null; expiresAt: string | null;
+};
+export type SspExportPoamReference = {
+  id: string; assessmentId: string; controlId: string; weakness: string; plannedRemediation: string;
+  status: string; ownerFunction: string; targetCompletionAt: string;
+};
+export type SspExportSection = {
+  sectionId: string; sectionType: SspSectionType; title: string; status: SspSectionStatus; owner: string;
+  reviewer: string | null; reviewDate: string | null; sourceReferences: SspSourceReference[];
+  approvedNarrativeText: string | null; approvedNarrativeId: string | null; narrativeReviewer: string | null;
+  narrativeReviewDate: string | null; narrativeSources: SspNarrativeSource[];
+};
+export type SspExportHistory = { id: string; action: string; actorUserId: string; actorName: string; occurredAt: string; notes: string | null };
+export type SspExportPackage = {
+  id: string; tenantId: string; tenantName: string; generatedAt: string; packageVersion: string; systemBoundary: string;
+  reviewer: string; format: SspExportFormat; disclaimer: string; humanReadableReport: string; machineReadableMetadata: Record<string, unknown>;
+  sections: SspExportSection[]; includedEvidence: SspExportEvidenceReference[]; poamReferences: SspExportPoamReference[];
+  status: SspExportPackageStatus; externalShareApprovedByUserId: string | null; externalShareApprovedAt: string | null;
+  externalShareApprovalReason: string | null; sharedByUserId: string | null; sharedAt: string | null;
+  sharedRecipient: string | null; sharedPurpose: string | null; history: SspExportHistory[];
+};
+export type CreateSspExportPackageRequest = {
+  packageVersion: string; systemBoundary: string; reviewer: string; format: SspExportFormat;
+  externalShareRequested: boolean; evidenceItemIds: string[]; poamItemIds: string[];
+};
 
 export type Subcontractor = {
   id: string;
@@ -2473,6 +2502,14 @@ export async function approveSspNarrative(sectionId: string, narrativeId: string
 
 export async function compareSspNarrative(sectionId: string, narrativeId: string): Promise<SspNarrativeComparison> {
   return getRequiredJson<SspNarrativeComparison>(`/api/compliance/ssp/sections/${sectionId}/narratives/${narrativeId}/comparison`);
+}
+
+export async function getSspExportPackages(): Promise<SspExportPackage[]> {
+  return getRequiredJson<SspExportPackage[]>("/api/compliance/ssp/export-packages");
+}
+
+export async function createSspExportPackage(request: CreateSspExportPackageRequest): Promise<ApiMutationResult<SspExportPackage>> {
+  return postJsonResult<SspExportPackage>("/api/compliance/ssp/export-packages", request);
 }
 
 export async function getSubcontractors(): Promise<Subcontractor[]> {
