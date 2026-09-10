@@ -258,6 +258,11 @@ public sealed class SprsReadinessReportTests
     {
         public Task SaveAsync(SprsScoreCalculationDto calculation, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        public Task<IReadOnlyList<SprsScoreCalculationDto>?> ListCurrentTenantAsync(
+            Guid assessmentId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<SprsScoreCalculationDto>?>([]);
     }
 
     private sealed class CapturingAuditEventWriter : IAuditEventWriter

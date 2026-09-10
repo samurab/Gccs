@@ -1,5 +1,6 @@
 using Gccs.Application.Audit;
 using Gccs.Application.Cmmc;
+using Gccs.Application.Common;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Compliance;
@@ -21,7 +22,7 @@ public sealed class SprsScoreCalculationWorkspaceTests
 
         var calculation = await service.CalculateAsync(
             ids.AssessmentId,
-            new SprsScoreCalculationRequest("sprs-rules", "Leadership review note."),
+            new SprsScoreCalculationRequest("sprs-rules", "Leadership review note.", ManualNotesClassification: ContentClassificationPolicy.DefaultUnclassified()),
             ids.ActorUserId);
 
         Assert.NotNull(calculation);
@@ -76,6 +77,27 @@ public sealed class SprsScoreCalculationWorkspaceTests
     }
 
     [Fact]
+    public async Task Calculation_preserves_governed_negative_scores_instead_of_clamping_to_zero()
+    {
+        var ids = StoryIds.Create();
+        var rules = new[]
+        {
+            new SprsScoringRuleDto("3.1.1", "Requirement one", 100, "Subtract when not met.", "https://example.test/sprs"),
+            new SprsScoringRuleDto("3.1.2", "Requirement two", 100, "Subtract when not met.", "https://example.test/sprs")
+        };
+        var service = CreateService(CreateAssessmentRepository(ids, []), ruleSet: CreatePublishedRuleSet(rules));
+
+        var calculation = await service.CalculateAsync(
+            ids.AssessmentId,
+            new SprsScoreCalculationRequest("sprs-rules", null),
+            ids.ActorUserId);
+
+        Assert.NotNull(calculation);
+        Assert.Equal(-90, calculation.Score);
+        Assert.Equal(200, calculation.TotalDeduction);
+    }
+
+    [Fact]
     public async Task TC_30_2_4_Manual_notes_are_stored_separately_from_calculated_values()
     {
         var ids = StoryIds.Create();
@@ -88,7 +110,7 @@ public sealed class SprsScoreCalculationWorkspaceTests
 
         var calculation = await service.CalculateAsync(
             ids.AssessmentId,
-            new SprsScoreCalculationRequest("sprs-rules", "  Reviewer says validate MFA scope.  "),
+            new SprsScoreCalculationRequest("sprs-rules", "  Reviewer says validate MFA scope.  ", ManualNotesClassification: ContentClassificationPolicy.DefaultUnclassified()),
             ids.ActorUserId);
 
         Assert.NotNull(calculation);
@@ -97,6 +119,26 @@ public sealed class SprsScoreCalculationWorkspaceTests
         Assert.Equal("Reviewer says validate MFA scope.", calculation.ManualNotes);
         Assert.Equal(calculation.Score, Assert.Single(history.Calculations).Score);
         Assert.Equal(calculation.ManualNotes, Assert.Single(history.Calculations).ManualNotes);
+    }
+
+    [Fact]
+    public async Task Manual_notes_require_explicit_classification_without_writing_history_or_audit()
+    {
+        var ids = StoryIds.Create();
+        var history = new CapturingCalculationHistoryRepository();
+        var audit = new CapturingAuditEventWriter();
+        var service = CreateService(ids, [
+            CreateStatus(ids.AssessmentId, "3.1.1", ControlImplementationStatus.Implemented, AssessmentResult.Met)
+        ], history, audit);
+
+        var exception = await Assert.ThrowsAsync<SprsScoreCalculationException>(() => service.CalculateAsync(
+            ids.AssessmentId,
+            new SprsScoreCalculationRequest("sprs-rules", "Reviewer note without classification."),
+            ids.ActorUserId));
+
+        Assert.Contains("classification", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(history.Calculations);
+        Assert.Empty(audit.Events);
     }
 
     [Fact]
@@ -310,7 +352,9 @@ public sealed class SprsScoreCalculationWorkspaceTests
 
         Assert.NotNull(calculation);
         Assert.Equal(110, calculation.Score);
-        Assert.Equal("not-applicable", Assert.Single(calculation.LineItems).Reason);
+        var lineItem = Assert.Single(calculation.LineItems);
+        Assert.Equal("not-applicable", lineItem.Reason);
+        Assert.Equal("Remote access is prohibited by the assessed boundary policy.", lineItem.ApplicabilityRationale);
     }
 
     [Fact]
@@ -528,6 +572,13 @@ public sealed class SprsScoreCalculationWorkspaceTests
             Calculations.Add(calculation);
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<SprsScoreCalculationDto>?> ListCurrentTenantAsync(
+            Guid assessmentId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<SprsScoreCalculationDto>?>(Calculations
+                .Where(calculation => calculation.AssessmentId == assessmentId)
+                .ToArray());
     }
 
     private sealed class CapturingAuditEventWriter : IAuditEventWriter

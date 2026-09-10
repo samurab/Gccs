@@ -118,7 +118,6 @@ public static class DependencyInjection
         services.AddSingleton<ISharedResponsibilityMatrixRepository, FileSharedResponsibilityMatrixRepository>();
         services.AddSingleton<IDataHandlingNoticeRepository, FileDataHandlingNoticeRepository>();
         services.AddSingleton<ISprsScoringRuleRepository, FileSprsScoringRuleRepository>();
-        services.AddSingleton<ISprsScoreCalculationHistoryRepository, InMemorySprsScoreCalculationHistoryRepository>();
         services.AddSingleton<IEsrsApplicabilityRepository, InMemoryEsrsApplicabilityRepository>();
         services.AddSingleton<ISubcontractingReportDataRepository, InMemorySubcontractingReportDataRepository>();
         services.AddSingleton<IEsrsReportPackageRepository, InMemoryEsrsReportPackageRepository>();
@@ -428,6 +427,7 @@ public static class DependencyInjection
             services.AddScoped<IEvidenceMetadataRepository, EfEvidenceMetadataRepository>();
             services.AddScoped<IEvidenceRequestRepository, EfEvidenceRequestRepository>();
             services.AddScoped<ICmmcAssessmentRepository, EfCmmcAssessmentRepository>();
+            services.AddScoped<ISprsScoreCalculationHistoryRepository, EfSprsScoreCalculationHistoryRepository>();
             services.AddScoped<ICmmcPoamRepository, EfCmmcPoamRepository>();
             services.AddScoped<ICmmcAffirmationRepository, EfCmmcAffirmationRepository>();
             services.AddScoped<ISubcontractorRepository, EfSubcontractorRepository>();
@@ -551,6 +551,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Evidence request persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICmmcAssessmentRepository>(_ =>
                 throw new InvalidOperationException("CMMC assessment persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<ISprsScoreCalculationHistoryRepository>(_ =>
+                throw new InvalidOperationException("SPRS calculation persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICmmcPoamRepository>(_ =>
                 throw new InvalidOperationException("CMMC POA&M persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICmmcAffirmationRepository>(_ =>

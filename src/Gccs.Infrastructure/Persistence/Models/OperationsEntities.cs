@@ -209,6 +209,46 @@ public sealed class ControlAssessmentEntity
     public ICollection<ControlAssessmentHistoryEntity> History { get; set; } = [];
 }
 
+public sealed class SprsScoreCalculationEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid AssessmentId { get; set; }
+    public string RuleSetId { get; set; } = string.Empty;
+    public string RuleSetVersion { get; set; } = string.Empty;
+    public string RuleSetSourceUrl { get; set; } = string.Empty;
+    public string RuleSetSourceSha256 { get; set; } = string.Empty;
+    public int MaximumScore { get; set; }
+    public int Score { get; set; }
+    public int TotalDeduction { get; set; }
+    public string LineItemsJson { get; set; } = "[]";
+    public string UnresolvedGapsJson { get; set; } = "[]";
+    public Guid GeneratedByUserId { get; set; }
+    public DateTimeOffset GeneratedAt { get; set; }
+
+    public AssessmentEntity? Assessment { get; set; }
+    public ICollection<SprsScoreCalculationNoteEntity> ReviewerNotes { get; set; } = [];
+}
+
+public sealed class SprsScoreCalculationNoteEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid CalculationId { get; set; }
+    public string Note { get; set; } = string.Empty;
+    public ContentClassification Classification { get; set; } = ContentClassification.Unclassified;
+    public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.UserSelected;
+    public decimal? ClassificationConfidence { get; set; }
+    public Guid? ClassificationReviewedByUserId { get; set; }
+    public DateTimeOffset? ClassificationReviewedAt { get; set; }
+    public string? ClassificationReason { get; set; }
+    public bool ClassificationIsApprovedDemoContent { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public SprsScoreCalculationEntity? Calculation { get; set; }
+}
+
 public sealed class ControlAssessmentHistoryEntity
 {
     public Guid Id { get; set; }

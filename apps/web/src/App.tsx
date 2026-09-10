@@ -67,6 +67,7 @@ import {
   createCuiReadyApprovalChecklist,
   createCmmcAssessment,
   createCmmcPoamItem,
+  createSprsScoreCalculation,
   createSubcontractorEvidenceRequest,
   createSubcontractorFlowDown,
   createSubcontractor,
@@ -95,6 +96,8 @@ import {
   getCmmcControlLibrary,
   getCmmcControlStatuses,
   getCmmcPoamItems,
+  getSprsScoringRuleSets,
+  getSprsScoreCalculations,
   getSubcontractors,
   getSubcontractorEvidenceRequests,
   getSubcontractorFlowDowns,
@@ -167,6 +170,9 @@ import {
   type CmmcControlLibrary,
   type CmmcControlStatus,
   type CmmcPoamItem,
+  type SprsScoringRuleSet,
+  type SprsScoreCalculation,
+  type CreateSprsScoreCalculationRequest,
   type ComplianceOverview,
   type ComplianceStatusReport,
   type ContentClassificationReviewItem,
@@ -653,6 +659,9 @@ export function App() {
   const [cmmcControlLibrary, setCmmcControlLibrary] = useState<CmmcControlLibrary[]>([]);
   const [cmmcControls, setCmmcControls] = useState<CmmcControlStatus[]>([]);
   const [cmmcPoamItems, setCmmcPoamItems] = useState<CmmcPoamItem[]>([]);
+  const [sprsRuleSets, setSprsRuleSets] = useState<SprsScoringRuleSet[]>([]);
+  const [sprsCalculations, setSprsCalculations] = useState<SprsScoreCalculation[]>([]);
+  const [currentSprsCalculation, setCurrentSprsCalculation] = useState<SprsScoreCalculation | null>(null);
   const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
   const [selectedSubcontractorId, setSelectedSubcontractorId] = useState<string | null>(null);
   const [subcontractorFlowDowns, setSubcontractorFlowDowns] = useState<SubcontractorFlowDown[]>([]);
@@ -719,6 +728,8 @@ export function App() {
   const [cmmcMessage, setCmmcMessage] = useState("");
   const [cmmcPoamStatus, setCmmcPoamStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [cmmcPoamMessage, setCmmcPoamMessage] = useState("");
+  const [sprsStatus, setSprsStatus] = useState<"idle" | "loading" | "saving" | "saved" | "failed">("idle");
+  const [sprsMessage, setSprsMessage] = useState("");
   const [subcontractorStatus, setSubcontractorStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [subcontractorMessage, setSubcontractorMessage] = useState("");
   const [subcontractorDetailStatus, setSubcontractorDetailStatus] = useState<"idle" | "loading" | "saving" | "ready" | "failed">("idle");
@@ -942,11 +953,14 @@ export function App() {
         const nextContracts = canLoadContracts ? await getContracts() : [];
         const nextObligationDashboardItems = canLoadObligations ? await getContractObligations() : [];
         const nextCalendarEvents = canLoadCalendar ? await getCalendarEvents(defaultCalendarQuery()) : [];
-        const [nextCmmcAssessments, nextCmmcControlLibrary] = canLoadCmmc
-          ? await Promise.all([getCmmcAssessments(), getCmmcControlLibrary()])
-          : [[], []];
+        const [nextCmmcAssessments, nextCmmcControlLibrary, nextSprsRuleSets] = canLoadCmmc
+          ? await Promise.all([getCmmcAssessments(), getCmmcControlLibrary(), getSprsScoringRuleSets()])
+          : [[], [], []];
         const nextCmmcControls = nextCmmcAssessments[0] ? await getCmmcControlStatuses(nextCmmcAssessments[0].id) : [];
         const nextCmmcPoamItems = nextCmmcAssessments[0] ? await getCmmcPoamItems(nextCmmcAssessments[0].id) : [];
+        const nextSprsCalculations = nextCmmcAssessments[0]?.level === "Level2"
+          ? await getSprsScoreCalculations(nextCmmcAssessments[0].id)
+          : [];
         const nextSubcontractors = canLoadSubcontractors ? await getSubcontractors() : [];
         const nextSubcontractorFlowDowns = nextSubcontractors[0]
           ? await getSubcontractorFlowDowns(nextSubcontractors[0].id)
@@ -1011,6 +1025,9 @@ export function App() {
           setCmmcControlLibrary(nextCmmcControlLibrary);
           setCmmcControls(nextCmmcControls);
           setCmmcPoamItems(nextCmmcPoamItems);
+          setSprsRuleSets(nextSprsRuleSets);
+          setSprsCalculations(nextSprsCalculations);
+          setCurrentSprsCalculation(nextSprsCalculations[0] ?? null);
           setSubcontractors(nextSubcontractors);
           setSelectedSubcontractorId(nextSubcontractors[0]?.id ?? null);
           setSubcontractorFlowDowns(nextSubcontractorFlowDowns);
@@ -1064,6 +1081,9 @@ export function App() {
           setSelectedCmmcAssessmentId(null);
           setCmmcControls([]);
           setCmmcPoamItems([]);
+          setSprsRuleSets([]);
+          setSprsCalculations([]);
+          setCurrentSprsCalculation(null);
           setSubcontractors([]);
           setSelectedSubcontractorId(null);
           setSubcontractorFlowDowns([]);
@@ -1213,6 +1233,7 @@ export function App() {
       nextObligationDashboardItems,
       nextCmmcAssessments,
       nextCmmcControlLibrary,
+      nextSprsRuleSets,
       nextSubcontractors,
       nextApprovedEvidencePackages
     ] = await Promise.all([
@@ -1222,12 +1243,16 @@ export function App() {
       getContractObligations(),
       getCmmcAssessments(),
       getCmmcControlLibrary(),
+      getSprsScoringRuleSets(),
       getSubcontractors(),
       getApprovedEvidencePackages()
     ]);
 
     const nextCmmcControls = nextCmmcAssessments[0] ? await getCmmcControlStatuses(nextCmmcAssessments[0].id) : [];
     const nextCmmcPoamItems = nextCmmcAssessments[0] ? await getCmmcPoamItems(nextCmmcAssessments[0].id) : [];
+    const nextSprsCalculations = nextCmmcAssessments[0]?.level === "Level2"
+      ? await getSprsScoreCalculations(nextCmmcAssessments[0].id)
+      : [];
 
     setEvidenceItems(nextEvidenceItems);
     setClassificationReviewItems(nextClassificationReviewItems);
@@ -1238,6 +1263,9 @@ export function App() {
     setCmmcControlLibrary(nextCmmcControlLibrary);
     setCmmcControls(nextCmmcControls);
     setCmmcPoamItems(nextCmmcPoamItems);
+    setSprsRuleSets(nextSprsRuleSets);
+    setSprsCalculations(nextSprsCalculations);
+    setCurrentSprsCalculation(nextSprsCalculations[0] ?? null);
     setSubcontractors(nextSubcontractors);
     setApprovedEvidencePackages(nextApprovedEvidencePackages);
     setDemoSeedStatus("saved");
@@ -1969,9 +1997,10 @@ export function App() {
 
     if (result.data) {
       const savedAssessment = result.data;
-      const [nextControls, nextPoamItems] = await Promise.all([
+      const [nextControls, nextPoamItems, nextSprsCalculations] = await Promise.all([
         getCmmcControlStatuses(savedAssessment.id),
-        getCmmcPoamItems(savedAssessment.id)
+        getCmmcPoamItems(savedAssessment.id),
+        savedAssessment.level === "Level2" ? getSprsScoreCalculations(savedAssessment.id) : Promise.resolve([])
       ]);
       setCmmcAssessments((currentAssessments) => {
         const exists = currentAssessments.some((assessment) => assessment.id === savedAssessment.id);
@@ -1982,6 +2011,8 @@ export function App() {
       setSelectedCmmcAssessmentId(savedAssessment.id);
       setCmmcControls(nextControls);
       setCmmcPoamItems(nextPoamItems);
+      setSprsCalculations(nextSprsCalculations);
+      setCurrentSprsCalculation(nextSprsCalculations[0] ?? null);
       setCmmcStatus("saved");
       setCmmcMessage(assessmentId ? "CMMC readiness assessment updated." : "CMMC readiness assessment created.");
       return;
@@ -1996,13 +2027,19 @@ export function App() {
     setCmmcStatus("saving");
     setCmmcMessage("");
 
-    const [nextControls, nextPoamItems] = await Promise.all([
+    const selectedAssessment = cmmcAssessments.find((assessment) => assessment.id === assessmentId);
+    const [nextControls, nextPoamItems, nextSprsCalculations] = await Promise.all([
       getCmmcControlStatuses(assessmentId),
-      getCmmcPoamItems(assessmentId)
+      getCmmcPoamItems(assessmentId),
+      selectedAssessment?.level === "Level2" ? getSprsScoreCalculations(assessmentId) : Promise.resolve([])
     ]);
 
     setCmmcControls(nextControls);
     setCmmcPoamItems(nextPoamItems);
+    setSprsCalculations(nextSprsCalculations);
+    setCurrentSprsCalculation(nextSprsCalculations[0] ?? null);
+    setSprsStatus("idle");
+    setSprsMessage("");
     setCmmcStatus("idle");
   }
 
@@ -2010,10 +2047,37 @@ export function App() {
     setSelectedCmmcAssessmentId(null);
     setCmmcControls([]);
     setCmmcPoamItems([]);
+    setSprsCalculations([]);
+    setCurrentSprsCalculation(null);
     setCmmcStatus("idle");
     setCmmcMessage("");
     setCmmcPoamStatus("idle");
     setCmmcPoamMessage("");
+    setSprsStatus("idle");
+    setSprsMessage("");
+  }
+
+  async function handleSprsCalculate(request: CreateSprsScoreCalculationRequest) {
+    const assessment = cmmcAssessments.find((candidate) => candidate.id === selectedCmmcAssessmentId);
+    if (!assessment || assessment.level !== "Level2") {
+      setSprsStatus("failed");
+      setSprsMessage("Select a Level 2 assessment before calculating a draft SPRS score.");
+      return;
+    }
+
+    setSprsStatus("saving");
+    setSprsMessage("");
+    const result = await createSprsScoreCalculation(assessment.id, request);
+    if (!result.data) {
+      setSprsStatus("failed");
+      setSprsMessage(result.error ?? "The draft SPRS score could not be calculated.");
+      return;
+    }
+
+    setCurrentSprsCalculation(result.data);
+    setSprsCalculations((current) => [result.data!, ...current.filter((item) => item.id !== result.data!.id)]);
+    setSprsStatus("saved");
+    setSprsMessage("Draft score recalculated from the current Level 2 assessment status.");
   }
 
   async function handleCmmcPoamCreate(request: UpsertCmmcPoamItemRequest) {
@@ -2627,10 +2691,16 @@ export function App() {
               poamItems={cmmcPoamItems}
               poamMessage={cmmcPoamMessage}
               poamStatus={cmmcPoamStatus}
+              sprsCalculations={sprsCalculations}
+              sprsCurrent={currentSprsCalculation}
+              sprsMessage={sprsMessage}
+              sprsRuleSets={sprsRuleSets}
+              sprsStatus={sprsStatus}
               selectedAssessmentId={selectedCmmcAssessmentId}
               status={cmmcStatus}
               onSave={handleCmmcAssessmentSave}
               onCreatePoam={handleCmmcPoamCreate}
+              onCalculateSprs={handleSprsCalculate}
               onNewAssessment={handleCmmcAssessmentNew}
               onSelectAssessment={handleCmmcAssessmentSelect}
             />
@@ -5957,9 +6027,15 @@ function CmmcView({
   poamItems,
   poamMessage,
   poamStatus,
+  sprsCalculations,
+  sprsCurrent,
+  sprsMessage,
+  sprsRuleSets,
+  sprsStatus,
   selectedAssessmentId,
   onSave,
   onCreatePoam,
+  onCalculateSprs,
   onNewAssessment,
   onSelectAssessment,
   status
@@ -5974,9 +6050,15 @@ function CmmcView({
   poamItems: CmmcPoamItem[];
   poamMessage: string;
   poamStatus: "idle" | "saving" | "saved" | "failed";
+  sprsCalculations: SprsScoreCalculation[];
+  sprsCurrent: SprsScoreCalculation | null;
+  sprsMessage: string;
+  sprsRuleSets: SprsScoringRuleSet[];
+  sprsStatus: "idle" | "loading" | "saving" | "saved" | "failed";
   selectedAssessmentId: string | null;
   onSave: (assessmentId: string | null, request: UpsertCmmcAssessmentRequest) => Promise<void>;
   onCreatePoam: (request: UpsertCmmcPoamItemRequest) => Promise<void>;
+  onCalculateSprs: (request: CreateSprsScoreCalculationRequest) => Promise<void>;
   onNewAssessment: () => void;
   onSelectAssessment: (assessmentId: string) => Promise<void>;
   status: "idle" | "saving" | "saved" | "failed";
@@ -5986,6 +6068,11 @@ function CmmcView({
     selectedAssessment ? cmmcAssessmentToForm(selectedAssessment) : defaultCmmcAssessmentForm
   );
   const [poamForm, setPoamForm] = useState<CmmcPoamFormState>(defaultCmmcPoamForm);
+  const publishedSprsRuleSets = sprsRuleSets.filter((ruleSet) => ruleSet.state === "Published");
+  const [sprsRuleSetId, setSprsRuleSetId] = useState(publishedSprsRuleSets[0]?.id ?? "");
+  const [sprsManualNotes, setSprsManualNotes] = useState("");
+  const [sprsNotesClassification, setSprsNotesClassification] = useState("Unclassified");
+  const [sprsConditionalSelections, setSprsConditionalSelections] = useState<Record<string, string>>({});
   const activeControls = selectedAssessment ? controls : [];
   const activePoamItems = selectedAssessment ? poamItems : [];
   const controlsNeedingReview = activeControls.filter((control) => control.status === "NeedsReview" || control.result === "NotMet").length;
@@ -6050,6 +6137,29 @@ function CmmcView({
       completedAt: poamForm.status === "Closed" ? poamForm.targetCompletionAt : null,
       remediationTaskId: null,
       evidenceItemIds: []
+    });
+  }
+
+  function submitSprs(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const ruleSet = publishedSprsRuleSets.find((candidate) => candidate.id === sprsRuleSetId);
+    if (!ruleSet) {
+      return;
+    }
+
+    void onCalculateSprs({
+      ruleSetId: ruleSet.id,
+      manualNotes: sprsManualNotes.trim() || null,
+      manualNotesClassification: sprsManualNotes.trim()
+        ? {
+            classification: sprsNotesClassification,
+            source: "UserSelected",
+            reason: "Reviewer selected the classification for draft SPRS calculation notes."
+          }
+        : null,
+      conditionalDeductionSelections: ruleSet.rules
+        .filter((rule) => rule.ruleType === "ConditionalDeduction")
+        .map((rule) => ({ requirementId: rule.requirementId, optionCode: sprsConditionalSelections[rule.requirementId] ?? "" }))
     });
   }
 
@@ -6213,6 +6323,140 @@ function CmmcView({
           </div>
         ) : (
           <EmptyState title="No CMMC assessment has started yet" body="Create a Level 1 or Level 2 workspace to begin tracking readiness." />
+        )}
+      </WorkflowColumn>
+
+      <WorkflowColumn
+        ariaLabel="Draft SPRS score calculation"
+        title="Draft SPRS score"
+        description="Calculate an internal readiness estimate from the selected Level 2 assessment. FeDril does not submit this score to SPRS."
+      >
+        {!selectedAssessment ? (
+          <EmptyState title="Select a Level 2 assessment" body="Choose an assessment to view calculation history and score drivers." />
+        ) : selectedAssessment.level !== "Level2" ? (
+          <Alert title="Level 2 assessment required" tone="warning">
+            Draft SPRS calculations use NIST SP 800-171 Rev. 2 control assessment data.
+          </Alert>
+        ) : (
+          <>
+            <form className="cmmc-create cmmc-form" onSubmit={submitSprs}>
+              {publishedSprsRuleSets.length === 0 ? (
+                <Alert title="No published scoring baseline" tone="warning">
+                  The source-backed baseline remains draft pending qualified review. Calculation is unavailable until a reviewed rule set is published.
+                </Alert>
+              ) : (
+                <fieldset disabled={!canManageCmmc || sprsStatus === "saving"}>
+                  <div className="form-grid cmmc-form-grid">
+                    <label>
+                      <span>Scoring rule version</span>
+                      <select value={sprsRuleSetId} onChange={(event) => setSprsRuleSetId(event.target.value)} required>
+                        {publishedSprsRuleSets.map((ruleSet) => (
+                          <option key={ruleSet.id} value={ruleSet.id}>{ruleSet.version}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="span-2">
+                      <span>Reviewer notes</span>
+                      <textarea
+                        value={sprsManualNotes}
+                        onChange={(event) => setSprsManualNotes(event.target.value)}
+                        maxLength={2000}
+                        placeholder="Optional context only. Do not include CUI or sensitive government-furnished information."
+                      />
+                    </label>
+                    <label>
+                      <span>Reviewer note classification</span>
+                      <select value={sprsNotesClassification} onChange={(event) => setSprsNotesClassification(event.target.value)}>
+                        <option value="Unclassified">Unclassified</option>
+                        <option value="Unknown">Unknown — requires review</option>
+                        <option value="Cui">CUI</option>
+                        <option value="Prohibited">Prohibited content</option>
+                      </select>
+                    </label>
+                    {publishedSprsRuleSets
+                      .find((ruleSet) => ruleSet.id === sprsRuleSetId)
+                      ?.rules.filter((rule) => rule.ruleType === "ConditionalDeduction")
+                      .map((rule) => (
+                        <label className="span-2" key={rule.requirementId}>
+                          <span>{rule.requirementId} conditional deduction</span>
+                          <select
+                            value={sprsConditionalSelections[rule.requirementId] ?? ""}
+                            onChange={(event) => setSprsConditionalSelections((current) => ({ ...current, [rule.requirementId]: event.target.value }))}
+                            required
+                          >
+                            <option value="">Select assessed condition</option>
+                            {(rule.conditionalDeductions ?? []).map((option) => (
+                              <option key={option.code} value={option.code}>{option.when} (-{option.deduction})</option>
+                            ))}
+                          </select>
+                        </label>
+                      ))}
+                  </div>
+                  <div className="form-actions">
+                    <button type="submit" disabled={!canManageCmmc || sprsStatus === "saving" || !sprsRuleSetId}>
+                      <RefreshCw size={16} aria-hidden="true" />
+                      <span>{sprsStatus === "saving" ? "Calculating" : "Calculate draft score"}</span>
+                    </button>
+                  </div>
+                </fieldset>
+              )}
+            </form>
+            {!canManageCmmc ? <p className="form-status">ManageCmmc permission is required to calculate a score.</p> : null}
+            {sprsStatus === "failed" ? <Alert title="Calculation failed" tone="danger">{sprsMessage}</Alert> : null}
+            {sprsStatus === "saved" ? <p className="form-status form-status--ok">{sprsMessage}</p> : null}
+
+            {sprsCurrent ? (
+              <div className="sprs-result" aria-label="Current draft SPRS calculation">
+                <WorkspaceMetricStrip items={[
+                  { label: "Draft score", value: sprsCurrent.score, tone: sprsCurrent.score === sprsCurrent.maximumScore ? "success" : "warning" },
+                  { label: "Maximum", value: sprsCurrent.maximumScore, tone: "neutral" },
+                  { label: "Deductions", value: sprsCurrent.totalDeduction, tone: sprsCurrent.totalDeduction > 0 ? "danger" : "success" },
+                  { label: "Unresolved gaps", value: sprsCurrent.unresolvedGaps.length, tone: sprsCurrent.unresolvedGaps.length > 0 ? "warning" : "success" }
+                ]} />
+                <p className="section-summary">
+                  Rule {sprsCurrent.ruleSetVersion} · generated {formatUsDateTime(sprsCurrent.generatedAt)}
+                </p>
+                {sprsCurrent.manualNotes ? <p><strong>Reviewer notes:</strong> {sprsCurrent.manualNotes}</p> : null}
+                {sprsCurrent.lineItems.filter((item) => item.appliedDeduction > 0).length > 0 ? (
+                  <div className="evidence-list">
+                    {sprsCurrent.lineItems.filter((item) => item.appliedDeduction > 0).map((item) => (
+                      <TaskCard
+                        key={item.requirementId}
+                        title={`${item.requirementId} · ${item.title}`}
+                        badges={<StatusPill label={`-${item.appliedDeduction}`} tone="danger" />}
+                        meta={[
+                          { label: "Reason", value: formatEnumLabel(item.reason) },
+                          ...(item.applicabilityRationale ? [{ label: "Applicability rationale", value: item.applicabilityRationale }] : []),
+                          { label: "Control status", value: formatEnumLabel(item.controlStatus ?? "Not assessed") },
+                          { label: "Assessment result", value: formatEnumLabel(item.assessmentResult ?? "Unknown") }
+                        ]}
+                      />
+                    ))}
+                  </div>
+                ) : <EmptyState title="No deductions" body="The selected calculation has no rule-derived deductions." />}
+              </div>
+            ) : null}
+
+            {sprsCalculations.length > 0 ? (
+              <details>
+                <summary>Calculation history ({sprsCalculations.length})</summary>
+                <div className="evidence-list">
+                  {sprsCalculations.map((calculation) => (
+                    <TaskCard
+                      key={calculation.id}
+                      title={`Draft score ${calculation.score} of ${calculation.maximumScore}`}
+                      badges={<StatusPill label={`Rule ${calculation.ruleSetVersion}`} tone="info" />}
+                      meta={[
+                        { label: "Generated", value: formatUsDateTime(calculation.generatedAt) },
+                        { label: "Deductions", value: calculation.totalDeduction },
+                        { label: "Unresolved gaps", value: calculation.unresolvedGaps.length }
+                      ]}
+                    />
+                  ))}
+                </div>
+              </details>
+            ) : null}
+          </>
         )}
       </WorkflowColumn>
 

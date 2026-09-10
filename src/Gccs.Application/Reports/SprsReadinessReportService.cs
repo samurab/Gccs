@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Cmmc;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
@@ -26,7 +27,12 @@ public sealed class SprsReadinessReportService(
 
         var calculation = await scoreCalculationService.CalculateAsync(
             assessmentId,
-            new SprsScoreCalculationRequest(request.RuleSetId, request.ReviewerNotes),
+            new SprsScoreCalculationRequest(
+                request.RuleSetId,
+                request.ReviewerNotes,
+                ManualNotesClassification: string.IsNullOrWhiteSpace(request.ReviewerNotes)
+                    ? null
+                    : ContentClassificationPolicy.DefaultUnclassified()),
             actorUserId,
             cancellationToken);
         if (calculation is null)

@@ -2034,25 +2034,81 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /api/cmmc/assessments/{assessmentId}/sprs-score:
+  /api/cmmc/sprs/rule-sets:
+    get:
+      tags:
+        - CMMC
+      summary: List governed SPRS scoring rule sets
+      operationId: listSprsScoringRuleSets
+      x-gccs-phase: Phase 3
+      x-gccs-implementation-status: partially-implemented
+      description: Returns governed rule metadata. The checked-in baseline remains draft until qualified review and publication.
+      responses:
+        "200":
+          description: Governed rule sets and lifecycle states.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SprsScoringRuleSet"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/cmmc/assessments/{assessmentId}/sprs-calculations:
     parameters:
       - $ref: "#/components/parameters/AssessmentId"
     get:
       tags:
         - CMMC
-      summary: Calculate current SPRS-style score (deferred Phase 3)
-      operationId: getSprsScore
+      summary: List tenant-scoped draft SPRS calculation history
+      operationId: listSprsScoreCalculations
       x-gccs-phase: Phase 3
-      x-gccs-mvp-status: deferred
+      x-gccs-implementation-status: implemented
       responses:
         "200":
-          description: SPRS-style score.
+          description: Up to the 50 most recent immutable calculation snapshots, newest first.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SprsScore"
+                type: array
+                items:
+                  $ref: "#/components/schemas/SprsScoreCalculation"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags:
+        - CMMC
+      summary: Calculate a tenant-scoped draft SPRS score
+      operationId: createSprsScoreCalculation
+      x-gccs-phase: Phase 3
+      x-gccs-implementation-status: implemented
+      description: Creates an internal draft calculation from current Level 2 control assessment data. FeDril does not submit the result to SPRS.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SprsScoreCalculationRequest"
+      responses:
+        "201":
+          description: Immutable draft calculation snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SprsScoreCalculation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -6126,29 +6182,181 @@ components:
             - Overdue
             - NotRequired
 
-    SprsScore:
+    SprsScoringRuleSet:
       type: object
       required:
-        - assessmentId
-        - score
-        - maxScore
-        - calculatedAt
+        - id
+        - version
+        - state
+        - sourceName
+        - sourceUrl
+        - maximumScore
       properties:
+        id:
+          type: string
+        version:
+          type: string
+        state:
+          type: string
+          enum: [Draft, Approved, Published, Superseded, Retired]
+        sourceName:
+          type: string
+        sourceUrl:
+          type: string
+          format: uri
+        sourceSha256:
+          type: [string, "null"]
+        effectiveDate:
+          type: [string, "null"]
+          format: date
+        reviewer:
+          type: [string, "null"]
+        reviewDate:
+          type: [string, "null"]
+          format: date
+        maximumScore:
+          type: integer
+        rules:
+          type: array
+          items:
+            type: object
+            required: [requirementId, title, ruleType]
+            properties:
+              requirementId: { type: string }
+              title: { type: string }
+              ruleType:
+                type: string
+                enum: [FixedDeduction, ConditionalDeduction, AssessmentBlocking]
+              conditionalDeductions:
+                type: [array, "null"]
+                items:
+                  type: object
+                  required: [code, deduction, when]
+                  properties:
+                    code: { type: string }
+                    deduction: { type: integer }
+                    when: { type: string }
+
+    SprsScoreCalculationRequest:
+      type: object
+      required: [ruleSetId]
+      properties:
+        ruleSetId:
+          type: string
+          maxLength: 200
+        manualNotes:
+          type: [string, "null"]
+          maxLength: 2000
+          description: Optional reviewer context stored separately from rule-derived values. Do not include CUI or prohibited sensitive content.
+        manualNotesClassification:
+          type: [object, "null"]
+          description: Required when manualNotes is present and enforced against the active tenant data-handling mode.
+          properties:
+            classification:
+              type: string
+              enum: [Unknown, Unclassified, Fci, Cui, SyntheticCui, Prohibited]
+            source:
+              type: string
+              enum: [UserSelected]
+            reason:
+              type: [string, "null"]
+              maxLength: 600
+        conditionalDeductionSelections:
+          type: array
+          maxItems: 110
+          items:
+            type: object
+            required: [requirementId, optionCode]
+            properties:
+              requirementId:
+                type: string
+              optionCode:
+                type: string
+
+    SprsScoreCalculation:
+      type: object
+      required:
+        - id
+        - tenantId
+        - assessmentId
+        - ruleSetId
+        - ruleSetVersion
+        - ruleSetSourceUrl
+        - ruleSetSourceSha256
+        - maximumScore
+        - score
+        - totalDeduction
+        - lineItems
+        - unresolvedGaps
+        - manualNotes
+        - generatedByUserId
+        - generatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
         assessmentId:
           type: string
           format: uuid
+        ruleSetId:
+          type: string
+        ruleSetVersion:
+          type: string
+        ruleSetSourceUrl:
+          type: string
+          format: uri
+        ruleSetSourceSha256:
+          type: string
+        maximumScore:
+          type: integer
         score:
           type: integer
-        maxScore:
+        totalDeduction:
           type: integer
-          default: 110
-        calculatedAt:
-          type: string
-          format: date-time
-        calculationNotes:
+        lineItems:
           type: array
           items:
-            type: string
+            $ref: "#/components/schemas/SprsScoreCalculationLineItem"
+        unresolvedGaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/SprsUnresolvedGap"
+        manualNotes:
+          type: string
+        manualNotesClassification:
+          type: [object, "null"]
+        generatedByUserId:
+          type: string
+          format: uuid
+        generatedAt:
+          type: string
+          format: date-time
+
+    SprsScoreCalculationLineItem:
+      type: object
+      required: [requirementId, title, ruleDeduction, appliedDeduction, reason]
+      properties:
+        requirementId: { type: string }
+        controlId: { type: [string, "null"] }
+        title: { type: string }
+        ruleDeduction: { type: integer }
+        appliedDeduction: { type: integer }
+        reason: { type: string }
+        applicabilityRationale: { type: [string, "null"] }
+        controlStatus: { type: [string, "null"] }
+        assessmentResult: { type: [string, "null"] }
+
+    SprsUnresolvedGap:
+      type: object
+      required: [requirementId, title, reason]
+      properties:
+        requirementId: { type: string }
+        controlId: { type: [string, "null"] }
+        title: { type: string }
+        reason: { type: string }
 
     Subcontractor:
       allOf:

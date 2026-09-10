@@ -4565,6 +4565,81 @@ api.MapGet("/cmmc/assessments/{assessmentId:guid}/gaps", async (
 .RequirePermission(Permission.ViewCmmc)
 .WithName("GetCmmcReadinessGaps");
 
+api.MapGet("/cmmc/sprs/rule-sets", async (
+    SprsScoringRuleService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(cancellationToken)))
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListSprsScoringRuleSets");
+
+api.MapGet("/cmmc/assessments/{assessmentId:guid}/sprs-calculations", async (
+    Guid assessmentId,
+    SprsScoreCalculationService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var calculations = await service.ListHistoryAsync(assessmentId, cancellationToken);
+        return calculations is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC assessment '{assessmentId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(calculations);
+    }
+    catch (SprsScoreCalculationException exception)
+    {
+        return Results.ValidationProblem(
+            new Dictionary<string, string[]> { ["sprsScoreCalculationHistory"] = [exception.Message] },
+            title: "Draft SPRS calculation history unavailable",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListSprsScoreCalculations");
+
+api.MapPost("/cmmc/assessments/{assessmentId:guid}/sprs-calculations", async (
+    Guid assessmentId,
+    SprsScoreCalculationRequest request,
+    SprsScoreCalculationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var calculation = await service.CalculateAsync(
+            assessmentId,
+            request,
+            tenantContext.UserId,
+            cancellationToken);
+        return calculation is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC assessment '{assessmentId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created(
+                $"/api/cmmc/assessments/{assessmentId}/sprs-calculations",
+                calculation);
+    }
+    catch (SprsScoreCalculationException exception)
+    {
+        return Results.ValidationProblem(
+            new Dictionary<string, string[]> { ["sprsScoreCalculation"] = [exception.Message] },
+            title: "Draft SPRS score calculation invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("CreateSprsScoreCalculation");
+
 api.MapPost("/cmmc/assessments/{assessmentId:guid}/gaps/{controlId}/poam-item", async (
     Guid assessmentId,
     string controlId,

@@ -100,6 +100,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<AssessmentEntity> Assessments => Set<AssessmentEntity>();
     public DbSet<ControlAssessmentEntity> ControlAssessments => Set<ControlAssessmentEntity>();
     public DbSet<ControlAssessmentHistoryEntity> ControlAssessmentHistory => Set<ControlAssessmentHistoryEntity>();
+    public DbSet<SprsScoreCalculationEntity> SprsScoreCalculations => Set<SprsScoreCalculationEntity>();
+    public DbSet<SprsScoreCalculationNoteEntity> SprsScoreCalculationNotes => Set<SprsScoreCalculationNoteEntity>();
     public DbSet<PoamItemEntity> PoamItems => Set<PoamItemEntity>();
     public DbSet<ComplianceChecklistInstanceEntity> ComplianceChecklistInstances => Set<ComplianceChecklistInstanceEntity>();
     public DbSet<ComplianceChecklistItemEntity> ComplianceChecklistItems => Set<ComplianceChecklistItemEntity>();
@@ -1642,6 +1644,32 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.ResponsibilityNotes).HasMaxLength(1000);
             entity.HasOne(x => x.Assessment).WithMany(x => x.Controls).HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Control).WithMany().HasForeignKey(x => x.ControlId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SprsScoreCalculationEntity>(entity =>
+        {
+            entity.ToTable("sprs_score_calculations");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.HasIndex(x => new { x.TenantId, x.AssessmentId, x.GeneratedAt });
+            entity.Property(x => x.RuleSetId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.RuleSetVersion).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.RuleSetSourceUrl).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.RuleSetSourceSha256).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.LineItemsJson).HasColumnType("jsonb");
+            entity.Property(x => x.UnresolvedGapsJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.Assessment).WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SprsScoreCalculationNoteEntity>(entity =>
+        {
+            entity.ToTable("sprs_score_calculation_notes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.HasIndex(x => new { x.TenantId, x.CalculationId, x.CreatedAt });
+            entity.Property(x => x.Note).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.HasOne(x => x.Calculation).WithMany(x => x.ReviewerNotes).HasForeignKey(x => x.CalculationId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ControlAssessmentHistoryEntity>(entity =>

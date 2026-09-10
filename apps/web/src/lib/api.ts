@@ -943,6 +943,76 @@ export type CmmcPoamItem = {
 
 export type UpsertCmmcPoamItemRequest = Omit<CmmcPoamItem, "id" | "tenantId" | "assessmentId" | "isOverdue" | "createdAt" | "updatedAt">;
 
+export type SprsScoringRuleSet = {
+  id: string;
+  version: string;
+  state: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceSha256: string | null;
+  effectiveDate: string | null;
+  lastReviewedAt: string | null;
+  owner: string;
+  reviewer: string | null;
+  reviewDate: string | null;
+  maximumScore: number;
+  rules: Array<{
+    requirementId: string;
+    title: string;
+    ruleType: string;
+    conditionalDeductions: Array<{ code: string; deduction: number; when: string }> | null;
+  }>;
+};
+
+export type SprsScoreCalculationLineItem = {
+  requirementId: string;
+  controlId: string | null;
+  title: string;
+  ruleDeduction: number;
+  appliedDeduction: number;
+  reason: string;
+  applicabilityRationale: string | null;
+  controlStatus: string | null;
+  assessmentResult: string | null;
+};
+
+export type SprsUnresolvedGap = {
+  requirementId: string;
+  controlId: string | null;
+  title: string;
+  reason: string;
+};
+
+export type SprsScoreCalculation = {
+  id: string;
+  tenantId: string;
+  assessmentId: string;
+  ruleSetId: string;
+  ruleSetVersion: string;
+  ruleSetSourceUrl: string;
+  ruleSetSourceSha256: string;
+  maximumScore: number;
+  score: number;
+  totalDeduction: number;
+  lineItems: SprsScoreCalculationLineItem[];
+  unresolvedGaps: SprsUnresolvedGap[];
+  manualNotes: string;
+  manualNotesClassification: ContentClassification | null;
+  generatedByUserId: string;
+  generatedAt: string;
+};
+
+export type CreateSprsScoreCalculationRequest = {
+  ruleSetId: string;
+  manualNotes: string | null;
+  conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string }>;
+  manualNotesClassification: {
+    classification: string;
+    source: "UserSelected";
+    reason: string;
+  } | null;
+};
+
 export type SspSectionType = "SystemDescription" | "AuthorizationBoundary" | "Environment" | "Interconnections" | "Users" | "Roles" | "DataTypes" | "CuiHandlingPosture" | "ControlImplementationNarratives" | "InheritedResponsibilities" | "ExternalServiceProviders" | "EvidenceReferences";
 export type SspSectionStatus = "Draft" | "InReview" | "Approved" | "Superseded" | "Archived";
 export type SspLinkedRecordType = "CompanyProfile" | "SystemBoundary" | "Asset" | "CmmcControl" | "ResponsibilityMatrix" | "Policy" | "PoamItem" | "Evidence";
@@ -2468,6 +2538,14 @@ export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamIt
   return getJson<CmmcPoamItem[]>(`/api/cmmc/assessments/${assessmentId}/poam-items`, []);
 }
 
+export async function getSprsScoringRuleSets(): Promise<SprsScoringRuleSet[]> {
+  return getJson<SprsScoringRuleSet[]>("/api/cmmc/sprs/rule-sets", []);
+}
+
+export async function getSprsScoreCalculations(assessmentId: string): Promise<SprsScoreCalculation[]> {
+  return getJson<SprsScoreCalculation[]>(`/api/cmmc/assessments/${assessmentId}/sprs-calculations`, []);
+}
+
 export async function getSspSections(): Promise<SspSection[]> {
   return getRequiredJson<SspSection[]>("/api/compliance/ssp/sections");
 }
@@ -3122,6 +3200,13 @@ export async function createCmmcPoamItemFromGap(
     `/api/cmmc/assessments/${assessmentId}/gaps/${encodeURIComponent(controlId)}/poam-item`,
     request
   );
+}
+
+export async function createSprsScoreCalculation(
+  assessmentId: string,
+  request: CreateSprsScoreCalculationRequest
+): Promise<ApiMutationResult<SprsScoreCalculation>> {
+  return postJsonResult<SprsScoreCalculation>(`/api/cmmc/assessments/${assessmentId}/sprs-calculations`, request);
 }
 
 export async function createSubcontractor(request: UpsertSubcontractorRequest): Promise<ApiMutationResult<Subcontractor>> {
