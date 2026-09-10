@@ -33,8 +33,8 @@ public sealed class SprsScoreCalculationService(
             return null;
         }
 
-        var ruleSet = await GetPublishedRuleSetAsync(request.RuleSetId, cancellationToken);
         var generatedAt = DateTimeOffset.UtcNow;
+        var ruleSet = await GetPublishedRuleSetAsync(request.RuleSetId, generatedAt, cancellationToken);
         var normalizedNotes = request.ManualNotes?.Trim() ?? string.Empty;
         var lineItems = CalculateLineItems(ruleSet, statuses);
         var totalDeduction = lineItems.Sum(item => item.AppliedDeduction);
@@ -85,19 +85,21 @@ public sealed class SprsScoreCalculationService(
 
     private async Task<SprsScoringRuleSetDto> GetPublishedRuleSetAsync(
         string ruleSetId,
+        DateTimeOffset generatedAt,
         CancellationToken cancellationToken)
     {
         var ruleSet = await scoringRuleRepository.FindAsync(ruleSetId, cancellationToken) ??
             throw new SprsScoreCalculationException($"SPRS scoring rule set '{ruleSetId}' was not found.");
 
-        if (ruleSet.State is SprsScoringRuleSetState.Retired)
+        try
         {
-            throw new SprsScoreCalculationException("Retired SPRS scoring rules cannot be used for new calculations.");
+            SprsScoringRuleGovernance.EnsureUsableForCalculation(
+                ruleSet,
+                DateOnly.FromDateTime(generatedAt.UtcDateTime));
         }
-
-        if (ruleSet.State is not SprsScoringRuleSetState.Published)
+        catch (SprsScoringRuleValidationException exception)
         {
-            throw new SprsScoreCalculationException("Only published SPRS scoring rules can be used for calculations.");
+            throw new SprsScoreCalculationException(exception.Message);
         }
 
         return ruleSet;

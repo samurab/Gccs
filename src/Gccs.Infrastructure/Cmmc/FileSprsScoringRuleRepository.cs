@@ -26,17 +26,6 @@ public sealed class FileSprsScoringRuleRepository : ISprsScoringRuleRepository
             string.Equals(ruleSet.Id, ruleSetId, StringComparison.OrdinalIgnoreCase));
     }
 
-    public Task<SprsScoringRuleSetDto> UpdateStateAsync(
-        string ruleSetId,
-        SprsScoringRuleSetState state,
-        string? reviewer,
-        DateOnly? reviewDate,
-        CancellationToken cancellationToken = default)
-    {
-        throw new NotSupportedException(
-            "File-backed SPRS scoring rule state changes are source-control reviewed. Use a persistence-backed repository for runtime workflow state changes.");
-    }
-
     private static async Task<SprsScoringRulePackage> ReadPackageAsync(CancellationToken cancellationToken)
     {
         var path = ResolvePackagePath();

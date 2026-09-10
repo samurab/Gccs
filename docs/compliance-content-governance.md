@@ -69,6 +69,17 @@ Rules:
 - Do not publish pass/fail, certification, legal, accounting, labor, or CMMC assessment determinations without approved expert review.
 - Keep marketing and in-product claims aligned to source-backed workflow guidance.
 
+## SPRS Scoring Rule Baseline
+
+Current state: **Partially implemented**.
+
+- The source-controlled rule package records lifecycle state, methodology version, source URL, effective date, owner, reviewer, review date, last-reviewed date, maximum score, requirement identifiers, deductions, and assessment guidance.
+- Runtime calculations accept only published, currently effective rule sets that pass the application-layer publication validator. Retired, superseded, draft, approved-but-unpublished, malformed, and future-effective rule sets are rejected.
+- Published rule sets require a distinct owner and reviewer, complete review/source metadata, HTTPS source links, a rule inventory matching the governed expected requirement count, unique requirement identifiers, and positive bounded deductions.
+- Runtime lifecycle transitions follow `draft -> approved -> published -> superseded -> retired`, with `approved -> draft` and `published -> retired` as the only rollback/withdrawal paths. A writable repository must persist the state change before its audit event is appended.
+- The checked-in NIST SP 800-171 DoD Assessment Methodology Version 1.2.1 baseline remains `draft`. It is incomplete and has not received qualified subject-matter review; do not represent it as a production-ready SPRS scoring implementation.
+- Source-controlled rule changes are traceable through Git. Enabling runtime content-owner lifecycle actions requires a durable repository, server-side content-owner authorization, and atomic audit persistence.
+
 ## Content Test Set
 
 Before enabling automated clause extraction or AI-assisted obligation generation, maintain a representative test set of solicitations, contracts, subcontracts, flow-down attachments, purchase orders, wage determinations, DD Form 254 metadata, and CUI marking guide metadata.

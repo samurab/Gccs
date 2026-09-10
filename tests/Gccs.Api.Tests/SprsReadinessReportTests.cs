@@ -240,7 +240,8 @@ public sealed class SprsReadinessReportTests
             110,
             [
                 new SprsScoringRuleDto("3.1.1", "Access control one", 5, "Assess 3.1.1.", "https://example.test/sprs")
-            ]);
+            ],
+            1);
 
         public Task<IReadOnlyList<SprsScoringRuleSetDto>> ListAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<SprsScoringRuleSetDto>>([RuleSet]);

@@ -123,6 +123,29 @@ public sealed class SprsScoreCalculationWorkspaceTests
         Assert.Equal("5", auditEvent.Metadata["totalDeduction"]);
     }
 
+    [Fact]
+    public async Task TC_30_1_4_Calculation_history_stores_the_rule_set_version_used()
+    {
+        var ids = StoryIds.Create();
+        var history = new CapturingCalculationHistoryRepository();
+        var service = CreateService(ids, [
+            CreateStatus(ids.AssessmentId, "3.1.1", ControlImplementationStatus.Implemented, AssessmentResult.Met),
+            CreateStatus(ids.AssessmentId, "3.1.2", ControlImplementationStatus.Implemented, AssessmentResult.Met),
+            CreateStatus(ids.AssessmentId, "3.5.3", ControlImplementationStatus.Implemented, AssessmentResult.Met)
+        ], history: history);
+
+        var calculation = await service.CalculateAsync(
+            ids.AssessmentId,
+            new SprsScoreCalculationRequest("sprs-rules", null),
+            ids.ActorUserId);
+
+        var stored = Assert.Single(history.Calculations);
+        Assert.NotNull(calculation);
+        Assert.Equal(calculation.RuleSetId, stored.RuleSetId);
+        Assert.Equal(calculation.RuleSetVersion, stored.RuleSetVersion);
+        Assert.Equal("2026.06", stored.RuleSetVersion);
+    }
+
     private static SprsScoreCalculationService CreateService(
         StoryIds ids,
         IReadOnlyList<CmmcControlStatusDto> statuses,
@@ -275,7 +298,8 @@ public sealed class SprsScoreCalculationWorkspaceTests
                 new SprsScoringRuleDto("3.1.1", "Access control one", 5, "Assess 3.1.1.", "https://example.test/sprs"),
                 new SprsScoringRuleDto("3.1.2", "Access control two", 5, "Assess 3.1.2.", "https://example.test/sprs"),
                 new SprsScoringRuleDto("3.5.3", "MFA", 5, "Assess MFA.", "https://example.test/sprs")
-            ]);
+            ],
+            3);
 
         public Task<IReadOnlyList<SprsScoringRuleSetDto>> ListAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<SprsScoringRuleSetDto>>([RuleSet]);
