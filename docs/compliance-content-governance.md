@@ -69,6 +69,18 @@ Rules:
 - Do not publish pass/fail, certification, legal, accounting, labor, or CMMC assessment determinations without approved expert review.
 - Keep marketing and in-product claims aligned to source-backed workflow guidance.
 
+## SPRS Scoring Rule Baseline
+
+Current state: **Partially implemented**.
+
+- The source-controlled rule package records all 110 NIST SP 800-171 Rev. 2 Annex A requirements, lifecycle state, methodology version, source URL and SHA-256, effective date, owner, reviewer, review date, last-reviewed date, maximum score, requirement identifiers, deduction policies, applicability conditions, source comments, and assessment guidance.
+- Runtime calculations accept only published, currently effective rule sets that pass the application-layer publication validator. Retired, superseded, draft, approved-but-unpublished, malformed, and future-effective rule sets are rejected.
+- Published rule sets require a distinct owner and reviewer, complete review/source metadata, a valid source SHA-256, HTTPS source links, a rule inventory matching the governed expected requirement count, unique requirement identifiers, and valid fixed, conditional, or assessment-blocking deduction policies.
+- Conditional deductions require an explicit selection from the published rule options. Not-applicable scoring is allowed only where the methodology defines a condition and the assessment contains both a documented rationale and approved control-review metadata. An unmet assessment-blocking requirement prevents calculation and writes neither calculation history nor a success audit event.
+- Runtime lifecycle transitions follow `draft -> approved -> published -> superseded -> retired`, with `approved -> draft` and `published -> retired` as the only rollback/withdrawal paths. A writable repository must persist the state change before its audit event is appended.
+- The checked-in NIST SP 800-171 DoD Assessment Methodology Version 1.2.1 baseline remains `draft`. Its Annex A transcription is structurally complete and source-hash traceable, but it has not received qualified subject-matter review; do not represent it as a production-ready SPRS scoring implementation.
+- Source-controlled rule changes are traceable through Git. Enabling runtime content-owner lifecycle actions requires a durable repository, server-side content-owner authorization, and atomic audit persistence.
+
 ## Content Test Set
 
 Before enabling automated clause extraction or AI-assisted obligation generation, maintain a representative test set of solicitations, contracts, subcontracts, flow-down attachments, purchase orders, wage determinations, DD Form 254 metadata, and CUI marking guide metadata.

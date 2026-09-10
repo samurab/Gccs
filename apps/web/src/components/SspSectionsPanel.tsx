@@ -85,9 +85,9 @@ export function SspSectionsPanel({ canManage, canExport = false }: { canManage: 
       <span>{section.sectionType} · {section.status} · owner {section.owner} · v{section.version}</span>
       <span>{section.linkedRecords.length} governed links · {section.sourceReferences.length} source references · {section.history.length} lifecycle events</span>
     </article>)}</div>}
-    <form onSubmit={save} aria-label="SSP section editor">
+    <form className="cmmc-form" onSubmit={save} aria-label="SSP section editor">
       <fieldset disabled={!canManage || busy || Boolean(selected && !["Draft", "InReview"].includes(selected.status))}>
-        <div className="form-grid">
+        <div className="form-grid cmmc-form-grid">
           <label><span>Section type</span><select value={form.sectionType} onChange={event => setForm(current => ({ ...current, sectionType: event.target.value as SspSectionType }))}>{sectionTypes.map(type => <option key={type}>{type}</option>)}</select></label>
           <label><span>Title</span><input required maxLength={200} value={form.title} onChange={event => setForm(current => ({ ...current, title: event.target.value }))} /></label>
           <label><span>Owner</span><input required maxLength={200} value={form.owner} onChange={event => setForm(current => ({ ...current, owner: event.target.value }))} /></label>
@@ -96,11 +96,13 @@ export function SspSectionsPanel({ canManage, canExport = false }: { canManage: 
           <label><span>Source reviewed</span><input required type="date" value={form.lastReviewedAt} onChange={event => setForm(current => ({ ...current, lastReviewedAt: event.target.value }))} /></label>
           <label><span>Linked record type</span><select value={form.recordType} onChange={event => setForm(current => ({ ...current, recordType: event.target.value as SspLinkedRecordType }))}>{linkTypes.map(type => <option key={type}>{type}</option>)}</select></label>
           <label><span>Linked record ID</span><input maxLength={120} value={form.recordId} onChange={event => setForm(current => ({ ...current, recordId: event.target.value }))} /></label>
-          <label><span>Link rationale</span><input required={Boolean(form.recordId)} maxLength={200} value={form.relationship} onChange={event => setForm(current => ({ ...current, relationship: event.target.value }))} /></label>
+          <label className="span-2"><span>Link rationale</span><input required={Boolean(form.recordId)} maxLength={200} value={form.relationship} onChange={event => setForm(current => ({ ...current, relationship: event.target.value }))} /></label>
         </div>
       </fieldset>
-      <button disabled={!canManage || busy || Boolean(selected && !["Draft", "InReview"].includes(selected.status))}>{busy ? "Saving" : selected ? "Update section" : "Create section"}</button>
-      {selected && <button type="button" onClick={() => { setSelected(null); setForm(emptyForm); }}>Cancel edit</button>}
+      <div className="form-actions">
+        <button disabled={!canManage || busy || Boolean(selected && !["Draft", "InReview"].includes(selected.status))}>{busy ? "Saving" : selected ? "Update section" : "Create section"}</button>
+        {selected && <button type="button" onClick={() => { setSelected(null); setForm(emptyForm); }}>Cancel edit</button>}
+      </div>
     </form>
     {selected && canManage && <div aria-label="SSP lifecycle controls">
       {selected.status === "Draft" && <button disabled={busy} type="button" onClick={() => void transition(selected, "InReview")}>Submit for review</button>}
@@ -177,16 +179,18 @@ function SspExportWorkspace({ canExport }: { canExport: boolean }) {
     {loading && <p role="status">Loading SSP package history…</p>}
     {error && <p role="alert" className="form-status form-status--error">{error}</p>}
     {canExport && !loading && !error && packages.length === 0 && <p>No SSP review packages exist for this tenant.</p>}
-    {canExport && <form onSubmit={generate} aria-label="Generate SSP review package">
+    {canExport && <form className="cmmc-form" onSubmit={generate} aria-label="Generate SSP review package">
       <fieldset disabled={busy}>
-        <label><span>Package version</span><input required maxLength={80} value={packageVersion} onChange={event => setPackageVersion(event.target.value)} /></label>
-        <label><span>System boundary</span><textarea required maxLength={4000} rows={4} value={systemBoundary} onChange={event => setSystemBoundary(event.target.value)} /></label>
-        <label><span>Package reviewer</span><input required maxLength={200} value={reviewer} onChange={event => setReviewer(event.target.value)} /></label>
-        <label><span>Approved evidence IDs</span><textarea aria-describedby="ssp-evidence-help" rows={3} value={evidenceIds} onChange={event => setEvidenceIds(event.target.value)} /></label>
-        <small id="ssp-evidence-help">Enter UUIDs separated by commas or new lines. The server rejects unavailable, unapproved, expired, prohibited, unknown, CUI, or cross-tenant evidence.</small>
-        <label><span>POA&amp;M item IDs</span><textarea rows={3} value={poamIds} onChange={event => setPoamIds(event.target.value)} /></label>
+        <div className="form-grid cmmc-form-grid">
+          <label><span>Package version</span><input required maxLength={80} value={packageVersion} onChange={event => setPackageVersion(event.target.value)} /></label>
+          <label><span>Package reviewer</span><input required maxLength={200} value={reviewer} onChange={event => setReviewer(event.target.value)} /></label>
+          <label className="span-2"><span>System boundary</span><textarea required maxLength={4000} rows={4} value={systemBoundary} onChange={event => setSystemBoundary(event.target.value)} /></label>
+          <label className="span-2"><span>Approved evidence IDs</span><textarea aria-describedby="ssp-evidence-help" rows={3} value={evidenceIds} onChange={event => setEvidenceIds(event.target.value)} /></label>
+          <small className="cmmc-form-help span-2" id="ssp-evidence-help">Enter UUIDs separated by commas or new lines. The server rejects unavailable, unapproved, expired, prohibited, unknown, CUI, or cross-tenant evidence.</small>
+          <label className="span-2"><span>POA&amp;M item IDs</span><textarea rows={3} value={poamIds} onChange={event => setPoamIds(event.target.value)} /></label>
+        </div>
       </fieldset>
-      <button disabled={busy}>{busy ? "Generating package" : "Generate internal review package"}</button>
+      <div className="form-actions"><button disabled={busy}>{busy ? "Generating package" : "Generate internal review package"}</button></div>
     </form>}
     {packages.length > 0 && <div className="evidence-list" aria-label="SSP package history">{packages.map(item =>
       <button type="button" key={item.id} onClick={() => setSelected(item)} aria-pressed={selected?.id === item.id}>
@@ -341,28 +345,32 @@ function SspNarrativeWorkspace({ section, canManage }: { section: SspSection; ca
       {narrative.aiAssisted && <span>AI-assisted draft</span>}
       <span>{narrative.sourceRecords.length} approved source link{narrative.sourceRecords.length === 1 ? "" : "s"} · {narrative.classification.classification}</span>
     </article>)}</div>}
-    {canManage && <form onSubmit={generate} aria-label="Generate SSP narrative draft">
+    {canManage && <form className="cmmc-form" onSubmit={generate} aria-label="Generate SSP narrative draft">
       <fieldset disabled={busy}><legend>Generate from an approved source</legend>
-        <label><span>Source type</span><select value={sourceType} onChange={event => setSourceType(event.target.value as SspNarrativeSourceType)}>{narrativeSourceTypes.map(type => <option key={type}>{type}</option>)}</select></label>
-        <label><span>Approved source record ID</span><input maxLength={120} value={sourceId} onChange={event => setSourceId(event.target.value)} /></label>
-        <button type="button" disabled={busy || !sourceId.trim()} onClick={addSource}>Add another source</button>
+        <div className="form-grid cmmc-form-grid">
+          <label><span>Source type</span><select value={sourceType} onChange={event => setSourceType(event.target.value as SspNarrativeSourceType)}>{narrativeSourceTypes.map(type => <option key={type}>{type}</option>)}</select></label>
+          <label><span>Approved source record ID</span><input maxLength={120} value={sourceId} onChange={event => setSourceId(event.target.value)} /></label>
+        </div>
+        <div className="form-actions"><button type="button" disabled={busy || !sourceId.trim()} onClick={addSource}>Add another source</button></div>
         {draftSources.length > 0 && <ul aria-label="Sources selected for narrative generation">{draftSources.map((source, index) =>
           <li key={`${source.sourceType}:${source.recordId}`}>{source.sourceType} · {source.recordId}
             <button type="button" onClick={() => setDraftSources(current => current.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></li>)}</ul>}
-      </fieldset><button disabled={busy || (draftSources.length === 0 && !sourceId.trim())}>{busy ? "Generating" : "Generate draft"}</button>
+      </fieldset><div className="form-actions"><button disabled={busy || (draftSources.length === 0 && !sourceId.trim())}>{busy ? "Generating" : "Generate draft"}</button></div>
     </form>}
     {selected && <div aria-label="Selected SSP narrative">
       <p><strong>{selected.draftOnly ? "Draft—human review required" : selected.status}</strong>{selected.aiAssisted ? " · AI-assisted" : " · Deterministic source-backed generation"}</p>
       <h5>Source links</h5><ul>{selected.sourceRecords.map(source => <li key={`${source.sourceType}:${source.recordId}`}>
         <a href={source.sourceUrl}>{source.label}</a> · {source.sourceType} · {source.classification}
       </li>)}</ul>
-      {selected.status === "Draft" && canManage && <form onSubmit={save} aria-label="Edit SSP narrative draft">
-        <label><span>Narrative text</span><textarea required maxLength={20000} rows={10} value={text} onChange={event => setText(event.target.value)} /></label>
-        <label><span>Reviewer notes</span><textarea maxLength={4000} rows={4} value={notes} onChange={event => setNotes(event.target.value)} /></label>
-        <label><span>Content classification</span><select value={classification} onChange={event => setClassification(event.target.value as typeof classification)}>
-          <option value="Unclassified">Unclassified</option><option value="Fci">FCI</option><option value="Cui">CUI (blocked unless tenant is explicitly approved)</option>
-        </select></label>
-        <button disabled={busy || !text.trim()}>{busy ? "Saving" : "Save draft"}</button>
+      {selected.status === "Draft" && canManage && <form className="cmmc-form" onSubmit={save} aria-label="Edit SSP narrative draft">
+        <div className="form-grid cmmc-form-grid">
+          <label className="span-2"><span>Narrative text</span><textarea required maxLength={20000} rows={10} value={text} onChange={event => setText(event.target.value)} /></label>
+          <label className="span-2"><span>Reviewer notes</span><textarea maxLength={4000} rows={4} value={notes} onChange={event => setNotes(event.target.value)} /></label>
+          <label className="span-2"><span>Content classification</span><select value={classification} onChange={event => setClassification(event.target.value as typeof classification)}>
+            <option value="Unclassified">Unclassified</option><option value="Fci">FCI</option><option value="Cui">CUI (blocked unless tenant is explicitly approved)</option>
+          </select></label>
+        </div>
+        <div className="form-actions"><button disabled={busy || !text.trim()}>{busy ? "Saving" : "Save draft"}</button></div>
       </form>}
       <div><button type="button" disabled={busy} onClick={() => void compare()}>Compare with current approved</button>
         {selected.status === "Draft" && canManage && <><label>Review date<input type="date" value={reviewDate} onChange={event => setReviewDate(event.target.value)} /></label>

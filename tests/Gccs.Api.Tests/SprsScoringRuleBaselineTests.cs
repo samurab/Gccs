@@ -11,16 +11,19 @@ public sealed class SprsScoringRuleBaselineTests
     [Fact]
     public async Task TC_30_1_1_Published_scoring_rules_include_required_source_and_review_metadata()
     {
-        var service = new SprsScoringRuleService(new FileSprsScoringRuleRepository(), new CapturingAuditEventWriter());
+        var service = new SprsScoringRuleService(
+            new InMemorySprsScoringRuleRepository(CreateRuleSet("published-rule-set", SprsScoringRuleSetState.Published)),
+            new CapturingAuditEventWriter());
 
         var ruleSets = await service.ListAsync();
         var published = Assert.Single(ruleSets, ruleSet => ruleSet.State == SprsScoringRuleSetState.Published);
 
-        Assert.Equal("sprs-basic-assessment-nist-800-171-r2-v1", published.Id);
+        Assert.Equal("published-rule-set", published.Id);
         Assert.False(string.IsNullOrWhiteSpace(published.SourceUrl));
         Assert.False(string.IsNullOrWhiteSpace(published.Version));
         Assert.False(string.IsNullOrWhiteSpace(published.Owner));
         Assert.False(string.IsNullOrWhiteSpace(published.Reviewer));
+        Assert.Matches("^[a-f0-9]{64}$", published.SourceSha256!);
         Assert.NotNull(published.ReviewDate);
         Assert.NotNull(published.EffectiveDate);
         Assert.NotEmpty(published.Rules);
@@ -29,6 +32,47 @@ public sealed class SprsScoringRuleBaselineTests
             Assert.False(string.IsNullOrWhiteSpace(rule.RequirementId));
             Assert.False(string.IsNullOrWhiteSpace(rule.SourceUrl));
             Assert.True(rule.Deduction > 0);
+        });
+    }
+
+    [Fact]
+    public async Task Source_control_baseline_remains_draft_until_qualified_review()
+    {
+        var service = new SprsScoringRuleService(new FileSprsScoringRuleRepository(), new CapturingAuditEventWriter());
+
+        var baseline = Assert.Single(await service.ListAsync());
+
+        Assert.Equal(SprsScoringRuleSetState.Draft, baseline.State);
+        Assert.Null(baseline.Reviewer);
+        Assert.Null(baseline.ReviewDate);
+        Assert.Equal(110, baseline.ExpectedRequirementCount);
+        Assert.Equal(110, baseline.Rules.Count);
+        Assert.EndsWith("NIST-SP-800-171-Assessment-Methodology-Version-1.2.1-6.24.2020.pdf", baseline.SourceUrl);
+        Assert.Equal("dd88416ca43f34e817c05b9cb416ffce47f615765a9fd0e1cdc52b9f2de60835", baseline.SourceSha256);
+
+        Assert.Equal(107, baseline.Rules.Count(rule => rule.RuleType is SprsScoringRuleType.FixedDeduction));
+        Assert.Equal(2, baseline.Rules.Count(rule => rule.RuleType is SprsScoringRuleType.ConditionalDeduction));
+        Assert.Single(baseline.Rules, rule => rule.RuleType is SprsScoringRuleType.AssessmentBlocking);
+        Assert.Equal(51, baseline.Rules.Count(rule => rule.RuleType is SprsScoringRuleType.FixedDeduction && rule.Deduction == 1));
+        Assert.Equal(14, baseline.Rules.Count(rule => rule.RuleType is SprsScoringRuleType.FixedDeduction && rule.Deduction == 3));
+        Assert.Equal(42, baseline.Rules.Count(rule => rule.RuleType is SprsScoringRuleType.FixedDeduction && rule.Deduction == 5));
+        Assert.Equal(17, baseline.Rules.Count(rule => rule.IsBasicSafeguardingRequirement));
+        Assert.Equal(5, baseline.Rules.Count(rule => rule.NotApplicableWhen is not null));
+        Assert.Equal(110, baseline.Rules.Select(rule => rule.RequirementId).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+
+        var mfa = Assert.Single(baseline.Rules, rule => rule.RequirementId == "3.5.3");
+        Assert.Equal([3, 5], mfa.ConditionalDeductions!.Select(option => option.Deduction).Order().ToArray());
+        var cryptography = Assert.Single(baseline.Rules, rule => rule.RequirementId == "3.13.11");
+        Assert.Equal([3, 5], cryptography.ConditionalDeductions!.Select(option => option.Deduction).Order().ToArray());
+        var systemSecurityPlan = Assert.Single(baseline.Rules, rule => rule.RequirementId == "3.12.4");
+        Assert.Equal(0, systemSecurityPlan.Deduction);
+
+        SprsScoringRuleGovernance.ValidatePublished(baseline with
+        {
+            State = SprsScoringRuleSetState.Published,
+            Reviewer = "Independent reviewer fixture",
+            ReviewDate = new DateOnly(2026, 9, 10),
+            LastReviewedAt = new DateOnly(2026, 9, 10)
         });
     }
 
@@ -56,7 +100,7 @@ public sealed class SprsScoringRuleBaselineTests
     }
 
     [Fact]
-    public async Task TC_30_1_3_and_TC_30_1_4_Retired_rules_are_blocked_and_calculation_references_rule_version()
+    public async Task TC_30_1_3_Retired_rules_are_blocked_for_new_calculations()
     {
         var activeRuleSet = CreateRuleSet("active-rule-set", SprsScoringRuleSetState.Published);
         var retiredRuleSet = CreateRuleSet("retired-rule-set", SprsScoringRuleSetState.Retired);
@@ -64,15 +108,27 @@ public sealed class SprsScoringRuleBaselineTests
             new InMemorySprsScoringRuleRepository(activeRuleSet, retiredRuleSet),
             new CapturingAuditEventWriter());
 
-        var reference = await service.CreateCalculationRuleReferenceAsync("active-rule-set");
         var exception = await Assert.ThrowsAsync<SprsScoringRuleValidationException>(() =>
             service.GetUsableForCalculationAsync("retired-rule-set"));
+
+        Assert.Contains("Retired", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task TC_30_1_4_Calculation_reference_identifies_the_rule_set_and_version()
+    {
+        var activeRuleSet = CreateRuleSet("active-rule-set", SprsScoringRuleSetState.Published);
+        var service = new SprsScoringRuleService(
+            new InMemorySprsScoringRuleRepository(activeRuleSet),
+            new CapturingAuditEventWriter());
+
+        var reference = await service.CreateCalculationRuleReferenceAsync(activeRuleSet.Id);
 
         Assert.Equal(activeRuleSet.Id, reference.RuleSetId);
         Assert.Equal(activeRuleSet.Version, reference.RuleSetVersion);
         Assert.Equal(activeRuleSet.SourceUrl, reference.SourceUrl);
+        Assert.Equal(activeRuleSet.SourceSha256, reference.SourceSha256);
         Assert.Equal(activeRuleSet.EffectiveDate, reference.EffectiveDate);
-        Assert.Contains("Retired", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -119,6 +175,103 @@ public sealed class SprsScoringRuleBaselineTests
         });
     }
 
+    [Fact]
+    public async Task Lifecycle_rejects_skipped_and_terminal_state_transitions_without_mutation_or_audit()
+    {
+        var draft = CreateRuleSet("draft-rule-set", SprsScoringRuleSetState.Draft);
+        var retired = CreateRuleSet("retired-rule-set", SprsScoringRuleSetState.Retired);
+        var repository = new InMemorySprsScoringRuleRepository(draft, retired);
+        var auditWriter = new CapturingAuditEventWriter();
+        var service = new SprsScoringRuleService(repository, auditWriter);
+
+        await Assert.ThrowsAsync<SprsScoringRuleValidationException>(() => service.ChangeStateAsync(
+            draft.Id,
+            new ChangeSprsScoringRuleSetStateRequest(SprsScoringRuleSetState.Published, "CMMC SME", new DateOnly(2026, 6, 19)),
+            Guid.NewGuid(),
+            Guid.NewGuid()));
+        await Assert.ThrowsAsync<SprsScoringRuleValidationException>(() => service.ChangeStateAsync(
+            retired.Id,
+            new ChangeSprsScoringRuleSetStateRequest(SprsScoringRuleSetState.Published, "CMMC SME", new DateOnly(2026, 6, 19)),
+            Guid.NewGuid(),
+            Guid.NewGuid()));
+
+        Assert.Equal(SprsScoringRuleSetState.Draft, (await repository.FindAsync(draft.Id))?.State);
+        Assert.Equal(SprsScoringRuleSetState.Retired, (await repository.FindAsync(retired.Id))?.State);
+        Assert.Empty(auditWriter.Events);
+    }
+
+    [Fact]
+    public void Published_rules_reject_duplicate_requirements_invalid_urls_and_invalid_deductions()
+    {
+        var valid = CreateRuleSet("published-rule-set", SprsScoringRuleSetState.Published);
+
+        Assert.Throws<SprsScoringRuleValidationException>(() =>
+            SprsScoringRuleGovernance.ValidatePublished(valid with { SourceUrl = "http://example.test/sprs" }));
+        Assert.Throws<SprsScoringRuleValidationException>(() =>
+            SprsScoringRuleGovernance.ValidatePublished(valid with { Rules = [valid.Rules[0], valid.Rules[0]] }));
+        Assert.Throws<SprsScoringRuleValidationException>(() =>
+            SprsScoringRuleGovernance.ValidatePublished(valid with
+            {
+                Rules = [valid.Rules[0] with { Deduction = 0 }]
+            }));
+        Assert.Throws<SprsScoringRuleValidationException>(() =>
+            SprsScoringRuleGovernance.ValidatePublished(valid with { ExpectedRequirementCount = 2 }));
+        Assert.Throws<SprsScoringRuleValidationException>(() =>
+            SprsScoringRuleGovernance.ValidatePublished(valid with { SourceSha256 = "not-a-sha256" }));
+        Assert.Throws<SprsScoringRuleValidationException>(() =>
+            SprsScoringRuleGovernance.ValidatePublished(valid with
+            {
+                Rules = [valid.Rules[0] with { RuleType = SprsScoringRuleType.AssessmentBlocking }]
+            }));
+        Assert.Throws<SprsScoringRuleValidationException>(() =>
+            SprsScoringRuleGovernance.ValidatePublished(valid with
+            {
+                Rules =
+                [
+                    valid.Rules[0] with
+                    {
+                        RuleType = SprsScoringRuleType.ConditionalDeduction,
+                        ConditionalDeductions =
+                        [
+                            new SprsConditionalDeductionOptionDto("only-option", 5, "Only one option is invalid.")
+                        ]
+                    }
+                ]
+            }));
+    }
+
+    [Fact]
+    public async Task Future_effective_rule_cannot_be_used_for_a_new_calculation()
+    {
+        var future = CreateRuleSet("future-rule-set", SprsScoringRuleSetState.Published) with
+        {
+            EffectiveDate = new DateOnly(2099, 1, 1)
+        };
+        var service = new SprsScoringRuleService(
+            new InMemorySprsScoringRuleRepository(future),
+            new CapturingAuditEventWriter());
+
+        var exception = await Assert.ThrowsAsync<SprsScoringRuleValidationException>(() =>
+            service.GetUsableForCalculationAsync(future.Id));
+
+        Assert.Contains("not effective", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Source_control_repository_rejects_runtime_lifecycle_changes_with_governed_error()
+    {
+        var service = new SprsScoringRuleService(new FileSprsScoringRuleRepository(), new CapturingAuditEventWriter());
+        var baseline = Assert.Single(await service.ListAsync());
+
+        var exception = await Assert.ThrowsAsync<SprsScoringRuleValidationException>(() => service.ChangeStateAsync(
+            baseline.Id,
+            new ChangeSprsScoringRuleSetStateRequest(SprsScoringRuleSetState.Approved, null, null),
+            Guid.NewGuid(),
+            Guid.NewGuid()));
+
+        Assert.Contains("source-control governed", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static SprsScoringRuleSetDto CreateRuleSet(string id, SprsScoringRuleSetState state) =>
         new(
             id,
@@ -139,9 +292,13 @@ public sealed class SprsScoringRuleBaselineTests
                     5,
                     "Deduct if not implemented.",
                     "https://www.acq.osd.mil/asda/dpc/cp/cyber/safeguarding.html")
-            ]);
+            ],
+            1,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 
-    private sealed class InMemorySprsScoringRuleRepository(params SprsScoringRuleSetDto[] seed) : ISprsScoringRuleRepository
+    private sealed class InMemorySprsScoringRuleRepository(params SprsScoringRuleSetDto[] seed) :
+        ISprsScoringRuleRepository,
+        ISprsScoringRuleLifecycleRepository
     {
         private readonly Dictionary<string, SprsScoringRuleSetDto> _ruleSets = seed.ToDictionary(ruleSet => ruleSet.Id);
 
