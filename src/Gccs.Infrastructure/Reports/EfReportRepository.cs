@@ -930,6 +930,8 @@ public sealed class EfReportRepository(
         string assessmentName,
         Guid actorUserId,
         ContentClassificationRequest classification,
+        string idempotencyKey,
+        string requestFingerprint,
         CancellationToken cancellationToken = default)
     {
         var assessmentBelongsToTenant = await dbContext.Assessments
@@ -955,6 +957,8 @@ public sealed class EfReportRepository(
             GeneratedByUserId = actorUserId,
             SnapshotJson = JsonSerializer.Serialize(snapshot, JsonOptions),
             ExportHtml = exportHtml,
+            IdempotencyKey = idempotencyKey,
+            RequestFingerprint = requestFingerprint,
             CreatedAt = generatedAt,
             CreatedByUserId = actorUserId
         };
@@ -975,6 +979,63 @@ public sealed class EfReportRepository(
         {
             Classification = ClassificationMetadata.Read(entity.CurrentClassification ?? (IClassifiedContentEntity)entity)
         };
+    }
+
+    public async Task AcquireSprsReadinessIdempotencyLockAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(
+                dbContext.Database.ProviderName,
+                "Npgsql.EntityFrameworkCore.PostgreSQL",
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var lockScope = $"{tenantContext.TenantId:N}:sprs-readiness:{idempotencyKey}";
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({lockScope}, 0))",
+            cancellationToken);
+    }
+
+    public async Task<ExistingSprsReadinessReportDto?> FindSprsReadinessByIdempotencyKeyAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.Reports
+            .AsNoTracking()
+            .Include(report => report.CurrentClassification)
+            .SingleOrDefaultAsync(
+                report => report.TenantId == tenantContext.TenantId &&
+                    report.Type == ReportType.SprsReadiness &&
+                    report.IdempotencyKey == idempotencyKey,
+                cancellationToken);
+        if (entity is null || string.IsNullOrWhiteSpace(entity.RequestFingerprint))
+        {
+            return null;
+        }
+
+        await EnsureReportUsableAsync(entity.Id, cancellationToken);
+        var snapshot = JsonSerializer.Deserialize<SprsReadinessSnapshotDto>(entity.SnapshotJson, JsonOptions) ??
+            throw new InvalidOperationException("The stored SPRS readiness report snapshot is invalid.");
+        return new ExistingSprsReadinessReportDto(
+            entity.RequestFingerprint,
+            new SprsReadinessReportDto(
+                entity.Id,
+                entity.TenantId,
+                entity.Type,
+                entity.Status,
+                entity.Title,
+                entity.GeneratedAt,
+                entity.GeneratedByUserId,
+                snapshot,
+                entity.ExportHtml,
+                IsReplay: true)
+            {
+                Classification = ClassificationMetadata.Read(
+                    entity.CurrentClassification ?? (IClassifiedContentEntity)entity)
+            });
     }
 
     private static string BuildSprsReadinessHtml(SprsReadinessSnapshotDto snapshot)

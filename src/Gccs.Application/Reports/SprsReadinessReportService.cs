@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Gccs.Application.Audit;
 using Gccs.Application.Common;
 using Gccs.Application.Cmmc;
@@ -20,13 +23,53 @@ public sealed class SprsReadinessReportService(
     public Task<SprsReadinessReportDto?> GenerateAsync(
         Guid assessmentId,
         SprsReadinessReportRequest request,
+        string idempotencyKey,
         Guid actorUserId,
-        CancellationToken cancellationToken = default) =>
-        transaction.ExecuteAsync(async transactionCancellationToken =>
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedRequest = NormalizeAndValidateRequest(request);
+        var normalizedIdempotencyKey = NormalizeIdempotencyKey(idempotencyKey);
+        var requestFingerprint = ComputeRequestFingerprint(assessmentId, normalizedRequest);
+        return transaction.ExecuteAsync(async transactionCancellationToken =>
         {
-            ValidateRequest(request);
-            var classification = request.Classification ??
+            await reportRepository.AcquireSprsReadinessIdempotencyLockAsync(
+                normalizedIdempotencyKey,
+                transactionCancellationToken);
+            var existing = await reportRepository.FindSprsReadinessByIdempotencyKeyAsync(
+                normalizedIdempotencyKey,
+                transactionCancellationToken);
+            if (existing is not null)
+            {
+                if (!string.Equals(existing.RequestFingerprint, requestFingerprint, StringComparison.Ordinal))
+                {
+                    await auditEventWriter.WriteAsync(
+                        existing.Report.TenantId,
+                        actorUserId,
+                        AuditAction.Rejected,
+                        "Report",
+                        existing.Report.Id.ToString(),
+                        "SPRS readiness report idempotency key reuse was rejected.",
+                        new Dictionary<string, string>
+                        {
+                            ["reportType"] = ReportType.SprsReadiness.ToString(),
+                            ["assessmentId"] = existing.Report.Snapshot.AssessmentId.ToString(),
+                            ["reason"] = "idempotency-conflict"
+                        },
+                        transactionCancellationToken);
+                    throw new SprsReadinessIdempotencyConflictException(
+                        "The idempotency key has already been used for a different SPRS readiness report request.");
+                }
+
+                return existing.Report;
+            }
+
+            var classification = normalizedRequest.Classification ??
                 throw new ContentClassificationValidationException("Explicit report classification is required.");
+            await RejectExplicitRestrictedMarkingsAsync(
+                normalizedRequest.ReviewerNotes,
+                classification,
+                actorUserId,
+                transactionCancellationToken);
             await ClassifiedWorkflowValidation.ConfirmAsync(
                 classificationPolicy,
                 classification,
@@ -47,10 +90,10 @@ public sealed class SprsReadinessReportService(
             var calculation = await scoreCalculationService.CalculateAsync(
                 assessmentId,
                 new SprsScoreCalculationRequest(
-                    request.RuleSetId,
-                    request.ReviewerNotes,
-                    request.ConditionalDeductionSelections,
-                    string.IsNullOrWhiteSpace(request.ReviewerNotes) ? null : classification),
+                    normalizedRequest.RuleSetId,
+                    normalizedRequest.ReviewerNotes,
+                    normalizedRequest.ConditionalDeductionSelections,
+                    string.IsNullOrWhiteSpace(normalizedRequest.ReviewerNotes) ? null : classification),
                 actorUserId,
                 transactionCancellationToken);
             if (calculation is null)
@@ -80,7 +123,7 @@ public sealed class SprsReadinessReportService(
                 calculation.GeneratedAt,
                 "Draft",
                 ReportArtifactLanguage.SprsReadinessDisclaimer,
-                NormalizeLeadershipReviewStatus(request.LeadershipReviewStatus),
+                normalizedRequest.LeadershipReviewStatus,
                 calculation.ManualNotes,
                 BuildDeductions(calculation),
                 BuildUnresolvedControls(calculation, statusByControlId));
@@ -90,6 +133,8 @@ public sealed class SprsReadinessReportService(
                 assessment.Name,
                 actorUserId,
                 classification,
+                normalizedIdempotencyKey,
+                requestFingerprint,
                 transactionCancellationToken);
 
             await auditEventWriter.WriteAsync(
@@ -114,8 +159,9 @@ public sealed class SprsReadinessReportService(
 
             return report;
         }, cancellationToken);
+    }
 
-    private static void ValidateRequest(SprsReadinessReportRequest request)
+    private static SprsReadinessReportRequest NormalizeAndValidateRequest(SprsReadinessReportRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.RuleSetId) || request.RuleSetId.Length > 200)
         {
@@ -127,7 +173,63 @@ public sealed class SprsReadinessReportService(
             throw new SprsReadinessReportException("Reviewer notes cannot exceed 2,000 characters.");
         }
 
-        _ = NormalizeLeadershipReviewStatus(request.LeadershipReviewStatus);
+        var conditionalSelections = request.ConditionalDeductionSelections?
+            .Select(selection => new SprsConditionalDeductionSelection(
+                selection.RequirementId?.Trim() ?? string.Empty,
+                selection.OptionCode?.Trim() ?? string.Empty))
+            .OrderBy(selection => selection.RequirementId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(selection => selection.OptionCode, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return request with
+        {
+            RuleSetId = request.RuleSetId.Trim(),
+            ReviewerNotes = string.IsNullOrWhiteSpace(request.ReviewerNotes) ? null : request.ReviewerNotes.Trim(),
+            LeadershipReviewStatus = NormalizeLeadershipReviewStatus(request.LeadershipReviewStatus),
+            ConditionalDeductionSelections = conditionalSelections
+        };
+    }
+
+    private static string NormalizeIdempotencyKey(string value)
+    {
+        var normalized = value?.Trim() ?? string.Empty;
+        if (normalized.Length is 0 or > 128)
+        {
+            throw new SprsReadinessReportException("Idempotency-Key is required and must be 128 characters or fewer.");
+        }
+
+        return normalized;
+    }
+
+    private static string ComputeRequestFingerprint(Guid assessmentId, SprsReadinessReportRequest request)
+    {
+        var canonicalRequest = JsonSerializer.Serialize(new { assessmentId, request });
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonicalRequest)));
+    }
+
+    private async Task RejectExplicitRestrictedMarkingsAsync(
+        string? reviewerNotes,
+        ContentClassificationRequest classification,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (classification.Classification is not (Gccs.Domain.Common.ContentClassification.Unclassified or
+            Gccs.Domain.Common.ContentClassification.Fci) ||
+            !SensitiveContentMarkerDetector.ContainsExplicitRestrictedMarking(reviewerNotes))
+        {
+            return;
+        }
+
+        await dataHandlingModePolicy.EnsureAllowedAsync(
+            new TenantDataHandlingModePolicyRequest(
+                TenantDataHandlingWorkflow.Report,
+                ContainsRealCui: true,
+                ClassificationConfirmed: false,
+                EntityType: "SprsReadinessReportDraft",
+                EntityId: "unpersisted"),
+            actorUserId,
+            cancellationToken);
+        throw new ContentClassificationValidationException(
+            "Reviewer notes contain an explicit restricted-data marking that conflicts with the selected classification.");
     }
 
     private static string? NormalizeLeadershipReviewStatus(string? value)
@@ -194,7 +296,8 @@ public sealed record SprsReadinessReportDto(
     DateTimeOffset GeneratedAt,
     Guid GeneratedByUserId,
     SprsReadinessSnapshotDto Snapshot,
-    string ExportHtml)
+    string ExportHtml,
+    bool IsReplay = false)
 {
     public ContentClassificationDto? Classification { get; init; }
     public string Disclaimer => ReportArtifactLanguage.SprsReadinessDisclaimer;
@@ -236,3 +339,5 @@ public sealed record SprsReadinessUnresolvedControlDto(
     string EvidenceStatus);
 
 public sealed class SprsReadinessReportException(string message) : ArgumentException(message);
+
+public sealed class SprsReadinessIdempotencyConflictException(string message) : InvalidOperationException(message);

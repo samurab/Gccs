@@ -3944,7 +3944,9 @@ describe("App", () => {
     getTenantMembersMock.mockResolvedValueOnce(members);
     getCmmcAssessmentsMock.mockResolvedValueOnce([level2Assessment]);
     getSprsScoringRuleSetsMock.mockResolvedValueOnce([ruleSet]);
-    generateSprsReadinessReportMock.mockResolvedValueOnce({ data: report, error: null });
+    generateSprsReadinessReportMock
+      .mockResolvedValueOnce({ data: null, error: "The API could not be reached." })
+      .mockResolvedValueOnce({ data: report, error: null });
     const user = userEvent.setup();
 
     render(<App />);
@@ -3952,6 +3954,10 @@ describe("App", () => {
     await user.selectOptions(screen.getByLabelText("Workflow classification"), "Unclassified");
     await user.selectOptions(screen.getByLabelText("Leadership review"), "Pending");
     await user.type(screen.getByLabelText("Reviewer notes"), "Leadership review context.");
+    await user.click(screen.getByRole("button", { name: "Generate SPRS report" }));
+
+    expect(await screen.findByText("The API could not be reached.")).toBeInTheDocument();
+    const firstIdempotencyKey = generateSprsReadinessReportMock.mock.calls[0]?.[3];
     await user.click(screen.getByRole("button", { name: "Generate SPRS report" }));
 
     expect(generateSprsReadinessReportMock).toHaveBeenCalledWith(
@@ -3962,8 +3968,10 @@ describe("App", () => {
         leadershipReviewStatus: "Pending",
         conditionalDeductionSelections: []
       },
-      "Unclassified"
+      "Unclassified",
+      expect.any(String)
     );
+    expect(generateSprsReadinessReportMock.mock.calls[1]?.[3]).toBe(firstIdempotencyKey);
     expect(await screen.findByText("Draft SPRS readiness report generated. No score was submitted to SPRS.")).toBeInTheDocument();
     const detail = screen.getByLabelText("Generated report detail");
     expect(within(detail).getByText(/has not submitted this score to SPRS/i)).toBeInTheDocument();

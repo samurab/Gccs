@@ -7,6 +7,7 @@ using Gccs.Application.Cmmc;
 using Gccs.Application.Reports;
 using Gccs.Application.Security;
 using Gccs.Application.Tenancy;
+using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Common;
 using Gccs.Domain.Identity;
@@ -161,6 +162,153 @@ public sealed class SprsReadinessReportTests : IClassFixture<WebApplicationFacto
             row.TenantId == ids.TenantId && row.EntityType == "TenantDataHandlingModePolicy");
     }
 
+    [Fact]
+    public async Task Same_idempotency_key_and_request_replays_the_original_immutable_report()
+    {
+        var ids = StoryIds.Create();
+        await using var storyFactory = CreateFactory("sprs-report-idempotent-replay", db => Seed(db, ids.TenantId, ids.AssessmentId));
+        using var client = storyFactory.CreateClient();
+        var idempotencyKey = $"sprs-{Guid.NewGuid():N}";
+
+        var first = await GenerateAsync(client, ids.TenantId, ids.ActorUserId, ids.AssessmentId, idempotencyKey);
+        var replay = await GenerateAsync(client, ids.TenantId, ids.ActorUserId, ids.AssessmentId, idempotencyKey);
+
+        Assert.Equal(first.Id, replay.Id);
+        Assert.False(first.IsReplay);
+        Assert.True(replay.IsReplay);
+        await using var scope = storyFactory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Single(await db.Reports.Where(row => row.TenantId == ids.TenantId).ToArrayAsync());
+        Assert.Single(await db.SprsScoreCalculations.Where(row => row.TenantId == ids.TenantId).ToArrayAsync());
+        Assert.Equal(2, await db.AuditLogEntries.CountAsync(row =>
+            row.TenantId == ids.TenantId &&
+            (row.EntityType == "Report" || row.EntityType == "SprsScoreCalculation")));
+    }
+
+    [Fact]
+    public async Task Reusing_idempotency_key_for_different_input_returns_conflict_without_writes()
+    {
+        var ids = StoryIds.Create();
+        await using var storyFactory = CreateFactory("sprs-report-idempotent-conflict", db => Seed(db, ids.TenantId, ids.AssessmentId));
+        using var client = storyFactory.CreateClient();
+        var idempotencyKey = $"sprs-{Guid.NewGuid():N}";
+        _ = await GenerateAsync(client, ids.TenantId, ids.ActorUserId, ids.AssessmentId, idempotencyKey);
+        using var conflictingRequest = Request(
+            HttpMethod.Post,
+            $"/api/reports/sprs-readiness?assessmentId={ids.AssessmentId}",
+            ids.TenantId,
+            ids.ActorUserId,
+            [Permission.ManageReports],
+            CreateBody() with { ReviewerNotes = "Different leadership context." },
+            idempotencyKey);
+
+        using var response = await client.SendAsync(conflictingRequest);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("idempotency_conflict", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        await using var scope = storyFactory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Single(await db.Reports.Where(row => row.TenantId == ids.TenantId).ToArrayAsync());
+        Assert.Single(await db.SprsScoreCalculations.Where(row => row.TenantId == ids.TenantId).ToArrayAsync());
+        Assert.Contains(await db.AuditLogEntries.Where(row => row.TenantId == ids.TenantId).ToArrayAsync(), row =>
+            row.Action == AuditAction.Rejected &&
+            row.EntityType == "Report" &&
+            row.MetadataJson.Contains("idempotency-conflict", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Idempotency_key_scope_does_not_cross_tenant_boundaries()
+    {
+        var ids = StoryIds.Create();
+        await using var storyFactory = CreateFactory("sprs-report-idempotent-tenant-scope", db =>
+        {
+            Seed(db, ids.TenantId, ids.AssessmentId);
+            Seed(db, ids.OtherTenantId, ids.OtherTenantAssessmentId);
+        });
+        using var client = storyFactory.CreateClient();
+        var idempotencyKey = $"sprs-shared-{Guid.NewGuid():N}";
+
+        var firstTenant = await GenerateAsync(
+            client,
+            ids.TenantId,
+            ids.ActorUserId,
+            ids.AssessmentId,
+            idempotencyKey);
+        var otherTenant = await GenerateAsync(
+            client,
+            ids.OtherTenantId,
+            ids.ActorUserId,
+            ids.OtherTenantAssessmentId,
+            idempotencyKey);
+
+        Assert.NotEqual(firstTenant.Id, otherTenant.Id);
+        Assert.Equal(ids.TenantId, firstTenant.TenantId);
+        Assert.Equal(ids.OtherTenantId, otherTenant.TenantId);
+    }
+
+    [Fact]
+    public async Task Missing_idempotency_key_is_rejected_without_business_writes()
+    {
+        var ids = StoryIds.Create();
+        await using var storyFactory = CreateFactory("sprs-report-idempotency-required", db => Seed(db, ids.TenantId, ids.AssessmentId));
+        using var client = storyFactory.CreateClient();
+        using var request = Request(
+            HttpMethod.Post,
+            $"/api/reports/sprs-readiness?assessmentId={ids.AssessmentId}",
+            ids.TenantId,
+            ids.ActorUserId,
+            [Permission.ManageReports],
+            CreateBody());
+        request.Headers.Remove("Idempotency-Key");
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await using var scope = storyFactory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.False(await db.Reports.AnyAsync());
+        Assert.False(await db.SprsScoreCalculations.AnyAsync());
+    }
+
+    [Fact]
+    public async Task Explicit_restricted_marking_conflicting_with_unclassified_notes_is_audit_rejected_without_storage()
+    {
+        var ids = StoryIds.Create();
+        await using var storyFactory = CreateFactory("sprs-report-sensitive-marker", db => Seed(db, ids.TenantId, ids.AssessmentId));
+        using var client = storyFactory.CreateClient();
+        var sensitiveNotes = "Leadership context\nCUI//SP-PRVCY\nDo not distribute.";
+        using var request = Request(
+            HttpMethod.Post,
+            $"/api/reports/sprs-readiness?assessmentId={ids.AssessmentId}",
+            ids.TenantId,
+            ids.ActorUserId,
+            [Permission.ManageReports],
+            CreateBody() with { ReviewerNotes = sensitiveNotes });
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        await using var scope = storyFactory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.False(await db.Reports.AnyAsync());
+        Assert.False(await db.SprsScoreCalculations.AnyAsync());
+        var rejection = Assert.Single(await db.AuditLogEntries.Where(row =>
+            row.TenantId == ids.TenantId &&
+            row.EntityType == "TenantDataHandlingModePolicy" &&
+            row.Action == AuditAction.Rejected).ToArrayAsync());
+        Assert.DoesNotContain(sensitiveNotes, rejection.MetadataJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("SP-PRVCY", rejection.MetadataJson, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Review CUI handling controls before leadership approval.")]
+    [InlineData("Confirm that exports contain no controlled customer documents.")]
+    [InlineData("Leadership review context only.")]
+    public void Compliance_discussion_without_an_explicit_marking_is_not_flagged(string notes)
+    {
+        Assert.False(Gccs.Application.Common.SensitiveContentMarkerDetector.ContainsExplicitRestrictedMarking(notes));
+    }
+
     private static SprsReadinessReportRequest CreateBody() =>
         new(
             "reviewed-rules",
@@ -173,7 +321,8 @@ public sealed class SprsReadinessReportTests : IClassFixture<WebApplicationFacto
         HttpClient client,
         Guid tenantId,
         Guid actorId,
-        Guid assessmentId)
+        Guid assessmentId,
+        string? idempotencyKey = null)
     {
         using var request = Request(
             HttpMethod.Post,
@@ -181,7 +330,8 @@ public sealed class SprsReadinessReportTests : IClassFixture<WebApplicationFacto
             tenantId,
             actorId,
             [Permission.ManageReports],
-            CreateBody());
+            CreateBody(),
+            idempotencyKey);
         using var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return await response.Content.ReadFromJsonAsync<SprsReadinessReportDto>(JsonOptions) ??
@@ -227,13 +377,15 @@ public sealed class SprsReadinessReportTests : IClassFixture<WebApplicationFacto
         Guid tenantId,
         Guid actorId,
         IReadOnlyList<Permission> permissions,
-        T? content = default)
+        T? content = default,
+        string? idempotencyKey = null)
     {
         var request = new HttpRequestMessage(method, uri);
         request.Headers.Add("X-Gccs-Dev-Auth", "true");
         request.Headers.Add("X-Gccs-Dev-Tenant", tenantId.ToString());
         request.Headers.Add("X-Gccs-Dev-User", actorId.ToString());
         request.Headers.Add("X-Gccs-Dev-Permissions", string.Join(',', permissions));
+        request.Headers.Add("Idempotency-Key", idempotencyKey ?? $"sprs-{Guid.NewGuid():N}");
         if (content is not null)
         {
             request.Content = JsonContent.Create(content, options: JsonOptions);

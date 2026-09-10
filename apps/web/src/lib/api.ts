@@ -1466,7 +1466,9 @@ export type ComplianceStatusReport = {
 };
 
 export type CmmcReadinessReport = ComplianceStatusReport;
-export type SprsReadinessReport = ComplianceStatusReport;
+export type SprsReadinessReport = ComplianceStatusReport & {
+  isReplay: boolean;
+};
 export type SubcontractorComplianceReport = ComplianceStatusReport;
 
 export type SprsReadinessReportRequest = {
@@ -3293,11 +3295,13 @@ export async function generateCmmcReadinessReport(assessmentId: string, classifi
 export async function generateSprsReadinessReport(
   assessmentId: string,
   request: SprsReadinessReportRequest,
-  classification: string
+  classification: string,
+  idempotencyKey: string
 ): Promise<ApiMutationResult<SprsReadinessReport>> {
   return postJsonResult<SprsReadinessReport>(
     `/api/reports/sprs-readiness?assessmentId=${encodeURIComponent(assessmentId)}`,
-    { ...request, classification: { classification } }
+    { ...request, classification: { classification } },
+    { "Idempotency-Key": idempotencyKey }
   );
 }
 

@@ -2786,8 +2786,13 @@ api.MapPost("/reports/sprs-readiness", async (
         var report = await service.GenerateAsync(
             assessmentId,
             request,
+            httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty,
             tenantContext.UserId,
             cancellationToken);
+        if (report is not null)
+        {
+            httpContext.Response.Headers["Idempotency-Replayed"] = report.IsReplay ? "true" : "false";
+        }
         return report is null
             ? ApiProblemDetails.Create(
                 httpContext,
@@ -2804,6 +2809,15 @@ api.MapPost("/reports/sprs-readiness", async (
             title: "SPRS readiness report invalid",
             detail: exception.Message,
             statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SprsReadinessIdempotencyConflictException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Idempotency conflict",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "idempotency_conflict");
     }
 })
 .RequirePermission(Permission.ManageReports)

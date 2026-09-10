@@ -22,6 +22,7 @@ These artifacts turn the MVP domain model into a migration-ready PostgreSQL sche
 - Durable SSP section migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260909165957_AddDurableSspSections.cs`
 - Durable SSP narrative migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260909213508_AddDurableSspNarratives.cs`
 - Durable SSP export package migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260910150656_AddDurableSspExportPackages.cs`
+- SPRS readiness report idempotency migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260910215445_AddSprsReadinessReportIdempotency.cs`; nullable keys preserve historical reports while a filtered tenant/type/key unique index coordinates new generation requests.
 - Generated-policy classification migration: `src/Gccs.Infrastructure/Persistence/Migrations/20260910011549_AddGeneratedPolicyClassification.cs`; existing generated policies and revisions migrate to `Unknown`/`SystemSuggested` and require review before governed reuse.
 - Compliance task search index migration: staging and production first run `infra/database/predeploy-compliance-task-search-index.sql` as standalone concurrent DDL, then apply `src/Gccs.Infrastructure/Persistence/Migrations/20260909192654_AddComplianceTaskSearchIndex.cs`. The EF migration uses `IF NOT EXISTS`, so it is idempotent and does not rebuild the predeployed index; fresh development databases can create it transactionally while the table is empty.
 - Generated SQL script: `infra/database/development-schema.sql`
@@ -77,7 +78,7 @@ Required fields, source systems, provenance rules, and deferred external integra
 | CMMC workspace | `controls`, `assessments`, `control_assessments`, `sprs_score_calculations`, `sprs_score_calculation_notes`, `poam_items`, `poam_evidence`, `assets`, `system_boundaries`, `system_boundary_assets`, `system_boundary_external_service_providers`, `system_boundary_evidence`, `annual_affirmations` | Level 1/2 readiness, immutable tenant-scoped draft SPRS calculation snapshots with reviewer notes stored separately, evidence mapping, POA&M, asset inventory, system boundaries, ESP responsibility support, and affirmation tracking. |
 | Vendors and subcontractors | `vendors`, `subcontractors`, `flow_down_clauses`, `contract_subcontractors`, `subcontractor_evidence` | Supplier risk, subcontractor access posture, contract workshare, required flow-downs, and evidence collection. |
 | People and labor | `employees`, `training_records`, `wage_determinations`, `labor_category_rates`, `labor_classifications`, `payroll_records` | Training, SCA/DBA-friendly wage records, labor category mapping, and payroll evidence references. |
-| Reporting and audit | `reports`, `report_contracts`, `report_obligations`, `report_evidence`, `audit_log_entries` | Generated reports with classification metadata, report source scope, and immutable activity/audit history. |
+| Reporting and audit | `reports`, `report_contracts`, `report_obligations`, `report_evidence`, `audit_log_entries` | Generated reports with classification metadata, report source scope, immutable activity/audit history, and tenant/type-scoped SPRS generation idempotency keys with request fingerprints. |
 
 ## Design Choices
 

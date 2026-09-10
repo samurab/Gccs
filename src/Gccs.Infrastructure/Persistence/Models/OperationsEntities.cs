@@ -694,6 +694,8 @@ public sealed class ReportEntity : AuditedEntity, IClassifiedContentEntity, ICon
     public string? StorageUri { get; set; }
     public string SnapshotJson { get; set; } = "{}";
     public string ExportHtml { get; set; } = string.Empty;
+    public string? IdempotencyKey { get; set; }
+    public string? RequestFingerprint { get; set; }
     public ContentClassification Classification { get; set; } = ContentClassification.Unclassified;
     public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.SystemSuggested;
     public decimal? ClassificationConfidence { get; set; }

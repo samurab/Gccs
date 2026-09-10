@@ -738,6 +738,7 @@ export function App() {
   const [subcontractorDetailMessage, setSubcontractorDetailMessage] = useState("");
   const [reportStatus, setReportStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [reportMessage, setReportMessage] = useState("");
+  const pendingSprsReportRequest = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
   const [notificationPreferenceStatus, setNotificationPreferenceStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [notificationPreferenceMessage, setNotificationPreferenceMessage] = useState("");
   const [tenantModeStatus, setTenantModeStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -2247,16 +2248,24 @@ export function App() {
     if (!workflowClassification) { setReportMessage("Select a workflow classification before report generation."); return; }
     setReportStatus("loading");
     setReportMessage("");
+    const request = {
+      ruleSetId,
+      reviewerNotes: reviewerNotes.trim() || null,
+      leadershipReviewStatus,
+      conditionalDeductionSelections
+    };
+    const fingerprint = JSON.stringify({ assessmentId, request, classification: workflowClassification });
+    const pendingRequest = pendingSprsReportRequest.current?.fingerprint === fingerprint
+      ? pendingSprsReportRequest.current
+      : { fingerprint, idempotencyKey: crypto.randomUUID() };
+    pendingSprsReportRequest.current = pendingRequest;
     const result = await generateSprsReadinessReport(
       assessmentId,
-      {
-        ruleSetId,
-        reviewerNotes: reviewerNotes.trim() || null,
-        leadershipReviewStatus,
-        conditionalDeductionSelections
-      },
-      workflowClassification
+      request,
+      workflowClassification,
+      pendingRequest.idempotencyKey
     );
+    if (result.data) pendingSprsReportRequest.current = null;
     handleGeneratedReportResult(result.data, result.error, "Draft SPRS readiness report generated. No score was submitted to SPRS.");
   }
 

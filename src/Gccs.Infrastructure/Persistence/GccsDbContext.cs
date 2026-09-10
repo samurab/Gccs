@@ -1991,8 +1991,13 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.Type, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.Type, x.IdempotencyKey })
+                .IsUnique()
+                .HasFilter("idempotency_key IS NOT NULL");
             entity.Property(x => x.Status).IsConcurrencyToken();
             entity.Property(x => x.SnapshotJson).HasColumnType("jsonb");
+            entity.Property(x => x.IdempotencyKey).HasMaxLength(128);
+            entity.Property(x => x.RequestFingerprint).HasMaxLength(64);
             entity.Property(x => x.ClassificationReason).HasMaxLength(600);
             entity.Property(x => x.ArchiveReason).HasMaxLength(500);
             ConfigureAuditColumns(entity);

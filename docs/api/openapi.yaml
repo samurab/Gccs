@@ -2698,6 +2698,11 @@ paths:
           in: query
           required: true
           schema: { type: string, format: uuid }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Tenant-scoped operation key. Reusing it with the same request replays the original immutable report; different input returns a conflict.
+          schema: { type: string, minLength: 1, maxLength: 128 }
       description: >
         Generates and persists a tenant-scoped leadership review snapshot. FeDril
         does not submit the score to SPRS. Generation requires report-management
@@ -2710,6 +2715,10 @@ paths:
       responses:
         "201":
           description: Draft SPRS readiness report generated.
+          headers:
+            Idempotency-Replayed:
+              description: True when the original report is replayed for a completed idempotent request.
+              schema: { type: string, enum: ["true", "false"] }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SprsReadinessReport" }
@@ -2717,6 +2726,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /api/reports/subcontractor-compliance:
     post:
@@ -6867,8 +6877,10 @@ components:
       allOf:
         - $ref: "#/components/schemas/ComplianceStatusReport"
         - type: object
+          required: [isReplay]
           properties:
             snapshot: { $ref: "#/components/schemas/SprsReadinessSnapshot" }
+            isReplay: { type: boolean }
 
     SprsReadinessSnapshot:
       type: object
