@@ -414,7 +414,9 @@ public sealed class PilotWorkflowTests : IClassFixture<WebApplicationFactory<Pro
     {
         using var request = CreateRequest(HttpMethod.Post, requestUri, body, ids, userId, roleName);
         var response = await client.SendAsync(request);
-        Assert.Equal(expectedStatus, response.StatusCode);
+        Assert.True(
+            response.StatusCode == expectedStatus,
+            $"Expected {expectedStatus}, got {response.StatusCode} from {requestUri}: {await response.Content.ReadAsStringAsync()}");
         return await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions) ??
             throw new InvalidOperationException($"Expected response body from {requestUri}.");
     }

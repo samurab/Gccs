@@ -190,6 +190,8 @@ public enum TenantDataHandlingWorkflow
     EvidenceUpload,
     EvidenceSubmission,
     Note,
+    GeneratedPolicy,
+    SspNarrative,
     Report,
     ExtractionJob
 }

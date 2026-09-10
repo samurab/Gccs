@@ -958,6 +958,61 @@ export type SspSection = {
 export type CreateSspSectionRequest = Pick<SspSection, "sectionType" | "title" | "owner" | "linkedRecords" | "sourceReferences">;
 export type UpdateSspSectionRequest = CreateSspSectionRequest & { expectedVersion: number };
 export type SspSectionStatusRequest = { status: SspSectionStatus; actorName: string; expectedVersion: number; reviewDate?: string | null; reviewer?: string | null; approvalRationale?: string | null };
+export type SspNarrativeStatus = "Draft" | "Approved" | "Superseded" | "Archived";
+export type SspNarrativeSourceType = "Evidence" | "GeneratedPolicy" | "Clause" | "Obligation";
+export type SspNarrativeSource = {
+  sourceType: SspNarrativeSourceType; recordId: string; label: string; summary: string; sourceUrl: string;
+  fingerprint: string; classification: string;
+};
+export type SspNarrative = {
+  id: string; tenantId: string; sectionId: string; generatedText: string; editedText: string | null; approvedText: string | null;
+  status: SspNarrativeStatus; aiAssisted: boolean; draftOnly: boolean; reviewerNotes: string | null;
+  reviewerUserId: string | null; reviewer: string | null; reviewDate: string | null; version: number;
+  classification: ContentClassification; sourceRecords: SspNarrativeSource[]; createdAt: string; updatedAt: string;
+};
+export type SspNarrativeComparison = {
+  sectionId: string; approvedNarrativeId: string | null; draftNarrativeId: string; currentApprovedText: string | null;
+  proposedText: string; currentApprovedReviewerUserId: string | null; currentApprovedReviewer: string | null;
+  currentApprovedReviewDate: string | null; proposedReviewerNotes: string | null;
+  proposedSources: SspNarrativeSource[]; currentApprovedSources: SspNarrativeSource[];
+};
+export type GenerateSspNarrativeRequest = {
+  sources: Array<{ sourceType: SspNarrativeSourceType; recordId: string }>;
+  generationMode?: "Deterministic" | "AiAssisted";
+};
+export type EditSspNarrativeRequest = {
+  editedText: string; reviewerNotes: string | null; expectedVersion: number;
+  classification: { classification: "Unclassified" | "Fci" | "Cui"; source: "UserSelected" };
+};
+export type SspExportFormat = "HumanReadable" | "MachineReadable" | "Both";
+export type SspExportPackageStatus = "InternalReview" | "ExternalShareApproved" | "Shared";
+export type SspExportEvidenceReference = {
+  id: string; title: string; status: string; classification: string; ownerFunction: string;
+  approvedAt: string; approvedByUserId: string; effectiveAt: string | null; expiresAt: string | null;
+};
+export type SspExportPoamReference = {
+  id: string; assessmentId: string; controlId: string; weakness: string; plannedRemediation: string;
+  status: string; ownerFunction: string; targetCompletionAt: string;
+};
+export type SspExportSection = {
+  sectionId: string; sectionType: SspSectionType; title: string; status: SspSectionStatus; owner: string;
+  reviewer: string | null; reviewDate: string | null; sourceReferences: SspSourceReference[];
+  approvedNarrativeText: string | null; approvedNarrativeId: string | null; narrativeReviewer: string | null;
+  narrativeReviewDate: string | null; narrativeSources: SspNarrativeSource[];
+};
+export type SspExportHistory = { id: string; action: string; actorUserId: string; actorName: string; occurredAt: string; notes: string | null };
+export type SspExportPackage = {
+  id: string; tenantId: string; tenantName: string; generatedAt: string; packageVersion: string; systemBoundary: string;
+  reviewer: string; format: SspExportFormat; disclaimer: string; humanReadableReport: string; machineReadableMetadata: Record<string, unknown>;
+  sections: SspExportSection[]; includedEvidence: SspExportEvidenceReference[]; poamReferences: SspExportPoamReference[];
+  status: SspExportPackageStatus; externalShareApprovedByUserId: string | null; externalShareApprovedAt: string | null;
+  externalShareApprovalReason: string | null; sharedByUserId: string | null; sharedAt: string | null;
+  sharedRecipient: string | null; sharedPurpose: string | null; history: SspExportHistory[];
+};
+export type CreateSspExportPackageRequest = {
+  packageVersion: string; systemBoundary: string; reviewer: string; format: SspExportFormat;
+  externalShareRequested: boolean; evidenceItemIds: string[]; poamItemIds: string[];
+};
 
 export type Subcontractor = {
   id: string;
@@ -1193,6 +1248,8 @@ export type GeneratedPolicy = {
   evidenceItemId: string | null;
   placeholderValues: Record<string, string>;
   missingPlaceholders: string[];
+  classification: ContentClassification;
+  classificationRevision: number;
   createdAt: string;
   updatedAt: string | null;
 };
@@ -1200,7 +1257,10 @@ export type GeneratedPolicy = {
 export type UpdateGeneratedPolicyRequest = {
   title: string;
   body: string;
+  classification: GeneratedPolicyClassificationRequest;
 };
+
+export type GeneratedPolicyClassificationRequest = Pick<ContentClassification, "classification" | "source"> & Partial<Omit<ContentClassification, "classification" | "source">>;
 
 export type PolicyApprovalRequest = {
   decision: string;
@@ -1817,6 +1877,7 @@ export type ContractObligationDashboardItem = {
   assignedRoleName: string | null;
   riskLevel: string;
   status: string;
+  statusCode: string;
   dueAt: string | null;
   module: string;
   isOverdue: boolean;
@@ -1831,6 +1892,7 @@ export type LinkedObligationTask = {
   id: string;
   title: string;
   status: string;
+  statusCode: string;
   dueAt: string | null;
   ownerFunction: string;
   riskLevel: string;
@@ -2422,6 +2484,34 @@ export async function changeSspSectionStatus(sectionId: string, request: SspSect
   return postJsonResult<SspSection>(`/api/compliance/ssp/sections/${sectionId}/status`, request);
 }
 
+export async function getSspNarratives(sectionId: string): Promise<SspNarrative[]> {
+  return getRequiredJson<SspNarrative[]>(`/api/compliance/ssp/sections/${sectionId}/narratives`);
+}
+
+export async function generateSspNarrative(sectionId: string, request: GenerateSspNarrativeRequest): Promise<ApiMutationResult<SspNarrative>> {
+  return postJsonResult<SspNarrative>(`/api/compliance/ssp/sections/${sectionId}/narratives`, request);
+}
+
+export async function editSspNarrative(sectionId: string, narrativeId: string, request: EditSspNarrativeRequest): Promise<ApiMutationResult<SspNarrative>> {
+  return putJsonResult<SspNarrative>(`/api/compliance/ssp/sections/${sectionId}/narratives/${narrativeId}`, request);
+}
+
+export async function approveSspNarrative(sectionId: string, narrativeId: string, reviewDate: string, expectedVersion: number): Promise<ApiMutationResult<SspNarrative>> {
+  return postJsonResult<SspNarrative>(`/api/compliance/ssp/sections/${sectionId}/narratives/${narrativeId}/approve`, { reviewDate, expectedVersion });
+}
+
+export async function compareSspNarrative(sectionId: string, narrativeId: string): Promise<SspNarrativeComparison> {
+  return getRequiredJson<SspNarrativeComparison>(`/api/compliance/ssp/sections/${sectionId}/narratives/${narrativeId}/comparison`);
+}
+
+export async function getSspExportPackages(): Promise<SspExportPackage[]> {
+  return getRequiredJson<SspExportPackage[]>("/api/compliance/ssp/export-packages");
+}
+
+export async function createSspExportPackage(request: CreateSspExportPackageRequest): Promise<ApiMutationResult<SspExportPackage>> {
+  return postJsonResult<SspExportPackage>("/api/compliance/ssp/export-packages", request);
+}
+
 export async function getSubcontractors(): Promise<Subcontractor[]> {
   return getJson<Subcontractor[]>("/api/subcontractors", []);
 }
@@ -2522,8 +2612,8 @@ export async function changePolicyTemplateLifecycle(
   return putJsonResult<PolicyTemplate>(`/api/policy-templates/${templateId}/lifecycle`, request);
 }
 
-export async function generateDraftPolicyFromTemplate(templateId: string): Promise<ApiMutationResult<GeneratedPolicy>> {
-  return postJsonResult<GeneratedPolicy>(`/api/policy-templates/${templateId}/generate`, {});
+export async function generateDraftPolicyFromTemplate(templateId: string, classification: GeneratedPolicyClassificationRequest): Promise<ApiMutationResult<GeneratedPolicy>> {
+  return postJsonResult<GeneratedPolicy>(`/api/policy-templates/${templateId}/generate`, { classification });
 }
 
 export async function getGeneratedPolicy(policyId: string): Promise<GeneratedPolicy | null> {

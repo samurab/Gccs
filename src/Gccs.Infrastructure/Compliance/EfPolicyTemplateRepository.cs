@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Gccs.Application.Common;
 using Gccs.Application.Compliance;
 using Gccs.Application.Security;
 using Gccs.Infrastructure.Persistence;
@@ -114,6 +115,7 @@ public sealed class EfPolicyTemplateRepository(
 
     public async Task<GeneratedPolicyDto?> GenerateDraftPolicyAsync(
         Guid templateId,
+        ContentClassificationDto classification,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
@@ -162,18 +164,29 @@ public sealed class EfPolicyTemplateRepository(
                     .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
                 JsonOptions),
             MissingPlaceholdersJson = JsonSerializer.Serialize(missing.ToArray(), JsonOptions),
+            Classification = classification.Classification,
+            ClassificationSource = classification.Source,
+            ClassificationConfidence = classification.Confidence,
+            ClassificationReviewedByUserId = classification.ReviewedByUserId,
+            ClassificationReviewedAt = classification.ReviewedAt,
+            ClassificationReason = classification.Reason,
+            ClassificationIsApprovedDemoContent = classification.IsApprovedDemoContent,
+            ClassificationRevision = 1,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedByUserId = actorUserId
         };
         dbContext.GeneratedPolicies.Add(entity);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await SaveClassifiedPolicyChangesAsync(cancellationToken);
         return ToDto(entity);
     }
 
     public async Task<GeneratedPolicyDto?> FindGeneratedPolicyAsync(Guid policyId, CancellationToken cancellationToken = default)
     {
-        var entity = await dbContext.GeneratedPolicies
-            .AsNoTracking()
+        var query = dbContext.Database.IsRelational() && dbContext.Database.CurrentTransaction is not null
+            ? dbContext.GeneratedPolicies.FromSqlInterpolated(
+                $"SELECT * FROM gccs.generated_policies WHERE id = {policyId} AND tenant_id = {tenantContext.TenantId} FOR SHARE")
+            : dbContext.GeneratedPolicies;
+        var entity = await query.AsNoTracking()
             .SingleOrDefaultAsync(policy => policy.Id == policyId && policy.TenantId == tenantContext.TenantId, cancellationToken);
         return entity is null ? null : ToDto(entity);
     }
@@ -181,6 +194,7 @@ public sealed class EfPolicyTemplateRepository(
     public async Task<GeneratedPolicyDto?> UpdateGeneratedPolicyAsync(
         Guid policyId,
         UpdateGeneratedPolicyRequest request,
+        ContentClassificationDto classification,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
@@ -193,9 +207,17 @@ public sealed class EfPolicyTemplateRepository(
 
         entity.Title = request.Title;
         entity.Body = request.Body;
+        entity.Classification = classification.Classification;
+        entity.ClassificationSource = classification.Source;
+        entity.ClassificationConfidence = classification.Confidence;
+        entity.ClassificationReviewedByUserId = classification.ReviewedByUserId;
+        entity.ClassificationReviewedAt = classification.ReviewedAt;
+        entity.ClassificationReason = classification.Reason;
+        entity.ClassificationIsApprovedDemoContent = classification.IsApprovedDemoContent;
+        entity.ClassificationRevision++;
         entity.UpdatedAt = DateTimeOffset.UtcNow;
         entity.UpdatedByUserId = actorUserId;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await SaveClassifiedPolicyChangesAsync(cancellationToken);
         return ToDto(entity);
     }
 
@@ -229,6 +251,14 @@ public sealed class EfPolicyTemplateRepository(
                 TagsJson = JsonSerializer.Serialize(new[] { "policy", "generated-policy" }, JsonOptions),
                 ApprovedByUserId = actorUserId,
                 ApprovedAt = DateTimeOffset.UtcNow,
+                Classification = entity.Classification,
+                ClassificationSource = entity.ClassificationSource,
+                ClassificationConfidence = entity.ClassificationConfidence,
+                ClassificationReviewedByUserId = entity.ClassificationReviewedByUserId,
+                ClassificationReviewedAt = entity.ClassificationReviewedAt,
+                ClassificationReason = entity.ClassificationReason,
+                ClassificationIsApprovedDemoContent = entity.ClassificationIsApprovedDemoContent,
+                ClassificationRevision = entity.ClassificationRevision,
                 CreatedAt = DateTimeOffset.UtcNow,
                 CreatedByUserId = actorUserId
             };
@@ -260,7 +290,7 @@ public sealed class EfPolicyTemplateRepository(
 
         entity.UpdatedAt = DateTimeOffset.UtcNow;
         entity.UpdatedByUserId = actorUserId;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await SaveClassifiedPolicyChangesAsync(cancellationToken);
         return ToDto(entity);
     }
 
@@ -354,6 +384,8 @@ public sealed class EfPolicyTemplateRepository(
             entity.EvidenceItemId,
             ReadDictionary(entity.PlaceholderValuesJson),
             ReadArray<string>(entity.MissingPlaceholdersJson),
+            Classification(entity),
+            entity.ClassificationRevision,
             entity.CreatedAt,
             entity.UpdatedAt);
 
@@ -364,6 +396,10 @@ public sealed class EfPolicyTemplateRepository(
             entity.Title,
             entity.Body,
             Enum.Parse<GeneratedPolicyStatus>(entity.Status),
+            new ContentClassificationDto(entity.Classification, entity.ClassificationSource, entity.ClassificationConfidence,
+                entity.ClassificationReviewedByUserId, entity.ClassificationReviewedAt, entity.ClassificationReason,
+                entity.ClassificationIsApprovedDemoContent),
+            entity.ClassificationRevision,
             entity.PreservedAt,
             entity.PreservedByUserId);
 
@@ -376,9 +412,28 @@ public sealed class EfPolicyTemplateRepository(
             Title = entity.Title,
             Body = entity.Body,
             Status = entity.Status,
+            Classification = entity.Classification,
+            ClassificationSource = entity.ClassificationSource,
+            ClassificationConfidence = entity.ClassificationConfidence,
+            ClassificationReviewedByUserId = entity.ClassificationReviewedByUserId,
+            ClassificationReviewedAt = entity.ClassificationReviewedAt,
+            ClassificationReason = entity.ClassificationReason,
+            ClassificationIsApprovedDemoContent = entity.ClassificationIsApprovedDemoContent,
+            ClassificationRevision = entity.ClassificationRevision,
             PreservedAt = DateTimeOffset.UtcNow,
             PreservedByUserId = actorUserId
         });
+    }
+
+    private static ContentClassificationDto Classification(GeneratedPolicyEntity entity) => new(
+        entity.Classification, entity.ClassificationSource, entity.ClassificationConfidence,
+        entity.ClassificationReviewedByUserId, entity.ClassificationReviewedAt, entity.ClassificationReason,
+        entity.ClassificationIsApprovedDemoContent);
+
+    private async Task SaveClassifiedPolicyChangesAsync(CancellationToken cancellationToken)
+    {
+        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException) { throw new ContentRevisionConflictException(); }
     }
 
     private static Dictionary<string, string> BuildPlaceholderValues(CompanyProfileEntity? company)

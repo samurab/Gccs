@@ -3,8 +3,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Compliance;
 using Gccs.Application.Security;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Common;
@@ -99,6 +101,8 @@ public sealed class PolicyApprovalEvidenceLinkingTests : IClassFixture<WebApplic
 
         Assert.Equal(EvidenceType.Policy, evidence.Type);
         Assert.Equal(EvidenceStatus.Approved, evidence.Status);
+        Assert.Equal(ContentClassification.Unclassified, evidence.Classification);
+        Assert.Equal(approved.ClassificationRevision, evidence.ClassificationRevision);
         Assert.Contains(evidence.Obligations, link => link.ObligationId == ids.ObligationId);
         Assert.Contains(evidence.Controls, link => link.ControlId == ids.ControlId);
     }
@@ -117,6 +121,7 @@ public sealed class PolicyApprovalEvidenceLinkingTests : IClassFixture<WebApplic
 
         Assert.Contains(revisions, revision => revision.Status == GeneratedPolicyStatus.Approved);
         Assert.Contains(revisions, revision => revision.Body.Contains("Acme Federal Services LLC", StringComparison.Ordinal));
+        Assert.All(revisions, revision => Assert.Equal(ContentClassification.Unclassified, revision.Classification.Classification));
     }
 
     [Fact]
@@ -147,7 +152,9 @@ public sealed class PolicyApprovalEvidenceLinkingTests : IClassFixture<WebApplic
     private async Task<GeneratedPolicyDto> GeneratePolicyAsync(HttpClient client, Guid tenantId)
     {
         var template = await CreateTemplateAsync(client, tenantId);
-        using var request = CreateRequest<object?>(HttpMethod.Post, $"/api/policy-templates/{template.Id}/generate", new { }, tenantId, Permission.ManageEvidence);
+        using var request = CreateRequest(HttpMethod.Post, $"/api/policy-templates/{template.Id}/generate",
+            new GenerateDraftPolicyRequest(new ContentClassificationRequest(ContentClassification.Unclassified, ContentClassificationSource.UserSelected)),
+            tenantId, Permission.ManageEvidence);
         var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return await response.Content.ReadFromJsonAsync<GeneratedPolicyDto>(JsonOptions) ??
@@ -205,6 +212,7 @@ public sealed class PolicyApprovalEvidenceLinkingTests : IClassFixture<WebApplic
                 services.AddScoped<PolicyTemplateService>();
                 services.AddScoped<IPolicyTemplateRepository, EfPolicyTemplateRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.AddSingleton<ICurrentDataHandlingNoticeGuard, AcknowledgedNoticeGuard>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
@@ -303,5 +311,10 @@ public sealed class PolicyApprovalEvidenceLinkingTests : IClassFixture<WebApplic
                 $"obligation-25-3-{suffix:D4}",
                 $"AC.L2-3.1.{suffix % 100:D2}");
         }
+    }
+
+    private sealed class AcknowledgedNoticeGuard : ICurrentDataHandlingNoticeGuard
+    {
+        public Task EnsureAsync(string workflow, Guid actorUserId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

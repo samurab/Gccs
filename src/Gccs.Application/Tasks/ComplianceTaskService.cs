@@ -15,6 +15,9 @@ public sealed class ComplianceTaskService(
     public Task<IReadOnlyList<ComplianceTaskDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
         repository.ListCurrentTenantAsync(cancellationToken);
 
+    public Task<ComplianceTaskDto?> FindCurrentTenantAsync(Guid taskId, CancellationToken cancellationToken = default) =>
+        repository.FindCurrentTenantAsync(taskId, cancellationToken);
+
     public async Task<ComplianceTaskDto> CreateAsync(
         CreateComplianceTaskRequest request,
         Guid actorUserId,
@@ -22,6 +25,7 @@ public sealed class ComplianceTaskService(
     {
         var normalized = Normalize(request);
         Validate(normalized.Title, normalized.OwnerFunction, normalized.LinkedEntityType, normalized.LinkedEntityId);
+        await EnsureValidAssigneeAsync(normalized.AssignedToUserId, cancellationToken);
         var status = ParseStatus(normalized.Status);
         var created = await repository.CreateAsync(normalized, status, actorUserId, cancellationToken) ??
             throw new ComplianceTaskValidationException("Task could not be created for the current tenant.");
@@ -36,7 +40,7 @@ public sealed class ComplianceTaskService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var before = (await repository.ListCurrentTenantAsync(cancellationToken)).FirstOrDefault(task => task.Id == taskId);
+        var before = await repository.FindCurrentTenantAsync(taskId, cancellationToken);
         if (before is null)
         {
             return null;
@@ -44,6 +48,7 @@ public sealed class ComplianceTaskService(
 
         var normalized = Normalize(request);
         ValidatePatch(normalized);
+        await EnsureValidAssigneeAsync(normalized.AssignedToUserId, cancellationToken);
         ComplianceTaskStatus? parsedStatus = normalized.Status is null ? null : ParseStatus(normalized.Status);
         var updated = await repository.UpdateAsync(taskId, normalized, parsedStatus, actorUserId, cancellationToken);
 
@@ -83,6 +88,19 @@ public sealed class ComplianceTaskService(
             queueEmail: true,
             linkUrl: $"/tasks/{task.Id}",
             cancellationToken: cancellationToken);
+    }
+
+    private async Task EnsureValidAssigneeAsync(Guid? assignedUserId, CancellationToken cancellationToken)
+    {
+        if (!assignedUserId.HasValue)
+        {
+            return;
+        }
+
+        if (!await repository.IsActiveCurrentTenantMemberAsync(assignedUserId.Value, cancellationToken))
+        {
+            throw new ComplianceTaskValidationException("Task assignee must be an active member of the current tenant.");
+        }
     }
 
     private async Task WriteAuditAsync(
@@ -161,6 +179,15 @@ public sealed class ComplianceTaskService(
         {
             throw new ComplianceTaskValidationException("Linked entity id is required for linked tasks.");
         }
+
+        if (linkedEntityType.Equals("contract", StringComparison.OrdinalIgnoreCase) ||
+            linkedEntityType.Equals("evidence", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!Guid.TryParse(linkedEntityId, out _))
+            {
+                throw new ComplianceTaskValidationException($"Linked entity id must be a valid GUID for {linkedEntityType.ToLowerInvariant()} tasks.");
+            }
+        }
     }
 
     private static void ValidatePatch(UpdateComplianceTaskRequest request)
@@ -173,17 +200,9 @@ public sealed class ComplianceTaskService(
 
     private static ComplianceTaskStatus ParseStatus(string status)
     {
-        var normalized = status.Trim().Replace("-", "_", StringComparison.OrdinalIgnoreCase).ToLowerInvariant();
-        return normalized switch
-        {
-            "open" => ComplianceTaskStatus.Open,
-            "in_progress" => ComplianceTaskStatus.InProgress,
-            "blocked" => ComplianceTaskStatus.Blocked,
-            "waiting_for_review" => ComplianceTaskStatus.WaitingForReview,
-            "completed" or "complete" or "done" => ComplianceTaskStatus.Done,
-            "canceled" or "cancelled" => ComplianceTaskStatus.Canceled,
-            _ => throw new ComplianceTaskValidationException("Task status is not supported.")
-        };
+        return ComplianceTaskStatusCodec.TryParse(status, out var parsed)
+            ? parsed
+            : throw new ComplianceTaskValidationException("Task status is not supported.");
     }
 
     private static readonly string[] AllowedLinkedEntityTypes =
@@ -200,3 +219,67 @@ public sealed class ComplianceTaskService(
 }
 
 public sealed class ComplianceTaskValidationException(string message) : InvalidOperationException(message);
+
+public sealed class ComplianceTaskSearchService(
+    IComplianceTaskSearchRepository repository,
+    IComplianceTaskCursorCodec cursorCodec,
+    Gccs.Application.Security.ICurrentTenantContext tenantContext)
+{
+    private const int MaximumOffset = 100_000;
+
+    public async Task<ComplianceTaskPageDto> SearchCurrentTenantAsync(
+        ComplianceTaskSearchQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        if (query.Page < 1) throw new ComplianceTaskSearchValidationException("Page must be at least 1.");
+        if (query.PageSize is < 1 or > 100) throw new ComplianceTaskSearchValidationException("Page size must be between 1 and 100.");
+        var offset = (long)(query.Page - 1) * query.PageSize;
+        if (offset > MaximumOffset)
+            throw new ComplianceTaskSearchValidationException($"Requested task page exceeds the maximum supported offset of {MaximumOffset} records. Use cursor pagination instead.");
+        if (!string.IsNullOrWhiteSpace(query.Cursor) && query.PageWasSpecified)
+            throw new ComplianceTaskSearchValidationException("Page and cursor cannot be used together.");
+        if (query.DueFrom.HasValue && query.DueTo.HasValue && query.DueFrom > query.DueTo)
+            throw new ComplianceTaskSearchValidationException("Due-from date cannot be after due-to date.");
+
+        ComplianceTaskStatus? status = null;
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            if (!ComplianceTaskStatusCodec.TryParse(query.Status, out var parsed))
+                throw new ComplianceTaskSearchValidationException("Task status is not supported.");
+            status = parsed;
+        }
+
+        var fingerprint = BuildFilterFingerprint(status, query);
+        ComplianceTaskCursor? cursor = null;
+        if (!string.IsNullOrWhiteSpace(query.Cursor) &&
+            !cursorCodec.TryUnprotect(query.Cursor, tenantContext.TenantId, fingerprint, out cursor))
+        {
+            throw new ComplianceTaskSearchValidationException("Task search cursor is invalid or does not match the current tenant and filters.");
+        }
+
+        var page = await repository.SearchCurrentTenantAsync(status, query, cursor, cancellationToken);
+        if (!page.HasMore || page.Items.Count == 0)
+        {
+            return page;
+        }
+
+        var last = page.Items[^1];
+        return page with
+        {
+            NextCursor = cursorCodec.Protect(
+                tenantContext.TenantId,
+                fingerprint,
+                new ComplianceTaskCursor(last.DueAt, last.CreatedAt, last.Id))
+        };
+    }
+
+    private static string BuildFilterFingerprint(ComplianceTaskStatus? status, ComplianceTaskSearchQuery query) =>
+        string.Join('|',
+            status.HasValue ? ComplianceTaskStatusCodec.Format(status.Value) : string.Empty,
+            query.OwnerUserId?.ToString("D") ?? string.Empty,
+            query.DueFrom?.ToString("yyyy-MM-dd") ?? string.Empty,
+            query.DueTo?.ToString("yyyy-MM-dd") ?? string.Empty,
+            query.PageSize.ToString(System.Globalization.CultureInfo.InvariantCulture));
+}
+
+public sealed class ComplianceTaskSearchValidationException(string message) : InvalidOperationException(message);

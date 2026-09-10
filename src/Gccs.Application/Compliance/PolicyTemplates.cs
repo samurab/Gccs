@@ -1,11 +1,16 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Common;
 
 namespace Gccs.Application.Compliance;
 
 public sealed class PolicyTemplateService(
     IPolicyTemplateRepository repository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    ContentClassificationPolicy classificationPolicy,
+    IApplicationTransaction transaction)
 {
     public Task<IReadOnlyList<PolicyTemplateDto>> ListAsync(bool includeReviewStates, CancellationToken cancellationToken = default) =>
         repository.ListAsync(includeReviewStates, cancellationToken);
@@ -70,12 +75,18 @@ public sealed class PolicyTemplateService(
 
     public async Task<GeneratedPolicyDto?> GenerateDraftPolicyAsync(
         Guid templateId,
+        GenerateDraftPolicyRequest request,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var generated = await repository.GenerateDraftPolicyAsync(templateId, actorUserId, cancellationToken);
-        if (generated is not null)
+        ValidateClassification(request.Classification);
+        await classificationPolicy.EnsureAllowedAsync(request.Classification, TenantDataHandlingWorkflow.GeneratedPolicy,
+            actorUserId, cancellationToken: cancellationToken);
+        var classification = ToDto(request.Classification);
+        return await transaction.ExecuteAsync(async token =>
         {
+            var generated = await repository.GenerateDraftPolicyAsync(templateId, classification, actorUserId, token);
+            if (generated is null) return null;
             await auditEventWriter.WriteAsync(
                 generated.TenantId,
                 actorUserId,
@@ -87,15 +98,15 @@ public sealed class PolicyTemplateService(
                 {
                     ["templateId"] = generated.SourceTemplateId.ToString(),
                     ["sourceTemplateVersion"] = generated.SourceTemplateVersion,
-                    ["status"] = generated.Status.ToString()
+                    ["status"] = generated.Status.ToString(),
+                    ["classification"] = generated.Classification.Classification.ToString()
                 },
-                cancellationToken);
-        }
-
-        return generated;
+                token);
+            return generated;
+        }, cancellationToken);
     }
 
-    public Task<GeneratedPolicyDto?> UpdateGeneratedPolicyAsync(
+    public async Task<GeneratedPolicyDto?> UpdateGeneratedPolicyAsync(
         Guid policyId,
         UpdateGeneratedPolicyRequest request,
         Guid actorUserId,
@@ -106,7 +117,16 @@ public sealed class PolicyTemplateService(
             Title = request.Title.Trim(),
             Body = request.Body.Trim()
         };
-        return repository.UpdateGeneratedPolicyAsync(policyId, normalized, actorUserId, cancellationToken);
+        ValidateClassification(normalized.Classification);
+        await classificationPolicy.EnsureAllowedAsync(normalized.Classification, TenantDataHandlingWorkflow.GeneratedPolicy,
+            actorUserId, "GeneratedPolicy", policyId.ToString(), cancellationToken);
+        return await transaction.ExecuteAsync(async token =>
+        {
+            var updated = await repository.UpdateGeneratedPolicyAsync(policyId, normalized, ToDto(normalized.Classification), actorUserId, token);
+            if (updated is not null)
+                await WriteGeneratedPolicyAuditAsync(updated, actorUserId, AuditAction.Updated, "Generated policy draft was edited.", token);
+            return updated;
+        }, cancellationToken);
     }
 
     public async Task<GeneratedPolicyDto?> ReviewGeneratedPolicyAsync(
@@ -115,34 +135,53 @@ public sealed class PolicyTemplateService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var updated = await repository.ReviewGeneratedPolicyAsync(policyId, request, actorUserId, cancellationToken);
-        if (updated is not null)
+        return await transaction.ExecuteAsync(async token =>
         {
+            var current = await repository.FindGeneratedPolicyAsync(policyId, token);
+            if (current is null) return null;
+            if (request.Decision == PolicyApprovalDecision.Approve)
+            {
+                if (current.MissingPlaceholders.Count > 0)
+                    throw new PolicyTemplateValidationException(new Dictionary<string, string[]> { ["missingPlaceholders"] = ["Generated policy approval is blocked while placeholders remain unresolved."] });
+                await classificationPolicy.EnsureUsableAsync(current.Classification, TenantDataHandlingWorkflow.GeneratedPolicy,
+                    actorUserId, "GeneratedPolicy", policyId.ToString(), token);
+            }
+            var updated = await repository.ReviewGeneratedPolicyAsync(policyId, request, actorUserId, token);
+            if (updated is null) return null;
             var action = request.Decision switch
             {
                 PolicyApprovalDecision.Approve => AuditAction.Approved,
                 PolicyApprovalDecision.Reject => AuditAction.Rejected,
                 _ => AuditAction.Updated
             };
-            await auditEventWriter.WriteAsync(
-                updated.TenantId,
-                actorUserId,
-                action,
-                "GeneratedPolicy",
-                updated.Id.ToString(),
-                $"Generated policy was {request.Decision.ToString().ToLowerInvariant()}.",
-                new Dictionary<string, string>
-                {
-                    ["status"] = updated.Status.ToString(),
-                    ["sourceTemplateId"] = updated.SourceTemplateId.ToString(),
-                    ["sourceTemplateVersion"] = updated.SourceTemplateVersion,
-                    ["evidenceItemId"] = updated.EvidenceItemId?.ToString() ?? string.Empty
-                },
-                cancellationToken);
-        }
-
-        return updated;
+            await WriteGeneratedPolicyAuditAsync(updated, actorUserId, action,
+                $"Generated policy was {request.Decision.ToString().ToLowerInvariant()}.", token);
+            return updated;
+        }, cancellationToken);
     }
+
+    private Task WriteGeneratedPolicyAuditAsync(GeneratedPolicyDto policy, Guid actorUserId, AuditAction action, string summary, CancellationToken cancellationToken) =>
+        auditEventWriter.WriteAsync(policy.TenantId, actorUserId, action, "GeneratedPolicy", policy.Id.ToString(), summary,
+            new Dictionary<string, string>
+            {
+                ["status"] = policy.Status.ToString(), ["sourceTemplateId"] = policy.SourceTemplateId.ToString(),
+                ["sourceTemplateVersion"] = policy.SourceTemplateVersion,
+                ["evidenceItemId"] = policy.EvidenceItemId?.ToString() ?? string.Empty,
+                ["classification"] = policy.Classification.Classification.ToString(),
+                ["classificationRevision"] = policy.ClassificationRevision.ToString()
+            }, cancellationToken);
+
+    private static void ValidateClassification(ContentClassificationRequest? classification)
+    {
+        if (classification is null)
+            throw new ContentClassificationValidationException("Explicit generated policy classification is required.");
+        ContentClassificationPolicy.ValidateUserSelection(classification);
+        ContentClassificationPolicy.EnsureProcessable(classification.Classification, TenantDataHandlingWorkflow.GeneratedPolicy.ToString());
+    }
+
+    private static ContentClassificationDto ToDto(ContentClassificationRequest classification) => new(
+        classification.Classification, classification.Source, classification.Confidence, classification.ReviewedByUserId,
+        classification.ReviewedAt, classification.Reason, classification.IsApprovedDemoContent);
 
     private async Task WriteAuditAsync(
         PolicyTemplateDto template,
@@ -267,9 +306,9 @@ public interface IPolicyTemplateRepository
     Task<IReadOnlyList<PolicyTemplateVersionDto>> ListVersionsAsync(Guid templateId, CancellationToken cancellationToken = default);
     Task<PolicyTemplateDto> CreateAsync(UpsertPolicyTemplateRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<PolicyTemplateDto?> ChangeLifecycleAsync(Guid templateId, PolicyTemplateStatus status, Guid? reviewerUserId, DateOnly? reviewedAt, Guid actorUserId, CancellationToken cancellationToken = default);
-    Task<GeneratedPolicyDto?> GenerateDraftPolicyAsync(Guid templateId, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<GeneratedPolicyDto?> GenerateDraftPolicyAsync(Guid templateId, ContentClassificationDto classification, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<GeneratedPolicyDto?> FindGeneratedPolicyAsync(Guid policyId, CancellationToken cancellationToken = default);
-    Task<GeneratedPolicyDto?> UpdateGeneratedPolicyAsync(Guid policyId, UpdateGeneratedPolicyRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<GeneratedPolicyDto?> UpdateGeneratedPolicyAsync(Guid policyId, UpdateGeneratedPolicyRequest request, ContentClassificationDto classification, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<GeneratedPolicyDto?> ReviewGeneratedPolicyAsync(Guid policyId, PolicyApprovalRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PolicyRevisionDto>> ListPolicyRevisionsAsync(Guid policyId, CancellationToken cancellationToken = default);
 }
@@ -363,10 +402,14 @@ public sealed record GeneratedPolicyDto(
     Guid? EvidenceItemId,
     IReadOnlyDictionary<string, string> PlaceholderValues,
     IReadOnlyList<string> MissingPlaceholders,
+    ContentClassificationDto Classification,
+    long ClassificationRevision,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt);
 
-public sealed record UpdateGeneratedPolicyRequest(string Title, string Body);
+public sealed record GenerateDraftPolicyRequest(ContentClassificationRequest Classification);
+
+public sealed record UpdateGeneratedPolicyRequest(string Title, string Body, ContentClassificationRequest Classification);
 
 public sealed record PolicyApprovalRequest(
     PolicyApprovalDecision Decision,
@@ -381,6 +424,8 @@ public sealed record PolicyRevisionDto(
     string Title,
     string Body,
     GeneratedPolicyStatus Status,
+    ContentClassificationDto Classification,
+    long ClassificationRevision,
     DateTimeOffset PreservedAt,
     Guid PreservedByUserId);
 

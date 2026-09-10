@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Gccs.Application.Compliance;
 using Gccs.Application.Security;
+using Gccs.Application.Tasks;
 using Gccs.Domain.Common;
 using Gccs.Domain.Compliance;
 using Gccs.Infrastructure.Persistence;
@@ -108,6 +109,7 @@ public sealed class EfObligationDashboardRepository(
             var dueAt = task?.DueAt;
             var module = InferModule(obligation.Source, obligation.Title);
             var status = task?.Status.ToString() ?? "NotStarted";
+            var statusCode = task is null ? "not_started" : ComplianceTaskStatusCodec.Format(task.Status);
             var assignedUserId = task?.AssignedToUserId;
             var assignedUserDisplayName = assignedUserId.HasValue && assignedUsers.TryGetValue(assignedUserId.Value, out var displayName)
                 ? displayName
@@ -138,6 +140,7 @@ public sealed class EfObligationDashboardRepository(
                 assignedRoleName,
                 obligation.RiskLevel,
                 status,
+                statusCode,
                 dueAt,
                 module,
                 dueAt.HasValue && dueAt.Value < today && status is not "Done" and not "Canceled",

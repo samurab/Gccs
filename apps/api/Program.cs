@@ -92,6 +92,19 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddOpenApi();
+if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+{
+    builder.Services.AddApplicationInsightsTelemetry();
+}
+var taskSearchCursorOptions = builder.Configuration
+    .GetSection(TaskSearchCursorOptions.SectionName)
+    .Get<TaskSearchCursorOptions>() ?? new TaskSearchCursorOptions();
+TaskSearchCursorOptions.Validate(taskSearchCursorOptions);
+builder.Services.AddSingleton(taskSearchCursorOptions);
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IComplianceTaskCursorCodec, TaskSearchCursorProtector>();
+builder.Services.AddSingleton<TaskCompatibilityTelemetry>();
+builder.Services.AddHostedService<TaskCompatibilityTelemetryHeartbeatService>();
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = ApiProblemDetails.Customize;
@@ -3311,12 +3324,13 @@ api.MapPut("/policy-templates/{templateId:guid}/lifecycle", async (
 
 api.MapPost("/policy-templates/{templateId:guid}/generate", async (
     Guid templateId,
+    GenerateDraftPolicyRequest request,
     PolicyTemplateService service,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var generated = await service.GenerateDraftPolicyAsync(templateId, tenantContext.UserId, cancellationToken);
+    var generated = await service.GenerateDraftPolicyAsync(templateId, request, tenantContext.UserId, cancellationToken);
     return generated is null
         ? ApiProblemDetails.Create(
             httpContext,
@@ -3377,15 +3391,23 @@ api.MapPut("/generated-policies/{policyId:guid}/review", async (
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var updated = await service.ReviewGeneratedPolicyAsync(policyId, request, tenantContext.UserId, cancellationToken);
-    return updated is null
-        ? ApiProblemDetails.Create(
-            httpContext,
-            "Resource not found",
-            $"Generated policy '{policyId}' was not found.",
-            StatusCodes.Status404NotFound,
-            "resource_not_found")
-        : Results.Ok(updated);
+    try
+    {
+        var updated = await service.ReviewGeneratedPolicyAsync(policyId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"Generated policy '{policyId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (PolicyTemplateValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors, title: "Generated policy invalid", detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
 })
 .RequirePermission(Permission.ApproveEvidence)
 .WithName("ReviewGeneratedPolicy");
@@ -3400,10 +3422,58 @@ api.MapGet("/generated-policies/{policyId:guid}/revisions", async (
 
 api.MapGet("/tasks", async (
     ComplianceTaskService service,
+    TaskCompatibilityTelemetry compatibilityTelemetry,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
-    Results.Ok(await service.ListCurrentTenantAsync(cancellationToken)))
+{
+    compatibilityTelemetry.RecordLegacyListRequest();
+    httpContext.Response.Headers["Deprecation"] = "true";
+    httpContext.Response.Headers.Append("Link", "</api/tasks/search>; rel=successor-version");
+    return Results.Ok(await service.ListCurrentTenantAsync(cancellationToken));
+})
 .RequirePermission(Permission.ViewTasks)
 .WithName("ListComplianceTasks");
+
+api.MapGet("/tasks/search", async (
+    string? status,
+    Guid? ownerUserId,
+    DateOnly? dueFrom,
+    DateOnly? dueTo,
+    int? page,
+    int? pageSize,
+    string? cursor,
+    ComplianceTaskSearchService service,
+    TaskCompatibilityTelemetry compatibilityTelemetry,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        compatibilityTelemetry.RecordStatusInput(status, "search");
+        return Results.Ok(await service.SearchCurrentTenantAsync(
+            new ComplianceTaskSearchQuery(
+                status,
+                ownerUserId,
+                dueFrom,
+                dueTo,
+                page ?? 1,
+                pageSize ?? 25,
+                cursor,
+                page.HasValue),
+            cancellationToken));
+    }
+    catch (ComplianceTaskSearchValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["query"] = [exception.Message]
+        },
+        title: "Task search invalid",
+        detail: exception.Message,
+        statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewTasks)
+.WithName("SearchComplianceTasks");
 
 api.MapGet("/tasks/{taskId:guid}", async (
     Guid taskId,
@@ -3411,7 +3481,7 @@ api.MapGet("/tasks/{taskId:guid}", async (
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var task = (await service.ListCurrentTenantAsync(cancellationToken)).FirstOrDefault(candidate => candidate.Id == taskId);
+    var task = await service.FindCurrentTenantAsync(taskId, cancellationToken);
     return task is null
         ? ApiProblemDetails.Create(
             httpContext,
@@ -3501,11 +3571,13 @@ api.MapPut("/compliance/checklists/{checklistId:guid}/items/{itemId:guid}", asyn
 api.MapPost("/tasks", async (
     CreateComplianceTaskRequest request,
     ComplianceTaskService service,
+    TaskCompatibilityTelemetry compatibilityTelemetry,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
+        compatibilityTelemetry.RecordStatusInput(request.Status, "create");
         var task = await service.CreateAsync(request, tenantContext.UserId, cancellationToken);
         return Results.Created($"/api/tasks/{task.Id}", task);
     }
@@ -3527,12 +3599,14 @@ api.MapPatch("/tasks/{taskId:guid}", async (
     Guid taskId,
     UpdateComplianceTaskRequest request,
     ComplianceTaskService service,
+    TaskCompatibilityTelemetry compatibilityTelemetry,
     ITenantContext tenantContext,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
+        compatibilityTelemetry.RecordStatusInput(request.Status, "update");
         var task = await service.UpdateAsync(taskId, request, tenantContext.UserId, cancellationToken);
         return task is null
             ? ApiProblemDetails.Create(
@@ -6193,7 +6267,7 @@ api.MapGet("/compliance/ssp/sections", async (
     var sections = await service.ListAsync(cancellationToken);
     return Results.Ok(sections);
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ViewCmmc)
 .WithName("ListSspSections");
 
 api.MapGet("/compliance/ssp/sections/{sectionId:guid}", async (
@@ -6207,7 +6281,7 @@ api.MapGet("/compliance/ssp/sections/{sectionId:guid}", async (
         ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP section was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
         : Results.Ok(section);
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ViewCmmc)
 .WithName("GetSspSection");
 
 api.MapPost("/compliance/ssp/sections", async (
@@ -6226,7 +6300,7 @@ api.MapPost("/compliance/ssp/sections", async (
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspSection"] = [exception.Message] });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ManageCmmc)
 .WithName("CreateSspSection");
 
 api.MapPut("/compliance/ssp/sections/{sectionId:guid}", async (
@@ -6249,7 +6323,7 @@ api.MapPut("/compliance/ssp/sections/{sectionId:guid}", async (
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspSection"] = [exception.Message] });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ManageCmmc)
 .WithName("UpdateSspSection");
 
 api.MapPost("/compliance/ssp/sections/{sectionId:guid}/status", async (
@@ -6272,20 +6346,48 @@ api.MapPost("/compliance/ssp/sections/{sectionId:guid}/status", async (
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspSectionStatus"] = [exception.Message] });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ManageCmmc)
 .WithName("ChangeSspSectionStatus");
+
+api.MapGet("/compliance/ssp/sections/{sectionId:guid}/narratives", async (
+    Guid sectionId,
+    SspNarrativeService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var narratives = await service.ListAsync(sectionId, cancellationToken);
+    return narratives is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP section was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(narratives);
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListSspNarratives");
+
+api.MapGet("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:guid}", async (
+    Guid sectionId,
+    Guid narrativeId,
+    SspNarrativeService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var narrative = await service.GetAsync(sectionId, narrativeId, cancellationToken);
+    return narrative is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP narrative was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(narrative);
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("GetSspNarrative");
 
 api.MapPost("/compliance/ssp/sections/{sectionId:guid}/narratives", async (
     Guid sectionId,
     GenerateSspNarrativeDraftRequest request,
-    SspSectionService service,
-    ITenantContext tenantContext,
+    SspNarrativeService service,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var narrative = await service.GenerateNarrativeDraftAsync(sectionId, request, tenantContext.UserId, cancellationToken);
+        var narrative = await service.GenerateAsync(sectionId, request, cancellationToken);
         return narrative is null
             ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP section was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
             : Results.Created($"/api/compliance/ssp/sections/{sectionId}/narratives/{narrative.Id}", narrative);
@@ -6295,21 +6397,20 @@ api.MapPost("/compliance/ssp/sections/{sectionId:guid}/narratives", async (
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspNarrative"] = [exception.Message] });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ManageCmmc)
 .WithName("GenerateSspNarrativeDraft");
 
 api.MapPut("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:guid}", async (
     Guid sectionId,
     Guid narrativeId,
     EditSspNarrativeDraftRequest request,
-    SspSectionService service,
-    ITenantContext tenantContext,
+    SspNarrativeService service,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var narrative = await service.EditNarrativeDraftAsync(sectionId, narrativeId, request, tenantContext.UserId, cancellationToken);
+        var narrative = await service.EditAsync(sectionId, narrativeId, request, cancellationToken);
         return narrative is null
             ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP narrative was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
             : Results.Ok(narrative);
@@ -6319,21 +6420,20 @@ api.MapPut("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:gu
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspNarrative"] = [exception.Message] });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ManageCmmc)
 .WithName("EditSspNarrativeDraft");
 
 api.MapPost("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:guid}/approve", async (
     Guid sectionId,
     Guid narrativeId,
     ApproveSspNarrativeRequest request,
-    SspSectionService service,
-    ITenantContext tenantContext,
+    SspNarrativeService service,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var narrative = await service.ApproveNarrativeAsync(sectionId, narrativeId, request, tenantContext.UserId, cancellationToken);
+        var narrative = await service.ApproveAsync(sectionId, narrativeId, request, cancellationToken);
         return narrative is null
             ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP narrative was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
             : Results.Ok(narrative);
@@ -6343,43 +6443,57 @@ api.MapPost("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:g
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspNarrativeApproval"] = [exception.Message] });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ManageCmmc)
 .WithName("ApproveSspNarrative");
 
 api.MapGet("/compliance/ssp/sections/{sectionId:guid}/narratives/{narrativeId:guid}/comparison", async (
     Guid sectionId,
     Guid narrativeId,
-    SspSectionService service,
+    SspNarrativeService service,
     HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var comparison = await service.CompareNarrativeAsync(sectionId, narrativeId, cancellationToken);
+    var comparison = await service.CompareAsync(sectionId, narrativeId, cancellationToken);
     return comparison is null
         ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP narrative was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
         : Results.Ok(comparison);
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ViewCmmc)
 .WithName("CompareSspNarrative");
 
 api.MapGet("/compliance/ssp/export-packages", async (
-    SspSectionService service,
+    SspExportPackageService service,
     CancellationToken cancellationToken) =>
 {
-    var packages = await service.ListExportPackagesAsync(cancellationToken);
+    var packages = await service.ListAsync(cancellationToken);
     return Results.Ok(packages);
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ExportReports)
 .WithName("ListSspExportPackages");
+
+api.MapGet("/compliance/ssp/export-packages/{packageId:guid}", async (
+    Guid packageId,
+    SspExportPackageService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var package = await service.GetAsync(packageId, cancellationToken);
+    return package is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP export package was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(package);
+})
+.RequirePermission(Permission.ExportReports)
+.WithName("GetSspExportPackage");
 
 api.MapPost("/compliance/ssp/export-packages", async (
     CreateSspExportPackageRequest request,
-    SspSectionService service,
+    SspExportPackageService service,
     ITenantContext tenantContext,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var package = await service.GenerateExportPackageAsync(request, tenantContext.UserId, cancellationToken);
+        var package = await service.GenerateAsync(request, tenantContext.UserId, cancellationToken);
         return Results.Created($"/api/compliance/ssp/export-packages/{package.Id}", package);
     }
     catch (SspExportPackageValidationException exception)
@@ -6387,8 +6501,54 @@ api.MapPost("/compliance/ssp/export-packages", async (
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspExportPackage"] = [exception.Message] });
     }
 })
-.RequirePermission(Permission.ManageTenant)
+.RequirePermission(Permission.ExportReports)
 .WithName("GenerateSspExportPackage");
+
+api.MapPost("/compliance/ssp/export-packages/{packageId:guid}/external-share-approval", async (
+    Guid packageId,
+    SspExternalShareApprovalRequest request,
+    SspExportPackageService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var package = await service.ApproveExternalShareAsync(packageId, request, tenantContext.UserId, cancellationToken);
+        return package is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP export package was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(package);
+    }
+    catch (SspExportPackageValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspExportPackage"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ManageTenant)
+.WithName("ApproveSspExportPackageExternalShare");
+
+api.MapPost("/compliance/ssp/export-packages/{packageId:guid}/share", async (
+    Guid packageId,
+    SspExternalShareRequest request,
+    SspExportPackageService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var package = await service.ShareAsync(packageId, request, tenantContext.UserId, cancellationToken);
+        return package is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "SSP export package was not found in the current tenant scope.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(package);
+    }
+    catch (SspExportPackageValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sspExportPackage"] = [exception.Message] });
+    }
+})
+.RequirePermission(Permission.ExportReports)
+.WithName("ShareSspExportPackage");
 
 api.MapPost("/enterprise/cui/enclaves", async (
     CreateCuiEnclaveBoundaryRequest request,

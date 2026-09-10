@@ -1,5 +1,6 @@
 using Gccs.Application.Calendar;
 using Gccs.Application.Security;
+using Gccs.Application.Tasks;
 using Gccs.Domain.Cmmc;
 using Gccs.Domain.Compliance;
 using Gccs.Domain.Vendors;
@@ -196,15 +197,7 @@ public sealed class EfCalendarRepository(
     private static bool IsOverdue(DateOnly? dueAt, ComplianceTaskStatus status, DateOnly today) =>
         dueAt.HasValue && dueAt.Value < today && status is not ComplianceTaskStatus.Done and not ComplianceTaskStatus.Canceled;
 
-    private static string ToStatus(ComplianceTaskStatus status) =>
-        status switch
-        {
-            ComplianceTaskStatus.InProgress => "in_progress",
-            ComplianceTaskStatus.WaitingForReview => "waiting_for_review",
-            ComplianceTaskStatus.Done => "completed",
-            ComplianceTaskStatus.Canceled => "canceled",
-            _ => status.ToString().ToLowerInvariant()
-        };
+    private static string ToStatus(ComplianceTaskStatus status) => ComplianceTaskStatusCodec.Format(status);
 
     private static string ToStatus(SubcontractorEvidenceRequestStatus status, DateOnly dueDate, DateOnly today) =>
         IsOpenEvidenceRequest(status) && dueDate < today

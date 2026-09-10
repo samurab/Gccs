@@ -4,6 +4,40 @@ These prompts are designed to be copied into a fresh implementation thread, one 
 
 Phase 0 Stories `0.1` through `0.8` and SOC 2 Stories `39.1` through `39.3` are intentionally excluded from this implementation inventory. They are non-software research, governance, decision, and independent-assurance workflows; use the governed human-evidence prompts in [development-story-test-prompts.md](development-story-test-prompts.md). Do not invoke the software story sequence or add application code merely to satisfy those stories.
 
+## Evidence-Based Status Reconciliation
+
+Status reconciliation date: **2026-09-09**.
+
+These labels describe the current implementation of each bounded software story. They do not represent production approval, deployment freshness, external-provider availability, independent assessment, certification, or authorization to process real customer CUI.
+
+- `Implemented`: Current source, persistence, API behavior, authorization controls, applicable UI, and automated tests support the story-scoped acceptance criteria. External services still require valid deployment configuration where the story explicitly permits a replaceable adapter, placeholder, or local implementation.
+- `Partially implemented`: Meaningful implementation exists, but a material provider, real-stack, deployment, operational-evidence, or approval requirement remains unverified or incomplete.
+- `Planned`: No meaningful implementation evidence has been verified.
+- `Do not claim`: The outcome is prohibited, unsupported, expired, or controlled by independent authority rather than application code.
+
+Current verification evidence:
+
+- Backend Release regression with PostgreSQL: **1,819 passed, 0 failed, 0 skipped** using `tests/Gccs.Api.Tests/regression.runsettings`.
+- Frontend verification: ESLint passed, **204 tests passed across 23 files**, and the production Vite build passed.
+- Current source inspection confirmed the Clean Architecture boundaries, EF Core models and migrations, tenant-scoped APIs, server-side permissions, append-only audit behavior, No-CUI enforcement, and story-specific test inventories.
+- Historical staging, restore, monitoring, and launch evidence remains useful but is not treated as proof that the current working tree is deployed or approved for broader production use.
+
+Reconciliation summary:
+
+| Story range | Classification | Evidence-based limitation |
+| --- | --- | --- |
+| `1.1`-`16.3`, except the rows below | Implemented | Story-scoped product behavior is currently covered by source and passing backend/frontend verification. Production scanner, object-storage, and email-provider availability remain deployment dependencies and must not be inferred from story completion. |
+| `17.1` | Partially implemented | Automated pilot coverage exists, but a current real-stack browser/API/PostgreSQL/object-storage/scanner pilot run was not re-established in this reconciliation. |
+| `17.2` | Implemented | Current regression includes tenant-isolation, RBAC, direct-API, audit, and PostgreSQL boundary tests. This is not an independent penetration test or broader-production approval. |
+| `17.3` | Partially implemented | CI/CD and historical staging evidence exist, but the current working tree was not deployed and smoke-tested in staging during this reconciliation. |
+| `17.4` | Partially implemented | Checklist and solo-controlled No-CUI pilot evidence exist; broader-production separation-of-duties approval remains absent. |
+| `18.1`-`21.3`, `23.1`-`28.3` | Implemented | Story-scoped Phase 2 code and tests pass under the No-CUI posture; production activation still requires the applicable approval posture. |
+| `22.1`-`22.3` | Partially implemented | Configuration, replaceable adapters, workflows, persistence, UI, and tests exist, but the dependency register still classifies live SAM.gov/GSA Entity API access as deferred. |
+| `1A.1.1`-`1A.9.1` | Implemented | The bounded readiness controls and workflows are implemented; this does not authorize real CUI or establish an operational CUI environment. |
+| `1A.9.2`-`1A.9.3` | Partially implemented | Durable verification/readiness workflows exist, but complete current operating evidence, exercised incident response, production storage/scanner proof, and independent approval remain incomplete. |
+
+`Do not claim`: real-CUI authorization, secure or operational CUI storage, CMMC certification or assessment success, FedRAMP authorization/equivalency, government approval or endorsement, legal/labor/accounting determinations, broader-production approval, or independent security assurance. Only authoritative evidence for the exact deployed boundary can change those classifications.
+
 ## Shared Prompt Requirements
 
 Use these requirements for every story:
@@ -21,7 +55,7 @@ Use these requirements for every story:
 ## 1. Delivery Foundation
 
 ### Story 1.1: Repository And Project Structure
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -93,7 +127,7 @@ Instructions:
 
 #-----------------------------------------
 ### Story 1.2: Local Development Services
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -166,7 +200,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 1.3: Continuous Integration Baseline
-## Done ##
+**Status: Implemented**
 After this implementation the project will have CI implemented and CD planned/documented but not fully implemented yet.
 
 
@@ -243,7 +277,7 @@ Instructions:
 ## 2. Tenant, Identity, And RBAC
 
 ### Story 2.1: Tenant Creation
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -316,7 +350,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 2.2: User Memberships
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -389,7 +423,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 2.3: User Invitations
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -463,7 +497,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 2.4: Role-Based Permissions
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -539,7 +573,7 @@ Instructions:
 ## 3. Authenticated Application Shell
 
 ### Story 3.1: Protected API Access
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -612,7 +646,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 3.2: SaaS Navigation Shell
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -687,7 +721,7 @@ Instructions:
 ## 4. CUI-Ready Gated Controls
 
 ### Story 4.1: Data Handling Acknowledgement
-## Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -761,7 +795,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 4.2: Upload Guardrails
-## Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -838,7 +872,7 @@ Instructions:
 ## 5. Audit Logging
 
 ### Story 5.1: Append-Only Audit Events
-## Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -912,7 +946,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 5.2: Audit Log Viewer
-## Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -987,7 +1021,7 @@ Instructions:
 ## 6. Compliance Content Foundation
 
 ### Story 6.1: Obligation Schema
-## Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1061,7 +1095,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 6.2: Content Import
-## Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1135,7 +1169,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 6.3: Content Review State
-## Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1211,7 +1245,7 @@ Instructions:
 ## 7. Company Compliance Profile
 
 ### Story 7.1: Create Company Profile
-## Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1285,7 +1319,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 7.2: NAICS And Size Status
-## Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1359,7 +1393,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 7.3: Certification Tracking
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1435,7 +1469,7 @@ Instructions:
 ## 8. Contract Intake
 
 ### Story 8.1: Create Contract Record
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1509,7 +1543,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 8.2: Contract Document Metadata And Upload
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1583,7 +1617,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 8.3: Contract Dates And Deliverables
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1659,7 +1693,7 @@ Instructions:
 ## 9. Manual Clause Tagging
 
 ### Story 9.1: Clause Library Search
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1699,7 +1733,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 9.2: Attach Clause To Contract
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1773,7 +1807,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 9.3: Generate Obligations From Clause
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1849,7 +1883,7 @@ Instructions:
 ## 10. Obligation Dashboard
 
 ### Story 10.1: Obligation List And Filters
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1923,7 +1957,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 10.2: Obligation Detail
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -1997,7 +2031,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 10.3: Ownership Assignment
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2072,7 +2106,7 @@ Instructions:
 ## 11. Task And Compliance Calendar
 
 ### Story 11.1: Task Management
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2146,7 +2180,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 11.2: Calendar View
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2219,7 +2253,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 11.3: Renewal Generation
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2295,7 +2329,7 @@ Instructions:
 ## 12. Evidence Vault
 
 ### Story 12.1: Evidence Metadata
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2369,7 +2403,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 12.2: Evidence File Upload
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2443,7 +2477,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 12.3: Evidence Approval
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2519,7 +2553,7 @@ Instructions:
 ## 13. CMMC Readiness Tracker
 
 ### Story 13.1: CMMC Level Selection
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2593,7 +2627,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 13.2: Control Readiness
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2667,7 +2701,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 13.3: POA&M Items
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2741,7 +2775,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 13.4: Annual Affirmation Tracker
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2817,7 +2851,7 @@ Instructions:
 ## 14. Subcontractor Flow-Down Tracker
 
 ### Story 14.1: Subcontractor Profile
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2891,7 +2925,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 14.2: Flow-Down Clause Tracking
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -2965,7 +2999,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 14.3: Subcontractor Evidence Requests
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3007,7 +3041,7 @@ Instructions:
 ## 15. Reports
 
 ### Story 15.1: Compliance Status Report
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3081,7 +3115,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 15.2: Contract Obligation Matrix
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3155,7 +3189,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 15.3: CMMC Readiness Report
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3229,7 +3263,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 15.4: Evidence Package
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3303,7 +3337,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 15.5: Subcontractor Compliance Report
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3379,7 +3413,7 @@ Instructions:
 ## 16. Notifications
 
 ### Story 16.1: Notification Preferences
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3453,7 +3487,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 16.2: Due-Date Reminders
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3527,7 +3561,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 16.3: Assignment Notifications
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3603,7 +3637,7 @@ Instructions:
 ## 17. MVP Hardening And Release Readiness
 
 ### Story 17.1: End-To-End Pilot Workflow
-### Done ##
+**Status: Partially implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3677,7 +3711,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 17.2: Security And Tenant Isolation Verification
-### Done ##
+**Status: Implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3751,7 +3785,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 17.3: Staging Environment
-## Done ##
+**Status: Partially implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3825,7 +3859,7 @@ Instructions:
 #-----------------------------------------
 
 ### Story 17.4: Production Readiness Checklist
-### Done ##
+**Status: Partially implemented**
 
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
@@ -3905,7 +3939,7 @@ Use the shared prompt requirements above for every Phase 2 story. Each story pro
 ## 18. Automated Clause Extraction
 
 ### Story 18.1: Extraction Job Intake
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -3927,7 +3961,7 @@ Implement Story 18.1, "Extraction Job Intake," from `docs/development-phase-use-
 #-----------------------------------------
 
 ### Story 18.2: Text Extraction And Clause Candidate Detection
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -3949,7 +3983,7 @@ Implement Story 18.2, "Text Extraction And Clause Candidate Detection," from `do
 #-----------------------------------------
 
 ### Story 18.3: Extraction Results Review Screen
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -3973,7 +4007,7 @@ Implement Story 18.3, "Extraction Results Review Screen," from `docs/development
 ## 19. Human Review Workflow
 
 ### Story 19.1: Review States For Extracted Clauses
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -3995,7 +4029,7 @@ Implement Story 19.1, "Review States For Extracted Clauses," from `docs/developm
 #-----------------------------------------
 
 ### Story 19.2: AI-Suggested Obligation Review
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4017,7 +4051,7 @@ Implement Story 19.2, "AI-Suggested Obligation Review," from `docs/development-p
 #-----------------------------------------
 
 ### Story 19.3: Expert Escalation Queue
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4041,7 +4075,7 @@ Implement Story 19.3, "Expert Escalation Queue," from `docs/development-phase-us
 ## 20. Clause Library Expansion
 
 ### Story 20.1: Versioned Clause Records
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4063,7 +4097,7 @@ Implement Story 20.1, "Versioned Clause Records," from `docs/development-phase-u
 #-----------------------------------------
 
 ### Story 20.2: Clause Search And Discovery
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4085,7 +4119,7 @@ Implement Story 20.2, "Clause Search And Discovery," from `docs/development-phas
 #-----------------------------------------
 
 ### Story 20.3: Clause-To-Obligation Mapping
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4109,7 +4143,7 @@ Implement Story 20.3, "Clause-To-Obligation Mapping," from `docs/development-pha
 ## 21. Applicability Engine
 
 ### Story 21.1: Applicability Facts Model
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4131,7 +4165,7 @@ Implement Story 21.1, "Applicability Facts Model," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 21.2: Rule Evaluation
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4153,7 +4187,7 @@ Implement Story 21.2, "Rule Evaluation," from `docs/development-phase-use-cases.
 #-----------------------------------------
 
 ### Story 21.3: Obligation Applicability Updates
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4177,7 +4211,7 @@ Implement Story 21.3, "Obligation Applicability Updates," from `docs/development
 ## 22. SAM.gov Entity Lookup
 
 ### Story 22.1: SAM.gov API Configuration
-## Done ##
+**Status: Partially implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4199,7 +4233,7 @@ Implement Story 22.1, "SAM.gov API Configuration," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 22.2: Company Entity Lookup
-## Done ##
+**Status: Partially implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4221,7 +4255,7 @@ Implement Story 22.2, "Company Entity Lookup," from `docs/development-phase-use-
 #-----------------------------------------
 
 ### Story 22.3: Subcontractor Entity Lookup
-## Done ##
+**Status: Partially implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4245,7 +4279,7 @@ Implement Story 22.3, "Subcontractor Entity Lookup," from `docs/development-phas
 ## 23. SBA Size Helper
 
 ### Story 23.1: Size Standard Reference Data
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4267,7 +4301,7 @@ Implement Story 23.1, "Size Standard Reference Data," from `docs/development-pha
 #-----------------------------------------
 
 ### Story 23.2: Company Size Evaluation Helper
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4289,7 +4323,7 @@ Implement Story 23.2, "Company Size Evaluation Helper," from `docs/development-p
 #-----------------------------------------
 
 ### Story 23.3: Opportunity NAICS Size Check
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4313,7 +4347,7 @@ Implement Story 23.3, "Opportunity NAICS Size Check," from `docs/development-pha
 ## 24. Subcontractor Tracker Expansion
 
 ### Story 24.1: Expanded Subcontractor Compliance Profile
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4335,7 +4369,7 @@ Implement Story 24.1, "Expanded Subcontractor Compliance Profile," from `docs/de
 #-----------------------------------------
 
 ### Story 24.2: Subcontractor Risk Status
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4357,7 +4391,7 @@ Implement Story 24.2, "Subcontractor Risk Status," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 24.3: Contract-Specific Subcontractor Obligations
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4381,7 +4415,7 @@ Implement Story 24.3, "Contract-Specific Subcontractor Obligations," from `docs/
 ## 25. Policy Templates
 
 ### Story 25.1: Approved Template Library
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4403,7 +4437,7 @@ Implement Story 25.1, "Approved Template Library," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 25.2: Generate Draft Policy From Template
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4425,7 +4459,7 @@ Implement Story 25.2, "Generate Draft Policy From Template," from `docs/developm
 #-----------------------------------------
 
 ### Story 25.3: Policy Approval And Evidence Linking
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4449,7 +4483,7 @@ Implement Story 25.3, "Policy Approval And Evidence Linking," from `docs/develop
 ## 26. Evidence Request Workflows
 
 ### Story 26.1: Evidence Request Creation
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4471,7 +4505,7 @@ Implement Story 26.1, "Evidence Request Creation," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 26.2: Evidence Submission And Review
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4493,7 +4527,7 @@ Implement Story 26.2, "Evidence Submission And Review," from `docs/development-p
 #-----------------------------------------
 
 ### Story 26.3: Evidence Request Dashboard
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4517,7 +4551,7 @@ Implement Story 26.3, "Evidence Request Dashboard," from `docs/development-phase
 ## 27. CMMC Level 2 Readiness Expansion
 
 ### Story 27.1: Level 2 Control Assessment Detail
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4539,7 +4573,7 @@ Implement Story 27.1, "Level 2 Control Assessment Detail," from `docs/developmen
 #-----------------------------------------
 
 ### Story 27.2: Responsibility Matrix
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4561,7 +4595,7 @@ Implement Story 27.2, "Responsibility Matrix," from `docs/development-phase-use-
 #-----------------------------------------
 
 ### Story 27.3: Readiness Gap Prioritization
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4583,7 +4617,7 @@ Implement Story 27.3, "Readiness Gap Prioritization," from `docs/development-pha
 #-----------------------------------------
 
 ### Story 27.4: Level 2 Readiness Report
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4607,7 +4641,7 @@ Implement Story 27.4, "Level 2 Readiness Report," from `docs/development-phase-u
 ## 28. Extraction Content Test Set
 
 ### Story 28.1: Curated Test Document Set
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4629,7 +4663,7 @@ Implement Story 28.1, "Curated Test Document Set," from `docs/development-phase-
 #-----------------------------------------
 
 ### Story 28.2: Precision And Recall Evaluation
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4651,7 +4685,7 @@ Implement Story 28.2, "Precision And Recall Evaluation," from `docs/development-
 #-----------------------------------------
 
 ### Story 28.3: Extraction Regression Review
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4676,7 +4710,7 @@ Use the shared prompt requirements above for every Phase 1A story. Phase 1A is a
 
 ## 1A.1 Tenant Data Handling Modes
 ### Story 1A.1.1: Tenant Data Handling Mode Model
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4697,7 +4731,7 @@ Implement Story 1A.1.1, "Tenant Data Handling Mode Model," from `docs/developmen
 
 #-----------------------------------------
 ### Story 1A.1.2: Mode-Based Workflow Enforcement
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4720,7 +4754,7 @@ Implement Story 1A.1.2, "Mode-Based Workflow Enforcement," from `docs/developmen
 
 ## 1A.2 Data Classification Controls
 ### Story 1A.2.1: Classification Metadata Schema
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4741,7 +4775,7 @@ Implement Story 1A.2.1, "Classification Metadata Schema," from `docs/development
 
 #-----------------------------------------
 ### Story 1A.2.2: Classification UX And Review
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4764,7 +4798,7 @@ Implement Story 1A.2.2, "Classification UX And Review," from `docs/development-p
 
 ## 1A.3 Synthetic CUI Demo Dataset
 ### Story 1A.3.1: Synthetic Dataset Definition
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4785,7 +4819,7 @@ Implement Story 1A.3.1, "Synthetic Dataset Definition," from `docs/development-p
 
 #-----------------------------------------
 ### Story 1A.3.2: Demo Tenant Seeding
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4808,7 +4842,7 @@ Implement Story 1A.3.2, "Demo Tenant Seeding," from `docs/development-phase-use-
 
 ## 1A.4 CUI-Ready Tenant Approval Checklist
 ### Story 1A.4.1: Approval Checklist Model
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4829,7 +4863,7 @@ Implement Story 1A.4.1, "Approval Checklist Model," from `docs/development-phase
 
 #-----------------------------------------
 ### Story 1A.4.2: Approval Gate Enforcement
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4852,7 +4886,7 @@ Implement Story 1A.4.2, "Approval Gate Enforcement," from `docs/development-phas
 
 ## 1A.5 Shared Responsibility Matrix Baseline
 ### Story 1A.5.1: Baseline Responsibility Matrix
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4873,7 +4907,7 @@ Implement Story 1A.5.1, "Baseline Responsibility Matrix," from `docs/development
 
 #-----------------------------------------
 ### Story 1A.5.2: Tenant Matrix Acknowledgement
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4896,7 +4930,7 @@ Implement Story 1A.5.2, "Tenant Matrix Acknowledgement," from `docs/development-
 
 ## 1A.6 Customer-Facing Data Handling Notices
 ### Story 1A.6.1: Versioned Notice Content
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4917,7 +4951,7 @@ Implement Story 1A.6.1, "Versioned Notice Content," from `docs/development-phase
 
 #-----------------------------------------
 ### Story 1A.6.2: Notice Placement And Acknowledgement
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4940,7 +4974,7 @@ Implement Story 1A.6.2, "Notice Placement And Acknowledgement," from `docs/devel
 
 ## 1A.7 CUI Support Escalation Path
 ### Story 1A.7.1: Escalation Intake And Classification
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4961,7 +4995,7 @@ Implement Story 1A.7.1, "Escalation Intake And Classification," from `docs/devel
 
 #-----------------------------------------
 ### Story 1A.7.2: Escalation Workflow And Resolution
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -4984,7 +5018,7 @@ Implement Story 1A.7.2, "Escalation Workflow And Resolution," from `docs/develop
 
 ## 1A.8 CUI Audit Event Coverage
 ### Story 1A.8.1: Required CUI Audit Events
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5005,7 +5039,7 @@ Implement Story 1A.8.1, "Required CUI Audit Events," from `docs/development-phas
 
 #-----------------------------------------
 ### Story 1A.8.2: CUI Audit Filters And Export
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5028,7 +5062,7 @@ Implement Story 1A.8.2, "CUI Audit Filters And Export," from `docs/development-p
 
 ## 1A.9 Security Readiness Review
 ### Story 1A.9.1: Security Review Checklist
-## Done ##
+**Status: Implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5049,7 +5083,7 @@ Implement Story 1A.9.1, "Security Review Checklist," from `docs/development-phas
 
 #-----------------------------------------
 ### Story 1A.9.2: Technical Control Verification
-## Done ##
+**Status: Partially implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5070,7 +5104,7 @@ Implement Story 1A.9.2, "Technical Control Verification," from `docs/development
 
 #-----------------------------------------
 ### Story 1A.9.3: Incident Response Readiness
-## Done ##
+**Status: Partially implemented**
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 

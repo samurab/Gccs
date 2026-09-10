@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
 using Gccs.Application.Compliance;
 using Gccs.Application.Security;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
@@ -12,9 +13,11 @@ using Gccs.Infrastructure.Audit;
 using Gccs.Infrastructure.Compliance;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
+using Gccs.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
 namespace Gccs.Api.Tests;
@@ -136,7 +139,9 @@ public sealed class PolicyTemplateLibraryTests : IClassFixture<WebApplicationFac
         using var request = CreateRequest(HttpMethod.Post, "/api/policy-templates", body, tenantId, Permission.ManageObligations);
         var response = await client.SendAsync(request);
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.True(
+            response.StatusCode == HttpStatusCode.Created,
+            $"Expected Created, got {response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
         return await response.Content.ReadFromJsonAsync<PolicyTemplateDto>(JsonOptions) ??
             throw new InvalidOperationException("Expected policy template response.");
     }
@@ -188,7 +193,10 @@ public sealed class PolicyTemplateLibraryTests : IClassFixture<WebApplicationFac
                 services.AddDbContext<GccsDbContext>(options => options.UseInMemoryDatabase(databaseName));
                 services.AddScoped<PolicyTemplateService>();
                 services.AddScoped<IPolicyTemplateRepository, EfPolicyTemplateRepository>();
+                services.AddScoped<ITenantRepository, EfTenantRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.RemoveAll<ICurrentDataHandlingNoticeGuard>();
+                services.AddSingleton<ICurrentDataHandlingNoticeGuard, AcknowledgedNoticeGuard>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
@@ -230,5 +238,11 @@ public sealed class PolicyTemplateLibraryTests : IClassFixture<WebApplicationFac
             DataPosture = TenantDataPosture.NoCui,
             CreatedAt = DateTimeOffset.UtcNow
         });
+    }
+
+    private sealed class AcknowledgedNoticeGuard : ICurrentDataHandlingNoticeGuard
+    {
+        public Task EnsureAsync(string workflow, Guid actorUserId, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 }

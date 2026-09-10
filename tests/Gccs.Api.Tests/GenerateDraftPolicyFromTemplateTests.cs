@@ -3,9 +3,12 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Compliance;
 using Gccs.Application.Security;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Companies;
+using Gccs.Domain.Common;
 using Gccs.Domain.Identity;
 using Gccs.Domain.Tenancy;
 using Gccs.Infrastructure.Audit;
@@ -43,13 +46,37 @@ public sealed class GenerateDraftPolicyFromTemplateTests : IClassFixture<WebAppl
         var draft = await CreateTemplateAsync(client, tenantId, Template("Draft Policy", PolicyTemplateStatus.Draft) with { SourceReferences = [], LastReviewedAt = null, ReviewerUserId = null });
 
         var generated = await GenerateAsync(client, tenantId, approved.Id, HttpStatusCode.Created);
-        using var draftGenerate = CreateRequest<object?>(HttpMethod.Post, $"/api/policy-templates/{draft.Id}/generate", new { }, tenantId, Permission.ManageEvidence);
+        using var draftGenerate = CreateRequest(HttpMethod.Post, $"/api/policy-templates/{draft.Id}/generate", new GenerateDraftPolicyRequest(Classification()), tenantId, Permission.ManageEvidence);
         var draftResponse = await client.SendAsync(draftGenerate);
 
         Assert.NotNull(generated);
         Assert.Equal(GeneratedPolicyStatus.Draft, generated.Status);
         Assert.Equal(approved.Id, generated.SourceTemplateId);
+        Assert.Equal(ContentClassification.Unclassified, generated.Classification.Classification);
+        Assert.Equal(1, generated.ClassificationRevision);
         Assert.Equal(HttpStatusCode.NotFound, draftResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Generated_policy_requires_explicit_classification_and_NoCui_rejects_CUI()
+    {
+        var tenantId = Guid.Parse("25225225-2252-2522-5225-2252252252c1");
+        await using var factory = CreateFactory("tc-25-2-classification", dbContext => SeedTenantAndCompany(dbContext, tenantId));
+        using var client = factory.CreateClient();
+        var template = await CreateTemplateAsync(client, tenantId, Template("Classified Policy", PolicyTemplateStatus.Approved));
+
+        using var missing = CreateRequest(HttpMethod.Post, $"/api/policy-templates/{template.Id}/generate", new { }, tenantId, Permission.ManageEvidence);
+        using var missingResponse = await client.SendAsync(missing);
+        Assert.Equal(HttpStatusCode.BadRequest, missingResponse.StatusCode);
+
+        using var cui = CreateRequest(HttpMethod.Post, $"/api/policy-templates/{template.Id}/generate",
+            new GenerateDraftPolicyRequest(new ContentClassificationRequest(ContentClassification.Cui, ContentClassificationSource.UserSelected)),
+            tenantId, Permission.ManageEvidence);
+        using var cuiResponse = await client.SendAsync(cui);
+        Assert.Equal(HttpStatusCode.Forbidden, cuiResponse.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        Assert.False(await scope.ServiceProvider.GetRequiredService<GccsDbContext>().GeneratedPolicies.AnyAsync(policy => policy.TenantId == tenantId));
     }
 
     [Fact]
@@ -89,7 +116,7 @@ public sealed class GenerateDraftPolicyFromTemplateTests : IClassFixture<WebAppl
         using var update = CreateRequest(
             HttpMethod.Put,
             $"/api/generated-policies/{fetched.Id}",
-            new UpdateGeneratedPolicyRequest("Edited Policy", fetched.Body + "\nReviewed by compliance."),
+            new UpdateGeneratedPolicyRequest("Edited Policy", fetched.Body + "\nReviewed by compliance.", Classification()),
             tenantId,
             Permission.ManageEvidence);
         var updateResponse = await client.SendAsync(update);
@@ -113,9 +140,9 @@ public sealed class GenerateDraftPolicyFromTemplateTests : IClassFixture<WebAppl
         using var client = factory.CreateClient();
         var template = await CreateTemplateAsync(client, tenantId, Template("Scoped Policy", PolicyTemplateStatus.Approved));
 
-        using var noPermission = CreateRequest<object?>(HttpMethod.Post, $"/api/policy-templates/{template.Id}/generate", new { }, tenantId, Permission.ViewEvidence);
+        using var noPermission = CreateRequest(HttpMethod.Post, $"/api/policy-templates/{template.Id}/generate", new GenerateDraftPolicyRequest(Classification()), tenantId, Permission.ViewEvidence);
         var noPermissionResponse = await client.SendAsync(noPermission);
-        using var otherTenant = CreateRequest<object?>(HttpMethod.Post, $"/api/policy-templates/{template.Id}/generate", new { }, otherTenantId, Permission.ManageEvidence);
+        using var otherTenant = CreateRequest(HttpMethod.Post, $"/api/policy-templates/{template.Id}/generate", new GenerateDraftPolicyRequest(Classification()), otherTenantId, Permission.ManageEvidence);
         var otherTenantResponse = await client.SendAsync(otherTenant);
 
         Assert.Equal(HttpStatusCode.Forbidden, noPermissionResponse.StatusCode);
@@ -133,7 +160,7 @@ public sealed class GenerateDraftPolicyFromTemplateTests : IClassFixture<WebAppl
 
     private static async Task<GeneratedPolicyDto?> GenerateAsync(HttpClient client, Guid tenantId, Guid templateId, HttpStatusCode expectedStatus)
     {
-        using var request = CreateRequest<object?>(HttpMethod.Post, $"/api/policy-templates/{templateId}/generate", new { }, tenantId, Permission.ManageEvidence);
+        using var request = CreateRequest(HttpMethod.Post, $"/api/policy-templates/{templateId}/generate", new GenerateDraftPolicyRequest(Classification()), tenantId, Permission.ManageEvidence);
         var response = await client.SendAsync(request);
         Assert.Equal(expectedStatus, response.StatusCode);
         return expectedStatus == HttpStatusCode.Created
@@ -164,6 +191,9 @@ public sealed class GenerateDraftPolicyFromTemplateTests : IClassFixture<WebAppl
             Guid.Parse("25225225-2252-2522-5225-225225225288"),
             false);
 
+    private static ContentClassificationRequest Classification() =>
+        new(ContentClassification.Unclassified, ContentClassificationSource.UserSelected);
+
     private WebApplicationFactory<Program> CreateFactory(string databaseName, Action<GccsDbContext>? seed = null) =>
         _factory.WithWebHostBuilder(builder =>
         {
@@ -175,6 +205,7 @@ public sealed class GenerateDraftPolicyFromTemplateTests : IClassFixture<WebAppl
                 services.AddScoped<PolicyTemplateService>();
                 services.AddScoped<IPolicyTemplateRepository, EfPolicyTemplateRepository>();
                 services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
+                services.AddSingleton<ICurrentDataHandlingNoticeGuard, AcknowledgedNoticeGuard>();
 
                 using var provider = services.BuildServiceProvider();
                 using var scope = provider.CreateScope();
@@ -231,5 +262,10 @@ public sealed class GenerateDraftPolicyFromTemplateTests : IClassFixture<WebAppl
             DataHandlingPosture = DataHandlingPosture.FciOnly,
             CreatedAt = DateTimeOffset.UtcNow
         });
+    }
+
+    private sealed class AcknowledgedNoticeGuard : ICurrentDataHandlingNoticeGuard
+    {
+        public Task EnsureAsync(string workflow, Guid actorUserId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

@@ -1,5 +1,7 @@
 using Gccs.Domain.Compliance;
 using Gccs.Domain.Evidence;
+using System.Text.Json.Serialization;
+using Gccs.Application.Tasks;
 
 namespace Gccs.Application.Compliance;
 
@@ -24,6 +26,7 @@ public sealed record ContractObligationDetailDto(
     string? AssignedRoleName,
     RiskLevel RiskLevel,
     string Status,
+    string StatusCode,
     DateOnly? DueAt,
     string Module,
     bool FlowDownRequired,
@@ -40,6 +43,7 @@ public sealed record LinkedObligationTaskDto(
     Guid Id,
     string Title,
     string Status,
+    string StatusCode,
     DateOnly? DueAt,
     string OwnerFunction,
     RiskLevel RiskLevel);
@@ -52,7 +56,8 @@ public sealed record LinkedObligationEvidenceDto(
     DateOnly? ExpiresAt,
     string? OriginalFileName);
 
-public sealed record UpdateContractObligationStatusRequest(ComplianceTaskStatus Status);
+public sealed record UpdateContractObligationStatusRequest(
+    [property: JsonConverter(typeof(ComplianceTaskStatusJsonConverter))] ComplianceTaskStatus Status);
 
 public sealed record AssignContractObligationOwnerRequest(Guid? UserId, string? RoleName, bool Notify = false);
 

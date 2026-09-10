@@ -12,9 +12,10 @@ The specification covers the MVP API for a No-CUI government contractor complian
 - Clause capture and contract-specific obligation evaluation
 - Source-backed obligation library
 - Compliance tasks and calendar events
+- Paged tenant-scoped task search with canonical lower-snake-case status codes
 - Evidence vault metadata, stateless upload guardrail preflights, durable file versions, and reviews
 - CMMC readiness assessments, control statuses, and POA&M item metadata
-- Structured, source-backed SSP section lifecycle management
+- Structured SSP section lifecycle management; deterministic, source-backed SSP narrative drafting, editing, comparison, and approval; and immutable SSP internal-review exports
 - Subcontractor profiles, flow-down clauses, and evidence requests
 - Report generation and downloads
 - Tenant audit logs
@@ -28,9 +29,39 @@ The specification covers the MVP API for a No-CUI government contractor complian
 - The MVP data posture is **No-CUI / compliance management only**.
 - Document upload intents and evidence upload preflights require a positive No-CUI attestation. An accepted evidence preflight does not create or increment a durable file version; successful byte upload does.
 - All source-backed compliance records include source URL, source type, last-reviewed date, confidence, and expert-review flags where applicable.
-- Structured SSP section management is implemented. Automated SSP generation, SPRS submission, eSRS integration, and unrestricted AI assistant workflows remain outside this contract.
+- Structured SSP sections, deterministic source-backed narrative generation, and tenant-scoped SSP review packages are implemented. SSP export requests carry evidence and POA&M IDs only; the API resolves tenant ownership and evidence eligibility, snapshots approved narrative/source/reviewer metadata, requires `ExportReports`, and audit logs package generation. Packages are internal-review artifacts until a separate `ManageTenant` approval is recorded; sharing without that approval is blocked. `AiAssisted` is a fail-closed generation mode until an approved provider adapter is configured; it must not be represented as available AI functionality. SPRS submission, eSRS integration, and unrestricted AI assistant workflows remain outside this contract.
+- Generated-policy creation and editing require explicit user-selected classification metadata. Existing clients that posted an empty generation body must now send `classification`; this is a deliberate fail-closed contract change, and existing stored policies migrate to `Unknown` until reviewed.
 - Long-running work, such as SAM lookup, contract extraction, obligation evaluation, and report generation, returns `202 Accepted` with a job ID.
 - Paged list endpoints use `page` and `pageSize`, with `pageSize` capped at 100.
+- Legacy PascalCase obligation task statuses remain readable during client migration; `statusCode` and task search use the canonical lower-snake-case values.
+
+## Compliance task compatibility and pagination
+
+- `GET /api/tasks` is a deprecated, unpaged compatibility endpoint. It returns
+  `Deprecation: true` and a `Link` header identifying `GET /api/tasks/search` as
+  its successor. Removal requires a coordinated major contract release after
+  measured consumer migration.
+- New consumers use `GET /api/tasks/search`. Offset requests are capped at
+  100,000 skipped records. Cursor requests use the returned `nextCursor`, cannot
+  include `page`, and are authenticated and bound to the tenant, filters, and
+  page size. Cursors expire after 15 minutes; clients restart the search when a
+  cursor is rejected.
+- Task status input accepts deprecated PascalCase aliases during the migration
+  window. New consumers send and read canonical lower-snake-case status codes.
+- Operational retirement evidence is emitted through structured events
+  `LegacyTaskListUsed` and `LegacyTaskStatusInputUsed`, and low-cardinality meter
+  `Gccs.Api.TaskCompatibility`. Status values, tenant IDs, and user IDs are not
+  metric labels. Remove compatibility behavior only after known consumers are
+  migrated and production records no legacy traffic for the agreed observation
+  window.
+- Cursor authentication uses a dedicated HMAC key rather than an instance-local
+  key ring. The production and staging workflows validate and install the same
+  base64-encoded key on every API instance, and an optional previous key supports
+  zero-downtime rotation across the 15-minute cursor lifetime.
+- `.github/workflows/task-api-compatibility-observation.yml` queries the existing
+  Application Insights resource weekly and emits a No-CUI retirement-evidence
+  artifact. It fails closed when telemetry heartbeats are absent or any legacy
+  usage occurred during the preceding 30 days.
 
 ## Suggested Implementation Order
 
@@ -43,7 +74,13 @@ The specification covers the MVP API for a No-CUI government contractor complian
 
 ## Validation
 
-The spec is OpenAPI 3.1 YAML. A basic local parse/reference check can be run with:
+The spec is OpenAPI 3.1 YAML. Run semantic validation, including local `$ref` resolution, with:
+
+```bash
+npm run lint:openapi
+```
+
+For a syntax-only YAML parse:
 
 ```bash
 ruby -ryaml -e 'doc = YAML.load_file("docs/api/openapi.yaml"); puts doc["openapi"]'

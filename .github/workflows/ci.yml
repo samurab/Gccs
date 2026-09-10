@@ -75,6 +75,7 @@ jobs:
           dotnet test Gccs.slnx
           --no-build
           --configuration Release
+          --settings tests/Gccs.Api.Tests/regression.runsettings
           --filter "Category!=LocalDocker&Category!=PostgresIntegration"
           --logger "trx;LogFileName=gccs-backend-tests.trx"
           --results-directory TestResults/backend
@@ -114,6 +115,9 @@ jobs:
 
       - name: Restore frontend dependencies
         run: npm ci
+
+      - name: Validate OpenAPI contract
+        run: npm run lint:openapi
 
       - name: Scan frontend dependencies for known vulnerabilities
         run: npm audit --audit-level=high

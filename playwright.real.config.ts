@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:5174";
 const apiURL = process.env.PLAYWRIGHT_API_URL ?? "http://127.0.0.1:5063";
+const webPort = Number(new URL(baseURL).port);
 
 export default defineConfig({
   testDir: "./apps/web/e2e-real",
@@ -33,7 +34,7 @@ export default defineConfig({
       }
     },
     {
-      command: "npm --workspace apps/web run dev -- --host 127.0.0.1 --port 5174",
+      command: `npm --workspace apps/web run dev -- --host 127.0.0.1 --port ${webPort}`,
       url: baseURL,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

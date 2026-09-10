@@ -1322,32 +1322,22 @@ paths:
       tags:
         - Tasks
       summary: List compliance tasks
+      description: Legacy unpaged list. New consumers should use `/api/tasks/search`.
+      deprecated: true
       operationId: listTasks
-      parameters:
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PageSize"
-        - name: status
-          in: query
-          schema:
-            $ref: "#/components/schemas/TaskStatus"
-        - name: ownerUserId
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: dueFrom
-          in: query
-          schema:
-            type: string
-            format: date
-        - name: dueTo
-          in: query
-          schema:
-            type: string
-            format: date
       responses:
         "200":
           description: Tenant-scoped compliance tasks.
+          headers:
+            Deprecation:
+              description: Always `true`; consumers must migrate to `/api/tasks/search`.
+              schema:
+                type: string
+                const: "true"
+            Link:
+              description: Successor endpoint relation.
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -1402,6 +1392,56 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /api/tasks/search:
+    get:
+      tags:
+        - Tasks
+      summary: Search tenant-scoped compliance tasks
+      operationId: searchTasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/TaskStatusInput"
+        - name: ownerUserId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: dueFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dueTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: cursor
+          in: query
+          description: >-
+            Opaque cursor returned as `nextCursor`. Cursor pagination cannot be combined with
+            `page`, expires after 15 minutes, and is bound to the current tenant, filters, and page size.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Filtered page containing only current-tenant tasks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceTaskPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /api/tasks/{taskId}:
     parameters:
@@ -2916,6 +2956,176 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/compliance/ssp/sections/{sectionId}/narratives:
+    parameters:
+      - { name: sectionId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [SSP]
+      summary: List durable SSP narratives for a current-tenant section
+      operationId: listSspNarratives
+      responses:
+        "200":
+          description: Tenant-scoped narrative versions ordered newest first.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SspNarrative" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [SSP]
+      summary: Generate a draft narrative from server-resolved approved sources
+      operationId: generateSspNarrativeDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GenerateSspNarrativeDraftRequest" }
+      responses:
+        "201":
+          description: Source-backed, draft-only narrative generated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SspNarrative" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/compliance/ssp/sections/{sectionId}/narratives/{narrativeId}:
+    parameters:
+      - { name: sectionId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: narrativeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [SSP]
+      summary: Get a tenant-scoped SSP narrative
+      operationId: getSspNarrative
+      responses:
+        "200": { description: SSP narrative., content: { application/json: { schema: { $ref: "#/components/schemas/SspNarrative" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [SSP]
+      summary: Edit a draft SSP narrative with explicit classification
+      operationId: editSspNarrativeDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EditSspNarrativeDraftRequest" }
+      responses:
+        "200": { description: Draft updated., content: { application/json: { schema: { $ref: "#/components/schemas/SspNarrative" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/compliance/ssp/sections/{sectionId}/narratives/{narrativeId}/approve:
+    parameters:
+      - { name: sectionId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: narrativeId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [SSP]
+      summary: Approve a current draft after authoritative source revalidation
+      operationId: approveSspNarrative
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApproveSspNarrativeRequest" }
+      responses:
+        "200": { description: Narrative approved and prior approved version superseded., content: { application/json: { schema: { $ref: "#/components/schemas/SspNarrative" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/compliance/ssp/sections/{sectionId}/narratives/{narrativeId}/comparison:
+    parameters:
+      - { name: sectionId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: narrativeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [SSP]
+      summary: Compare the current approved narrative with a proposed version
+      operationId: compareSspNarrative
+      responses:
+        "200": { description: "Approved and proposed text, sources, and review metadata.", content: { application/json: { schema: { $ref: "#/components/schemas/SspNarrativeComparison" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/compliance/ssp/export-packages:
+    get:
+      tags: [SSP]
+      summary: List immutable SSP review package history for the current tenant
+      operationId: listSspExportPackages
+      responses:
+        "200": { description: Tenant-scoped SSP package history., content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SspExportPackage" } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [SSP]
+      summary: Generate an immutable internal SSP review package from server-resolved records
+      operationId: generateSspExportPackage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateSspExportPackageRequest" } } }
+      responses:
+        "201": { description: Internal review package generated and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPackage" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/compliance/ssp/export-packages/{packageId}:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [SSP]
+      summary: Get an SSP review package in the current tenant scope
+      operationId: getSspExportPackage
+      responses:
+        "200": { description: SSP review package snapshot., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPackage" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/compliance/ssp/export-packages/{packageId}/external-share-approval:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [SSP]
+      summary: Record explicit administrative approval for external sharing
+      operationId: approveSspExportPackageExternalShare
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SspExternalShareApprovalRequest" } } }
+      responses:
+        "200": { description: External-share approval recorded., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPackage" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/compliance/ssp/export-packages/{packageId}/share:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [SSP]
+      summary: Record one external share after explicit package approval
+      operationId: shareSspExportPackage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SspExternalShareRequest" } } }
+      responses:
+        "200": { description: External share recorded and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/SspExportPackage" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -4293,6 +4503,7 @@ components:
         - assignedRoleName
         - riskLevel
         - status
+        - statusCode
         - module
         - isOverdue
         - isHighRisk
@@ -4347,6 +4558,10 @@ components:
           $ref: "#/components/schemas/RiskLevel"
         status:
           type: string
+          deprecated: true
+          description: Legacy PascalCase status. Use statusCode.
+        statusCode:
+          $ref: "#/components/schemas/ObligationTaskStatusCode"
         dueAt:
           type:
             - string
@@ -4375,6 +4590,7 @@ components:
         - $ref: "#/components/schemas/ContractObligationDashboardItem"
         - type: object
           required:
+            - statusCode
             - clauseTitle
             - triggerCondition
             - flowDownRequired
@@ -4382,6 +4598,8 @@ components:
             - linkedTasks
             - linkedEvidence
           properties:
+            statusCode:
+              $ref: "#/components/schemas/ObligationTaskStatusCode"
             clauseTitle:
               type: string
             triggerCondition:
@@ -4405,6 +4623,7 @@ components:
         - id
         - title
         - status
+        - statusCode
         - ownerFunction
         - riskLevel
       properties:
@@ -4415,6 +4634,10 @@ components:
           type: string
         status:
           type: string
+          deprecated: true
+          description: Legacy PascalCase status. Use statusCode.
+        statusCode:
+          $ref: "#/components/schemas/TaskStatus"
         dueAt:
           type:
             - string
@@ -4458,7 +4681,7 @@ components:
         - status
       properties:
         status:
-          $ref: "#/components/schemas/ComplianceTaskStatus"
+          $ref: "#/components/schemas/TaskStatusInput"
 
     AssignContractObligationOwnerRequest:
       type: object
@@ -4812,13 +5035,7 @@ components:
         description:
           type: string
         status:
-          type: string
-          enum:
-            - open
-            - in_progress
-            - blocked
-            - completed
-            - canceled
+          $ref: "#/components/schemas/TaskStatus"
         priority:
           $ref: "#/components/schemas/RiskLevel"
         assignedToUserId:
@@ -4858,7 +5075,7 @@ components:
             - string
             - "null"
         status:
-          type: string
+          $ref: "#/components/schemas/TaskStatus"
         priority:
           $ref: "#/components/schemas/RiskLevel"
         assignedToUserId:
@@ -4883,6 +5100,32 @@ components:
           type:
             - string
             - "null"
+
+    ComplianceTaskPage:
+      type: object
+      required: [items, page, pageSize, totalCount, hasMore]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ComplianceTask"
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalCount:
+          type: integer
+          minimum: 0
+        nextCursor:
+          description: Opaque, authenticated cursor for the next result slice; null on the final slice.
+          type:
+            - string
+            - "null"
+        hasMore:
+          type: boolean
 
     GenerateRenewalTasksRequest:
       type: object
@@ -7250,14 +7493,38 @@ components:
         - expired
         - review-needed
 
+    ComplianceTaskStatus:
+      type: string
+      deprecated: true
+      description: Legacy PascalCase input values retained for compatibility.
+      enum:
+        - Open
+        - InProgress
+        - Blocked
+        - WaitingForReview
+        - Done
+        - Canceled
+
     TaskStatus:
       type: string
       enum:
         - open
-        - in-progress
+        - in_progress
         - blocked
+        - waiting_for_review
         - completed
-        - cancelled
+        - canceled
+
+    TaskStatusInput:
+      oneOf:
+        - $ref: "#/components/schemas/TaskStatus"
+        - $ref: "#/components/schemas/ComplianceTaskStatus"
+
+    ObligationTaskStatusCode:
+      oneOf:
+        - $ref: "#/components/schemas/TaskStatus"
+        - type: string
+          enum: [not_started]
 
     TaskCategory:
       type: string
@@ -7466,6 +7733,180 @@ components:
               items: { $ref: "#/components/schemas/SspSectionHistory" }
             createdAt: { type: string, format: date-time }
             updatedAt: { type: string, format: date-time }
+
+    SspNarrativeStatus:
+      type: string
+      enum: [Draft, Approved, Superseded, Archived]
+
+    SspNarrativeSourceType:
+      type: string
+      enum: [Evidence, GeneratedPolicy, Clause, Obligation]
+
+    SspNarrativeSourceLinkRequest:
+      type: object
+      required: [sourceType, recordId]
+      additionalProperties: false
+      properties:
+        sourceType: { $ref: "#/components/schemas/SspNarrativeSourceType" }
+        recordId: { type: string, minLength: 1, maxLength: 120 }
+
+    GenerateSspNarrativeDraftRequest:
+      type: object
+      required: [sources]
+      additionalProperties: false
+      properties:
+        sources:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/SspNarrativeSourceLinkRequest" }
+        generationMode:
+          type: string
+          enum: [Deterministic, AiAssisted]
+          default: Deterministic
+          description: AI-assisted requests fail closed unless an approved provider is configured for the deployment.
+
+    SspNarrativeClassification:
+      type: object
+      required: [classification, source, isApprovedDemoContent]
+      properties:
+        classification: { type: string, enum: [Unclassified, Fci, Cui, SyntheticCui, Prohibited, Unknown] }
+        source: { type: string, enum: [UserSelected, SystemSuggested, AdminReviewed, ImportedDemoSeed] }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        reviewedByUserId: { type: [string, "null"], format: uuid }
+        reviewedAt: { type: [string, "null"], format: date-time }
+        reason: { type: [string, "null"], maxLength: 600 }
+        isApprovedDemoContent: { type: boolean }
+
+    EditSspNarrativeDraftRequest:
+      type: object
+      required: [editedText, classification, expectedVersion]
+      additionalProperties: false
+      properties:
+        editedText: { type: string, minLength: 1, maxLength: 20000 }
+        reviewerNotes: { type: [string, "null"], maxLength: 4000 }
+        classification:
+          allOf:
+            - $ref: "#/components/schemas/SspNarrativeClassification"
+          description: User-selected classification confirmation. Reviewer and trusted demo provenance fields cannot be asserted by the client.
+        expectedVersion: { type: integer, format: int64, minimum: 1 }
+
+    ApproveSspNarrativeRequest:
+      type: object
+      required: [reviewDate, expectedVersion]
+      additionalProperties: false
+      properties:
+        reviewDate: { type: string, format: date }
+        expectedVersion: { type: integer, format: int64, minimum: 1 }
+
+    SspNarrativeSource:
+      type: object
+      required: [sourceType, recordId, label, summary, sourceUrl, fingerprint, classification]
+      properties:
+        sourceType: { $ref: "#/components/schemas/SspNarrativeSourceType" }
+        recordId: { type: string }
+        label: { type: string }
+        summary: { type: string }
+        sourceUrl: { type: string }
+        fingerprint: { type: string, description: Server-derived source revision fingerprint used for approval-time freshness checks. }
+        classification: { type: string, enum: [Unclassified, Fci, Cui, SyntheticCui, Prohibited, Unknown] }
+
+    SspNarrative:
+      type: object
+      required: [id, tenantId, sectionId, generatedText, status, aiAssisted, draftOnly, version, classification, sourceRecords, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        sectionId: { type: string, format: uuid }
+        generatedText: { type: string, maxLength: 20000 }
+        editedText: { type: [string, "null"], maxLength: 20000 }
+        approvedText: { type: [string, "null"], maxLength: 20000 }
+        status: { $ref: "#/components/schemas/SspNarrativeStatus" }
+        aiAssisted: { type: boolean, description: True only when an implemented provider generated the draft; deterministic generation returns false. }
+        draftOnly: { type: boolean }
+        reviewerNotes: { type: [string, "null"], maxLength: 4000 }
+        reviewerUserId: { type: [string, "null"], format: uuid }
+        reviewer: { type: [string, "null"] }
+        reviewDate: { type: [string, "null"], format: date }
+        version: { type: integer, format: int64, minimum: 1 }
+        classification: { $ref: "#/components/schemas/SspNarrativeClassification" }
+        sourceRecords: { type: array, items: { $ref: "#/components/schemas/SspNarrativeSource" } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    SspNarrativeComparison:
+      type: object
+      required: [sectionId, draftNarrativeId, proposedText, proposedSources, currentApprovedSources]
+      properties:
+        sectionId: { type: string, format: uuid }
+        approvedNarrativeId: { type: [string, "null"], format: uuid }
+        draftNarrativeId: { type: string, format: uuid }
+        currentApprovedText: { type: [string, "null"] }
+        proposedText: { type: string }
+        currentApprovedReviewerUserId: { type: [string, "null"], format: uuid }
+        currentApprovedReviewer: { type: [string, "null"] }
+        currentApprovedReviewDate: { type: [string, "null"], format: date }
+        proposedReviewerNotes: { type: [string, "null"] }
+        proposedSources: { type: array, items: { $ref: "#/components/schemas/SspNarrativeSource" } }
+        currentApprovedSources: { type: array, items: { $ref: "#/components/schemas/SspNarrativeSource" } }
+
+    CreateSspExportPackageRequest:
+      type: object
+      additionalProperties: false
+      required: [packageVersion, systemBoundary, reviewer, format, externalShareRequested, evidenceItemIds, poamItemIds]
+      properties:
+        packageVersion: { type: string, minLength: 1, maxLength: 80 }
+        systemBoundary: { type: string, minLength: 1, maxLength: 4000 }
+        reviewer: { type: string, minLength: 1, maxLength: 200 }
+        format: { type: string, enum: [HumanReadable, MachineReadable, Both] }
+        externalShareRequested:
+          type: boolean
+          description: Must be false during generation. External sharing requires the separate administrative approval lifecycle.
+        evidenceItemIds: { type: array, maxItems: 500, uniqueItems: true, items: { type: string, format: uuid } }
+        poamItemIds: { type: array, maxItems: 500, uniqueItems: true, items: { type: string, format: uuid } }
+
+    SspExternalShareApprovalRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties: { reason: { type: string, minLength: 1, maxLength: 1000 } }
+
+    SspExternalShareRequest:
+      type: object
+      additionalProperties: false
+      required: [recipient, purpose]
+      properties:
+        recipient: { type: string, minLength: 1, maxLength: 320 }
+        purpose: { type: string, minLength: 1, maxLength: 1000 }
+
+    SspExportPackage:
+      type: object
+      required: [id, tenantId, tenantName, generatedAt, packageVersion, systemBoundary, reviewer, format, disclaimer, humanReadableReport, machineReadableMetadata, sections, includedEvidence, poamReferences, status, history]
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        tenantName: { type: string }
+        generatedAt: { type: string, format: date-time }
+        packageVersion: { type: string }
+        systemBoundary: { type: string }
+        reviewer: { type: string }
+        format: { type: string, enum: [HumanReadable, MachineReadable, Both] }
+        disclaimer: { type: string, description: "Draft-only review language that disclaims certification, assessment determination, authorization, legal advice, and government approval or endorsement." }
+        humanReadableReport: { type: string }
+        machineReadableMetadata: { type: object, description: Immutable JSON metadata snapshot. }
+        sections: { type: array, items: { type: object } }
+        includedEvidence: { type: array, items: { type: object } }
+        poamReferences: { type: array, items: { type: object } }
+        status: { type: string, enum: [InternalReview, ExternalShareApproved, Shared] }
+        externalShareApprovedByUserId: { type: [string, "null"], format: uuid }
+        externalShareApprovedAt: { type: [string, "null"], format: date-time }
+        externalShareApprovalReason: { type: [string, "null"] }
+        sharedByUserId: { type: [string, "null"], format: uuid }
+        sharedAt: { type: [string, "null"], format: date-time }
+        sharedRecipient: { type: [string, "null"] }
+        sharedPurpose: { type: [string, "null"] }
+        history: { type: array, items: { type: object } }
 
     SourceType:
       type: string

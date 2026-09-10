@@ -97,6 +97,7 @@ public sealed class ObligationDashboardTests : IClassFixture<WebApplicationFacto
         {
             var obligation = Assert.Single(result);
             Assert.Equal("match-obligation", obligation.ObligationId);
+            Assert.Equal("open", obligation.StatusCode);
         }
     }
 

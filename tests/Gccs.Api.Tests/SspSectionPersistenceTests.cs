@@ -73,7 +73,6 @@ public sealed class SspSectionPersistenceTests
         services.AddSingleton<ICurrentTenantContext>(new FixedTenantContext(tenant, actor));
         services.AddSingleton<InMemorySspSectionRepository>();
         services.AddSingleton<ISspNarrativeRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
-        services.AddSingleton<ISspExportPackageRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
         services.AddScoped<SspSectionService>();
         await using var provider = services.BuildServiceProvider();
         await using (var setupScope = provider.CreateAsyncScope())

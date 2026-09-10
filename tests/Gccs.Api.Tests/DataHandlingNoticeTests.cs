@@ -7,6 +7,15 @@ namespace Gccs.Api.Tests;
 
 public sealed class DataHandlingNoticeTests
 {
+    [Theory]
+    [InlineData("GeneratedPolicy")]
+    [InlineData("SspNarrative")]
+    public void Compliance_authoring_workflows_use_the_existing_onboarding_notice(string workflow)
+    {
+        Assert.Equal("Onboarding", CurrentDataHandlingNoticeService.NormalizeWorkflow(workflow));
+        Assert.Equal("Onboarding", CurrentDataHandlingNoticeService.PublishedNoticeWorkflow(workflow));
+    }
+
     [Fact]
     public async Task TC_1A_6_1_1_Published_notice_exists_for_each_mode()
     {

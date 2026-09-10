@@ -18,6 +18,16 @@ public enum SspSectionType
 
 public enum SspSectionStatus { Draft, InReview, Approved, Superseded, Archived }
 
+public enum SspNarrativeStatus { Draft, Approved, Superseded, Archived }
+
+public enum SspNarrativeSourceType
+{
+    Evidence,
+    GeneratedPolicy,
+    Clause,
+    Obligation
+}
+
 public enum SspLinkedRecordType
 {
     CompanyProfile,

@@ -145,6 +145,7 @@ public sealed class DevelopmentTestingContextTests : IClassFixture<WebApplicatio
                 builder.UseSetting("Authentication:Audience", "api://gccs-tests");
                 builder.UseSetting("Cors:AllowedOrigins:0", "https://gccs-tests.example");
                 builder.UseSetting("AllowedHosts", "gccs-tests.example");
+                builder.UseSetting("TaskSearch:CursorSigningKey", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
             }
             builder.ConfigureServices(services =>
             {
