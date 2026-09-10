@@ -134,6 +134,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SspSectionLinkEntity> SspSectionLinks => Set<SspSectionLinkEntity>();
     public DbSet<SspSectionSourceReferenceEntity> SspSectionSourceReferences => Set<SspSectionSourceReferenceEntity>();
     public DbSet<SspSectionHistoryEntity> SspSectionHistory => Set<SspSectionHistoryEntity>();
+    public DbSet<SspNarrativeEntity> SspNarratives => Set<SspNarrativeEntity>();
+    public DbSet<SspNarrativeSourceEntity> SspNarrativeSources => Set<SspNarrativeSourceEntity>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -209,6 +211,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<SspSectionType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SspSectionStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SspLinkedRecordType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspNarrativeStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SspNarrativeSourceType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<InvitationDeliveryStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
@@ -229,7 +233,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     {
         modelBuilder.HasDefaultSchema("gccs");
         ConfigureSsp(modelBuilder);
-        foreach (var type in new[] { typeof(EvidenceItemEntity), typeof(EvidenceFileVersionEntity), typeof(ContractDocumentEntity),
+        foreach (var type in new[] { typeof(EvidenceItemEntity), typeof(EvidenceFileVersionEntity), typeof(ContractDocumentEntity), typeof(GeneratedPolicyEntity),
             typeof(ExtractionJobEntity), typeof(ClassifiedNoteEntity), typeof(ReportEntity), typeof(ReportClassificationEntity) })
             modelBuilder.Entity(type).Property<long>("ClassificationRevision").IsConcurrencyToken();
         modelBuilder.Entity<ReportClassificationEntity>(entity =>
@@ -1104,6 +1108,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.ToTable("compliance_tasks");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Status, x.DueAt });
+            entity.HasIndex(x => new { x.TenantId, x.AssignedToUserId, x.DueAt, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.ContractId });
             entity.HasIndex(x => new { x.TenantId, x.ObligationId });
             entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
@@ -1411,6 +1416,44 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.ActorName).HasMaxLength(200);
             entity.Property(x => x.Notes).HasMaxLength(2000);
             entity.HasOne(x => x.Section).WithMany(x => x.History).HasForeignKey(x => new { x.TenantId, x.SectionId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspNarrativeEntity>(entity =>
+        {
+            entity.ToTable("ssp_narratives");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.SectionId, x.UpdatedAt });
+            entity.HasIndex(x => new { x.TenantId, x.SectionId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.SectionId }).IsUnique().HasFilter("status = 'Approved'");
+            entity.Property(x => x.GeneratedText).HasMaxLength(20_000);
+            entity.Property(x => x.EditedText).HasMaxLength(20_000);
+            entity.Property(x => x.ApprovedText).HasMaxLength(20_000);
+            entity.Property(x => x.ReviewerNotes).HasMaxLength(4_000);
+            entity.Property(x => x.Reviewer).HasMaxLength(320);
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Section).WithMany(x => x.Narratives)
+                .HasForeignKey(x => new { x.TenantId, x.SectionId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SspNarrativeSourceEntity>(entity =>
+        {
+            entity.ToTable("ssp_narrative_sources");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.NarrativeId, x.SourceType, x.RecordId }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.SourceType, x.RecordId });
+            entity.Property(x => x.RecordId).HasMaxLength(120);
+            entity.Property(x => x.Label).HasMaxLength(300);
+            entity.Property(x => x.Summary).HasMaxLength(1_000);
+            entity.Property(x => x.SourceUrl).HasMaxLength(1_000);
+            entity.Property(x => x.Fingerprint).HasMaxLength(128);
+            entity.HasOne(x => x.Narrative).WithMany(x => x.Sources)
+                .HasForeignKey(x => new { x.TenantId, x.NarrativeId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 
@@ -1793,6 +1836,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
             entity.Property(x => x.PlaceholderValuesJson).HasColumnType("jsonb");
             entity.Property(x => x.MissingPlaceholdersJson).HasColumnType("jsonb");
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
             entity.HasOne(x => x.SourceTemplate).WithMany().HasForeignKey(x => x.SourceTemplateId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => x.EvidenceItemId).OnDelete(DeleteBehavior.Restrict);
             ConfigureAuditColumns(entity);
@@ -1806,6 +1850,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
             entity.Property(x => x.Body).IsRequired();
             entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
             entity.HasOne(x => x.GeneratedPolicy).WithMany(x => x.Revisions).HasForeignKey(x => x.GeneratedPolicyId).OnDelete(DeleteBehavior.Cascade);
         });
     }

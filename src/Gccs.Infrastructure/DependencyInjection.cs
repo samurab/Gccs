@@ -65,6 +65,8 @@ public static class DependencyInjection
         services.AddScoped<TrustArtifactLibraryService>();
         services.AddScoped<FedRampReadinessExportPackageService>();
         services.AddScoped<SspSectionService>();
+        services.AddScoped<SspNarrativeService>();
+        services.AddSingleton<ISspNarrativeAiGenerator, UnavailableSspNarrativeAiGenerator>();
         services.AddScoped<CuiEnclaveBoundaryService>();
         services.AddScoped<CustomerManagedKeyPolicyService>();
         services.AddScoped<CuiEnclaveAccessControlService>();
@@ -129,7 +131,6 @@ public static class DependencyInjection
         services.AddSingleton<IPortalPackageLifecycleRepository, InMemoryPortalPackageLifecycleRepository>();
         services.AddSingleton<ITrustArtifactLibraryRepository, InMemoryTrustArtifactLibraryRepository>();
         services.AddSingleton<InMemorySspSectionRepository>();
-        services.AddSingleton<ISspNarrativeRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
         services.AddSingleton<ISspExportPackageRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
         services.AddSingleton<ICuiEnclaveBoundaryRepository, InMemoryCuiEnclaveBoundaryRepository>();
         services.AddSingleton<ICustomerManagedKeyPolicyRepository, InMemoryCustomerManagedKeyPolicyRepository>();
@@ -149,6 +150,7 @@ public static class DependencyInjection
         services.AddScoped<AuditLogService>();
         services.AddScoped<CuiAuditExportService>();
         services.AddScoped<ComplianceTaskService>();
+        services.AddScoped<ComplianceTaskSearchService>();
         services.AddScoped<RenewalGenerationService>();
         services.AddScoped<EvidenceMetadataService>();
         services.AddScoped<EvidenceRequestService>();
@@ -418,6 +420,7 @@ public static class DependencyInjection
             services.AddScoped<IComplianceChecklistRepository, EfComplianceChecklistRepository>();
             services.AddScoped<IObligationRepository, EfObligationRepository>();
             services.AddScoped<IComplianceTaskRepository, EfComplianceTaskRepository>();
+            services.AddScoped<IComplianceTaskSearchRepository, EfComplianceTaskRepository>();
             services.AddScoped<IRenewalTaskRepository, EfRenewalTaskRepository>();
             services.AddScoped<ICalendarRepository, EfCalendarRepository>();
             services.AddScoped<IEvidenceMetadataRepository, EfEvidenceMetadataRepository>();
@@ -432,11 +435,15 @@ public static class DependencyInjection
             services.AddScoped<IFedRampReadinessExportPackageRepository, EfFedRampReadinessExportPackageRepository>();
             services.AddScoped<ISspSectionRepository, EfSspSectionRepository>();
             services.AddScoped<ISspSectionLinkValidator, EfSspSectionLinkValidator>();
+            services.AddScoped<ISspNarrativeRepository, EfSspNarrativeRepository>();
+            services.AddScoped<ISspNarrativeSourceResolver, EfSspNarrativeSourceResolver>();
         }
         else
         {
             services.AddSingleton<ISspSectionRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
             services.AddSingleton<ISspSectionLinkValidator, PermissiveSspSectionLinkValidator>();
+            services.AddSingleton<ISspNarrativeRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
+            services.AddSingleton<ISspNarrativeSourceResolver, UnavailableSspNarrativeSourceResolver>();
             services.AddSingleton<IClauseLibraryRepository, InMemoryClauseLibraryRepository>();
             services.AddSingleton<IObligationRepository, InMemoryObligationRepository>();
             services.AddScoped<ITenantRepository>(_ =>
@@ -527,6 +534,8 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Compliance checklist persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IComplianceTaskRepository>(_ =>
                 throw new InvalidOperationException("Task persistence requires ConnectionStrings:GccsDatabase to be configured."));
+            services.AddScoped<IComplianceTaskSearchRepository>(_ =>
+                throw new InvalidOperationException("Task search requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<IRenewalTaskRepository>(_ =>
                 throw new InvalidOperationException("Renewal task generation requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddScoped<ICalendarRepository>(_ =>

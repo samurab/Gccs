@@ -1,6 +1,7 @@
 using Gccs.Application.Security;
 using Gccs.Application.Tasks;
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Identity;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ namespace Gccs.Infrastructure.Tasks;
 
 public sealed class EfComplianceTaskRepository(
     GccsDbContext dbContext,
-    ICurrentTenantContext tenantContext) : IComplianceTaskRepository
+    ICurrentTenantContext tenantContext) : IComplianceTaskRepository, IComplianceTaskSearchRepository
 {
     public async Task<IReadOnlyList<ComplianceTaskDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
         await dbContext.ComplianceTasks
@@ -19,6 +20,66 @@ public sealed class EfComplianceTaskRepository(
             .ThenByDescending(task => task.CreatedAt)
             .Select(task => ToDto(task))
             .ToArrayAsync(cancellationToken);
+
+    public Task<ComplianceTaskDto?> FindCurrentTenantAsync(Guid taskId, CancellationToken cancellationToken = default) =>
+        dbContext.ComplianceTasks.AsNoTracking()
+            .Where(task => task.TenantId == tenantContext.TenantId && task.Id == taskId)
+            .Select(task => ToDto(task))
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<bool> IsActiveCurrentTenantMemberAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var hasActiveMembership = await dbContext.TenantMemberships.AsNoTracking().AnyAsync(
+            membership =>
+                membership.TenantId == tenantContext.TenantId &&
+                membership.UserId == userId &&
+                membership.Status == MembershipStatus.Active,
+            cancellationToken);
+        return hasActiveMembership && await dbContext.Users.AsNoTracking().AnyAsync(
+            user => user.Id == userId && user.Status == UserStatus.Active,
+            cancellationToken);
+    }
+
+    public async Task<ComplianceTaskPageDto> SearchCurrentTenantAsync(
+        ComplianceTaskStatus? status,
+        ComplianceTaskSearchQuery query,
+        ComplianceTaskCursor? cursor,
+        CancellationToken cancellationToken = default)
+    {
+        var tasks = dbContext.ComplianceTasks.AsNoTracking()
+            .Where(task => task.TenantId == tenantContext.TenantId);
+
+        if (status.HasValue) tasks = tasks.Where(task => task.Status == status.Value);
+        if (query.OwnerUserId.HasValue) tasks = tasks.Where(task => task.AssignedToUserId == query.OwnerUserId.Value);
+        if (query.DueFrom.HasValue) tasks = tasks.Where(task => task.DueAt.HasValue && task.DueAt.Value >= query.DueFrom.Value);
+        if (query.DueTo.HasValue) tasks = tasks.Where(task => task.DueAt.HasValue && task.DueAt.Value <= query.DueTo.Value);
+
+        var totalCount = await tasks.CountAsync(cancellationToken);
+        if (cursor is not null)
+        {
+            var cursorDueAt = cursor.DueAt ?? DateOnly.MaxValue;
+            tasks = tasks.Where(task =>
+                (task.DueAt ?? DateOnly.MaxValue) > cursorDueAt ||
+                ((task.DueAt ?? DateOnly.MaxValue) == cursorDueAt &&
+                    (task.CreatedAt < cursor.CreatedAt ||
+                     (task.CreatedAt == cursor.CreatedAt && task.Id.CompareTo(cursor.Id) > 0))));
+        }
+
+        var offset = cursor is null ? (query.Page - 1) * query.PageSize : 0;
+        var rows = await tasks
+            .OrderBy(task => task.DueAt ?? DateOnly.MaxValue)
+            .ThenByDescending(task => task.CreatedAt)
+            .ThenBy(task => task.Id)
+            .Skip(offset)
+            .Take(query.PageSize + 1)
+            .Select(task => ToDto(task))
+            .ToArrayAsync(cancellationToken);
+        var hasMore = rows.Length > query.PageSize;
+        var items = hasMore ? rows[..query.PageSize] : rows;
+        return new ComplianceTaskPageDto(items, query.Page, query.PageSize, totalCount, HasMore: hasMore);
+    }
 
     public async Task<ComplianceTaskDto?> CreateAsync(
         CreateComplianceTaskRequest request,
@@ -122,7 +183,7 @@ public sealed class EfComplianceTaskRepository(
             entity.Title,
             entity.Description,
             entity.Type,
-            ToStatus(entity.Status),
+            ComplianceTaskStatusCodec.Format(entity.Status),
             entity.RiskLevel,
             entity.AssignedToUserId,
             entity.OwnerFunction,
@@ -165,13 +226,4 @@ public sealed class EfComplianceTaskRepository(
             : ("general", null);
     }
 
-    private static string ToStatus(ComplianceTaskStatus status) =>
-        status switch
-        {
-            ComplianceTaskStatus.InProgress => "in_progress",
-            ComplianceTaskStatus.WaitingForReview => "waiting_for_review",
-            ComplianceTaskStatus.Done => "completed",
-            ComplianceTaskStatus.Canceled => "canceled",
-            _ => status.ToString().ToLowerInvariant()
-        };
 }

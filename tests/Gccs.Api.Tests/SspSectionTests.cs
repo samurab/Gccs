@@ -249,7 +249,7 @@ public sealed class SspSectionTests : IClassFixture<WebApplicationFactory<Progra
         request.Headers.Add("X-Gccs-Dev-Tenant", ids.TenantId.ToString());
         request.Headers.Add("X-Gccs-Dev-User", ids.ActorUserId.ToString());
         request.Headers.Add("X-Gccs-Dev-Email", "po@example.com");
-        request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageTenant.ToString());
+        request.Headers.Add("X-Gccs-Dev-Permissions", $"{Permission.ViewCmmc},{Permission.ManageCmmc}");
         return request;
     }
 

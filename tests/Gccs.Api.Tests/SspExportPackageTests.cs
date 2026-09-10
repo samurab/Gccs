@@ -3,13 +3,17 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Compliance;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Common;
 using Gccs.Domain.Compliance;
 using Gccs.Domain.Identity;
 using Gccs.Infrastructure.Compliance;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
 namespace Gccs.Api.Tests;
@@ -141,14 +145,15 @@ public sealed class SspExportPackageTests : IClassFixture<WebApplicationFactory<
         var approveSection = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{section.Id}/status", new SspSectionStatusRequest(SspSectionStatus.Approved, "reviewer", reviewed.Version, new DateOnly(2026, 6, 19), "security reviewer"), ids));
         Assert.Equal(HttpStatusCode.OK, approveSection.StatusCode);
 
-        var narrativeResponse = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{section.Id}/narratives", new GenerateSspNarrativeDraftRequest([new SspNarrativeSourceRecordDto("evidence", "evidence-1", ids.TenantId, "Boundary evidence reviewed.", "https://internal.example.com/evidence/evidence-1", true, false)], false), ids));
+        var narrativeResponse = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{section.Id}/narratives", new GenerateSspNarrativeDraftRequest([new SspNarrativeSourceLinkRequest(SspNarrativeSourceType.Evidence, "evidence-1")]), ids));
         Assert.Equal(HttpStatusCode.Created, narrativeResponse.StatusCode);
         var narrative = Assert.IsType<SspNarrativeDto>(await narrativeResponse.Content.ReadFromJsonAsync<SspNarrativeDto>(JsonOptions));
 
-        var editResponse = await client.SendAsync(Request(HttpMethod.Put, $"/api/compliance/ssp/sections/{section.Id}/narratives/{narrative.Id}", new EditSspNarrativeDraftRequest("Approved boundary narrative."), ids));
+        var editResponse = await client.SendAsync(Request(HttpMethod.Put, $"/api/compliance/ssp/sections/{section.Id}/narratives/{narrative.Id}", new EditSspNarrativeDraftRequest("Approved boundary narrative.", null, new ContentClassificationRequest(ContentClassification.Unclassified), narrative.Version), ids));
         Assert.Equal(HttpStatusCode.OK, editResponse.StatusCode);
+        narrative = Assert.IsType<SspNarrativeDto>(await editResponse.Content.ReadFromJsonAsync<SspNarrativeDto>(JsonOptions));
 
-        var approveNarrative = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{section.Id}/narratives/{narrative.Id}/approve", new ApproveSspNarrativeRequest("security reviewer", new DateOnly(2026, 6, 19)), ids));
+        var approveNarrative = await client.SendAsync(Request(HttpMethod.Post, $"/api/compliance/ssp/sections/{section.Id}/narratives/{narrative.Id}/approve", new ApproveSspNarrativeRequest(new DateOnly(2026, 6, 19), narrative.Version), ids));
         Assert.Equal(HttpStatusCode.OK, approveNarrative.StatusCode);
     }
 
@@ -190,8 +195,12 @@ public sealed class SspExportPackageTests : IClassFixture<WebApplicationFactory<
                 var repository = new InMemorySspSectionRepository();
                 services.AddSingleton<ISspSectionRepository>(repository);
                 services.AddSingleton<ISspNarrativeRepository>(repository);
+                services.AddSingleton<ISspNarrativeSourceResolver, ExportSourceResolver>();
                 services.AddSingleton<ISspExportPackageRepository>(repository);
                 services.AddScoped<SspSectionService>();
+                services.AddSingleton<ICurrentDataHandlingNoticeGuard, AcknowledgedNoticeGuard>();
+                services.RemoveAll<IContentContainmentRepository>();
+                services.AddSingleton<IContentContainmentRepository, AllowContentContainment>();
                 services.AddSingleton(auditWriter);
             });
         }).CreateClient();
@@ -211,12 +220,29 @@ public sealed class SspExportPackageTests : IClassFixture<WebApplicationFactory<
         request.Headers.Add("X-Gccs-Dev-Tenant", ids.TenantId.ToString());
         request.Headers.Add("X-Gccs-Dev-User", ids.ActorUserId.ToString());
         request.Headers.Add("X-Gccs-Dev-Email", "po@example.com");
-        request.Headers.Add("X-Gccs-Dev-Permissions", Permission.ManageTenant.ToString());
+        request.Headers.Add("X-Gccs-Dev-Permissions", $"{Permission.ManageTenant},{Permission.ManageCmmc}");
         return request;
     }
 
     private static TestIds Ids() => new(Guid.NewGuid(), Guid.NewGuid());
     private sealed record TestIds(Guid TenantId, Guid ActorUserId);
+
+    private sealed class ExportSourceResolver : ISspNarrativeSourceResolver
+    {
+        public Task<IReadOnlyList<ResolvedSspNarrativeSource>> ResolveAsync(Guid tenantId, IReadOnlyList<SspNarrativeSourceLinkRequest> sources, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResolvedSspNarrativeSource>>(sources.Select(source => new ResolvedSspNarrativeSource(
+                source.SourceType, source.RecordId, "Boundary evidence", "Boundary evidence reviewed.", "/evidence?item=evidence-1", "export-source-v1", ContentClassification.Unclassified)).ToArray());
+    }
+
+    private sealed class AcknowledgedNoticeGuard : ICurrentDataHandlingNoticeGuard
+    {
+        public Task EnsureAsync(string workflow, Guid actorUserId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class AllowContentContainment : IContentContainmentRepository
+    {
+        public Task<bool> IsBlockedAsync(Guid tenantId, string entityType, string entityId, CancellationToken cancellationToken = default) => Task.FromResult(false);
+    }
 
     private sealed class CapturingAuditWriter : IAuditEventWriter
     {

@@ -38,6 +38,8 @@ jobs:
       DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
       DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
       HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+      TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+      TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
     steps:
       - name: Checkout production deployment controls
         uses: actions/checkout@v7
@@ -71,6 +73,11 @@ jobs:
           test -n "$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY"
           test "${#DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY}" -ge 32
           test -n "$HUBSPOT_PRIVATE_APP_TOKEN"
+          test -n "$TASK_SEARCH_CURSOR_SIGNING_KEY"
+          test "$(printf %s "$TASK_SEARCH_CURSOR_SIGNING_KEY" | base64 --decode | wc -c)" -ge 32
+          if [[ -n "$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" ]]; then
+            test "$(printf %s "$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" | base64 --decode | wc -c)" -ge 32
+          fi
           test -f infra/terraform/environments/production/main.tf
           test -f infra/terraform/environments/production/imports.tf
           test -f infra/terraform/environments/production/.terraform.lock.hcl
@@ -143,6 +150,7 @@ jobs:
           test -n "$PRODUCTION_DATABASE_URL"
           sudo apt-get update
           sudo apt-get install --yes postgresql-client
+          psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file infra/database/predeploy-compliance-task-search-index.sql
           psql "$PRODUCTION_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-production-migrations.sql"
 
       - name: Login to Azure production subscription
@@ -152,6 +160,12 @@ jobs:
 
       - name: Configure production email delivery
         run: |
+          application_insights_connection_string="$(az monitor app-insights component show \
+            --app gccs-api-production \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --query connectionString \
+            --output tsv)"
+          test -n "$application_insights_connection_string"
           az webapp config appsettings set \
             --resource-group "$PRODUCTION_RESOURCE_GROUP" \
             --name "$PRODUCTION_API_APP_NAME" \
@@ -181,6 +195,9 @@ jobs:
               DemoRequests__HubSpot__BaseUrl=https://api.hubapi.com \
               DemoRequests__HubSpot__PrivateAppToken="$HUBSPOT_PRIVATE_APP_TOKEN" \
               DemoRequests__RetentionDays=365 \
+              TaskSearch__CursorSigningKey="$TASK_SEARCH_CURSOR_SIGNING_KEY" \
+              TaskSearch__PreviousCursorSigningKey="$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" \
+              APPLICATIONINSIGHTS_CONNECTION_STRING="$application_insights_connection_string" \
             --output none
 
           invitation_delivery_enabled="$(az webapp config appsettings list \
@@ -189,6 +206,12 @@ jobs:
             --query "[?name=='InvitationDelivery__Enabled'].value | [0]" \
             --output tsv)"
           test "$invitation_delivery_enabled" = "true"
+          task_cursor_key_configured="$(az webapp config appsettings list \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --name "$PRODUCTION_API_APP_NAME" \
+            --query "[?name=='TaskSearch__CursorSigningKey'].value | [0]" \
+            --output tsv)"
+          test -n "$task_cursor_key_configured"
 
       - name: Deploy production API App Service
         uses: azure/webapps-deploy@v3

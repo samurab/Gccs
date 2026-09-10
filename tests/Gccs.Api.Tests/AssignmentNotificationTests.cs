@@ -191,6 +191,24 @@ public sealed class AssignmentNotificationTests : IClassFixture<WebApplicationFa
             DataPosture = TenantDataPosture.NoCui,
             CreatedAt = DateTimeOffset.UtcNow
         });
+        dbContext.Users.Add(new UserEntity
+        {
+            Id = ids.AssignedUserId,
+            TenantId = ids.TenantId,
+            Email = "assigned.user@example.test",
+            DisplayName = "Assigned User",
+            Status = UserStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        dbContext.TenantMemberships.Add(new TenantMembershipEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = ids.TenantId,
+            UserId = ids.AssignedUserId,
+            RoleName = RoleCatalog.Contributor,
+            Status = MembershipStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
     }
 
     private sealed record StoryIds(Guid TenantId, Guid ActorUserId, Guid AssignedUserId)

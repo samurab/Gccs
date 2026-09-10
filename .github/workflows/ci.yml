@@ -115,6 +115,9 @@ jobs:
       - name: Restore frontend dependencies
         run: npm ci
 
+      - name: Validate OpenAPI contract
+        run: npm run lint:openapi
+
       - name: Scan frontend dependencies for known vulnerabilities
         run: npm audit --audit-level=high
 

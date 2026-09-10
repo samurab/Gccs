@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Gccs.Application.Compliance;
 using Gccs.Application.Security;
+using Gccs.Application.Tasks;
 using Gccs.Domain.Common;
 using Gccs.Domain.Compliance;
 using Gccs.Infrastructure.Persistence;
@@ -198,6 +199,7 @@ public sealed class EfObligationDetailRepository(
             .ToArrayAsync(cancellationToken);
         var primaryTask = tasks.FirstOrDefault();
         var status = primaryTask?.Status.ToString() ?? "NotStarted";
+        var statusCode = primaryTask is null ? "not_started" : ComplianceTaskStatusCodec.Format(primaryTask.Status);
         var assignedUserId = primaryTask?.AssignedToUserId;
         string? assignedUserDisplayName = null;
         if (assignedUserId.HasValue)
@@ -255,6 +257,7 @@ public sealed class EfObligationDetailRepository(
             assignedRoleName,
             obligation.RiskLevel,
             status,
+            statusCode,
             primaryTask?.DueAt,
             InferModule(obligation.Source, obligation.Title),
             obligation.RequiresFlowDown,
@@ -268,6 +271,7 @@ public sealed class EfObligationDetailRepository(
                 task.Id,
                 task.Title,
                 task.Status.ToString(),
+                ComplianceTaskStatusCodec.Format(task.Status),
                 task.DueAt,
                 task.OwnerFunction,
                 task.RiskLevel)).ToArray(),

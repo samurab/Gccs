@@ -12,9 +12,35 @@ public sealed class EfDemoAppointmentRepository(
     GccsDbContext dbContext,
     IAuditRequestMetadata requestMetadata) : IDemoAppointmentRepository
 {
+    private const int MaximumSerializationAttempts = 3;
+
     public async Task<DemoAppointmentConfirmationWriteResult> ConfirmAsync(
         DemoAppointmentConfirmationCommand command,
         CancellationToken cancellationToken = default)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await ConfirmOnceAsync(command, cancellationToken);
+            }
+            catch (Exception exception) when (HasPostgresState(exception, PostgresErrorCodes.UniqueViolation))
+            {
+                dbContext.ChangeTracker.Clear();
+                return await ResolveConcurrentConflictAsync(command, cancellationToken);
+            }
+            catch (Exception exception) when (HasPostgresState(exception, PostgresErrorCodes.SerializationFailure))
+            {
+                dbContext.ChangeTracker.Clear();
+                if (attempt >= MaximumSerializationAttempts) throw;
+                await Task.Delay(TimeSpan.FromMilliseconds(25 * attempt), cancellationToken);
+            }
+        }
+    }
+
+    private async Task<DemoAppointmentConfirmationWriteResult> ConfirmOnceAsync(
+        DemoAppointmentConfirmationCommand command,
+        CancellationToken cancellationToken)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,
@@ -94,23 +120,11 @@ public sealed class EfDemoAppointmentRepository(
             UpdatedAt = command.ConfirmedAt
         });
 
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-            return new DemoAppointmentConfirmationWriteResult(
-                DemoAppointmentConfirmationDisposition.Confirmed,
-                command.AppointmentId);
-        }
-        catch (Exception exception) when (HasPostgresState(
-            exception,
-            PostgresErrorCodes.UniqueViolation,
-            PostgresErrorCodes.SerializationFailure))
-        {
-            await transaction.DisposeAsync();
-            dbContext.ChangeTracker.Clear();
-            return await ResolveConcurrentConflictAsync(command, cancellationToken);
-        }
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new DemoAppointmentConfirmationWriteResult(
+            DemoAppointmentConfirmationDisposition.Confirmed,
+            command.AppointmentId);
     }
 
     private Task<bool> HasHostConflictAsync(

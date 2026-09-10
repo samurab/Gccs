@@ -505,8 +505,9 @@ public sealed class PolicyTemplateVersionEntity
     public PolicyTemplateEntity? Template { get; set; }
 }
 
-public sealed class GeneratedPolicyEntity : AuditedEntity
+public sealed class GeneratedPolicyEntity : AuditedEntity, IClassifiedContentEntity
 {
+    public long ClassificationRevision { get; set; }
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
     public Guid SourceTemplateId { get; set; }
@@ -521,6 +522,13 @@ public sealed class GeneratedPolicyEntity : AuditedEntity
     public Guid? EvidenceItemId { get; set; }
     public string PlaceholderValuesJson { get; set; } = "{}";
     public string MissingPlaceholdersJson { get; set; } = "[]";
+    public ContentClassification Classification { get; set; } = ContentClassification.Unknown;
+    public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.SystemSuggested;
+    public decimal? ClassificationConfidence { get; set; }
+    public Guid? ClassificationReviewedByUserId { get; set; }
+    public DateTimeOffset? ClassificationReviewedAt { get; set; }
+    public string? ClassificationReason { get; set; }
+    public bool ClassificationIsApprovedDemoContent { get; set; }
 
     public PolicyTemplateEntity? SourceTemplate { get; set; }
     public EvidenceItemEntity? EvidenceItem { get; set; }
@@ -536,6 +544,14 @@ public sealed class PolicyRevisionEntity
     public string Status { get; set; } = "Draft";
     public DateTimeOffset PreservedAt { get; set; }
     public Guid PreservedByUserId { get; set; }
+    public long ClassificationRevision { get; set; }
+    public ContentClassification Classification { get; set; } = ContentClassification.Unknown;
+    public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.SystemSuggested;
+    public decimal? ClassificationConfidence { get; set; }
+    public Guid? ClassificationReviewedByUserId { get; set; }
+    public DateTimeOffset? ClassificationReviewedAt { get; set; }
+    public string? ClassificationReason { get; set; }
+    public bool ClassificationIsApprovedDemoContent { get; set; }
 
     public GeneratedPolicyEntity? GeneratedPolicy { get; set; }
 }

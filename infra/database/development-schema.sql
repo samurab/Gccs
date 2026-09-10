@@ -4129,3 +4129,126 @@ INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260909165957_AddDurableSspSections', '10.0.4');
 
 COMMIT;
+
+START TRANSACTION;
+CREATE INDEX IF NOT EXISTS "IX_compliance_tasks_tenant_id_assigned_to_user_id_due_at_id"
+ON gccs.compliance_tasks (tenant_id, assigned_to_user_id, due_at, id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260909192654_AddComplianceTaskSearchIndex', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.ssp_narratives (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    section_id uuid NOT NULL,
+    generated_text character varying(20000) NOT NULL,
+    edited_text character varying(20000),
+    approved_text character varying(20000),
+    status character varying(64) NOT NULL,
+    ai_assisted boolean NOT NULL,
+    draft_only boolean NOT NULL,
+    reviewer_notes character varying(4000),
+    reviewer_user_id uuid,
+    reviewer character varying(320),
+    review_date date,
+    version bigint NOT NULL,
+    classification character varying(64) NOT NULL,
+    classification_source character varying(64) NOT NULL,
+    classification_confidence numeric,
+    classification_reviewed_by_user_id uuid,
+    classification_reviewed_at timestamp with time zone,
+    classification_reason character varying(600),
+    classification_is_approved_demo_content boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_ssp_narratives" PRIMARY KEY (id),
+    CONSTRAINT "AK_ssp_narratives_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_ssp_narratives_ssp_sections_tenant_id_section_id" FOREIGN KEY (tenant_id, section_id) REFERENCES gccs.ssp_sections (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_ssp_narratives_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.ssp_narrative_sources (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    narrative_id uuid NOT NULL,
+    source_type character varying(64) NOT NULL,
+    record_id character varying(120) NOT NULL,
+    label character varying(300) NOT NULL,
+    summary character varying(1000) NOT NULL,
+    source_url character varying(1000) NOT NULL,
+    fingerprint character varying(128) NOT NULL,
+    classification character varying(64) NOT NULL,
+    CONSTRAINT "PK_ssp_narrative_sources" PRIMARY KEY (id),
+    CONSTRAINT "FK_ssp_narrative_sources_ssp_narratives_tenant_id_narrative_id" FOREIGN KEY (tenant_id, narrative_id) REFERENCES gccs.ssp_narratives (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_ssp_narrative_sources_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX "IX_ssp_narrative_sources_tenant_id_narrative_id_source_type_re~" ON gccs.ssp_narrative_sources (tenant_id, narrative_id, source_type, record_id);
+
+CREATE INDEX "IX_ssp_narrative_sources_tenant_id_source_type_record_id" ON gccs.ssp_narrative_sources (tenant_id, source_type, record_id);
+
+CREATE UNIQUE INDEX "IX_ssp_narratives_tenant_id_section_id" ON gccs.ssp_narratives (tenant_id, section_id) WHERE status = 'Approved';
+
+CREATE INDEX "IX_ssp_narratives_tenant_id_section_id_status" ON gccs.ssp_narratives (tenant_id, section_id, status);
+
+CREATE INDEX "IX_ssp_narratives_tenant_id_section_id_updated_at" ON gccs.ssp_narratives (tenant_id, section_id, updated_at);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260909213508_AddDurableSspNarratives', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.policy_revisions ADD classification character varying(64) NOT NULL DEFAULT 'Unknown';
+
+ALTER TABLE gccs.policy_revisions ADD classification_confidence numeric;
+
+ALTER TABLE gccs.policy_revisions ADD classification_is_approved_demo_content boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.policy_revisions ADD classification_reason character varying(600);
+
+ALTER TABLE gccs.policy_revisions ADD classification_reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.policy_revisions ADD classification_reviewed_by_user_id uuid;
+
+ALTER TABLE gccs.policy_revisions ADD classification_revision bigint NOT NULL DEFAULT 1;
+
+ALTER TABLE gccs.policy_revisions ADD classification_source character varying(64) NOT NULL DEFAULT 'SystemSuggested';
+
+ALTER TABLE gccs.generated_policies ADD classification character varying(64) NOT NULL DEFAULT 'Unknown';
+
+ALTER TABLE gccs.generated_policies ADD classification_confidence numeric;
+
+ALTER TABLE gccs.generated_policies ADD classification_is_approved_demo_content boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.generated_policies ADD classification_reason character varying(600);
+
+ALTER TABLE gccs.generated_policies ADD classification_reviewed_at timestamp with time zone;
+
+ALTER TABLE gccs.generated_policies ADD classification_reviewed_by_user_id uuid;
+
+ALTER TABLE gccs.generated_policies ADD classification_revision bigint NOT NULL DEFAULT 1;
+
+ALTER TABLE gccs.generated_policies ADD classification_source character varying(64) NOT NULL DEFAULT 'SystemSuggested';
+
+UPDATE gccs.evidence_items AS evidence
+SET classification = 'Unknown',
+    classification_source = 'SystemSuggested',
+    classification_reason = 'Legacy generated-policy evidence requires classification review before governed reuse.',
+    classification_is_approved_demo_content = FALSE,
+    classification_revision = CASE WHEN classification_revision < 1 THEN 1 ELSE classification_revision + 1 END
+WHERE evidence.id IN (
+    SELECT policy.evidence_item_id
+    FROM gccs.generated_policies AS policy
+    WHERE policy.evidence_item_id IS NOT NULL
+);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910011549_AddGeneratedPolicyClassification', '10.0.4');
+
+COMMIT;

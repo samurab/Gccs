@@ -32,6 +32,8 @@ jobs:
       DEMO_REQUESTS_SENDER_ADDRESS: ${{ vars.DEMO_REQUESTS_SENDER_ADDRESS }}
       DEMO_REQUESTS_RECIPIENT_ADDRESS: ${{ vars.DEMO_REQUESTS_RECIPIENT_ADDRESS }}
       DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY: ${{ secrets.DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY }}
+      TASK_SEARCH_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_CURSOR_SIGNING_KEY }}
+      TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY: ${{ secrets.TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -87,6 +89,11 @@ jobs:
           test -n "$DEMO_REQUESTS_RECIPIENT_ADDRESS"
           test -n "$DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY"
           test "${#DEMO_REQUEST_FOLLOW_UP_TOKEN_SIGNING_KEY}" -ge 32
+          test -n "$TASK_SEARCH_CURSOR_SIGNING_KEY"
+          test "$(printf %s "$TASK_SEARCH_CURSOR_SIGNING_KEY" | base64 --decode | wc -c)" -ge 32
+          if [[ -n "$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" ]]; then
+            test "$(printf %s "$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" | base64 --decode | wc -c)" -ge 32
+          fi
           grep -R "No-CUI" docs/staging-environment.md
           grep -R "no production customer data" docs/staging-environment.md
 
@@ -108,6 +115,7 @@ jobs:
           test -n "$STAGING_DATABASE_URL"
           sudo apt-get update
           sudo apt-get install --yes postgresql-client
+          psql "$STAGING_DATABASE_URL" --set ON_ERROR_STOP=on --file infra/database/predeploy-compliance-task-search-index.sql
           psql "$STAGING_DATABASE_URL" --set ON_ERROR_STOP=on --file "$RUNNER_TEMP/gccs-staging-migrations.sql"
 
       - name: Deploy staging API, web, data, storage, cache, queue, and secrets
@@ -152,6 +160,8 @@ jobs:
               DemoRequests__HubSpot__Enabled=false \
               DemoRequests__HubSpot__BaseUrl=https://api.hubapi.com \
               DemoRequests__RetentionDays=365 \
+              TaskSearch__CursorSigningKey="$TASK_SEARCH_CURSOR_SIGNING_KEY" \
+              TaskSearch__PreviousCursorSigningKey="$TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY" \
             --output none
 
           invitation_delivery_enabled="$(az webapp config appsettings list \
@@ -160,6 +170,12 @@ jobs:
             --query "[?name=='InvitationDelivery__Enabled'].value | [0]" \
             --output tsv)"
           test "$invitation_delivery_enabled" = "true"
+          task_cursor_key_configured="$(az webapp config appsettings list \
+            --resource-group "$STAGING_RESOURCE_GROUP" \
+            --name "$STAGING_API_APP_NAME" \
+            --query "[?name=='TaskSearch__CursorSigningKey'].value | [0]" \
+            --output tsv)"
+          test -n "$task_cursor_key_configured"
 
       - name: Deploy staging API App Service
         uses: azure/webapps-deploy@v3

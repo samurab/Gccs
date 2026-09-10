@@ -32,6 +32,7 @@
     "demo:video:clean": "npm --workspace marketing/demo-video run clean",
     "sync:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --write",
     "check:launch-candidate": "node tools/release/sync-approved-launch-candidate.mjs --check",
+    "lint:openapi": "redocly lint docs/api/openapi.yaml --extends=spec",
     "test": "npm run test:api && npm run test:web",
     "restore:api": "dotnet restore Gccs.slnx",
     "build:api": "dotnet build Gccs.slnx",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
+    "@redocly/cli": "2.51.2",
     "playwright": "^1.61.0"
   }
 }

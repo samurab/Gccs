@@ -3,6 +3,7 @@ using Gccs.Application.Common;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
 
 namespace Gccs.Application.Compliance;
 
@@ -176,140 +177,6 @@ public sealed class SspSectionService(
             },
             cancellationToken);
 
-    public async Task<SspNarrativeDto?> GenerateNarrativeDraftAsync(Guid sectionId, GenerateSspNarrativeDraftRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
-    {
-        var section = await repository.GetAsync(tenantContext.TenantId, sectionId, cancellationToken);
-        if (section is null)
-        {
-            return null;
-        }
-
-        ValidateNarrativeSources(request.SourceRecords, tenantContext.TenantId, requireApproved: true);
-        var narrative = await narrativeRepository.CreateDraftAsync(tenantContext.TenantId, sectionId, request, actorUserId, cancellationToken);
-        await WriteNarrativeAuditAsync(narrative, actorUserId, AuditAction.Created, "SSP narrative draft was generated.", cancellationToken);
-        return narrative;
-    }
-
-    public async Task<SspNarrativeDto?> EditNarrativeDraftAsync(Guid sectionId, Guid narrativeId, EditSspNarrativeDraftRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
-    {
-        ValidateText(request.EditedText, "Narrative text", 8000);
-        var narrative = await narrativeRepository.UpdateDraftAsync(tenantContext.TenantId, sectionId, narrativeId, request, actorUserId, cancellationToken);
-        if (narrative is not null)
-        {
-            await WriteNarrativeAuditAsync(narrative, actorUserId, AuditAction.Updated, "SSP narrative draft was edited.", cancellationToken);
-        }
-
-        return narrative;
-    }
-
-    public async Task<SspNarrativeDto?> ApproveNarrativeAsync(Guid sectionId, Guid narrativeId, ApproveSspNarrativeRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(request.Reviewer) || !request.ReviewDate.HasValue)
-        {
-            throw new SspNarrativeValidationException("Narrative approval requires reviewer and review date.");
-        }
-
-        var narrative = await narrativeRepository.GetNarrativeAsync(tenantContext.TenantId, sectionId, narrativeId, cancellationToken);
-        if (narrative is null)
-        {
-            return null;
-        }
-
-        ValidateNarrativeApproval(narrative);
-        var approved = await narrativeRepository.ApproveAsync(tenantContext.TenantId, sectionId, narrativeId, request, actorUserId, cancellationToken);
-        if (approved is not null)
-        {
-            await WriteNarrativeAuditAsync(approved, actorUserId, AuditAction.Approved, "SSP narrative was approved.", cancellationToken);
-        }
-
-        return approved;
-    }
-
-    public async Task<SspNarrativeComparisonDto?> CompareNarrativeAsync(Guid sectionId, Guid narrativeId, CancellationToken cancellationToken = default)
-    {
-        var draft = await narrativeRepository.GetNarrativeAsync(tenantContext.TenantId, sectionId, narrativeId, cancellationToken);
-        if (draft is null)
-        {
-            return null;
-        }
-
-        var approved = await narrativeRepository.GetCurrentApprovedNarrativeAsync(tenantContext.TenantId, sectionId, cancellationToken);
-        return new SspNarrativeComparisonDto(
-            sectionId,
-            approved?.Id,
-            draft.Id,
-            approved?.ApprovedText,
-            draft.EditedText ?? draft.GeneratedText,
-            approved?.ReviewDate,
-            draft.SourceRecords,
-            approved?.SourceRecords ?? []);
-    }
-
-    private static void ValidateNarrativeSources(SspNarrativeSourceRecordDto[] sourceRecords, Guid tenantId, bool requireApproved)
-    {
-        if (sourceRecords.Length == 0)
-        {
-            throw new SspNarrativeValidationException("At least one source record is required.");
-        }
-
-        foreach (var record in sourceRecords)
-        {
-            ValidateText(record.RecordType, "Source record type", 100);
-            ValidateText(record.RecordId, "Source record ID", 120);
-            ValidateText(record.Summary, "Source summary", 1000);
-            ValidateText(record.SourceUrl, "Source URL", 1000);
-            if (!Uri.TryCreate(record.SourceUrl, UriKind.Absolute, out _))
-            {
-                throw new SspNarrativeValidationException("Source URL must be absolute.");
-            }
-
-            if (requireApproved && !record.Approved)
-            {
-                throw new SspNarrativeValidationException("Narrative drafts can only be generated from approved tenant records and approved compliance content.");
-            }
-
-            if (record.TenantId != tenantId)
-            {
-                throw new SspNarrativeValidationException("Narrative drafts can only use source records from the current tenant.");
-            }
-        }
-    }
-
-    private static void ValidateNarrativeApproval(SspNarrativeDto narrative)
-    {
-        if (narrative.SourceRecords.Length == 0)
-        {
-            throw new SspNarrativeValidationException("Narrative approval requires source links.");
-        }
-
-        if (narrative.SourceRecords.Any(source => source.Outdated))
-        {
-            throw new SspNarrativeValidationException("Narrative approval is blocked when source records are outdated.");
-        }
-
-        var text = narrative.EditedText ?? narrative.GeneratedText;
-        if (text.Contains("{{", StringComparison.Ordinal) || text.Contains("}}", StringComparison.Ordinal))
-        {
-            throw new SspNarrativeValidationException("Narrative approval is blocked while unresolved placeholders remain.");
-        }
-    }
-
-    private Task WriteNarrativeAuditAsync(SspNarrativeDto narrative, Guid actorUserId, AuditAction action, string summary, CancellationToken cancellationToken) =>
-        auditEventWriter.WriteAsync(
-            tenantContext.TenantId,
-            actorUserId,
-            action,
-            "SspNarrative",
-            narrative.Id.ToString(),
-            summary,
-            new Dictionary<string, string>
-            {
-                ["sectionId"] = narrative.SectionId.ToString(),
-                ["status"] = narrative.Status.ToString(),
-                ["draftOnly"] = narrative.DraftOnly.ToString()
-            },
-            cancellationToken);
-
     public async Task<IReadOnlyList<SspExportPackageDto>> ListExportPackagesAsync(CancellationToken cancellationToken = default) =>
         await exportPackageRepository.ListExportPackagesAsync(tenantContext.TenantId, cancellationToken);
 
@@ -405,11 +272,22 @@ public sealed class PermissiveSspSectionLinkValidator : ISspSectionLinkValidator
 
 public interface ISspNarrativeRepository
 {
+    Task<IReadOnlyList<SspNarrativeDto>> ListNarrativesAsync(Guid tenantId, Guid sectionId, CancellationToken cancellationToken = default);
     Task<SspNarrativeDto?> GetNarrativeAsync(Guid tenantId, Guid sectionId, Guid narrativeId, CancellationToken cancellationToken = default);
     Task<SspNarrativeDto?> GetCurrentApprovedNarrativeAsync(Guid tenantId, Guid sectionId, CancellationToken cancellationToken = default);
-    Task<SspNarrativeDto> CreateDraftAsync(Guid tenantId, Guid sectionId, GenerateSspNarrativeDraftRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
-    Task<SspNarrativeDto?> UpdateDraftAsync(Guid tenantId, Guid sectionId, Guid narrativeId, EditSspNarrativeDraftRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
-    Task<SspNarrativeDto?> ApproveAsync(Guid tenantId, Guid sectionId, Guid narrativeId, ApproveSspNarrativeRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<SspNarrativeDto> CreateDraftAsync(Guid tenantId, Guid sectionId, string generatedText, bool aiAssisted, string? reviewerNotes, ContentClassificationDto classification, IReadOnlyList<ResolvedSspNarrativeSource> sources, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<SspNarrativeDto?> UpdateDraftAsync(Guid tenantId, Guid sectionId, Guid narrativeId, EditSspNarrativeDraftRequest request, ContentClassificationDto classification, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<SspNarrativeDto?> ApproveAsync(Guid tenantId, Guid sectionId, Guid narrativeId, ApproveSspNarrativeRequest request, Guid reviewerUserId, string reviewerName, CancellationToken cancellationToken = default);
+}
+
+public interface ISspNarrativeSourceResolver
+{
+    Task<IReadOnlyList<ResolvedSspNarrativeSource>> ResolveAsync(Guid tenantId, IReadOnlyList<SspNarrativeSourceLinkRequest> sources, CancellationToken cancellationToken = default);
+}
+
+public interface ISspNarrativeAiGenerator
+{
+    Task<string> GenerateAsync(IReadOnlyList<ResolvedSspNarrativeSource> sources, CancellationToken cancellationToken = default);
 }
 
 public interface ISspExportPackageRepository
@@ -425,19 +303,21 @@ public sealed record SspLinkedRecordDto(SspLinkedRecordType RecordType, string R
 public sealed record SspSourceReferenceDto(string Source, string SourceUrl, DateOnly LastReviewedAt);
 public sealed record SspSectionHistoryDto(SspSectionStatus Status, Guid ActorUserId, string ActorName, DateTimeOffset ChangedAt, string? Notes);
 public sealed record SspSectionDto(Guid Id, Guid TenantId, SspSectionType SectionType, string Title, string Owner, SspSectionStatus Status, string? Reviewer, DateOnly? ReviewDate, string? ApprovalRationale, bool IsRequired, long Version, SspLinkedRecordDto[] LinkedRecords, SspSourceReferenceDto[] SourceReferences, SspSectionHistoryDto[] History, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
-public sealed record GenerateSspNarrativeDraftRequest(SspNarrativeSourceRecordDto[] SourceRecords, bool AiAssisted, string? ReviewerNotes = null);
-public sealed record EditSspNarrativeDraftRequest(string EditedText, string? ReviewerNotes = null);
-public sealed record ApproveSspNarrativeRequest(string Reviewer, DateOnly? ReviewDate);
-public sealed record SspNarrativeSourceRecordDto(string RecordType, string RecordId, Guid TenantId, string Summary, string SourceUrl, bool Approved, bool Outdated);
-public sealed record SspNarrativeDto(Guid Id, Guid TenantId, Guid SectionId, string GeneratedText, string? EditedText, string? ApprovedText, SspNarrativeStatus Status, bool AiAssisted, bool DraftOnly, string? ReviewerNotes, string? Reviewer, DateOnly? ReviewDate, SspNarrativeSourceRecordDto[] SourceRecords, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
-public sealed record SspNarrativeComparisonDto(Guid SectionId, Guid? ApprovedNarrativeId, Guid DraftNarrativeId, string? CurrentApprovedText, string ProposedText, DateOnly? CurrentApprovedReviewDate, SspNarrativeSourceRecordDto[] ProposedSources, SspNarrativeSourceRecordDto[] CurrentApprovedSources);
+public enum SspNarrativeGenerationMode { Deterministic, AiAssisted }
+public sealed record GenerateSspNarrativeDraftRequest(SspNarrativeSourceLinkRequest[] Sources, SspNarrativeGenerationMode GenerationMode = SspNarrativeGenerationMode.Deterministic);
+public sealed record EditSspNarrativeDraftRequest(string EditedText, string? ReviewerNotes, ContentClassificationRequest? Classification, long ExpectedVersion);
+public sealed record ApproveSspNarrativeRequest(DateOnly? ReviewDate, long ExpectedVersion);
+public sealed record SspNarrativeSourceLinkRequest(SspNarrativeSourceType SourceType, string RecordId);
+public sealed record ResolvedSspNarrativeSource(SspNarrativeSourceType SourceType, string RecordId, string Label, string Summary, string SourceUrl, string Fingerprint, ContentClassification Classification);
+public sealed record SspNarrativeSourceRecordDto(SspNarrativeSourceType SourceType, string RecordId, string Label, string Summary, string SourceUrl, string Fingerprint, ContentClassification Classification);
+public sealed record SspNarrativeDto(Guid Id, Guid TenantId, Guid SectionId, string GeneratedText, string? EditedText, string? ApprovedText, SspNarrativeStatus Status, bool AiAssisted, bool DraftOnly, string? ReviewerNotes, Guid? ReviewerUserId, string? Reviewer, DateOnly? ReviewDate, long Version, ContentClassificationDto Classification, SspNarrativeSourceRecordDto[] SourceRecords, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+public sealed record SspNarrativeComparisonDto(Guid SectionId, Guid? ApprovedNarrativeId, Guid DraftNarrativeId, string? CurrentApprovedText, string ProposedText, Guid? CurrentApprovedReviewerUserId, string? CurrentApprovedReviewer, DateOnly? CurrentApprovedReviewDate, string? ProposedReviewerNotes, SspNarrativeSourceRecordDto[] ProposedSources, SspNarrativeSourceRecordDto[] CurrentApprovedSources);
 public sealed record CreateSspExportPackageRequest(string PackageVersion, string SystemBoundary, string Reviewer, SspExportFormat Format, bool ExternalShareRequested, bool ApprovedForExternalSharing, string[] PoamReferences, SspExportRecordDto[] EvidenceRecords);
 public sealed record SspExportRecordDto(string RecordType, string RecordId, Guid TenantId, string Title, SspExportRecordStatus Status, SspExportRecordClassification Classification);
 public sealed record SspExportSectionDto(Guid SectionId, SspSectionType SectionType, string Title, SspSectionStatus Status, string Owner, string? Reviewer, DateOnly? ReviewDate, SspSourceReferenceDto[] SourceReferences, string? ApprovedNarrativeText, Guid? ApprovedNarrativeId, DateOnly? NarrativeReviewDate);
 public sealed record SspExportHistoryDto(string PackageVersion, Guid ActorUserId, DateTimeOffset GeneratedAt, string Action);
 public sealed record SspExportPackageDto(Guid Id, Guid TenantId, DateTimeOffset GeneratedAt, string PackageVersion, string SystemBoundary, string Reviewer, SspExportFormat Format, string AuthorizationLanguage, string HumanReadableReport, SspExportSectionDto[] Sections, SspExportRecordDto[] IncludedEvidence, string[] PoamReferences, SspExportHistoryDto[] History);
 
-public enum SspNarrativeStatus { Draft, Approved, Superseded, Archived }
 public enum SspExportFormat { HumanReadable, MachineReadable, Both }
 public enum SspExportRecordStatus { Draft, InReview, Approved, Superseded, Archived }
 public enum SspExportRecordClassification { Public, Fci, Cui, Unknown, Prohibited }

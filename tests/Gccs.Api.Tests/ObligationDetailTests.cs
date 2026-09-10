@@ -93,10 +93,24 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
         var detail = await PatchStatusAsync(client, scenario, ComplianceTaskStatus.InProgress);
 
         Assert.Equal("InProgress", detail.Status);
+        Assert.Equal("in_progress", detail.StatusCode);
+        Assert.Equal("in_progress", Assert.Single(detail.LinkedTasks).StatusCode);
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         var task = await dbContext.ComplianceTasks.SingleAsync(task => task.Id == scenario.TaskId);
         Assert.Equal(ComplianceTaskStatus.InProgress, task.Status);
+
+        using var legacyRequest = CreateRequest(
+            HttpMethod.Patch,
+            $"/api/contract-obligations/{scenario.ContractClauseId}/{scenario.ObligationId}/status",
+            new { status = "Blocked" },
+            scenario.TenantId,
+            Guid.NewGuid(),
+            Permission.ManageObligations);
+        var legacyResponse = await client.SendAsync(legacyRequest);
+        Assert.Equal(HttpStatusCode.OK, legacyResponse.StatusCode);
+        var legacyDetail = await legacyResponse.Content.ReadFromJsonAsync<ContractObligationDetailDto>(JsonOptions);
+        Assert.Equal("blocked", Assert.IsType<ContractObligationDetailDto>(legacyDetail).StatusCode);
     }
 
     [Fact]
@@ -131,6 +145,8 @@ public sealed class ObligationDetailTests : IClassFixture<WebApplicationFactory<
         Assert.Equal(AuditAction.Updated, auditEvent.Action);
         Assert.Contains("Blocked", auditEvent.Summary);
         Assert.Contains("previousStatus", auditEvent.MetadataJson);
+        Assert.Contains("statusCode", auditEvent.MetadataJson);
+        Assert.Contains("blocked", auditEvent.MetadataJson);
     }
 
     [Fact]

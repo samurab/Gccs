@@ -53,7 +53,9 @@ public sealed class ObligationDetailService(
                 ["contractClauseId"] = contractClauseId.ToString(),
                 ["obligationId"] = obligationId,
                 ["previousStatus"] = before?.Detail.Status ?? "NotStarted",
-                ["status"] = updated.Detail.Status
+                ["previousStatusCode"] = before?.Detail.StatusCode ?? "not_started",
+                ["status"] = updated.Detail.Status,
+                ["statusCode"] = updated.Detail.StatusCode
             },
             cancellationToken);
 

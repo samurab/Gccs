@@ -16,6 +16,7 @@ This register identifies the known GCCS dependencies for local development, test
 | EF Core | `Microsoft.EntityFrameworkCore` `10.0.4` | `src/Gccs.Infrastructure` | Yes | Persistence and migrations. |
 | JWT bearer auth | `Microsoft.AspNetCore.Authentication.JwtBearer` `10.0.7` | `apps/api` | Yes for production auth | Development auth shim is local-only. |
 | OpenAPI | `Microsoft.AspNetCore.OpenApi` `10.0.7` | `apps/api` | Yes | API documentation contract. |
+| Application Insights ASP.NET Core | `Microsoft.ApplicationInsights.AspNetCore` `3.1.2` | `apps/api` | Required in production | Sends structured compatibility events and collector heartbeats when `APPLICATIONINSIGHTS_CONNECTION_STRING` is configured. |
 | Lucide React | `1.17.0` | `apps/web` | Yes | UI icons. |
 
 ## Local Infrastructure Dependencies
@@ -60,6 +61,8 @@ This register identifies the known GCCS dependencies for local development, test
 | `LocalDependencies:MalwareScanner:*` | Local/dev API | Malware scanner host and port. |
 | `InvitationDelivery:*` | API background workers | Shared Azure Communication Services transport, public web URL, retry, and lease settings for invitation and assignment emails. Disabled by default in local development. |
 | `DemoRequests:*` | Public demo intake, follow-up form, API background worker, and optional HubSpot CRM synchronization | Azure Communication Services transport, monitored operations inbox, public web URL, retention, retry/lease settings, a stable 32-character-or-longer follow-up token signing secret, and—when `DemoRequests:HubSpot:Enabled=true`—an HTTPS HubSpot API base URL plus a private-app token with contact and company read/write scopes. Rotating the follow-up signing secret invalidates outstanding follow-up links. |
+| `TaskSearch:CursorSigningKey` | Every API environment | Base64-encoded key containing at least 32 random bytes. The same key must be supplied to every API instance. Rotation first moves the old value to `TaskSearch:PreviousCursorSigningKey`, deploys the new current key, waits at least 15 minutes, and then removes the previous key. |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Production API | Connects ASP.NET Core structured logs, including compatibility observations and collector heartbeats, to the existing Application Insights resource. |
 | `VITE_API_BASE_URL` | Web app | API base URL for frontend calls. |
 
 ## Source And Compliance Content Dependencies

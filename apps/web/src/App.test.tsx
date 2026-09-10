@@ -740,6 +740,7 @@ const {
     assignedRoleName: null,
     riskLevel: "High",
     status: "Open",
+    statusCode: "open",
     dueAt: "2026-06-01",
     module: "Cybersecurity",
     isOverdue: true,
@@ -770,6 +771,7 @@ const {
     assignedRoleName: null,
     riskLevel: "High",
     status: "Open",
+    statusCode: "open",
     dueAt: "2026-06-01",
     module: "Cybersecurity",
     isOverdue: true,
@@ -785,6 +787,7 @@ const {
         id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa9",
         title: "Collect MFA configuration",
         status: "Open",
+        statusCode: "open",
         dueAt: "2026-07-15",
         ownerFunction: "IT/security",
         riskLevel: "High"
@@ -842,6 +845,15 @@ vi.mock("@/lib/api", () => ({
   getCmmcControlLibrary: getCmmcControlLibraryMock,
   getCmmcControlStatuses: getCmmcControlStatusesMock,
   getCmmcPoamItems: getCmmcPoamItemsMock,
+  getSspSections: vi.fn().mockResolvedValue([]),
+  getSspNarratives: vi.fn().mockResolvedValue([]),
+  createSspSection: vi.fn(),
+  updateSspSection: vi.fn(),
+  changeSspSectionStatus: vi.fn(),
+  generateSspNarrative: vi.fn(),
+  editSspNarrative: vi.fn(),
+  approveSspNarrative: vi.fn(),
+  compareSspNarrative: vi.fn(),
   getSubcontractors: getSubcontractorsMock,
   getSubcontractorEvidenceRequests: getSubcontractorEvidenceRequestsMock,
   getSubcontractorFlowDowns: getSubcontractorFlowDownsMock,
@@ -1427,7 +1439,7 @@ describe("App", () => {
       Promise.resolve({
         data: {
           ...obligationDetail,
-          status
+          statusCode: status
         },
         error: null
       })
@@ -2687,7 +2699,8 @@ describe("App", () => {
     updateContractObligationStatusMock.mockResolvedValueOnce({
       data: {
         ...obligationDetail,
-        status: "Blocked"
+        status: "Blocked",
+        statusCode: "blocked"
       },
       error: null
     });
@@ -2697,13 +2710,13 @@ describe("App", () => {
 
     await user.click(await screen.findByRole("link", { name: /obligations/i }));
     await user.click(await screen.findByRole("button", { name: /view details/i }));
-    await user.selectOptions(await screen.findByLabelText("Update status"), "Blocked");
+    await user.selectOptions(await screen.findByLabelText("Update status"), "blocked");
     await user.click(screen.getByRole("button", { name: /save status/i }));
 
     expect(updateContractObligationStatusMock).toHaveBeenCalledWith(
       obligationDetail.contractClauseId,
       obligationDetail.obligationId,
-      "Blocked"
+      "blocked"
     );
     expect(await screen.findByText("Obligation status updated.")).toBeInTheDocument();
     expect(screen.getAllByText("Blocked").length).toBeGreaterThan(0);

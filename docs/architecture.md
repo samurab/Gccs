@@ -143,14 +143,20 @@ If SEO or public content becomes a requirement, add a separate public site rathe
 
 Shared design tokens, brand assets, and API contracts should be factored so both surfaces feel consistent without coupling the authenticated app to an SEO framework.
 
-## SSP Section Boundary
+## SSP Builder Boundary
 
-Current state: **Implemented for structured, tenant-scoped section management; automated SSP generation remains outside this boundary**.
+Current state: **Implemented** for structured sections, deterministic source-backed narrative drafts, classified generated-policy sources, and approval-time source locking. **Planned** for an approved external AI provider; AI-assisted requests currently fail closed.
 
 - SSP sections are durable relational aggregates with typed links to governed tenant or compliance records and append-only lifecycle history.
 - The server validates tenant ownership and evidence eligibility before accepting links. Raw client identifiers never establish tenant scope.
 - Draft and in-review sections may be edited. Approval requires the ordered review transition, owner, reviewer, review date, and source references, eligible governed-record links, or documented rationale.
 - Section mutation, lifecycle history, and audit append use the authenticated relational transaction boundary.
+- SSP narratives and their source snapshots are durable tenant-scoped aggregates. Generation requests carry source type and ID only; infrastructure resolves current-tenant ownership, governed approval state, freshness, classification, display metadata, and a revision fingerprint.
+- Narrative approval re-resolves every source inside the database transaction and acquires shared locks on the authoritative PostgreSQL rows, blocking concurrent source mutation until approval completes. Missing, changed, expired, unapproved, prohibited, unknown, or cross-tenant references block approval. Approved text is immutable, and approving a replacement atomically supersedes the previous approved narrative.
+- Generated policies require explicit classification for generation and editing. Approval revalidates classification and placeholder completion; derived evidence and SSP source fingerprints preserve the classification and classification revision. Pre-migration policies are classified `Unknown` and cannot become SSP sources until reviewed.
+- Generated text remains visibly draft-only until an authenticated reviewer approves it. Manual edits require explicit classification confirmation and pass through the tenant data-handling policy. Narrative text is excluded from audit metadata.
+- `ViewCmmc` authorizes reads and comparisons; `ManageCmmc` authorizes section and narrative mutations. These permissions include the Compliance Manager role and preserve read-only auditor behavior.
+- Deterministic source-backed generation is not represented as AI-assisted. The provider port exists, but the default adapter rejects AI-assisted requests. Enabling a provider requires reviewed provider/model/prompt provenance, data-retention configuration, evaluation evidence, and the same source, classification, review, and audit controls.
 - This feature organizes compliance-management records. It does not certify the tenant, authorize CUI processing, or produce an assessor or government determination.
 
 ## Planned Services

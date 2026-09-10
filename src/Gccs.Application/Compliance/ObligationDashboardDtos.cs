@@ -31,6 +31,7 @@ public sealed record ObligationDashboardItemDto(
     string? AssignedRoleName,
     RiskLevel RiskLevel,
     string Status,
+    string StatusCode,
     DateOnly? DueAt,
     string Module,
     bool IsOverdue,

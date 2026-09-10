@@ -1,0 +1,58 @@
+name: Task API compatibility observation
+
+on:
+  schedule:
+    - cron: "17 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: task-api-compatibility-observation
+  cancel-in-progress: false
+
+jobs:
+  observe-production:
+    name: Verify 30-day compatibility window
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      PRODUCTION_RESOURCE_GROUP: ${{ vars.PRODUCTION_RESOURCE_GROUP }}
+      APPLICATION_INSIGHTS_APP_NAME: gccs-api-production
+    steps:
+      - name: Login to Azure production subscription
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_GCCS_PRODUCTION }}
+
+      - name: Query compatibility events and create retirement evidence
+        run: |
+          set -euo pipefail
+          test -n "$PRODUCTION_RESOURCE_GROUP"
+          query='traces | where timestamp >= ago(30d) | summarize legacyUsageCount=countif(message startswith "TaskCompatibility Legacy"), collectorCoverageBuckets=dcountif(bin(timestamp, 12h), message startswith "TaskCompatibility TaskCompatibilityCollectorReady")'
+          az monitor app-insights query \
+            --app "$APPLICATION_INSIGHTS_APP_NAME" \
+            --resource-group "$PRODUCTION_RESOURCE_GROUP" \
+            --analytics-query "$query" \
+            --output json > "$RUNNER_TEMP/task-api-compatibility-query.json"
+          legacy_usage_count="$(jq -r '.tables[0].rows[0][0] // 0' "$RUNNER_TEMP/task-api-compatibility-query.json")"
+          collector_coverage_buckets="$(jq -r '.tables[0].rows[0][1] // 0' "$RUNNER_TEMP/task-api-compatibility-query.json")"
+          observed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          jq -n \
+            --arg observedAt "$observed_at" \
+            --argjson legacyUsageCount "$legacy_usage_count" \
+            --argjson collectorCoverageBuckets "$collector_coverage_buckets" \
+            '{schemaVersion:1, environment:"production", observationWindowDays:30, heartbeatBucketHours:12, requiredCoverageBuckets:55, observedAt:$observedAt, legacyUsageCount:$legacyUsageCount, collectorCoverageBuckets:$collectorCoverageBuckets, eligibleForBreakingRemoval:($legacyUsageCount == 0 and $collectorCoverageBuckets >= 55), containsCustomerData:false, containsCui:false}' \
+            > "$RUNNER_TEMP/task-api-retirement-evidence.json"
+          test "$collector_coverage_buckets" -ge 55
+          test "$legacy_usage_count" -eq 0
+
+      - name: Upload compatibility retirement evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: task-api-retirement-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/task-api-retirement-evidence.json
+          if-no-files-found: error
+          retention-days: 35

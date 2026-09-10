@@ -1,4 +1,5 @@
 using Gccs.Domain.Compliance;
+using Gccs.Domain.Common;
 
 namespace Gccs.Infrastructure.Persistence.Models;
 
@@ -19,6 +20,49 @@ public sealed class SspSectionEntity : AuditedEntity
     public ICollection<SspSectionLinkEntity> LinkedRecords { get; set; } = [];
     public ICollection<SspSectionSourceReferenceEntity> SourceReferences { get; set; } = [];
     public ICollection<SspSectionHistoryEntity> History { get; set; } = [];
+    public ICollection<SspNarrativeEntity> Narratives { get; set; } = [];
+}
+
+public sealed class SspNarrativeEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid SectionId { get; set; }
+    public string GeneratedText { get; set; } = string.Empty;
+    public string? EditedText { get; set; }
+    public string? ApprovedText { get; set; }
+    public SspNarrativeStatus Status { get; set; }
+    public bool AiAssisted { get; set; }
+    public bool DraftOnly { get; set; } = true;
+    public string? ReviewerNotes { get; set; }
+    public Guid? ReviewerUserId { get; set; }
+    public string? Reviewer { get; set; }
+    public DateOnly? ReviewDate { get; set; }
+    public long Version { get; set; }
+    public ContentClassification Classification { get; set; }
+    public ContentClassificationSource ClassificationSource { get; set; }
+    public decimal? ClassificationConfidence { get; set; }
+    public Guid? ClassificationReviewedByUserId { get; set; }
+    public DateTimeOffset? ClassificationReviewedAt { get; set; }
+    public string? ClassificationReason { get; set; }
+    public bool ClassificationIsApprovedDemoContent { get; set; }
+    public SspSectionEntity? Section { get; set; }
+    public ICollection<SspNarrativeSourceEntity> Sources { get; set; } = [];
+}
+
+public sealed class SspNarrativeSourceEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid NarrativeId { get; set; }
+    public SspNarrativeSourceType SourceType { get; set; }
+    public string RecordId { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+    public string SourceUrl { get; set; } = string.Empty;
+    public string Fingerprint { get; set; } = string.Empty;
+    public ContentClassification Classification { get; set; }
+    public SspNarrativeEntity? Narrative { get; set; }
 }
 
 public sealed class SspSectionLinkEntity

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Gccs.Application.Compliance;
+using Gccs.Application.Common;
 using Gccs.Domain.Compliance;
 
 namespace Gccs.Infrastructure.Compliance;
@@ -99,24 +100,27 @@ public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNa
             .Select(reference => new SspSourceReferenceDto(reference.Source.Trim(), reference.SourceUrl.Trim(), reference.LastReviewedAt))
             .ToArray();
 
-    public Task<SspNarrativeDto?> GetNarrativeAsync(Guid tenantId, Guid sectionId, Guid narrativeId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(_narratives.GetOrAdd(tenantId, _ => []).SingleOrDefault(narrative => narrative.SectionId == sectionId && narrative.Id == narrativeId));
+    public Task<IReadOnlyList<SspNarrativeDto>> ListNarrativesAsync(Guid tenantId, Guid sectionId, CancellationToken cancellationToken = default)
+    {
+        var records = _narratives.GetOrAdd(tenantId, _ => []);
+        lock (records) return Task.FromResult<IReadOnlyList<SspNarrativeDto>>(records.Where(x => x.SectionId == sectionId).OrderByDescending(x => x.UpdatedAt).ToArray());
+    }
 
-    public Task<SspNarrativeDto?> GetCurrentApprovedNarrativeAsync(Guid tenantId, Guid sectionId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(_narratives.GetOrAdd(tenantId, _ => [])
-            .Where(narrative => narrative.SectionId == sectionId && narrative.Status == SspNarrativeStatus.Approved)
-            .OrderByDescending(narrative => narrative.UpdatedAt)
-            .FirstOrDefault());
+    public Task<SspNarrativeDto?> GetNarrativeAsync(Guid tenantId, Guid sectionId, Guid narrativeId, CancellationToken cancellationToken = default)
+    {
+        var records = _narratives.GetOrAdd(tenantId, _ => []);
+        lock (records) return Task.FromResult(records.SingleOrDefault(narrative => narrative.SectionId == sectionId && narrative.Id == narrativeId));
+    }
 
-    public Task<SspNarrativeDto> CreateDraftAsync(Guid tenantId, Guid sectionId, GenerateSspNarrativeDraftRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
+    public Task<SspNarrativeDto?> GetCurrentApprovedNarrativeAsync(Guid tenantId, Guid sectionId, CancellationToken cancellationToken = default)
+    {
+        var records = _narratives.GetOrAdd(tenantId, _ => []);
+        lock (records) return Task.FromResult(records.Where(narrative => narrative.SectionId == sectionId && narrative.Status == SspNarrativeStatus.Approved).OrderByDescending(narrative => narrative.UpdatedAt).FirstOrDefault());
+    }
+
+    public Task<SspNarrativeDto> CreateDraftAsync(Guid tenantId, Guid sectionId, string generatedText, bool aiAssisted, string? reviewerNotes, ContentClassificationDto classification, IReadOnlyList<ResolvedSspNarrativeSource> sources, Guid actorUserId, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
-        var generatedText = string.Join(Environment.NewLine, request.SourceRecords.Select(record => $"{record.RecordType} {record.RecordId}: {record.Summary.Trim()}"));
-        if (request.AiAssisted)
-        {
-            generatedText = $"Draft AI-assisted SSP narrative. {generatedText}";
-        }
-
         var narrative = new SspNarrativeDto(
             Guid.NewGuid(),
             tenantId,
@@ -125,37 +129,47 @@ public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNa
             null,
             null,
             SspNarrativeStatus.Draft,
-            request.AiAssisted,
+            aiAssisted,
             true,
-            request.ReviewerNotes?.Trim(),
+            reviewerNotes?.Trim(),
             null,
             null,
-            Normalize(request.SourceRecords),
+            null,
+            1,
+            classification,
+            sources.Select(source => new SspNarrativeSourceRecordDto(source.SourceType, source.RecordId, source.Label, source.Summary, source.SourceUrl, source.Fingerprint, source.Classification)).ToArray(),
             now,
             now);
 
-        _narratives.GetOrAdd(tenantId, _ => []).Add(narrative);
+        var records = _narratives.GetOrAdd(tenantId, _ => []);
+        lock (records) records.Add(narrative);
         return Task.FromResult(narrative);
     }
 
-    public Task<SspNarrativeDto?> UpdateDraftAsync(Guid tenantId, Guid sectionId, Guid narrativeId, EditSspNarrativeDraftRequest request, Guid actorUserId, CancellationToken cancellationToken = default) =>
+    public Task<SspNarrativeDto?> UpdateDraftAsync(Guid tenantId, Guid sectionId, Guid narrativeId, EditSspNarrativeDraftRequest request, ContentClassificationDto classification, Guid actorUserId, CancellationToken cancellationToken = default) =>
         UpdateNarrativeAsync(tenantId, sectionId, narrativeId, narrative =>
-            narrative.Status == SspNarrativeStatus.Draft
-                ? narrative with { EditedText = request.EditedText.Trim(), ReviewerNotes = request.ReviewerNotes?.Trim(), DraftOnly = true, UpdatedAt = DateTimeOffset.UtcNow }
-                : narrative);
+        {
+            if (narrative.Status != SspNarrativeStatus.Draft) throw new SspNarrativeValidationException("Only draft SSP narratives can be changed.");
+            if (narrative.Version != request.ExpectedVersion) throw new Gccs.Application.Common.ContentRevisionConflictException();
+            return narrative with { EditedText = request.EditedText.Trim(), ReviewerNotes = request.ReviewerNotes?.Trim(), Classification = classification, DraftOnly = true, Version = narrative.Version + 1, UpdatedAt = DateTimeOffset.UtcNow };
+        });
 
-    public async Task<SspNarrativeDto?> ApproveAsync(Guid tenantId, Guid sectionId, Guid narrativeId, ApproveSspNarrativeRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
+    public async Task<SspNarrativeDto?> ApproveAsync(Guid tenantId, Guid sectionId, Guid narrativeId, ApproveSspNarrativeRequest request, Guid reviewerUserId, string reviewerName, CancellationToken cancellationToken = default)
     {
         var approved = await UpdateNarrativeAsync(tenantId, sectionId, narrativeId, narrative =>
         {
+            if (narrative.Status != SspNarrativeStatus.Draft) throw new SspNarrativeValidationException("Only draft SSP narratives can be changed.");
+            if (narrative.Version != request.ExpectedVersion) throw new Gccs.Application.Common.ContentRevisionConflictException();
             var now = DateTimeOffset.UtcNow;
             return narrative with
             {
                 ApprovedText = narrative.EditedText ?? narrative.GeneratedText,
                 Status = SspNarrativeStatus.Approved,
                 DraftOnly = false,
-                Reviewer = request.Reviewer.Trim(),
+                ReviewerUserId = reviewerUserId,
+                Reviewer = reviewerName,
                 ReviewDate = request.ReviewDate,
+                Version = narrative.Version + 1,
                 UpdatedAt = now
             };
         });
@@ -163,12 +177,13 @@ public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNa
         if (approved is not null)
         {
             var records = _narratives.GetOrAdd(tenantId, _ => []);
-            for (var index = 0; index < records.Count; index++)
+            lock (records)
             {
-                var narrative = records[index];
-                if (narrative.SectionId == sectionId && narrative.Id != narrativeId && narrative.Status == SspNarrativeStatus.Approved)
+                for (var index = 0; index < records.Count; index++)
                 {
-                    records[index] = narrative with { Status = SspNarrativeStatus.Superseded, DraftOnly = false, UpdatedAt = DateTimeOffset.UtcNow };
+                    var narrative = records[index];
+                    if (narrative.SectionId == sectionId && narrative.Id != narrativeId && narrative.Status == SspNarrativeStatus.Approved)
+                        records[index] = narrative with { Status = SspNarrativeStatus.Superseded, DraftOnly = false, Version = narrative.Version + 1, UpdatedAt = DateTimeOffset.UtcNow };
                 }
             }
         }
@@ -179,20 +194,14 @@ public sealed class InMemorySspSectionRepository : ISspSectionRepository, ISspNa
     private Task<SspNarrativeDto?> UpdateNarrativeAsync(Guid tenantId, Guid sectionId, Guid narrativeId, Func<SspNarrativeDto, SspNarrativeDto> update)
     {
         var records = _narratives.GetOrAdd(tenantId, _ => []);
-        var index = records.FindIndex(narrative => narrative.SectionId == sectionId && narrative.Id == narrativeId);
-        if (index < 0)
+        lock (records)
         {
-            return Task.FromResult<SspNarrativeDto?>(null);
+            var index = records.FindIndex(narrative => narrative.SectionId == sectionId && narrative.Id == narrativeId);
+            if (index < 0) return Task.FromResult<SspNarrativeDto?>(null);
+            records[index] = update(records[index]);
+            return Task.FromResult<SspNarrativeDto?>(records[index]);
         }
-
-        records[index] = update(records[index]);
-        return Task.FromResult<SspNarrativeDto?>(records[index]);
     }
-
-    private static SspNarrativeSourceRecordDto[] Normalize(SspNarrativeSourceRecordDto[] records) =>
-        records
-            .Select(record => new SspNarrativeSourceRecordDto(record.RecordType.Trim(), record.RecordId.Trim(), record.TenantId, record.Summary.Trim(), record.SourceUrl.Trim(), record.Approved, record.Outdated))
-            .ToArray();
 
     public Task<IReadOnlyList<SspExportPackageDto>> ListExportPackagesAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<SspExportPackageDto>>(_exports.GetOrAdd(tenantId, _ => []).OrderByDescending(package => package.GeneratedAt).ToArray());

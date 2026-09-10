@@ -82,6 +82,70 @@ test("navigates between key MVP workspaces", async ({ page }) => {
   await expect(page.getByRole("region", { name: "CMMC readiness workspace" })).toBeVisible();
 });
 
+test("generates, edits, and compares a draft-only SSP narrative", async ({ page }) => {
+  const section = {
+    id: "11111111-1111-1111-1111-111111111111", tenantId: access.tenantId, sectionType: "ControlImplementationNarratives",
+    title: "Access control narrative", owner: "Security", status: "Draft", reviewer: null, reviewDate: null,
+    approvalRationale: null, isRequired: true, version: 1, linkedRecords: [],
+    sourceReferences: [{ source: "NIST SP 800-171", sourceUrl: "https://csrc.nist.gov", lastReviewedAt: "2026-09-01" }],
+    history: [], createdAt: "2026-09-09T00:00:00Z", updatedAt: "2026-09-09T00:00:00Z"
+  };
+  let narratives: Array<Record<string, unknown> & { id: string; editedText: string | null; reviewerNotes: string | null; sourceRecords: unknown[] }> = [];
+  let generationRequest: { sources?: Array<{ sourceType: string; recordId: string }> } = {};
+  await page.route("**/api/compliance/ssp/**", async route => {
+    const request = route.request(); const path = new URL(request.url()).pathname;
+    if (path === "/api/compliance/ssp/sections") return route.fulfill({ json: [section] });
+    if (path.endsWith("/narratives") && request.method() === "GET") return route.fulfill({ json: narratives });
+    if (path.endsWith("/narratives") && request.method() === "POST") {
+      generationRequest = request.postDataJSON();
+      narratives = [{ id: "22222222-2222-2222-2222-222222222222", tenantId: access.tenantId, sectionId: section.id,
+        generatedText: "MFA is enforced for administrative access.", editedText: null, approvedText: null, status: "Draft",
+        aiAssisted: false, draftOnly: true, reviewerNotes: null, reviewerUserId: null, reviewer: null, reviewDate: null, version: 1,
+        classification: { classification: "Unclassified", source: "SystemSuggested", confidence: null, reviewedByUserId: null, reviewedAt: null, reason: null, isApprovedDemoContent: false },
+        sourceRecords: [
+          { sourceType: "Evidence", recordId: "evidence-1", label: "MFA configuration evidence", summary: "MFA is enforced.", sourceUrl: "/evidence?item=evidence-1", fingerprint: "v1", classification: "Unclassified" },
+          { sourceType: "GeneratedPolicy", recordId: "policy-1", label: "Access control policy", summary: "Access policy is approved.", sourceUrl: "/policies?policy=policy-1", fingerprint: "v1", classification: "Unclassified" }
+        ],
+        createdAt: "2026-09-09T00:00:00Z", updatedAt: "2026-09-09T00:00:00Z" }];
+      return route.fulfill({ status: 201, json: narratives[0] });
+    }
+    if (request.method() === "PUT") {
+      const body = request.postDataJSON(); narratives[0] = { ...narratives[0], editedText: body.editedText, reviewerNotes: body.reviewerNotes, version: 2 };
+      return route.fulfill({ json: narratives[0] });
+    }
+    if (path.endsWith("/comparison")) return route.fulfill({ json: {
+      sectionId: section.id, approvedNarrativeId: null, draftNarrativeId: narratives[0].id, currentApprovedText: null,
+      proposedText: narratives[0].editedText, currentApprovedReviewerUserId: null, currentApprovedReviewer: null,
+      currentApprovedReviewDate: null, proposedReviewerNotes: narratives[0].reviewerNotes,
+      proposedSources: narratives[0].sourceRecords, currentApprovedSources: []
+    } });
+    return route.fulfill({ status: 404, json: {} });
+  });
+
+  await page.goto("/app");
+  await page.getByRole("link", { name: /CMMC/ }).click();
+  await page.getByRole("button", { name: "Access control narrative" }).click();
+  await expect(page.getByRole("region", { name: "SSP narrative builder for Access control narrative" })).toBeVisible();
+  await page.getByLabel("Approved source record ID").fill("evidence-1");
+  await page.getByRole("button", { name: "Add another source" }).click();
+  await page.getByLabel("Source type").selectOption("GeneratedPolicy");
+  await page.getByLabel("Approved source record ID").fill("policy-1");
+  await page.getByRole("button", { name: "Generate draft" }).click();
+  expect(generationRequest.sources).toEqual([
+    { sourceType: "Evidence", recordId: "evidence-1" },
+    { sourceType: "GeneratedPolicy", recordId: "policy-1" }
+  ]);
+  await expect(page.getByText("Draft—human review required").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "MFA configuration evidence" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Access control policy" })).toBeVisible();
+  await page.getByLabel("Narrative text").fill("MFA is enforced for privileged administrative access.");
+  await page.getByLabel("Reviewer notes").fill("Validate the privileged role inventory.");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await page.getByRole("button", { name: "Compare with current approved" }).click();
+  await expect(page.getByText("No approved narrative exists.")).toBeVisible();
+  await expect(page.getByText("Reviewer notes: Validate the privileged role inventory.")).toBeVisible();
+});
+
 async function mockApi(page: Page) {
   await page.route("**/api/**", async (route) => {
     const url = new URL(route.request().url());

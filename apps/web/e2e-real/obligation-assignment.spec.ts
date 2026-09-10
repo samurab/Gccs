@@ -135,6 +135,29 @@ test("UAT-09 Compliance Manager can assign an active tenant member and the assig
   await expect(page.getByRole("status")).toContainText(`Currently assigned to: ${contributor.displayName}`);
   await expect(page.getByRole("combobox", { name: "Tenant member", exact: true })).toHaveValue(contributor.userId);
 
+  await page.getByRole("combobox", { name: "Update status" }).selectOption("waiting_for_review");
+  await page.getByRole("button", { name: "Save status" }).click();
+  await expect(page.getByText("Obligation status updated.")).toBeVisible();
+
+  const taskSearchResponse = await request.get(
+    `${apiURL}/api/tasks/search?status=waiting_for_review&ownerUserId=${contributor.userId}&pageSize=25`,
+    { headers: headers() }
+  );
+  expect(taskSearchResponse.status()).toBe(200);
+  const taskPage = await taskSearchResponse.json();
+  expect(taskPage.items).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        status: "waiting_for_review",
+        assignedToUserId: contributor.userId,
+        linkedEntityType: "contract",
+        linkedEntityId: contract.id,
+        tenantId
+      })
+    ])
+  );
+  expect(taskPage.hasMore).toBe(false);
+
   const detailResponse = await request.get(
     `${apiURL}/api/contract-obligations/${obligation.contractClauseId}/${obligation.obligationId}`,
     { headers: headers() }

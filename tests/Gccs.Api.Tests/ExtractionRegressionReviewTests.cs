@@ -398,6 +398,12 @@ public sealed class ExtractionRegressionReviewTests
         public Task<IReadOnlyList<ComplianceTaskDto>> ListCurrentTenantAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ComplianceTaskDto>>(Tasks);
 
+        public Task<ComplianceTaskDto?> FindCurrentTenantAsync(Guid taskId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<ComplianceTaskDto?>(Tasks.SingleOrDefault(task => task.Id == taskId));
+
+        public Task<bool> IsActiveCurrentTenantMemberAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(true);
+
         public Task<ComplianceTaskDto?> CreateAsync(
             CreateComplianceTaskRequest request,
             ComplianceTaskStatus status,

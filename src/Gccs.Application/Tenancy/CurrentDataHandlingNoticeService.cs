@@ -48,6 +48,7 @@ public sealed class CurrentDataHandlingNoticeService(
         "EvidenceSubmission" or "EvidenceUpload" => "EvidenceUpload",
         "Report" or "ReportGeneration" => "ReportGeneration",
         "Note" or "ClassifiedNote" => "ClassifiedNote",
+        "GeneratedPolicy" or "SspNarrative" => "Onboarding",
         "Onboarding" => "Onboarding",
         "Support" => "Support",
         _ => throw new DataHandlingNoticeValidationException("The notice workflow is not supported.")

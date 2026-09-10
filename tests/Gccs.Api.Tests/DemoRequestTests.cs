@@ -8,9 +8,11 @@ using Gccs.Infrastructure.Marketing;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
 using Xunit;
 
 namespace Gccs.Api.Tests;
@@ -835,6 +837,94 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
 
     [PostgresFact]
     [Trait("Category", "PostgresIntegration")]
+    public async Task Confirmation_retries_the_complete_transaction_after_a_serialization_failure()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")!;
+        var demoRequest = CreateRecord(Guid.NewGuid(), Convert.ToHexString(Guid.NewGuid().ToByteArray()).PadRight(64, '0'));
+        var setupOptions = new DbContextOptionsBuilder<GccsDbContext>().UseGccsPostgres(connectionString).Options;
+        var interceptor = new SerializationFailureInterceptor(failuresToInject: 1);
+        var retryOptions = new DbContextOptionsBuilder<GccsDbContext>()
+            .UseGccsPostgres(connectionString)
+            .AddInterceptors(interceptor)
+            .Options;
+        var command = AppointmentCommand(demoRequest.Id, Guid.NewGuid(), DateTimeOffset.UtcNow.AddDays(10));
+
+        await using (var setup = new GccsDbContext(setupOptions))
+        {
+            await PostgresTestDatabase.MigrateAsync(setup);
+            await new EfDemoRequestRepository(setup).CreateIfNewAsync(demoRequest);
+        }
+
+        try
+        {
+            await using (var context = new GccsDbContext(retryOptions))
+            {
+                var result = await new EfDemoAppointmentRepository(
+                    context,
+                    new StubAuditRequestMetadata()).ConfirmAsync(command);
+
+                Assert.Equal(DemoAppointmentConfirmationDisposition.Confirmed, result.Disposition);
+                Assert.Equal(2, interceptor.SaveAttempts);
+            }
+
+            await using var verification = new GccsDbContext(setupOptions);
+            Assert.Equal(1, await verification.DemoAppointments.CountAsync(item => item.DemoRequestId == demoRequest.Id));
+            Assert.Equal(1, await verification.DemoAppointmentEvents.CountAsync(item => item.DemoRequestId == demoRequest.Id));
+            Assert.Equal(1, await verification.DemoRequestDeliveries.CountAsync(item => item.DemoRequestId == demoRequest.Id && item.DemoAppointmentEventId != null));
+        }
+        finally
+        {
+            await DeleteDemoAppointmentScenarioAsync(setupOptions, demoRequest.Id);
+        }
+    }
+
+    [PostgresFact]
+    [Trait("Category", "PostgresIntegration")]
+    public async Task Exhausted_serialization_retries_leave_no_partial_appointment_history_or_outbox()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")!;
+        var demoRequest = CreateRecord(Guid.NewGuid(), Convert.ToHexString(Guid.NewGuid().ToByteArray()).PadRight(64, '0'));
+        var setupOptions = new DbContextOptionsBuilder<GccsDbContext>().UseGccsPostgres(connectionString).Options;
+        var interceptor = new SerializationFailureInterceptor(failuresToInject: int.MaxValue);
+        var retryOptions = new DbContextOptionsBuilder<GccsDbContext>()
+            .UseGccsPostgres(connectionString)
+            .AddInterceptors(interceptor)
+            .Options;
+        var command = AppointmentCommand(demoRequest.Id, Guid.NewGuid(), DateTimeOffset.UtcNow.AddDays(10));
+
+        await using (var setup = new GccsDbContext(setupOptions))
+        {
+            await PostgresTestDatabase.MigrateAsync(setup);
+            await new EfDemoRequestRepository(setup).CreateIfNewAsync(demoRequest);
+        }
+
+        try
+        {
+            await using (var context = new GccsDbContext(retryOptions))
+            {
+                var exception = await Assert.ThrowsAsync<PostgresException>(() =>
+                    new EfDemoAppointmentRepository(
+                        context,
+                        new StubAuditRequestMetadata()).ConfirmAsync(command));
+
+                Assert.Equal(PostgresErrorCodes.SerializationFailure, exception.SqlState);
+                Assert.Equal(3, interceptor.SaveAttempts);
+                Assert.Empty(context.ChangeTracker.Entries());
+            }
+
+            await using var verification = new GccsDbContext(setupOptions);
+            Assert.Equal(0, await verification.DemoAppointments.CountAsync(item => item.DemoRequestId == demoRequest.Id));
+            Assert.Equal(0, await verification.DemoAppointmentEvents.CountAsync(item => item.DemoRequestId == demoRequest.Id));
+            Assert.Equal(0, await verification.DemoRequestDeliveries.CountAsync(item => item.DemoRequestId == demoRequest.Id && item.DemoAppointmentEventId != null));
+        }
+        finally
+        {
+            await DeleteDemoAppointmentScenarioAsync(setupOptions, demoRequest.Id);
+        }
+    }
+
+    [PostgresFact]
+    [Trait("Category", "PostgresIntegration")]
     public async Task Concurrent_follow_up_submissions_persist_one_append_only_response_and_platform_projection()
     {
         var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")!;
@@ -1068,6 +1158,42 @@ public sealed class DemoRequestTests : IClassFixture<WebApplicationFactory<Progr
             null,
             DemoFollowUpCatalog.NoCuiNoticeVersion,
             submittedAt);
+
+    private static async Task DeleteDemoAppointmentScenarioAsync(
+        DbContextOptions<GccsDbContext> options,
+        Guid demoRequestId)
+    {
+        await using var cleanup = new GccsDbContext(options);
+        await cleanup.DemoRequestDeliveries.Where(item => item.DemoRequestId == demoRequestId).ExecuteDeleteAsync();
+        await cleanup.DemoAppointmentEvents.Where(item => item.DemoRequestId == demoRequestId).ExecuteDeleteAsync();
+        await cleanup.DemoAppointments.Where(item => item.DemoRequestId == demoRequestId).ExecuteDeleteAsync();
+        await cleanup.DemoRequests.Where(item => item.Id == demoRequestId).ExecuteDeleteAsync();
+    }
+
+    private sealed class SerializationFailureInterceptor(int failuresToInject) : SaveChangesInterceptor
+    {
+        private int _saveAttempts;
+
+        public int SaveAttempts => Volatile.Read(ref _saveAttempts);
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            var attempt = Interlocked.Increment(ref _saveAttempts);
+            if (attempt <= failuresToInject)
+            {
+                throw new PostgresException(
+                    "Simulated serialization failure.",
+                    "ERROR",
+                    "ERROR",
+                    PostgresErrorCodes.SerializationFailure);
+            }
+
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        }
+    }
 
     private sealed class StubSender(
         Exception? exception = null,

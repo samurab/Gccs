@@ -1471,6 +1471,7 @@ export function App() {
             ? {
                 ...item,
                 status: result.data.status,
+                statusCode: result.data.statusCode,
                 dueAt: result.data.dueAt
               }
             : item
@@ -2618,7 +2619,7 @@ export function App() {
               key={selectedCmmcAssessmentId ?? "new-assessment"}
               assessments={cmmcAssessments}
               canManageCmmc={canManageCmmc}
-              canManageSsp={canManageTenant}
+              canManageSsp={canManageCmmc}
               controls={cmmcControls}
               contracts={contracts}
               message={cmmcMessage}
@@ -3835,7 +3836,7 @@ function ObligationsView({
                           Overdue
                         </span>
                       ) : null}
-                      <StatusPill label={formatEnumLabel(item.status)} tone={statusTone(item.status)} />
+                      <StatusPill label={formatEnumLabel(item.statusCode)} tone={statusTone(item.statusCode)} />
                       <StatusPill label={`${formatEnumLabel(item.confidence)} confidence`} tone={confidenceTone(item.confidence)} />
                     </>
                   }
@@ -3948,7 +3949,7 @@ function ObligationDetailPanel({
         </div>
         <div className="obligation-dashboard-item__badges">
           <RiskBadge level={detail.riskLevel} />
-          <StatusPill label={formatEnumLabel(detail.status)} tone={statusTone(detail.status)} />
+          <StatusPill label={formatEnumLabel(detail.statusCode)} tone={statusTone(detail.statusCode)} />
           <StatusPill label={`${formatEnumLabel(detail.confidence)} confidence`} tone={confidenceTone(detail.confidence)} />
         </div>
       </div>
@@ -4049,7 +4050,7 @@ function ObligationDetailPanel({
             <ul>
               {detail.linkedTasks.map((task) => (
                 <li key={task.id}>
-                  {task.title} - {task.status} {task.dueAt ? `due ${task.dueAt}` : ""}
+                  {task.title} - {formatEnumLabel(task.statusCode)} {task.dueAt ? `due ${task.dueAt}` : ""}
                 </li>
               ))}
             </ul>
@@ -4080,7 +4081,7 @@ function ObligationDetailPanel({
         onSubmit={(event) => {
           event.preventDefault();
           const formData = new FormData(event.currentTarget);
-          const nextStatus = String(formData.get("status") ?? detail.status);
+          const nextStatus = String(formData.get("status") ?? detail.statusCode);
           void onStatusUpdate(nextStatus);
         }}
       >
@@ -4088,15 +4089,16 @@ function ObligationDetailPanel({
           Update status
           <select
             name="status"
-            defaultValue={detail.status}
+            defaultValue={detail.statusCode}
             disabled={!canManageObligations || status === "saving"}
           >
-            <option value="Open">Open</option>
-            <option value="InProgress">In progress</option>
-            <option value="Blocked">Blocked</option>
-            <option value="WaitingForReview">Waiting for review</option>
-            <option value="Done">Done</option>
-            <option value="Canceled">Canceled</option>
+            <option value="not_started" disabled>Not started</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In progress</option>
+            <option value="blocked">Blocked</option>
+            <option value="waiting_for_review">Waiting for review</option>
+            <option value="completed">Done</option>
+            <option value="canceled">Canceled</option>
           </select>
         </label>
         <button type="submit" disabled={!canManageObligations || status === "saving"}>

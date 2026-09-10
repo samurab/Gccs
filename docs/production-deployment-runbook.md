@@ -231,6 +231,8 @@ In the same GitHub `production` environment, confirm these secrets exist:
 | `AZURE_CREDENTIALS_GCCS_PRODUCTION` | Service principal JSON used by `azure/login@v2`. |
 | `AZURE_STATIC_WEB_APPS_API_TOKEN_GCCS_PRODUCTION` | Azure Static Web App deployment token. |
 | `PRODUCTION_DATABASE_URL` | PostgreSQL connection URL used by the migration step. |
+| `TASK_SEARCH_CURSOR_SIGNING_KEY` | Base64-encoded 32-byte-or-longer HMAC key shared by every production API instance. Generate with `openssl rand -base64 32`; never commit its value. |
+| `TASK_SEARCH_PREVIOUS_CURSOR_SIGNING_KEY` | Optional prior cursor key retained only for the 15-minute rotation overlap. |
 
 Command-line verification:
 
@@ -247,6 +249,10 @@ Common secret failures:
 - The Static Web App token must come from the production Static Web App, not staging.
 
 Do not store production secret values in the repository, screenshots, docs, support tickets, or chat logs.
+
+The production workflow resolves the existing Application Insights connection string after Azure login and writes it directly to the App Service setting `APPLICATIONINSIGHTS_CONNECTION_STRING`. It also writes the cursor keys to `TaskSearch__CursorSigningKey` and `TaskSearch__PreviousCursorSigningKey` before deploying the API. Startup fails closed when the current key is absent, malformed, or shorter than 32 decoded bytes.
+
+The weekly `Task API compatibility observation` workflow queries 30 days of production telemetry. It requires heartbeats in at least 55 distinct 12-hour buckets and zero `LegacyTaskListUsed` or `LegacyTaskStatusInputUsed` events before producing evidence with `eligibleForBreakingRemoval=true`. A zero count without near-continuous collector coverage is a failed observation, not evidence of zero usage.
 
 ## Step 7 - Verify Azure Runtime Settings
 
