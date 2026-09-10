@@ -5,8 +5,8 @@
       <!-- Test hosts use fixed fixtures; avoid macOS file-watcher reload storms. -->
       <DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE>false</DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE>
     </EnvironmentVariables>
-    <!-- GitHub-hosted runners need more than 30 minutes for the complete suite. -->
-    <TestSessionTimeout>3600000</TestSessionTimeout>
+    <!-- Each CI shard has a bounded session; local complete regressions retain headroom. -->
+    <TestSessionTimeout>5400000</TestSessionTimeout>
   </RunConfiguration>
   <xUnit>
     <MaxParallelThreads>4</MaxParallelThreads>
