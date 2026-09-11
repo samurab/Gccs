@@ -134,6 +134,18 @@ The MVP deployment keeps the product No-CUI / compliance management only. Eviden
 
 Labor applicability is a tenant-scoped contract aggregate. The application service validates explicit SCA/DBA/FAR Part 22 fields and source-backed activation, the EF adapter validates contract/clause/evidence ownership and synchronizes a durable compliance task, and the request transaction commits each applicability mutation with its audit event. Wage determination bytes remain in the shared evidence pipeline rather than creating a second upload boundary.
 
+## Labor Category And Employee Classification Boundary
+
+Current state: **Implemented** for tenant-scoped labor categories, employee assignments, wage/fringe/effective-date data, source references, evidence links, sensitive-field redaction, classification review metadata, append-only reclassification history, and atomic mutation/audit persistence. **Do not claim** that these workflow records are legal wage or labor determinations.
+
+- `ViewContracts` authorizes category and redacted assignment reads. `ManageContracts` authorizes category, assignment, reclassification, deactivation, and review mutations. `ViewSensitiveEmployeeData` separately authorizes employee options, names, and email addresses and is limited to Owner, Admin, and Compliance Manager roles.
+- Assignment request contracts accept an employee identifier but not client-asserted names or email addresses. Infrastructure resolves the active current-tenant employee, contract, category, and evidence references.
+- Categories require source references, nonnegative wage and fringe values, and valid effective dates. Assignment creation and reclassification reject missing sources, inactive or cross-contract categories, dates outside the category period, and overlapping active assignments.
+- Tenant-qualified foreign keys prevent cross-tenant contract, employee, category, and evidence links. PostgreSQL additionally enforces nonnegative rate, effective-date, review-metadata, and active-assignment overlap constraints.
+- Reclassification preserves prior and new category identifiers and titles, actor, timestamp, and reason. Assignment edits and reclassification reset reviewer metadata to `PendingReview`; review decisions store the authenticated reviewer and server timestamp.
+- Labor category and assignment mutations share the standard request transaction with append-only audit writes. Audit metadata contains identifiers and workflow state, not employee names or email addresses.
+- The UI exposes loading, empty, validation-error, read-only, sensitive-field-restricted, create, deactivate, reclassify, and review states while retaining the No-CUI warning.
+
 ## Frontend Strategy
 
 Use React + Vite for the authenticated application because the MVP is dashboard-heavy, workflow-oriented, and backed by the ASP.NET Core API. This keeps the app frontend lightweight, fast in local development, and cleanly separated from backend responsibilities.

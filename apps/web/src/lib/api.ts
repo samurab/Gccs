@@ -1728,6 +1728,32 @@ export type LaborApplicability = {
 export type UpsertLaborApplicabilityRequest = Omit<LaborApplicability,
   "id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "reviewTask" | "createdAt" | "updatedAt" | "laborStandard">;
 
+export type LaborCategory = {
+  id: string; tenantId: string; contractId: string; title: string;
+  wageDeterminationClassification: string; hourlyWage: number; fringeRate: number;
+  fringeDescription: string; effectiveStart: string; effectiveEnd: string | null;
+  sourceReference: string; isActive: boolean; createdAt: string; updatedAt: string | null;
+};
+export type LaborCategoryRequest = Omit<LaborCategory, "id" | "tenantId" | "isActive" | "createdAt" | "updatedAt">;
+export type LaborClassificationHistory = {
+  id: string; assignmentId: string; priorCategoryId: string | null; priorCategoryTitle: string | null;
+  newCategoryId: string; newCategoryTitle: string; actorUserId: string; changedAt: string; reason: string;
+};
+export type LaborClassificationReviewStatus = "PendingReview" | "Reviewed" | "Rejected";
+export type LaborEmployeeAssignment = {
+  id: string; tenantId: string; contractId: string; employeeId: string;
+  employeeName: string | null; employeeEmail: string | null; categoryId: string;
+  laborCategoryTitle: string; workLocation: string; effectiveStart: string; effectiveEnd: string | null;
+  status: "Active" | "Inactive"; sourceReference: string; evidenceItemIds: string[];
+  history: LaborClassificationHistory[]; reviewStatus: LaborClassificationReviewStatus;
+  reviewNotes: string | null; reviewedByUserId: string | null; reviewedAt: string | null;
+};
+export type LaborEmployeeAssignmentRequest = {
+  employeeId: string; contractId: string; categoryId: string; workLocation: string;
+  effectiveStart: string; effectiveEnd: string | null; sourceReference: string; evidenceItemIds: string[];
+};
+export type LaborEmployeeOption = { id: string; tenantId: string; employeeNumber: string; name: string; email: string };
+
 export type EsrsApplicability = {
   id: string;
   tenantId: string;
@@ -3144,6 +3170,25 @@ export const uploadLaborWageDetermination = (
   form.set("containsPotentialCui", String(classification === "Cui"));
   return postFormResult<EvidenceFileAccess>(`/api/contracts/${contractId}/labor-applicabilities/${applicabilityId}/wage-determination/file`, form);
 };
+
+export const getContractLaborCategories = (contractId: string) =>
+  getRequiredJson<LaborCategory[]>(`/api/contracts/${contractId}/labor-categories`);
+export const createLaborCategory = (contractId: string, request: LaborCategoryRequest) =>
+  postJsonResult<LaborCategory>(`/api/contracts/${contractId}/labor-categories`, request);
+export const deactivateLaborCategory = (contractId: string, categoryId: string) =>
+  postJsonResult<LaborCategory>(`/api/contracts/${contractId}/labor-categories/${categoryId}/deactivate`, {});
+export const getLaborClassificationEmployees = () =>
+  getRequiredJson<LaborEmployeeOption[]>("/api/labor-classification/employees");
+export const getContractLaborAssignments = (contractId: string) =>
+  getRequiredJson<LaborEmployeeAssignment[]>(`/api/contracts/${contractId}/labor-assignments`);
+export const createLaborAssignment = (contractId: string, request: LaborEmployeeAssignmentRequest) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments`, request);
+export const deactivateLaborAssignment = (contractId: string, assignmentId: string) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments/${assignmentId}/deactivate`, {});
+export const reclassifyLaborAssignment = (contractId: string, assignmentId: string, newCategoryId: string, reason: string) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments/${assignmentId}/reclassify`, { newCategoryId, reason });
+export const reviewLaborAssignment = (contractId: string, assignmentId: string, status: Exclude<LaborClassificationReviewStatus, "PendingReview">, notes: string) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments/${assignmentId}/review`, { status, notes });
 
 export const getContractEsrsApplicabilities = (contractId: string) =>
   getRequiredJson<EsrsApplicability[]>(`/api/contracts/${contractId}/subcontracting-plan-reporting-applicabilities`);

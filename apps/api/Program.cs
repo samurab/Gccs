@@ -1402,6 +1402,215 @@ api.MapPost("/contracts/{contractId:guid}/labor-applicabilities/{applicabilityId
 .WithMetadata(new SuppressAtomicMutationTransactionMetadata())
 .WithName("UploadContractLaborWageDeterminationFile");
 
+api.MapGet("/contracts/{contractId:guid}/labor-categories", async (
+    Guid contractId, LaborClassificationService service, ITenantContext tenantContext, CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCategoriesAsync(tenantContext.TenantId, contractId, cancellationToken)))
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractLaborCategories");
+
+api.MapGet("/labor-classification/employees", async (
+    LaborClassificationService service, ITenantContext tenantContext, CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListEmployeesAsync(tenantContext.TenantId, cancellationToken)))
+.RequirePermission(Permission.ViewSensitiveEmployeeData)
+.WithName("ListLaborClassificationEmployees");
+
+api.MapPost("/contracts/{contractId:guid}/labor-categories", async (
+    Guid contractId, LaborCategoryRequest request, LaborClassificationService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateCategoryAsync(request with { ContractId = contractId }, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/contracts/{contractId}/labor-categories/{created.Id}", created);
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborCategory"] = [exception.Message] },
+            title: "Labor category invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractLaborCategory");
+
+api.MapPut("/contracts/{contractId:guid}/labor-categories/{categoryId:guid}", async (
+    Guid contractId, Guid categoryId, LaborCategoryRequest request, LaborClassificationService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateCategoryAsync(categoryId, request with { ContractId = contractId }, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor category was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborCategory"] = [exception.Message] },
+            title: "Labor category invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractLaborCategory");
+
+api.MapPost("/contracts/{contractId:guid}/labor-categories/{categoryId:guid}/deactivate", async (
+    Guid contractId, Guid categoryId, LaborClassificationService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.DeactivateCategoryAsync(categoryId, contractId, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return updated is null || updated.ContractId != contractId
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor category was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborCategory"] = [exception.Message] },
+            title: "Labor category invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("DeactivateContractLaborCategory");
+
+api.MapGet("/contracts/{contractId:guid}/labor-assignments", async (
+    Guid contractId, LaborClassificationService service, ITenantContext tenantContext, ClaimsPrincipal user,
+    CancellationToken cancellationToken) =>
+{
+    var canViewSensitive = user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString());
+    return Results.Ok(await service.ListAssignmentsAsync(tenantContext.TenantId, contractId, canViewSensitive, cancellationToken));
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractLaborAssignments");
+
+api.MapGet("/contracts/{contractId:guid}/labor-assignments/{assignmentId:guid}", async (
+    Guid contractId, Guid assignmentId, LaborClassificationService service, ITenantContext tenantContext,
+    ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var canViewSensitive = user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString());
+    var assignment = await service.ViewAssignmentAsync(assignmentId, tenantContext.TenantId, canViewSensitive, cancellationToken);
+    return assignment is null || assignment.ContractId != contractId
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor assignment was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(assignment);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("GetContractLaborAssignment");
+
+api.MapPost("/contracts/{contractId:guid}/labor-assignments", async (
+    Guid contractId, LaborEmployeeAssignmentRequest request, LaborClassificationService service,
+    ITenantContext tenantContext, ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAssignmentAsync(request with { ContractId = contractId }, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        var view = await service.ViewAssignmentAsync(created.Id, tenantContext.TenantId,
+            user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString()), cancellationToken);
+        return Results.Created($"/api/contracts/{contractId}/labor-assignments/{created.Id}", view);
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborAssignment"] = [exception.Message] },
+            title: "Labor assignment invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractLaborAssignment");
+
+api.MapPut("/contracts/{contractId:guid}/labor-assignments/{assignmentId:guid}", async (
+    Guid contractId, Guid assignmentId, LaborEmployeeAssignmentRequest request, LaborClassificationService service,
+    ITenantContext tenantContext, ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAssignmentAsync(assignmentId, request with { ContractId = contractId }, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        if (updated is null) return ApiProblemDetails.Create(httpContext, "Resource not found", "The labor assignment was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.ViewAssignmentAsync(updated.Id, tenantContext.TenantId,
+            user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString()), cancellationToken));
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborAssignment"] = [exception.Message] },
+            title: "Labor assignment invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (LaborClassificationConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Labor assignment conflict", exception.Message,
+            StatusCodes.Status409Conflict, "labor_assignment_conflict");
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractLaborAssignment");
+
+api.MapPost("/contracts/{contractId:guid}/labor-assignments/{assignmentId:guid}/deactivate", async (
+    Guid contractId, Guid assignmentId, LaborClassificationService service, ITenantContext tenantContext,
+    ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.DeactivateAssignmentAsync(assignmentId, contractId, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        if (updated is null || updated.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The labor assignment was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.ViewAssignmentAsync(updated.Id, tenantContext.TenantId,
+            user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString()), cancellationToken));
+    }
+    catch (LaborClassificationConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Labor assignment conflict", exception.Message,
+            StatusCodes.Status409Conflict, "labor_assignment_conflict");
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("DeactivateContractLaborAssignment");
+
+api.MapPost("/contracts/{contractId:guid}/labor-assignments/{assignmentId:guid}/reclassify", async (
+    Guid contractId, Guid assignmentId, LaborReclassificationRequest request, LaborClassificationService service,
+    ITenantContext tenantContext, ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ReclassifyAsync(assignmentId, request.NewCategoryId, request.Reason,
+            contractId, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        if (updated is null || updated.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The labor assignment was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.ViewAssignmentAsync(updated.Id, tenantContext.TenantId,
+            user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString()), cancellationToken));
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["reclassification"] = [exception.Message] },
+            title: "Labor reclassification invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (LaborClassificationConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Labor assignment conflict", exception.Message,
+            StatusCodes.Status409Conflict, "labor_assignment_conflict");
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("ReclassifyContractLaborAssignment");
+
+api.MapPost("/contracts/{contractId:guid}/labor-assignments/{assignmentId:guid}/review", async (
+    Guid contractId, Guid assignmentId, LaborClassificationReviewRequest request,
+    LaborClassificationService service, ITenantContext tenantContext, ClaimsPrincipal user,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ReviewAssignmentAsync(
+            assignmentId, request, contractId, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        if (updated is null || updated.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The labor assignment was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.ViewAssignmentAsync(updated.Id, tenantContext.TenantId,
+            user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString()), cancellationToken));
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["classificationReview"] = [exception.Message] },
+            title: "Labor classification review invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("ReviewContractLaborAssignment");
+
 api.MapGet("/contracts/{contractId:guid}/esrs-applicabilities", async (
     Guid contractId,
     EsrsApplicabilityService service,

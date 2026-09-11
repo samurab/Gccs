@@ -130,6 +130,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<TrainingRecordEntity> TrainingRecords => Set<TrainingRecordEntity>();
     public DbSet<WageDeterminationEntity> WageDeterminations => Set<WageDeterminationEntity>();
     public DbSet<LaborClassificationEntity> LaborClassifications => Set<LaborClassificationEntity>();
+    public DbSet<LaborCategoryEntity> LaborCategories => Set<LaborCategoryEntity>();
+    public DbSet<LaborEmployeeAssignmentEntity> LaborEmployeeAssignments => Set<LaborEmployeeAssignmentEntity>();
+    public DbSet<LaborClassificationHistoryEntity> LaborClassificationHistory => Set<LaborClassificationHistoryEntity>();
+    public DbSet<LaborClassificationEvidenceEntity> LaborClassificationEvidence => Set<LaborClassificationEvidenceEntity>();
     public DbSet<PayrollRecordEntity> PayrollRecords => Set<PayrollRecordEntity>();
     public DbSet<ReportEntity> Reports => Set<ReportEntity>();
     public DbSet<ReportExportEntity> ReportExports => Set<ReportExportEntity>();
@@ -1994,6 +1998,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("employees");
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.EmployeeNumber }).IsUnique();
             entity.HasIndex(x => new { x.TenantId, x.Email });
             ConfigureAuditColumns(entity);
@@ -2031,6 +2036,77 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.EmployeeId, x.ContractId });
             ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborCategoryEntity>(entity =>
+        {
+            entity.ToTable("labor_categories", table =>
+            {
+                table.HasCheckConstraint("CK_labor_categories_effective_dates", "effective_end IS NULL OR effective_end >= effective_start");
+                table.HasCheckConstraint("CK_labor_categories_nonnegative_rates", "hourly_wage >= 0 AND fringe_rate >= 0");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.IsActive });
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.WageDeterminationClassification).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.HourlyWage).HasPrecision(12, 2);
+            entity.Property(x => x.FringeRate).HasPrecision(12, 2);
+            entity.Property(x => x.FringeDescription).HasMaxLength(1_000);
+            entity.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+            entity.Property(x => x.SourceReference).HasMaxLength(500).IsRequired();
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborEmployeeAssignmentEntity>(entity =>
+        {
+            entity.ToTable("labor_employee_assignments", table =>
+            {
+                table.HasCheckConstraint("CK_labor_employee_assignments_effective_dates", "effective_end IS NULL OR effective_end >= effective_start");
+                table.HasCheckConstraint("CK_labor_employee_assignments_review_metadata",
+                    "(review_status = 0 AND reviewed_by_user_id IS NULL AND reviewed_at IS NULL) OR " +
+                    "(review_status IN (1, 2) AND review_notes IS NOT NULL AND reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL)");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.EmployeeId, x.ContractId });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.Status });
+            entity.Property(x => x.WorkLocation).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.SourceReference).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1_000);
+            entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => new { x.TenantId, x.EmployeeId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Category).WithMany(x => x.Assignments).HasForeignKey(x => new { x.TenantId, x.LaborCategoryId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborClassificationHistoryEntity>(entity =>
+        {
+            entity.ToTable("labor_classification_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.AssignmentId, x.ChangedAt });
+            entity.Property(x => x.PriorCategoryTitle).HasMaxLength(240);
+            entity.Property(x => x.NewCategoryTitle).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(1_000).IsRequired();
+            entity.HasOne(x => x.Assignment).WithMany(x => x.History)
+                .HasForeignKey(x => new { x.TenantId, x.AssignmentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LaborClassificationEvidenceEntity>(entity =>
+        {
+            entity.ToTable("labor_classification_evidence");
+            entity.HasKey(x => new { x.TenantId, x.AssignmentId, x.EvidenceItemId });
+            entity.HasOne(x => x.Assignment).WithMany(x => x.EvidenceLinks)
+                .HasForeignKey(x => new { x.TenantId, x.AssignmentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => new { x.TenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<PayrollRecordEntity>(entity =>

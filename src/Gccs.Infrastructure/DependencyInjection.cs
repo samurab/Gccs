@@ -133,7 +133,8 @@ public static class DependencyInjection
         services.AddSingleton<ISprSubmissionProvider, DisabledSprSubmissionProvider>();
         services.AddScoped<ILaborApplicabilityRepository>(provider => new EfLaborApplicabilityRepository(
             provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
-        services.AddSingleton<ILaborClassificationRepository, InMemoryLaborClassificationRepository>();
+        services.AddScoped<ILaborClassificationRepository>(provider => new EfLaborClassificationRepository(
+            provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddSingleton<IAiRetrievalSourceRepository, InMemoryAiRetrievalSourceRepository>();
         services.AddSingleton<IAiOutputReviewRepository, InMemoryAiOutputReviewRepository>();
         services.AddSingleton<IGuardedAssistantRepository, InMemoryGuardedAssistantRepository>();

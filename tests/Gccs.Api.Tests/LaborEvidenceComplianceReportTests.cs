@@ -12,7 +12,7 @@ public sealed class LaborEvidenceComplianceReportTests
     public async Task TC_32_3_1_Dashboard_filters_current_tenant_labor_obligations_assignments_gaps_and_overdue()
     {
         var ids = StoryIds.Create();
-        var harness = CreateHarness();
+        var harness = CreateHarness(ids);
         await SeedLaborDataAsync(harness, ids, includeSensitiveOtherTenant: true);
 
         var dashboard = await harness.ReportService.GetDashboardAsync(
@@ -31,7 +31,7 @@ public sealed class LaborEvidenceComplianceReportTests
     public async Task TC_32_3_2_Report_includes_sources_wage_determinations_categories_assignments_gaps_evidence_and_generated_date()
     {
         var ids = StoryIds.Create();
-        var harness = CreateHarness();
+        var harness = CreateHarness(ids);
         await SeedLaborDataAsync(harness, ids);
 
         var report = await harness.ReportService.GenerateAsync(new LaborComplianceReportRequest(ids.TenantId, ids.ContractId), ids.ActorUserId);
@@ -49,7 +49,7 @@ public sealed class LaborEvidenceComplianceReportTests
     public async Task TC_32_3_3_Employee_sensitive_sections_require_hr_permission()
     {
         var ids = StoryIds.Create();
-        var harness = CreateHarness();
+        var harness = CreateHarness(ids);
         await SeedLaborDataAsync(harness, ids);
 
         var restricted = await harness.ReportService.GenerateAsync(
@@ -69,7 +69,7 @@ public sealed class LaborEvidenceComplianceReportTests
     public async Task TC_32_3_4_Report_presents_workflow_status_without_final_legal_determination_language()
     {
         var ids = StoryIds.Create();
-        var harness = CreateHarness();
+        var harness = CreateHarness(ids);
         await SeedLaborDataAsync(harness, ids);
 
         var report = await harness.ReportService.GenerateAsync(new LaborComplianceReportRequest(ids.TenantId, ids.ContractId), ids.ActorUserId);
@@ -83,7 +83,7 @@ public sealed class LaborEvidenceComplianceReportTests
     public async Task TC_32_3_5_Report_generation_and_export_are_audit_logged()
     {
         var ids = StoryIds.Create();
-        var harness = CreateHarness();
+        var harness = CreateHarness(ids);
         await SeedLaborDataAsync(harness, ids);
         var report = await harness.ReportService.GenerateAsync(new LaborComplianceReportRequest(ids.TenantId, ids.ContractId), ids.ActorUserId);
 
@@ -158,8 +158,6 @@ public sealed class LaborEvidenceComplianceReportTests
     private static LaborEmployeeAssignmentRequest CreateAssignment(StoryIds ids, Guid contractId, Guid categoryId) =>
         new(
             ids.EmployeeId,
-            "Taylor Employee",
-            "taylor@example.test",
             contractId,
             categoryId,
             "Norfolk, VA",
@@ -167,11 +165,15 @@ public sealed class LaborEvidenceComplianceReportTests
             null,
             "HR classification review 2026-01");
 
-    private static StoryHarness CreateHarness()
+    private static StoryHarness CreateHarness(StoryIds ids)
     {
         var auditWriter = new CapturingAuditEventWriter();
         var applicabilityRepository = new InMemoryLaborApplicabilityRepository();
         var classificationRepository = new InMemoryLaborClassificationRepository();
+        classificationRepository.AddEmployee(new LaborEmployeeOptionDto(
+            ids.EmployeeId, ids.TenantId, "E-100", "Taylor Employee", "taylor@example.test"));
+        classificationRepository.AddEmployee(new LaborEmployeeOptionDto(
+            ids.EmployeeId, ids.OtherTenantId, "E-OTHER", "Other Tenant Employee", "other@example.test"));
         return new StoryHarness(
             new LaborApplicabilityService(applicabilityRepository, auditWriter, new TestApplicationTransaction()),
             new LaborClassificationService(classificationRepository, auditWriter),

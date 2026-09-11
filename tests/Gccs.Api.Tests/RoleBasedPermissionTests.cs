@@ -47,9 +47,9 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             [RoleCatalog.Owner, RoleCatalog.Admin, RoleCatalog.ComplianceManager, RoleCatalog.Contributor, RoleCatalog.Auditor, RoleCatalog.Advisor],
             RoleCatalog.Roles);
 
-        AssertRoleHas(RoleCatalog.Owner, Permission.ManageTenant, Permission.ManageUsers, Permission.ManageReports, Permission.ArchiveReports, Permission.ExportReports, Permission.ViewAuditLog);
-        AssertRoleHas(RoleCatalog.Admin, Permission.ManageUsers, Permission.ManageCompanyProfile, Permission.ManageContracts, Permission.ManageEvidence, Permission.ArchiveReports);
-        AssertRoleHas(RoleCatalog.ComplianceManager, Permission.ManageObligations, Permission.ManageTasks, Permission.ApproveEvidence, Permission.ManageSubcontractors);
+        AssertRoleHas(RoleCatalog.Owner, Permission.ManageTenant, Permission.ManageUsers, Permission.ViewSensitiveEmployeeData, Permission.ManageReports, Permission.ArchiveReports, Permission.ExportReports, Permission.ViewAuditLog);
+        AssertRoleHas(RoleCatalog.Admin, Permission.ManageUsers, Permission.ViewSensitiveEmployeeData, Permission.ManageCompanyProfile, Permission.ManageContracts, Permission.ManageEvidence, Permission.ArchiveReports);
+        AssertRoleHas(RoleCatalog.ComplianceManager, Permission.ViewSensitiveEmployeeData, Permission.ManageObligations, Permission.ManageTasks, Permission.ApproveEvidence, Permission.ManageSubcontractors);
         AssertRoleHas(RoleCatalog.Contributor, Permission.ViewCompanyProfile, Permission.ManageTasks, Permission.ManageEvidence);
         AssertRoleHas(RoleCatalog.Auditor, Permission.AuditorReadOnly, Permission.ViewEvidence, Permission.ViewReports);
         AssertRoleHas(RoleCatalog.Advisor, Permission.ManageContracts, Permission.ManageObligations, Permission.ManageReports, Permission.ViewAuditLog);
@@ -77,10 +77,11 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             Permission.ManageSubcontractors,
             Permission.ManageReports);
         AssertRoleDoesNotHave(RoleCatalog.Admin, Permission.ManageTenant, Permission.ExportReports);
-        AssertRoleDoesNotHave(RoleCatalog.Contributor, Permission.ManageUsers, Permission.ApproveEvidence, Permission.ManageReports, Permission.ArchiveReports);
+        AssertRoleDoesNotHave(RoleCatalog.Contributor, Permission.ManageUsers, Permission.ViewSensitiveEmployeeData, Permission.ApproveEvidence, Permission.ManageReports, Permission.ArchiveReports);
         AssertRoleDoesNotHave(
             RoleCatalog.Auditor,
             Permission.ManageUsers,
+            Permission.ViewSensitiveEmployeeData,
             Permission.ManageCompanyProfile,
             Permission.ManageContracts,
             Permission.ManageObligations,
@@ -93,7 +94,7 @@ public sealed class RoleBasedPermissionTests : IClassFixture<WebApplicationFacto
             Permission.ArchiveReports,
             Permission.ExportReports,
             Permission.ManageTenant);
-        AssertRoleDoesNotHave(RoleCatalog.Advisor, Permission.ManageUsers, Permission.ManageTenant, Permission.ArchiveReports);
+        AssertRoleDoesNotHave(RoleCatalog.Advisor, Permission.ManageUsers, Permission.ViewSensitiveEmployeeData, Permission.ManageTenant, Permission.ArchiveReports);
         AssertRoleDoesNotHave(RoleCatalog.ComplianceManager, Permission.ArchiveReports);
     }
 

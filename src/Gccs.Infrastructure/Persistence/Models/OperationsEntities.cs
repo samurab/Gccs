@@ -8,6 +8,7 @@ using Gccs.Domain.Reports;
 using Gccs.Domain.Vendors;
 using Gccs.Application.Reports;
 using Gccs.Application.Portals;
+using Gccs.Application.Labor;
 
 namespace Gccs.Infrastructure.Persistence.Models;
 
@@ -788,6 +789,76 @@ public sealed class LaborClassificationEntity : AuditedEntity
     public string BasisForClassification { get; set; } = string.Empty;
     public Guid? WageDeterminationId { get; set; }
     public Guid? EvidenceItemId { get; set; }
+}
+
+public sealed class LaborCategoryEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContractId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string WageDeterminationClassification { get; set; } = string.Empty;
+    public decimal HourlyWage { get; set; }
+    public decimal FringeRate { get; set; }
+    public string FringeDescription { get; set; } = string.Empty;
+    public string Currency { get; set; } = "USD";
+    public DateOnly EffectiveStart { get; set; }
+    public DateOnly? EffectiveEnd { get; set; }
+    public string SourceReference { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+
+    public ContractEntity? Contract { get; set; }
+    public ICollection<LaborEmployeeAssignmentEntity> Assignments { get; set; } = [];
+}
+
+public sealed class LaborEmployeeAssignmentEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid ContractId { get; set; }
+    public Guid LaborCategoryId { get; set; }
+    public string WorkLocation { get; set; } = string.Empty;
+    public DateOnly EffectiveStart { get; set; }
+    public DateOnly? EffectiveEnd { get; set; }
+    public LaborAssignmentStatus Status { get; set; } = LaborAssignmentStatus.Active;
+    public string SourceReference { get; set; } = string.Empty;
+    public LaborClassificationReviewStatus ReviewStatus { get; set; } = LaborClassificationReviewStatus.PendingReview;
+    public string? ReviewNotes { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+
+    public EmployeeEntity? Employee { get; set; }
+    public ContractEntity? Contract { get; set; }
+    public LaborCategoryEntity? Category { get; set; }
+    public ICollection<LaborClassificationHistoryEntity> History { get; set; } = [];
+    public ICollection<LaborClassificationEvidenceEntity> EvidenceLinks { get; set; } = [];
+}
+
+public sealed class LaborClassificationHistoryEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid AssignmentId { get; set; }
+    public Guid? PriorCategoryId { get; set; }
+    public string? PriorCategoryTitle { get; set; }
+    public Guid NewCategoryId { get; set; }
+    public string NewCategoryTitle { get; set; } = string.Empty;
+    public Guid ActorUserId { get; set; }
+    public DateTimeOffset ChangedAt { get; set; }
+    public string Reason { get; set; } = string.Empty;
+
+    public LaborEmployeeAssignmentEntity? Assignment { get; set; }
+}
+
+public sealed class LaborClassificationEvidenceEntity
+{
+    public Guid TenantId { get; set; }
+    public Guid AssignmentId { get; set; }
+    public Guid EvidenceItemId { get; set; }
+
+    public LaborEmployeeAssignmentEntity? Assignment { get; set; }
+    public EvidenceItemEntity? EvidenceItem { get; set; }
 }
 
 public sealed class PayrollRecordEntity : AuditedEntity

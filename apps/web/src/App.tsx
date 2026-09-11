@@ -34,6 +34,7 @@ import { ClassificationBadge, ClassificationReviewPanel } from "@/components/Cla
 import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
 import { EsrsApplicabilityPanel } from "@/components/EsrsApplicabilityPanel";
 import { LaborApplicabilityPanel } from "@/components/LaborApplicabilityPanel";
+import { LaborClassificationPanel } from "@/components/LaborClassificationPanel";
 import { EsrsReportDataPanel } from "@/components/EsrsReportDataPanel";
 import { SprReportPackagesPanel } from "@/components/SprReportPackagesPanel";
 import { PortalPackageLifecyclePanel } from "@/components/PortalPackageLifecyclePanel";
@@ -818,6 +819,7 @@ export function App() {
     [calendarEvents, classificationReviewItems, noCuiAcknowledgement.isAcknowledged, obligationDashboardItems, overview.contractRiskIndicator, overview.readinessScore]
   );
   const canManageUsers = access.permissions.includes("ManageUsers");
+  const canViewSensitiveEmployeeData = access.permissions.includes("ViewSensitiveEmployeeData");
   const canManageEvidence = access.permissions.includes("ManageEvidence");
   const canManageCompanyProfile = access.permissions.includes("ManageCompanyProfile");
   const canManageContracts = access.permissions.includes("ManageContracts");
@@ -2624,6 +2626,7 @@ export function App() {
               workflowClassification={workflowClassification}
               canManageContracts={canManageContracts}
               canManageEvidence={canManageEvidence}
+              canViewSensitiveEmployeeData={canViewSensitiveEmployeeData}
               canViewReports={access.permissions.includes("ViewReports")}
               canManageReports={canManageReports}
               canExportReports={canExportReports}
@@ -4476,6 +4479,7 @@ function ContractsView({
   workflowClassification,
   canManageContracts,
   canManageEvidence,
+  canViewSensitiveEmployeeData,
   canViewReports,
   canManageReports,
   canExportReports,
@@ -4518,6 +4522,7 @@ function ContractsView({
 }: {
   canManageContracts: boolean;
   canManageEvidence: boolean;
+  canViewSensitiveEmployeeData: boolean;
   canViewReports: boolean;
   canManageReports: boolean;
   canExportReports: boolean;
@@ -4756,6 +4761,8 @@ function ContractsView({
 
         {selectedContract ? <LaborApplicabilityPanel contractId={selectedContract.id} clauses={contractClauses} evidence={evidenceItems} canManage={canManageContracts}
           canUpload={canManageEvidence && noCuiAcknowledgement.isAcknowledged} /> : null}
+        {selectedContract ? <LaborClassificationPanel contractId={selectedContract.id} canManage={canManageContracts}
+          canViewSensitive={canViewSensitiveEmployeeData} /> : null}
         {selectedContract ? <EsrsApplicabilityPanel contractId={selectedContract.id} canManage={canManageContracts} /> : null}
         {selectedContract && canViewReports ?
           <EsrsReportDataPanel contractId={selectedContract.id} contractNumber={selectedContract.contractNumber}
