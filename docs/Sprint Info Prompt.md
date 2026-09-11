@@ -129,8 +129,10 @@ Story 17.4: Production Readiness Checklist
  Story 30.1: Scoring Rule Baseline,
  Story 30.2: Score Calculation Workspace,
  Story 30.3: SPRS Readiness Report
-## 31. eSRS Support:
- Story 31.1: eSRS Applicability and Reporting Calendar
+## 31. SAM.gov Subcontracting Plan Reporting Support:
+ Story 31.1: SAM.gov SPR Applicability and Reporting Calendar,
+ Story 31.2: Subcontracting Report Data Collection,
+ Story 31.3: Subcontracting Report Review Package
 ## 32. Labor Compliance Module:
  Story 32.1: Labor Applicability and Wage Determinations,
  Story 32.2: Labor Category and Employee Classification,
@@ -192,7 +194,6 @@ Story 17.4: Production Readiness Checklist
  Story 1A.9.1: Security Review Checklist,
  Story 1A.9.2: Technical Control Verification,
  Story 1A.9.3: Incident Response Readiness
-
 
 
 

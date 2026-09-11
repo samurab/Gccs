@@ -9,7 +9,7 @@ public sealed class EsrsReportPackageService(
     IAuditEventWriter auditEventWriter)
 {
     public const string NotSubmittedDisclaimer =
-        "FeDril has not submitted this report to eSRS. This package is preparation-only for customer review.";
+        "FeDril has not submitted this report to SAM.gov. This package is preparation-only for customer review and manual entry in SAM.gov Subcontracting Plan Reporting (SPR).";
 
     public async Task<EsrsReportPackageDto> GenerateAsync(
         EsrsReportPackageGenerateRequest request,
@@ -30,7 +30,7 @@ public sealed class EsrsReportPackageService(
             BuildSnapshot(request, packageRows),
             actorUserId,
             cancellationToken);
-        await WriteAuditAsync(package, actorUserId, AuditAction.Created, "eSRS report package was generated.", cancellationToken);
+        await WriteAuditAsync(package, actorUserId, AuditAction.Created, "SAM.gov SPR preparation package was generated.", cancellationToken);
         return package;
     }
 
@@ -59,7 +59,7 @@ public sealed class EsrsReportPackageService(
             cancellationToken);
         if (approved is not null)
         {
-            await WriteAuditAsync(approved, actorUserId, AuditAction.Approved, "eSRS report package was approved.", cancellationToken);
+            await WriteAuditAsync(approved, actorUserId, AuditAction.Approved, "SAM.gov SPR preparation package was approved.", cancellationToken);
         }
 
         return approved;
@@ -81,7 +81,7 @@ public sealed class EsrsReportPackageService(
             cancellationToken);
         if (superseded is not null)
         {
-            await WriteAuditAsync(superseded, actorUserId, AuditAction.Updated, "eSRS report package was superseded.", cancellationToken);
+            await WriteAuditAsync(superseded, actorUserId, AuditAction.Updated, "SAM.gov SPR preparation package was superseded.", cancellationToken);
         }
 
         return superseded;
@@ -103,7 +103,7 @@ public sealed class EsrsReportPackageService(
             cancellationToken);
         if (archived is not null)
         {
-            await WriteAuditAsync(archived, actorUserId, AuditAction.Archived, "eSRS report package was archived.", cancellationToken);
+            await WriteAuditAsync(archived, actorUserId, AuditAction.Archived, "SAM.gov SPR preparation package was archived.", cancellationToken);
         }
 
         return archived;

@@ -33,7 +33,7 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
     {
         var ids = Ids.Create(); await using var app = CreateFactory(nameof(TC_31_2_1_3_5_Create_persists_tenant_links_evidence_and_audit), ids);
         using var client = app.CreateClient(); var response = await client.SendAsync(Request(HttpMethod.Post,
-            $"/api/contracts/{ids.ContractId}/esrs-report-data", ValidRequest(ids), ids.TenantId, Permission.ManageReports));
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data", ValidRequest(ids), ids.TenantId, Permission.ManageReports));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var row = Assert.IsType<SubcontractingReportDataRowDto>(await response.Content.ReadFromJsonAsync<SubcontractingReportDataRowDto>(JsonOptions));
         Assert.Equal(ids.ContractId, row.ContractId); Assert.Equal(ids.SubcontractorId, row.SubcontractorId);
@@ -55,15 +55,15 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
             ValidRequest(ids) with { ReportPeriodStart = new(2025, 10, 1) }
         })
             Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(Request(HttpMethod.Post,
-                $"/api/contracts/{ids.ContractId}/esrs-report-data", request, ids.TenantId, Permission.ManageReports))).StatusCode);
+                $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data", request, ids.TenantId, Permission.ManageReports))).StatusCode);
         foreach (var request in new[] { ValidRequest(ids) with { SubcontractorId = ids.OtherSubcontractorId },
             ValidRequest(ids) with { SupportingEvidenceItemIds = [ids.OtherEvidenceId] } })
             Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(Request(HttpMethod.Post,
-                $"/api/contracts/{ids.ContractId}/esrs-report-data", request, ids.TenantId, Permission.ManageReports))).StatusCode);
+                $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data", request, ids.TenantId, Permission.ManageReports))).StatusCode);
         Assert.Equal(HttpStatusCode.Created, (await client.SendAsync(Request(HttpMethod.Post,
-            $"/api/contracts/{ids.ContractId}/esrs-report-data", ValidRequest(ids), ids.TenantId, Permission.ManageReports))).StatusCode);
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data", ValidRequest(ids), ids.TenantId, Permission.ManageReports))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(Request(HttpMethod.Post,
-            $"/api/contracts/{ids.ContractId}/esrs-report-data", ValidRequest(ids), ids.TenantId, Permission.ManageReports))).StatusCode);
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data", ValidRequest(ids), ids.TenantId, Permission.ManageReports))).StatusCode);
         await using var scope = app.Services.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.Equal(1, await db.SubcontractingReportDataRows.CountAsync());
         Assert.Equal(1, await db.AuditLogEntries.CountAsync(item => item.EntityType == "SubcontractingReportDataRow"));
@@ -75,11 +75,11 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
         var ids = Ids.Create(); await using var app = CreateFactory(nameof(TC_31_2_4_Final_package_is_blocked_until_explicit_acceptance_and_edit_resets_review), ids);
         using var client = app.CreateClient(); var row = await CreateAsync(client, ids);
         var eligibility = await client.SendAsync(Request<object>(HttpMethod.Get,
-            $"/api/contracts/{ids.ContractId}/esrs-report-data/package-eligibility?reportType=Isr&periodStart=2026-01-01&periodEnd=2026-03-31",
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data/package-eligibility?reportType=Isr&periodStart=2026-01-01&periodEnd=2026-03-31",
             null, ids.TenantId, Permission.ViewReports));
         Assert.Contains("\"eligible\":false", await eligibility.Content.ReadAsStringAsync());
         var acceptedResponse = await client.SendAsync(Request(HttpMethod.Patch,
-            $"/api/contracts/{ids.ContractId}/esrs-report-data/{row.Id}/review",
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data/{row.Id}/review",
             new SubcontractingReportDataReviewRequest(SubcontractingReportDataReviewStatus.Accepted, "Accepted for package preparation.", row.Version),
             ids.TenantId, Permission.ManageReports));
         var accepted = Assert.IsType<SubcontractingReportDataRowDto>(await acceptedResponse.Content.ReadFromJsonAsync<SubcontractingReportDataRowDto>(JsonOptions));
@@ -93,7 +93,7 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
             Assert.True(await db.AuditLogEntries.AnyAsync(item => item.EntityId == row.Id.ToString() && item.Action == Gccs.Domain.Audit.AuditAction.Approved));
         }
         var updatedResponse = await client.SendAsync(Request(HttpMethod.Put,
-            $"/api/contracts/{ids.ContractId}/esrs-report-data/{row.Id}", ValidRequest(ids) with { Amount = 13000, ExpectedVersion = accepted.Version },
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data/{row.Id}", ValidRequest(ids) with { Amount = 13000, ExpectedVersion = accepted.Version },
             ids.TenantId, Permission.ManageReports));
         var updated = Assert.IsType<SubcontractingReportDataRowDto>(await updatedResponse.Content.ReadFromJsonAsync<SubcontractingReportDataRowDto>(JsonOptions));
         Assert.Equal(SubcontractingReportDataReviewStatus.PendingReview, updated.ReviewStatus); Assert.False(updated.IsPackageEligible);
@@ -106,12 +106,12 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
         var ids = Ids.Create(); await using var app = CreateFactory(nameof(Tenant_scope_and_server_RBAC_fail_closed), ids);
         using var client = app.CreateClient();
         Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(Request(HttpMethod.Post,
-            $"/api/contracts/{ids.ContractId}/esrs-report-data", ValidRequest(ids), ids.TenantId, Permission.ViewReports))).StatusCode);
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data", ValidRequest(ids), ids.TenantId, Permission.ViewReports))).StatusCode);
         var row = await CreateAsync(client, ids);
         Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(Request<object>(HttpMethod.Get,
-            $"/api/contracts/{ids.ContractId}/esrs-report-data/{row.Id}", null, ids.OtherTenantId, Permission.ViewReports))).StatusCode);
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data/{row.Id}", null, ids.OtherTenantId, Permission.ViewReports))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(Request(HttpMethod.Patch,
-            $"/api/contracts/{ids.ContractId}/esrs-report-data/{row.Id}/review",
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data/{row.Id}/review",
             new SubcontractingReportDataReviewRequest(SubcontractingReportDataReviewStatus.Accepted, null, row.Version),
             ids.OtherTenantId, Permission.ManageReports))).StatusCode);
         await using var scope = app.Services.CreateAsyncScope(); var stored = await scope.ServiceProvider.GetRequiredService<GccsDbContext>()
@@ -124,14 +124,60 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
     {
         var ids = Ids.Create(); await using var app = CreateFactory(nameof(Import_template_and_csv_import_use_the_validated_contract), ids);
         using var client = app.CreateClient();
-        var template = await client.SendAsync(Request<object>(HttpMethod.Get, "/api/esrs/report-data/import-template", null, ids.TenantId, Permission.ViewReports));
-        Assert.Equal("text/csv", template.Content.Headers.ContentType?.MediaType); Assert.Contains("sourceReference", await template.Content.ReadAsStringAsync());
-        var csv = SubcontractingReportDataService.GetImportTemplate().CsvContent +
-            $"{ids.ContractId},{ids.SubcontractorId},Isr,2026-01-01,2026-03-31,2026-01-01,2026-03-31,Small Business,Direct spend,250.50,{ids.EvidenceId},FAR 52.219-9\n";
-        var imported = await client.SendAsync(Request(HttpMethod.Post, "/api/esrs/report-data/import",
+        var template = await client.SendAsync(Request<object>(HttpMethod.Get, "/api/subcontracting-plan-reports/report-data/import-template", null, ids.TenantId, Permission.ViewReports));
+        Assert.Equal("text/csv", template.Content.Headers.ContentType?.MediaType); Assert.Contains("reportingEntityUei", await template.Content.ReadAsStringAsync());
+        var csv = SubcontractingReportDataService.GetImportTemplate(spr: true).CsvContent +
+            $"{ids.ContractId},{ids.SubcontractorId},Isr,2026-01-01,2026-03-31,2026-01-01,2026-03-31,Small Disadvantaged Business (SDB),Direct spend,250,{ids.EvidenceId},FAR 52.219-9,PrimeContractor,2026,March31,TESTUEI12345,FA-{ids.ContractId:N},,true,Qualifying individual subcontracting plan\n";
+        var imported = await client.SendAsync(Request(HttpMethod.Post, "/api/subcontracting-plan-reports/report-data/import",
             new SubcontractingReportDataImportRequest(csv), ids.TenantId, Permission.ManageReports));
         Assert.Equal(HttpStatusCode.OK, imported.StatusCode);
         Assert.Single((await imported.Content.ReadFromJsonAsync<SubcontractingReportDataRowDto[]>(JsonOptions))!);
+    }
+
+    [Fact]
+    public async Task Canonical_spr_route_requires_current_identity_period_and_eligibility_metadata()
+    {
+        var ids = Ids.Create(); await using var app = CreateFactory(nameof(Canonical_spr_route_requires_current_identity_period_and_eligibility_metadata), ids);
+        using var client = app.CreateClient();
+        foreach (var request in new[]
+        {
+            ValidRequest(ids) with { ReportingEntityUei = null },
+            ValidRequest(ids) with { PrimeContractPiid = "WRONG-PIID" },
+            ValidRequest(ids) with { ReportingPeriod = SprReportingPeriod.September30 },
+            ValidRequest(ids) with { Amount = 10.25m },
+            ValidRequest(ids) with { SprEligibilityConfirmed = false },
+            ValidRequest(ids) with { ReportingRole = SprReportingRole.Subcontractor, SubcontractNumber = null }
+        })
+        {
+            var response = await client.SendAsync(Request(HttpMethod.Post,
+                $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data", request, ids.TenantId, Permission.ManageReports));
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        await using var scope = app.Services.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        Assert.Empty(await db.SubcontractingReportDataRows.ToArrayAsync());
+        Assert.Empty(await db.AuditLogEntries.Where(item => item.EntityType == "SubcontractingReportDataRow").ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task Legacy_esrs_route_remains_compatible_but_legacy_row_is_not_spr_package_eligible()
+    {
+        var ids = Ids.Create(); await using var app = CreateFactory(nameof(Legacy_esrs_route_remains_compatible_but_legacy_row_is_not_spr_package_eligible), ids);
+        using var client = app.CreateClient();
+        var legacyRequest = ValidRequest(ids) with { ReportingRole = null, ReportingFiscalYear = null, ReportingPeriod = null,
+            ReportingEntityUei = null, PrimeContractPiid = null, SprEligibilityConfirmed = false, SprEligibilityBasis = null };
+        var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/esrs-report-data",
+            legacyRequest, ids.TenantId, Permission.ManageReports));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var row = Assert.IsType<SubcontractingReportDataRowDto>(await response.Content.ReadFromJsonAsync<SubcontractingReportDataRowDto>(JsonOptions));
+        Assert.Equal(SprReadinessStatus.NeedsVerification, row.SprReadinessStatus);
+
+        var acceptedResponse = await client.SendAsync(Request(HttpMethod.Patch,
+            $"/api/contracts/{ids.ContractId}/esrs-report-data/{row.Id}/review",
+            new SubcontractingReportDataReviewRequest(SubcontractingReportDataReviewStatus.Accepted, "Legacy compatibility review.", row.Version),
+            ids.TenantId, Permission.ManageReports));
+        var accepted = Assert.IsType<SubcontractingReportDataRowDto>(await acceptedResponse.Content.ReadFromJsonAsync<SubcontractingReportDataRowDto>(JsonOptions));
+        Assert.False(accepted.IsPackageEligible);
     }
 
     [PostgresFact]
@@ -157,6 +203,10 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
                 db.TenantMemberships.Add(new TenantMembershipEntity { Id = Guid.NewGuid(), TenantId = ids.TenantId, UserId = ids.UserId,
                     Status = MembershipStatus.Active, RoleName = "ContractsManager", CreatedAt = DateTimeOffset.UtcNow });
                 db.Contracts.Add(Contract(ids.ContractId, ids.TenantId)); db.Subcontractors.Add(Subcontractor(ids.SubcontractorId, ids.TenantId));
+                db.CompanyProfiles.Add(new CompanyProfileEntity { Id = Guid.NewGuid(), TenantId = ids.TenantId,
+                    LegalEntityName = "Test Federal Services", Uei = "TESTUEI12345", ContractorRole = ContractorRole.Prime,
+                    ProductsAndServices = "No-CUI test services", ItEnvironmentDescription = "No-CUI test environment",
+                    DataHandlingPosture = DataHandlingPosture.FciOnly, CreatedAt = DateTimeOffset.UtcNow });
                 db.Set<ContractSubcontractorEntity>().Add(new() { ContractId = ids.ContractId, SubcontractorId = ids.SubcontractorId });
                 db.EvidenceItems.Add(Evidence(ids.EvidenceId, ids.TenantId)); var taskId = Guid.NewGuid();
                 db.ComplianceTasks.Add(new() { Id = taskId, TenantId = ids.TenantId, Title = "ISR report", Description = "No-CUI reporting metadata.",
@@ -172,7 +222,7 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
         try
         {
             using var client = app.CreateClient();
-            var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/esrs-report-data",
+            var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data",
                 ValidRequest(ids), ids.TenantId, Permission.ManageReports, ids.UserId));
             Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
             await using var scope = app.Services.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
@@ -189,6 +239,7 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
             await db.EvidenceItems.Where(item => item.TenantId == ids.TenantId).ExecuteDeleteAsync();
             await db.Subcontractors.Where(item => item.TenantId == ids.TenantId).ExecuteDeleteAsync();
             await db.Contracts.Where(item => item.TenantId == ids.TenantId).ExecuteDeleteAsync();
+            await db.CompanyProfiles.Where(item => item.TenantId == ids.TenantId).ExecuteDeleteAsync();
             await db.TenantMemberships.Where(item => item.TenantId == ids.TenantId).ExecuteDeleteAsync();
             await db.Users.Where(item => item.TenantId == ids.TenantId).ExecuteDeleteAsync();
             await db.Tenants.Where(item => item.Id == ids.TenantId).ExecuteDeleteAsync();
@@ -197,7 +248,7 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
 
     private static async Task<SubcontractingReportDataRowDto> CreateAsync(HttpClient client, Ids ids)
     {
-        var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/esrs-report-data", ValidRequest(ids), ids.TenantId, Permission.ManageReports));
+        var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data", ValidRequest(ids), ids.TenantId, Permission.ManageReports));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<SubcontractingReportDataRowDto>(JsonOptions))!;
     }
@@ -217,6 +268,10 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
             db.TenantMemberships.Add(new TenantMembershipEntity { Id = Guid.NewGuid(), TenantId = ids.TenantId, UserId = ids.UserId,
                 Status = MembershipStatus.Active, RoleName = "ContractsManager", CreatedAt = DateTimeOffset.UtcNow });
             db.Contracts.AddRange(Contract(ids.ContractId, ids.TenantId), Contract(ids.OtherContractId, ids.OtherTenantId));
+            db.CompanyProfiles.Add(new CompanyProfileEntity { Id = Guid.NewGuid(), TenantId = ids.TenantId,
+                LegalEntityName = "Test Federal Services", Uei = "TESTUEI12345", ContractorRole = ContractorRole.Prime,
+                ProductsAndServices = "No-CUI test services", ItEnvironmentDescription = "No-CUI test environment",
+                DataHandlingPosture = DataHandlingPosture.FciOnly, CreatedAt = DateTimeOffset.UtcNow });
             db.Subcontractors.AddRange(Subcontractor(ids.SubcontractorId, ids.TenantId), Subcontractor(ids.OtherSubcontractorId, ids.OtherTenantId));
             db.Set<ContractSubcontractorEntity>().Add(new() { ContractId = ids.ContractId, SubcontractorId = ids.SubcontractorId });
             db.EvidenceItems.AddRange(Evidence(ids.EvidenceId, ids.TenantId), Evidence(ids.OtherEvidenceId, ids.OtherTenantId));
@@ -244,8 +299,11 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
         Type = EvidenceType.Other, OwnerFunction = "Contracts", Status = EvidenceStatus.Approved, Classification = Gccs.Domain.Common.ContentClassification.Unclassified,
         CreatedAt = DateTimeOffset.UtcNow };
     private static SubcontractingReportDataRowRequest ValidRequest(Ids ids) => new(ids.ContractId, ids.SubcontractorId, EsrsReportType.Isr,
-        new(2026, 1, 1), new(2026, 3, 31), new(2026, 1, 1), new(2026, 3, 31), "Small Disadvantaged Business",
-        "Direct subcontract spend", 12500.25m, [ids.EvidenceId], "FAR 52.219-9");
+        new(2026, 1, 1), new(2026, 3, 31), new(2026, 1, 1), new(2026, 3, 31), "Small Disadvantaged Business (SDB)",
+        "Direct subcontract spend", 12500m, [ids.EvidenceId], "FAR 52.219-9", ReportingRole: SprReportingRole.PrimeContractor,
+        ReportingFiscalYear: 2026, ReportingPeriod: SprReportingPeriod.March31, ReportingEntityUei: "TESTUEI12345",
+        PrimeContractPiid: $"FA-{ids.ContractId:N}", SprEligibilityConfirmed: true,
+        SprEligibilityBasis: "Qualifying individual subcontracting plan associated with the prime contract.");
 
     private static HttpRequestMessage Request<T>(HttpMethod method, string uri, T? body, Guid tenantId, Permission permission, Guid? userId = null)
     {

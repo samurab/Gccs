@@ -25,7 +25,7 @@ public sealed class EsrsReportPackageTests
         Assert.Equal(2, package.Snapshot.RowCount);
         Assert.Equal(25000m, package.Snapshot.TotalSpend);
         var summary = Assert.Single(package.Snapshot.SpendSummaries);
-        Assert.Equal("Small Disadvantaged Business", summary.SocioeconomicCategory);
+        Assert.Equal("Small Disadvantaged Business (SDB)", summary.SocioeconomicCategory);
         Assert.Equal(2, summary.SubcontractorCount);
         Assert.Equal(25000m, summary.TotalSpend);
         Assert.Contains(package.Snapshot.EvidenceReferences, reference =>
@@ -34,7 +34,7 @@ public sealed class EsrsReportPackageTests
     }
 
     [Fact]
-    public async Task TC_31_3_2_Package_states_gccs_has_not_submitted_report_to_esrs()
+    public async Task TC_31_3_2_Package_states_fedril_has_not_submitted_report_to_sam_gov()
     {
         var ids = StoryIds.Create();
         var service = CreateServices(ids.TenantId, out var reportDataService, out _);
@@ -43,7 +43,7 @@ public sealed class EsrsReportPackageTests
         var package = await service.GenerateAsync(CreateGenerateRequest(ids), ids.ActorUserId);
 
         Assert.Contains("has not submitted", package.NotSubmittedDisclaimer, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("eSRS", package.NotSubmittedDisclaimer, StringComparison.Ordinal);
+        Assert.Contains("SAM.gov", package.NotSubmittedDisclaimer, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class EsrsReportPackageTests
 
         var approved = await service.ApproveAsync(
             package.Id,
-            new EsrsReportPackageReviewRequest("Avery Reviewer", "Approved for eSRS preparation."),
+            new EsrsReportPackageReviewRequest("Avery Reviewer", "Approved for SAM.gov SPR preparation."),
             ids.ActorUserId);
 
         Assert.NotNull(approved);
@@ -64,7 +64,7 @@ public sealed class EsrsReportPackageTests
         Assert.Equal("Avery Reviewer", approved.ReviewerName);
         Assert.NotNull(approved.ApprovedAt);
         Assert.Equal(1, approved.Version);
-        Assert.Equal("Approved for eSRS preparation.", approved.ReviewNotes);
+        Assert.Equal("Approved for SAM.gov SPR preparation.", approved.ReviewNotes);
     }
 
     [Fact]
@@ -132,11 +132,18 @@ public sealed class EsrsReportPackageTests
                 new DateOnly(2026, 3, 31),
                 new DateOnly(2026, 1, 1),
                 new DateOnly(2026, 3, 31),
-                "Small Disadvantaged Business",
+                "Small Disadvantaged Business (SDB)",
                 "Direct subcontract spend",
                 12500m,
                 evidenceIds,
-                "FAR 52.219-9"),
+                "FAR 52.219-9",
+                ReportingRole: SprReportingRole.PrimeContractor,
+                ReportingFiscalYear: 2026,
+                ReportingPeriod: SprReportingPeriod.March31,
+                ReportingEntityUei: "TESTUEI12345",
+                PrimeContractPiid: "FA-TEST-312",
+                SprEligibilityConfirmed: true,
+                SprEligibilityBasis: "Qualifying individual subcontracting plan."),
             ids.ActorUserId);
         return await service.UpdateReviewStatusAsync(row.Id, new(SubcontractingReportDataReviewStatus.Accepted, null, row.Version), ids.ActorUserId) ??
             throw new InvalidOperationException("Expected report data row to be accepted.");

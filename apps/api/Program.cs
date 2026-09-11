@@ -1263,7 +1263,7 @@ api.MapPost("/contracts/{contractId:guid}/esrs-applicabilities", async (
     }
     catch (EsrsApplicabilityValidationException exception)
     {
-        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
     }
 })
 .RequirePermission(Permission.ManageContracts)
@@ -1282,12 +1282,12 @@ api.MapPut("/contracts/{contractId:guid}/esrs-applicabilities/{applicabilityId:g
     {
         var updated = await service.UpdateAsync(applicabilityId, request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
         return updated is null
-            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The eSRS applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SAM.gov SPR applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
             : Results.Ok(updated);
     }
     catch (EsrsApplicabilityValidationException exception)
     {
-        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
     }
 })
 .RequirePermission(Permission.ManageContracts)
@@ -1306,12 +1306,12 @@ api.MapPatch("/contracts/{contractId:guid}/esrs-applicabilities/{applicabilityId
     {
         var updated = await service.UpdateStatusAsync(contractId, applicabilityId, request.Status, tenantContext.UserId, cancellationToken);
         return updated is null
-            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The eSRS applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SAM.gov SPR applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
             : Results.Ok(updated);
     }
     catch (EsrsApplicabilityValidationException exception)
     {
-        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS status invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR status invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
     }
 })
 .RequirePermission(Permission.ManageContracts)
@@ -1322,11 +1322,90 @@ api.MapGet("/esrs/schedule-templates", (int fiscalYear) =>
     try { return Results.Ok(EsrsApplicabilityService.GetDefaultSchedule(fiscalYear)); }
     catch (EsrsApplicabilityValidationException exception)
     {
-        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS schedule invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR schedule invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
     }
 })
 .RequirePermission(Permission.ViewContracts)
 .WithName("ListEsrsScheduleTemplates");
+
+api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-reporting-applicabilities", async (
+    Guid contractId, EsrsApplicabilityService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var items = await service.ListForContractAsync(contractId, cancellationToken);
+    return items is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(items);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractSubcontractingPlanReportingApplicabilities");
+
+api.MapPost("/contracts/{contractId:guid}/subcontracting-plan-reporting-applicabilities", async (
+    Guid contractId, EsrsApplicabilityRequest request, EsrsApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.ActivateAsync(request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/subcontracting-plan-reporting-applicabilities/{created.Id}", created);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractSubcontractingPlanReportingApplicability");
+
+api.MapPut("/contracts/{contractId:guid}/subcontracting-plan-reporting-applicabilities/{applicabilityId:guid}", async (
+    Guid contractId, Guid applicabilityId, EsrsApplicabilityRequest request, EsrsApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(applicabilityId, request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SAM.gov SPR applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractSubcontractingPlanReportingApplicability");
+
+api.MapPatch("/contracts/{contractId:guid}/subcontracting-plan-reporting-applicabilities/{applicabilityId:guid}/status", async (
+    Guid contractId, Guid applicabilityId, UpdateEsrsStatusRequest request, EsrsApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateStatusAsync(contractId, applicabilityId, request.Status, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SAM.gov SPR applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR status invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractSubcontractingPlanReportingApplicabilityStatus");
+
+api.MapGet("/subcontracting-plan-reports/schedule-templates", (int fiscalYear) =>
+{
+    try { return Results.Ok(EsrsApplicabilityService.GetDefaultSchedule(fiscalYear)); }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR schedule invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListSubcontractingPlanReportScheduleTemplates");
 
 api.MapGet("/contracts/{contractId:guid}/esrs-report-data", async (
     Guid contractId,
@@ -1373,7 +1452,7 @@ api.MapPost("/contracts/{contractId:guid}/esrs-report-data", async (
     }
     catch (SubcontractingReportDataValidationException exception)
     {
-        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "Subcontracting plan report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
     }
     catch (SubcontractingReportDataReferenceNotFoundException)
     {
@@ -1401,7 +1480,7 @@ api.MapPut("/contracts/{contractId:guid}/esrs-report-data/{rowId:guid}", async (
     }
     catch (SubcontractingReportDataValidationException exception)
     {
-        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "Subcontracting plan report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
     }
     catch (SubcontractingReportDataReferenceNotFoundException)
     {
@@ -1429,7 +1508,7 @@ api.MapPatch("/contracts/{contractId:guid}/esrs-report-data/{rowId:guid}/review"
     }
     catch (SubcontractingReportDataValidationException exception)
     {
-        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS report data review invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "Subcontracting plan report data review invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
     }
 })
 .RequirePermission(Permission.ManageReports)
@@ -1453,7 +1532,7 @@ api.MapPost("/esrs/report-data/import", async (
     try { return Results.Ok(await service.ImportCsvAsync(request.CsvContent, tenantContext.UserId, cancellationToken)); }
     catch (SubcontractingReportDataValidationException exception)
     {
-        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "eSRS report data import invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "Subcontracting plan report data import invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
     }
     catch (SubcontractingReportDataReferenceNotFoundException)
     {
@@ -1480,6 +1559,132 @@ api.MapGet("/contracts/{contractId:guid}/esrs-report-data/package-eligibility", 
 })
 .RequirePermission(Permission.ViewReports)
 .WithName("GetEsrsReportDataPackageEligibility");
+
+// Canonical SAM.gov Subcontracting Plan Reporting routes. Legacy /esrs routes remain available
+// as compatibility aliases for existing clients and persisted identifiers.
+api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data", async (
+    Guid contractId, SubcontractingReportDataService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The contract was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    return Results.Ok(await service.ListCurrentTenantAsync(new SubcontractingReportDataQuery(ContractId: contractId), cancellationToken));
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("ListContractSubcontractingPlanReportData");
+
+api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowId:guid}", async (
+    Guid contractId, Guid rowId, SubcontractingReportDataService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var row = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+    return row is null || row.ContractId != contractId
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(row);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetContractSubcontractingPlanReportData");
+
+api.MapPost("/contracts/{contractId:guid}/subcontracting-plan-report-data", async (
+    Guid contractId, SubcontractingReportDataRowRequest request, SubcontractingReportDataService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        var created = await service.CreateSprAsync(request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/contracts/{contractId}/subcontracting-plan-report-data/{created.Id}", created);
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("CreateContractSubcontractingPlanReportData");
+
+api.MapPut("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowId:guid}", async (
+    Guid contractId, Guid rowId, SubcontractingReportDataRowRequest request, SubcontractingReportDataService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var existing = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+        if (existing is null || existing.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.UpdateSprAsync(rowId, request with { ContractId = contractId }, tenantContext.UserId, cancellationToken));
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("UpdateContractSubcontractingPlanReportData");
+
+api.MapPatch("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowId:guid}/review", async (
+    Guid contractId, Guid rowId, SubcontractingReportDataReviewRequest request, SubcontractingReportDataService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var existing = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+        if (existing is null || existing.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.UpdateReviewStatusAsync(rowId, request, tenantContext.UserId, cancellationToken));
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR report data review invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("ReviewContractSubcontractingPlanReportData");
+
+api.MapGet("/subcontracting-plan-reports/report-data/import-template", () =>
+{
+    var template = SubcontractingReportDataService.GetImportTemplate(spr: true);
+    return Results.File(System.Text.Encoding.UTF8.GetBytes(template.CsvContent), "text/csv", template.FileName);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("DownloadSubcontractingPlanReportDataImportTemplate");
+
+api.MapPost("/subcontracting-plan-reports/report-data/import", async (
+    SubcontractingReportDataImportRequest request, SubcontractingReportDataService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try { return Results.Ok(await service.ImportSprCsvAsync(request.CsvContent, tenantContext.UserId, cancellationToken)); }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR report data import invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("ImportSubcontractingPlanReportData");
+
+api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data/package-eligibility", async (
+    Guid contractId, EsrsReportType reportType, DateOnly periodStart, DateOnly periodEnd,
+    SubcontractingReportDataService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The contract was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    var rows = await service.ListCurrentTenantAsync(new SubcontractingReportDataQuery(contractId, reportType, periodStart, periodEnd), cancellationToken);
+    var eligible = rows.Count(row => row.IsPackageEligible);
+    return Results.Ok(new { eligible = rows.Count > 0 && eligible == rows.Count, eligibleRows = eligible, blockedRows = rows.Count - eligible });
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetSubcontractingPlanReportDataPackageEligibility");
 
 api.MapGet("/contracts/{contractId:guid}/size-checks", async (
     Guid contractId,

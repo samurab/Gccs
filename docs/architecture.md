@@ -162,17 +162,20 @@ Current state: **Implemented** for structured sections, deterministic source-bac
 - Deterministic source-backed generation is not represented as AI-assisted. The provider port exists, but the default adapter rejects AI-assisted requests. Enabling a provider requires reviewed provider/model/prompt provenance, data-retention configuration, evaluation evidence, and the same source, classification, review, and audit controls.
 - This feature organizes compliance-management records. It does not certify the tenant, authorize CUI processing, or produce an assessor or government determination.
 
-## eSRS Preparation Data Boundary
+## SAM.gov Subcontracting Plan Reporting Preparation Boundary
 
-Current state: **Implemented** for tenant-scoped subcontracting report data collection and internal package-eligibility gating. **Planned** for final eSRS package lifecycle and external eSRS submission or synchronization.
+Current state: **Implemented** for tenant-scoped SAM.gov SPR preparation data collection and internal package-eligibility gating. **Partially implemented** for final package lifecycle. **Do not claim** external SAM.gov submission or synchronization.
+
+Rationale: eSRS was decommissioned on February 20, 2026, and its subcontracting reporting functions moved to SAM.gov. The canonical product vocabulary and API therefore follow SAM.gov SPR, while legacy identifiers remain compatibility-only. The enforced preparation fields are based on the GSA Functional Data Dictionary version 1.0 dated March 6, 2026. Sources: [SAM.gov eSRS transition](https://sam.gov/esrs), [GSA SPR Functional Data Dictionary](https://www.fsd.gov/gsafsd_sp/en/subcontract-plan-reporting-functional-data-dictionary?id=kb_article_view&sysparm_article=KB0093498).
 
 - `ViewReports` authorizes report-row reads and template download; `ManageReports` authorizes create, edit, import, and review decisions.
-- The server resolves tenant ownership for the contract, contract-linked subcontractor, matching source-backed eSRS applicability period, and every evidence reference. Missing or cross-tenant references return the standard not-found contract.
+- The server resolves tenant ownership for the contract, contract-linked subcontractor, matching source-backed SPR applicability period, reporting-role UEI, contract PIID, and every evidence reference. Missing or cross-tenant references return the standard not-found contract.
 - Rows and evidence links are durable relational records. Tenant-qualified foreign keys prevent cross-tenant links, and a normalized database unique constraint coordinates duplicate prevention under concurrent writes.
 - Create, edit, import, review, and rejection changes share the relational transaction with append-only audit writes. A failed audit append rolls back the business mutation.
-- Edits clear prior reviewer metadata and return a row to `PendingReview`. Only `Reviewed` or explicitly `Accepted` rows are eligible for final package preparation.
+- Edits clear prior reviewer metadata and return a row to `PendingReview`. Only rows with complete SPR identity and eligibility metadata that are `Reviewed` or explicitly `Accepted` are eligible for final package preparation.
 - CSV import is capped at 2 MB and 1,000 rows, requires the exact versioned header, and applies the same reference, amount, period, duplicate, evidence, and audit rules as manual entry.
-- This workflow collects internal preparation data only. FeDril does not submit reports to eSRS, determine legal reporting obligations, or provide government approval.
+- Canonical APIs use `/subcontracting-plan-report-data` and `/subcontracting-plan-reports`; legacy `/esrs` routes and persistence names remain compatibility identifiers.
+- This workflow collects internal preparation data only. FeDril does not submit or synchronize reports with SAM.gov, determine legal reporting obligations, or provide government approval.
 
 ## Planned Services
 

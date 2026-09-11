@@ -1268,33 +1268,33 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-30.3.5:** Generate the report and verify report generation is audit logged.
 #-----------------------------------
 
-## 31. eSRS Support
-### Story 31.1: eSRS Applicability And Reporting Calendar
-Please perform Smoke test on Story 31.1: eSRS Applicability And Reporting Calendar. Please provide the results of the tests.
+## 31. SAM.gov Subcontracting Plan Reporting (SPR) Support
+### Story 31.1: SPR Applicability And Reporting Calendar
+Please perform Smoke test on Story 31.1: SPR Applicability And Reporting Calendar. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
-- **TC-31.1.1:** Mark a contract as eSRS-applicable with report type, period, due date, and source and verify persistence.
-- **TC-31.1.2:** Activate an eSRS obligation and verify the reporting deadline appears on the compliance calendar.
-- **TC-31.1.3:** Attempt to activate an eSRS obligation without source clause or documented rationale and verify validation fails.
-- **TC-31.1.4:** Seed an incomplete past-due eSRS report task and verify overdue status.
-- **TC-31.1.5:** Create and update eSRS applicability and verify audit events are written.
+- **TC-31.1.1:** Mark a contract as SPR-applicable with report type, period, due date, and source and verify persistence.
+- **TC-31.1.2:** Activate an SPR obligation and verify the reporting deadline appears on the compliance calendar.
+- **TC-31.1.3:** Attempt to activate an SPR obligation without source clause or documented rationale and verify validation fails.
+- **TC-31.1.4:** Seed an incomplete past-due SPR report task and verify overdue status.
+- **TC-31.1.5:** Create and update SPR applicability and verify audit events are written.
 #-----------------------------------
 ### Story 31.2: Subcontracting Report Data Collection
 Please perform Smoke test on Story 31.2: Subcontracting Report Data Collection. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
-- **TC-31.2.1:** Create subcontracting report data linked to contract and subcontractor records and verify required fields persist.
-- **TC-31.2.2:** Attempt negative amounts, missing socioeconomic category, duplicate rows, and period mismatches and verify validation errors.
+- **TC-31.2.1:** Create SAM.gov SPR preparation data linked to contract and subcontractor records and verify required identity, period, eligibility, category, amount, and source fields persist.
+- **TC-31.2.2:** Attempt negative or fractional amounts, missing or invalid socioeconomic category, missing/mismatched UEI or PIID, invalid reporting period, unconfirmed eligibility, duplicate rows, and period mismatches and verify validation errors.
 - **TC-31.2.3:** Attach supporting evidence to a report data row and verify the link is returned in detail and package preparation.
-- **TC-31.2.4:** Attempt to include unreviewed data rows in a final package and verify they are blocked unless explicitly accepted.
+- **TC-31.2.4:** Attempt to include legacy/unverified or unreviewed data rows in a final package and verify they are blocked until SPR-ready and reviewed or explicitly accepted.
 - **TC-31.2.5:** Create, update, accept, and reject report data rows and verify audit events.
 #-----------------------------------
-### Story 31.3: eSRS Report Package
-Please perform Smoke test on Story 31.3: eSRS Report Package. Please provide the results of the tests.
+### Story 31.3: SAM.gov SPR Report Package
+Please perform Smoke test on Story 31.3: SAM.gov SPR Report Package. Please provide the results of the tests.
 Using the local GCCS app, execute the following test case as a verification script. Capture setup data, exact steps, expected result, actual result, and any defects or missing coverage.
 
 - **TC-31.3.1:** Generate a package for contract, period, and report type and verify subcontractor/spend summaries, exceptions, evidence references, and generated date.
-- **TC-31.3.2:** Verify package states that GCCS has not submitted the report to eSRS.
+- **TC-31.3.2:** Verify package states that FeDril has not submitted or synchronized the report with SAM.gov.
 - **TC-31.3.3:** Approve a package and verify reviewer, approval date, package version, and review notes are stored.
 - **TC-31.3.4:** Attempt package generation, approval, and viewing with unauthorized roles and verify denial.
 - **TC-31.3.5:** Verify package generation, approval, supersede, and archive actions are audit logged.

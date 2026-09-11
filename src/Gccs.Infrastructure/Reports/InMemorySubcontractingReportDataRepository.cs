@@ -14,7 +14,9 @@ public sealed class InMemorySubcontractingReportDataRepository(Guid tenantId) : 
             var row = new SubcontractingReportDataRowDto(Guid.NewGuid(), tenantId, request.ContractId, request.SubcontractorId,
                 request.ReportType, request.ReportPeriodStart, request.ReportPeriodEnd, request.RowPeriodStart, request.RowPeriodEnd,
                 request.SocioeconomicCategory, request.PlanCategory, request.Amount, request.SupportingEvidenceItemIds.ToArray(),
-                request.SourceReference, SubcontractingReportDataReviewStatus.Draft, null, null, null, 1, DateTimeOffset.UtcNow, null);
+                request.SourceReference, SubcontractingReportDataReviewStatus.Draft, null, null, null, 1, DateTimeOffset.UtcNow, null,
+                request.ReportingRole, request.ReportingFiscalYear, request.ReportingPeriod, request.ReportingEntityUei,
+                request.PrimeContractPiid, request.SubcontractNumber, request.SprEligibilityConfirmed, request.SprEligibilityBasis);
             rows.Add(row); return Task.FromResult(row);
         }
     }
@@ -30,6 +32,10 @@ public sealed class InMemorySubcontractingReportDataRepository(Guid tenantId) : 
                 RowPeriodStart = request.RowPeriodStart, RowPeriodEnd = request.RowPeriodEnd,
                 SocioeconomicCategory = request.SocioeconomicCategory, PlanCategory = request.PlanCategory, Amount = request.Amount,
                 SupportingEvidenceItemIds = request.SupportingEvidenceItemIds.ToArray(), SourceReference = request.SourceReference,
+                ReportingRole = request.ReportingRole, ReportingFiscalYear = request.ReportingFiscalYear,
+                ReportingPeriod = request.ReportingPeriod, ReportingEntityUei = request.ReportingEntityUei,
+                PrimeContractPiid = request.PrimeContractPiid, SubcontractNumber = request.SubcontractNumber,
+                SprEligibilityConfirmed = request.SprEligibilityConfirmed, SprEligibilityBasis = request.SprEligibilityBasis,
                 ReviewStatus = SubcontractingReportDataReviewStatus.PendingReview, ReviewedByUserId = null, ReviewedAt = null,
                 ReviewerNotes = null, Version = existing.Version + 1, UpdatedAt = DateTimeOffset.UtcNow };
             Replace(existing, updated); return Task.FromResult<SubcontractingReportDataRowDto?>(updated);

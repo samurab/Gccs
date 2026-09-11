@@ -47,7 +47,7 @@ The MVP posture is **No-CUI / compliance management only with synthetic CUI-read
 | DOL | Department of Labor | Federal department responsible for labor standards and worker protections. |
 | EDWOSB | Economically Disadvantaged Women-Owned Small Business | SBA women-owned small business program category. |
 | ESP | External Service Provider | Third party that provides services affecting a contractor's systems or security responsibilities. |
-| eSRS | Electronic Subcontracting Reporting System | System used for subcontracting plan reporting. |
+| eSRS | Electronic Subcontracting Reporting System | Retired legacy system; subcontracting plan reporting moved to SAM.gov in February 2026. |
 | FAR | Federal Acquisition Regulation | Primary set of rules for federal government procurement. |
 | FCI | Federal Contract Information | Non-public information provided by or generated for the government under a contract. |
 | FIPS | Federal Information Processing Standards | Federal standards for information processing and security requirements. |
@@ -57,7 +57,7 @@ The MVP posture is **No-CUI / compliance management only with synthetic CUI-read
 | GRC | Governance, Risk, and Compliance | Broad category of tools and processes for managing risk and compliance. |
 | HUBZone | Historically Underutilized Business Zone | SBA program for eligible businesses in designated areas. |
 | IDIQ | Indefinite Delivery, Indefinite Quantity | Contract vehicle for future orders when exact timing or quantity is not known. |
-| ISR | Individual Subcontracting Report | eSRS report for subcontracting activity under a specific contract. |
+| ISR | Individual Subcontracting Report | SAM.gov SPR report for subcontracting activity under a specific contract. |
 | ITAR | International Traffic in Arms Regulations | Export-control rules for defense articles, services, and technical data. |
 | KO | Contracting Officer | Alternate abbreviation often used by DoD for contracting officer. |
 | LPTA | Lowest Price Technically Acceptable | Source selection method where technically acceptable proposals compete primarily on price. |
@@ -90,7 +90,7 @@ The MVP posture is **No-CUI / compliance management only with synthetic CUI-read
 | SOW | Statement of Work | Work description for a contract or subcontract. |
 | SPRS | Supplier Performance Risk System | DoD system associated with supplier risk and NIST SP 800-171 assessment scores. |
 | SSP | System Security Plan | Document describing a system boundary, environment, controls, and security implementation. |
-| SSR | Summary Subcontract Report | eSRS report summarizing subcontracting activity. |
+| SSR | Summary Subcontract Report | SAM.gov SPR report summarizing subcontracting activity. |
 | T&M | Time and Materials | Contract type where payment is based on labor hours and materials. |
 | UEI | Unique Entity ID | Entity identifier used in SAM.gov. |
 | WOSB | Women-Owned Small Business | SBA women-owned small business program category. |
@@ -490,7 +490,7 @@ These are common sources referenced in GCCS planning and content governance:
 | NARA CUI Registry | Government-wide CUI category reference. |
 | SBA | Small business size, certification, and contracting program guidance. |
 | SAM.gov | Entity registration and federal award ecosystem data. |
-| eSRS | Subcontracting plan reporting. |
+| eSRS | Retired legacy subcontracting reporting system; use SAM.gov SPR for current workflows. |
 | DOL | Labor standards, wage determinations, and worker protections. |
 
 Useful public references:
@@ -506,7 +506,7 @@ Useful public references:
 - NIST SP 800-171 Rev. 3: <https://csrc.nist.gov/pubs/sp/800/171/r3/final>
 - NARA CUI Registry: <https://www.archives.gov/cui/registry/category-list>
 - GSA SAM Entity Management API: <https://open.gsa.gov/api/entity-api/>
-- eSRS: <https://www.esrs.gov/>
+- SAM.gov Subcontracting Plan Reporting: <https://sam.gov/esrs>
 
 ## Study Path For New Team Members
 

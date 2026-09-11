@@ -2622,6 +2622,7 @@ export function App() {
               canManageContracts={canManageContracts}
               canViewReports={access.permissions.includes("ViewReports")}
               canManageReports={canManageReports}
+              companyUei={companyProfile?.uei ?? null}
               canReviewClauses={canReviewClauses}
               clauseResults={clauseResults}
               contracts={contracts}
@@ -4470,6 +4471,7 @@ function ContractsView({
   canManageContracts,
   canViewReports,
   canManageReports,
+  companyUei,
   canReviewClauses,
   clauseResults,
   contracts,
@@ -4508,6 +4510,7 @@ function ContractsView({
   canManageContracts: boolean;
   canViewReports: boolean;
   canManageReports: boolean;
+  companyUei: string | null;
   canReviewClauses: boolean;
   clauseResults: ClauseLibraryItem[];
   contracts: ContractRecord[];
@@ -4741,7 +4744,8 @@ function ContractsView({
 
         {selectedContract ? <EsrsApplicabilityPanel contractId={selectedContract.id} canManage={canManageContracts} /> : null}
         {selectedContract && canViewReports ?
-          <EsrsReportDataPanel contractId={selectedContract.id} canManage={canManageReports} /> : null}
+          <EsrsReportDataPanel contractId={selectedContract.id} contractNumber={selectedContract.contractNumber}
+            companyUei={companyUei} canManage={canManageReports} /> : null}
 
         <section className="contract-clauses" aria-label="Attached contract clauses">
           <div className="contract-documents__header">

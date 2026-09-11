@@ -20,7 +20,7 @@ public sealed class EsrsApplicabilityService(
         {
             var saved = await repository.CreateAsync(normalized, actorUserId, token);
             if (saved is null) return null;
-            await WriteAuditAsync(saved, actorUserId, AuditAction.Created, "eSRS applicability was activated.", token);
+            await WriteAuditAsync(saved, actorUserId, AuditAction.Created, "SAM.gov SPR applicability was activated.", token);
             return saved;
         }, cancellationToken);
     }
@@ -33,7 +33,7 @@ public sealed class EsrsApplicabilityService(
         {
             var updated = await repository.UpdateAsync(applicabilityId, normalized, actorUserId, token);
             if (updated is null) return null;
-            await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, "eSRS applicability was updated.", token);
+            await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, "SAM.gov SPR applicability was updated.", token);
             return updated;
         }, cancellationToken);
     }
@@ -41,10 +41,10 @@ public sealed class EsrsApplicabilityService(
     public async Task<EsrsApplicabilityDto?> UpdateStatusAsync(Guid contractId, Guid applicabilityId, EsrsReportTaskStatus status, Guid actorUserId, CancellationToken cancellationToken = default) =>
         await transaction.ExecuteAsync(async token =>
         {
-            if (!Enum.IsDefined(status)) throw new EsrsApplicabilityValidationException("eSRS task status is not supported.");
+            if (!Enum.IsDefined(status)) throw new EsrsApplicabilityValidationException("SAM.gov SPR task status is not supported.");
             var updated = await repository.UpdateStatusAsync(contractId, applicabilityId, status, actorUserId, token);
             if (updated is null) return null;
-            await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, "eSRS applicability status was updated.", token);
+            await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, "SAM.gov SPR applicability status was updated.", token);
             return updated;
         }, cancellationToken);
 
@@ -83,7 +83,7 @@ public sealed class EsrsApplicabilityService(
     private static void Validate(EsrsApplicabilityRequest request)
     {
         var errors = new Dictionary<string, string[]>();
-        if (request.ContractId == Guid.Empty) errors["contractId"] = ["Contract is required for eSRS applicability."];
+        if (request.ContractId == Guid.Empty) errors["contractId"] = ["Contract is required for SAM.gov SPR applicability."];
         if (!Enum.IsDefined(request.ReportType)) errors["reportType"] = ["Report type must be ISR or SSR."];
         Required(errors, "contractType", request.ContractType, 120); Required(errors, "agency", request.Agency, 240);
         Required(errors, "subcontractingPlanType", request.SubcontractingPlanType, 120);

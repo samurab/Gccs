@@ -79,7 +79,7 @@ public sealed class EfEsrsApplicabilityRepository(GccsDbContext dbContext, ICurr
             throw new EsrsApplicabilityValidationException("Assigned user must be an active member of the current tenant.");
         if (await Query().AnyAsync(x => x.Id != excludingId && x.ContractId == request.ContractId &&
                 x.ReportType == request.ReportType && x.PeriodStart == request.PeriodStart && x.PeriodEnd == request.PeriodEnd, token))
-            throw new EsrsApplicabilityValidationException("An eSRS obligation already exists for this contract, report type, and reporting period.");
+            throw new EsrsApplicabilityValidationException("A SAM.gov subcontracting plan reporting obligation already exists for this contract, report type, and reporting period.");
     }
 
     private static void Apply(EsrsApplicabilityEntity entity, EsrsApplicabilityRequest request, Guid actorUserId)
@@ -102,9 +102,9 @@ public sealed class EfEsrsApplicabilityRepository(GccsDbContext dbContext, ICurr
     private async Task<bool> IsActiveMemberAsync(Guid userId, CancellationToken token) =>
         await dbContext.TenantMemberships.AsNoTracking().AnyAsync(x => x.TenantId == tenantContext.TenantId && x.UserId == userId && x.Status == Gccs.Domain.Identity.MembershipStatus.Active, token) &&
         await dbContext.Users.AsNoTracking().AnyAsync(x => x.Id == userId && x.Status == Gccs.Domain.Identity.UserStatus.Active, token);
-    private static string TaskTitle(EsrsReportType type) => $"{type.ToString().ToUpperInvariant()} eSRS report due";
+    private static string TaskTitle(EsrsReportType type) => $"{type.ToString().ToUpperInvariant()} SAM.gov SPR due";
     private static string TaskDescription(EsrsApplicabilityRequest request) =>
-        $"Prepare the {request.ReportType.ToString().ToUpperInvariant()} eSRS report for {request.PeriodStart:yyyy-MM-dd} through {request.PeriodEnd:yyyy-MM-dd}.";
+        $"Prepare the {request.ReportType.ToString().ToUpperInvariant()} SAM.gov subcontracting plan report for {request.PeriodStart:yyyy-MM-dd} through {request.PeriodEnd:yyyy-MM-dd}.";
     private static EsrsApplicabilityDto ToDto(EsrsApplicabilityEntity x, DateOnly today) => new(x.Id, x.TenantId, x.ContractId, x.TaskId,
         x.ContractType, x.Agency, x.SubcontractingPlanType, x.PrimeOrLowerTierRole, x.ReportType, x.PeriodStart, x.PeriodEnd,
         x.DueDate, x.SourceClause, x.Rationale, ToEsrsStatus(x.Task?.Status ?? ComplianceTaskStatus.Open), x.OwnerFunction, x.AssignedToUserId, x.ReviewedByUserId,

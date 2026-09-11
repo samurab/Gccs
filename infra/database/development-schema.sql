@@ -4492,3 +4492,29 @@ INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260910232537_AddDurableSubcontractingReportData', '10.0.4');
 
 COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.esrs_report_data_rows ADD prime_contract_piid character varying(64);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD reporting_entity_uei character varying(12);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD reporting_fiscal_year integer;
+
+ALTER TABLE gccs.esrs_report_data_rows ADD reporting_period character varying(64);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD reporting_role character varying(64);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_eligibility_basis character varying(500);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_eligibility_confirmed boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE gccs.esrs_report_data_rows ADD subcontract_number character varying(64);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD CONSTRAINT "CK_esrs_report_data_rows_spr_readiness" CHECK (spr_eligibility_confirmed = FALSE OR (reporting_role IS NOT NULL AND reporting_fiscal_year IS NOT NULL AND reporting_period IS NOT NULL AND reporting_entity_uei IS NOT NULL AND prime_contract_piid IS NOT NULL AND spr_eligibility_basis IS NOT NULL));
+
+ALTER TABLE gccs.esrs_report_data_rows ADD CONSTRAINT "CK_esrs_report_data_rows_spr_uei" CHECK (reporting_entity_uei IS NULL OR (length(reporting_entity_uei) = 12 AND reporting_entity_uei ~ '^[A-Z0-9]{12}$'));
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260910234532_AddSamGovSprReportMetadata', '10.0.4');
+
+COMMIT;

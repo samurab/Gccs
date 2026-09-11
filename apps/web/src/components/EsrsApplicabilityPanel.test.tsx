@@ -43,7 +43,7 @@ describe("EsrsApplicabilityPanel", () => {
     render(<EsrsApplicabilityPanel contractId={contractId} canManage />);
     await user.click(await screen.findByRole("button", { name: /use isr first half/i }));
     await user.type(screen.getByLabelText("Agency"), "Department of Defense");
-    await user.click(screen.getByRole("button", { name: /activate esrs obligation/i }));
+    await user.click(screen.getByRole("button", { name: /activate sam.gov spr obligation/i }));
     await waitFor(() => expect(createMock).toHaveBeenCalledWith(contractId, expect.objectContaining({
       reportType: "Isr", periodStart: "2026-10-01", periodEnd: "2027-03-31", dueDate: "2027-04-30",
       sourceClause: "FAR 52.219-9"
@@ -51,7 +51,7 @@ describe("EsrsApplicabilityPanel", () => {
     expect(await screen.findByText(/added to the compliance calendar/i)).toBeInTheDocument();
   });
 
-  it("TC-31.1.2 and TC-31.1.4 displays persisted overdue eSRS work and updates status", async () => {
+  it("TC-31.1.2 and TC-31.1.4 displays persisted overdue SPR work and updates status", async () => {
     listMock.mockResolvedValue([item]);
     statusMock.mockResolvedValue({ data: { ...item, status: "Completed", isOverdue: false } });
     const user = userEvent.setup();

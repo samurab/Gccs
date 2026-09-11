@@ -19,9 +19,9 @@ public sealed class SubcontractingReportDataCollectionTests
         Assert.Equal(ids.TenantId, row.TenantId);
         Assert.Equal(ids.ContractId, row.ContractId);
         Assert.Equal(ids.SubcontractorId, row.SubcontractorId);
-        Assert.Equal("Small Disadvantaged Business", row.SocioeconomicCategory);
+        Assert.Equal("Small Disadvantaged Business (SDB)", row.SocioeconomicCategory);
         Assert.Equal("Direct subcontract spend", row.PlanCategory);
-        Assert.Equal(12500.25m, row.Amount);
+        Assert.Equal(12500m, row.Amount);
         Assert.Equal(SubcontractingReportDataReviewStatus.Draft, row.ReviewStatus);
         Assert.Equal("FAR 52.219-9", row.SourceReference);
     }
@@ -132,11 +132,18 @@ public sealed class SubcontractingReportDataCollectionTests
             new DateOnly(2026, 3, 31),
             new DateOnly(2026, 1, 1),
             new DateOnly(2026, 3, 31),
-            "Small Disadvantaged Business",
+            "Small Disadvantaged Business (SDB)",
             "Direct subcontract spend",
-            12500.25m,
+            12500m,
             [ids.EvidenceItemId],
-            "FAR 52.219-9");
+            "FAR 52.219-9",
+            ReportingRole: SprReportingRole.PrimeContractor,
+            ReportingFiscalYear: 2026,
+            ReportingPeriod: SprReportingPeriod.March31,
+            ReportingEntityUei: "TESTUEI12345",
+            PrimeContractPiid: "FA-TEST-312",
+            SprEligibilityConfirmed: true,
+            SprEligibilityBasis: "Prime contract is associated with the reporting entity and has a qualifying subcontracting plan.");
 
     private static SubcontractingReportPackageRowsRequest CreatePackageRequest(StoryIds ids, bool FinalPackage) =>
         new(

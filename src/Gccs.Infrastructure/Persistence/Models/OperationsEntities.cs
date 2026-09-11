@@ -469,6 +469,14 @@ public sealed class SubcontractingReportDataRowEntity : AuditedEntity
     public string PlanCategoryKey { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string SourceReference { get; set; } = string.Empty;
+    public SprReportingRole? ReportingRole { get; set; }
+    public int? ReportingFiscalYear { get; set; }
+    public SprReportingPeriod? ReportingPeriod { get; set; }
+    public string? ReportingEntityUei { get; set; }
+    public string? PrimeContractPiid { get; set; }
+    public string? SubcontractNumber { get; set; }
+    public bool SprEligibilityConfirmed { get; set; }
+    public string? SprEligibilityBasis { get; set; }
     public SubcontractingReportDataReviewStatus ReviewStatus { get; set; }
     public Guid? ReviewedByUserId { get; set; }
     public DateTimeOffset? ReviewedAt { get; set; }

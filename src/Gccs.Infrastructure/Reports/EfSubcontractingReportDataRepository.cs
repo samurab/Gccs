@@ -110,7 +110,25 @@ public sealed class EfSubcontractingReportDataRepository(
         if (contractExists && !await dbContext.EsrsApplicabilities.AsNoTracking().AnyAsync(item =>
                 item.TenantId == tenantContext.TenantId && item.ContractId == request.ContractId && item.ReportType == request.ReportType &&
                 item.PeriodStart == request.ReportPeriodStart && item.PeriodEnd == request.ReportPeriodEnd, cancellationToken))
-            errors["reportPeriod"] = ["The report period does not match an active eSRS obligation for this contract."];
+            errors["reportPeriod"] = ["The report period does not match an active subcontracting plan reporting obligation for this contract."];
+        if (contractExists && request.PrimeContractPiid is not null)
+        {
+            var contractPiid = await dbContext.Contracts.AsNoTracking()
+                .Where(item => item.TenantId == tenantContext.TenantId && item.Id == request.ContractId)
+                .Select(item => item.ContractNumber).SingleAsync(cancellationToken);
+            if (!string.Equals(contractPiid, request.PrimeContractPiid, StringComparison.OrdinalIgnoreCase))
+                errors["primeContractPiid"] = ["Prime contract PIID must match the selected contract number."];
+        }
+        if (subcontractorExists && request.ReportingEntityUei is not null)
+        {
+            var expectedUei = request.ReportingRole == SprReportingRole.Subcontractor
+                ? await dbContext.Subcontractors.AsNoTracking().Where(item => item.TenantId == tenantContext.TenantId && item.Id == request.SubcontractorId)
+                    .Select(item => item.Uei).SingleAsync(cancellationToken)
+                : await dbContext.CompanyProfiles.AsNoTracking().Where(item => item.TenantId == tenantContext.TenantId)
+                    .Select(item => item.Uei).SingleOrDefaultAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(expectedUei) || !string.Equals(expectedUei, request.ReportingEntityUei, StringComparison.OrdinalIgnoreCase))
+                errors["reportingEntityUei"] = ["Reporting entity UEI must match the tenant profile or selected subcontractor for the reporting role."];
+        }
         if (request.SupportingEvidenceItemIds.Count > 0)
         {
             var validEvidenceIds = await dbContext.EvidenceItems.AsNoTracking()
@@ -137,6 +155,10 @@ public sealed class EfSubcontractingReportDataRepository(
         entity.SocioeconomicCategory = request.SocioeconomicCategory; entity.SocioeconomicCategoryKey = Key(request.SocioeconomicCategory);
         entity.PlanCategory = request.PlanCategory; entity.PlanCategoryKey = Key(request.PlanCategory);
         entity.Amount = request.Amount; entity.SourceReference = request.SourceReference!;
+        entity.ReportingRole = request.ReportingRole; entity.ReportingFiscalYear = request.ReportingFiscalYear;
+        entity.ReportingPeriod = request.ReportingPeriod; entity.ReportingEntityUei = request.ReportingEntityUei;
+        entity.PrimeContractPiid = request.PrimeContractPiid; entity.SubcontractNumber = request.SubcontractNumber;
+        entity.SprEligibilityConfirmed = request.SprEligibilityConfirmed; entity.SprEligibilityBasis = request.SprEligibilityBasis;
     }
 
     private static string Key(string value) => value.Trim().ToUpperInvariant();
@@ -170,5 +192,7 @@ public sealed class EfSubcontractingReportDataRepository(
         entity.SocioeconomicCategory, entity.PlanCategory, entity.Amount,
         entity.EvidenceLinks.Select(link => link.EvidenceItemId).Order().ToArray(), entity.SourceReference,
         entity.ReviewStatus, entity.ReviewedByUserId, entity.ReviewedAt, entity.ReviewerNotes,
-        entity.Version, entity.CreatedAt, entity.UpdatedAt);
+        entity.Version, entity.CreatedAt, entity.UpdatedAt, entity.ReportingRole, entity.ReportingFiscalYear,
+        entity.ReportingPeriod, entity.ReportingEntityUei, entity.PrimeContractPiid, entity.SubcontractNumber,
+        entity.SprEligibilityConfirmed, entity.SprEligibilityBasis);
 }

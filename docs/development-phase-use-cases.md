@@ -39,7 +39,7 @@ Roadmap status labels describe backlog posture, not proof of deployed behavior. 
 | 28 | Extraction content test set | Extraction precision and recall can be measured against representative contract documents. |
 | 29 | SSP builder | Users can assemble a source-backed System Security Plan from approved profile, boundary, asset, control, and evidence data. |
 | 30 | SPRS score calculator | Users can calculate, review, and track draft NIST SP 800-171 assessment scores before SPRS submission. |
-| 31 | eSRS support | Users can track subcontracting plan reporting obligations and prepare eSRS report packages. |
+| 31 | SAM.gov SPR support | Users can track subcontracting plan reporting obligations and prepare review packages for manual entry in SAM.gov. |
 | 32 | Labor compliance module | Users can manage wage determinations, labor categories, worker classifications, and labor evidence when required by contract. |
 | 33 | AI assistant with guardrails | Users can ask source-backed compliance questions with citations, logging, and human-review controls. |
 | 34 | Prime contractor and auditor portals | External prime and auditor users can review approved packages without modifying tenant workspaces. |
@@ -2225,41 +2225,41 @@ Acceptance criteria:
 - Report uses tenant-scoped data only.
 - Report generation is audit logged.
 
-## 31. eSRS Support
+## 31. SAM.gov Subcontracting Plan Reporting (SPR) Support
 
 ### Use Case
 
-As a contractor with subcontracting plan obligations, I need to track eSRS reporting requirements and prepare report packages so that reporting deadlines, data, and evidence are managed before submission.
+As a contractor with subcontracting plan obligations, I need to track SAM.gov Subcontracting Plan Reporting (SPR) requirements and prepare report packages so that reporting deadlines, data, and evidence are managed before manual submission in SAM.gov.
 
 ### User Stories
 
-#### Story 31.1: eSRS Applicability And Reporting Calendar
+#### Story 31.1: SPR Applicability And Reporting Calendar
 
-As a contracts manager, I want to identify contracts with eSRS reporting obligations so that required reports appear on the compliance calendar.
+As a contracts manager, I want to identify contracts with SAM.gov SPR obligations so that required reports appear on the compliance calendar.
 
 Tasks:
 
-- Add eSRS applicability fields for contract type, agency, subcontracting plan type, prime/lower-tier role, reporting period, report type, due date, and source clause.
-- Link eSRS obligations to contracts, subcontractors, tasks, and calendar items.
+- Add SPR applicability fields for contract type, agency, subcontracting plan type, prime/lower-tier role, reporting period, report type, due date, and source clause.
+- Link SPR obligations to contracts, subcontractors, tasks, and calendar items.
 - Add default reporting schedule templates for ISR and SSR tracking where applicable.
 - Add validation requiring source clause or documented rationale.
-- Add reminders and overdue status for eSRS report tasks.
+- Add reminders and overdue status for SPR report tasks.
 
 Acceptance criteria:
 
-- Authorized user can mark a contract as eSRS-applicable with report type, period, due date, and source.
-- eSRS report obligations appear on the compliance calendar.
-- Missing source clause or rationale blocks activation of an eSRS obligation.
-- Overdue eSRS tasks are calculated from due date and status.
-- eSRS applicability changes are audit logged.
+- Authorized user can mark a contract as SPR-applicable with report type, period, due date, and source.
+- SPR report obligations appear on the compliance calendar.
+- Missing source clause or rationale blocks activation of an SPR obligation.
+- Overdue SPR tasks are calculated from due date and status.
+- SPR applicability changes are audit logged.
 
 #### Story 31.2: Subcontracting Report Data Collection
 
-As a contracts manager, I want to collect subcontracting report data so that eSRS package preparation uses documented subcontractor and spend information.
+As a contracts manager, I want to collect subcontracting report data so that SAM.gov SPR package preparation uses documented subcontractor and spend information.
 
 Tasks:
 
-- Add report data fields for subcontractor, socioeconomic category, award/spend amount, period, contract, plan category, and supporting evidence.
+- Add report data fields for subcontractor, socioeconomic category, whole-dollar award/spend amount, period, contract, plan category, supporting evidence, reporting role, reporting fiscal year/period, reporting entity UEI, prime contract PIID, conditional subcontract number, and documented SPR eligibility basis.
 - Link data rows to subcontractor profiles and evidence records.
 - Add validation for missing subcontractor category, negative amounts, duplicate rows, and period mismatch.
 - Add import template for manual data entry.
@@ -2270,12 +2270,12 @@ Acceptance criteria:
 - User can create report data rows linked to subcontractor and contract records.
 - Validation rejects negative amounts, missing required categories, duplicate rows, and period mismatches.
 - Report data rows link to supporting evidence when provided.
-- Data rows cannot be included in a final package until reviewed or explicitly marked as accepted.
+- Data rows cannot be included in a final package until SPR metadata is ready and the row is reviewed or explicitly marked as accepted.
 - Data row changes are audit logged.
 
-#### Story 31.3: eSRS Report Package
+#### Story 31.3: SAM.gov SPR Report Package
 
-As a contracts manager, I want to prepare an eSRS report package so that internal reviewers can verify data before external submission.
+As a contracts manager, I want to prepare a SAM.gov SPR report package so that internal reviewers can verify data before manual external submission.
 
 Tasks:
 
@@ -2287,9 +2287,9 @@ Tasks:
 
 Acceptance criteria:
 
-- Authorized user can generate an eSRS preparation package for the current tenant.
+- Authorized user can generate a SAM.gov SPR preparation package for the current tenant.
 - Package includes contract, period, report type, subcontractor/spend summaries, exceptions, evidence references, and generated date.
-- Package states that GCCS has not submitted the report to eSRS.
+- Package states that FeDril has not submitted the report to SAM.gov and does not synchronize with SAM.gov.
 - Approved packages include reviewer and approval date.
 - Package generation and approval are audit logged.
 

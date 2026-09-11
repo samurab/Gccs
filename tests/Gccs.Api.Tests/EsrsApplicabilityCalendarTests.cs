@@ -39,7 +39,7 @@ public sealed class EsrsApplicabilityCalendarTests : IClassFixture<WebApplicatio
         var ids = StoryIds.Create();
         await using var factory = CreateFactory(nameof(TC_31_1_1_And_5_Create_persists_task_review_metadata_and_audit), ids);
         using var client = factory.CreateClient();
-        var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/esrs-applicabilities", CreateRequest(ids.ContractId), ids.TenantId, Permission.ManageContracts));
+        var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/subcontracting-plan-reporting-applicabilities", CreateRequest(ids.ContractId), ids.TenantId, Permission.ManageContracts));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var created = await response.Content.ReadFromJsonAsync<EsrsApplicabilityDto>(JsonOptions);
         Assert.NotNull(created);
@@ -50,7 +50,7 @@ public sealed class EsrsApplicabilityCalendarTests : IClassFixture<WebApplicatio
 
         var changedDueDate = new DateOnly(2026, 5, 1);
         var updateResponse = await client.SendAsync(Request(HttpMethod.Put,
-            $"/api/contracts/{ids.ContractId}/esrs-applicabilities/{created.Id}",
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-reporting-applicabilities/{created.Id}",
             CreateRequest(ids.ContractId) with { DueDate = changedDueDate, Rationale = "Updated after a documented contract-file review." },
             ids.TenantId, Permission.ManageContracts));
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
@@ -89,7 +89,7 @@ public sealed class EsrsApplicabilityCalendarTests : IClassFixture<WebApplicatio
         var reminders = await reminderResponse.Content.ReadFromJsonAsync<DueDateReminderRunResult>(JsonOptions);
         Assert.Contains(reminders!.Items, x => x.TaskId == created.TaskId && x.Category == "overdue");
 
-        var completedResponse = await client.SendAsync(Request(HttpMethod.Patch, $"/api/contracts/{ids.ContractId}/esrs-applicabilities/{created.Id}/status", new UpdateEsrsStatusRequest(EsrsReportTaskStatus.Completed), ids.TenantId, Permission.ManageContracts));
+        var completedResponse = await client.SendAsync(Request(HttpMethod.Patch, $"/api/contracts/{ids.ContractId}/subcontracting-plan-reporting-applicabilities/{created.Id}/status", new UpdateEsrsStatusRequest(EsrsReportTaskStatus.Completed), ids.TenantId, Permission.ManageContracts));
         Assert.Equal(HttpStatusCode.OK, completedResponse.StatusCode);
         var completed = await completedResponse.Content.ReadFromJsonAsync<EsrsApplicabilityDto>(JsonOptions);
         Assert.False(completed!.IsOverdue);
@@ -102,7 +102,7 @@ public sealed class EsrsApplicabilityCalendarTests : IClassFixture<WebApplicatio
         await using var factory = CreateFactory(nameof(TC_31_1_3_Missing_source_blocks_all_business_and_audit_writes), ids);
         using var client = factory.CreateClient();
         var body = CreateRequest(ids.ContractId) with { SourceClause = " ", Rationale = null };
-        var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/esrs-applicabilities", body, ids.TenantId, Permission.ManageContracts));
+        var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/subcontracting-plan-reporting-applicabilities", body, ids.TenantId, Permission.ManageContracts));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
@@ -117,13 +117,13 @@ public sealed class EsrsApplicabilityCalendarTests : IClassFixture<WebApplicatio
         var ids = StoryIds.Create();
         await using var factory = CreateFactory(nameof(Tenant_scope_and_server_RBAC_fail_closed_without_cross_tenant_mutation), ids);
         using var client = factory.CreateClient();
-        var forbidden = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/esrs-applicabilities", CreateRequest(ids.ContractId), ids.TenantId, Permission.ViewContracts));
+        var forbidden = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/subcontracting-plan-reporting-applicabilities", CreateRequest(ids.ContractId), ids.TenantId, Permission.ViewContracts));
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
         var created = await CreateAsync(client, ids, CreateRequest(ids.ContractId));
-        var hidden = await client.SendAsync(Request<object>(HttpMethod.Get, $"/api/contracts/{ids.ContractId}/esrs-applicabilities", null, ids.OtherTenantId, Permission.ViewContracts));
+        var hidden = await client.SendAsync(Request<object>(HttpMethod.Get, $"/api/contracts/{ids.ContractId}/subcontracting-plan-reporting-applicabilities", null, ids.OtherTenantId, Permission.ViewContracts));
         Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
         var crossTenantMutation = await client.SendAsync(Request(HttpMethod.Patch,
-            $"/api/contracts/{ids.ContractId}/esrs-applicabilities/{created.Id}/status",
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-reporting-applicabilities/{created.Id}/status",
             new UpdateEsrsStatusRequest(EsrsReportTaskStatus.Completed), ids.OtherTenantId, Permission.ManageContracts));
         Assert.Equal(HttpStatusCode.NotFound, crossTenantMutation.StatusCode);
         using var scope = factory.Services.CreateScope();
@@ -138,7 +138,7 @@ public sealed class EsrsApplicabilityCalendarTests : IClassFixture<WebApplicatio
         var ids = StoryIds.Create();
         await using var factory = CreateFactory(nameof(Default_ISR_and_SSR_schedules_are_suggestions_with_review_guidance), ids);
         using var client = factory.CreateClient();
-        var response = await client.SendAsync(Request<object>(HttpMethod.Get, "/api/esrs/schedule-templates?fiscalYear=2027", null, ids.TenantId, Permission.ViewContracts));
+        var response = await client.SendAsync(Request<object>(HttpMethod.Get, "/api/subcontracting-plan-reports/schedule-templates?fiscalYear=2027", null, ids.TenantId, Permission.ViewContracts));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var schedules = await response.Content.ReadFromJsonAsync<EsrsScheduleTemplateDto[]>(JsonOptions);
         Assert.Equal(3, schedules!.Length);
@@ -193,7 +193,7 @@ public sealed class EsrsApplicabilityCalendarTests : IClassFixture<WebApplicatio
         try
         {
             using var client = factory.CreateClient();
-            var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/esrs-applicabilities",
+            var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/subcontracting-plan-reporting-applicabilities",
                 CreateRequest(ids.ContractId), ids.TenantId, Permission.ManageContracts, ids.UserId));
             Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
             Assert.Contains("audit_write_failed", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
@@ -219,7 +219,7 @@ public sealed class EsrsApplicabilityCalendarTests : IClassFixture<WebApplicatio
 
     private static async Task<EsrsApplicabilityDto> CreateAsync(HttpClient client, StoryIds ids, EsrsApplicabilityRequest body)
     {
-        var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/esrs-applicabilities", body, ids.TenantId, Permission.ManageContracts));
+        var response = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/subcontracting-plan-reporting-applicabilities", body, ids.TenantId, Permission.ManageContracts));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<EsrsApplicabilityDto>(JsonOptions))!;
     }
