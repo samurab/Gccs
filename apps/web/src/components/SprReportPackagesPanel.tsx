@@ -86,7 +86,7 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
   }
 
   const approvedPackages = packages.filter(item => item.status === "Approved");
-  return <section className="contract-esrs contract-esrs-packages" aria-labelledby="spr-package-heading">
+  return <section className="contract-esrs contract-esrs-packages workflow-control-surface" aria-labelledby="spr-package-heading">
     <div className="contract-documents__header"><div><span>SPR preparation packages</span><strong id="spr-package-heading">{packages.length}</strong></div></div>
     <p>Packages are immutable, versioned snapshots for customer review and manual entry in SAM.gov. FeDril does not submit or synchronize them.</p>
     {capability ? <p role="status">Direct submission: {capability.enabled ? "configured" : `unavailable — ${capability.reason}`}</p> : null}
@@ -104,7 +104,7 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
       {item.reviewNotes ? <small>Review notes: {item.reviewNotes}</small> : null}
       {item.snapshot.exceptions.map(exception => <small key={exception}>Exception: {exception}</small>)}
       {(receipts[item.id] ?? []).map(receipt => <small key={receipt.id}>External receipt: {receipt.confirmationReference} · {receipt.outcome} · recorded {new Date(receipt.recordedAt).toLocaleString()}</small>)}
-      <div>
+      <div className="contract-esrs__actions">
         {canExport ? <><button type="button" onClick={() => void download(item, "Html")}>Export HTML</button>
           <button type="button" onClick={() => void download(item, "Json")}>Export JSON</button></> : null}
         {canManage && item.status === "Draft" ? <button type="button" onClick={() => void review(item, "begin-review")}>Begin review</button> : null}
@@ -119,7 +119,7 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
         <label>Report type<select value={reportType} onChange={event => setReportType(event.target.value as "Isr" | "Ssr")}><option value="Isr">ISR</option><option value="Ssr">SSR</option></select></label>
         <label>Period start<input required type="date" value={periodStart} onChange={event => setPeriodStart(event.target.value)} /></label>
         <label>Period end<input required type="date" value={periodEnd} onChange={event => setPeriodEnd(event.target.value)} /></label>
-        <button type="submit" disabled={state === "saving"}>Generate package</button>
+        <div className="form-actions"><button type="submit" disabled={state === "saving"}>Generate package</button></div>
       </form>
       {approvedPackages.length > 0 ? <form onSubmit={event => void recordReceipt(event)}><h3>Record manual SAM.gov receipt</h3>
         <p>This records a customer-reported external event; it does not verify a SAM.gov submission.</p>
@@ -131,7 +131,7 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
             <option key={receipt.id} value={receipt.id}>{receipt.confirmationReference} · {receipt.outcome} · {new Date(receipt.recordedAt).toLocaleString()}</option>)}</select></label> : null}
         <label>Supporting evidence<select value={evidenceItemId} onChange={event => setEvidenceItemId(event.target.value)}><option value="">None</option>{evidence.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
         <label>Notes<textarea required={outcome === "Rejected" || outcome === "Corrected"} maxLength={2000} value={receiptNotes} onChange={event => setReceiptNotes(event.target.value)} /></label>
-        <button type="submit" disabled={state === "saving"}>Record external receipt</button>
+        <div className="form-actions"><button type="submit" disabled={state === "saving"}>Record external receipt</button></div>
       </form> : null}
     </> : null}
   </section>;

@@ -134,7 +134,7 @@ export function PortalPackageLifecyclePanel({
   if (loadState === "loading") return <section aria-label="Portal package lifecycle"><p role="status">Loading shared portal packages…</p></section>;
   if (loadState === "error") return <section aria-label="Portal package lifecycle"><p role="alert">Shared portal packages could not be loaded.</p></section>;
 
-  return <section className="route-panel" aria-labelledby="portal-package-lifecycle-heading">
+  return <section className="route-panel portal-package-lifecycle workflow-control-surface" aria-labelledby="portal-package-lifecycle-heading">
     <div className="section-heading">
       <p className="eyebrow">External review access</p>
       <h2 id="portal-package-lifecycle-heading">Portal package lifecycle</h2>
@@ -148,14 +148,14 @@ export function PortalPackageLifecyclePanel({
         <small>Expires {new Date(item.expiresAt).toLocaleString()} · reminder {item.reminderSentAt ? "sent" : `scheduled ${new Date(item.reminderAt).toLocaleString()}`}</small>
         {item.revocationReason ? <small>Revocation reason: {item.revocationReason}</small> : null}
         {item.replacementSharedPackageId ? <small>Replacement share: {item.replacementSharedPackageId}</small> : null}
-        {canManage && item.state === "Active" ? <div>
+        {canManage && item.state === "Active" ? <div className="portal-package-lifecycle__actions">
           <button disabled={actionState === "saving"} onClick={() => void runAction(
             () => expireSharedPortalPackage(item.id), "The shared package was expired."
           )} type="button">Expire</button>
           <button onClick={() => { setSelectedId(item.id); setSelectedAction("revoke"); setReason(""); }} type="button">Revoke</button>
           <button onClick={() => { setSelectedId(item.id); setSelectedAction("supersede"); setReplacementSharedPackageId(""); }} type="button">Supersede</button>
         </div> : null}
-        {canManage && item.state !== "Archived" ? <div>
+        {canManage && item.state !== "Archived" ? <div className="portal-package-lifecycle__actions">
           <button onClick={() => { setSelectedId(item.id); setSelectedAction("reissue"); setReplacementPackageId(""); setExpiresAt(""); }} type="button">Reissue</button>
           <button disabled={actionState === "saving"} onClick={() => void runAction(
             () => archiveSharedPortalPackage(item.id), "The shared package was archived."
@@ -164,13 +164,13 @@ export function PortalPackageLifecyclePanel({
       </article>
     )}
     {!canManage ? <p>Portal package lifecycle management requires tenant administrator access.</p> : null}
-    {selectedAction === "revoke" && selectedId && packages.some(item => item.id === selectedId && item.state === "Active") ? <form onSubmit={revoke}>
+    {selectedAction === "revoke" && selectedId && packages.some(item => item.id === selectedId && item.state === "Active") ? <form className="portal-package-lifecycle__form" onSubmit={revoke}>
       <h3>Revoke package access</h3>
       <label>Revocation reason<textarea required maxLength={500} value={reason} onChange={event => setReason(event.target.value)} /></label>
       <button disabled={actionState === "saving"} type="submit">Confirm revoke</button>
       <button onClick={() => { setSelectedId(""); setSelectedAction(null); }} type="button">Cancel</button>
     </form> : null}
-    {selectedAction === "supersede" && selectedId && packages.some(item => item.id === selectedId && item.state === "Active") ? <form onSubmit={supersede}>
+    {selectedAction === "supersede" && selectedId && packages.some(item => item.id === selectedId && item.state === "Active") ? <form className="portal-package-lifecycle__form" onSubmit={supersede}>
       <h3>Link an existing replacement share</h3>
       <label>Replacement share<select required value={replacementSharedPackageId} onChange={event => setReplacementSharedPackageId(event.target.value)}>
         <option value="">Select an active replacement</option>
@@ -179,7 +179,7 @@ export function PortalPackageLifecyclePanel({
       </select></label>
       <button disabled={actionState === "saving"} type="submit">Confirm supersede</button>
     </form> : null}
-    {selectedAction === "reissue" && selectedId && packages.some(item => item.id === selectedId && item.state !== "Archived") ? <form onSubmit={reissue}>
+    {selectedAction === "reissue" && selectedId && packages.some(item => item.id === selectedId && item.state !== "Archived") ? <form className="portal-package-lifecycle__form" onSubmit={reissue}>
       <h3>Reissue as a new share version</h3>
       <label>Replacement source package ID<input required value={replacementPackageId} onChange={event => setReplacementPackageId(event.target.value)} /></label>
       <label>New expiration date<input required type="date" value={expiresAt} onChange={event => setExpiresAt(event.target.value)} /></label>

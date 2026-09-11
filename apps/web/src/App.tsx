@@ -7753,10 +7753,12 @@ function ReportsView({
       {message ? <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p> : null}
       {canManageReports ? (
         <>
-          <div className="report-action-grid">
+          <div className="report-action-grid report-generation-grid">
             <section className="evidence-metadata">
               <h3>Compliance status</h3>
-              <p>Snapshot obligation status, overdue tasks, evidence state, high-risk items, and readiness gaps.</p>
+              <p className="report-generation-card__summary">
+                Snapshot obligations, overdue work, evidence, high-risk items, and readiness gaps.
+              </p>
               <div className="form-actions">
                 <button type="button" disabled={!classificationConfirmed || status === "loading"} onClick={() => void onComplianceReportGenerate()}>
                   <ScrollText size={16} aria-hidden="true" />
@@ -9033,9 +9035,9 @@ function EvidenceMetadataPanel({
           <h3>Evidence metadata</h3>
           <p>Create reusable proof records with tags, expiration dates, status, and source links.</p>
         </div>
-        <button type="button" onClick={() => onSelectEvidence(null)}>
+        <Button size="sm" type="button" variant="secondary" onClick={() => onSelectEvidence(null)}>
           New evidence
-        </button>
+        </Button>
       </div>
       <div className="evidence-metadata__workspace">
         <div>
@@ -9342,10 +9344,16 @@ function CuiReadyChecklistPanel({
           <h2>Approval checklist</h2>
           <p className="section-summary">Required readiness records must be complete and approved before enabling CUI-ready mode.</p>
         </div>
-        <button type="button" onClick={() => void onCreate()} disabled={!currentTenant || status === "saving"}>
-          <ClipboardCheck size={16} />
-          <span>New checklist</span>
-        </button>
+        <Button
+          disabled={!currentTenant || status === "saving"}
+          icon={<ClipboardCheck size={16} />}
+          onClick={() => void onCreate()}
+          size="sm"
+          type="button"
+          variant="secondary"
+        >
+          New checklist
+        </Button>
       </div>
       {message ? (
         <p className={`form-status ${status === "failed" ? "form-status--error" : "form-status--ok"}`}>{message}</p>
@@ -9446,14 +9454,16 @@ function SharedResponsibilityMatrixPanel({
         </div>
         <div className="button-row">
           {matrix ? <span className={`status status--${matrix.state.toLowerCase()}`}>{matrix.state}</span> : null}
-          <button
+          <Button
             type="button"
             onClick={() => void onAcknowledge()}
             disabled={!matrix || Boolean(currentAcknowledgement) || status === "saving"}
+            icon={<CheckCircle2 size={16} />}
+            size="sm"
+            variant="secondary"
           >
-            <CheckCircle2 size={16} />
-            <span>{status === "saving" ? "Saving" : currentAcknowledgement ? "Acknowledged" : "Acknowledge"}</span>
-          </button>
+            {status === "saving" ? "Saving" : currentAcknowledgement ? "Acknowledged" : "Acknowledge"}
+          </Button>
         </div>
       </div>
       {message ? (
@@ -9708,10 +9718,16 @@ function DemoSandboxSeedPanel({
             Load the approved synthetic CUI demo records for UAT. This action is available only when the active tenant mode is DemoSandbox.
           </p>
         </div>
-        <button type="button" onClick={() => void onSeed()} disabled={!isDemoSandbox || !canSeedDemoDataset || status === "saving"}>
-          <FolderKanban size={16} />
-          <span>{status === "saving" ? "Seeding" : "Seed synthetic data"}</span>
-        </button>
+        <Button
+          disabled={!isDemoSandbox || !canSeedDemoDataset || status === "saving"}
+          icon={<FolderKanban size={16} />}
+          onClick={() => void onSeed()}
+          size="sm"
+          type="button"
+          variant="secondary"
+        >
+          {status === "saving" ? "Seeding" : "Seed synthetic data"}
+        </Button>
       </div>
       <div className="metric-grid">
         <div className="metric-card">
@@ -10346,13 +10362,13 @@ function SettingsView({
           <div className="form-status">
             Page {auditLogs.page} of {Math.max(1, Math.ceil(auditLogs.totalCount / Math.max(1, auditLogs.pageSize)))} · {auditLogs.totalCount} events
           </div>
-          <div className="form-status">
-            <button type="button" disabled={!auditLogs.hasPreviousPage} onClick={() => onAuditLogPageChange(auditLogs.page - 1)}>
+          <div className="form-status button-row">
+            <Button size="sm" type="button" variant="secondary" disabled={!auditLogs.hasPreviousPage} onClick={() => onAuditLogPageChange(auditLogs.page - 1)}>
               Previous
-            </button>
-            <button type="button" disabled={!auditLogs.hasNextPage} onClick={() => onAuditLogPageChange(auditLogs.page + 1)}>
+            </Button>
+            <Button size="sm" type="button" variant="secondary" disabled={!auditLogs.hasNextPage} onClick={() => onAuditLogPageChange(auditLogs.page + 1)}>
               Next
-            </button>
+            </Button>
           </div>
         </section>
       ) : null}

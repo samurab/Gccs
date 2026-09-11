@@ -38,7 +38,7 @@ export function ReadinessEvidencePanel({ children }: { children: (sources: Readi
     } catch (e) { setMessage(e instanceof Error ? e.message : "Evidence could not be recorded."); }
     finally { setBusy(false); }
   }
-  return <>
+  return <div className="readiness-evidence-panel workflow-control-surface">
     <p>Final approval checks the linked versions again. Expiry, replacement, or rejection invalidates their use even when an item is marked complete.</p>
     {loading && <p role="status">Loading readiness evidence…</p>}
     {error && <p role="alert">{error}</p>}
@@ -76,7 +76,7 @@ export function ReadinessEvidencePanel({ children }: { children: (sources: Readi
       </form>}
     </details>
     {message && <p role="status">{message}</p>}
-  </>;
+  </div>;
 }
 
 export function ReadinessItemEditor({ item, sources, userId, disabled, onSave }: { item: CuiReadyApprovalChecklistItem;

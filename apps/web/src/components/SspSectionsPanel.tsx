@@ -5,6 +5,7 @@ import {
   type SspLinkedRecordType, type SspNarrative, type SspNarrativeComparison, type SspNarrativeSourceType,
   type SspExportPackage, type SspSection, type SspSectionStatus, type SspSectionType
 } from "@/lib/api";
+import { Button } from "@/components/ui";
 
 const sectionTypes: SspSectionType[] = ["SystemDescription", "AuthorizationBoundary", "Environment", "Interconnections", "Users", "Roles", "DataTypes", "CuiHandlingPosture", "ControlImplementationNarratives", "InheritedResponsibilities", "ExternalServiceProviders", "EvidenceReferences"];
 const linkTypes: SspLinkedRecordType[] = ["CompanyProfile", "SystemBoundary", "Asset", "CmmcControl", "ResponsibilityMatrix", "Policy", "PoamItem", "Evidence"];
@@ -75,7 +76,7 @@ export function SspSectionsPanel({ canManage, canExport = false }: { canManage: 
   return <section aria-label="SSP sections" className="cmmc-create">
     <div className="section-heading section-heading--split"><div><h3>System Security Plan sections</h3>
       <p className="section-summary">Build reusable SSP structure from governed records and reviewed sources. Do not paste CUI or unsupported compliance claims.</p></div>
-      <button type="button" disabled={loading || busy} onClick={() => void load()}>Refresh</button></div>
+      <Button size="sm" type="button" variant="secondary" disabled={loading || busy} onClick={() => void load()}>Refresh</Button></div>
     {loading && <p role="status">Loading SSP sections…</p>}
     {error && <p role="alert" className="form-status form-status--error">{error}</p>}
     {!canManage && !loading && <p role="note">ManageCmmc permission is required to create, edit, or approve SSP content. Read-only SSP access remains available.</p>}

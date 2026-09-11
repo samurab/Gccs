@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SecurityIncidentReadinessPanel } from "./SecurityIncidentReadinessPanel";
 
@@ -23,5 +24,14 @@ describe("SecurityIncidentReadinessPanel", () => {
     expect(screen.getByRole("button", { name: "Add follow-up" })).toBeInTheDocument();
     expect(screen.getAllByRole("option", { name: "Backup restore execution · restore.pdf v2" })).toHaveLength(7);
     expect(screen.queryByRole("button", { name: "Approve security review" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Findings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Accepted risks" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Add finding" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add accepted risk" }));
+
+    expect(screen.getByRole("heading", { name: "Findings" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Accepted risks" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save new review version" })).toBeInTheDocument();
   });
 });

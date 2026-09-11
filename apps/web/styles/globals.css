@@ -5298,6 +5298,11 @@ textarea[aria-invalid="true"] {
 .route-panel {
   display: grid;
   gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.route-panel > * {
+  min-width: 0;
 }
 
 .route-panel__intro {
@@ -5398,6 +5403,7 @@ textarea[aria-invalid="true"] {
   display: grid;
   gap: var(--workspace-card-gap);
   grid-template-columns: var(--workspace-editor-columns);
+  min-width: 0;
 }
 
 .contract-workspace > .notice-panel {
@@ -5502,6 +5508,7 @@ textarea[aria-invalid="true"] {
   font-size: 0.78rem;
   font-weight: 800;
   gap: 6px;
+  min-width: 0;
   text-transform: uppercase;
 }
 
@@ -5513,10 +5520,13 @@ textarea[aria-invalid="true"] {
 .calendar-filter-form select {
   border: 1px solid var(--line);
   border-radius: 6px;
+  box-sizing: border-box;
   color: var(--ink);
   font: inherit;
   min-height: 40px;
+  min-width: 0;
   padding: 8px 10px;
+  width: 100%;
 }
 
 .clause-search-form button,
@@ -6158,6 +6168,185 @@ textarea[aria-invalid="true"] {
   min-height: 36px;
 }
 
+.workflow-control-surface {
+  min-width: 0;
+}
+
+.workflow-control-surface label {
+  color: var(--muted);
+  display: grid;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 6px;
+  min-width: 0;
+  text-transform: uppercase;
+}
+
+.workflow-control-surface input:not([type="checkbox"]):not([type="radio"]),
+.workflow-control-surface select,
+.workflow-control-surface textarea {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: var(--ink);
+  font: inherit;
+  min-height: 40px;
+  min-width: 0;
+  padding: 8px 10px;
+  text-transform: none;
+  width: 100%;
+}
+
+.workflow-control-surface select {
+  padding-right: 34px;
+  text-overflow: ellipsis;
+}
+
+.workflow-control-surface select[multiple] {
+  min-height: 112px;
+  padding-right: 10px;
+}
+
+.workflow-control-surface textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+.workflow-control-surface input[type="file"] {
+  padding: 4px;
+}
+
+.workflow-control-surface input[type="file"]::file-selector-button {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  margin-right: 10px;
+  min-height: 30px;
+  padding: 5px 9px;
+}
+
+.workflow-control-surface label:has(> input[type="checkbox"]),
+.workflow-control-surface label:has(> input[type="radio"]) {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  text-transform: none;
+}
+
+.workflow-control-surface input[type="checkbox"],
+.workflow-control-surface input[type="radio"] {
+  flex: 0 0 auto;
+  min-height: 20px;
+  width: 20px;
+}
+
+.workflow-control-surface button:not(.ui-button):not(.evidence-list__item) {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: 760;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 0;
+  padding: 8px 12px;
+  width: fit-content;
+}
+
+.workflow-control-surface button:not(.ui-button):not(.evidence-list__item):hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--teal) 74%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 12%, transparent);
+}
+
+.workflow-control-surface button:not(.ui-button):not(.evidence-list__item):disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.workflow-control-surface button[type="submit"],
+.workflow-control-surface .form-actions button:first-child {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.contract-esrs form {
+  column-gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 14px;
+}
+
+.contract-esrs form > h3,
+.contract-esrs form > p,
+.contract-esrs form > .form-actions,
+.contract-esrs form > .contract-esrs__actions,
+.contract-esrs form > label:has(textarea),
+.contract-esrs form > label:has(input[type="checkbox"]) {
+  grid-column: 1 / -1;
+}
+
+.contract-esrs__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contract-esrs__actions select {
+  min-width: 160px;
+  width: auto;
+}
+
+.contract-esrs__import label {
+  flex: 1 1 280px;
+}
+
+.readiness-evidence-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.readiness-evidence-panel > button {
+  justify-self: start;
+}
+
+.readiness-evidence-panel details form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.portal-package-lifecycle article,
+.portal-package-lifecycle__form {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.portal-package-lifecycle article > span,
+.portal-package-lifecycle article > small {
+  color: var(--muted);
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.portal-package-lifecycle__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .contract-documents__header,
 .contract-clause-form,
 .contract-clause-item,
@@ -6302,6 +6491,31 @@ textarea[aria-invalid="true"] {
 
 .readiness-record-grid > :first-child {
   grid-column: 1 / -1;
+}
+
+.security-review-card > h4 {
+  margin: 8px 0 0;
+}
+
+.security-review-card > .readiness-child-editor {
+  margin-block: 0;
+}
+
+.security-review-card__footer-actions {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 12px;
+}
+
+.workflow-control-surface .security-review-card__footer-actions button.security-review-card__save {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+  margin-left: auto;
 }
 
 .readiness-check-grid { display: grid; gap: 4px; overflow-x: auto; }
@@ -6491,6 +6705,7 @@ textarea[aria-invalid="true"] {
 
 .subcontractor-detail-grid,
 .report-action-grid {
+  align-items: start;
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6498,6 +6713,23 @@ textarea[aria-invalid="true"] {
 
 .report-action-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.report-generation-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.report-generation-card__summary {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 0;
+  min-height: 64px;
+}
+
+@media (max-width: 1340px) {
+  .report-generation-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .report-library-grid {
@@ -6613,7 +6845,8 @@ textarea[aria-invalid="true"] {
 }
 
 .evidence-metadata input,
-.evidence-metadata select {
+.evidence-metadata select,
+.evidence-metadata textarea {
   background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: 6px;
@@ -6622,6 +6855,11 @@ textarea[aria-invalid="true"] {
   min-height: 40px;
   padding: 8px 10px;
   width: 100%;
+}
+
+.evidence-metadata textarea {
+  min-height: 82px;
+  resize: vertical;
 }
 
 .evidence-metadata-form {
@@ -7467,7 +7705,7 @@ textarea[aria-invalid="true"] {
   .settings-workspace,
   .subcontractor-detail-grid,
   .report-action-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .metrics-grid,
@@ -7523,6 +7761,10 @@ textarea[aria-invalid="true"] {
     grid-column: auto;
   }
 
+  .contract-esrs form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .contract-documents__header,
   .contract-clause-form,
   .contract-clause-item,
@@ -7533,6 +7775,23 @@ textarea[aria-invalid="true"] {
   .deliverable-item {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .contract-clause-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contract-clause-item > div,
+  .contract-clause-actions,
+  .contract-clause-remove {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .contract-clause-actions > button,
+  .contract-clause-remove > button,
+  .contract-clause-remove > input {
+    max-width: 100%;
   }
 
   .deliverable-form {
@@ -7596,6 +7855,56 @@ textarea[aria-invalid="true"] {
     padding: 96px 12px 12px;
     position: relative;
     z-index: 8;
+  }
+
+  .readiness-check-grid {
+    overflow-x: visible;
+  }
+
+  .readiness-check-grid__header {
+    display: none;
+  }
+
+  .readiness-check-grid__row {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    padding: 12px;
+  }
+
+  .readiness-check-grid__row .sr-only {
+    clip: auto;
+    clip-path: none;
+    color: var(--muted);
+    display: block;
+    font-size: 0.72rem;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    padding: 0;
+    position: static;
+    text-transform: uppercase;
+    white-space: normal;
+    width: auto;
+  }
+
+  .security-review-card__footer-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workflow-control-surface .security-review-card .security-review-card__footer-actions button {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .readiness-record-grid > article:not(:first-child) label {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .readiness-record-grid fieldset {
+    min-inline-size: 0;
   }
 
   .workspace-brand {

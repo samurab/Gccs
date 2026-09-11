@@ -83,7 +83,7 @@ export function EsrsApplicabilityPanel({ contractId, canManage }: { contractId: 
     });
   }
 
-  return <section className="contract-esrs" aria-labelledby="contract-esrs-heading">
+  return <section className="contract-esrs workflow-control-surface" aria-labelledby="contract-esrs-heading">
     <div className="contract-documents__header"><div><span>SAM.gov SPR</span><strong id="contract-esrs-heading">{items.length}</strong></div></div>
     <p>Track source-backed ISR and SSR deadlines. FeDril prepares and reminds; it does not submit reports to SAM.gov.</p>
     {state === "loading" ? <p role="status">Loading SAM.gov SPR obligations…</p> : null}
@@ -93,7 +93,7 @@ export function EsrsApplicabilityPanel({ contractId, canManage }: { contractId: 
       <strong>{item.reportType.toUpperCase()} · due {item.dueDate}</strong>
       <span>{item.periodStart} to {item.periodEnd} · {item.status}{item.isOverdue ? " · Overdue" : ""}</span>
       <small>Source: {item.sourceClause || item.rationale} · reviewed {item.reviewedAt.slice(0, 10)}</small>
-      {canManage ? <div>
+      {canManage ? <div className="contract-esrs__actions">
         <button type="button" onClick={() => edit(item)}>Edit</button>
         <select aria-label={`Status for ${item.reportType.toUpperCase()} due ${item.dueDate}`} value={item.status} onChange={event => void changeStatus(item, event.target.value as EsrsApplicability["status"])}>
           <option value="Open">Open</option><option value="InProgress">In progress</option>
@@ -103,7 +103,7 @@ export function EsrsApplicabilityPanel({ contractId, canManage }: { contractId: 
     </article>)}
     {!canManage ? <p>You have read-only access to SAM.gov SPR applicability.</p> : <form onSubmit={save}>
       <h3>{editingId ? "Edit SAM.gov SPR obligation" : "Add SAM.gov SPR obligation"}</h3>
-      <div>
+      <div className="contract-esrs__actions">
         {templates.map(template => <button type="button" key={template.key} onClick={() => applyTemplate(template)}>Use {template.key.replaceAll("-", " ")}</button>)}
       </div>
       <label>Contract type<input required maxLength={120} value={form.contractType} onChange={e => set("contractType", e.target.value)} /></label>
@@ -117,8 +117,10 @@ export function EsrsApplicabilityPanel({ contractId, canManage }: { contractId: 
       <label>Source clause<input maxLength={240} value={form.sourceClause ?? ""} onChange={e => set("sourceClause", e.target.value)} /></label>
       <label>Documented rationale<textarea maxLength={2000} value={form.rationale ?? ""} onChange={e => set("rationale", e.target.value)} /></label>
       <p>Provide a source clause or documented rationale. Suggested dates require confirmation against the contract and agency instructions. Do not enter CUI or other prohibited sensitive content.</p>
-      <button type="submit" disabled={state === "saving"}>{editingId ? "Update SAM.gov SPR obligation" : "Activate SAM.gov SPR obligation"}</button>
-      {editingId ? <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm(contractId)); }}>Cancel edit</button> : null}
+      <div className="form-actions">
+        <button type="submit" disabled={state === "saving"}>{editingId ? "Update SAM.gov SPR obligation" : "Activate SAM.gov SPR obligation"}</button>
+        {editingId ? <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm(contractId)); }}>Cancel edit</button> : null}
+      </div>
     </form>}
   </section>;
 }

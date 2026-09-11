@@ -92,7 +92,7 @@ export function EsrsReportDataPanel({ contractId, contractNumber, companyUei, ca
     anchor.href = url; anchor.download = result.data.fileName; anchor.click(); URL.revokeObjectURL(url);
   }
 
-  return <section className="contract-esrs contract-esrs-data" aria-labelledby="contract-esrs-data-heading">
+  return <section className="contract-esrs contract-esrs-data workflow-control-surface" aria-labelledby="contract-esrs-data-heading">
     <div className="contract-documents__header"><div><span>SAM.gov subcontracting plan reporting</span><strong id="contract-esrs-data-heading">{rows.length}</strong></div></div>
     <p>Prepare documented ISR/SSR inputs for manual entry in SAM.gov Subcontracting Plan Reporting (SPR). FeDril does not submit or synchronize reports with SAM.gov.</p>
     <p>Do not enter or upload CUI, classified, export-controlled, ITAR, or sensitive government-furnished information.</p>
@@ -105,13 +105,13 @@ export function EsrsReportDataPanel({ contractId, contractNumber, companyUei, ca
       <small>Plan: {row.planCategory} · Source: {row.sourceReference} · Evidence: {row.supportingEvidenceItemIds.length} · SPR: {row.sprReadinessStatus} · Schema: {row.sprSchemaVersion ?? "unverified"}</small>
       {row.sprReadinessBlockers?.length ? <small>Verification needed: {row.sprReadinessBlockers.join(", ")}.</small> : null}
       {!row.isPackageEligible ? <small>Blocked from final package until SPR metadata is ready and the row is reviewed or accepted.</small> : null}
-      {canManage ? <div><button type="button" onClick={() => edit(row)}>Edit</button>
+      {canManage ? <div className="contract-esrs__actions"><button type="button" onClick={() => edit(row)}>Edit</button>
         <button type="button" onClick={() => void review(row, "Reviewed")}>Mark reviewed</button>
         <button type="button" onClick={() => void review(row, "Accepted")}>Accept</button>
         <button type="button" onClick={() => void review(row, "Rejected")}>Reject</button></div> : null}
     </article>)}
     {!canManage ? <p>You have read-only access to subcontracting report data.</p> : <>
-      <div><button type="button" onClick={() => void downloadTemplate()}>Download CSV template</button>
+      <div className="contract-esrs__actions contract-esrs__import"><button type="button" onClick={() => void downloadTemplate()}>Download CSV template</button>
         <label>Import completed CSV<input aria-label="Import completed CSV" type="file" accept=".csv,text/csv" onChange={event => void importCsv(event)} /></label></div>
       <form onSubmit={event => void save(event)}>
         <h3>{editingId ? "Edit report data" : "Add report data"}</h3>
@@ -147,8 +147,10 @@ export function EsrsReportDataPanel({ contractId, contractNumber, companyUei, ca
         <label>Source reference<input required maxLength={500} value={form.sourceReference ?? ""} onChange={event => set("sourceReference", event.target.value)} /></label>
         <label>SPR eligibility basis<textarea required maxLength={500} value={form.sprEligibilityBasis ?? ""} onChange={event => set("sprEligibilityBasis", event.target.value)} /></label>
         <label><input required type="checkbox" checked={form.sprEligibilityConfirmed} onChange={event => set("sprEligibilityConfirmed", event.target.checked)} /> I confirmed the external SAM.gov SPR eligibility basis for this report.</label>
-        <button type="submit" disabled={state === "saving"}>{editingId ? "Update report data" : "Create report data row"}</button>
-        {editingId ? <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm(contractId, contractNumber, companyUei)); }}>Cancel edit</button> : null}
+        <div className="form-actions">
+          <button type="submit" disabled={state === "saving"}>{editingId ? "Update report data" : "Create report data row"}</button>
+          {editingId ? <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm(contractId, contractNumber, companyUei)); }}>Cancel edit</button> : null}
+        </div>
       </form>
     </>}
   </section>;
