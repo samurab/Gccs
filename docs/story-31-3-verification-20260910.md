@@ -31,7 +31,7 @@ Verification level: High (tenant-scoped report, RBAC, export, audit, and lifecyc
 
 ## Commands and Results
 
-- `GCCS_TEST_POSTGRES_CONNECTION=... dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --filter 'FullyQualifiedName~EsrsReportPackageTests|FullyQualifiedName~SprReportPackagePostgresConcurrencyTests|FullyQualifiedName~PostgreSQL_audit_failure_rolls_back_report_row_and_evidence_links' --no-restore` — **13 passed, 0 failed, 0 skipped** against PostgreSQL on `localhost:15432`.
+- `GCCS_TEST_POSTGRES_CONNECTION=... dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --filter 'FullyQualifiedName~EsrsReportPackageTests|FullyQualifiedName~SprReportPackagePostgresConcurrencyTests|FullyQualifiedName~PostgreSQL_audit_failure_rolls_back_report_row_and_evidence_links' --no-restore` — **13 passed, 0 failed, 0 skipped** against PostgreSQL 17.10 on `localhost:15432`.
 - `GCCS_TEST_POSTGRES_CONNECTION=... dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj --filter 'FullyQualifiedName~SprReportPackagePostgresConcurrencyTests|FullyQualifiedName~PostgreSQL_audit_failure_rolls_back_report_row_and_evidence_links' --no-restore` — **2 passed, 0 failed, 0 skipped**; proves lifecycle compare-and-set concurrency and report/audit rollback.
 - `npm test -- --run` in `apps/web` — **27 files passed, 223 tests passed**.
 - `npm run lint` in `apps/web` — **passed**.
