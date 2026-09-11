@@ -97,6 +97,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SubcontractingReportDataRowEntity> SubcontractingReportDataRows => Set<SubcontractingReportDataRowEntity>();
     public DbSet<SprReportPackageEntity> SprReportPackages => Set<SprReportPackageEntity>();
     public DbSet<SprManualSubmissionReceiptEntity> SprManualSubmissionReceipts => Set<SprManualSubmissionReceiptEntity>();
+    public DbSet<SharedPortalPackageEntity> SharedPortalPackages => Set<SharedPortalPackageEntity>();
+    public DbSet<PortalPackageActivityEntity> PortalPackageActivities => Set<PortalPackageActivityEntity>();
     public DbSet<SubcontractingReportDataEvidenceEntity> SubcontractingReportDataEvidence => Set<SubcontractingReportDataEvidenceEntity>();
     public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
     public DbSet<EvidenceRequestEntity> EvidenceRequests => Set<EvidenceRequestEntity>();
@@ -2108,6 +2110,41 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasOne(x => x.SupersedesReceipt).WithMany().HasForeignKey(x => new { x.TenantId, x.SupersedesReceiptId })
                 .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.RecordedByUser).WithMany().HasForeignKey(x => x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SharedPortalPackageEntity>(entity =>
+        {
+            entity.ToTable("shared_portal_packages");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.InvitationId, x.Version }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.InvitationId, x.PackageId })
+                .IsUnique()
+                .HasFilter("state = 'Active'");
+            entity.HasIndex(x => new { x.TenantId, x.State, x.ExpiresAt });
+            entity.HasIndex(x => new { x.State, x.ReminderAt, x.ReminderSentAt });
+            entity.Property(x => x.State).HasConversion<string>().HasMaxLength(64).IsConcurrencyToken();
+            entity.Property(x => x.RevocationReason).HasMaxLength(500);
+            entity.HasOne<SharedPortalPackageEntity>().WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.SupersedesSharedPackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<SharedPortalPackageEntity>().WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.ReplacementSharedPackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<PortalPackageActivityEntity>(entity =>
+        {
+            entity.ToTable("portal_package_activities");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.SharedPackageId, x.ActivityType });
+            entity.Property(x => x.ActivityType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Detail).HasMaxLength(500);
+            entity.HasOne(x => x.SharedPackage).WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.SharedPackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ReportEntity>(entity =>

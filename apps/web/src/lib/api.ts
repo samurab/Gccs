@@ -101,6 +101,40 @@ export type CurrentUserAccess = {
   rolePermissionMatrix: Record<string, string[]>;
 };
 
+export type SharedPortalPackage = {
+  id: string;
+  tenantId: string;
+  packageId: string;
+  invitationId: string;
+  version: number;
+  state: "Active" | "Superseded" | "Expired" | "Revoked" | "Archived";
+  expiresAt: string;
+  reminderAt: string;
+  reminderSentAt: string | null;
+  supersedesSharedPackageId: string | null;
+  replacementSharedPackageId: string | null;
+  replacementPackageId: string | null;
+  revocationReason: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type PortalPackageActivity = {
+  id: string;
+  sharedPackageId: string;
+  tenantId: string;
+  activityType: "Access" | "Comment" | "Download" | "ExpirationReminder" | "Expiration" | "Supersede" | "Revocation" | "Reissue" | "Archive";
+  actorUserId: string;
+  occurredAt: string;
+  detail: string | null;
+};
+
+export type PortalPackageActivityReport = {
+  tenantId: string;
+  activities: PortalPackageActivity[];
+};
+
 export type TenantWorkspace = {
   membershipId: string;
   tenantId: string;
@@ -3143,6 +3177,33 @@ export async function downloadSubcontractingPlanReportDataTemplate(): Promise<Ap
 
 export const getSprReportPackages = () =>
   getRequiredJson<SprReportPackage[]>("/api/subcontracting-plan-reports/packages");
+
+export const getSharedPortalPackages = () =>
+  getRequiredJson<SharedPortalPackage[]>("/api/portal/shared-packages");
+
+export const getPortalPackageActivityReport = () =>
+  getRequiredJson<PortalPackageActivityReport>("/api/portal/shared-packages/activity-report");
+
+export const expireSharedPortalPackage = (sharedPackageId: string) =>
+  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/expire`, {});
+
+export const revokeSharedPortalPackage = (sharedPackageId: string, reason: string) =>
+  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/revoke`, { reason });
+
+export const supersedeSharedPortalPackage = (sharedPackageId: string, replacementSharedPackageId: string) =>
+  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/supersede`,
+    { replacementSharedPackageId });
+
+export const reissueSharedPortalPackage = (
+  sharedPackageId: string,
+  replacementPackageId: string,
+  expiresAt: string,
+  expirationReminderDays = 7
+) => postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/reissue`,
+  { replacementPackageId, expiresAt, expirationReminderDays });
+
+export const archiveSharedPortalPackage = (sharedPackageId: string) =>
+  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/archive`, {});
 
 export const getSprSubmissionCapability = () =>
   getRequiredJson<SprSubmissionCapability>("/api/subcontracting-plan-reports/submission-capability");

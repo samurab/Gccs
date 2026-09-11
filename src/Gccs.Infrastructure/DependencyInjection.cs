@@ -126,9 +126,10 @@ public static class DependencyInjection
             provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddSingleton<ISprSchemaProfileRepository, FileSprSchemaProfileRepository>();
         services.AddScoped<SprSchemaProfileService>();
-        services.AddScoped<IEsrsReportPackageRepository>(provider => new EfEsrsReportPackageRepository(
-            provider.GetRequiredService<GccsDbContext>(),
-            provider.GetRequiredService<ICurrentTenantContext>()));
+            services.AddScoped<IEsrsReportPackageRepository>(provider => new EfEsrsReportPackageRepository(
+                provider.GetRequiredService<GccsDbContext>(),
+                provider.GetRequiredService<ICurrentTenantContext>()));
+            services.AddScoped<IPortalPackageLifecycleRepository, EfPortalPackageLifecycleRepository>();
         services.AddSingleton<ISprSubmissionProvider, DisabledSprSubmissionProvider>();
         services.AddSingleton<ILaborApplicabilityRepository, InMemoryLaborApplicabilityRepository>();
         services.AddSingleton<ILaborClassificationRepository, InMemoryLaborClassificationRepository>();
@@ -191,6 +192,7 @@ public static class DependencyInjection
         services.AddScoped<ExternalPortalAccessService>();
         services.AddScoped<ApprovedPackagePortalReviewService>();
         services.AddScoped<PortalPackageLifecycleService>();
+        services.AddScoped<IPortalPackageShareEligibilityValidator, PortalPackageShareEligibilityValidator>();
         services.AddScoped<EvidencePackageReportService>();
         services.AddScoped<SubcontractorComplianceReportService>();
         services.AddScoped<SimpleReportExportService>();

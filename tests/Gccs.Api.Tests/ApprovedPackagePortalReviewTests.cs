@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Portals;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Common;
@@ -43,8 +44,8 @@ public sealed class ApprovedPackagePortalReviewTests
         var harness = await CreateHarnessAsync(ids);
         var before = await harness.PackageRepository.FindPackageAsync(ids.ApprovedPackageId);
 
-        var comment = await harness.ReviewService.AddCommentAsync(new PortalPackageCommentRequest(ids.ApprovedPackageId, PortalCommentKind.Comment, "Looks good."), ids.TenantId, ids.ActorUserId);
-        var question = await harness.ReviewService.AddQuestionAsync(new PortalPackageCommentRequest(ids.ApprovedPackageId, PortalCommentKind.Comment, "Where is evidence?"), ids.TenantId, ids.ActorUserId);
+        var comment = await harness.ReviewService.AddCommentAsync(harness.ApprovedShareId, harness.Invitation.Id, new PortalPackageCommentRequest(ids.ApprovedPackageId, PortalCommentKind.Comment, "Looks good."), ids.ActorUserId);
+        var question = await harness.ReviewService.AddQuestionAsync(harness.ApprovedShareId, harness.Invitation.Id, new PortalPackageCommentRequest(ids.ApprovedPackageId, PortalCommentKind.Comment, "Where is evidence?"), ids.ActorUserId);
         var after = await harness.PackageRepository.FindPackageAsync(ids.ApprovedPackageId);
 
         Assert.Equal(ids.ApprovedPackageId, comment.PackageId);
@@ -59,7 +60,7 @@ public sealed class ApprovedPackagePortalReviewTests
         var ids = StoryIds.Create();
         var harness = await CreateHarnessAsync(ids);
 
-        var download = await harness.ReviewService.DownloadAsync(ids.ApprovedPackageId, watermark: true, ids.TenantId, ids.ActorUserId);
+        var download = await harness.ReviewService.DownloadAsync(harness.ApprovedShareId, harness.Invitation.Id, ids.ApprovedPackageId, watermark: true, ids.ActorUserId);
 
         Assert.Equal(ids.ApprovedPackageId, download.PackageId);
         Assert.Equal("Prime evidence package", download.Title);
@@ -74,13 +75,31 @@ public sealed class ApprovedPackagePortalReviewTests
         var ids = StoryIds.Create();
         var harness = await CreateHarnessAsync(ids);
         await harness.ReviewService.ListPackagesAsync(harness.Invitation.Id, DateTimeOffset.UtcNow, ids.ActorUserId);
-        await harness.ReviewService.AddCommentAsync(new PortalPackageCommentRequest(ids.ApprovedPackageId, PortalCommentKind.Comment, "Comment."), ids.TenantId, ids.ActorUserId);
-        await harness.ReviewService.AddQuestionAsync(new PortalPackageCommentRequest(ids.ApprovedPackageId, PortalCommentKind.Comment, "Question?"), ids.TenantId, ids.ActorUserId);
-        await harness.ReviewService.DownloadAsync(ids.ApprovedPackageId, watermark: true, ids.TenantId, ids.ActorUserId);
+        await harness.ReviewService.AddCommentAsync(harness.ApprovedShareId, harness.Invitation.Id, new PortalPackageCommentRequest(ids.ApprovedPackageId, PortalCommentKind.Comment, "Comment."), ids.ActorUserId);
+        await harness.ReviewService.AddQuestionAsync(harness.ApprovedShareId, harness.Invitation.Id, new PortalPackageCommentRequest(ids.ApprovedPackageId, PortalCommentKind.Comment, "Question?"), ids.ActorUserId);
+        await harness.ReviewService.DownloadAsync(harness.ApprovedShareId, harness.Invitation.Id, ids.ApprovedPackageId, watermark: true, ids.ActorUserId);
 
         Assert.Contains(harness.AuditWriter.Events, audit => audit.Summary.Contains("access was granted", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(harness.AuditWriter.Events, audit => audit.EntityType == "PortalPackageComment" && audit.Action == AuditAction.Created);
         Assert.Contains(harness.AuditWriter.Events, audit => audit.EntityType == "PortalPackage" && audit.Action == AuditAction.Downloaded);
+    }
+
+    [Fact]
+    public async Task TC_34_3_2_Revoked_share_is_removed_from_review_and_download_paths()
+    {
+        var ids = StoryIds.Create();
+        var harness = await CreateHarnessAsync(ids);
+        Assert.Single(await harness.ReviewService.ListPackagesAsync(
+            harness.Invitation.Id, DateTimeOffset.UtcNow, ids.ActorUserId));
+
+        await harness.LifecycleService.RevokeAsync(
+            harness.ApprovedShareId, ids.TenantId, "Review access withdrawn.", ids.ActorUserId);
+
+        Assert.Empty(await harness.ReviewService.ListPackagesAsync(
+            harness.Invitation.Id, DateTimeOffset.UtcNow, ids.ActorUserId));
+        await Assert.ThrowsAsync<PortalPackageAccessDeniedException>(() =>
+            harness.ReviewService.DownloadAsync(
+                harness.ApprovedShareId, harness.Invitation.Id, ids.ApprovedPackageId, true, ids.ActorUserId));
     }
 
     private static async Task<StoryHarness> CreateHarnessAsync(StoryIds ids)
@@ -108,7 +127,28 @@ public sealed class ApprovedPackagePortalReviewTests
             Package(ids.ProhibitedPackageId, ids.TenantId, ids.ContractId, PortalPackageStatus.Approved, ContentClassification.Prohibited, internalNotes: false),
             Package(ids.UnknownPackageId, ids.TenantId, ids.ContractId, PortalPackageStatus.Approved, ContentClassification.Unknown, internalNotes: false),
             Package(ids.UnrelatedPackageId, ids.TenantId, ids.OtherContractId, PortalPackageStatus.Approved, ContentClassification.Fci, internalNotes: false));
-        return new StoryHarness(new ApprovedPackagePortalReviewService(accessService, packageRepository, auditWriter), packageRepository, invitation, auditWriter);
+        var lifecycleService = new PortalPackageLifecycleService(
+            new InMemoryPortalPackageLifecycleRepository(),
+            new PortalPackageShareEligibilityValidator(accessRepository, packageRepository),
+            auditWriter,
+            new PassThroughTransaction(),
+            TimeProvider.System);
+        var shares = new Dictionary<Guid, Guid>();
+        foreach (var packageId in new[] { ids.ApprovedPackageId })
+        {
+            var share = await lifecycleService.ShareAsync(
+                new SharedPortalPackageRequest(packageId, invitation.Id, DateTimeOffset.UtcNow.AddDays(30)),
+                ids.TenantId,
+                ids.ActorUserId);
+            shares[packageId] = share.Id;
+        }
+        return new StoryHarness(
+            new ApprovedPackagePortalReviewService(accessService, packageRepository, lifecycleService, auditWriter),
+            packageRepository,
+            invitation,
+            shares[ids.ApprovedPackageId],
+            lifecycleService,
+            auditWriter);
     }
 
     private static PortalPackageDto Package(Guid id, Guid tenantId, Guid contractId, PortalPackageStatus status, ContentClassification classification, bool internalNotes) =>
@@ -125,9 +165,15 @@ public sealed class ApprovedPackagePortalReviewTests
         }
     }
 
+    private sealed class PassThroughTransaction : IApplicationTransaction
+    {
+        public Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken = default) =>
+            operation(cancellationToken);
+    }
+
     private sealed record CapturedAuditEvent(Guid TenantId, Guid ActorUserId, AuditAction Action, string EntityType, string EntityId, string Summary, IReadOnlyDictionary<string, string> Metadata);
 
-    private sealed record StoryHarness(ApprovedPackagePortalReviewService ReviewService, InMemoryPortalPackageRepository PackageRepository, ExternalPortalInvitationDto Invitation, CapturingAuditEventWriter AuditWriter);
+    private sealed record StoryHarness(ApprovedPackagePortalReviewService ReviewService, InMemoryPortalPackageRepository PackageRepository, ExternalPortalInvitationDto Invitation, Guid ApprovedShareId, PortalPackageLifecycleService LifecycleService, CapturingAuditEventWriter AuditWriter);
 
     private sealed record StoryIds(Guid TenantId, Guid ContractId, Guid OtherContractId, Guid ApprovedPackageId, Guid DraftPackageId, Guid InternalPackageId, Guid ProhibitedPackageId, Guid UnknownPackageId, Guid UnrelatedPackageId, Guid ActorUserId)
     {

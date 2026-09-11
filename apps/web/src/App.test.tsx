@@ -65,6 +65,8 @@ const {
   getNotificationsMock,
   getObligationAssignmentCandidatesMock,
   getPublishedSharedResponsibilityMatrixMock,
+  getPortalPackageActivityReportMock,
+  getSharedPortalPackagesMock,
   getSharedResponsibilityMatrixAcknowledgementsMock,
   getComplianceOverviewMock,
   getCurrentUserAccessMock,
@@ -191,6 +193,8 @@ const {
   getNotificationsMock: vi.fn(),
   getObligationAssignmentCandidatesMock: vi.fn(),
   getPublishedSharedResponsibilityMatrixMock: vi.fn(),
+  getPortalPackageActivityReportMock: vi.fn(),
+  getSharedPortalPackagesMock: vi.fn(),
   getSharedResponsibilityMatrixAcknowledgementsMock: vi.fn(),
   generateCmmcReadinessReportMock: vi.fn(),
   generateSprsReadinessReportMock: vi.fn(),
@@ -910,6 +914,13 @@ vi.mock("@/lib/api", () => ({
   getNotifications: getNotificationsMock,
   getObligationAssignmentCandidates: getObligationAssignmentCandidatesMock,
   getPublishedSharedResponsibilityMatrix: getPublishedSharedResponsibilityMatrixMock,
+  getPortalPackageActivityReport: getPortalPackageActivityReportMock,
+  getSharedPortalPackages: getSharedPortalPackagesMock,
+  expireSharedPortalPackage: vi.fn(),
+  revokeSharedPortalPackage: vi.fn(),
+  supersedeSharedPortalPackage: vi.fn(),
+  reissueSharedPortalPackage: vi.fn(),
+  archiveSharedPortalPackage: vi.fn(),
   getSharedResponsibilityMatrixAcknowledgements: getSharedResponsibilityMatrixAcknowledgementsMock,
   generateCmmcReadinessReport: generateCmmcReadinessReportMock,
   generateSprsReadinessReport: generateSprsReadinessReportMock,
@@ -1075,6 +1086,8 @@ describe("App", () => {
     getNotificationsMock.mockReset();
     getObligationAssignmentCandidatesMock.mockReset();
     getPublishedSharedResponsibilityMatrixMock.mockReset();
+    getPortalPackageActivityReportMock.mockReset();
+    getSharedPortalPackagesMock.mockReset();
     getSharedResponsibilityMatrixAcknowledgementsMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
@@ -1151,6 +1164,11 @@ describe("App", () => {
     getAuditLogEntityTypesMock.mockResolvedValue([]);
     exportCuiAuditLogsMock.mockResolvedValue({ data: null, error: null });
     getApprovedEvidencePackagesMock.mockResolvedValue([]);
+    getSharedPortalPackagesMock.mockResolvedValue([]);
+    getPortalPackageActivityReportMock.mockResolvedValue({
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      activities: []
+    });
     getRecentReportsMock.mockResolvedValue([]);
     getSubcontractorFlowDownsMock.mockResolvedValue([]);
     getSubcontractorEvidenceRequestsMock.mockResolvedValue([]);

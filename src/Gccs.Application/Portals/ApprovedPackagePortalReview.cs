@@ -7,6 +7,7 @@ namespace Gccs.Application.Portals;
 public sealed class ApprovedPackagePortalReviewService(
     ExternalPortalAccessService accessService,
     IPortalPackageRepository packageRepository,
+    PortalPackageLifecycleService lifecycleService,
     IAuditEventWriter auditEventWriter)
 {
     public async Task<IReadOnlyList<PortalPackageDto>> ListPackagesAsync(
@@ -21,13 +22,18 @@ public sealed class ApprovedPackagePortalReviewService(
             return [];
         }
 
+        var accessibleShares = (await lifecycleService.ListAccessibleAsync(invitation.TenantId, invitationId, asOf, cancellationToken))
+            .ToDictionary(package => package.PackageId);
         var packages = await packageRepository.ListPackagesAsync(invitation.TenantId, cancellationToken);
         var visible = new List<PortalPackageDto>();
         foreach (var package in packages)
         {
+            if (!accessibleShares.TryGetValue(package.Id, out var share)) continue;
             var access = await accessService.ValidateAccessAsync(invitationId, package.Id, package.ContractId, asOf, actorUserId, cancellationToken);
             if (access.Allowed && IsVisible(package))
             {
+                await lifecycleService.RecordActivityAsync(
+                    share.Id, invitation.TenantId, invitationId, package.Id, PortalPackageActivityType.Access, actorUserId, cancellationToken);
                 visible.Add(package);
             }
         }
@@ -36,48 +42,78 @@ public sealed class ApprovedPackagePortalReviewService(
     }
 
     public async Task<PortalPackageCommentDto> AddCommentAsync(
+        Guid sharedPackageId,
+        Guid invitationId,
         PortalPackageCommentRequest request,
-        Guid tenantId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var comment = await packageRepository.AddCommentAsync(request, tenantId, actorUserId, cancellationToken);
-        await WriteAuditAsync(tenantId, actorUserId, AuditAction.Created, "PortalPackageComment", comment.Id.ToString(), "Portal package comment was added.", request.PackageId, cancellationToken);
+        var package = await EnsurePortalAccessAsync(
+            sharedPackageId, invitationId, request.PackageId, actorUserId, cancellationToken);
+        var comment = await packageRepository.AddCommentAsync(request, package.TenantId, actorUserId, cancellationToken);
+        await lifecycleService.RecordActivityAsync(
+            sharedPackageId, package.TenantId, invitationId, request.PackageId, PortalPackageActivityType.Comment, actorUserId, cancellationToken);
+        await WriteAuditAsync(package.TenantId, actorUserId, AuditAction.Created, "PortalPackageComment", comment.Id.ToString(), "Portal package comment was added.", request.PackageId, cancellationToken);
         return comment;
     }
 
     public Task<PortalPackageCommentDto> AddQuestionAsync(
+        Guid sharedPackageId,
+        Guid invitationId,
         PortalPackageCommentRequest request,
-        Guid tenantId,
         Guid actorUserId,
         CancellationToken cancellationToken = default) =>
-        AddCommentAsync(request with { Kind = PortalCommentKind.Question }, tenantId, actorUserId, cancellationToken);
+        AddCommentAsync(sharedPackageId, invitationId, request with { Kind = PortalCommentKind.Question }, actorUserId, cancellationToken);
 
     public async Task<PortalPackageDownloadDto> DownloadAsync(
+        Guid sharedPackageId,
+        Guid invitationId,
         Guid packageId,
         bool watermark,
-        Guid tenantId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var package = await packageRepository.FindPackageAsync(packageId, cancellationToken) ??
-            throw new ExternalPortalAccessException("Package was not found.");
+        var package = await EnsurePortalAccessAsync(
+            sharedPackageId, invitationId, packageId, actorUserId, cancellationToken);
         var download = new PortalPackageDownloadDto(
             package.Id,
-            tenantId,
+            package.TenantId,
             package.Title,
             package.Version,
             package.GeneratedAt,
-            watermark ? $"External Review - {tenantId}" : null,
+            watermark ? $"External Review - {package.TenantId}" : null,
             DateTimeOffset.UtcNow);
-        await WriteAuditAsync(tenantId, actorUserId, AuditAction.Downloaded, "PortalPackage", package.Id.ToString(), "Portal package was downloaded.", package.Id, cancellationToken);
+        await lifecycleService.RecordActivityAsync(
+            sharedPackageId, package.TenantId, invitationId, packageId, PortalPackageActivityType.Download, actorUserId, cancellationToken);
+        await WriteAuditAsync(package.TenantId, actorUserId, AuditAction.Downloaded, "PortalPackage", package.Id.ToString(), "Portal package was downloaded.", package.Id, cancellationToken);
         return download;
+    }
+
+    private async Task<PortalPackageDto> EnsurePortalAccessAsync(
+        Guid sharedPackageId,
+        Guid invitationId,
+        Guid packageId,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        var package = await packageRepository.FindPackageAsync(packageId, cancellationToken)
+            ?? throw new ExternalPortalAccessException("Package was not found.");
+        if (!IsVisible(package))
+            throw new PortalPackageAccessDeniedException("The package is not approved for external review.");
+        var access = await accessService.ValidateAccessAsync(
+            invitationId, packageId, package.ContractId, DateTimeOffset.UtcNow, actorUserId, cancellationToken);
+        if (!access.Allowed)
+            throw new PortalPackageAccessDeniedException("The package is outside the active portal invitation scope.");
+        if (!await lifecycleService.CanAccessAsync(
+                sharedPackageId, package.TenantId, invitationId, packageId, DateTimeOffset.UtcNow, cancellationToken))
+            throw new PortalPackageAccessDeniedException("The shared package is unavailable or expired.");
+        return package;
     }
 
     private static bool IsVisible(PortalPackageDto package) =>
         package.Status == PortalPackageStatus.Approved &&
         !package.ContainsInternalNotes &&
-        package.Classification is not (ContentClassification.Prohibited or ContentClassification.Unknown);
+        package.Classification is ContentClassification.Unclassified or ContentClassification.Fci;
 
     private async Task WriteAuditAsync(
         Guid tenantId,

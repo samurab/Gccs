@@ -1,6 +1,8 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Portals;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Common;
 using Gccs.Infrastructure.Portals;
 using Xunit;
 
@@ -8,125 +10,275 @@ namespace Gccs.Api.Tests;
 
 public sealed class PortalPackageLifecycleTests
 {
+    private static readonly DateTimeOffset Now = new(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
+
     [Fact]
-    public async Task TC_34_3_1_Shared_packages_move_through_allowed_lifecycle_states()
+    public async Task TC_34_3_1_Shared_packages_enforce_allowed_lifecycle_states()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
+        var service = CreateService(out _, out _);
         var shared = await service.ShareAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
 
-        var superseded = await service.SupersedeAsync(shared.Id, ids.ReplacementPackageId, ids.ActorUserId);
-        var reissued = await service.ReissueAsync(shared.Id, DateTimeOffset.UtcNow.AddDays(60), ids.ActorUserId);
-        var expired = await service.ExpireAsync(shared.Id, ids.ActorUserId);
-        var revoked = await service.RevokeAsync(shared.Id, "Over-shared package.", ids.ActorUserId);
-        var archived = await service.ArchiveAsync(shared.Id, ids.ActorUserId);
+        var expired = await service.ExpireAsync(shared.Id, ids.TenantId, ids.ActorUserId);
 
-        Assert.Equal(SharedPortalPackageState.Superseded, superseded?.State);
-        Assert.Equal(SharedPortalPackageState.Active, reissued?.State);
         Assert.Equal(SharedPortalPackageState.Expired, expired?.State);
-        Assert.Equal(SharedPortalPackageState.Revoked, revoked?.State);
+        await Assert.ThrowsAsync<PortalPackageLifecycleException>(() =>
+            service.RevokeAsync(shared.Id, ids.TenantId, "Too late.", ids.ActorUserId));
+        var archived = await service.ArchiveAsync(shared.Id, ids.TenantId, ids.ActorUserId);
         Assert.Equal(SharedPortalPackageState.Archived, archived?.State);
     }
 
     [Fact]
-    public async Task TC_34_3_2_Revoked_active_package_loses_access_immediately()
+    public async Task TC_34_3_2_Revocation_and_expiration_cut_off_portal_access_immediately()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
+        var service = CreateService(out _, out _);
         var shared = await service.ShareAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
 
-        Assert.True(await service.CanAccessAsync(shared.Id, DateTimeOffset.UtcNow));
-        await service.RevokeAsync(shared.Id, "Customer request.", ids.ActorUserId);
+        Assert.True(await service.CanAccessAsync(shared.Id, ids.TenantId, ids.InvitationId, ids.PackageId, Now));
+        Assert.False(await service.CanAccessAsync(shared.Id, ids.OtherTenantId, ids.InvitationId, ids.PackageId, Now));
+        Assert.False(await service.CanAccessAsync(shared.Id, ids.TenantId, ids.OtherInvitationId, ids.PackageId, Now));
+        Assert.False(await service.CanAccessAsync(shared.Id, ids.TenantId, ids.InvitationId, ids.OtherPackageId, Now));
 
-        Assert.False(await service.CanAccessAsync(shared.Id, DateTimeOffset.UtcNow));
+        await service.RevokeAsync(shared.Id, ids.TenantId, "Customer requested immediate cutoff.", ids.ActorUserId);
+
+        Assert.False(await service.CanAccessAsync(shared.Id, ids.TenantId, ids.InvitationId, ids.PackageId, Now));
+        await Assert.ThrowsAsync<PortalPackageAccessDeniedException>(() =>
+            service.RecordActivityAsync(shared.Id, ids.TenantId, ids.InvitationId, ids.PackageId,
+                PortalPackageActivityType.Download, ids.PortalUserId));
     }
 
     [Fact]
-    public async Task TC_34_3_3_Superseded_package_links_to_replacement_version()
+    public async Task TC_34_3_3_Reissue_creates_new_version_and_bidirectional_lineage()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
-        var shared = await service.ShareAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
+        var service = CreateService(out _, out _);
+        var original = await service.ShareAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
 
-        var superseded = await service.SupersedeAsync(shared.Id, ids.ReplacementPackageId, ids.ActorUserId);
+        var replacement = await service.ReissueAsync(
+            original.Id,
+            ids.TenantId,
+            new ReissueSharedPortalPackageRequest(ids.OtherPackageId, Now.AddDays(60)),
+            ids.ActorUserId);
+        var old = Assert.Single(await service.ListAsync(ids.TenantId), package => package.Id == original.Id);
 
-        Assert.Equal(ids.ReplacementPackageId, superseded?.ReplacementPackageId);
-        Assert.Equal(SharedPortalPackageState.Superseded, superseded?.State);
+        Assert.Equal(original.Version + 1, replacement?.Version);
+        Assert.Equal(original.Id, replacement?.SupersedesSharedPackageId);
+        Assert.Equal(replacement?.Id, old.ReplacementSharedPackageId);
+        Assert.Equal(ids.OtherPackageId, old.ReplacementPackageId);
+        Assert.Equal(SharedPortalPackageState.Superseded, old.State);
+        Assert.False(await service.CanAccessAsync(original.Id, ids.TenantId, ids.InvitationId, ids.PackageId, Now));
+        Assert.True(await service.CanAccessAsync(replacement!.Id, ids.TenantId, ids.InvitationId, ids.OtherPackageId, Now));
+        await Assert.ThrowsAsync<PortalPackageLifecycleConflictException>(() =>
+            service.ReissueAsync(original.Id, ids.TenantId,
+                new ReissueSharedPortalPackageRequest(Guid.NewGuid(), Now.AddDays(90)), ids.ActorUserId));
     }
 
     [Fact]
-    public async Task TC_34_3_4_Activity_report_includes_access_comments_downloads_expiration_supersede_and_revocation()
+    public async Task TC_34_3_4_Activity_report_is_complete_and_tenant_scoped()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
+        var service = CreateService(out _, out _);
         var shared = await service.ShareAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
-        await service.RecordActivityAsync(shared.Id, PortalPackageActivityType.Comment, ids.ActorUserId);
-        await service.RecordActivityAsync(shared.Id, PortalPackageActivityType.Download, ids.ActorUserId);
-        await service.ExpireAsync(shared.Id, ids.ActorUserId);
-        await service.SupersedeAsync(shared.Id, ids.ReplacementPackageId, ids.ActorUserId);
-        await service.RevokeAsync(shared.Id, "Revoked.", ids.ActorUserId);
+        await service.RecordActivityAsync(shared.Id, ids.TenantId, ids.InvitationId, ids.PackageId, PortalPackageActivityType.Access, ids.PortalUserId);
+        await service.RecordActivityAsync(shared.Id, ids.TenantId, ids.InvitationId, ids.PackageId, PortalPackageActivityType.Comment, ids.PortalUserId);
+        await service.RecordActivityAsync(shared.Id, ids.TenantId, ids.InvitationId, ids.PackageId, PortalPackageActivityType.Download, ids.PortalUserId);
+        await service.RevokeAsync(shared.Id, ids.TenantId, "Scope reduced.", ids.ActorUserId);
 
         var report = await service.GenerateActivityReportAsync(ids.TenantId);
+        var otherTenantReport = await service.GenerateActivityReportAsync(ids.OtherTenantId);
 
-        Assert.Contains(report.Activities, activity => activity.ActivityType == PortalPackageActivityType.Access);
-        Assert.Contains(report.Activities, activity => activity.ActivityType == PortalPackageActivityType.Comment);
-        Assert.Contains(report.Activities, activity => activity.ActivityType == PortalPackageActivityType.Download);
-        Assert.Contains(report.Activities, activity => activity.ActivityType == PortalPackageActivityType.Expiration);
-        Assert.Contains(report.Activities, activity => activity.ActivityType == PortalPackageActivityType.Supersede);
-        Assert.Contains(report.Activities, activity => activity.ActivityType == PortalPackageActivityType.Revocation);
+        Assert.Equal(
+            [PortalPackageActivityType.Access, PortalPackageActivityType.Comment, PortalPackageActivityType.Download, PortalPackageActivityType.Revocation],
+            report.Activities.Select(activity => activity.ActivityType).Order());
+        Assert.All(report.Activities, activity => Assert.Equal(ids.TenantId, activity.TenantId));
+        Assert.Empty(otherTenantReport.Activities);
     }
 
     [Fact]
-    public async Task TC_34_3_5_Lifecycle_actions_are_audit_logged()
+    public async Task TC_34_3_5_Maintenance_records_reminder_and_automatic_expiration_with_audit()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out var auditWriter);
-        var shared = await service.ShareAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
-        await service.ExpireAsync(shared.Id, ids.ActorUserId);
-        await service.RevokeAsync(shared.Id, "Revoked.", ids.ActorUserId);
-        await service.SupersedeAsync(shared.Id, ids.ReplacementPackageId, ids.ActorUserId);
-        await service.ReissueAsync(shared.Id, DateTimeOffset.UtcNow.AddDays(45), ids.ActorUserId);
-        await service.ArchiveAsync(shared.Id, ids.ActorUserId);
+        var service = CreateService(out var auditWriter, out _);
+        var shared = await service.ShareAsync(
+            new SharedPortalPackageRequest(ids.PackageId, ids.InvitationId, Now.AddDays(2), 7),
+            ids.TenantId,
+            ids.ActorUserId);
 
-        var events = auditWriter.Events.Where(auditEvent => auditEvent.EntityType == "SharedPortalPackage").ToArray();
-        Assert.Equal(6, events.Length);
-        Assert.Contains(events, audit => audit.Summary.Contains("expired", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(events, audit => audit.Summary.Contains("revoked", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(events, audit => audit.Summary.Contains("superseded", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(events, audit => audit.Summary.Contains("reissued", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(events, audit => audit.Summary.Contains("archived", StringComparison.OrdinalIgnoreCase));
+        var reminderResult = await service.ProcessDueAsync(Now);
+        var expirationResult = await service.ProcessDueAsync(Now.AddDays(3));
+        var repeatedResult = await service.ProcessDueAsync(Now.AddDays(3));
+        var stored = Assert.Single(await service.ListAsync(ids.TenantId));
+        var report = await service.GenerateActivityReportAsync(ids.TenantId);
+
+        Assert.Equal(1, reminderResult.RemindersCreated);
+        Assert.Equal(1, expirationResult.PackagesExpired);
+        Assert.Equal(0, repeatedResult.PackagesExpired);
+        Assert.Equal(SharedPortalPackageState.Expired, stored.State);
+        Assert.Contains(report.Activities, activity => activity.ActivityType == PortalPackageActivityType.ExpirationReminder);
+        Assert.Contains(report.Activities, activity => activity.ActivityType == PortalPackageActivityType.Expiration);
+        Assert.Contains(auditWriter.Events, audit =>
+            audit.Action == AuditAction.Expired &&
+            audit.Metadata["systemInitiated"] == bool.TrueString);
+        Assert.False(await service.CanAccessAsync(shared.Id, ids.TenantId, ids.InvitationId, ids.PackageId, Now.AddDays(3)));
     }
 
-    private static PortalPackageLifecycleService CreateService(out CapturingAuditEventWriter auditWriter)
+    [Fact]
+    public async Task Cross_tenant_mutation_returns_not_found_and_leaves_state_and_audit_unchanged()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(out var auditWriter, out _);
+        var shared = await service.ShareAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
+        var auditCount = auditWriter.Events.Count;
+
+        var result = await service.RevokeAsync(
+            shared.Id, ids.OtherTenantId, "Cross-tenant attempt.", ids.ActorUserId);
+
+        Assert.Null(result);
+        Assert.Equal(auditCount, auditWriter.Events.Count);
+        Assert.True(await service.CanAccessAsync(shared.Id, ids.TenantId, ids.InvitationId, ids.PackageId, Now));
+    }
+
+    [Fact]
+    public async Task Share_eligibility_rejects_CUI_and_cross_tenant_source_packages()
+    {
+        var ids = StoryIds.Create();
+        var invitations = new InMemoryExternalPortalAccessRepository();
+        var invitation = Assert.IsType<ExternalPortalInvitationDto>(
+            await invitations.FindInvitationAsync((await invitations.CreateInvitationAsync(
+                new ExternalPortalInvitationRequest(
+                    "reviewer@example.test", ExternalPortalRole.Auditor, [ids.PackageId],
+                    [], Now.AddDays(30), true, true),
+                ids.TenantId,
+                ids.ActorUserId)).Id));
+        var packages = new InMemoryPortalPackageRepository();
+        packages.SeedPackages(new PortalPackageDto(
+            ids.PackageId, ids.TenantId, null, "CUI package", 1, PortalPackageStatus.Approved,
+            ContentClassification.Cui, false, [], Now));
+        var validator = new PortalPackageShareEligibilityValidator(invitations, packages);
+
+        await Assert.ThrowsAsync<PortalPackageLifecycleException>(() =>
+            validator.ValidateAsync(ids.PackageId, invitation.Id, ids.TenantId, Now));
+        await Assert.ThrowsAsync<PortalPackageLifecycleException>(() =>
+            validator.ValidateAsync(ids.PackageId, invitation.Id, ids.OtherTenantId, Now));
+    }
+
+    [Fact]
+    public async Task TC_34_3_5_All_lifecycle_actions_are_audited_and_reported()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(out var auditWriter, out _);
+        async Task<SharedPortalPackageDto> Share(Guid packageId) => await service.ShareAsync(
+            new SharedPortalPackageRequest(packageId, ids.InvitationId, Now.AddDays(30)),
+            ids.TenantId,
+            ids.ActorUserId);
+
+        var superseded = await Share(Guid.NewGuid());
+        var replacement = await Share(Guid.NewGuid());
+        await service.SupersedeAsync(superseded.Id, ids.TenantId, replacement.Id, ids.ActorUserId);
+        await service.ExpireAsync((await Share(Guid.NewGuid())).Id, ids.TenantId, ids.ActorUserId);
+        await service.RevokeAsync((await Share(Guid.NewGuid())).Id, ids.TenantId, "Scope reduced.", ids.ActorUserId);
+        await service.ReissueAsync((await Share(Guid.NewGuid())).Id, ids.TenantId,
+            new ReissueSharedPortalPackageRequest(Guid.NewGuid(), Now.AddDays(60)), ids.ActorUserId);
+        await service.ArchiveAsync((await Share(Guid.NewGuid())).Id, ids.TenantId, ids.ActorUserId);
+
+        var reportTypes = (await service.GenerateActivityReportAsync(ids.TenantId)).Activities
+            .Select(activity => activity.ActivityType).ToHashSet();
+        Assert.Subset(new HashSet<PortalPackageActivityType>
+        {
+            PortalPackageActivityType.Expiration,
+            PortalPackageActivityType.Supersede,
+            PortalPackageActivityType.Revocation,
+            PortalPackageActivityType.Reissue,
+            PortalPackageActivityType.Archive
+        }, reportTypes);
+        Assert.Contains(auditWriter.Events, audit => audit.Action == AuditAction.Expired);
+        Assert.Contains(auditWriter.Events, audit => audit.Action == AuditAction.PermissionChanged);
+        Assert.Contains(auditWriter.Events, audit => audit.Action == AuditAction.Updated);
+        Assert.Contains(auditWriter.Events, audit => audit.Action == AuditAction.Archived);
+        Assert.All(auditWriter.Events, audit => Assert.Equal(ids.TenantId, audit.TenantId));
+    }
+
+    private static PortalPackageLifecycleService CreateService(
+        out CapturingAuditEventWriter auditWriter,
+        out InMemoryPortalPackageLifecycleRepository repository)
     {
         auditWriter = new CapturingAuditEventWriter();
-        return new PortalPackageLifecycleService(new InMemoryPortalPackageLifecycleRepository(), auditWriter);
+        repository = new InMemoryPortalPackageLifecycleRepository();
+        return new PortalPackageLifecycleService(
+            repository,
+            new AllowAllEligibilityValidator(),
+            auditWriter,
+            new PassThroughTransaction(),
+            new FixedTimeProvider(Now));
     }
 
     private static SharedPortalPackageRequest CreateRequest(StoryIds ids) =>
-        new(ids.PackageId, ids.InvitationId, DateTimeOffset.UtcNow.AddDays(30));
+        new(ids.PackageId, ids.InvitationId, Now.AddDays(30));
+
+    private sealed class PassThroughTransaction : IApplicationTransaction
+    {
+        public Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken = default) =>
+            operation(cancellationToken);
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    private sealed class AllowAllEligibilityValidator : IPortalPackageShareEligibilityValidator
+    {
+        public Task ValidateAsync(Guid packageId, Guid invitationId, Guid tenantId, DateTimeOffset asOf, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+    }
 
     private sealed class CapturingAuditEventWriter : IAuditEventWriter
     {
         public List<CapturedAuditEvent> Events { get; } = [];
 
-        public Task WriteAsync(Guid tenantId, Guid actorUserId, AuditAction action, string entityType, string entityId, string summary, IReadOnlyDictionary<string, string>? metadata = null, CancellationToken cancellationToken = default)
+        public Task WriteAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            AuditAction action,
+            string entityType,
+            string entityId,
+            string summary,
+            IReadOnlyDictionary<string, string>? metadata = null,
+            CancellationToken cancellationToken = default)
         {
-            Events.Add(new CapturedAuditEvent(tenantId, actorUserId, action, entityType, entityId, summary, metadata?.ToDictionary() ?? []));
+            Events.Add(new(tenantId, actorUserId, action, entityType, entityId, summary, metadata?.ToDictionary() ?? []));
             return Task.CompletedTask;
         }
     }
 
-    private sealed record CapturedAuditEvent(Guid TenantId, Guid ActorUserId, AuditAction Action, string EntityType, string EntityId, string Summary, IReadOnlyDictionary<string, string> Metadata);
+    private sealed record CapturedAuditEvent(
+        Guid TenantId,
+        Guid ActorUserId,
+        AuditAction Action,
+        string EntityType,
+        string EntityId,
+        string Summary,
+        IReadOnlyDictionary<string, string> Metadata);
 
-    private sealed record StoryIds(Guid TenantId, Guid PackageId, Guid ReplacementPackageId, Guid InvitationId, Guid ActorUserId)
+    private sealed record StoryIds(
+        Guid TenantId,
+        Guid OtherTenantId,
+        Guid PackageId,
+        Guid OtherPackageId,
+        Guid InvitationId,
+        Guid OtherInvitationId,
+        Guid ActorUserId,
+        Guid PortalUserId)
     {
-        public static StoryIds Create() =>
-            new(
-                Guid.Parse("34334334-4334-3343-3433-4334334334aa"),
-                Guid.Parse("34334334-4334-3343-3433-4334334334bb"),
-                Guid.Parse("34334334-4334-3343-3433-4334334334bc"),
-                Guid.Parse("34334334-4334-3343-3433-4334334334cc"),
-                Guid.Parse("34334334-4334-3343-3433-4334334334dd"));
+        public static StoryIds Create() => new(
+            Guid.Parse("34334334-4334-3343-3433-4334334334aa"),
+            Guid.Parse("34334334-4334-3343-3433-4334334334ab"),
+            Guid.Parse("34334334-4334-3343-3433-4334334334bb"),
+            Guid.Parse("34334334-4334-3343-3433-4334334334bc"),
+            Guid.Parse("34334334-4334-3343-3433-4334334334cc"),
+            Guid.Parse("34334334-4334-3343-3433-4334334334cd"),
+            Guid.Parse("34334334-4334-3343-3433-4334334334dd"),
+            Guid.Parse("34334334-4334-3343-3433-4334334334de"));
     }
 }

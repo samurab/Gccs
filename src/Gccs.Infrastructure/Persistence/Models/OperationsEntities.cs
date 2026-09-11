@@ -7,6 +7,7 @@ using Gccs.Domain.People;
 using Gccs.Domain.Reports;
 using Gccs.Domain.Vendors;
 using Gccs.Application.Reports;
+using Gccs.Application.Portals;
 
 namespace Gccs.Infrastructure.Persistence.Models;
 
@@ -543,6 +544,37 @@ public sealed class SprManualSubmissionReceiptEntity
     public EvidenceItemEntity? EvidenceItem { get; set; }
     public SprManualSubmissionReceiptEntity? SupersedesReceipt { get; set; }
     public UserEntity? RecordedByUser { get; set; }
+}
+
+public sealed class SharedPortalPackageEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid PackageId { get; set; }
+    public Guid InvitationId { get; set; }
+    public int Version { get; set; }
+    public SharedPortalPackageState State { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset ReminderAt { get; set; }
+    public DateTimeOffset? ReminderSentAt { get; set; }
+    public Guid? SupersedesSharedPackageId { get; set; }
+    public Guid? ReplacementSharedPackageId { get; set; }
+    public Guid? ReplacementPackageId { get; set; }
+    public string? RevocationReason { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+}
+
+public sealed class PortalPackageActivityEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid SharedPackageId { get; set; }
+    public PortalPackageActivityType ActivityType { get; set; }
+    public Guid ActorUserId { get; set; }
+    public DateTimeOffset OccurredAt { get; set; }
+    public string? Detail { get; set; }
+
+    public SharedPortalPackageEntity? SharedPackage { get; set; }
 }
 
 public sealed class FlowDownClauseEntity : AuditedEntity

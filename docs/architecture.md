@@ -183,6 +183,19 @@ Rationale: eSRS was decommissioned on February 20, 2026, and its subcontracting 
 - Canonical APIs use `/subcontracting-plan-report-data` and `/subcontracting-plan-reports`; legacy `/esrs` routes and persistence names remain compatibility identifiers.
 - This workflow collects and exports internal preparation data only. FeDril does not submit, verify, or synchronize reports with SAM.gov, determine legal reporting obligations, or provide government approval.
 
+## External Portal Package Lifecycle Boundary
+
+Current state: **Implemented** for durable shared-package lifecycle records, tenant-admin lifecycle APIs and UI, request-time expiration/revocation checks, automatic expiration processing, scheduled reminder activity, reissue/supersede lineage, tenant-scoped activity reporting, and atomic lifecycle/audit writes when PostgreSQL is configured. **Partially implemented** for the surrounding external portal: invitation and approved-package catalogs from Stories 34.1 and 34.2 still use process-local adapters and have no production external-review route.
+
+- `ManageUsers` authorizes create, list, expire, revoke, supersede, reissue, and archive operations because that permission is limited to tenant Owner/Admin roles. `ViewAuditLog` authorizes the portal activity report.
+- Every tenant administration lookup includes the authenticated tenant id. Missing and cross-tenant package ids return the standard tenant-safe `404` response.
+- Portal request-time access requires a matching shared-package id, invitation id, source package id, `Active` state, and a future expiration timestamp. The review, comment, and download application paths recheck lifecycle access; a worker is not trusted to enforce cutoff.
+- Share and reissue validation resolves the invitation and source package server-side. Revoked/expired/out-of-scope invitations and draft, internal-note, CUI, synthetic-CUI, prohibited, or unknown packages are rejected.
+- Reissue creates a new active lifecycle record and preserves the predecessor. Active predecessors become superseded; revoked or expired predecessors retain their terminal state and revocation evidence while linking to the replacement.
+- Automatic maintenance records one expiration-reminder activity and changes due active shares to `Expired`. Automatic expiration and its audit event share the relational transaction.
+- Portal access, comment, download, reminder, expiration, supersede, revocation, reissue, and archive activity is append-only and tenant scoped. Lifecycle audit metadata contains identifiers and state only; it does not include package contents.
+- This feature does not authorize sharing CUI. Production external portal enablement remains dependent on durable Story 34.1 invitation identity/authentication and Story 34.2 approved-package source adapters.
+
 ## Planned Services
 
 - PostgreSQL for transactional tenant data.

@@ -147,6 +147,8 @@ builder.Services.Configure<ReportExportProcessingOptions>(
     builder.Configuration.GetSection(ReportExportProcessingOptions.SectionName));
 builder.Services.Configure<DueDateReminderProcessingOptions>(
     builder.Configuration.GetSection(DueDateReminderProcessingOptions.SectionName));
+builder.Services.Configure<PortalPackageLifecycleProcessingOptions>(
+    builder.Configuration.GetSection(PortalPackageLifecycleProcessingOptions.SectionName));
 if (builder.Environment.IsDevelopment() &&
     builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
     builder.Configuration.GetValue("Security:DevelopmentAuth:Enabled", false))
@@ -177,6 +179,11 @@ if (builder.Configuration.GetValue("DueDateReminderProcessing:Enabled", true) &&
     !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
 {
     builder.Services.AddHostedService<DueDateReminderWorker>();
+}
+if (builder.Configuration.GetValue("PortalPackageLifecycleProcessing:Enabled", true) &&
+    !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
+{
+    builder.Services.AddHostedService<PortalPackageLifecycleWorker>();
 }
 if (builder.Environment.IsDevelopment())
 {
@@ -905,6 +912,8 @@ var api = app.MapGroup("/api")
 
 var currentUserApi = api.MapGroup("/me")
     .AllowWithoutTenantMembership();
+
+api.MapPortalPackageLifecycleEndpoints();
 
 if (app.Environment.IsDevelopment() &&
     builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&

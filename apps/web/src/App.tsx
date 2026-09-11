@@ -35,6 +35,7 @@ import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
 import { EsrsApplicabilityPanel } from "@/components/EsrsApplicabilityPanel";
 import { EsrsReportDataPanel } from "@/components/EsrsReportDataPanel";
 import { SprReportPackagesPanel } from "@/components/SprReportPackagesPanel";
+import { PortalPackageLifecyclePanel } from "@/components/PortalPackageLifecyclePanel";
 import type { ClassifiedContent } from "@/lib/api";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
 import { controlCoverageTone } from "@/components/controlCoverage";
@@ -10002,6 +10003,7 @@ function SettingsView({
       />
       {canManageUsers ? (
         <>
+          <PortalPackageLifecyclePanel canManage={canManageUsers} canViewActivity={canViewAuditLog} />
           <section className="members-section" aria-label="Tenant team members">
             <div className="section-heading">
               <p className="eyebrow">Tenant access</p>
