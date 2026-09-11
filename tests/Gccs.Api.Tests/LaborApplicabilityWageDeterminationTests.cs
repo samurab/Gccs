@@ -23,6 +23,7 @@ using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
@@ -179,14 +180,15 @@ public sealed class LaborApplicabilityWageDeterminationTests : IClassFixture<Web
         var connectionString = Environment.GetEnvironmentVariable("GCCS_TEST_POSTGRES_CONNECTION")
             ?? throw new InvalidOperationException("GCCS_TEST_POSTGRES_CONNECTION is required.");
         var ids = StoryIds.Create();
+        var failure = new LaborAuditFailureInterceptor();
         await using var app = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("LocalDependencies:Enabled", "false");
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<GccsDbContext>(); services.RemoveAll<DbContextOptions<GccsDbContext>>(); services.RemoveAll<IAuditEventWriter>();
-                services.AddDbContext<GccsDbContext>(options => options.UseGccsPostgres(connectionString));
-                services.AddScoped<IAuditEventWriter, FailingAuditWriter>();
+                services.AddDbContext<GccsDbContext>(options => options.UseGccsPostgres(connectionString).AddInterceptors(failure));
+                services.AddScoped<IAuditEventWriter, EfAuditEventWriter>();
                 using var provider = services.BuildServiceProvider(); using var scope = provider.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>(); PostgresTestDatabase.Migrate(db);
                 db.Tenants.Add(Tenant(ids.TenantId));
@@ -205,14 +207,21 @@ public sealed class LaborApplicabilityWageDeterminationTests : IClassFixture<Web
         {
             using var client = app.CreateClient();
             var body = RequestBody(ids) with { SourceContractClauseId = null, WageDeterminationEvidenceItemId = null };
-            using var request = Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/labor-applicabilities", body, ids.TenantId, ids.UserId, Permission.ManageContracts);
+            var labor = await CreateAsync(client, ids, body);
+            failure.Enabled = true;
+            using var request = Request(HttpMethod.Patch, $"/api/contracts/{ids.ContractId}/labor-applicabilities/{labor.Id}/status",
+                new UpdateLaborApplicabilityStatusRequest(LaborApplicabilityStatus.Active), ids.TenantId, ids.UserId, Permission.ManageContracts);
             using var response = await client.SendAsync(request); Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+            failure.Enabled = false;
             await using var scope = app.Services.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
-            Assert.False(await db.LaborApplicabilities.AnyAsync(x => x.TenantId == ids.TenantId));
+            Assert.Equal(LaborApplicabilityStatus.Draft,
+                (await db.LaborApplicabilities.SingleAsync(x => x.TenantId == ids.TenantId)).Status);
             Assert.False(await db.ComplianceTasks.AnyAsync(x => x.TenantId == ids.TenantId));
+            Assert.Single(await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId && x.EntityType == "LaborApplicability").ToArrayAsync());
         }
         finally
         {
+            failure.Enabled = false;
             await using var scope = app.Services.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
             await db.AuditLogEntries.Where(x => x.TenantId == ids.TenantId).ExecuteDeleteAsync();
             await db.LaborApplicabilities.Where(x => x.TenantId == ids.TenantId).ExecuteDeleteAsync();
@@ -349,10 +358,16 @@ public sealed class LaborApplicabilityWageDeterminationTests : IClassFixture<Web
         public Task<bool> DeleteAsync(ObjectStorageReadRequest request, CancellationToken cancellationToken = default) => Task.FromResult(objects.Remove(ObjectStorageNames.BuildTenantBlobName(request.TenantId, request.ObjectName)));
     }
 
-    private sealed class FailingAuditWriter : IAuditEventWriter
+    private sealed class LaborAuditFailureInterceptor : SaveChangesInterceptor
     {
-        public Task WriteAsync(Guid tenantId, Guid actorUserId, AuditAction action, string entityType, string entityId,
-            string summary, IReadOnlyDictionary<string, string>? metadata = null, CancellationToken cancellationToken = default) =>
-            throw new AuditWriteException("Synthetic labor audit persistence failure.");
+        public bool Enabled { get; set; }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (Enabled && eventData.Context!.ChangeTracker.Entries<AuditLogEntryEntity>().Any(x => x.State == EntityState.Added))
+                throw new InvalidOperationException("Injected labor audit persistence failure.");
+            return ValueTask.FromResult(result);
+        }
     }
 }
