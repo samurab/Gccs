@@ -126,7 +126,10 @@ public static class DependencyInjection
             provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddSingleton<ISprSchemaProfileRepository, FileSprSchemaProfileRepository>();
         services.AddScoped<SprSchemaProfileService>();
-        services.AddSingleton<IEsrsReportPackageRepository, InMemoryEsrsReportPackageRepository>();
+        services.AddScoped<IEsrsReportPackageRepository>(provider => new EfEsrsReportPackageRepository(
+            provider.GetRequiredService<GccsDbContext>(),
+            provider.GetRequiredService<ICurrentTenantContext>()));
+        services.AddSingleton<ISprSubmissionProvider, DisabledSprSubmissionProvider>();
         services.AddSingleton<ILaborApplicabilityRepository, InMemoryLaborApplicabilityRepository>();
         services.AddSingleton<ILaborClassificationRepository, InMemoryLaborClassificationRepository>();
         services.AddSingleton<IAiRetrievalSourceRepository, InMemoryAiRetrievalSourceRepository>();

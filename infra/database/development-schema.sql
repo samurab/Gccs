@@ -4535,3 +4535,71 @@ INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260911003208_AddSprSchemaProvenance', '10.0.4');
 
 COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.spr_report_packages (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    report_type character varying(64) NOT NULL,
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    status character varying(64) NOT NULL,
+    version integer NOT NULL,
+    not_submitted_disclaimer character varying(1000) NOT NULL,
+    snapshot_json jsonb NOT NULL,
+    reviewer_name character varying(200),
+    reviewer_user_id uuid,
+    approved_at timestamp with time zone,
+    review_notes character varying(2000),
+    generated_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_spr_report_packages" PRIMARY KEY (id),
+    CONSTRAINT "AK_spr_report_packages_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_spr_report_packages_contracts_tenant_id_contract_id" FOREIGN KEY (tenant_id, contract_id) REFERENCES gccs.contracts (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_report_packages_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_report_packages_users_reviewer_user_id" FOREIGN KEY (reviewer_user_id) REFERENCES gccs.users (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.spr_manual_submission_receipts (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    submitted_at timestamp with time zone NOT NULL,
+    confirmation_reference character varying(200) NOT NULL,
+    outcome character varying(64) NOT NULL,
+    notes character varying(2000),
+    evidence_item_id uuid,
+    supersedes_receipt_id uuid,
+    recorded_by_user_id uuid NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_spr_manual_submission_receipts" PRIMARY KEY (id),
+    CONSTRAINT "AK_spr_manual_submission_receipts_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_spr_manual_submission_receipts_evidence_items_tenant_id_evi~" FOREIGN KEY (tenant_id, evidence_item_id) REFERENCES gccs.evidence_items (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_manual_submission_receipts_spr_manual_submission_receip~" FOREIGN KEY (tenant_id, supersedes_receipt_id) REFERENCES gccs.spr_manual_submission_receipts (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_manual_submission_receipts_spr_report_packages_tenant_i~" FOREIGN KEY (tenant_id, package_id) REFERENCES gccs.spr_report_packages (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_manual_submission_receipts_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_spr_manual_submission_receipts_users_recorded_by_user_id" FOREIGN KEY (recorded_by_user_id) REFERENCES gccs.users (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_spr_manual_submission_receipts_recorded_by_user_id" ON gccs.spr_manual_submission_receipts (recorded_by_user_id);
+
+CREATE INDEX "IX_spr_manual_submission_receipts_tenant_id_evidence_item_id" ON gccs.spr_manual_submission_receipts (tenant_id, evidence_item_id);
+
+CREATE INDEX "IX_spr_manual_submission_receipts_tenant_id_package_id_recorde~" ON gccs.spr_manual_submission_receipts (tenant_id, package_id, recorded_at);
+
+CREATE INDEX "IX_spr_manual_submission_receipts_tenant_id_supersedes_receipt~" ON gccs.spr_manual_submission_receipts (tenant_id, supersedes_receipt_id);
+
+CREATE INDEX "IX_spr_report_packages_created_at_updated_at" ON gccs.spr_report_packages (created_at, updated_at);
+
+CREATE INDEX "IX_spr_report_packages_reviewer_user_id" ON gccs.spr_report_packages (reviewer_user_id);
+
+CREATE UNIQUE INDEX "IX_spr_report_packages_tenant_id_contract_id_report_type_perio~" ON gccs.spr_report_packages (tenant_id, contract_id, report_type, period_start, period_end, version);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260911004959_AddDurableSprPackagesAndReceipts', '10.0.4');
+
+COMMIT;

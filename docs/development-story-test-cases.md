@@ -848,9 +848,12 @@ Phase 0 and Story 39 are non-software evidence workflows. Their `TC-*` cases are
 
 - **TC-31.3.1 - Generate SAM.gov SPR preparation package:** Generate a package for contract, period, and report type and verify subcontractor/spend summaries, exceptions, evidence references, and generated date.
 - **TC-31.3.2 - Not-submitted language present:** Verify package states that FeDril has not submitted the report to SAM.gov.
-- **TC-31.3.3 - Package approval metadata complete:** Approve a package and verify reviewer, approval date, package version, and review notes are stored.
+- **TC-31.3.3 - Package review metadata complete:** Start review and approve a non-empty package, then verify reviewer, approval date, package version, and review notes are stored; verify an empty exception-only package cannot be approved.
 - **TC-31.3.4 - Package permissions enforced:** Attempt package generation, approval, and viewing with unauthorized roles and verify denial.
 - **TC-31.3.5 - Package generation and approval audited:** Verify package generation, approval, supersede, and archive actions are audit logged.
+- **TC-31.3.6 - Immutable export remains preparation-only:** Export HTML and JSON, verify snapshot schema provenance and not-submitted language remain present, and verify export is permission-gated and audited.
+- **TC-31.3.7 - Manual receipt history is append-only:** Record a user-reported external receipt only for an approved package, link eligible evidence, supersede a prior receipt without mutation, and verify tenant isolation and audit history.
+- **TC-31.3.8 - Direct submission fails closed:** Verify capability reports disabled and the submission route returns `spr_submission_unavailable` while no authorized contractor-facing provider is configured.
 
 ## 32. Labor Compliance Module
 

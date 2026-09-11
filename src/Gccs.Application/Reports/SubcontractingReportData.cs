@@ -165,7 +165,8 @@ public sealed class SubcontractingReportDataService(
         return rows.Where(row => row.IsPackageEligible).Select(row => new SubcontractingReportPackageRowDto(
             row.Id, row.ContractId, row.SubcontractorId, row.SocioeconomicCategory, row.PlanCategory,
             row.ReportType, row.RowPeriodStart, row.RowPeriodEnd, row.Amount,
-            row.SupportingEvidenceItemIds, row.ReviewStatus)).ToArray();
+            row.SupportingEvidenceItemIds, row.ReviewStatus,
+            new SprSchemaReferenceDto(row.SprSchemaProfileId!, row.SprSchemaVersion!, row.SprSchemaSourceUrl!, row.SprSchemaDefinitionSha256!))).ToArray();
     }
 
     public async Task<IReadOnlyList<SubcontractingReportDataRowDto>> ImportCsvAsync(
@@ -485,7 +486,7 @@ public sealed record SubcontractingReportDataQuery(Guid? ContractId = null, Esrs
 public sealed record SubcontractingReportPackageRowsRequest(Guid ContractId, EsrsReportType ReportType, DateOnly PeriodStart, DateOnly PeriodEnd, bool FinalPackage);
 public sealed record SubcontractingReportPackageRowDto(Guid RowId, Guid ContractId, Guid SubcontractorId, string SocioeconomicCategory,
     string PlanCategory, EsrsReportType ReportType, DateOnly PeriodStart, DateOnly PeriodEnd, decimal Amount,
-    IReadOnlyList<Guid> SupportingEvidenceItemIds, SubcontractingReportDataReviewStatus ReviewStatus);
+    IReadOnlyList<Guid> SupportingEvidenceItemIds, SubcontractingReportDataReviewStatus ReviewStatus, SprSchemaReferenceDto SchemaProfile);
 public sealed record SubcontractingReportDataImportTemplateDto(string FileName, IReadOnlyList<string> Columns, string CsvContent, SprSchemaReferenceDto? SchemaProfile = null);
 public sealed record SprRemediationItemDto(SubcontractingReportDataRowDto Row, IReadOnlyList<string> BlockingFields);
 public sealed record SprRemediationValuesDto(string? ReportingEntityUei, string? PrimeContractPiid);

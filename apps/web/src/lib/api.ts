@@ -1747,6 +1747,22 @@ export type UpsertSubcontractingReportDataRowRequest = Omit<SubcontractingReport
   "id" | "tenantId" | "reviewStatus" | "reviewedByUserId" | "reviewedAt" | "reviewerNotes" |
   "version" | "createdAt" | "updatedAt" | "isPackageEligible" | "sprReadinessStatus" | "sprReadinessBlockers" |
   "sprSchemaProfileId" | "sprSchemaVersion" | "sprSchemaSourceUrl" | "sprSchemaDefinitionSha256"> & { expectedVersion?: number | null };
+export type SprSchemaReference = { id: string; version: string; sourceUrl: string; definitionSha256: string };
+export type SprReportPackage = {
+  id: string; tenantId: string; contractId: string; reportType: "Isr" | "Ssr"; periodStart: string; periodEnd: string;
+  status: "Draft" | "InReview" | "Approved" | "Superseded" | "Archived"; version: number;
+  notSubmittedDisclaimer: string; reviewerName: string | null; reviewerUserId: string | null;
+  approvedAt: string | null; reviewNotes: string | null; generatedAt: string; updatedAt: string | null;
+  snapshot: { contractId: string; reportType: "Isr" | "Ssr"; periodStart: string; periodEnd: string;
+    rowCount: number; totalSpend: number; spendSummaries: { socioeconomicCategory: string; totalSpend: number; subcontractorCount: number }[];
+    evidenceReferences: { rowId: string; evidenceItemId: string }[]; exceptions: string[]; schemaProfiles: SprSchemaReference[] };
+};
+export type SprManualSubmissionReceipt = {
+  id: string; tenantId: string; packageId: string; submittedAt: string; confirmationReference: string;
+  outcome: "Submitted" | "Accepted" | "Rejected" | "Corrected"; notes: string | null;
+  evidenceItemId: string | null; supersedesReceiptId: string | null; recordedByUserId: string; recordedAt: string;
+};
+export type SprSubmissionCapability = { enabled: boolean; reason: string };
 
 export type ContractDocument = {
   id: string;
@@ -3123,6 +3139,42 @@ export async function downloadSubcontractingPlanReportDataTemplate(): Promise<Ap
     const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? "sam-gov-spr-report-data-template.csv";
     return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")) }, error: null };
   } catch { return { data: null, error: "The SAM.gov SPR import template could not be downloaded." }; }
+}
+
+export const getSprReportPackages = () =>
+  getRequiredJson<SprReportPackage[]>("/api/subcontracting-plan-reports/packages");
+
+export const getSprSubmissionCapability = () =>
+  getRequiredJson<SprSubmissionCapability>("/api/subcontracting-plan-reports/submission-capability");
+
+export const createSprReportPackage = (contractId: string, reportType: "Isr" | "Ssr", periodStart: string, periodEnd: string) =>
+  postJsonResult<SprReportPackage>("/api/subcontracting-plan-reports/packages",
+    { tenantId: "00000000-0000-0000-0000-000000000000", contractId, reportType, periodStart, periodEnd });
+
+export const reviewSprReportPackage = (packageId: string, action: "begin-review" | "approve" | "supersede" | "archive",
+  reviewerName: string, reviewNotes: string | null) =>
+  postJsonResult<SprReportPackage>(`/api/subcontracting-plan-reports/packages/${packageId}/${action}`, { reviewerName, reviewNotes });
+
+export const getSprManualSubmissionReceipts = (packageId: string) =>
+  getRequiredJson<SprManualSubmissionReceipt[]>(`/api/subcontracting-plan-reports/packages/${packageId}/manual-submission-receipts`);
+
+export const createSprManualSubmissionReceipt = (packageId: string, request: {
+  submittedAt: string; confirmationReference: string; outcome: SprManualSubmissionReceipt["outcome"];
+  notes: string | null; evidenceItemId: string | null; supersedesReceiptId?: string | null;
+}) => postJsonResult<SprManualSubmissionReceipt>(
+  `/api/subcontracting-plan-reports/packages/${packageId}/manual-submission-receipts`, request);
+
+export async function downloadSprReportPackage(packageId: string, format: "Html" | "Json"):
+  Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/subcontracting-plan-reports/packages/${packageId}/export?format=${format}`,
+      { headers: await getApiHeaders() });
+    if (!response.ok) return { data: null, error: await readErrorMessage(response) };
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? `sam-gov-spr-package.${format.toLowerCase()}`;
+    return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")) }, error: null };
+  } catch { return { data: null, error: "The SPR preparation package could not be downloaded." }; }
 }
 
 export async function createContractDocument(

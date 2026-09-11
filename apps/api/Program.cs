@@ -1712,6 +1712,156 @@ api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowId:
 .RequirePermission(Permission.ViewReports)
 .WithName("GetSubcontractingPlanReportDataRemediationSuggestions");
 
+api.MapGet("/subcontracting-plan-reports/packages", async (
+    EsrsReportPackageService service, CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(hasReportPermission: true, cancellationToken)))
+.RequirePermission(Permission.ViewReports)
+.WithName("ListSubcontractingPlanReportPackages");
+
+api.MapGet("/subcontracting-plan-reports/packages/{packageId:guid}", async (
+    Guid packageId, EsrsReportPackageService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var package = await service.FindAsync(packageId, hasReportPermission: true, cancellationToken);
+    return package is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(package);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetSubcontractingPlanReportPackage");
+
+api.MapPost("/subcontracting-plan-reports/packages", async (
+    EsrsReportPackageGenerateRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var package = await service.GenerateAsync(request with { TenantId = tenantContext.TenantId, HasReportPermission = true },
+            tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/subcontracting-plan-reports/packages/{package.Id}", package);
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "SAM.gov SPR preparation package invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (EsrsReportPackageConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "SPR package conflict", exception.Message,
+            StatusCodes.Status409Conflict, "spr_package_conflict");
+    }
+    catch (EsrsReportPackageException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["package"] = [exception.Message] },
+            title: "SAM.gov SPR preparation package invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("CreateSubcontractingPlanReportPackage");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/approve", async (
+    Guid packageId, EsrsReportPackageReviewRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+    await ReviewSprPackageAsync(packageId, request, service.ApproveAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageReports)
+.WithName("ApproveSubcontractingPlanReportPackage");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/begin-review", async (
+    Guid packageId, EsrsReportPackageReviewRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+    await ReviewSprPackageAsync(packageId, request, service.BeginReviewAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageReports)
+.WithName("BeginReviewSubcontractingPlanReportPackage");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/supersede", async (
+    Guid packageId, EsrsReportPackageReviewRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+    await ReviewSprPackageAsync(packageId, request, service.SupersedeAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageReports)
+.WithName("SupersedeSubcontractingPlanReportPackage");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/archive", async (
+    Guid packageId, EsrsReportPackageReviewRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+    await ReviewSprPackageAsync(packageId, request, service.ArchiveAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageReports)
+.WithName("ArchiveSubcontractingPlanReportPackage");
+
+api.MapGet("/subcontracting-plan-reports/packages/{packageId:guid}/export", async (
+    Guid packageId, SprPackageExportFormat format, EsrsReportPackageService service, ITenantContext tenantContext, HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var export = await service.ExportAsync(packageId, format, hasReportPermission: true, tenantContext.UserId, cancellationToken);
+    return export is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.File(System.Text.Encoding.UTF8.GetBytes(export.Content), export.ContentType, export.FileName);
+})
+.RequirePermission(Permission.ExportReports)
+.WithName("ExportSubcontractingPlanReportPackage");
+
+api.MapGet("/subcontracting-plan-reports/packages/{packageId:guid}/manual-submission-receipts", async (
+    Guid packageId, EsrsReportPackageService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    if (await service.FindAsync(packageId, hasReportPermission: true, cancellationToken) is null)
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    return Results.Ok(await service.ListManualSubmissionReceiptsAsync(packageId, hasReportPermission: true, cancellationToken));
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("ListSubcontractingPlanReportManualSubmissionReceipts");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/manual-submission-receipts", async (
+    Guid packageId, SprManualSubmissionReceiptRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var receipt = await service.RecordManualSubmissionReceiptAsync(packageId, request with { HasReportPermission = true },
+            tenantContext.UserId, cancellationToken);
+        return receipt is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/subcontracting-plan-reports/packages/{packageId}/manual-submission-receipts/{receipt.Id}", receipt);
+    }
+    catch (EsrsReportPackageException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["receipt"] = [exception.Message] },
+            title: "Manual SAM.gov receipt invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("CreateSubcontractingPlanReportManualSubmissionReceipt");
+
+api.MapGet("/subcontracting-plan-reports/submission-capability", (EsrsReportPackageService service) =>
+    Results.Ok(service.GetSubmissionCapability()))
+.RequirePermission(Permission.ViewReports)
+.WithName("GetSubcontractingPlanReportSubmissionCapability");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/submit", async (
+    Guid packageId, SprSubmissionRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        await service.SubmitAsync(packageId, request with { HasReportPermission = true }, tenantContext.UserId, cancellationToken);
+        return Results.Accepted();
+    }
+    catch (SprSubmissionUnavailableException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "SAM.gov submission unavailable", exception.Message,
+            StatusCodes.Status409Conflict, "spr_submission_unavailable");
+    }
+    catch (EsrsReportPackageConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "SPR package conflict", exception.Message,
+            StatusCodes.Status409Conflict, "spr_package_conflict");
+    }
+    catch (EsrsReportPackageException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["submission"] = [exception.Message] },
+            title: "SAM.gov submission request invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("SubmitSubcontractingPlanReportPackage");
+
 api.MapGet("/contracts/{contractId:guid}/size-checks", async (
     Guid contractId,
     ContractSizeCheckService service,
@@ -8010,6 +8160,33 @@ api.MapGet("/tenants/{tenantId:guid}/data-handling-mode/history", async (
 })
 .RequirePermission(Permission.ManageTenant)
 .WithName("ListTenantDataHandlingModeHistory");
+
+static async Task<IResult> ReviewSprPackageAsync(
+    Guid packageId,
+    EsrsReportPackageReviewRequest request,
+    Func<Guid, EsrsReportPackageReviewRequest, Guid, CancellationToken, Task<EsrsReportPackageDto?>> reviewAction,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken)
+{
+    try
+    {
+        var package = await reviewAction(packageId, request with { HasReportPermission = true }, tenantContext.UserId, cancellationToken);
+        return package is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(package);
+    }
+    catch (EsrsReportPackageException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["review"] = [exception.Message] },
+            title: "SAM.gov SPR package review invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (EsrsReportPackageConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "SPR package conflict", exception.Message,
+            StatusCodes.Status409Conflict, "spr_package_conflict");
+    }
+}
 
 static async Task<IResult> ExecuteSubscriptionTransition(
     ClaimsPrincipal user,

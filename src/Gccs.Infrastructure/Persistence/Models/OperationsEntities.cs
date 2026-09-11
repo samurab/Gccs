@@ -502,6 +502,49 @@ public sealed class SubcontractingReportDataEvidenceEntity
     public EvidenceItemEntity? EvidenceItem { get; set; }
 }
 
+public sealed class SprReportPackageEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContractId { get; set; }
+    public EsrsReportType ReportType { get; set; }
+    public DateOnly PeriodStart { get; set; }
+    public DateOnly PeriodEnd { get; set; }
+    public EsrsReportPackageStatus Status { get; set; }
+    public int Version { get; set; }
+    public string NotSubmittedDisclaimer { get; set; } = string.Empty;
+    public string SnapshotJson { get; set; } = "{}";
+    public string? ReviewerName { get; set; }
+    public Guid? ReviewerUserId { get; set; }
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public string? ReviewNotes { get; set; }
+    public DateTimeOffset GeneratedAt { get; set; }
+
+    public ContractEntity? Contract { get; set; }
+    public UserEntity? Reviewer { get; set; }
+    public ICollection<SprManualSubmissionReceiptEntity> ManualSubmissionReceipts { get; set; } = [];
+}
+
+public sealed class SprManualSubmissionReceiptEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid PackageId { get; set; }
+    public DateTimeOffset SubmittedAt { get; set; }
+    public string ConfirmationReference { get; set; } = string.Empty;
+    public SprManualSubmissionOutcome Outcome { get; set; }
+    public string? Notes { get; set; }
+    public Guid? EvidenceItemId { get; set; }
+    public Guid? SupersedesReceiptId { get; set; }
+    public Guid RecordedByUserId { get; set; }
+    public DateTimeOffset RecordedAt { get; set; }
+
+    public SprReportPackageEntity? Package { get; set; }
+    public EvidenceItemEntity? EvidenceItem { get; set; }
+    public SprManualSubmissionReceiptEntity? SupersedesReceipt { get; set; }
+    public UserEntity? RecordedByUser { get; set; }
+}
+
 public sealed class FlowDownClauseEntity : AuditedEntity
 {
     public Guid Id { get; set; }

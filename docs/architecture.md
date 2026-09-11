@@ -164,7 +164,7 @@ Current state: **Implemented** for structured sections, deterministic source-bac
 
 ## SAM.gov Subcontracting Plan Reporting Preparation Boundary
 
-Current state: **Implemented** for tenant-scoped SAM.gov SPR preparation data collection and internal package-eligibility gating. **Partially implemented** for final package lifecycle. **Do not claim** external SAM.gov submission or synchronization.
+Current state: **Implemented** for tenant-scoped SAM.gov SPR preparation data collection, package-eligibility gating, immutable package snapshots, internal review lifecycle, audited HTML/JSON export, and append-only user-recorded external receipt history. **Do not claim** external SAM.gov submission, verification, or synchronization.
 
 Rationale: eSRS was decommissioned on February 20, 2026, and its subcontracting reporting functions moved to SAM.gov. The canonical product vocabulary and API therefore follow SAM.gov SPR, while legacy identifiers remain compatibility-only. The enforced preparation fields are based on the GSA Functional Data Dictionary version 1.0 dated March 6, 2026. Sources: [SAM.gov eSRS transition](https://sam.gov/esrs), [GSA SPR Functional Data Dictionary](https://www.fsd.gov/gsafsd_sp/en/subcontract-plan-reporting-functional-data-dictionary?id=kb_article_view&sysparm_article=KB0093498).
 
@@ -176,8 +176,12 @@ Rationale: eSRS was decommissioned on February 20, 2026, and its subcontracting 
 - CSV import is capped at 2 MB and 1,000 rows, requires the exact versioned header, and applies the same reference, amount, period, duplicate, evidence, and audit rules as manual entry.
 - New rows resolve a source-controlled, reviewed, published, and effective SPR schema profile on the server. The profile governs categories, periods, fiscal-year range, whole-dollar handling, and eligibility confirmation; its ID, version, source URL, and definition SHA-256 are persisted with each row.
 - Legacy rows are never silently promoted. A tenant-scoped remediation projection identifies blocking fields, and a read-only suggestion endpoint resolves PIID and UEI from authoritative tenant records without persisting them. Saving enrichment uses the normal validated update workflow, resets review, and audits changed field names and readiness transitions.
+- Package generation snapshots the eligible rows, spend summaries, evidence references, exceptions, and exact governed schema profile references into durable tenant-scoped JSON. Snapshot content and version are immutable; only explicit lifecycle metadata can change.
+- `ManageReports` authorizes generation and lifecycle decisions, `ViewReports` authorizes package and receipt reads, and `ExportReports` authorizes HTML/JSON export. Generation, lifecycle changes, exports, and manual receipt records append audit events in the same relational transaction as any associated business write.
+- Manual submission receipts are append-only, may reference eligible current-tenant evidence, and require an approved package. Corrections supersede earlier receipts by reference rather than mutating them. They record user-asserted external activity and are not proof that FeDril submitted or verified anything in SAM.gov.
+- An explicit submission-provider port exists, but the installed adapter is disabled and the capability endpoint reports unavailable. The submit route fails closed with `spr_submission_unavailable`; enabling it requires an authorized contractor-facing SAM.gov integration and a separately reviewed synchronization design.
 - Canonical APIs use `/subcontracting-plan-report-data` and `/subcontracting-plan-reports`; legacy `/esrs` routes and persistence names remain compatibility identifiers.
-- This workflow collects internal preparation data only. FeDril does not submit or synchronize reports with SAM.gov, determine legal reporting obligations, or provide government approval.
+- This workflow collects and exports internal preparation data only. FeDril does not submit, verify, or synchronize reports with SAM.gov, determine legal reporting obligations, or provide government approval.
 
 ## Planned Services
 

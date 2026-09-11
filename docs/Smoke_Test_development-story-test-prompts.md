@@ -1288,6 +1288,8 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-31.2.3:** Attach supporting evidence to a report data row and verify the link is returned in detail and package preparation.
 - **TC-31.2.4:** Attempt to include legacy/unverified or unreviewed data rows in a final package and verify they are blocked until SPR-ready and reviewed or explicitly accepted.
 - **TC-31.2.5:** Create, update, accept, and reject report data rows and verify audit events.
+- **TC-31.2.6:** Verify canonical writes resolve a reviewed, published, effective schema profile, persist its version/source/definition hash, and fail closed for draft or invalid profiles.
+- **TC-31.2.7:** Verify legacy rows expose field-level blockers and tenant-resolved suggestions without writes; saving enrichment resets review and audits changed fields/readiness.
 #-----------------------------------
 ### Story 31.3: SAM.gov SPR Report Package
 Please perform Smoke test on Story 31.3: SAM.gov SPR Report Package. Please provide the results of the tests.
@@ -1298,6 +1300,9 @@ Using the local GCCS app, execute the following test case as a verification scri
 - **TC-31.3.3:** Approve a package and verify reviewer, approval date, package version, and review notes are stored.
 - **TC-31.3.4:** Attempt package generation, approval, and viewing with unauthorized roles and verify denial.
 - **TC-31.3.5:** Verify package generation, approval, supersede, and archive actions are audit logged.
+- **TC-31.3.6:** Export HTML and JSON, verify snapshot schema provenance and not-submitted language remain present, and verify export is permission-gated and audited.
+- **TC-31.3.7:** Record a user-reported external receipt only for an approved package, link eligible evidence, supersede a prior receipt without mutation, and verify tenant isolation and audit history.
+- **TC-31.3.8:** Verify capability reports disabled and the submission route returns `spr_submission_unavailable` while no authorized contractor-facing provider is configured.
 #-----------------------------------
 
 ## 32. Labor Compliance Module

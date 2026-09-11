@@ -2282,9 +2282,11 @@ Tasks:
 
 - Add package generation for selected contract, period, and report type.
 - Include reporting metadata, subcontractor/spend summaries, exceptions, evidence references, review notes, and generated date.
-- Mark package as preparation-only and not submitted by GCCS.
+- Mark package as preparation-only and not submitted by FeDril.
 - Add review workflow for draft, in_review, approved, superseded, and archived packages.
 - Add export history and permission checks.
+- Add append-only user-recorded manual SAM.gov receipt history without representing it as FeDril submission or verification.
+- Keep direct submission disabled unless an authorized contractor-facing provider is configured.
 
 Acceptance criteria:
 
@@ -2293,6 +2295,9 @@ Acceptance criteria:
 - Package states that FeDril has not submitted the report to SAM.gov and does not synchronize with SAM.gov.
 - Approved packages include reviewer and approval date.
 - Package generation and approval are audit logged.
+- Exports retain the preparation-only disclaimer and are audit logged.
+- Manual receipts require an approved package, retain optional eligible evidence, and preserve corrections through supersession links.
+- Submission capability fails closed when no authorized provider is configured.
 
 ## 32. Labor Compliance Module
 

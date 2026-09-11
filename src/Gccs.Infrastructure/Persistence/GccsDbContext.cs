@@ -95,6 +95,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
     public DbSet<EsrsApplicabilityEntity> EsrsApplicabilities => Set<EsrsApplicabilityEntity>();
     public DbSet<SubcontractingReportDataRowEntity> SubcontractingReportDataRows => Set<SubcontractingReportDataRowEntity>();
+    public DbSet<SprReportPackageEntity> SprReportPackages => Set<SprReportPackageEntity>();
+    public DbSet<SprManualSubmissionReceiptEntity> SprManualSubmissionReceipts => Set<SprManualSubmissionReceiptEntity>();
     public DbSet<SubcontractingReportDataEvidenceEntity> SubcontractingReportDataEvidence => Set<SubcontractingReportDataEvidenceEntity>();
     public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
     public DbSet<EvidenceRequestEntity> EvidenceRequests => Set<EvidenceRequestEntity>();
@@ -2070,6 +2072,42 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasOne(x => x.EvidenceItem).WithMany(x => x.SubcontractingReportDataRows)
                 .HasForeignKey(x => new { x.TenantId, x.EvidenceItemId })
                 .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SprReportPackageEntity>(entity =>
+        {
+            entity.ToTable("spr_report_packages");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.ReportType, x.PeriodStart, x.PeriodEnd, x.Version }).IsUnique();
+            entity.Property(x => x.ReportType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsConcurrencyToken();
+            entity.Property(x => x.NotSubmittedDisclaimer).HasMaxLength(1_000).IsRequired();
+            entity.Property(x => x.SnapshotJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.ReviewerName).HasMaxLength(200);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(2_000);
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Reviewer).WithMany().HasForeignKey(x => x.ReviewerUserId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SprManualSubmissionReceiptEntity>(entity =>
+        {
+            entity.ToTable("spr_manual_submission_receipts");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.PackageId, x.RecordedAt });
+            entity.Property(x => x.ConfirmationReference).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Outcome).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Notes).HasMaxLength(2_000);
+            entity.HasOne(x => x.Package).WithMany(x => x.ManualSubmissionReceipts)
+                .HasForeignKey(x => new { x.TenantId, x.PackageId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => new { x.TenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.SupersedesReceipt).WithMany().HasForeignKey(x => new { x.TenantId, x.SupersedesReceiptId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.RecordedByUser).WithMany().HasForeignKey(x => x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ReportEntity>(entity =>

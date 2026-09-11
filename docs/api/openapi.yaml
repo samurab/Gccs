@@ -1131,6 +1131,223 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /api/subcontracting-plan-reports/packages:
+    get:
+      tags: [Reports]
+      summary: List current-tenant immutable SPR preparation packages
+      operationId: listSubcontractingPlanReportPackages
+      responses:
+        "200":
+          description: Current-tenant package history.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SprReportPackage" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Reports]
+      summary: Generate an immutable SPR preparation snapshot
+      operationId: createSubcontractingPlanReportPackage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SprReportPackageGenerateRequest" }
+      responses:
+        "201":
+          description: Draft preparation package generated and audited.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SprReportPackage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/subcontracting-plan-reports/packages/{packageId}:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Reports]
+      summary: Get a current-tenant SPR preparation package
+      operationId: getSubcontractingPlanReportPackage
+      responses:
+        "200":
+          description: Immutable package snapshot and lifecycle metadata.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SprReportPackage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/subcontracting-plan-reports/packages/{packageId}/approve:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Reports]
+      summary: Approve a draft SPR preparation package
+      operationId: approveSubcontractingPlanReportPackage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SprReportPackageReviewRequest" }
+      responses:
+        "200":
+          description: Package lifecycle metadata updated and audited.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SprReportPackage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/subcontracting-plan-reports/packages/{packageId}/begin-review:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Reports]
+      summary: Start internal review of a draft SPR preparation package
+      operationId: beginReviewSubcontractingPlanReportPackage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SprReportPackageReviewRequest" }
+      responses:
+        "200": { description: Package moved to internal review and audited, content: { application/json: { schema: { $ref: "#/components/schemas/SprReportPackage" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/subcontracting-plan-reports/packages/{packageId}/supersede:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Reports]
+      summary: Supersede an approved SPR preparation package
+      operationId: supersedeSubcontractingPlanReportPackage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SprReportPackageReviewRequest" }
+      responses:
+        "200": { description: Package superseded and audited, content: { application/json: { schema: { $ref: "#/components/schemas/SprReportPackage" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/subcontracting-plan-reports/packages/{packageId}/archive:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Reports]
+      summary: Archive an eligible SPR preparation package
+      operationId: archiveSubcontractingPlanReportPackage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SprReportPackageReviewRequest" }
+      responses:
+        "200": { description: Package archived and audited, content: { application/json: { schema: { $ref: "#/components/schemas/SprReportPackage" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/subcontracting-plan-reports/packages/{packageId}/export:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: format, in: query, required: true, schema: { type: string, enum: [Html, Json] } }
+    get:
+      tags: [Reports]
+      summary: Export and audit an SPR preparation package
+      operationId: exportSubcontractingPlanReportPackage
+      responses:
+        "200":
+          description: Preparation-only HTML or JSON artifact.
+          content:
+            text/html: { schema: { type: string } }
+            application/json: { schema: { type: object } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/subcontracting-plan-reports/packages/{packageId}/manual-submission-receipts:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Reports]
+      summary: List append-only user-recorded external SAM.gov receipts
+      operationId: listSubcontractingPlanReportManualSubmissionReceipts
+      responses:
+        "200":
+          description: Receipt history; records are not external verification by FeDril.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SprManualSubmissionReceipt" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Reports]
+      summary: Record a customer-reported external SAM.gov receipt for an approved package
+      operationId: createSubcontractingPlanReportManualSubmissionReceipt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SprManualSubmissionReceiptRequest" }
+      responses:
+        "201":
+          description: Append-only receipt recorded and audited.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SprManualSubmissionReceipt" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/subcontracting-plan-reports/submission-capability:
+    get:
+      tags: [Reports]
+      summary: Report whether an authorized direct SAM.gov submission provider is configured
+      operationId: getSubcontractingPlanReportSubmissionCapability
+      responses:
+        "200":
+          description: Fail-closed provider capability state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SprSubmissionCapability" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/subcontracting-plan-reports/packages/{packageId}/submit:
+    parameters:
+      - { name: packageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Reports]
+      summary: Request provider-backed submission when an authorized provider exists
+      operationId: submitSubcontractingPlanReportPackage
+      description: The default provider is disabled and returns spr_submission_unavailable; FeDril does not claim SAM.gov submission or synchronization.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SprSubmissionRequest" }
+      responses:
+        "202": { description: Accepted by a future authorized provider. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /api/contracts/{contractId}/documents:
     parameters:
       - $ref: "#/components/parameters/ContractId"
@@ -4931,6 +5148,101 @@ components:
         categories:
           type: array
           items: { type: string }
+
+    SprSchemaReference:
+      type: object
+      required: [id, version, sourceUrl, definitionSha256]
+      properties:
+        id: { type: string }
+        version: { type: string }
+        sourceUrl: { type: string, format: uri }
+        definitionSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+
+    SprReportPackageGenerateRequest:
+      type: object
+      required: [contractId, reportType, periodStart, periodEnd]
+      properties:
+        contractId: { type: string, format: uuid }
+        reportType: { $ref: "#/components/schemas/EsrsReportType" }
+        periodStart: { type: string, format: date }
+        periodEnd: { type: string, format: date }
+
+    SprReportPackageReviewRequest:
+      type: object
+      required: [reviewerName]
+      properties:
+        reviewerName: { type: string, minLength: 1, maxLength: 200 }
+        reviewNotes: { type: [string, "null"], maxLength: 2000 }
+
+    SprReportPackage:
+      type: object
+      required: [id, tenantId, contractId, reportType, periodStart, periodEnd, status, version, notSubmittedDisclaimer, snapshot, generatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        contractId: { type: string, format: uuid }
+        reportType: { $ref: "#/components/schemas/EsrsReportType" }
+        periodStart: { type: string, format: date }
+        periodEnd: { type: string, format: date }
+        status: { type: string, enum: [Draft, InReview, Approved, Superseded, Archived] }
+        version: { type: integer, minimum: 1 }
+        notSubmittedDisclaimer: { type: string }
+        reviewerName: { type: [string, "null"] }
+        reviewerUserId: { type: [string, "null"], format: uuid }
+        approvedAt: { type: [string, "null"], format: date-time }
+        reviewNotes: { type: [string, "null"] }
+        generatedAt: { type: string, format: date-time }
+        updatedAt: { type: [string, "null"], format: date-time }
+        snapshot:
+          type: object
+          required: [contractId, reportType, periodStart, periodEnd, rowCount, totalSpend, spendSummaries, evidenceReferences, exceptions, schemaProfiles]
+          properties:
+            contractId: { type: string, format: uuid }
+            reportType: { $ref: "#/components/schemas/EsrsReportType" }
+            periodStart: { type: string, format: date }
+            periodEnd: { type: string, format: date }
+            rowCount: { type: integer, minimum: 0 }
+            totalSpend: { type: number, minimum: 0 }
+            spendSummaries: { type: array, items: { type: object } }
+            evidenceReferences: { type: array, items: { type: object } }
+            exceptions: { type: array, items: { type: string } }
+            schemaProfiles: { type: array, items: { $ref: "#/components/schemas/SprSchemaReference" } }
+
+    SprManualSubmissionReceiptRequest:
+      type: object
+      required: [submittedAt, confirmationReference, outcome]
+      properties:
+        submittedAt: { type: string, format: date-time }
+        confirmationReference: { type: string, minLength: 1, maxLength: 200 }
+        outcome: { type: string, enum: [Submitted, Accepted, Rejected, Corrected] }
+        notes: { type: [string, "null"], maxLength: 2000 }
+        evidenceItemId: { type: [string, "null"], format: uuid }
+        supersedesReceiptId: { type: [string, "null"], format: uuid }
+
+    SprManualSubmissionReceipt:
+      allOf:
+        - $ref: "#/components/schemas/SprManualSubmissionReceiptRequest"
+        - type: object
+          required: [id, tenantId, packageId, recordedByUserId, recordedAt]
+          properties:
+            id: { type: string, format: uuid }
+            tenantId: { type: string, format: uuid }
+            packageId: { type: string, format: uuid }
+            recordedByUserId: { type: string, format: uuid }
+            recordedAt: { type: string, format: date-time }
+
+    SprSubmissionCapability:
+      type: object
+      required: [enabled, reason]
+      properties:
+        enabled: { type: boolean }
+        reason: { type: string }
+
+    SprSubmissionRequest:
+      type: object
+      required: [idempotencyKey]
+      properties:
+        idempotencyKey: { type: string, minLength: 1, maxLength: 128 }
 
     SprRemediationItem:
       type: object
