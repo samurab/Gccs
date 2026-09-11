@@ -21,7 +21,6 @@ public sealed class EsrsReportPackageService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        EnsurePermission(request.HasReportPermission);
         if (request.ContractId == Guid.Empty) throw new EsrsReportPackageException("Contract is required.");
         if (!Enum.IsDefined(request.ReportType)) throw new EsrsReportPackageException("Report type must be ISR or SSR.");
         if (request.PeriodStart == default || request.PeriodEnd == default || request.PeriodEnd < request.PeriodStart)
@@ -44,18 +43,11 @@ public sealed class EsrsReportPackageService(
 
     public async Task<EsrsReportPackageDto?> FindAsync(
         Guid packageId,
-        bool hasReportPermission,
         CancellationToken cancellationToken = default)
-    {
-        EnsurePermission(hasReportPermission);
-        return await repository.FindAsync(packageId, cancellationToken);
-    }
+        => await repository.FindAsync(packageId, cancellationToken);
 
-    public async Task<IReadOnlyList<EsrsReportPackageDto>> ListAsync(bool hasReportPermission, CancellationToken cancellationToken = default)
-    {
-        EnsurePermission(hasReportPermission);
-        return await repository.ListAsync(cancellationToken);
-    }
+    public async Task<IReadOnlyList<EsrsReportPackageDto>> ListAsync(CancellationToken cancellationToken = default) =>
+        await repository.ListAsync(cancellationToken);
 
     public async Task<EsrsReportPackageDto?> ApproveAsync(
         Guid packageId,
@@ -63,7 +55,6 @@ public sealed class EsrsReportPackageService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        EnsurePermission(request.HasReportPermission);
         return await ChangeStatusAsync(packageId, EsrsReportPackageStatus.Approved, request, actorUserId,
             AuditAction.Approved, "SAM.gov SPR preparation package was approved.", cancellationToken);
     }
@@ -74,7 +65,6 @@ public sealed class EsrsReportPackageService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        EnsurePermission(request.HasReportPermission);
         return await ChangeStatusAsync(packageId, EsrsReportPackageStatus.InReview, request, actorUserId,
             AuditAction.Updated, "SAM.gov SPR preparation package review was started.", cancellationToken);
     }
@@ -85,7 +75,6 @@ public sealed class EsrsReportPackageService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        EnsurePermission(request.HasReportPermission);
         return await ChangeStatusAsync(packageId, EsrsReportPackageStatus.Superseded, request, actorUserId,
             AuditAction.Updated, "SAM.gov SPR preparation package was superseded.", cancellationToken);
     }
@@ -96,16 +85,14 @@ public sealed class EsrsReportPackageService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        EnsurePermission(request.HasReportPermission);
         return await ChangeStatusAsync(packageId, EsrsReportPackageStatus.Archived, request, actorUserId,
             AuditAction.Archived, "SAM.gov SPR preparation package was archived.", cancellationToken);
     }
 
-    public async Task<SprPackageExportDto?> ExportAsync(Guid packageId, SprPackageExportFormat format, bool hasReportPermission,
+    public async Task<SprPackageExportDto?> ExportAsync(Guid packageId, SprPackageExportFormat format,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        EnsurePermission(hasReportPermission);
         return await transaction.ExecuteAsync(async token =>
         {
             var package = await repository.FindAsync(packageId, token);
@@ -128,9 +115,10 @@ public sealed class EsrsReportPackageService(
     public async Task<SprManualSubmissionReceiptDto?> RecordManualSubmissionReceiptAsync(Guid packageId,
         SprManualSubmissionReceiptRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
-        EnsurePermission(request.HasReportPermission);
         if (request.SubmittedAt == default || request.SubmittedAt > DateTimeOffset.UtcNow.AddMinutes(5))
             throw new EsrsReportPackageException("A valid external submission date that is not in the future is required.");
+        if (!Enum.IsDefined(request.Outcome))
+            throw new EsrsReportPackageException("A supported external submission outcome is required.");
         if (string.IsNullOrWhiteSpace(request.ConfirmationReference) || request.ConfirmationReference.Length > 200)
             throw new EsrsReportPackageException("A SAM.gov confirmation or reference of 200 characters or fewer is required.");
         if (request.Notes?.Length > 2_000) throw new EsrsReportPackageException("Submission notes cannot exceed 2,000 characters.");
@@ -152,18 +140,14 @@ public sealed class EsrsReportPackageService(
     }
 
     public Task<IReadOnlyList<SprManualSubmissionReceiptDto>> ListManualSubmissionReceiptsAsync(Guid packageId,
-        bool hasReportPermission, CancellationToken cancellationToken = default)
-    {
-        EnsurePermission(hasReportPermission);
-        return repository.ListManualSubmissionReceiptsAsync(packageId, cancellationToken);
-    }
+        CancellationToken cancellationToken = default) =>
+        repository.ListManualSubmissionReceiptsAsync(packageId, cancellationToken);
 
     public SprSubmissionCapabilityDto GetSubmissionCapability() => new(false,
         "No authorized contractor-facing SAM.gov SPR submission provider is configured. FeDril supports preparation, export, and user-recorded receipts only.");
 
     public async Task SubmitAsync(Guid packageId, SprSubmissionRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
-        EnsurePermission(request.HasReportPermission);
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey) || request.IdempotencyKey.Length > 128)
             throw new EsrsReportPackageException("An idempotency key of 128 characters or fewer is required.");
         var package = await repository.FindAsync(packageId, cancellationToken) ?? throw new EsrsReportPackageException("The SPR package was not found.");
@@ -174,7 +158,6 @@ public sealed class EsrsReportPackageService(
     private async Task<EsrsReportPackageDto?> ChangeStatusAsync(Guid packageId, EsrsReportPackageStatus status,
         EsrsReportPackageReviewRequest request, Guid actorUserId, AuditAction action, string summary, CancellationToken cancellationToken)
     {
-        EnsurePermission(request.HasReportPermission);
         if (string.IsNullOrWhiteSpace(request.ReviewerName) || request.ReviewerName.Length > 200)
             throw new EsrsReportPackageException("Reviewer display name is required and cannot exceed 200 characters.");
         if (status is EsrsReportPackageStatus.Superseded or EsrsReportPackageStatus.Archived && string.IsNullOrWhiteSpace(request.ReviewNotes))
@@ -186,7 +169,7 @@ public sealed class EsrsReportPackageService(
             if (status == EsrsReportPackageStatus.Approved && existing.Snapshot.RowCount == 0)
                 throw new EsrsReportPackageException("A package with no eligible report data rows cannot be approved.");
             EnsureTransition(existing.Status, status);
-            var updated = await repository.UpdateStatusAsync(packageId, status, request.ReviewerName, request.ReviewNotes, actorUserId, token);
+            var updated = await repository.UpdateStatusAsync(packageId, existing.Status, status, request.ReviewerName, request.ReviewNotes, actorUserId, token);
             if (updated is not null) await WriteAuditAsync(updated, actorUserId, action, summary, token);
             return updated;
         }, cancellationToken);
@@ -246,18 +229,20 @@ public sealed class EsrsReportPackageService(
         var summaries = string.Join("", package.Snapshot.SpendSummaries.Select(item =>
             $"<tr><td>{E(item.SocioeconomicCategory)}</td><td>{item.SubcontractorCount}</td><td>{item.TotalSpend:0}</td></tr>"));
         var exceptions = string.Join("", package.Snapshot.Exceptions.Select(item => $"<li>{E(item)}</li>"));
+        var evidence = string.Join("", package.Snapshot.EvidenceReferences.Select(item =>
+            $"<tr><td>{item.RowId}</td><td>{item.EvidenceItemId}</td></tr>"));
+        var schemas = string.Join("", package.Snapshot.SchemaProfiles.Select(profile =>
+            $"<tr><td>{E(profile.Id)}</td><td>{E(profile.Version)}</td><td><a href=\"{E(profile.SourceUrl)}\">{E(profile.SourceUrl)}</a></td><td>{E(profile.DefinitionSha256)}</td></tr>"));
+        var review = package.Status == EsrsReportPackageStatus.Approved
+            ? $"<h2>Approval</h2><p>Reviewer: {E(package.ReviewerName ?? "Unknown")}</p><p>Approved: {E(package.ApprovedAt?.ToString("O") ?? "Unknown")}</p><p>Review notes: {E(package.ReviewNotes ?? "None")}</p>"
+            : $"<h2>Review</h2><p>Status: {E(package.Status.ToString())}</p><p>Reviewer: {E(package.ReviewerName ?? "Not assigned")}</p><p>Review notes: {E(package.ReviewNotes ?? "None")}</p>";
         return $"<!doctype html><html><head><meta charset=\"utf-8\"><title>SAM.gov SPR preparation package</title></head><body>" +
             $"<h1>SAM.gov SPR preparation package</h1><p>{E(NotSubmittedDisclaimer)}</p><p>Package {package.Id}; version {package.Version}; generated {package.GeneratedAt:O}</p>" +
-            $"<p>Schema: {E(string.Join(", ", package.Snapshot.SchemaProfiles.Select(profile => profile.Version)))}</p>" +
-            $"<table><thead><tr><th>Category</th><th>Subcontractors</th><th>Whole-dollar spend</th></tr></thead><tbody>{summaries}</tbody></table><h2>Exceptions</h2><ul>{exceptions}</ul></body></html>";
-    }
-
-    private static void EnsurePermission(bool hasReportPermission)
-    {
-        if (!hasReportPermission)
-        {
-            throw new EsrsReportPackageException("Report permission is required.");
-        }
+            $"<h2>Report scope</h2><p>Contract: {package.ContractId}</p><p>Report type: {E(package.ReportType.ToString().ToUpperInvariant())}</p>" +
+            $"<p>Period: {package.PeriodStart:yyyy-MM-dd} through {package.PeriodEnd:yyyy-MM-dd}</p><p>Rows: {package.Snapshot.RowCount}; total whole-dollar spend: {package.Snapshot.TotalSpend:0}</p>" +
+            $"<h2>Spend summaries</h2><table><thead><tr><th>Category</th><th>Subcontractors</th><th>Whole-dollar spend</th></tr></thead><tbody>{summaries}</tbody></table>" +
+            $"<h2>Exceptions</h2><ul>{exceptions}</ul><h2>Evidence references</h2><table><thead><tr><th>Report data row</th><th>Evidence item</th></tr></thead><tbody>{evidence}</tbody></table>" +
+            $"<h2>Schema provenance</h2><table><thead><tr><th>Profile</th><th>Version</th><th>Source</th><th>Definition SHA-256</th></tr></thead><tbody>{schemas}</tbody></table>{review}</body></html>";
     }
 
     private async Task WriteAuditAsync(
@@ -300,6 +285,7 @@ public interface IEsrsReportPackageRepository
 
     Task<EsrsReportPackageDto?> UpdateStatusAsync(
         Guid packageId,
+        EsrsReportPackageStatus expectedStatus,
         EsrsReportPackageStatus status,
         string reviewerName,
         string? reviewNotes,
@@ -311,17 +297,14 @@ public interface IEsrsReportPackageRepository
 }
 
 public sealed record EsrsReportPackageGenerateRequest(
-    Guid TenantId,
     Guid ContractId,
     EsrsReportType ReportType,
     DateOnly PeriodStart,
-    DateOnly PeriodEnd,
-    bool HasReportPermission = true);
+    DateOnly PeriodEnd);
 
 public sealed record EsrsReportPackageReviewRequest(
     string ReviewerName,
-    string? ReviewNotes,
-    bool HasReportPermission = true);
+    string? ReviewNotes);
 
 public sealed record EsrsReportPackageDto(
     Guid Id,
@@ -372,7 +355,7 @@ public enum EsrsReportPackageStatus
 }
 
 public sealed record SprManualSubmissionReceiptRequest(DateTimeOffset SubmittedAt, string ConfirmationReference,
-    SprManualSubmissionOutcome Outcome, string? Notes, Guid? EvidenceItemId, Guid? SupersedesReceiptId = null, bool HasReportPermission = true);
+    SprManualSubmissionOutcome Outcome, string? Notes, Guid? EvidenceItemId, Guid? SupersedesReceiptId = null);
 public sealed record SprManualSubmissionReceiptDto(Guid Id, Guid TenantId, Guid PackageId, DateTimeOffset SubmittedAt,
     string ConfirmationReference, SprManualSubmissionOutcome Outcome, string? Notes, Guid? EvidenceItemId,
     Guid? SupersedesReceiptId, Guid RecordedByUserId, DateTimeOffset RecordedAt);
@@ -380,7 +363,7 @@ public enum SprManualSubmissionOutcome { Submitted, Accepted, Rejected, Correcte
 public enum SprPackageExportFormat { Html, Json }
 public sealed record SprPackageExportDto(Guid PackageId, SprPackageExportFormat Format, string ContentType, string FileName, string Content, string Disclaimer);
 public sealed record SprSubmissionCapabilityDto(bool Enabled, string Reason);
-public sealed record SprSubmissionRequest(string IdempotencyKey, bool HasReportPermission = true);
+public sealed record SprSubmissionRequest(string IdempotencyKey);
 public sealed record SprSubmissionPayload(EsrsReportPackageDto Package, string IdempotencyKey, Guid ActorUserId);
 
 public interface ISprSubmissionProvider

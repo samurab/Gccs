@@ -25,7 +25,7 @@ public sealed class EfEsrsReportPackageRepository(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        if (request.TenantId != tenantContext.TenantId || !await dbContext.Contracts.AsNoTracking().AnyAsync(
+        if (!await dbContext.Contracts.AsNoTracking().AnyAsync(
                 contract => contract.TenantId == tenantContext.TenantId && contract.Id == request.ContractId,
                 cancellationToken))
             throw new EsrsReportPackageException("The contract was not found.");
@@ -77,24 +77,56 @@ public sealed class EfEsrsReportPackageRepository(
 
     public async Task<EsrsReportPackageDto?> UpdateStatusAsync(
         Guid packageId,
+        EsrsReportPackageStatus expectedStatus,
         EsrsReportPackageStatus status,
         string reviewerName,
         string? reviewNotes,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var entity = await CurrentTenantPackages().SingleOrDefaultAsync(package => package.Id == packageId, cancellationToken);
-        if (entity is null) return null;
         var now = DateTimeOffset.UtcNow;
-        entity.Status = status;
-        entity.ReviewerName = reviewerName.Trim();
-        entity.ReviewerUserId = actorUserId;
-        entity.ReviewNotes = string.IsNullOrWhiteSpace(reviewNotes) ? null : reviewNotes.Trim();
-        entity.ApprovedAt = status == EsrsReportPackageStatus.Approved ? now : entity.ApprovedAt;
-        entity.UpdatedAt = now;
-        entity.UpdatedByUserId = actorUserId;
-        await SaveAsync(cancellationToken);
-        return ToDto(entity);
+        var normalizedReviewerName = reviewerName.Trim();
+        var normalizedReviewNotes = string.IsNullOrWhiteSpace(reviewNotes) ? null : reviewNotes.Trim();
+        var candidates = CurrentTenantPackages().Where(package => package.Id == packageId && package.Status == expectedStatus);
+        if (dbContext.Database.IsRelational())
+        {
+            var affected = status == EsrsReportPackageStatus.Approved
+                ? await candidates.ExecuteUpdateAsync(setters => setters
+                    .SetProperty(package => package.Status, status)
+                    .SetProperty(package => package.ReviewerName, normalizedReviewerName)
+                    .SetProperty(package => package.ReviewerUserId, actorUserId)
+                    .SetProperty(package => package.ReviewNotes, normalizedReviewNotes)
+                    .SetProperty(package => package.ApprovedAt, now)
+                    .SetProperty(package => package.UpdatedAt, now)
+                    .SetProperty(package => package.UpdatedByUserId, actorUserId), cancellationToken)
+                : await candidates.ExecuteUpdateAsync(setters => setters
+                    .SetProperty(package => package.Status, status)
+                    .SetProperty(package => package.ReviewerName, normalizedReviewerName)
+                    .SetProperty(package => package.ReviewerUserId, actorUserId)
+                    .SetProperty(package => package.ReviewNotes, normalizedReviewNotes)
+                    .SetProperty(package => package.UpdatedAt, now)
+                    .SetProperty(package => package.UpdatedByUserId, actorUserId), cancellationToken);
+            if (affected == 0)
+                throw new EsrsReportPackageConflictException("The SPR package status changed. Reload it and try again.");
+        }
+        else
+        {
+            var entity = await candidates.SingleOrDefaultAsync(cancellationToken);
+            if (entity is null)
+                throw new EsrsReportPackageConflictException("The SPR package status changed. Reload it and try again.");
+            entity.Status = status;
+            entity.ReviewerName = normalizedReviewerName;
+            entity.ReviewerUserId = actorUserId;
+            entity.ReviewNotes = normalizedReviewNotes;
+            entity.ApprovedAt = status == EsrsReportPackageStatus.Approved ? now : entity.ApprovedAt;
+            entity.UpdatedAt = now;
+            entity.UpdatedByUserId = actorUserId;
+            await SaveAsync(cancellationToken);
+        }
+
+        var updated = await CurrentTenantPackages().AsNoTracking()
+            .SingleAsync(package => package.Id == packageId, cancellationToken);
+        return ToDto(updated);
     }
 
     public async Task<SprManualSubmissionReceiptDto> CreateManualSubmissionReceiptAsync(

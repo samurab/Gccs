@@ -56,6 +56,8 @@ describe("SprReportPackagesPanel", () => {
     await waitFor(() => expect(mocks.review).toHaveBeenCalledWith(draft.id, "begin-review", "Avery", expect.any(String)));
     await user.click(screen.getByRole("button", { name: "Approve package" }));
     await waitFor(() => expect(mocks.review).toHaveBeenCalledWith(draft.id, "approve", "Avery", expect.any(String)));
+    expect(screen.getByText("Reviewer: Avery")).toBeInTheDocument();
+    expect(screen.getByText(/Approved:/)).toBeInTheDocument();
     await user.type(await screen.findByLabelText("Confirmation reference"), "SAM-123");
     await user.selectOptions(screen.getByLabelText("Supporting evidence"), "evidence-1");
     await user.click(screen.getByRole("button", { name: "Record external receipt" }));
@@ -69,6 +71,14 @@ describe("SprReportPackagesPanel", () => {
     expect(await screen.findByText(/read-only access/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve package" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Export HTML" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Generate package" })).not.toBeInTheDocument();
+  });
+
+  it("shows a fail-closed error state when package history cannot be loaded", async () => {
+    mocks.packages.mockRejectedValue(new Error("network unavailable"));
+    render(<SprReportPackagesPanel contractId={contractId} canManage canExport />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("SPR preparation packages could not be loaded.");
     expect(screen.queryByRole("button", { name: "Generate package" })).not.toBeInTheDocument();
   });
 });

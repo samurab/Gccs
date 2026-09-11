@@ -227,7 +227,7 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
             new SubcontractingReportDataReviewRequest(SubcontractingReportDataReviewStatus.Accepted, "Accepted.", row.Version),
             ids.TenantId, Permission.ManageReports));
         Assert.Equal(HttpStatusCode.OK, acceptedResponse.StatusCode);
-        var generate = new EsrsReportPackageGenerateRequest(Guid.Empty, ids.ContractId, EsrsReportType.Isr,
+        var generate = new EsrsReportPackageGenerateRequest(ids.ContractId, EsrsReportType.Isr,
             new(2026, 1, 1), new(2026, 3, 31));
 
         Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(Request(HttpMethod.Post,
@@ -240,8 +240,18 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var package = Assert.IsType<EsrsReportPackageDto>(await createResponse.Content.ReadFromJsonAsync<EsrsReportPackageDto>(JsonOptions));
         Assert.Equal(ids.TenantId, package.TenantId); Assert.Single(package.Snapshot.SchemaProfiles);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(Request<object>(HttpMethod.Get,
+            $"/api/subcontracting-plan-reports/packages/{package.Id}", null, ids.TenantId, Permission.ManageReports))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(Request(HttpMethod.Post,
+            $"/api/subcontracting-plan-reports/packages/{package.Id}/approve",
+            new EsrsReportPackageReviewRequest("Unauthorized reviewer", "Denied."),
+            ids.TenantId, Permission.ViewReports))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(Request<object>(HttpMethod.Get,
             $"/api/subcontracting-plan-reports/packages/{package.Id}", null, ids.OtherTenantId, Permission.ViewReports))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(Request(HttpMethod.Post,
+            $"/api/subcontracting-plan-reports/packages/{package.Id}/begin-review",
+            new EsrsReportPackageReviewRequest("Other tenant reviewer", "Denied."),
+            ids.OtherTenantId, Permission.ManageReports))).StatusCode);
 
         var beginReview = await client.SendAsync(Request(HttpMethod.Post,
             $"/api/subcontracting-plan-reports/packages/{package.Id}/begin-review",
@@ -275,7 +285,7 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
             new SubcontractingReportDataReviewRequest(SubcontractingReportDataReviewStatus.Accepted, "Accepted.", row.Version),
             ids.TenantId, Permission.ManageReports));
         var created = await client.SendAsync(Request(HttpMethod.Post, "/api/subcontracting-plan-reports/packages",
-            new EsrsReportPackageGenerateRequest(Guid.Empty, ids.ContractId, EsrsReportType.Isr, new(2026, 1, 1), new(2026, 3, 31)),
+            new EsrsReportPackageGenerateRequest(ids.ContractId, EsrsReportType.Isr, new(2026, 1, 1), new(2026, 3, 31)),
             ids.TenantId, Permission.ManageReports));
         var package = (await created.Content.ReadFromJsonAsync<EsrsReportPackageDto>(JsonOptions))!;
         await client.SendAsync(Request(HttpMethod.Post, $"/api/subcontracting-plan-reports/packages/{package.Id}/begin-review",
@@ -286,11 +296,30 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
         Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(Request<object>(HttpMethod.Get,
             $"/api/subcontracting-plan-reports/packages/{package.Id}/export?format=Html", null,
             ids.TenantId, Permission.ViewReports))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(Request<object>(HttpMethod.Get,
+            $"/api/subcontracting-plan-reports/packages/{package.Id}/export?format=999", null,
+            ids.TenantId, Permission.ExportReports))).StatusCode);
         var export = await client.SendAsync(Request<object>(HttpMethod.Get,
             $"/api/subcontracting-plan-reports/packages/{package.Id}/export?format=Html", null,
             ids.TenantId, Permission.ExportReports));
         Assert.Equal(HttpStatusCode.OK, export.StatusCode);
-        Assert.Contains("has not submitted", await export.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        var html = await export.Content.ReadAsStringAsync();
+        Assert.Contains("has not submitted", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains($"Contract: {ids.ContractId}", html, StringComparison.Ordinal);
+        Assert.Contains("Report type: ISR", html, StringComparison.Ordinal);
+        Assert.Contains(ids.EvidenceId.ToString(), html, StringComparison.Ordinal);
+        Assert.Contains("Reviewer", html, StringComparison.Ordinal);
+        Assert.Contains("Approved.", html, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(Request<object>(HttpMethod.Get,
+            $"/api/subcontracting-plan-reports/packages/{package.Id}/export?format=Html", null,
+            ids.OtherTenantId, Permission.ExportReports))).StatusCode);
+        var jsonExport = await client.SendAsync(Request<object>(HttpMethod.Get,
+            $"/api/subcontracting-plan-reports/packages/{package.Id}/export?format=Json", null,
+            ids.TenantId, Permission.ExportReports));
+        Assert.Equal(HttpStatusCode.OK, jsonExport.StatusCode);
+        var json = await jsonExport.Content.ReadAsStringAsync();
+        Assert.Contains("has not submitted", json, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("definitionSha256", json, StringComparison.Ordinal);
         var capability = await client.SendAsync(Request<object>(HttpMethod.Get,
             "/api/subcontracting-plan-reports/submission-capability", null, ids.TenantId, Permission.ViewReports));
         Assert.Contains("\"enabled\":false", await capability.Content.ReadAsStringAsync());
@@ -371,7 +400,7 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
             });
             await db.SaveChangesAsync();
             var packageResponse = await client.SendAsync(Request(HttpMethod.Post, "/api/subcontracting-plan-reports/packages",
-                new EsrsReportPackageGenerateRequest(Guid.Empty, ids.ContractId, EsrsReportType.Isr, new(2026, 1, 1), new(2026, 3, 31)),
+                new EsrsReportPackageGenerateRequest(ids.ContractId, EsrsReportType.Isr, new(2026, 1, 1), new(2026, 3, 31)),
                 ids.TenantId, Permission.ManageReports, ids.UserId));
             Assert.Equal(HttpStatusCode.InternalServerError, packageResponse.StatusCode);
             Assert.False(await db.SprReportPackages.AnyAsync(item => item.TenantId == ids.TenantId));

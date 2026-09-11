@@ -2,7 +2,7 @@ using Gccs.Application.Reports;
 
 namespace Gccs.Infrastructure.Reports;
 
-public sealed class InMemoryEsrsReportPackageRepository : IEsrsReportPackageRepository
+public sealed class InMemoryEsrsReportPackageRepository(Guid tenantId) : IEsrsReportPackageRepository
 {
     private readonly List<EsrsReportPackageDto> _packages = [];
     private readonly List<SprManualSubmissionReceiptDto> receipts = [];
@@ -15,7 +15,7 @@ public sealed class InMemoryEsrsReportPackageRepository : IEsrsReportPackageRepo
     {
         var nextVersion = _packages
             .Where(package =>
-                package.TenantId == request.TenantId &&
+                package.TenantId == tenantId &&
                 package.ContractId == request.ContractId &&
                 package.ReportType == request.ReportType &&
                 package.PeriodStart == request.PeriodStart &&
@@ -25,7 +25,7 @@ public sealed class InMemoryEsrsReportPackageRepository : IEsrsReportPackageRepo
             .Max() + 1;
         var package = new EsrsReportPackageDto(
             Guid.NewGuid(),
-            request.TenantId,
+            tenantId,
             request.ContractId,
             request.ReportType,
             request.PeriodStart,
@@ -52,6 +52,7 @@ public sealed class InMemoryEsrsReportPackageRepository : IEsrsReportPackageRepo
 
     public Task<EsrsReportPackageDto?> UpdateStatusAsync(
         Guid packageId,
+        EsrsReportPackageStatus expectedStatus,
         EsrsReportPackageStatus status,
         string reviewerName,
         string? reviewNotes,
@@ -63,6 +64,8 @@ public sealed class InMemoryEsrsReportPackageRepository : IEsrsReportPackageRepo
         {
             return Task.FromResult<EsrsReportPackageDto?>(null);
         }
+        if (existing.Status != expectedStatus)
+            throw new EsrsReportPackageConflictException("The SPR package status changed. Reload it and try again.");
 
         var now = DateTimeOffset.UtcNow;
         var updated = existing with

@@ -1714,14 +1714,14 @@ api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowId:
 
 api.MapGet("/subcontracting-plan-reports/packages", async (
     EsrsReportPackageService service, CancellationToken cancellationToken) =>
-    Results.Ok(await service.ListAsync(hasReportPermission: true, cancellationToken)))
+    Results.Ok(await service.ListAsync(cancellationToken)))
 .RequirePermission(Permission.ViewReports)
 .WithName("ListSubcontractingPlanReportPackages");
 
 api.MapGet("/subcontracting-plan-reports/packages/{packageId:guid}", async (
     Guid packageId, EsrsReportPackageService service, HttpContext httpContext, CancellationToken cancellationToken) =>
 {
-    var package = await service.FindAsync(packageId, hasReportPermission: true, cancellationToken);
+    var package = await service.FindAsync(packageId, cancellationToken);
     return package is null
         ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
         : Results.Ok(package);
@@ -1735,8 +1735,7 @@ api.MapPost("/subcontracting-plan-reports/packages", async (
 {
     try
     {
-        var package = await service.GenerateAsync(request with { TenantId = tenantContext.TenantId, HasReportPermission = true },
-            tenantContext.UserId, cancellationToken);
+        var package = await service.GenerateAsync(request, tenantContext.UserId, cancellationToken);
         return Results.Created($"/api/subcontracting-plan-reports/packages/{package.Id}", package);
     }
     catch (SubcontractingReportDataValidationException exception)
@@ -1790,7 +1789,10 @@ api.MapGet("/subcontracting-plan-reports/packages/{packageId:guid}/export", asyn
     Guid packageId, SprPackageExportFormat format, EsrsReportPackageService service, ITenantContext tenantContext, HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
-    var export = await service.ExportAsync(packageId, format, hasReportPermission: true, tenantContext.UserId, cancellationToken);
+    if (!Enum.IsDefined(format))
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["format"] = ["Export format must be Html or Json."] },
+            title: "SAM.gov SPR preparation package export invalid", statusCode: StatusCodes.Status400BadRequest);
+    var export = await service.ExportAsync(packageId, format, tenantContext.UserId, cancellationToken);
     return export is null
         ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
         : Results.File(System.Text.Encoding.UTF8.GetBytes(export.Content), export.ContentType, export.FileName);
@@ -1801,9 +1803,9 @@ api.MapGet("/subcontracting-plan-reports/packages/{packageId:guid}/export", asyn
 api.MapGet("/subcontracting-plan-reports/packages/{packageId:guid}/manual-submission-receipts", async (
     Guid packageId, EsrsReportPackageService service, HttpContext httpContext, CancellationToken cancellationToken) =>
 {
-    if (await service.FindAsync(packageId, hasReportPermission: true, cancellationToken) is null)
+    if (await service.FindAsync(packageId, cancellationToken) is null)
         return ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found");
-    return Results.Ok(await service.ListManualSubmissionReceiptsAsync(packageId, hasReportPermission: true, cancellationToken));
+    return Results.Ok(await service.ListManualSubmissionReceiptsAsync(packageId, cancellationToken));
 })
 .RequirePermission(Permission.ViewReports)
 .WithName("ListSubcontractingPlanReportManualSubmissionReceipts");
@@ -1814,8 +1816,7 @@ api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/manual-submi
 {
     try
     {
-        var receipt = await service.RecordManualSubmissionReceiptAsync(packageId, request with { HasReportPermission = true },
-            tenantContext.UserId, cancellationToken);
+        var receipt = await service.RecordManualSubmissionReceiptAsync(packageId, request, tenantContext.UserId, cancellationToken);
         return receipt is null
             ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
             : Results.Created($"/api/subcontracting-plan-reports/packages/{packageId}/manual-submission-receipts/{receipt.Id}", receipt);
@@ -1840,7 +1841,7 @@ api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/submit", asy
 {
     try
     {
-        await service.SubmitAsync(packageId, request with { HasReportPermission = true }, tenantContext.UserId, cancellationToken);
+        await service.SubmitAsync(packageId, request, tenantContext.UserId, cancellationToken);
         return Results.Accepted();
     }
     catch (SprSubmissionUnavailableException exception)
@@ -8171,7 +8172,7 @@ static async Task<IResult> ReviewSprPackageAsync(
 {
     try
     {
-        var package = await reviewAction(packageId, request with { HasReportPermission = true }, tenantContext.UserId, cancellationToken);
+        var package = await reviewAction(packageId, request, tenantContext.UserId, cancellationToken);
         return package is null
             ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
             : Results.Ok(package);

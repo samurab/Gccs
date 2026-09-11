@@ -3149,7 +3149,7 @@ export const getSprSubmissionCapability = () =>
 
 export const createSprReportPackage = (contractId: string, reportType: "Isr" | "Ssr", periodStart: string, periodEnd: string) =>
   postJsonResult<SprReportPackage>("/api/subcontracting-plan-reports/packages",
-    { tenantId: "00000000-0000-0000-0000-000000000000", contractId, reportType, periodStart, periodEnd });
+    { contractId, reportType, periodStart, periodEnd });
 
 export const reviewSprReportPackage = (packageId: string, action: "begin-review" | "approve" | "supersede" | "archive",
   reviewerName: string, reviewNotes: string | null) =>

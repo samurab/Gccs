@@ -79,7 +79,8 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
     const result = await downloadSprReportPackage(item.id, format);
     if (!result.data) { setState("error"); setMessage(result.error ?? "The package export failed."); return; }
     const url = URL.createObjectURL(result.data.blob); const anchor = document.createElement("a");
-    anchor.href = url; anchor.download = result.data.fileName; anchor.click(); URL.revokeObjectURL(url);
+    anchor.href = url; anchor.download = result.data.fileName; anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   const approvedPackages = packages.filter(item => item.status === "Approved");
@@ -93,8 +94,12 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
     {packages.map(item => <article key={item.id} aria-label={`SPR package version ${item.version}`}>
       <strong>{item.reportType.toUpperCase()} · version {item.version} · {item.status}</strong>
       <span>{item.periodStart} to {item.periodEnd} · {item.snapshot.rowCount} rows · {item.snapshot.totalSpend.toLocaleString(undefined, { style: "currency", currency: "USD" })}</span>
+      <small>Generated {new Date(item.generatedAt).toLocaleString()}</small>
       <small>Schema: {item.snapshot.schemaProfiles.map(profile => profile.version).join(", ") || "none"} · Evidence links: {item.snapshot.evidenceReferences.length}</small>
       <small>{item.notSubmittedDisclaimer}</small>
+      {item.reviewerName ? <small>Reviewer: {item.reviewerName}</small> : null}
+      {item.approvedAt ? <small>Approved: {new Date(item.approvedAt).toLocaleString()}</small> : null}
+      {item.reviewNotes ? <small>Review notes: {item.reviewNotes}</small> : null}
       {item.snapshot.exceptions.map(exception => <small key={exception}>Exception: {exception}</small>)}
       {(receipts[item.id] ?? []).map(receipt => <small key={receipt.id}>External receipt: {receipt.confirmationReference} · {receipt.outcome} · recorded {new Date(receipt.recordedAt).toLocaleString()}</small>)}
       <div>
@@ -106,7 +111,7 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
         {canManage && item.status !== "Archived" ? <button type="button" onClick={() => void review(item, "archive")}>Archive package</button> : null}
       </div>
     </article>)}
-    {!canManage ? <p>You have read-only access to SPR preparation packages.</p> : <>
+    {!canManage ? <p>You have read-only access to SPR preparation packages.</p> : state !== "error" ? <>
       <label>Reviewer display name<input maxLength={200} value={reviewerName} onChange={event => setReviewerName(event.target.value)} /></label>
       <form onSubmit={event => void generate(event)}><h3>Generate preparation snapshot</h3>
         <label>Report type<select value={reportType} onChange={event => setReportType(event.target.value as "Isr" | "Ssr")}><option value="Isr">ISR</option><option value="Ssr">SSR</option></select></label>
@@ -123,6 +128,6 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
         <label>Notes<textarea required={outcome === "Rejected" || outcome === "Corrected"} maxLength={2000} value={receiptNotes} onChange={event => setReceiptNotes(event.target.value)} /></label>
         <button type="submit" disabled={state === "saving"}>Record external receipt</button>
       </form> : null}
-    </>}
+    </> : null}
   </section>;
 }

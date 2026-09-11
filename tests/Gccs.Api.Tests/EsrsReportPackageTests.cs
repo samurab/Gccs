@@ -77,19 +77,21 @@ public sealed class EsrsReportPackageTests
     }
 
     [Fact]
-    public async Task TC_31_3_4_Package_generation_approval_and_viewing_permissions_are_enforced()
+    public async Task Invalid_manual_receipt_outcome_is_rejected_without_an_audit_event()
     {
         var ids = StoryIds.Create();
-        var service = CreateServices(ids.TenantId, out var reportDataService, out _);
+        var service = CreateServices(ids.TenantId, out var reportDataService, out var auditWriter);
         await CreateAcceptedRowAsync(reportDataService, ids, ids.SubcontractorId, [ids.EvidenceItemId]);
         var package = await service.GenerateAsync(CreateGenerateRequest(ids), ids.ActorUserId);
+        await service.BeginReviewAsync(package.Id, new EsrsReportPackageReviewRequest("Reviewer", "Review started."), ids.ActorUserId);
+        await service.ApproveAsync(package.Id, new EsrsReportPackageReviewRequest("Reviewer", "Approved."), ids.ActorUserId);
+        var auditCount = auditWriter.Events.Count;
 
-        await Assert.ThrowsAsync<EsrsReportPackageException>(() =>
-            service.GenerateAsync(CreateGenerateRequest(ids) with { HasReportPermission = false }, ids.ActorUserId));
-        await Assert.ThrowsAsync<EsrsReportPackageException>(() =>
-            service.ApproveAsync(package.Id, new EsrsReportPackageReviewRequest("Reviewer", null, HasReportPermission: false), ids.ActorUserId));
-        await Assert.ThrowsAsync<EsrsReportPackageException>(() =>
-            service.FindAsync(package.Id, hasReportPermission: false));
+        await Assert.ThrowsAsync<EsrsReportPackageException>(() => service.RecordManualSubmissionReceiptAsync(package.Id,
+            new SprManualSubmissionReceiptRequest(DateTimeOffset.UtcNow, "SAM-INVALID", (SprManualSubmissionOutcome)999, null, null),
+            ids.ActorUserId));
+
+        Assert.Equal(auditCount, auditWriter.Events.Count);
     }
 
     [Fact]
@@ -103,6 +105,25 @@ public sealed class EsrsReportPackageTests
         Assert.Equal(EsrsReportPackageStatus.InReview, inReview!.Status);
         await Assert.ThrowsAsync<EsrsReportPackageException>(() => service.ApproveAsync(empty.Id,
             new EsrsReportPackageReviewRequest("Reviewer", "Approved."), ids.ActorUserId));
+    }
+
+    [Fact]
+    public async Task Lifecycle_repository_rejects_a_stale_expected_status_without_overwriting_history()
+    {
+        var ids = StoryIds.Create();
+        var repository = new InMemoryEsrsReportPackageRepository(ids.TenantId);
+        var package = await repository.CreateAsync(CreateGenerateRequest(ids),
+            new EsrsReportPackageSnapshotDto(ids.ContractId, EsrsReportType.Isr, new(2026, 1, 1), new(2026, 3, 31),
+                0, 0, [], [], ["No eligible rows."], []), ids.ActorUserId);
+        await repository.UpdateStatusAsync(package.Id, EsrsReportPackageStatus.Draft, EsrsReportPackageStatus.InReview,
+            "First reviewer", "Review started.", ids.ActorUserId);
+
+        await Assert.ThrowsAsync<EsrsReportPackageConflictException>(() => repository.UpdateStatusAsync(package.Id,
+            EsrsReportPackageStatus.Draft, EsrsReportPackageStatus.Archived, "Stale reviewer", "Stale archive.", ids.ActorUserId));
+
+        var stored = await repository.FindAsync(package.Id);
+        Assert.Equal(EsrsReportPackageStatus.InReview, stored!.Status);
+        Assert.Equal("First reviewer", stored.ReviewerName);
     }
 
     [Fact]
@@ -140,11 +161,22 @@ public sealed class EsrsReportPackageTests
         await CreateAcceptedRowAsync(reportDataService, ids, ids.SubcontractorId, [ids.EvidenceItemId]);
         var package = await service.GenerateAsync(CreateGenerateRequest(ids), ids.ActorUserId);
 
-        var export = await service.ExportAsync(package.Id, SprPackageExportFormat.Html, true, ids.ActorUserId);
+        await service.BeginReviewAsync(package.Id, new EsrsReportPackageReviewRequest("Avery Reviewer", "Review started."), ids.ActorUserId);
+        await service.ApproveAsync(package.Id, new EsrsReportPackageReviewRequest("Avery Reviewer", "Approved for manual entry."), ids.ActorUserId);
+        var export = await service.ExportAsync(package.Id, SprPackageExportFormat.Html, ids.ActorUserId);
 
         Assert.NotNull(export);
         Assert.Contains("has not submitted", export.Content, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Schema: 1.0", export.Content, StringComparison.Ordinal);
+        Assert.Contains($"Contract: {ids.ContractId}", export.Content, StringComparison.Ordinal);
+        Assert.Contains("Report type: ISR", export.Content, StringComparison.Ordinal);
+        Assert.Contains("2026-01-01 through 2026-03-31", export.Content, StringComparison.Ordinal);
+        Assert.Contains(ids.EvidenceItemId.ToString(), export.Content, StringComparison.Ordinal);
+        Assert.Contains("Avery Reviewer", export.Content, StringComparison.Ordinal);
+        Assert.Contains("Approved for manual entry.", export.Content, StringComparison.Ordinal);
+        var schema = Assert.Single(package.Snapshot.SchemaProfiles);
+        var decodedHtml = System.Net.WebUtility.HtmlDecode(export.Content);
+        Assert.Contains(schema.SourceUrl, decodedHtml, StringComparison.Ordinal);
+        Assert.Contains(schema.DefinitionSha256, decodedHtml, StringComparison.Ordinal);
         Assert.Contains(auditWriter.Events, item => item.Action == AuditAction.Exported && item.EntityId == package.Id.ToString());
     }
 
@@ -168,7 +200,7 @@ public sealed class EsrsReportPackageTests
                 Notes = "Corrected in SAM.gov.", SupersedesReceiptId = first!.Id }, ids.ActorUserId);
 
         Assert.NotNull(correction);
-        var receipts = await service.ListManualSubmissionReceiptsAsync(package.Id, true);
+        var receipts = await service.ListManualSubmissionReceiptsAsync(package.Id);
         Assert.Equal(2, receipts.Count);
         Assert.Contains(receipts, receipt => receipt.Id == first.Id);
         Assert.Contains(receipts, receipt => receipt.SupersedesReceiptId == first.Id);
@@ -197,7 +229,7 @@ public sealed class EsrsReportPackageTests
         auditWriter = new CapturingAuditEventWriter();
         reportDataService = new SubcontractingReportDataService(new InMemorySubcontractingReportDataRepository(tenantId),
             new SprSchemaProfileService(new InMemorySprSchemaProfileRepository()), auditWriter, new TestApplicationTransaction());
-        return new EsrsReportPackageService(reportDataService, new InMemoryEsrsReportPackageRepository(),
+        return new EsrsReportPackageService(reportDataService, new InMemoryEsrsReportPackageRepository(tenantId),
             new DisabledSprSubmissionProvider(), auditWriter, new TestApplicationTransaction());
     }
 
@@ -235,7 +267,6 @@ public sealed class EsrsReportPackageTests
 
     private static EsrsReportPackageGenerateRequest CreateGenerateRequest(StoryIds ids) =>
         new(
-            ids.TenantId,
             ids.ContractId,
             EsrsReportType.Isr,
             new DateOnly(2026, 1, 1),
