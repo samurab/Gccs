@@ -131,7 +131,8 @@ public static class DependencyInjection
                 provider.GetRequiredService<ICurrentTenantContext>()));
             services.AddScoped<IPortalPackageLifecycleRepository, EfPortalPackageLifecycleRepository>();
         services.AddSingleton<ISprSubmissionProvider, DisabledSprSubmissionProvider>();
-        services.AddSingleton<ILaborApplicabilityRepository, InMemoryLaborApplicabilityRepository>();
+        services.AddScoped<ILaborApplicabilityRepository>(provider => new EfLaborApplicabilityRepository(
+            provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddSingleton<ILaborClassificationRepository, InMemoryLaborClassificationRepository>();
         services.AddSingleton<IAiRetrievalSourceRepository, InMemoryAiRetrievalSourceRepository>();
         services.AddSingleton<IAiOutputReviewRepository, InMemoryAiOutputReviewRepository>();
@@ -185,7 +186,6 @@ public static class DependencyInjection
         services.AddScoped<LaborApplicabilityService>();
         services.AddScoped<LaborClassificationService>();
         services.AddScoped<LaborComplianceReportService>();
-        services.AddScoped<ILaborWageDeterminationUploadGuard, TenantLaborWageDeterminationUploadGuard>();
         services.AddScoped<AiRetrievalAssistantService>();
         services.AddScoped<AiOutputReviewService>();
         services.AddScoped<GuardedAssistantExperienceService>();

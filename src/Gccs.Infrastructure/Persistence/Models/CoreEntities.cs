@@ -1,4 +1,5 @@
 using Gccs.Application.Identity;
+using Gccs.Application.Labor;
 using Gccs.Application.Reports;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
@@ -773,6 +774,7 @@ public sealed class ContractEntity : AuditedEntity
     public ICollection<ContractDeliverableEntity> Deliverables { get; set; } = [];
     public ICollection<ContractReportingDeadlineEntity> ReportingDeadlines { get; set; } = [];
     public ICollection<EsrsApplicabilityEntity> EsrsApplicabilities { get; set; } = [];
+    public ICollection<LaborApplicabilityEntity> LaborApplicabilities { get; set; } = [];
     public ICollection<SubcontractingReportDataRowEntity> SubcontractingReportDataRows { get; set; } = [];
     public ICollection<ContractSubcontractorEntity> Subcontractors { get; set; } = [];
 }
@@ -800,6 +802,36 @@ public sealed class EsrsApplicabilityEntity : AuditedEntity
 
     public ContractEntity? Contract { get; set; }
     public ComplianceTaskEntity? Task { get; set; }
+}
+
+public sealed class LaborApplicabilityEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContractId { get; set; }
+    public Guid? TaskId { get; set; }
+    public bool ScaApplicable { get; set; }
+    public bool DbaApplicable { get; set; }
+    public string? OtherFarPart22Obligations { get; set; }
+    public string PlaceOfPerformance { get; set; } = string.Empty;
+    public DateOnly ContractPeriodStart { get; set; }
+    public DateOnly ContractPeriodEnd { get; set; }
+    public string? WageDeterminationReference { get; set; }
+    public Guid? WageDeterminationEvidenceItemId { get; set; }
+    public Guid? SourceContractClauseId { get; set; }
+    public string? SourceClause { get; set; }
+    public string? Rationale { get; set; }
+    public string OwnerFunction { get; set; } = string.Empty;
+    public LaborApplicabilityStatus Status { get; set; }
+    public LaborApplicabilityReviewStatus ReviewStatus { get; set; }
+    public string? ReviewNotes { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+
+    public ContractEntity? Contract { get; set; }
+    public ContractClauseEntity? SourceContractClause { get; set; }
+    public ComplianceTaskEntity? Task { get; set; }
+    public EvidenceItemEntity? WageDeterminationEvidenceItem { get; set; }
 }
 
 public sealed class SolicitationEntity : AuditedEntity

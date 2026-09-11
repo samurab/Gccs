@@ -761,6 +761,123 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/contracts/{contractId}/labor-applicabilities:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+    get:
+      tags: [Contracts]
+      summary: List current-tenant labor applicability records
+      operationId: listContractLaborApplicabilities
+      responses:
+        "200":
+          description: Labor applicability, source, review, evidence, and linked task records.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/LaborApplicability" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Contracts]
+      summary: Record a draft labor applicability decision
+      operationId: createContractLaborApplicability
+      description: Records explicit SCA, DBA, or other FAR Part 22 metadata. Activation is a separate source-gated transition.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LaborApplicabilityRequest" }
+      responses:
+        "201":
+          description: Draft labor applicability recorded.
+          content: { application/json: { schema: { $ref: "#/components/schemas/LaborApplicability" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/contracts/{contractId}/labor-applicabilities/{applicabilityId}:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - $ref: "#/components/parameters/LaborApplicabilityId"
+    put:
+      tags: [Contracts]
+      summary: Update labor applicability and its linked review task
+      operationId: updateContractLaborApplicability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LaborApplicabilityRequest" }
+      responses:
+        "200":
+          description: Labor applicability updated.
+          content: { application/json: { schema: { $ref: "#/components/schemas/LaborApplicability" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/contracts/{contractId}/labor-applicabilities/{applicabilityId}/status:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - $ref: "#/components/parameters/LaborApplicabilityId"
+    patch:
+      tags: [Contracts]
+      summary: Activate or deactivate labor applicability
+      operationId: updateContractLaborApplicabilityStatus
+      description: Activation requires SCA, DBA, or another FAR Part 22 obligation and an attached source clause, source citation, or documented rationale. The linked review task is created or updated atomically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [Active, Inactive] }
+      responses:
+        "200":
+          description: Labor applicability status and task updated.
+          content: { application/json: { schema: { $ref: "#/components/schemas/LaborApplicability" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/contracts/{contractId}/labor-applicabilities/{applicabilityId}/wage-determination/file:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - $ref: "#/components/parameters/LaborApplicabilityId"
+    post:
+      tags: [Evidence]
+      summary: Upload a wage determination to contract-linked evidence
+      operationId: uploadContractLaborWageDeterminationFile
+      description: Uses the standard evidence acknowledgement, classification, tenant-mode, file validation, malware-scan, private-storage, versioning, and audit controls.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, classification, classificationReason, noCuiAttestation]
+              properties:
+                file: { type: string, format: binary }
+                classification: { type: string, enum: [Unclassified, Fci, Cui, Unknown, Prohibited] }
+                classificationReason: { type: string, maxLength: 600 }
+                noCuiAttestation: { type: boolean }
+                containsPotentialCui: { type: boolean }
+      responses:
+        "201":
+          description: File scanned, stored, versioned, and linked through the configured evidence item.
+          content: { application/json: { schema: { $ref: "#/components/schemas/EvidenceFileAccess" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "428": { description: Current No-CUI acknowledgement is required. }
+        "503": { description: Malware scanner did not produce a clean verdict. }
+
   /api/contracts/{contractId}/subcontracting-plan-reporting-applicabilities:
     parameters:
       - $ref: "#/components/parameters/ContractId"
@@ -3961,6 +4078,13 @@ components:
       schema:
         type: string
         format: uuid
+    LaborApplicabilityId:
+      name: applicabilityId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     DocumentId:
       name: documentId
       in: path
@@ -5017,6 +5141,67 @@ components:
             updatedAt:
               type: string
               format: date-time
+
+    LaborApplicabilityRequest:
+      type: object
+      required: [scaApplicable, dbaApplicable, placeOfPerformance, contractPeriodStart, contractPeriodEnd, reviewStatus]
+      properties:
+        contractId: { type: string, format: uuid, description: Ignored in favor of the server-routed contract identifier. }
+        scaApplicable: { type: boolean }
+        dbaApplicable: { type: boolean }
+        otherFarPart22Obligations: { type: [string, "null"], maxLength: 2000 }
+        placeOfPerformance: { type: string, maxLength: 240 }
+        contractPeriodStart: { type: string, format: date }
+        contractPeriodEnd: { type: string, format: date }
+        wageDeterminationReference: { type: [string, "null"], maxLength: 240 }
+        wageDeterminationEvidenceItemId: { type: [string, "null"], format: uuid }
+        sourceContractClauseId: { type: [string, "null"], format: uuid }
+        sourceClause: { type: [string, "null"], maxLength: 240 }
+        rationale: { type: [string, "null"], maxLength: 2000 }
+        ownerFunction: { type: [string, "null"], maxLength: 120 }
+        reviewStatus: { $ref: "#/components/schemas/LaborApplicabilityReviewStatus" }
+        reviewNotes: { type: [string, "null"], maxLength: 2000 }
+
+    LaborApplicability:
+      allOf:
+        - $ref: "#/components/schemas/LaborApplicabilityRequest"
+        - type: object
+          required: [id, tenantId, contractId, status, reviewStatus, createdAt, laborStandard]
+          properties:
+            id: { type: string, format: uuid }
+            tenantId: { type: string, format: uuid }
+            contractId: { type: string, format: uuid }
+            taskId: { type: [string, "null"], format: uuid }
+            status: { $ref: "#/components/schemas/LaborApplicabilityStatus" }
+            reviewedByUserId: { type: [string, "null"], format: uuid }
+            reviewedAt: { type: [string, "null"], format: date-time }
+            reviewTask:
+              oneOf:
+                - $ref: "#/components/schemas/LaborReviewTask"
+                - type: "null"
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: [string, "null"], format: date-time }
+            laborStandard: { type: string, description: "Server-computed display summary of the explicit SCA, DBA, and other FAR Part 22 fields." }
+
+    LaborReviewTask:
+      type: object
+      required: [id, tenantId, contractId, title, description, status]
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        contractId: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        status: { type: string }
+        dueAt: { type: [string, "null"], format: date }
+
+    LaborApplicabilityStatus:
+      type: string
+      enum: [Draft, Active, Inactive]
+
+    LaborApplicabilityReviewStatus:
+      type: string
+      enum: [Draft, PendingReview, Reviewed, Rejected]
 
     EsrsApplicabilityRequest:
       type: object

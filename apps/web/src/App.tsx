@@ -33,6 +33,7 @@ import { ClassifiedNotesPanel } from "@/components/ClassifiedNotesPanel";
 import { ClassificationBadge, ClassificationReviewPanel } from "@/components/ClassificationReviewPanel";
 import { CuiEscalationQueue } from "@/components/CuiEscalationQueue";
 import { EsrsApplicabilityPanel } from "@/components/EsrsApplicabilityPanel";
+import { LaborApplicabilityPanel } from "@/components/LaborApplicabilityPanel";
 import { EsrsReportDataPanel } from "@/components/EsrsReportDataPanel";
 import { SprReportPackagesPanel } from "@/components/SprReportPackagesPanel";
 import { PortalPackageLifecyclePanel } from "@/components/PortalPackageLifecyclePanel";
@@ -2622,6 +2623,7 @@ export function App() {
               key={`${access.tenantId}:${access.userId}:${selectedContractId}`}
               workflowClassification={workflowClassification}
               canManageContracts={canManageContracts}
+              canManageEvidence={canManageEvidence}
               canViewReports={access.permissions.includes("ViewReports")}
               canManageReports={canManageReports}
               canExportReports={canExportReports}
@@ -2630,6 +2632,7 @@ export function App() {
               clauseResults={clauseResults}
               contracts={contracts}
               contractClauses={contractClauses}
+              evidenceItems={evidenceItems}
               contractClauseMessage={contractClauseMessage}
               contractClauseStatus={contractClauseStatus}
               contractDeliverables={contractDeliverables}
@@ -4472,6 +4475,7 @@ function mergeClauseSearchResults(
 function ContractsView({
   workflowClassification,
   canManageContracts,
+  canManageEvidence,
   canViewReports,
   canManageReports,
   canExportReports,
@@ -4480,6 +4484,7 @@ function ContractsView({
   clauseResults,
   contracts,
   contractClauses,
+  evidenceItems,
   contractClauseMessage,
   contractClauseStatus,
   contractDeliverables,
@@ -4512,6 +4517,7 @@ function ContractsView({
   onSelectContract
 }: {
   canManageContracts: boolean;
+  canManageEvidence: boolean;
   canViewReports: boolean;
   canManageReports: boolean;
   canExportReports: boolean;
@@ -4520,6 +4526,7 @@ function ContractsView({
   clauseResults: ClauseLibraryItem[];
   contracts: ContractRecord[];
   contractClauses: ContractClause[];
+  evidenceItems: EvidenceMetadata[];
   contractClauseMessage: string;
   contractClauseStatus: "idle" | "saving" | "saved" | "failed";
   contractDeliverables: ContractDeliverable[];
@@ -4747,6 +4754,8 @@ function ContractsView({
           </section>
         ) : null}
 
+        {selectedContract ? <LaborApplicabilityPanel contractId={selectedContract.id} clauses={contractClauses} evidence={evidenceItems} canManage={canManageContracts}
+          canUpload={canManageEvidence && noCuiAcknowledgement.isAcknowledged} /> : null}
         {selectedContract ? <EsrsApplicabilityPanel contractId={selectedContract.id} canManage={canManageContracts} /> : null}
         {selectedContract && canViewReports ?
           <EsrsReportDataPanel contractId={selectedContract.id} contractNumber={selectedContract.contractNumber}

@@ -132,6 +132,8 @@ flowchart TB
 
 The MVP deployment keeps the product No-CUI / compliance management only. Evidence upload, document intake, AI-assisted extraction, and external integrations must preserve tenant isolation, source traceability, auditability, and data handling controls, and users must remain prevented from uploading CUI until a future approved `CuiReady` posture exists.
 
+Labor applicability is a tenant-scoped contract aggregate. The application service validates explicit SCA/DBA/FAR Part 22 fields and source-backed activation, the EF adapter validates contract/clause/evidence ownership and synchronizes a durable compliance task, and the request transaction commits each applicability mutation with its audit event. Wage determination bytes remain in the shared evidence pipeline rather than creating a second upload boundary.
+
 ## Frontend Strategy
 
 Use React + Vite for the authenticated application because the MVP is dashboard-heavy, workflow-oriented, and backed by the ASP.NET Core API. This keeps the app frontend lightweight, fast in local development, and cleanly separated from backend responsibilities.

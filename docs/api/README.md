@@ -18,6 +18,7 @@ The specification covers the MVP API for a No-CUI government contractor complian
 - Structured SSP section lifecycle management; deterministic, source-backed SSP narrative drafting, editing, comparison, and approval; and immutable SSP internal-review exports
 - Subcontractor profiles, flow-down clauses, and evidence requests
 - Tenant-scoped subcontracting report data collection, CSV import, evidence links, review decisions, immutable SPR preparation packages, audited exports, and append-only user-recorded external receipts
+- Tenant-scoped labor applicability decisions with explicit SCA/DBA/FAR Part 22 fields, source and evidence links, review metadata, task generation, and guarded wage determination uploads
 - Report generation and downloads
 - Tenant audit logs
 - Compliance source library references

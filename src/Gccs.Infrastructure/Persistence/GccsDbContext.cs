@@ -2,6 +2,7 @@ using System.Text;
 using Gccs.Application.Compliance;
 using Gccs.Application.Reports;
 using Gccs.Application.Identity;
+using Gccs.Application.Labor;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
@@ -94,6 +95,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
     public DbSet<EsrsApplicabilityEntity> EsrsApplicabilities => Set<EsrsApplicabilityEntity>();
+    public DbSet<LaborApplicabilityEntity> LaborApplicabilities => Set<LaborApplicabilityEntity>();
     public DbSet<SubcontractingReportDataRowEntity> SubcontractingReportDataRows => Set<SubcontractingReportDataRowEntity>();
     public DbSet<SprReportPackageEntity> SprReportPackages => Set<SprReportPackageEntity>();
     public DbSet<SprManualSubmissionReceiptEntity> SprManualSubmissionReceipts => Set<SprManualSubmissionReceiptEntity>();
@@ -228,6 +230,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<SubcontractingReportDataReviewStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<InvitationDeliveryStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<LaborApplicabilityStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<LaborApplicabilityReviewStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantOnboardingStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantOnboardingType>().HaveConversion<string>().HaveMaxLength(64);
@@ -1197,6 +1201,33 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.OwnerFunction).HasMaxLength(120).IsRequired();
             entity.HasOne(x => x.Contract).WithMany(x => x.EsrsApplicabilities).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Task).WithOne().HasForeignKey<EsrsApplicabilityEntity>(x => x.TaskId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborApplicabilityEntity>(entity =>
+        {
+            entity.ToTable("labor_applicabilities", table => table.HasCheckConstraint(
+                "CK_labor_applicabilities_contract_period", "contract_period_end >= contract_period_start"));
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.ContractPeriodEnd });
+            entity.HasIndex(x => x.TaskId).IsUnique().HasFilter("task_id IS NOT NULL");
+            entity.Property(x => x.OtherFarPart22Obligations).HasMaxLength(2_000);
+            entity.Property(x => x.PlaceOfPerformance).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.WageDeterminationReference).HasMaxLength(240);
+            entity.Property(x => x.SourceClause).HasMaxLength(240);
+            entity.Property(x => x.Rationale).HasMaxLength(2_000);
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ReviewNotes).HasMaxLength(2_000);
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            entity.HasOne(x => x.Contract).WithMany(x => x.LaborApplicabilities)
+                .HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.SourceContractClause).WithMany().HasForeignKey(x => x.SourceContractClauseId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Task).WithOne().HasForeignKey<LaborApplicabilityEntity>(x => x.TaskId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.WageDeterminationEvidenceItem).WithMany()
+                .HasForeignKey(x => x.WageDeterminationEvidenceItemId).OnDelete(DeleteBehavior.SetNull);
             ConfigureAuditColumns(entity);
         });
 

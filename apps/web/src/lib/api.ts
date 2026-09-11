@@ -1712,6 +1712,22 @@ export type ContractRecord = {
 
 export type UpsertContractRequest = Omit<ContractRecord, "id" | "tenantId" | "createdAt" | "updatedAt">;
 
+export type LaborApplicabilityStatus = "Draft" | "Active" | "Inactive";
+export type LaborApplicabilityReviewStatus = "Draft" | "PendingReview" | "Reviewed" | "Rejected";
+export type LaborApplicability = {
+  id: string; tenantId: string; contractId: string; taskId: string | null;
+  scaApplicable: boolean; dbaApplicable: boolean; otherFarPart22Obligations: string | null;
+  placeOfPerformance: string; contractPeriodStart: string; contractPeriodEnd: string;
+  wageDeterminationReference: string | null; wageDeterminationEvidenceItemId: string | null;
+  sourceContractClauseId: string | null; sourceClause: string | null; rationale: string | null;
+  ownerFunction: string; status: LaborApplicabilityStatus; reviewStatus: LaborApplicabilityReviewStatus;
+  reviewNotes: string | null; reviewedByUserId: string | null; reviewedAt: string | null;
+  reviewTask: { id: string; tenantId: string; contractId: string; title: string; description: string; status: string; dueAt: string | null } | null;
+  createdAt: string; updatedAt: string | null; laborStandard: string;
+};
+export type UpsertLaborApplicabilityRequest = Omit<LaborApplicability,
+  "id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "reviewTask" | "createdAt" | "updatedAt" | "laborStandard">;
+
 export type EsrsApplicability = {
   id: string;
   tenantId: string;
@@ -3104,6 +3120,30 @@ export async function updateContract(
 ): Promise<ApiMutationResult<ContractRecord>> {
   return putJsonResult<ContractRecord>(`/api/contracts/${contractId}`, request);
 }
+
+export const getContractLaborApplicabilities = (contractId: string) =>
+  getRequiredJson<LaborApplicability[]>(`/api/contracts/${contractId}/labor-applicabilities`);
+
+export const createLaborApplicability = (contractId: string, request: UpsertLaborApplicabilityRequest) =>
+  postJsonResult<LaborApplicability>(`/api/contracts/${contractId}/labor-applicabilities`, request);
+
+export const updateLaborApplicability = (contractId: string, applicabilityId: string, request: UpsertLaborApplicabilityRequest) =>
+  putJsonResult<LaborApplicability>(`/api/contracts/${contractId}/labor-applicabilities/${applicabilityId}`, request);
+
+export const updateLaborApplicabilityStatus = (contractId: string, applicabilityId: string, status: LaborApplicabilityStatus) =>
+  patchJsonResult<LaborApplicability>(`/api/contracts/${contractId}/labor-applicabilities/${applicabilityId}/status`, { status });
+
+export const uploadLaborWageDetermination = (
+  contractId: string, applicabilityId: string, file: File, classification: string,
+  classificationReason: string, noCuiAttestation: boolean
+) => {
+  const form = new FormData();
+  form.set("file", file); form.set("classification", classification);
+  form.set("classificationReason", classificationReason.trim());
+  form.set("noCuiAttestation", String(noCuiAttestation));
+  form.set("containsPotentialCui", String(classification === "Cui"));
+  return postFormResult<EvidenceFileAccess>(`/api/contracts/${contractId}/labor-applicabilities/${applicabilityId}/wage-determination/file`, form);
+};
 
 export const getContractEsrsApplicabilities = (contractId: string) =>
   getRequiredJson<EsrsApplicability[]>(`/api/contracts/${contractId}/subcontracting-plan-reporting-applicabilities`);

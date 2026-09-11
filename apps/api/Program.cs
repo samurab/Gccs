@@ -13,6 +13,7 @@ using Gccs.Application.Contracts;
 using Gccs.Application.Demo;
 using Gccs.Application.Evidence;
 using Gccs.Application.Identity;
+using Gccs.Application.Labor;
 using Gccs.Application.Marketing;
 using Gccs.Application.NoCui;
 using Gccs.Application.Notifications;
@@ -1240,6 +1241,166 @@ api.MapGet("/contracts/{contractId:guid}", async (
 })
 .RequirePermission(Permission.ViewContracts)
 .WithName("GetContractById");
+
+api.MapGet("/contracts/{contractId:guid}/labor-applicabilities", async (
+    Guid contractId, LaborApplicabilityService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var items = await service.ListForContractAsync(contractId, cancellationToken);
+    return items is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(items);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractLaborApplicabilities");
+
+api.MapPost("/contracts/{contractId:guid}/labor-applicabilities", async (
+    Guid contractId, LaborApplicabilityRequest request, LaborApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.RecordAsync(request with { ContractId = contractId }, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/labor-applicabilities/{created.Id}", created);
+    }
+    catch (LaborApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "Labor applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractLaborApplicability");
+
+api.MapPut("/contracts/{contractId:guid}/labor-applicabilities/{applicabilityId:guid}", async (
+    Guid contractId, Guid applicabilityId, LaborApplicabilityRequest request, LaborApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(contractId, applicabilityId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor applicability record was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (LaborApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "Labor applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (LaborApplicabilityConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Labor applicability conflict", exception.Message,
+            StatusCodes.Status409Conflict, "labor_applicability_conflict");
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractLaborApplicability");
+
+api.MapPatch("/contracts/{contractId:guid}/labor-applicabilities/{applicabilityId:guid}/status", async (
+    Guid contractId, Guid applicabilityId, UpdateLaborApplicabilityStatusRequest request, LaborApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = request.Status switch
+        {
+            LaborApplicabilityStatus.Active => await service.ActivateAsync(contractId, applicabilityId, tenantContext.UserId, cancellationToken),
+            LaborApplicabilityStatus.Inactive => await service.DeactivateAsync(contractId, applicabilityId, tenantContext.UserId, cancellationToken),
+            _ => throw new LaborApplicabilityValidationException("Status transitions support Active or Inactive only.")
+        };
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor applicability record was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (LaborApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "Labor applicability status invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (LaborApplicabilityConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Labor applicability conflict", exception.Message,
+            StatusCodes.Status409Conflict, "labor_applicability_conflict");
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractLaborApplicabilityStatus");
+
+api.MapPost("/contracts/{contractId:guid}/labor-applicabilities/{applicabilityId:guid}/wage-determination/file", async (
+    Guid contractId, Guid applicabilityId, LaborApplicabilityService laborService, EvidenceFileService evidenceFileService,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var applicability = await laborService.FindAsync(contractId, applicabilityId, cancellationToken);
+        if (applicability is null)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The labor applicability record was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        if (!applicability.WageDeterminationEvidenceItemId.HasValue)
+            throw new LaborApplicabilityValidationException(new Dictionary<string, string[]>
+            {
+                ["wageDeterminationEvidenceItemId"] = ["Link contract evidence before uploading a wage determination file."]
+            });
+        if (!httpContext.Request.HasFormContentType)
+            throw new LaborApplicabilityValidationException(new Dictionary<string, string[]> { ["contentType"] = ["Wage determination upload requires multipart/form-data."] });
+
+        var form = await httpContext.Request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
+        if (file is null)
+            throw new LaborApplicabilityValidationException(new Dictionary<string, string[]> { ["file"] = ["A wage determination file is required."] });
+        if (!Enum.TryParse<ContentClassification>(form["classification"], true, out var classification) || !Enum.IsDefined(classification))
+            throw new LaborApplicabilityValidationException(new Dictionary<string, string[]> { ["classification"] = ["An explicit, valid classification is required."] });
+
+        await using var stream = file.OpenReadStream();
+        var uploaded = await evidenceFileService.UploadEvidenceFileAsync(
+            applicability.WageDeterminationEvidenceItemId.Value,
+            new EvidenceUploadFileRequest(file.FileName, file.ContentType, file.Length, stream,
+                bool.TryParse(form["noCuiAttestation"], out var attestation) && attestation,
+                bool.TryParse(form["containsPotentialCui"], out var potentialCui) && potentialCui,
+                new ContentClassificationRequest(classification, Reason: form["classificationReason"].FirstOrDefault())),
+            tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/evidence-items/{applicability.WageDeterminationEvidenceItemId}/download", uploaded);
+    }
+    catch (LaborApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "Wage determination upload invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (NoCuiAcknowledgementRequiredException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "No-CUI acknowledgement required", exception.Message,
+            StatusCodes.Status428PreconditionRequired, "no_cui_acknowledgement_required");
+    }
+    catch (EvidenceItemNotFoundException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", exception.Message,
+            StatusCodes.Status404NotFound, "resource_not_found");
+    }
+    catch (UploadGuardrailValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "Wage determination upload rejected", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (MalwareScanRejectedException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["malwareScan"] = [exception.Message] },
+            title: "Wage determination upload rejected", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (MalwareScanUnavailableException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Malware scanner unavailable", exception.Message,
+            StatusCodes.Status503ServiceUnavailable, "malware_scanner_unavailable");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["upload"] = [exception.Message] },
+            title: "Wage determination upload rejected", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithMetadata(new SuppressAtomicMutationTransactionMetadata())
+.WithName("UploadContractLaborWageDeterminationFile");
 
 api.MapGet("/contracts/{contractId:guid}/esrs-applicabilities", async (
     Guid contractId,

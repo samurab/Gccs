@@ -104,12 +104,12 @@ public sealed class LaborEvidenceComplianceReportTests
             CreateApplicability(ids, ids.ContractId, ids.EvidenceItemId, "FAR 52.222-41"),
             ids.TenantId,
             ids.ActorUserId);
-        await harness.ApplicabilityService.ActivateAsync(activeWithEvidence.Id, ids.ActorUserId);
+        await harness.ApplicabilityService.ActivateAsync(ids.ContractId, activeWithEvidence!.Id, ids.ActorUserId);
         var activeMissingEvidence = await harness.ApplicabilityService.RecordAsync(
             CreateApplicability(ids, ids.ContractId, null, "FAR 52.222-55"),
             ids.TenantId,
             ids.ActorUserId);
-        await harness.ApplicabilityService.ActivateAsync(activeMissingEvidence.Id, ids.ActorUserId);
+        await harness.ApplicabilityService.ActivateAsync(ids.ContractId, activeMissingEvidence!.Id, ids.ActorUserId);
 
         var category = await harness.ClassificationService.CreateCategoryAsync(CreateCategory(ids, ids.ContractId), ids.TenantId, ids.ActorUserId);
         await harness.ClassificationService.CreateAssignmentAsync(CreateAssignment(ids, ids.ContractId, category.Id), ids.TenantId, ids.ActorUserId);
@@ -130,12 +130,15 @@ public sealed class LaborEvidenceComplianceReportTests
     private static LaborApplicabilityRequest CreateApplicability(StoryIds ids, Guid contractId, Guid? evidenceId, string sourceClause) =>
         new(
             contractId,
-            "SCA",
+            true,
+            false,
+            null,
             "Norfolk, VA",
             new DateOnly(2026, 1, 1),
             new DateOnly(2026, 12, 31),
             "WD-2015-4341 Rev 24",
             evidenceId,
+            null,
             sourceClause,
             "Labor compliance source-backed applicability.",
             "Contracts/HR");
@@ -170,16 +173,10 @@ public sealed class LaborEvidenceComplianceReportTests
         var applicabilityRepository = new InMemoryLaborApplicabilityRepository();
         var classificationRepository = new InMemoryLaborClassificationRepository();
         return new StoryHarness(
-            new LaborApplicabilityService(applicabilityRepository, new AllowingLaborUploadGuard(), auditWriter),
+            new LaborApplicabilityService(applicabilityRepository, auditWriter, new TestApplicationTransaction()),
             new LaborClassificationService(classificationRepository, auditWriter),
             new LaborComplianceReportService(applicabilityRepository, classificationRepository, auditWriter),
             auditWriter);
-    }
-
-    private sealed class AllowingLaborUploadGuard : ILaborWageDeterminationUploadGuard
-    {
-        public Task EnsureAllowedAsync(WageDeterminationUploadRequest request, Guid actorUserId, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
     }
 
     private sealed class CapturingAuditEventWriter : IAuditEventWriter

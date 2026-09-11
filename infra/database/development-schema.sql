@@ -921,7 +921,6 @@ INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260610031239_InitialDevelopmentSchema', '10.0.4');
 
 COMMIT;
-
 START TRANSACTION;
 ALTER TABLE gccs.contract_clauses ADD review_state character varying(64) NOT NULL DEFAULT 'Draft';
 
@@ -4601,5 +4600,122 @@ CREATE UNIQUE INDEX "IX_spr_report_packages_tenant_id_contract_id_report_type_pe
 
 INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260911004959_AddDurableSprPackagesAndReceipts', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.shared_portal_packages (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    package_id uuid NOT NULL,
+    invitation_id uuid NOT NULL,
+    version integer NOT NULL,
+    state character varying(64) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    reminder_at timestamp with time zone NOT NULL,
+    reminder_sent_at timestamp with time zone,
+    supersedes_shared_package_id uuid,
+    replacement_shared_package_id uuid,
+    replacement_package_id uuid,
+    revocation_reason character varying(500),
+    revoked_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_shared_portal_packages" PRIMARY KEY (id),
+    CONSTRAINT "AK_shared_portal_packages_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "FK_shared_portal_packages_shared_portal_packages_tenant_id_rep~" FOREIGN KEY (tenant_id, replacement_shared_package_id) REFERENCES gccs.shared_portal_packages (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_shared_portal_packages_shared_portal_packages_tenant_id_sup~" FOREIGN KEY (tenant_id, supersedes_shared_package_id) REFERENCES gccs.shared_portal_packages (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_shared_portal_packages_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE TABLE gccs.portal_package_activities (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    shared_package_id uuid NOT NULL,
+    activity_type character varying(64) NOT NULL,
+    actor_user_id uuid NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    detail character varying(500),
+    CONSTRAINT "PK_portal_package_activities" PRIMARY KEY (id),
+    CONSTRAINT "FK_portal_package_activities_shared_portal_packages_tenant_id_~" FOREIGN KEY (tenant_id, shared_package_id) REFERENCES gccs.shared_portal_packages (tenant_id, id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_portal_package_activities_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_portal_package_activities_tenant_id_occurred_at" ON gccs.portal_package_activities (tenant_id, occurred_at);
+
+CREATE INDEX "IX_portal_package_activities_tenant_id_shared_package_id_activ~" ON gccs.portal_package_activities (tenant_id, shared_package_id, activity_type);
+
+CREATE INDEX "IX_shared_portal_packages_created_at_updated_at" ON gccs.shared_portal_packages (created_at, updated_at);
+
+CREATE INDEX "IX_shared_portal_packages_state_reminder_at_reminder_sent_at" ON gccs.shared_portal_packages (state, reminder_at, reminder_sent_at);
+
+CREATE UNIQUE INDEX "IX_shared_portal_packages_tenant_id_invitation_id_package_id" ON gccs.shared_portal_packages (tenant_id, invitation_id, package_id) WHERE state = 'Active';
+
+CREATE UNIQUE INDEX "IX_shared_portal_packages_tenant_id_invitation_id_version" ON gccs.shared_portal_packages (tenant_id, invitation_id, version);
+
+CREATE INDEX "IX_shared_portal_packages_tenant_id_replacement_shared_package~" ON gccs.shared_portal_packages (tenant_id, replacement_shared_package_id);
+
+CREATE INDEX "IX_shared_portal_packages_tenant_id_state_expires_at" ON gccs.shared_portal_packages (tenant_id, state, expires_at);
+
+CREATE INDEX "IX_shared_portal_packages_tenant_id_supersedes_shared_package_~" ON gccs.shared_portal_packages (tenant_id, supersedes_shared_package_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260911034444_AddPortalPackageLifecycle', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE gccs.labor_applicabilities (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    contract_id uuid NOT NULL,
+    task_id uuid,
+    sca_applicable boolean NOT NULL,
+    dba_applicable boolean NOT NULL,
+    other_far_part22_obligations character varying(2000),
+    place_of_performance character varying(240) NOT NULL,
+    contract_period_start date NOT NULL,
+    contract_period_end date NOT NULL,
+    wage_determination_reference character varying(240),
+    wage_determination_evidence_item_id uuid,
+    source_contract_clause_id uuid,
+    source_clause character varying(240),
+    rationale character varying(2000),
+    owner_function character varying(120) NOT NULL,
+    status character varying(64) NOT NULL,
+    review_status character varying(64) NOT NULL,
+    review_notes character varying(2000),
+    reviewed_by_user_id uuid,
+    reviewed_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    created_by_user_id uuid,
+    updated_at timestamp with time zone,
+    updated_by_user_id uuid,
+    CONSTRAINT "PK_labor_applicabilities" PRIMARY KEY (id),
+    CONSTRAINT "AK_labor_applicabilities_tenant_id_id" UNIQUE (tenant_id, id),
+    CONSTRAINT "CK_labor_applicabilities_contract_period" CHECK (contract_period_end >= contract_period_start),
+    CONSTRAINT "FK_labor_applicabilities_compliance_tasks_task_id" FOREIGN KEY (task_id) REFERENCES gccs.compliance_tasks (id) ON DELETE RESTRICT,
+    CONSTRAINT "FK_labor_applicabilities_contract_clauses_source_contract_clau~" FOREIGN KEY (source_contract_clause_id) REFERENCES gccs.contract_clauses (id) ON DELETE SET NULL,
+    CONSTRAINT "FK_labor_applicabilities_contracts_tenant_id_contract_id" FOREIGN KEY (tenant_id, contract_id) REFERENCES gccs.contracts (tenant_id, id) ON DELETE CASCADE,
+    CONSTRAINT "FK_labor_applicabilities_evidence_items_wage_determination_evi~" FOREIGN KEY (wage_determination_evidence_item_id) REFERENCES gccs.evidence_items (id) ON DELETE SET NULL,
+    CONSTRAINT "FK_labor_applicabilities_tenants_tenant_id" FOREIGN KEY (tenant_id) REFERENCES gccs.tenants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_labor_applicabilities_created_at_updated_at" ON gccs.labor_applicabilities (created_at, updated_at);
+
+CREATE INDEX "IX_labor_applicabilities_source_contract_clause_id" ON gccs.labor_applicabilities (source_contract_clause_id);
+
+CREATE UNIQUE INDEX "IX_labor_applicabilities_task_id" ON gccs.labor_applicabilities (task_id) WHERE task_id IS NOT NULL;
+
+CREATE INDEX "IX_labor_applicabilities_tenant_id_contract_id_status" ON gccs.labor_applicabilities (tenant_id, contract_id, status);
+
+CREATE INDEX "IX_labor_applicabilities_tenant_id_contract_period_end" ON gccs.labor_applicabilities (tenant_id, contract_period_end);
+
+CREATE INDEX "IX_labor_applicabilities_wage_determination_evidence_item_id" ON gccs.labor_applicabilities (wage_determination_evidence_item_id);
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260911040908_AddLaborApplicabilities', '10.0.4');
 
 COMMIT;
