@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SprReportPackagesPanel } from "./SprReportPackagesPanel";
@@ -19,6 +19,10 @@ const draft = { id: "package-1", tenantId: "tenant", contractId, reportType: "Is
   snapshot: { contractId, reportType: "Isr" as const, periodStart: "2026-01-01", periodEnd: "2026-03-31",
     rowCount: 1, totalSpend: 12500, spendSummaries: [], evidenceReferences: [{ rowId: "row", evidenceItemId: "evidence-1" }],
     exceptions: [], schemaProfiles: [{ id: "schema", version: "1.0", sourceUrl: "https://example.test", definitionSha256: "a".repeat(64) }] } };
+const priorReceipt = { id: "receipt-prior", tenantId: "tenant", packageId: draft.id,
+  submittedAt: "2026-04-02T12:00:00Z", confirmationReference: "SAM-ORIGINAL", outcome: "Submitted" as const,
+  notes: null, evidenceItemId: "evidence-1", supersedesReceiptId: null, recordedByUserId: "user",
+  recordedAt: "2026-04-02T12:01:00Z" };
 
 describe("SprReportPackagesPanel", () => {
   afterEach(cleanup);
@@ -72,6 +76,28 @@ describe("SprReportPackagesPanel", () => {
     expect(screen.queryByRole("button", { name: "Approve package" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Export HTML" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Generate package" })).not.toBeInTheDocument();
+  });
+
+  it("records a correction as an append-only receipt linked to the prior receipt", async () => {
+    const approved = { ...draft, status: "Approved" as const, reviewerName: "Avery", approvedAt: "2026-04-02T12:00:00Z" };
+    mocks.packages.mockResolvedValue([approved]); mocks.receipts.mockResolvedValue([priorReceipt]);
+    mocks.record.mockResolvedValue({ data: { ...priorReceipt, id: "receipt-correction", confirmationReference: "SAM-CORRECTED",
+      outcome: "Corrected", notes: "Corrected amount in SAM.gov.", supersedesReceiptId: priorReceipt.id }, error: null });
+    const user = userEvent.setup();
+    render(<SprReportPackagesPanel contractId={contractId} canManage canExport />);
+
+    await user.selectOptions(await screen.findByLabelText("Outcome"), "Corrected");
+    await user.selectOptions(screen.getByLabelText("Receipt being corrected"), priorReceipt.id);
+    await user.type(screen.getByLabelText("Confirmation reference"), "SAM-CORRECTED");
+    await user.type(screen.getByLabelText("Notes"), "Corrected amount in SAM.gov.");
+    await user.click(screen.getByRole("button", { name: "Record external receipt" }));
+
+    await waitFor(() => expect(mocks.record).toHaveBeenCalledWith(draft.id, expect.objectContaining({
+      confirmationReference: "SAM-CORRECTED", outcome: "Corrected", supersedesReceiptId: priorReceipt.id
+    })));
+    const packageHistory = within(screen.getByRole("article", { name: "SPR package version 1" }));
+    expect(packageHistory.getByText(/SAM-CORRECTED · Corrected/)).toBeInTheDocument();
+    expect(packageHistory.getByText(/SAM-ORIGINAL · Submitted/)).toBeInTheDocument();
   });
 
   it("shows a fail-closed error state when package history cannot be loaded", async () => {

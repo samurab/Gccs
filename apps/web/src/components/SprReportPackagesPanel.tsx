@@ -20,6 +20,7 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
   const [outcome, setOutcome] = useState<SprManualSubmissionReceipt["outcome"]>("Submitted");
   const [receiptNotes, setReceiptNotes] = useState("");
   const [evidenceItemId, setEvidenceItemId] = useState("");
+  const [supersedesReceiptId, setSupersedesReceiptId] = useState("");
   const [state, setState] = useState<"loading" | "ready" | "saving" | "error">("loading");
   const [message, setMessage] = useState("");
 
@@ -67,11 +68,12 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
     event.preventDefault(); setState("saving"); setMessage("");
     const result = await createSprManualSubmissionReceipt(receiptPackageId, {
       submittedAt: new Date().toISOString(), confirmationReference, outcome,
-      notes: receiptNotes.trim() || null, evidenceItemId: evidenceItemId || null
+      notes: receiptNotes.trim() || null, evidenceItemId: evidenceItemId || null,
+      supersedesReceiptId: outcome === "Corrected" ? supersedesReceiptId : null
     });
     if (!result.data) { setState("error"); setMessage(result.error ?? "The external receipt could not be recorded."); return; }
     setReceipts(current => ({ ...current, [receiptPackageId]: [result.data!, ...(current[receiptPackageId] ?? [])] }));
-    setConfirmationReference(""); setReceiptNotes(""); setEvidenceItemId(""); setState("ready");
+    setConfirmationReference(""); setReceiptNotes(""); setEvidenceItemId(""); setSupersedesReceiptId(""); setState("ready");
     setMessage("User-reported external SAM.gov receipt recorded. FeDril did not verify or perform the submission.");
   }
 
@@ -121,9 +123,12 @@ export function SprReportPackagesPanel({ contractId, canManage, canExport }:
       </form>
       {approvedPackages.length > 0 ? <form onSubmit={event => void recordReceipt(event)}><h3>Record manual SAM.gov receipt</h3>
         <p>This records a customer-reported external event; it does not verify a SAM.gov submission.</p>
-        <label>Approved package<select required value={receiptPackageId} onChange={event => setReceiptPackageId(event.target.value)}>{approvedPackages.map(item => <option key={item.id} value={item.id}>Version {item.version} · {item.reportType.toUpperCase()}</option>)}</select></label>
+        <label>Approved package<select required value={receiptPackageId} onChange={event => { setReceiptPackageId(event.target.value); setSupersedesReceiptId(""); }}>{approvedPackages.map(item => <option key={item.id} value={item.id}>Version {item.version} · {item.reportType.toUpperCase()}</option>)}</select></label>
         <label>Confirmation reference<input required maxLength={200} value={confirmationReference} onChange={event => setConfirmationReference(event.target.value)} /></label>
-        <label>Outcome<select value={outcome} onChange={event => setOutcome(event.target.value as SprManualSubmissionReceipt["outcome"])}><option>Submitted</option><option>Accepted</option><option>Rejected</option><option>Corrected</option></select></label>
+        <label>Outcome<select value={outcome} onChange={event => { setOutcome(event.target.value as SprManualSubmissionReceipt["outcome"]); setSupersedesReceiptId(""); }}><option>Submitted</option><option>Accepted</option><option>Rejected</option><option>Corrected</option></select></label>
+        {outcome === "Corrected" ? <label>Receipt being corrected<select required value={supersedesReceiptId} onChange={event => setSupersedesReceiptId(event.target.value)}>
+          <option value="">Select a prior receipt</option>{(receipts[receiptPackageId] ?? []).map(receipt =>
+            <option key={receipt.id} value={receipt.id}>{receipt.confirmationReference} · {receipt.outcome} · {new Date(receipt.recordedAt).toLocaleString()}</option>)}</select></label> : null}
         <label>Supporting evidence<select value={evidenceItemId} onChange={event => setEvidenceItemId(event.target.value)}><option value="">None</option>{evidence.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
         <label>Notes<textarea required={outcome === "Rejected" || outcome === "Corrected"} maxLength={2000} value={receiptNotes} onChange={event => setReceiptNotes(event.target.value)} /></label>
         <button type="submit" disabled={state === "saving"}>Record external receipt</button>

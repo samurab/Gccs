@@ -5210,6 +5210,7 @@ components:
 
     SprManualSubmissionReceiptRequest:
       type: object
+      description: User-recorded external activity only. Corrected outcomes require supersedesReceiptId and never mutate the prior receipt.
       required: [submittedAt, confirmationReference, outcome]
       properties:
         submittedAt: { type: string, format: date-time }

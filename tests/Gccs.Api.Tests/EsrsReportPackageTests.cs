@@ -181,6 +181,23 @@ public sealed class EsrsReportPackageTests
     }
 
     [Fact]
+    public async Task Json_export_uses_reviewable_string_metadata_and_preserves_the_disclaimer()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateServices(ids.TenantId, out var reportDataService, out _);
+        await CreateAcceptedRowAsync(reportDataService, ids, ids.SubcontractorId, [ids.EvidenceItemId]);
+        var package = await service.GenerateAsync(CreateGenerateRequest(ids), ids.ActorUserId);
+
+        var export = await service.ExportAsync(package.Id, SprPackageExportFormat.Json, ids.ActorUserId);
+
+        Assert.NotNull(export);
+        Assert.Contains("\"reportType\": \"Isr\"", export.Content, StringComparison.Ordinal);
+        Assert.Contains("\"status\": \"Draft\"", export.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"reportType\": 0", export.Content, StringComparison.Ordinal);
+        Assert.Contains(EsrsReportPackageService.NotSubmittedDisclaimer, export.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Manual_receipts_are_append_only_for_approved_packages_and_are_audited()
     {
         var ids = StoryIds.Create();
@@ -195,6 +212,9 @@ public sealed class EsrsReportPackageTests
         await service.ApproveAsync(package.Id, new EsrsReportPackageReviewRequest("Reviewer", "Approved."), ids.ActorUserId);
 
         var first = await service.RecordManualSubmissionReceiptAsync(package.Id, request, ids.ActorUserId);
+        await Assert.ThrowsAsync<EsrsReportPackageException>(() => service.RecordManualSubmissionReceiptAsync(package.Id,
+            request with { ConfirmationReference = "SAM-REF-UNLINKED", Outcome = SprManualSubmissionOutcome.Corrected,
+                Notes = "Correction without a prior receipt." }, ids.ActorUserId));
         var correction = await service.RecordManualSubmissionReceiptAsync(package.Id,
             request with { ConfirmationReference = "SAM-REF-2", Outcome = SprManualSubmissionOutcome.Corrected,
                 Notes = "Corrected in SAM.gov.", SupersedesReceiptId = first!.Id }, ids.ActorUserId);

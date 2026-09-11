@@ -3,6 +3,7 @@ using Gccs.Application.Common;
 using Gccs.Domain.Audit;
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Gccs.Application.Reports;
 
@@ -98,7 +99,7 @@ public sealed class EsrsReportPackageService(
             var package = await repository.FindAsync(packageId, token);
             if (package is null) return null;
             var content = format == SprPackageExportFormat.Json
-                ? JsonSerializer.Serialize(package, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true })
+                ? JsonSerializer.Serialize(package, CreateExportJsonOptions())
                 : BuildHtml(package);
             var export = new SprPackageExportDto(package.Id, format, format == SprPackageExportFormat.Json ? "application/json" : "text/html",
                 $"sam-gov-spr-{package.ContractId:N}-v{package.Version}.{(format == SprPackageExportFormat.Json ? "json" : "html")}", content,
@@ -110,6 +111,13 @@ public sealed class EsrsReportPackageService(
                 }, token);
             return export;
         }, cancellationToken);
+    }
+
+    private static JsonSerializerOptions CreateExportJsonOptions()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true };
+        options.Converters.Add(new JsonStringEnumConverter());
+        return options;
     }
 
     public async Task<SprManualSubmissionReceiptDto?> RecordManualSubmissionReceiptAsync(Guid packageId,
@@ -124,6 +132,8 @@ public sealed class EsrsReportPackageService(
         if (request.Notes?.Length > 2_000) throw new EsrsReportPackageException("Submission notes cannot exceed 2,000 characters.");
         if (request.Outcome is (SprManualSubmissionOutcome.Rejected or SprManualSubmissionOutcome.Corrected) && string.IsNullOrWhiteSpace(request.Notes))
             throw new EsrsReportPackageException("Notes are required for rejected or corrected external outcomes.");
+        if (request.Outcome == SprManualSubmissionOutcome.Corrected && request.SupersedesReceiptId is null)
+            throw new EsrsReportPackageException("A corrected external outcome must identify the prior receipt it supersedes.");
         return await transaction.ExecuteAsync(async token =>
         {
             var package = await repository.FindAsync(packageId, token);
