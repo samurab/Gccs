@@ -4,12 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EsrsReportDataPanel } from "./EsrsReportDataPanel";
 
 const mocks = vi.hoisted(() => ({ list: vi.fn(), subcontractors: vi.fn(), evidence: vi.fn(), create: vi.fn(),
-  update: vi.fn(), review: vi.fn(), importCsv: vi.fn(), template: vi.fn() }));
+  update: vi.fn(), review: vi.fn(), importCsv: vi.fn(), template: vi.fn(), schema: vi.fn() }));
 vi.mock("@/lib/api", () => ({
   getContractSubcontractingPlanReportData: mocks.list, getSubcontractors: mocks.subcontractors, getEvidenceItems: mocks.evidence,
   createContractSubcontractingPlanReportData: mocks.create, updateContractSubcontractingPlanReportData: mocks.update,
   reviewContractSubcontractingPlanReportData: mocks.review, importSubcontractingPlanReportDataCsv: mocks.importCsv,
-  downloadSubcontractingPlanReportDataTemplate: mocks.template
+  downloadSubcontractingPlanReportDataTemplate: mocks.template, getCurrentSprSchemaProfile: mocks.schema
 }));
 
 const contractId = "31231231-1231-2312-3123-1231231231bb";
@@ -23,6 +23,8 @@ const row = { id: "row-1", tenantId: "tenant", contractId, subcontractorId, repo
   reportingRole: "PrimeContractor" as const, reportingFiscalYear: 2026, reportingPeriod: "March31" as const,
   reportingEntityUei: companyUei, primeContractPiid: contractNumber, subcontractNumber: null,
   sprEligibilityConfirmed: true, sprEligibilityBasis: "Qualifying individual plan", sprReadinessStatus: "Ready" as const,
+  sprSchemaProfileId: "gsa-spr-fdd-2026-03-06", sprSchemaVersion: "1.0", sprSchemaSourceUrl: "https://example.test",
+  sprSchemaDefinitionSha256: "a".repeat(64), sprReadinessBlockers: [],
   reviewedByUserId: null, reviewedAt: null, reviewerNotes: null, version: 1,
   createdAt: "2026-04-01T12:00:00Z", updatedAt: null, isPackageEligible: false };
 
@@ -32,6 +34,8 @@ describe("EsrsReportDataPanel", () => {
     vi.clearAllMocks(); mocks.list.mockResolvedValue([]);
     mocks.subcontractors.mockResolvedValue([{ id: subcontractorId, name: "Atlas Subcontracting", contractIds: [contractId] }]);
     mocks.evidence.mockResolvedValue([{ id: "evidence-1", title: "Paid invoice", contractIds: [contractId] }]);
+    mocks.schema.mockResolvedValue({ version: "1.0", priorFiscalYearsAllowed: 9,
+      categories: ["Small Disadvantaged Business (SDB)"] });
   });
 
   it("TC-31.2.1 and TC-31.2.3 creates a linked draft row", async () => {

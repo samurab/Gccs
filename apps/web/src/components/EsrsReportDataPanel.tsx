@@ -1,15 +1,10 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   createContractSubcontractingPlanReportData, downloadSubcontractingPlanReportDataTemplate, getContractSubcontractingPlanReportData,
-  getEvidenceItems, getSubcontractors, importSubcontractingPlanReportDataCsv, reviewContractSubcontractingPlanReportData,
+  getCurrentSprSchemaProfile, getEvidenceItems, getSubcontractors, importSubcontractingPlanReportDataCsv, reviewContractSubcontractingPlanReportData,
   updateContractSubcontractingPlanReportData, type EvidenceMetadata, type SubcontractingReportDataRow,
-  type Subcontractor, type UpsertSubcontractingReportDataRowRequest
+  type SprSchemaProfile, type Subcontractor, type UpsertSubcontractingReportDataRowRequest
 } from "@/lib/api";
-
-const sprCategories = ["Small Business Concerns (SB)", "Other Than Small Business Concerns (OTSB)",
-  "Small Disadvantaged Business (SDB)", "Women-Owned Small Business (WOSB)", "HBCU/MSI",
-  "HUBZone Small Business", "Veteran-Owned Small Business (VOSB)",
-  "Service-Disabled Veteran-Owned Small Business (SDVOSB)", "ANC/Indian Tribe"];
 
 const currentFiscalYear = () => new Date().getMonth() >= 9 ? new Date().getFullYear() + 1 : new Date().getFullYear();
 const emptyForm = (contractId: string, contractNumber: string, companyUei: string | null): UpsertSubcontractingReportDataRowRequest => ({
@@ -26,6 +21,7 @@ export function EsrsReportDataPanel({ contractId, contractNumber, companyUei, ca
   const [rows, setRows] = useState<SubcontractingReportDataRow[]>([]);
   const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
   const [evidence, setEvidence] = useState<EvidenceMetadata[]>([]);
+  const [schema, setSchema] = useState<SprSchemaProfile | null>(null);
   const [form, setForm] = useState(() => emptyForm(contractId, contractNumber, companyUei));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "saving" | "error">("loading");
@@ -33,11 +29,11 @@ export function EsrsReportDataPanel({ contractId, contractNumber, companyUei, ca
 
   useEffect(() => {
     let active = true;
-    Promise.all([getContractSubcontractingPlanReportData(contractId), getSubcontractors(), getEvidenceItems()])
-      .then(([nextRows, nextSubcontractors, nextEvidence]) => {
+    Promise.all([getContractSubcontractingPlanReportData(contractId), getSubcontractors(), getEvidenceItems(), getCurrentSprSchemaProfile()])
+      .then(([nextRows, nextSubcontractors, nextEvidence, nextSchema]) => {
         if (!active) return;
         setRows(nextRows); setSubcontractors(nextSubcontractors.filter(item => item.contractIds.includes(contractId)));
-        setEvidence(nextEvidence.filter(item => item.contractIds.includes(contractId)));
+        setEvidence(nextEvidence.filter(item => item.contractIds.includes(contractId))); setSchema(nextSchema);
         setForm(emptyForm(contractId, contractNumber, companyUei)); setEditingId(null); setState("ready");
       })
       .catch(() => { if (active) { setState("error"); setMessage("Subcontracting report data could not be loaded."); } });
@@ -106,7 +102,8 @@ export function EsrsReportDataPanel({ contractId, contractNumber, companyUei, ca
     {rows.map(row => <article key={row.id} aria-label={`${row.socioeconomicCategory} report data`}>
       <strong>{row.socioeconomicCategory} · {row.amount.toLocaleString(undefined, { style: "currency", currency: "USD" })}</strong>
       <span>{row.reportType.toUpperCase()} · {row.rowPeriodStart} to {row.rowPeriodEnd} · {row.reviewStatus}</span>
-      <small>Plan: {row.planCategory} · Source: {row.sourceReference} · Evidence: {row.supportingEvidenceItemIds.length} · SPR: {row.sprReadinessStatus}</small>
+      <small>Plan: {row.planCategory} · Source: {row.sourceReference} · Evidence: {row.supportingEvidenceItemIds.length} · SPR: {row.sprReadinessStatus} · Schema: {row.sprSchemaVersion ?? "unverified"}</small>
+      {row.sprReadinessBlockers?.length ? <small>Verification needed: {row.sprReadinessBlockers.join(", ")}.</small> : null}
       {!row.isPackageEligible ? <small>Blocked from final package until SPR metadata is ready and the row is reviewed or accepted.</small> : null}
       {canManage ? <div><button type="button" onClick={() => edit(row)}>Edit</button>
         <button type="button" onClick={() => void review(row, "Reviewed")}>Mark reviewed</button>
@@ -133,7 +130,7 @@ export function EsrsReportDataPanel({ contractId, contractNumber, companyUei, ca
             reportingEntityUei: role === "PrimeContractor" ? companyUei ?? "" : selectedSubcontractor?.uei ?? "",
             subcontractNumber: role === "PrimeContractor" ? null : current.subcontractNumber }));
         }}><option value="PrimeContractor">Prime contractor</option><option value="Subcontractor">Subcontractor</option></select></label>
-        <label>Reporting fiscal year<input required type="number" min={currentFiscalYear() - 9} max={currentFiscalYear()} value={form.reportingFiscalYear ?? ""} onChange={event => set("reportingFiscalYear", Number(event.target.value))} /></label>
+        <label>Reporting fiscal year<input required type="number" min={currentFiscalYear() - (schema?.priorFiscalYearsAllowed ?? 9)} max={currentFiscalYear()} value={form.reportingFiscalYear ?? ""} onChange={event => set("reportingFiscalYear", Number(event.target.value))} /></label>
         <label>SPR reporting period<select value={form.reportingPeriod ?? ""} onChange={event => set("reportingPeriod", event.target.value as "March31" | "September30" | "Final")}><option value="March31">March 31</option><option value="September30">September 30</option><option value="Final">Final</option></select></label>
         <label>Reporting entity UEI<input required minLength={12} maxLength={12} value={form.reportingEntityUei ?? ""} onChange={event => set("reportingEntityUei", event.target.value.toUpperCase())} /></label>
         <label>Prime contract PIID<input required maxLength={64} value={form.primeContractPiid ?? ""} onChange={event => set("primeContractPiid", event.target.value)} /></label>
@@ -142,7 +139,7 @@ export function EsrsReportDataPanel({ contractId, contractNumber, companyUei, ca
         <label>Report period end<input required type="date" value={form.reportPeriodEnd} onChange={event => set("reportPeriodEnd", event.target.value)} /></label>
         <label>Row period start<input required type="date" value={form.rowPeriodStart} onChange={event => set("rowPeriodStart", event.target.value)} /></label>
         <label>Row period end<input required type="date" value={form.rowPeriodEnd} onChange={event => set("rowPeriodEnd", event.target.value)} /></label>
-        <label>Socioeconomic category<select required value={form.socioeconomicCategory} onChange={event => set("socioeconomicCategory", event.target.value)}><option value="">Select category</option>{sprCategories.map(category => <option key={category} value={category}>{category}</option>)}</select></label>
+        <label>Socioeconomic category<select required value={form.socioeconomicCategory} onChange={event => set("socioeconomicCategory", event.target.value)}><option value="">Select category</option>{(schema?.categories ?? []).map(category => <option key={category} value={category}>{category}</option>)}</select></label>
         <label>Plan category<input required maxLength={120} value={form.planCategory} onChange={event => set("planCategory", event.target.value)} /></label>
         <label>Amount (whole dollars)<input required min="0" max="999999999999" step="1" type="number" value={form.amount} onChange={event => set("amount", Number(event.target.value))} /></label>
         <label>Supporting evidence<select multiple value={form.supportingEvidenceItemIds} onChange={event => set("supportingEvidenceItemIds", Array.from(event.target.selectedOptions, option => option.value))}>

@@ -102,6 +102,9 @@ public sealed class SubcontractingReportDataCollectionTests
         });
         Assert.Equal(AuditAction.Created, auditWriter.Events[0].Action);
         Assert.Equal("15000.00", auditWriter.Events[1].Metadata["amount"]);
+        Assert.Equal("amount", auditWriter.Events[1].Metadata["changedFields"]);
+        Assert.Equal("Ready", auditWriter.Events[1].Metadata["beforeReadiness"]);
+        Assert.Equal("Ready", auditWriter.Events[1].Metadata["afterReadiness"]);
         Assert.Equal("Accepted", auditWriter.Events[2].Metadata["reviewStatus"]);
         Assert.Equal("Rejected", auditWriter.Events[3].Metadata["reviewStatus"]);
     }
@@ -120,7 +123,8 @@ public sealed class SubcontractingReportDataCollectionTests
     private static SubcontractingReportDataService CreateService(Guid tenantId, out CapturingAuditEventWriter auditWriter)
     {
         auditWriter = new CapturingAuditEventWriter();
-        return new SubcontractingReportDataService(new InMemorySubcontractingReportDataRepository(tenantId), auditWriter, new TestApplicationTransaction());
+        return new SubcontractingReportDataService(new InMemorySubcontractingReportDataRepository(tenantId),
+            new SprSchemaProfileService(new InMemorySprSchemaProfileRepository()), auditWriter, new TestApplicationTransaction());
     }
 
     private static SubcontractingReportDataRowRequest CreateRequest(StoryIds ids) =>

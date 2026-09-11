@@ -13,6 +13,7 @@ public sealed class EfSubcontractingReportDataRepository(
 {
     public async Task<SubcontractingReportDataRowDto> CreateAsync(
         SubcontractingReportDataRowRequest request,
+        SprSchemaReferenceDto? schema,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
@@ -22,7 +23,7 @@ public sealed class EfSubcontractingReportDataRepository(
             Id = Guid.NewGuid(), TenantId = tenantContext.TenantId, ReviewStatus = SubcontractingReportDataReviewStatus.Draft,
             Version = 1, CreatedAt = now, CreatedByUserId = actorUserId
         };
-        Apply(entity, request);
+        Apply(entity, request, schema);
         SyncEvidence(entity, request.SupportingEvidenceItemIds);
         dbContext.SubcontractingReportDataRows.Add(entity);
         await SaveAsync(cancellationToken);
@@ -32,12 +33,13 @@ public sealed class EfSubcontractingReportDataRepository(
     public async Task<SubcontractingReportDataRowDto?> UpdateAsync(
         Guid rowId,
         SubcontractingReportDataRowRequest request,
+        SprSchemaReferenceDto? schema,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
         var entity = await QueryCurrentTenant().SingleOrDefaultAsync(row => row.Id == rowId, cancellationToken);
         if (entity is null) return null;
-        Apply(entity, request);
+        Apply(entity, request, schema);
         SyncEvidence(entity, request.SupportingEvidenceItemIds);
         entity.ReviewStatus = SubcontractingReportDataReviewStatus.PendingReview;
         entity.ReviewedByUserId = null; entity.ReviewedAt = null; entity.ReviewerNotes = null;
@@ -143,11 +145,28 @@ public sealed class EfSubcontractingReportDataRepository(
     public Task<bool> ContractExistsCurrentTenantAsync(Guid contractId, CancellationToken cancellationToken = default) =>
         dbContext.Contracts.AsNoTracking().AnyAsync(item => item.TenantId == tenantContext.TenantId && item.Id == contractId, cancellationToken);
 
+    public async Task<SprRemediationValuesDto> GetRemediationSuggestionCurrentTenantAsync(
+        SubcontractingReportDataRowDto row,
+        CancellationToken cancellationToken = default)
+    {
+        var primeContractPiid = await dbContext.Contracts.AsNoTracking()
+            .Where(item => item.TenantId == tenantContext.TenantId && item.Id == row.ContractId)
+            .Select(item => item.ContractNumber).SingleOrDefaultAsync(cancellationToken);
+        var reportingEntityUei = row.ReportingRole == SprReportingRole.Subcontractor
+            ? await dbContext.Subcontractors.AsNoTracking()
+                .Where(item => item.TenantId == tenantContext.TenantId && item.Id == row.SubcontractorId)
+                .Select(item => item.Uei).SingleOrDefaultAsync(cancellationToken)
+            : await dbContext.CompanyProfiles.AsNoTracking()
+                .Where(item => item.TenantId == tenantContext.TenantId)
+                .Select(item => item.Uei).SingleOrDefaultAsync(cancellationToken);
+        return new(reportingEntityUei, primeContractPiid);
+    }
+
     private IQueryable<SubcontractingReportDataRowEntity> QueryCurrentTenant() =>
         dbContext.SubcontractingReportDataRows.Include(row => row.EvidenceLinks)
             .Where(row => row.TenantId == tenantContext.TenantId);
 
-    private static void Apply(SubcontractingReportDataRowEntity entity, SubcontractingReportDataRowRequest request)
+    private static void Apply(SubcontractingReportDataRowEntity entity, SubcontractingReportDataRowRequest request, SprSchemaReferenceDto? schema)
     {
         entity.ContractId = request.ContractId; entity.SubcontractorId = request.SubcontractorId; entity.ReportType = request.ReportType;
         entity.ReportPeriodStart = request.ReportPeriodStart; entity.ReportPeriodEnd = request.ReportPeriodEnd;
@@ -159,6 +178,8 @@ public sealed class EfSubcontractingReportDataRepository(
         entity.ReportingPeriod = request.ReportingPeriod; entity.ReportingEntityUei = request.ReportingEntityUei;
         entity.PrimeContractPiid = request.PrimeContractPiid; entity.SubcontractNumber = request.SubcontractNumber;
         entity.SprEligibilityConfirmed = request.SprEligibilityConfirmed; entity.SprEligibilityBasis = request.SprEligibilityBasis;
+        entity.SprSchemaProfileId = schema?.Id; entity.SprSchemaVersion = schema?.Version;
+        entity.SprSchemaSourceUrl = schema?.SourceUrl; entity.SprSchemaDefinitionSha256 = schema?.DefinitionSha256;
     }
 
     private static string Key(string value) => value.Trim().ToUpperInvariant();
@@ -194,5 +215,6 @@ public sealed class EfSubcontractingReportDataRepository(
         entity.ReviewStatus, entity.ReviewedByUserId, entity.ReviewedAt, entity.ReviewerNotes,
         entity.Version, entity.CreatedAt, entity.UpdatedAt, entity.ReportingRole, entity.ReportingFiscalYear,
         entity.ReportingPeriod, entity.ReportingEntityUei, entity.PrimeContractPiid, entity.SubcontractNumber,
-        entity.SprEligibilityConfirmed, entity.SprEligibilityBasis);
+        entity.SprEligibilityConfirmed, entity.SprEligibilityBasis, entity.SprSchemaProfileId, entity.SprSchemaVersion,
+        entity.SprSchemaSourceUrl, entity.SprSchemaDefinitionSha256);
 }

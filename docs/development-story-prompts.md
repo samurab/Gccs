@@ -5291,6 +5291,8 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 
 Implement Story 31.2, "Subcontracting Report Data Collection," from `docs/development-phase-use-cases.md`. Add SAM.gov SPR report data rows linked to contracts, subcontractors, spend/category data, periods, plans, evidence, review states, import template support, reporting role, fiscal year/period, UEI, PIID, conditional subcontract number, documented external eligibility basis, validation for bad or duplicate data, package-inclusion gating, and audit logging. Preserve legacy eSRS routes and internal persistence identifiers only as compatibility aliases. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
 
+Schema evolution and legacy remediation extension: resolve the current reviewed, published, effective SPR schema profile server-side; persist profile ID/version/source/definition hash on canonical rows; expose tenant-scoped field-level blockers and non-persisted UEI/PIID suggestions; never silently promote legacy rows; and audit changed field names and readiness transitions when enrichment is saved.
+
 #-----------------------------------------
 ### Story 31.3: SAM.gov SPR Report Package
 Prompt:

@@ -921,6 +921,7 @@ INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260610031239_InitialDevelopmentSchema', '10.0.4');
 
 COMMIT;
+
 START TRANSACTION;
 ALTER TABLE gccs.contract_clauses ADD review_state character varying(64) NOT NULL DEFAULT 'Draft';
 
@@ -4516,5 +4517,21 @@ ALTER TABLE gccs.esrs_report_data_rows ADD CONSTRAINT "CK_esrs_report_data_rows_
 
 INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20260910234532_AddSamGovSprReportMetadata', '10.0.4');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_schema_definition_sha256 character varying(64);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_schema_profile_id character varying(160);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_schema_source_url character varying(2000);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD spr_schema_version character varying(80);
+
+ALTER TABLE gccs.esrs_report_data_rows ADD CONSTRAINT "CK_esrs_report_data_rows_spr_schema" CHECK (spr_schema_profile_id IS NULL OR (spr_schema_version IS NOT NULL AND spr_schema_source_url IS NOT NULL AND length(spr_schema_definition_sha256) = 64));
+
+INSERT INTO gccs."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20260911003208_AddSprSchemaProvenance', '10.0.4');
 
 COMMIT;

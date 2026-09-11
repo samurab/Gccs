@@ -1056,6 +1056,59 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /api/subcontracting-plan-reports/schema-profiles/current:
+    get:
+      tags: [Reports]
+      summary: Get the reviewed published SPR schema profile used for new rows
+      operationId: getCurrentSubcontractingPlanReportSchemaProfile
+      responses:
+        "200":
+          description: Current effective source-backed schema profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SprSchemaProfile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/subcontracting-plan-reports/report-data/remediation:
+    get:
+      tags: [Reports]
+      summary: List current-tenant legacy rows requiring SPR verification
+      operationId: listSubcontractingPlanReportDataRemediation
+      parameters:
+        - { name: contractId, in: query, schema: { type: string, format: uuid } }
+        - { name: reportType, in: query, schema: { $ref: "#/components/schemas/EsrsReportType" } }
+        - { name: periodStart, in: query, schema: { type: string, format: date } }
+        - { name: periodEnd, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Rows and field-level readiness blockers scoped to the current tenant.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SprRemediationItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/contracts/{contractId}/subcontracting-plan-report-data/{rowId}/remediation-suggestions:
+    parameters:
+      - $ref: "#/components/parameters/ContractId"
+      - { name: rowId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Reports]
+      summary: Suggest tenant-resolved values without modifying a report row
+      operationId: getSubcontractingPlanReportDataRemediationSuggestions
+      responses:
+        "200":
+          description: Non-persisted current-tenant suggestions.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SprRemediationSuggestion" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /api/subcontracting-plan-reports/report-data/import:
     post:
       tags: [Reports]
@@ -4843,7 +4896,61 @@ components:
             createdAt: { type: string, format: date-time }
             updatedAt: { type: [string, "null"], format: date-time }
             sprReadinessStatus: { type: string, enum: [NeedsVerification, Ready] }
+            sprSchemaProfileId: { type: [string, "null"] }
+            sprSchemaVersion: { type: [string, "null"] }
+            sprSchemaSourceUrl: { type: [string, "null"], format: uri }
+            sprSchemaDefinitionSha256: { type: [string, "null"], pattern: "^[a-f0-9]{64}$" }
+            sprReadinessBlockers:
+              type: array
+              items: { type: string }
             isPackageEligible: { type: boolean }
+
+    SprSchemaProfile:
+      type: object
+      required: [id, version, state, sourceName, sourceUrl, definitionSha256, priorFiscalYearsAllowed, wholeDollarAmounts, eligibilityConfirmationRequired, reportingPeriods, categories]
+      properties:
+        id: { type: string }
+        version: { type: string }
+        state: { type: string, enum: [Draft, Approved, Published, Superseded, Retired] }
+        sourceName: { type: string }
+        sourceUrl: { type: string, format: uri }
+        sourcePublishedDate: { type: [string, "null"], format: date }
+        effectiveDate: { type: [string, "null"], format: date }
+        retiredDate: { type: [string, "null"], format: date }
+        lastReviewedAt: { type: [string, "null"], format: date }
+        owner: { type: string }
+        reviewer: { type: [string, "null"] }
+        reviewDate: { type: [string, "null"], format: date }
+        definitionSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        priorFiscalYearsAllowed: { type: integer, minimum: 0 }
+        wholeDollarAmounts: { type: boolean }
+        eligibilityConfirmationRequired: { type: boolean }
+        reportingPeriods:
+          type: array
+          items: { type: string, enum: [March31, September30, Final] }
+        categories:
+          type: array
+          items: { type: string }
+
+    SprRemediationItem:
+      type: object
+      required: [row, blockingFields]
+      properties:
+        row: { $ref: "#/components/schemas/SubcontractingReportDataRow" }
+        blockingFields:
+          type: array
+          items: { type: string }
+
+    SprRemediationSuggestion:
+      type: object
+      required: [rowId, schemaProfileId, schemaVersion, disclaimer]
+      properties:
+        rowId: { type: string, format: uuid }
+        reportingEntityUei: { type: [string, "null"] }
+        primeContractPiid: { type: [string, "null"] }
+        schemaProfileId: { type: string }
+        schemaVersion: { type: string }
+        disclaimer: { type: string }
 
     SubcontractingReportDataReviewRequest:
       type: object

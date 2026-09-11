@@ -2272,6 +2272,7 @@ Acceptance criteria:
 - Report data rows link to supporting evidence when provided.
 - Data rows cannot be included in a final package until SPR metadata is ready and the row is reviewed or explicitly marked as accepted.
 - Data row changes are audit logged.
+- New rows capture the current reviewed SPR schema profile; legacy rows expose field-level remediation blockers and tenant-resolved, non-persisted suggestions.
 
 #### Story 31.3: SAM.gov SPR Report Package
 

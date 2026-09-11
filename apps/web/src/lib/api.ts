@@ -1722,6 +1722,14 @@ export type EsrsScheduleTemplate = {
 export type SubcontractingReportDataReviewStatus = "Draft" | "PendingReview" | "Reviewed" | "Accepted" | "Rejected";
 export type SprReportingRole = "PrimeContractor" | "Subcontractor";
 export type SprReportingPeriod = "March31" | "September30" | "Final";
+export type SprSchemaProfile = {
+  id: string; version: string; state: "Draft" | "Approved" | "Published" | "Superseded" | "Retired";
+  sourceName: string; sourceUrl: string; sourcePublishedDate: string | null; effectiveDate: string | null;
+  retiredDate: string | null; lastReviewedAt: string | null; owner: string; reviewer: string | null;
+  reviewDate: string | null; definitionSha256: string; priorFiscalYearsAllowed: number;
+  wholeDollarAmounts: boolean; eligibilityConfirmationRequired: boolean;
+  reportingPeriods: SprReportingPeriod[]; categories: string[];
+};
 export type SubcontractingReportDataRow = {
   id: string; tenantId: string; contractId: string; subcontractorId: string; reportType: "Isr" | "Ssr";
   reportPeriodStart: string; reportPeriodEnd: string; rowPeriodStart: string; rowPeriodEnd: string;
@@ -1731,11 +1739,14 @@ export type SubcontractingReportDataRow = {
   reportingRole: SprReportingRole | null; reportingFiscalYear: number | null; reportingPeriod: SprReportingPeriod | null;
   reportingEntityUei: string | null; primeContractPiid: string | null; subcontractNumber: string | null;
   sprEligibilityConfirmed: boolean; sprEligibilityBasis: string | null; sprReadinessStatus: "NeedsVerification" | "Ready";
+  sprSchemaProfileId: string | null; sprSchemaVersion: string | null; sprSchemaSourceUrl: string | null;
+  sprSchemaDefinitionSha256: string | null; sprReadinessBlockers: string[];
   version: number; createdAt: string; updatedAt: string | null; isPackageEligible: boolean;
 };
 export type UpsertSubcontractingReportDataRowRequest = Omit<SubcontractingReportDataRow,
   "id" | "tenantId" | "reviewStatus" | "reviewedByUserId" | "reviewedAt" | "reviewerNotes" |
-  "version" | "createdAt" | "updatedAt" | "isPackageEligible" | "sprReadinessStatus"> & { expectedVersion?: number | null };
+  "version" | "createdAt" | "updatedAt" | "isPackageEligible" | "sprReadinessStatus" | "sprReadinessBlockers" |
+  "sprSchemaProfileId" | "sprSchemaVersion" | "sprSchemaSourceUrl" | "sprSchemaDefinitionSha256"> & { expectedVersion?: number | null };
 
 export type ContractDocument = {
   id: string;
@@ -3065,6 +3076,9 @@ export const getContractEsrsReportData = (contractId: string) =>
 export const getContractSubcontractingPlanReportData = (contractId: string) =>
   getRequiredJson<SubcontractingReportDataRow[]>(`/api/contracts/${contractId}/subcontracting-plan-report-data`);
 
+export const getCurrentSprSchemaProfile = () =>
+  getRequiredJson<SprSchemaProfile>("/api/subcontracting-plan-reports/schema-profiles/current");
+
 export const createContractEsrsReportData = (contractId: string, request: UpsertSubcontractingReportDataRowRequest) =>
   postJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/esrs-report-data`, request);
 
@@ -3105,7 +3119,9 @@ export async function downloadSubcontractingPlanReportDataTemplate(): Promise<Ap
   try {
     const response = await fetch(`${apiBaseUrl}/api/subcontracting-plan-reports/report-data/import-template`, { headers: await getApiHeaders() });
     if (!response.ok) return { data: null, error: await readErrorMessage(response) };
-    return { data: { blob: await response.blob(), fileName: "sam-gov-spr-report-data-template.csv" }, error: null };
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? "sam-gov-spr-report-data-template.csv";
+    return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")) }, error: null };
   } catch { return { data: null, error: "The SAM.gov SPR import template could not be downloaded." }; }
 }
 

@@ -174,6 +174,8 @@ Rationale: eSRS was decommissioned on February 20, 2026, and its subcontracting 
 - Create, edit, import, review, and rejection changes share the relational transaction with append-only audit writes. A failed audit append rolls back the business mutation.
 - Edits clear prior reviewer metadata and return a row to `PendingReview`. Only rows with complete SPR identity and eligibility metadata that are `Reviewed` or explicitly `Accepted` are eligible for final package preparation.
 - CSV import is capped at 2 MB and 1,000 rows, requires the exact versioned header, and applies the same reference, amount, period, duplicate, evidence, and audit rules as manual entry.
+- New rows resolve a source-controlled, reviewed, published, and effective SPR schema profile on the server. The profile governs categories, periods, fiscal-year range, whole-dollar handling, and eligibility confirmation; its ID, version, source URL, and definition SHA-256 are persisted with each row.
+- Legacy rows are never silently promoted. A tenant-scoped remediation projection identifies blocking fields, and a read-only suggestion endpoint resolves PIID and UEI from authoritative tenant records without persisting them. Saving enrichment uses the normal validated update workflow, resets review, and audits changed field names and readiness transitions.
 - Canonical APIs use `/subcontracting-plan-report-data` and `/subcontracting-plan-reports`; legacy `/esrs` routes and persistence names remain compatibility identifiers.
 - This workflow collects internal preparation data only. FeDril does not submit or synchronize reports with SAM.gov, determine legal reporting obligations, or provide government approval.
 

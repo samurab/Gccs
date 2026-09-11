@@ -477,6 +477,10 @@ public sealed class SubcontractingReportDataRowEntity : AuditedEntity
     public string? SubcontractNumber { get; set; }
     public bool SprEligibilityConfirmed { get; set; }
     public string? SprEligibilityBasis { get; set; }
+    public string? SprSchemaProfileId { get; set; }
+    public string? SprSchemaVersion { get; set; }
+    public string? SprSchemaSourceUrl { get; set; }
+    public string? SprSchemaDefinitionSha256 { get; set; }
     public SubcontractingReportDataReviewStatus ReviewStatus { get; set; }
     public Guid? ReviewedByUserId { get; set; }
     public DateTimeOffset? ReviewedAt { get; set; }

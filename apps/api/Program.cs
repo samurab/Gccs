@@ -1648,9 +1648,10 @@ api.MapPatch("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowI
 .RequirePermission(Permission.ManageReports)
 .WithName("ReviewContractSubcontractingPlanReportData");
 
-api.MapGet("/subcontracting-plan-reports/report-data/import-template", () =>
+api.MapGet("/subcontracting-plan-reports/report-data/import-template", async (
+    SubcontractingReportDataService service, CancellationToken cancellationToken) =>
 {
-    var template = SubcontractingReportDataService.GetImportTemplate(spr: true);
+    var template = await service.GetSprImportTemplateAsync(cancellationToken);
     return Results.File(System.Text.Encoding.UTF8.GetBytes(template.CsvContent), "text/csv", template.FileName);
 })
 .RequirePermission(Permission.ViewReports)
@@ -1685,6 +1686,31 @@ api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data/package
 })
 .RequirePermission(Permission.ViewReports)
 .WithName("GetSubcontractingPlanReportDataPackageEligibility");
+
+api.MapGet("/subcontracting-plan-reports/schema-profiles/current", async (
+    SubcontractingReportDataService service, CancellationToken cancellationToken) =>
+    Results.Ok(await service.GetCurrentSchemaProfileAsync(cancellationToken)))
+.RequirePermission(Permission.ViewReports)
+.WithName("GetCurrentSubcontractingPlanReportSchemaProfile");
+
+api.MapGet("/subcontracting-plan-reports/report-data/remediation", async (
+    Guid? contractId, EsrsReportType? reportType, DateOnly? periodStart, DateOnly? periodEnd,
+    SubcontractingReportDataService service, CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListRemediationAsync(
+        new SubcontractingReportDataQuery(contractId, reportType, periodStart, periodEnd), cancellationToken)))
+.RequirePermission(Permission.ViewReports)
+.WithName("ListSubcontractingPlanReportDataRemediation");
+
+api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowId:guid}/remediation-suggestions", async (
+    Guid contractId, Guid rowId, SubcontractingReportDataService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var row = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+    if (row is null || row.ContractId != contractId)
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    return Results.Ok(await service.GetRemediationSuggestionAsync(rowId, cancellationToken));
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetSubcontractingPlanReportDataRemediationSuggestions");
 
 api.MapGet("/contracts/{contractId:guid}/size-checks", async (
     Guid contractId,

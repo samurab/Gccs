@@ -7,7 +7,7 @@ public sealed class InMemorySubcontractingReportDataRepository(Guid tenantId) : 
     private readonly object gate = new();
     private readonly List<SubcontractingReportDataRowDto> rows = [];
 
-    public Task<SubcontractingReportDataRowDto> CreateAsync(SubcontractingReportDataRowRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
+    public Task<SubcontractingReportDataRowDto> CreateAsync(SubcontractingReportDataRowRequest request, SprSchemaReferenceDto? schema, Guid actorUserId, CancellationToken cancellationToken = default)
     {
         lock (gate)
         {
@@ -16,12 +16,13 @@ public sealed class InMemorySubcontractingReportDataRepository(Guid tenantId) : 
                 request.SocioeconomicCategory, request.PlanCategory, request.Amount, request.SupportingEvidenceItemIds.ToArray(),
                 request.SourceReference, SubcontractingReportDataReviewStatus.Draft, null, null, null, 1, DateTimeOffset.UtcNow, null,
                 request.ReportingRole, request.ReportingFiscalYear, request.ReportingPeriod, request.ReportingEntityUei,
-                request.PrimeContractPiid, request.SubcontractNumber, request.SprEligibilityConfirmed, request.SprEligibilityBasis);
+                request.PrimeContractPiid, request.SubcontractNumber, request.SprEligibilityConfirmed, request.SprEligibilityBasis,
+                schema?.Id, schema?.Version, schema?.SourceUrl, schema?.DefinitionSha256);
             rows.Add(row); return Task.FromResult(row);
         }
     }
 
-    public Task<SubcontractingReportDataRowDto?> UpdateAsync(Guid rowId, SubcontractingReportDataRowRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
+    public Task<SubcontractingReportDataRowDto?> UpdateAsync(Guid rowId, SubcontractingReportDataRowRequest request, SprSchemaReferenceDto? schema, Guid actorUserId, CancellationToken cancellationToken = default)
     {
         lock (gate)
         {
@@ -36,6 +37,8 @@ public sealed class InMemorySubcontractingReportDataRepository(Guid tenantId) : 
                 ReportingPeriod = request.ReportingPeriod, ReportingEntityUei = request.ReportingEntityUei,
                 PrimeContractPiid = request.PrimeContractPiid, SubcontractNumber = request.SubcontractNumber,
                 SprEligibilityConfirmed = request.SprEligibilityConfirmed, SprEligibilityBasis = request.SprEligibilityBasis,
+                SprSchemaProfileId = schema?.Id, SprSchemaVersion = schema?.Version,
+                SprSchemaSourceUrl = schema?.SourceUrl, SprSchemaDefinitionSha256 = schema?.DefinitionSha256,
                 ReviewStatus = SubcontractingReportDataReviewStatus.PendingReview, ReviewedByUserId = null, ReviewedAt = null,
                 ReviewerNotes = null, Version = existing.Version + 1, UpdatedAt = DateTimeOffset.UtcNow };
             Replace(existing, updated); return Task.FromResult<SubcontractingReportDataRowDto?>(updated);
@@ -85,6 +88,9 @@ public sealed class InMemorySubcontractingReportDataRepository(Guid tenantId) : 
         Task.FromResult<IReadOnlyDictionary<string, string[]>>(new Dictionary<string, string[]>());
 
     public Task<bool> ContractExistsCurrentTenantAsync(Guid contractId, CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+    public Task<SprRemediationValuesDto> GetRemediationSuggestionCurrentTenantAsync(SubcontractingReportDataRowDto row, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new SprRemediationValuesDto(row.ReportingEntityUei ?? "TESTUEI12345", row.PrimeContractPiid ?? "FA-TEST-312"));
 
     private void Replace(SubcontractingReportDataRowDto existing, SubcontractingReportDataRowDto updated) { rows.Remove(existing); rows.Add(updated); }
 }

@@ -38,6 +38,8 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
         var row = Assert.IsType<SubcontractingReportDataRowDto>(await response.Content.ReadFromJsonAsync<SubcontractingReportDataRowDto>(JsonOptions));
         Assert.Equal(ids.ContractId, row.ContractId); Assert.Equal(ids.SubcontractorId, row.SubcontractorId);
         Assert.Equal([ids.EvidenceId], row.SupportingEvidenceItemIds); Assert.Equal(SubcontractingReportDataReviewStatus.Draft, row.ReviewStatus);
+        Assert.Equal("gsa-spr-fdd-2026-03-06", row.SprSchemaProfileId); Assert.Equal("1.0", row.SprSchemaVersion);
+        Assert.Equal(64, row.SprSchemaDefinitionSha256?.Length); Assert.Equal(SprReadinessStatus.Ready, row.SprReadinessStatus);
         Assert.False(row.IsPackageEligible);
         await using var scope = app.Services.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
         Assert.True(await db.SubcontractingReportDataRows.AnyAsync(item => item.Id == row.Id && item.TenantId == ids.TenantId));
@@ -178,6 +180,41 @@ public sealed class SubcontractingReportDataApiTests : IClassFixture<WebApplicat
             ids.TenantId, Permission.ManageReports));
         var accepted = Assert.IsType<SubcontractingReportDataRowDto>(await acceptedResponse.Content.ReadFromJsonAsync<SubcontractingReportDataRowDto>(JsonOptions));
         Assert.False(accepted.IsPackageEligible);
+    }
+
+    [Fact]
+    public async Task Legacy_rows_are_listed_for_remediation_and_suggestions_are_tenant_scoped_without_writes()
+    {
+        var ids = Ids.Create(); await using var app = CreateFactory(nameof(Legacy_rows_are_listed_for_remediation_and_suggestions_are_tenant_scoped_without_writes), ids);
+        using var client = app.CreateClient();
+        var legacyRequest = ValidRequest(ids) with { ReportingRole = null, ReportingFiscalYear = null, ReportingPeriod = null,
+            ReportingEntityUei = null, PrimeContractPiid = null, SprEligibilityConfirmed = false, SprEligibilityBasis = null };
+        var createdResponse = await client.SendAsync(Request(HttpMethod.Post, $"/api/contracts/{ids.ContractId}/esrs-report-data",
+            legacyRequest, ids.TenantId, Permission.ManageReports));
+        var row = Assert.IsType<SubcontractingReportDataRowDto>(await createdResponse.Content.ReadFromJsonAsync<SubcontractingReportDataRowDto>(JsonOptions));
+
+        var remediationResponse = await client.SendAsync(Request<object>(HttpMethod.Get,
+            $"/api/subcontracting-plan-reports/report-data/remediation?contractId={ids.ContractId}", null, ids.TenantId, Permission.ViewReports));
+        var remediation = (await remediationResponse.Content.ReadFromJsonAsync<SprRemediationItemDto[]>(JsonOptions))!;
+        Assert.Equal(HttpStatusCode.OK, remediationResponse.StatusCode); Assert.Single(remediation);
+        Assert.Contains("sprSchemaProfile", remediation[0].BlockingFields); Assert.Contains("reportingEntityUei", remediation[0].BlockingFields);
+        var profileResponse = await client.SendAsync(Request<object>(HttpMethod.Get,
+            "/api/subcontracting-plan-reports/schema-profiles/current", null, ids.TenantId, Permission.ViewReports));
+        var profile = Assert.IsType<SprSchemaProfileDto>(await profileResponse.Content.ReadFromJsonAsync<SprSchemaProfileDto>(JsonOptions));
+        Assert.Equal(SprSchemaProfileState.Published, profile.State); Assert.Equal("1.0", profile.Version);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(Request<object>(HttpMethod.Get,
+            "/api/subcontracting-plan-reports/report-data/remediation", null, ids.TenantId, Permission.ManageReports))).StatusCode);
+
+        var suggestionResponse = await client.SendAsync(Request<object>(HttpMethod.Get,
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data/{row.Id}/remediation-suggestions", null, ids.TenantId, Permission.ViewReports));
+        var suggestion = Assert.IsType<SprRemediationSuggestionDto>(await suggestionResponse.Content.ReadFromJsonAsync<SprRemediationSuggestionDto>(JsonOptions));
+        Assert.Equal($"FA-{ids.ContractId:N}", suggestion.PrimeContractPiid); Assert.Equal("TESTUEI12345", suggestion.ReportingEntityUei);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(Request<object>(HttpMethod.Get,
+            $"/api/contracts/{ids.ContractId}/subcontracting-plan-report-data/{row.Id}/remediation-suggestions", null, ids.OtherTenantId, Permission.ViewReports))).StatusCode);
+
+        await using var scope = app.Services.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<GccsDbContext>();
+        var stored = await db.SubcontractingReportDataRows.SingleAsync(item => item.Id == row.Id);
+        Assert.Null(stored.ReportingEntityUei); Assert.Null(stored.SprSchemaVersion);
     }
 
     [PostgresFact]

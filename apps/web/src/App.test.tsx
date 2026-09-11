@@ -877,6 +877,7 @@ vi.mock("@/lib/api", () => ({
   getContractEsrsApplicabilities: vi.fn().mockResolvedValue([]),
   getContractEsrsReportData: vi.fn().mockResolvedValue([]),
   getContractSubcontractingPlanReportData: vi.fn().mockResolvedValue([]),
+  getCurrentSprSchemaProfile: vi.fn().mockResolvedValue({ version: "1.0", priorFiscalYearsAllowed: 9, categories: [] }),
   createContractSubcontractingPlanReportData: vi.fn(),
   updateContractSubcontractingPlanReportData: vi.fn(),
   reviewContractSubcontractingPlanReportData: vi.fn(),

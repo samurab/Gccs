@@ -113,7 +113,8 @@ public sealed class EsrsReportPackageTests
         out CapturingAuditEventWriter auditWriter)
     {
         auditWriter = new CapturingAuditEventWriter();
-        reportDataService = new SubcontractingReportDataService(new InMemorySubcontractingReportDataRepository(tenantId), auditWriter, new TestApplicationTransaction());
+        reportDataService = new SubcontractingReportDataService(new InMemorySubcontractingReportDataRepository(tenantId),
+            new SprSchemaProfileService(new InMemorySprSchemaProfileRepository()), auditWriter, new TestApplicationTransaction());
         return new EsrsReportPackageService(reportDataService, new InMemoryEsrsReportPackageRepository(), auditWriter);
     }
 

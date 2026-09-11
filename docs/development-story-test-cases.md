@@ -841,6 +841,8 @@ Phase 0 and Story 39 are non-software evidence workflows. Their `TC-*` cases are
 - **TC-31.2.3 - Evidence link stored:** Attach supporting evidence to a report data row and verify the link is returned in detail and package preparation.
 - **TC-31.2.4 - SPR readiness and review required for package inclusion:** Attempt to include legacy/unverified or unreviewed data rows in a final package and verify they are blocked until SPR-ready and reviewed or explicitly accepted.
 - **TC-31.2.5 - Data row changes audited:** Create, update, accept, and reject report data rows and verify audit events.
+- **TC-31.2.6 - Governed schema provenance:** Verify canonical writes resolve a reviewed, published, effective schema profile, persist its version/source/definition hash, and fail closed for draft or invalid profiles.
+- **TC-31.2.7 - Legacy remediation is explicit and tenant-scoped:** Verify legacy rows expose field-level blockers and tenant-resolved suggestions without writes; saving enrichment resets review and audits changed fields/readiness.
 
 ### Story 31.3: SAM.gov SPR Report Package
 

@@ -8,18 +8,11 @@ namespace Gccs.Application.Reports;
 
 public sealed class SubcontractingReportDataService(
     ISubcontractingReportDataRepository repository,
+    SprSchemaProfileService schemaProfileService,
     IAuditEventWriter auditEventWriter,
     IApplicationTransaction transaction)
 {
     private const int MaximumImportRows = 1_000;
-    public static readonly IReadOnlySet<string> SprSocioeconomicCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "Small Business Concerns (SB)", "Other Than Small Business Concerns (OTSB)",
-        "Small Disadvantaged Business (SDB)", "Women-Owned Small Business (WOSB)",
-        "HBCU/MSI", "HUBZone Small Business", "Veteran-Owned Small Business (VOSB)",
-        "Service-Disabled Veteran-Owned Small Business (SDVOSB)", "ANC/Indian Tribe"
-    };
-
     public Task<SubcontractingReportDataRowDto> CreateAsync(
         SubcontractingReportDataRowRequest request,
         Guid actorUserId,
@@ -40,8 +33,9 @@ public sealed class SubcontractingReportDataService(
         transaction.ExecuteAsync(async token =>
         {
             var normalized = Normalize(request);
-            await ValidateAsync(normalized, null, requireSprMetadata, token);
-            var row = await repository.CreateAsync(normalized, actorUserId, token);
+            var schema = await ResolveSchemaAsync(normalized, requireSprMetadata, token);
+            await ValidateAsync(normalized, null, schema, requireSprMetadata, token);
+            var row = await repository.CreateAsync(normalized, Reference(schema), actorUserId, token);
             await WriteAuditAsync(row, actorUserId, AuditAction.Created, "Subcontracting report data row was created.", token);
             return row;
         }, cancellationToken);
@@ -81,10 +75,15 @@ public sealed class SubcontractingReportDataService(
                     SprEligibilityConfirmed = existing.SprEligibilityConfirmed, SprEligibilityBasis = existing.SprEligibilityBasis
                 };
             var normalized = Normalize(request);
-            await ValidateAsync(normalized, rowId, requireSprMetadata, token);
-            var updated = await repository.UpdateAsync(rowId, normalized, actorUserId, token);
+            var schema = await ResolveSchemaAsync(normalized, requireSprMetadata, token);
+            await ValidateAsync(normalized, rowId, schema, requireSprMetadata, token);
+            var changedFields = ChangedFields(existing, normalized);
+            var beforeReadiness = existing.SprReadinessStatus;
+            var updated = await repository.UpdateAsync(rowId, normalized, Reference(schema), actorUserId, token);
             if (updated is not null)
-                await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, "Subcontracting report data row was updated and requires review.", token);
+                await WriteAuditAsync(updated, actorUserId, AuditAction.Updated, "Subcontracting report data row was updated and requires review.", token,
+                    new Dictionary<string, string> { ["changedFields"] = string.Join(',', changedFields),
+                        ["beforeReadiness"] = beforeReadiness.ToString(), ["afterReadiness"] = updated.SprReadinessStatus.ToString() });
             return updated;
         }, cancellationToken);
 
@@ -94,6 +93,26 @@ public sealed class SubcontractingReportDataService(
     public Task<IReadOnlyList<SubcontractingReportDataRowDto>> ListCurrentTenantAsync(
         SubcontractingReportDataQuery query,
         CancellationToken cancellationToken = default) => repository.ListCurrentTenantAsync(query, cancellationToken);
+
+    public async Task<IReadOnlyList<SprRemediationItemDto>> ListRemediationAsync(
+        SubcontractingReportDataQuery query,
+        CancellationToken cancellationToken = default) =>
+        (await repository.ListCurrentTenantAsync(query, cancellationToken))
+            .Where(row => row.SprReadinessStatus == SprReadinessStatus.NeedsVerification)
+            .Select(row => new SprRemediationItemDto(row, row.SprReadinessBlockers)).ToArray();
+
+    public async Task<SprRemediationSuggestionDto?> GetRemediationSuggestionAsync(Guid rowId, CancellationToken cancellationToken = default)
+    {
+        var row = await repository.FindCurrentTenantAsync(rowId, cancellationToken);
+        if (row is null) return null;
+        var values = await repository.GetRemediationSuggestionCurrentTenantAsync(row, cancellationToken);
+        var schema = await schemaProfileService.GetCurrentPublishedAsync(cancellationToken);
+        return new SprRemediationSuggestionDto(row.Id, values.ReportingEntityUei, values.PrimeContractPiid,
+            schema.Id, schema.Version, "Suggestions are not persisted until an authorized user verifies and saves them.");
+    }
+
+    public Task<SprSchemaProfileDto> GetCurrentSchemaProfileAsync(CancellationToken cancellationToken = default) =>
+        schemaProfileService.GetCurrentPublishedAsync(cancellationToken);
 
     public Task<bool> ContractExistsCurrentTenantAsync(Guid contractId, CancellationToken cancellationToken = default) =>
         repository.ContractExistsCurrentTenantAsync(contractId, cancellationToken);
@@ -174,8 +193,9 @@ public sealed class SubcontractingReportDataService(
             foreach (var request in requests)
             {
                 var normalized = Normalize(request);
-                await ValidateAsync(normalized, null, requireSprMetadata, token);
-                var row = await repository.CreateAsync(normalized, actorUserId, token);
+                var schema = await ResolveSchemaAsync(normalized, requireSprMetadata, token);
+                await ValidateAsync(normalized, null, schema, requireSprMetadata, token);
+                var row = await repository.CreateAsync(normalized, Reference(schema), actorUserId, token);
                 await WriteAuditAsync(row, actorUserId, AuditAction.Created, "Subcontracting report data row was imported.", token);
                 imported.Add(row);
             }
@@ -195,7 +215,14 @@ public sealed class SubcontractingReportDataService(
             columns, string.Join(',', columns) + Environment.NewLine);
     }
 
-    private async Task ValidateAsync(SubcontractingReportDataRowRequest request, Guid? existingRowId, bool requireSprMetadata, CancellationToken token)
+    public async Task<SubcontractingReportDataImportTemplateDto> GetSprImportTemplateAsync(CancellationToken cancellationToken = default)
+    {
+        var profile = await schemaProfileService.GetCurrentPublishedAsync(cancellationToken);
+        var template = GetImportTemplate(spr: true);
+        return template with { FileName = $"sam-gov-spr-{profile.Version}-report-data-template.csv", SchemaProfile = Reference(profile) };
+    }
+
+    private async Task ValidateAsync(SubcontractingReportDataRowRequest request, Guid? existingRowId, SprSchemaProfileDto? schema, bool requireSprMetadata, CancellationToken token)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         if (request.ContractId == Guid.Empty) errors["contractId"] = ["Contract is required."];
@@ -214,7 +241,7 @@ public sealed class SubcontractingReportDataService(
         if (string.IsNullOrWhiteSpace(request.SourceReference)) errors["sourceReference"] = ["A source reference is required for traceability."];
         else if (request.SourceReference.Length > 500) errors["sourceReference"] = ["Source reference cannot exceed 500 characters."];
         if (request.SupportingEvidenceItemIds.Count > 100) errors["supportingEvidenceItemIds"] = ["A row cannot link more than 100 evidence items."];
-        ValidateSprMetadata(request, requireSprMetadata, errors);
+        ValidateSprMetadata(request, schema, requireSprMetadata, errors);
         if (errors.Count > 0) throw new SubcontractingReportDataValidationException(errors);
         var referenceErrors = await repository.ValidateReferencesCurrentTenantAsync(request, token);
         if (referenceErrors.Keys.Any(key => key is "contractId" or "subcontractorId" or "supportingEvidenceItemIds"))
@@ -238,10 +265,15 @@ public sealed class SubcontractingReportDataService(
 
     private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static void ValidateSprMetadata(SubcontractingReportDataRowRequest request, bool required, IDictionary<string, string[]> errors)
+    private static void ValidateSprMetadata(SubcontractingReportDataRowRequest request, SprSchemaProfileDto? schema, bool required, IDictionary<string, string[]> errors)
     {
         var anySprMetadata = HasSprMetadata(request);
         if (!required && !anySprMetadata) return;
+        if (schema is null)
+        {
+            errors["sprSchemaProfile"] = ["A currently published SAM.gov SPR schema profile is required."];
+            return;
+        }
 
         if (request.ReportingRole is null || !Enum.IsDefined(request.ReportingRole.Value))
             errors["reportingRole"] = ["SAM.gov SPR reporting role is required and must be supported."];
@@ -249,11 +281,13 @@ public sealed class SubcontractingReportDataService(
         else
         {
             var currentFiscalYear = DateTimeOffset.UtcNow.Month >= 10 ? DateTimeOffset.UtcNow.Year + 1 : DateTimeOffset.UtcNow.Year;
-            if (request.ReportingFiscalYear < currentFiscalYear - 9 || request.ReportingFiscalYear > currentFiscalYear)
-                errors["reportingFiscalYear"] = [$"Reporting fiscal year must be between {currentFiscalYear - 9} and {currentFiscalYear}."];
+            if (request.ReportingFiscalYear < currentFiscalYear - schema.PriorFiscalYearsAllowed || request.ReportingFiscalYear > currentFiscalYear)
+                errors["reportingFiscalYear"] = [$"Reporting fiscal year must be between {currentFiscalYear - schema.PriorFiscalYearsAllowed} and {currentFiscalYear} under schema {schema.Version}."];
         }
         if (request.ReportingPeriod is null || !Enum.IsDefined(request.ReportingPeriod.Value))
             errors["reportingPeriod"] = ["SAM.gov SPR reporting period is required and must be supported."];
+        else if (!schema.ReportingPeriods.Contains(request.ReportingPeriod.Value))
+            errors["reportingPeriod"] = [$"The reporting period is not supported by SPR schema {schema.Version}."];
         else if (request.ReportingPeriod == SprReportingPeriod.March31 && (request.ReportPeriodEnd.Month != 3 || request.ReportPeriodEnd.Day != 31) ||
                  request.ReportingPeriod == SprReportingPeriod.September30 && (request.ReportPeriodEnd.Month != 9 || request.ReportPeriodEnd.Day != 30))
             errors["reportingPeriod"] = ["The selected SAM.gov SPR reporting period does not match the report period end date."];
@@ -268,10 +302,10 @@ public sealed class SubcontractingReportDataService(
         if (request.ReportingRole == SprReportingRole.Subcontractor && string.IsNullOrWhiteSpace(request.SubcontractNumber))
             errors["subcontractNumber"] = ["Subcontract number is required for subcontractor reporting."];
         if (request.SubcontractNumber?.Length > 64) errors["subcontractNumber"] = ["Subcontract number cannot exceed 64 characters."];
-        if (request.Amount != decimal.Truncate(request.Amount)) errors["amount"] = ["SAM.gov SPR amounts must be entered in whole dollars."];
-        if (!SprSocioeconomicCategories.Contains(request.SocioeconomicCategory))
-            errors["socioeconomicCategory"] = ["Select a socioeconomic category defined by the current SAM.gov SPR data dictionary."];
-        if (!request.SprEligibilityConfirmed) errors["sprEligibilityConfirmed"] = ["Confirm the external SAM.gov SPR eligibility basis before this row can be SPR-ready."];
+        if (schema.WholeDollarAmounts && request.Amount != decimal.Truncate(request.Amount)) errors["amount"] = ["SAM.gov SPR amounts must be entered in whole dollars."];
+        if (!schema.Categories.Contains(request.SocioeconomicCategory, StringComparer.OrdinalIgnoreCase))
+            errors["socioeconomicCategory"] = [$"Select a socioeconomic category defined by SPR schema {schema.Version}."];
+        if (schema.EligibilityConfirmationRequired && !request.SprEligibilityConfirmed) errors["sprEligibilityConfirmed"] = ["Confirm the external SAM.gov SPR eligibility basis before this row can be SPR-ready."];
         if (string.IsNullOrWhiteSpace(request.SprEligibilityBasis)) errors["sprEligibilityBasis"] = ["Document the SAM.gov SPR eligibility basis."];
         else if (request.SprEligibilityBasis.Length > 500) errors["sprEligibilityBasis"] = ["SPR eligibility basis cannot exceed 500 characters."];
     }
@@ -280,6 +314,32 @@ public sealed class SubcontractingReportDataService(
         request.ReportingRole is not null || request.ReportingFiscalYear is not null || request.ReportingPeriod is not null ||
         request.ReportingEntityUei is not null || request.PrimeContractPiid is not null || request.SubcontractNumber is not null ||
         request.SprEligibilityConfirmed || request.SprEligibilityBasis is not null;
+
+    private async Task<SprSchemaProfileDto?> ResolveSchemaAsync(SubcontractingReportDataRowRequest request, bool required, CancellationToken token) =>
+        required || HasSprMetadata(request) ? await schemaProfileService.GetCurrentPublishedAsync(token) : null;
+
+    private static SprSchemaReferenceDto? Reference(SprSchemaProfileDto? schema) => schema is null
+        ? null : new(schema.Id, schema.Version, schema.SourceUrl, schema.DefinitionSha256);
+
+    private static IReadOnlyList<string> ChangedFields(SubcontractingReportDataRowDto before, SubcontractingReportDataRowRequest after)
+    {
+        var fields = new List<string>();
+        void Add(bool changed, string name) { if (changed) fields.Add(name); }
+        Add(before.ContractId != after.ContractId, "contractId"); Add(before.SubcontractorId != after.SubcontractorId, "subcontractorId");
+        Add(before.ReportType != after.ReportType, "reportType"); Add(before.ReportPeriodStart != after.ReportPeriodStart || before.ReportPeriodEnd != after.ReportPeriodEnd, "reportPeriod");
+        Add(before.RowPeriodStart != after.RowPeriodStart || before.RowPeriodEnd != after.RowPeriodEnd, "rowPeriod");
+        Add(!string.Equals(before.SocioeconomicCategory, after.SocioeconomicCategory, StringComparison.Ordinal), "socioeconomicCategory");
+        Add(!string.Equals(before.PlanCategory, after.PlanCategory, StringComparison.Ordinal), "planCategory"); Add(before.Amount != after.Amount, "amount");
+        Add(!before.SupportingEvidenceItemIds.Order().SequenceEqual(after.SupportingEvidenceItemIds.Order()), "supportingEvidenceItemIds");
+        Add(!string.Equals(before.SourceReference, after.SourceReference, StringComparison.Ordinal), "sourceReference");
+        Add(before.ReportingRole != after.ReportingRole, "reportingRole"); Add(before.ReportingFiscalYear != after.ReportingFiscalYear, "reportingFiscalYear");
+        Add(before.ReportingPeriod != after.ReportingPeriod, "reportingPeriod"); Add(!string.Equals(before.ReportingEntityUei, after.ReportingEntityUei, StringComparison.Ordinal), "reportingEntityUei");
+        Add(!string.Equals(before.PrimeContractPiid, after.PrimeContractPiid, StringComparison.Ordinal), "primeContractPiid");
+        Add(!string.Equals(before.SubcontractNumber, after.SubcontractNumber, StringComparison.Ordinal), "subcontractNumber");
+        Add(before.SprEligibilityConfirmed != after.SprEligibilityConfirmed, "sprEligibilityConfirmed");
+        Add(!string.Equals(before.SprEligibilityBasis, after.SprEligibilityBasis, StringComparison.Ordinal), "sprEligibilityBasis");
+        return fields;
+    }
 
     private static IReadOnlyList<SubcontractingReportDataRowRequest> ParseCsv(string csvContent, bool spr)
     {
@@ -350,14 +410,18 @@ public sealed class SubcontractingReportDataService(
         return records;
     }
 
-    private async Task WriteAuditAsync(SubcontractingReportDataRowDto row, Guid actorUserId, AuditAction action, string summary, CancellationToken token) =>
+    private async Task WriteAuditAsync(SubcontractingReportDataRowDto row, Guid actorUserId, AuditAction action, string summary, CancellationToken token,
+        IReadOnlyDictionary<string, string>? additionalMetadata = null) =>
         await auditEventWriter.WriteAsync(row.TenantId, actorUserId, action, "SubcontractingReportDataRow", row.Id.ToString(), summary,
             new Dictionary<string, string> { ["contractId"] = row.ContractId.ToString(), ["subcontractorId"] = row.SubcontractorId.ToString(),
                 ["reportType"] = row.ReportType.ToString(), ["socioeconomicCategory"] = row.SocioeconomicCategory,
                 ["planCategory"] = row.PlanCategory, ["amount"] = row.Amount.ToString("0.00", CultureInfo.InvariantCulture),
                 ["sprReadinessStatus"] = row.SprReadinessStatus.ToString(),
                 ["reviewStatus"] = row.ReviewStatus.ToString(), ["evidenceCount"] = row.SupportingEvidenceItemIds.Count.ToString(CultureInfo.InvariantCulture),
-                ["version"] = row.Version.ToString(CultureInfo.InvariantCulture) }, token);
+                ["schemaVersion"] = row.SprSchemaVersion ?? string.Empty,
+                ["version"] = row.Version.ToString(CultureInfo.InvariantCulture) }.Concat(
+                    additionalMetadata ?? new Dictionary<string, string>())
+                .ToDictionary(pair => pair.Key, pair => pair.Value), token);
 
     private static SubcontractingReportDataValidationException Validation(string field, string message) =>
         new(new Dictionary<string, string[]> { [field] = [message] });
@@ -365,14 +429,15 @@ public sealed class SubcontractingReportDataService(
 
 public interface ISubcontractingReportDataRepository
 {
-    Task<SubcontractingReportDataRowDto> CreateAsync(SubcontractingReportDataRowRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
-    Task<SubcontractingReportDataRowDto?> UpdateAsync(Guid rowId, SubcontractingReportDataRowRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<SubcontractingReportDataRowDto> CreateAsync(SubcontractingReportDataRowRequest request, SprSchemaReferenceDto? schema, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<SubcontractingReportDataRowDto?> UpdateAsync(Guid rowId, SubcontractingReportDataRowRequest request, SprSchemaReferenceDto? schema, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<SubcontractingReportDataRowDto?> FindCurrentTenantAsync(Guid rowId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SubcontractingReportDataRowDto>> ListCurrentTenantAsync(SubcontractingReportDataQuery query, CancellationToken cancellationToken = default);
     Task<SubcontractingReportDataRowDto?> UpdateReviewStatusAsync(Guid rowId, SubcontractingReportDataReviewStatus status, string? reviewerNotes, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<bool> ExistsDuplicateCurrentTenantAsync(SubcontractingReportDataRowRequest request, Guid? existingRowId, CancellationToken cancellationToken = default);
     Task<IReadOnlyDictionary<string, string[]>> ValidateReferencesCurrentTenantAsync(SubcontractingReportDataRowRequest request, CancellationToken cancellationToken = default);
     Task<bool> ContractExistsCurrentTenantAsync(Guid contractId, CancellationToken cancellationToken = default);
+    Task<SprRemediationValuesDto> GetRemediationSuggestionCurrentTenantAsync(SubcontractingReportDataRowDto row, CancellationToken cancellationToken = default);
 }
 
 public sealed record SubcontractingReportDataRowRequest(Guid ContractId, Guid SubcontractorId, EsrsReportType ReportType,
@@ -390,14 +455,28 @@ public sealed record SubcontractingReportDataRowDto(Guid Id, Guid TenantId, Guid
     DateTimeOffset? ReviewedAt, string? ReviewerNotes, int Version, DateTimeOffset CreatedAt, DateTimeOffset? UpdatedAt,
     SprReportingRole? ReportingRole = null, int? ReportingFiscalYear = null, SprReportingPeriod? ReportingPeriod = null,
     string? ReportingEntityUei = null, string? PrimeContractPiid = null, string? SubcontractNumber = null,
-    bool SprEligibilityConfirmed = false, string? SprEligibilityBasis = null)
+    bool SprEligibilityConfirmed = false, string? SprEligibilityBasis = null,
+    string? SprSchemaProfileId = null, string? SprSchemaVersion = null, string? SprSchemaSourceUrl = null, string? SprSchemaDefinitionSha256 = null)
 {
     public SprReadinessStatus SprReadinessStatus => ReportingRole is not null && ReportingFiscalYear is not null && ReportingPeriod is not null &&
         !string.IsNullOrWhiteSpace(ReportingEntityUei) && !string.IsNullOrWhiteSpace(PrimeContractPiid) &&
         (ReportingRole != SprReportingRole.Subcontractor || !string.IsNullOrWhiteSpace(SubcontractNumber)) &&
-        SprEligibilityConfirmed && !string.IsNullOrWhiteSpace(SprEligibilityBasis)
+        SprEligibilityConfirmed && !string.IsNullOrWhiteSpace(SprEligibilityBasis) &&
+        !string.IsNullOrWhiteSpace(SprSchemaProfileId) && !string.IsNullOrWhiteSpace(SprSchemaVersion) &&
+        !string.IsNullOrWhiteSpace(SprSchemaSourceUrl) && !string.IsNullOrWhiteSpace(SprSchemaDefinitionSha256)
             ? SprReadinessStatus.Ready
             : SprReadinessStatus.NeedsVerification;
+    public IReadOnlyList<string> SprReadinessBlockers =>
+        new (string Name, bool Blocked)[]
+        {
+            ("reportingRole", ReportingRole is null), ("reportingFiscalYear", ReportingFiscalYear is null),
+            ("reportingPeriod", ReportingPeriod is null), ("reportingEntityUei", string.IsNullOrWhiteSpace(ReportingEntityUei)),
+            ("primeContractPiid", string.IsNullOrWhiteSpace(PrimeContractPiid)),
+            ("subcontractNumber", ReportingRole == SprReportingRole.Subcontractor && string.IsNullOrWhiteSpace(SubcontractNumber)),
+            ("sprEligibilityConfirmed", !SprEligibilityConfirmed), ("sprEligibilityBasis", string.IsNullOrWhiteSpace(SprEligibilityBasis)),
+            ("sprSchemaProfile", string.IsNullOrWhiteSpace(SprSchemaProfileId) || string.IsNullOrWhiteSpace(SprSchemaVersion) ||
+                string.IsNullOrWhiteSpace(SprSchemaSourceUrl) || string.IsNullOrWhiteSpace(SprSchemaDefinitionSha256))
+        }.Where(item => item.Blocked).Select(item => item.Name).ToArray();
     public bool IsPackageEligible => SprReadinessStatus == SprReadinessStatus.Ready &&
         ReviewStatus is SubcontractingReportDataReviewStatus.Reviewed or SubcontractingReportDataReviewStatus.Accepted;
 }
@@ -407,7 +486,11 @@ public sealed record SubcontractingReportPackageRowsRequest(Guid ContractId, Esr
 public sealed record SubcontractingReportPackageRowDto(Guid RowId, Guid ContractId, Guid SubcontractorId, string SocioeconomicCategory,
     string PlanCategory, EsrsReportType ReportType, DateOnly PeriodStart, DateOnly PeriodEnd, decimal Amount,
     IReadOnlyList<Guid> SupportingEvidenceItemIds, SubcontractingReportDataReviewStatus ReviewStatus);
-public sealed record SubcontractingReportDataImportTemplateDto(string FileName, IReadOnlyList<string> Columns, string CsvContent);
+public sealed record SubcontractingReportDataImportTemplateDto(string FileName, IReadOnlyList<string> Columns, string CsvContent, SprSchemaReferenceDto? SchemaProfile = null);
+public sealed record SprRemediationItemDto(SubcontractingReportDataRowDto Row, IReadOnlyList<string> BlockingFields);
+public sealed record SprRemediationValuesDto(string? ReportingEntityUei, string? PrimeContractPiid);
+public sealed record SprRemediationSuggestionDto(Guid RowId, string? ReportingEntityUei, string? PrimeContractPiid,
+    string SchemaProfileId, string SchemaVersion, string Disclaimer);
 public enum SubcontractingReportDataReviewStatus { Draft, PendingReview, Reviewed, Accepted, Rejected }
 public enum SprReportingRole { PrimeContractor, Subcontractor }
 public enum SprReportingPeriod { March31, September30, Final }

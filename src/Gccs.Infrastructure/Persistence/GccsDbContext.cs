@@ -2021,6 +2021,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
                 table.HasCheckConstraint("CK_esrs_report_data_rows_row_period", "row_period_end >= row_period_start AND row_period_start >= report_period_start AND row_period_end <= report_period_end");
                 table.HasCheckConstraint("CK_esrs_report_data_rows_spr_uei", "reporting_entity_uei IS NULL OR (length(reporting_entity_uei) = 12 AND reporting_entity_uei ~ '^[A-Z0-9]{12}$')");
                 table.HasCheckConstraint("CK_esrs_report_data_rows_spr_readiness", "spr_eligibility_confirmed = FALSE OR (reporting_role IS NOT NULL AND reporting_fiscal_year IS NOT NULL AND reporting_period IS NOT NULL AND reporting_entity_uei IS NOT NULL AND prime_contract_piid IS NOT NULL AND spr_eligibility_basis IS NOT NULL)");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_spr_schema", "spr_schema_profile_id IS NULL OR (spr_schema_version IS NOT NULL AND spr_schema_source_url IS NOT NULL AND length(spr_schema_definition_sha256) = 64)");
             });
             entity.HasKey(x => x.Id);
             entity.HasAlternateKey(x => new { x.TenantId, x.Id });
@@ -2041,6 +2042,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.PrimeContractPiid).HasMaxLength(64);
             entity.Property(x => x.SubcontractNumber).HasMaxLength(64);
             entity.Property(x => x.SprEligibilityBasis).HasMaxLength(500);
+            entity.Property(x => x.SprSchemaProfileId).HasMaxLength(160);
+            entity.Property(x => x.SprSchemaVersion).HasMaxLength(80);
+            entity.Property(x => x.SprSchemaSourceUrl).HasMaxLength(2_000);
+            entity.Property(x => x.SprSchemaDefinitionSha256).HasMaxLength(64);
             entity.Property(x => x.ReviewerNotes).HasMaxLength(2_000);
             entity.Property(x => x.Version).IsConcurrencyToken();
             entity.HasOne(x => x.Contract).WithMany(x => x.SubcontractingReportDataRows)
