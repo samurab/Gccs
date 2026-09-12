@@ -74,7 +74,7 @@ public sealed class ApprovedPackagePortalReviewService(
         CancellationToken cancellationToken = default)
     {
         var package = await EnsurePortalAccessAsync(
-            sharedPackageId, invitationId, packageId, actorUserId, cancellationToken);
+            sharedPackageId, invitationId, packageId, actorUserId, cancellationToken, requiresDownloadPermission: true);
         var download = new PortalPackageDownloadDto(
             package.Id,
             package.TenantId,
@@ -94,14 +94,16 @@ public sealed class ApprovedPackagePortalReviewService(
         Guid invitationId,
         Guid packageId,
         Guid actorUserId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool requiresDownloadPermission = false)
     {
         var package = await packageRepository.FindPackageAsync(packageId, cancellationToken)
             ?? throw new ExternalPortalAccessException("Package was not found.");
         if (!IsVisible(package))
             throw new PortalPackageAccessDeniedException("The package is not approved for external review.");
-        var access = await accessService.ValidateAccessAsync(
-            invitationId, packageId, package.ContractId, DateTimeOffset.UtcNow, actorUserId, cancellationToken);
+        var access = await accessService.ValidateAccessAsync(new ExternalPortalAccessRequest(
+            invitationId, packageId, package.ContractId, actorUserId, null,
+            StrongAuthenticationSatisfied: true, DateTimeOffset.UtcNow, requiresDownloadPermission), cancellationToken);
         if (!access.Allowed)
             throw new PortalPackageAccessDeniedException("The package is outside the active portal invitation scope.");
         if (!await lifecycleService.CanAccessAsync(

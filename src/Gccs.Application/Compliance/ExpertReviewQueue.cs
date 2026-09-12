@@ -1,4 +1,5 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
 using Gccs.Application.Notifications;
 using Gccs.Domain.Audit;
 
@@ -7,7 +8,8 @@ namespace Gccs.Application.Compliance;
 public sealed class ExpertReviewQueueService(
     IExpertReviewQueueRepository repository,
     IAuditEventWriter auditEventWriter,
-    IEnumerable<IAssignmentNotificationRepository> notificationRepositories)
+    IEnumerable<IAssignmentNotificationRepository> notificationRepositories,
+    IApplicationTransaction transaction)
 {
     private IAssignmentNotificationRepository? Notifications => notificationRepositories.FirstOrDefault();
 
@@ -15,24 +17,41 @@ public sealed class ExpertReviewQueueService(
         EscalateExpertReviewRequest request,
         Guid tenantId,
         Guid actorUserId,
+        CancellationToken cancellationToken = default) =>
+        (await EscalateWithResultAsync(request, tenantId, actorUserId, cancellationToken)).Item;
+
+    public Task<ExpertReviewEscalationResult> EscalateWithResultAsync(
+        EscalateExpertReviewRequest request,
+        Guid tenantId,
+        Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
         var normalized = Normalize(request);
         ValidateEscalation(normalized);
-        var item = await repository.CreateEscalationAsync(normalized, tenantId, actorUserId, cancellationToken);
-        if (item.AssignedExpertUserId is { } assignedExpertUserId && Notifications is not null)
+        return transaction.ExecuteAsync(async token =>
         {
-            await Notifications.EmitExpertReviewAssignmentAsync(
-                item.TenantId,
-                item.Id,
-                assignedExpertUserId,
-                item.Topic,
-                actorUserId,
-                cancellationToken);
-        }
+            if (!await repository.SourceExistsAsync(normalized.SourceType, normalized.SourceId, tenantId, token))
+                throw new ExpertReviewSourceNotFoundException();
 
-        await WriteAuditAsync(item, actorUserId, AuditAction.Created, "Expert review item was escalated.", cancellationToken);
-        return item;
+            var existing = await repository.FindOpenAsync(normalized.SourceType, normalized.SourceId, tenantId, token);
+            if (existing is not null)
+                return new ExpertReviewEscalationResult(existing, Created: false);
+
+            var item = await repository.CreateEscalationAsync(normalized, tenantId, actorUserId, token);
+            if (item.AssignedExpertUserId is { } assignedExpertUserId && Notifications is not null)
+            {
+                await Notifications.EmitExpertReviewAssignmentAsync(
+                    item.TenantId,
+                    item.Id,
+                    assignedExpertUserId,
+                    item.Topic,
+                    actorUserId,
+                    token);
+            }
+
+            await WriteAuditAsync(item, actorUserId, AuditAction.Created, "Expert review item was escalated.", token);
+            return new ExpertReviewEscalationResult(item, Created: true);
+        }, cancellationToken);
     }
 
     public Task<IReadOnlyList<ExpertReviewItemDto>> ListAsync(
@@ -40,7 +59,29 @@ public sealed class ExpertReviewQueueService(
         CancellationToken cancellationToken = default) =>
         repository.ListAsync(query, cancellationToken);
 
-    public async Task<ExpertReviewItemDto?> ResolveAsync(
+    public Task<ExpertReviewItemDto?> AssignAsync(
+        Guid itemId,
+        AssignExpertReviewRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateAssignment(request);
+        return transaction.ExecuteAsync(async token =>
+        {
+            if (!await repository.IsActiveTenantMemberAsync(request.AssignedExpertUserId, token))
+                throw ExpertReviewValidationException.For("assignedExpertUserId", "Assigned expert must be an active member of the current tenant.");
+
+            var item = await repository.AssignAsync(itemId, request, actorUserId, token);
+            if (item is null) return null;
+            if (Notifications is not null)
+                await Notifications.EmitExpertReviewAssignmentAsync(
+                    item.TenantId, item.Id, request.AssignedExpertUserId, item.Topic, actorUserId, token);
+            await WriteAuditAsync(item, actorUserId, AuditAction.Updated, "Expert review item was assigned.", token);
+            return item;
+        }, cancellationToken);
+    }
+
+    public Task<ExpertReviewItemDto?> ResolveAsync(
         Guid itemId,
         ResolveExpertReviewRequest request,
         Guid actorUserId,
@@ -48,13 +89,14 @@ public sealed class ExpertReviewQueueService(
     {
         var normalized = Normalize(request);
         ValidateResolution(normalized);
-        var item = await repository.ResolveAsync(itemId, normalized, actorUserId, cancellationToken);
-        if (item is not null)
+        return transaction.ExecuteAsync(async token =>
         {
-            await WriteAuditAsync(item, actorUserId, AuditAction.Updated, "Expert review item was resolved.", cancellationToken);
-        }
+            var item = await repository.ResolveAsync(itemId, normalized, actorUserId, token);
+            if (item is not null)
+                await WriteAuditAsync(item, actorUserId, AuditAction.Updated, "Expert review item was resolved.", token);
 
-        return item;
+            return item;
+        }, cancellationToken);
     }
 
     private static EscalateExpertReviewRequest Normalize(EscalateExpertReviewRequest request) =>
@@ -73,11 +115,20 @@ public sealed class ExpertReviewQueueService(
             Notes = request.Notes.Trim()
         };
 
+    private static void ValidateAssignment(AssignExpertReviewRequest request)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        AddIf(errors, request.AssignedExpertUserId == Guid.Empty, "assignedExpertUserId", "Assigned expert is required.");
+        AddIf(errors, request.DueAt is { } dueAt && dueAt < DateOnly.FromDateTime(DateTime.UtcNow), "dueAt", "Due date cannot be in the past.");
+        ThrowIfInvalid(errors);
+    }
+
     private static void ValidateEscalation(EscalateExpertReviewRequest request)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
         AddIf(errors, request.SourceId == Guid.Empty, "sourceId", "Source id is required.");
-        AddIf(errors, request.SourceType is not ("clause_candidate" or "suggested_obligation"), "sourceType", "Source type must be clause_candidate or suggested_obligation.");
+        AddIf(errors, request.SourceType is not ("clause_candidate" or "suggested_obligation" or "assistant_answer"),
+            "sourceType", "Source type must be clause_candidate, suggested_obligation, or assistant_answer.");
         AddIf(errors, string.IsNullOrWhiteSpace(request.Reason), "reason", "Escalation reason is required.");
         AddIf(errors, string.IsNullOrWhiteSpace(request.Priority), "priority", "Priority is required.");
         AddIf(errors, string.IsNullOrWhiteSpace(request.Topic), "topic", "Topic is required.");
@@ -87,7 +138,8 @@ public sealed class ExpertReviewQueueService(
     private static void ValidateResolution(ResolveExpertReviewRequest request)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
-        AddIf(errors, string.IsNullOrWhiteSpace(request.Decision), "decision", "Resolution decision is required.");
+        AddIf(errors, request.Decision is not ("accepted_as_reviewed_draft" or "revision_required" or "rejected"),
+            "decision", "Resolution decision must be accepted_as_reviewed_draft, revision_required, or rejected.");
         AddIf(errors, string.IsNullOrWhiteSpace(request.Notes), "notes", "Resolution notes are required.");
         ThrowIfInvalid(errors);
     }
@@ -135,10 +187,16 @@ public sealed class ExpertReviewQueueService(
 
 public interface IExpertReviewQueueRepository
 {
+    Task<bool> SourceExistsAsync(string sourceType, Guid sourceId, Guid tenantId, CancellationToken cancellationToken = default);
+    Task<ExpertReviewItemDto?> FindOpenAsync(string sourceType, Guid sourceId, Guid tenantId, CancellationToken cancellationToken = default);
     Task<ExpertReviewItemDto> CreateEscalationAsync(EscalateExpertReviewRequest request, Guid tenantId, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ExpertReviewItemDto>> ListAsync(ExpertReviewQueueQuery query, CancellationToken cancellationToken = default);
+    Task<bool> IsActiveTenantMemberAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<ExpertReviewItemDto?> AssignAsync(Guid itemId, AssignExpertReviewRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<ExpertReviewItemDto?> ResolveAsync(Guid itemId, ResolveExpertReviewRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
 }
+
+public sealed record ExpertReviewEscalationResult(ExpertReviewItemDto Item, bool Created);
 
 public sealed record ExpertReviewQueueQuery(
     string? Status,
@@ -158,6 +216,7 @@ public sealed record EscalateExpertReviewRequest(
 public sealed record ResolveExpertReviewRequest(
     string Decision,
     string Notes);
+public sealed record AssignExpertReviewRequest(Guid AssignedExpertUserId, DateOnly? DueAt);
 
 public sealed record ExpertReviewItemDto(
     Guid Id,
@@ -181,4 +240,16 @@ public sealed class ExpertReviewValidationException(IReadOnlyDictionary<string, 
     : InvalidOperationException("Expert review input is invalid.")
 {
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
+    public static ExpertReviewValidationException For(string key, string message) =>
+        new(new Dictionary<string, string[]> { [key] = [message] });
+}
+
+public sealed class ExpertReviewSourceNotFoundException : InvalidOperationException
+{
+    public ExpertReviewSourceNotFoundException() : base("Expert review source was not found.") { }
+}
+
+public sealed class ExpertReviewDuplicateException : InvalidOperationException
+{
+    public ExpertReviewDuplicateException() : base("An open expert review item already exists for this source.") { }
 }

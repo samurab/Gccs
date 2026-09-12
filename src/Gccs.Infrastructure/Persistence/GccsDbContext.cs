@@ -1,4 +1,5 @@
 using System.Text;
+using Gccs.Application.Ai;
 using Gccs.Application.Compliance;
 using Gccs.Application.Reports;
 using Gccs.Application.Identity;
@@ -100,6 +101,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SprReportPackageEntity> SprReportPackages => Set<SprReportPackageEntity>();
     public DbSet<SprManualSubmissionReceiptEntity> SprManualSubmissionReceipts => Set<SprManualSubmissionReceiptEntity>();
     public DbSet<SharedPortalPackageEntity> SharedPortalPackages => Set<SharedPortalPackageEntity>();
+    public DbSet<ExternalPortalInvitationEntity> ExternalPortalInvitations => Set<ExternalPortalInvitationEntity>();
+    public DbSet<ExternalPortalInvitationPackageScopeEntity> ExternalPortalInvitationPackageScopes => Set<ExternalPortalInvitationPackageScopeEntity>();
+    public DbSet<ExternalPortalInvitationContractScopeEntity> ExternalPortalInvitationContractScopes => Set<ExternalPortalInvitationContractScopeEntity>();
+    public DbSet<ExternalPortalAccessHistoryEntity> ExternalPortalAccessHistory => Set<ExternalPortalAccessHistoryEntity>();
     public DbSet<PortalPackageActivityEntity> PortalPackageActivities => Set<PortalPackageActivityEntity>();
     public DbSet<SubcontractingReportDataEvidenceEntity> SubcontractingReportDataEvidence => Set<SubcontractingReportDataEvidenceEntity>();
     public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
@@ -154,6 +159,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SspNarrativeSourceEntity> SspNarrativeSources => Set<SspNarrativeSourceEntity>();
     public DbSet<SspExportPackageEntity> SspExportPackages => Set<SspExportPackageEntity>();
     public DbSet<SspExportPackageHistoryEntity> SspExportPackageHistory => Set<SspExportPackageHistoryEntity>();
+    public DbSet<AssistantAnswerEntity> AssistantAnswers => Set<AssistantAnswerEntity>();
+    public DbSet<AssistantDraftActionEntity> AssistantDraftActions => Set<AssistantDraftActionEntity>();
+    public DbSet<AssistantFeedbackEntity> AssistantFeedback => Set<AssistantFeedbackEntity>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -163,6 +171,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<AssessmentType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<AssetType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<AuditAction>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AssistantDraftActionType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AssistantFeedbackType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<BoundaryStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<BreakGlassGrantStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<CertificationStatus>().HaveConversion<string>().HaveMaxLength(64);
@@ -300,10 +310,58 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         ConfigurePeopleAndLabor(modelBuilder);
         ConfigureReports(modelBuilder);
         ConfigureAudit(modelBuilder);
+        ConfigureAssistant(modelBuilder);
         ConfigureFedRamp(modelBuilder);
 
         ConfigureTenantForeignKeys(modelBuilder);
         ApplyPostgresConventions(modelBuilder);
+    }
+
+    private static void ConfigureAssistant(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AssistantAnswerEntity>(entity =>
+        {
+            entity.ToTable("assistant_answers");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.CreatedAt });
+            entity.Property(x => x.WorkflowContext).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Answer).HasMaxLength(20_000).IsRequired();
+            entity.Property(x => x.CitationsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.SupportStatus).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.DraftLabel).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.BlockedReason).HasMaxLength(80);
+            entity.Property(x => x.HumanReviewStatus).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ReviewDecision).HasMaxLength(64);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1_000);
+        });
+
+        modelBuilder.Entity<AssistantDraftActionEntity>(entity =>
+        {
+            entity.ToTable("assistant_draft_actions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.AnswerId, x.CreatedAt });
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Body).HasMaxLength(4_000).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.HasOne(x => x.Answer).WithMany(x => x.Actions)
+                .HasForeignKey(x => new { x.TenantId, x.AnswerId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AssistantFeedbackEntity>(entity =>
+        {
+            entity.ToTable("assistant_feedback");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.AnswerId, x.CreatedAt });
+            entity.Property(x => x.Reason).HasMaxLength(1_000).IsRequired();
+            entity.HasOne(x => x.Answer).WithMany(x => x.Feedback)
+                .HasForeignKey(x => new { x.TenantId, x.AnswerId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 
     private static void ConfigureFedRamp(ModelBuilder modelBuilder)
@@ -1364,6 +1422,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Status, x.SourceType });
             entity.HasIndex(x => new { x.TenantId, x.AssignedExpertUserId, x.DueAt });
+            entity.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId })
+                .IsUnique()
+                .HasFilter("status = 'open' AND source_type = 'assistant_answer'");
             entity.Property(x => x.SourceType).HasMaxLength(80).IsRequired();
             entity.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
             entity.Property(x => x.Priority).HasMaxLength(40).IsRequired();
@@ -2102,6 +2163,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("labor_classification_evidence");
             entity.HasKey(x => new { x.TenantId, x.AssignmentId, x.EvidenceItemId });
+            entity.Property(x => x.EvidenceType).IsRequired();
             entity.HasOne(x => x.Assignment).WithMany(x => x.EvidenceLinks)
                 .HasForeignKey(x => new { x.TenantId, x.AssignmentId })
                 .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
@@ -2217,6 +2279,58 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasOne(x => x.SupersedesReceipt).WithMany().HasForeignKey(x => new { x.TenantId, x.SupersedesReceiptId })
                 .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.RecordedByUser).WithMany().HasForeignKey(x => x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExternalPortalInvitationEntity>(entity =>
+        {
+            entity.ToTable("external_portal_invitations");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.Email, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.Role).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsConcurrencyToken();
+            entity.Property(x => x.RevocationReason).HasMaxLength(500);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany()
+                .HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ExternalPortalInvitationPackageScopeEntity>(entity =>
+        {
+            entity.ToTable("external_portal_invitation_package_scopes");
+            entity.HasKey(x => new { x.TenantId, x.InvitationId, x.PackageId });
+            entity.HasIndex(x => new { x.TenantId, x.PackageId });
+            entity.HasOne(x => x.Invitation).WithMany(x => x.PackageScopes)
+                .HasForeignKey(x => new { x.TenantId, x.InvitationId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExternalPortalInvitationContractScopeEntity>(entity =>
+        {
+            entity.ToTable("external_portal_invitation_contract_scopes");
+            entity.HasKey(x => new { x.TenantId, x.InvitationId, x.ContractId });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId });
+            entity.HasOne(x => x.Invitation).WithMany(x => x.ContractScopes)
+                .HasForeignKey(x => new { x.TenantId, x.InvitationId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Contract).WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExternalPortalAccessHistoryEntity>(entity =>
+        {
+            entity.ToTable("external_portal_access_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.InvitationId, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.ActorUserId, x.OccurredAt });
+            entity.Property(x => x.ResultCode).HasMaxLength(64).IsRequired();
+            entity.HasOne(x => x.Invitation).WithMany(x => x.AccessHistory)
+                .HasForeignKey(x => new { x.TenantId, x.InvitationId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<SharedPortalPackageEntity>(entity =>

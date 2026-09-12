@@ -4,6 +4,7 @@ using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
 using Gccs.Api;
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
 using Gccs.Application.Calendar;
 using Gccs.Application.Common;
 using Gccs.Application.Companies;
@@ -915,6 +916,161 @@ var currentUserApi = api.MapGroup("/me")
     .AllowWithoutTenantMembership();
 
 api.MapPortalPackageLifecycleEndpoints();
+api.MapExternalPortalAccessEndpoints();
+
+api.MapPost("/assistant/questions", async (
+    AssistantQuestionApiRequest request,
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!AssistantAuthorization.CanAsk(user, request.WorkflowContext))
+        return ApiProblemDetails.Create(httpContext, "Forbidden", "Assistant access is not available for this workflow context.",
+            StatusCodes.Status403Forbidden, "forbidden");
+    try
+    {
+        var answer = await service.AskAsync(
+            new AiAssistantQuestionRequest(tenantContext.TenantId, tenantContext.UserId, request.Question, request.WorkflowContext),
+            cancellationToken);
+        return Results.Ok(answer);
+    }
+    catch (AssistantExperienceException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(item => item.Key, item => item.Value),
+            title: "Assistant question invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequireAnyPermission(Permission.ViewObligations, Permission.ViewContracts, Permission.ViewEvidence, Permission.ViewCmmc,
+    Permission.ViewSubcontractors, Permission.ViewReports)
+.WithName("AskGuardedAssistant");
+
+api.MapGet("/assistant/answers/{answerId:guid}", async (
+    Guid answerId,
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var answer = await service.GetAnswerAsync(answerId, tenantContext.TenantId, cancellationToken);
+    return answer is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Assistant answer was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(answer);
+})
+.RequirePermission(Permission.ViewObligations)
+.WithName("GetAssistantAnswerForExpertReview");
+
+api.MapGet("/assistant/expert-review-items", async (
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListExpertReviewQueueAsync(tenantContext.TenantId, cancellationToken)))
+.RequirePermission(Permission.ViewObligations)
+.WithName("ListAssistantExpertReviewItems");
+
+api.MapPost("/assistant/answers/{answerId:guid}/actions", async (
+    Guid answerId,
+    AssistantDraftActionApiRequest request,
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!AssistantAuthorization.CanCreateAction(user, request.ActionType))
+        return ApiProblemDetails.Create(httpContext, "Forbidden", "You do not have permission to create this assistant draft action.",
+            StatusCodes.Status403Forbidden, "forbidden");
+    try
+    {
+        var action = await service.CreateDraftActionAsync(
+            new AssistantDraftActionRequest(answerId, request.ActionType, request.Title, request.Body),
+            tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/assistant/answers/{answerId}/actions/{action.Id}", action);
+    }
+    catch (AssistantExperienceException exception) when (exception.IsNotFound)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "Assistant answer was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    }
+    catch (AssistantExperienceException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(item => item.Key, item => item.Value),
+            title: "Assistant action invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequireAnyPermission(Permission.ManageTasks, Permission.ManageEvidence, Permission.ManageObligations)
+.WithName("CreateAssistantDraftAction");
+
+api.MapPost("/assistant/answers/{answerId:guid}/feedback", async (
+    Guid answerId,
+    AssistantFeedbackApiRequest request,
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var feedback = await service.SubmitFeedbackAsync(
+            new AssistantFeedbackRequest(answerId, request.FeedbackType, request.Reason),
+            tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/assistant/answers/{answerId}/feedback/{feedback.Id}", feedback);
+    }
+    catch (AssistantExperienceException exception) when (exception.IsNotFound)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "Assistant answer was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    }
+    catch (AssistantExperienceException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(item => item.Key, item => item.Value),
+            title: "Assistant feedback invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequireAnyPermission(Permission.ViewObligations, Permission.ViewContracts, Permission.ViewEvidence, Permission.ViewCmmc,
+    Permission.ViewSubcontractors, Permission.ViewReports)
+.WithName("CreateAssistantFeedback");
+
+api.MapPost("/assistant/answers/{answerId:guid}/expert-review", async (
+    Guid answerId,
+    AssistantExpertReviewApiRequest request,
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var escalation = await service.EscalateForExpertReviewAsync(
+            new AssistantExpertReviewEscalationRequest(answerId, request.Reason),
+            tenantContext.TenantId,
+            tenantContext.UserId,
+            cancellationToken);
+        return escalation.Created
+            ? Results.Created($"/api/expert-review-items/{escalation.ReviewItem.Id}", escalation)
+            : Results.Ok(escalation);
+    }
+    catch (AssistantExperienceException exception) when (exception.IsNotFound)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "Assistant answer was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    }
+    catch (AssistantExperienceException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(item => item.Key, item => item.Value),
+            title: "Assistant escalation invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (ExpertReviewDuplicateException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Review already routed",
+            "An open expert review item already exists for this assistant answer. Refresh the queue and retry only after it is resolved.",
+            StatusCodes.Status409Conflict, "expert_review_already_open");
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("EscalateAssistantAnswerForExpertReview");
 
 if (app.Environment.IsDevelopment() &&
     builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
@@ -1407,6 +1563,32 @@ api.MapGet("/contracts/{contractId:guid}/labor-categories", async (
     Results.Ok(await service.ListCategoriesAsync(tenantContext.TenantId, contractId, cancellationToken)))
 .RequirePermission(Permission.ViewContracts)
 .WithName("ListContractLaborCategories");
+
+api.MapGet("/labor/dashboard", async (
+    Guid? contractId, Guid? employeeId, Guid? laborCategoryId, string? location, string? status,
+    DateOnly? dueFrom, DateOnly? dueTo, bool? missingEvidenceOnly, DateOnly? asOfDate,
+    LaborComplianceReportService service, ClaimsPrincipal user, HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var includeSensitive = user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString());
+        var dashboard = await service.GetDashboardAsync(new LaborDashboardQuery(
+            contractId, employeeId, laborCategoryId, location, status, dueFrom, dueTo,
+            missingEvidenceOnly ?? false, asOfDate), includeSensitive, cancellationToken);
+        return dashboard is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor dashboard scope was not found.",
+                StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(dashboard);
+    }
+    catch (LaborComplianceReportException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborDashboard"] = [exception.Message] },
+            title: "Labor dashboard filter invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetLaborComplianceDashboard");
 
 api.MapGet("/labor-classification/employees", async (
     LaborClassificationService service, ITenantContext tenantContext, CancellationToken cancellationToken) =>
@@ -3404,6 +3586,7 @@ api.MapPost("/expert-review-items", async (
     EscalateExpertReviewRequest request,
     ExpertReviewQueueService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
@@ -3419,9 +3602,48 @@ api.MapPost("/expert-review-items", async (
             detail: exception.Message,
             statusCode: StatusCodes.Status400BadRequest);
     }
+    catch (ExpertReviewSourceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "Expert review source was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    }
+    catch (ExpertReviewDuplicateException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Review already routed",
+            "An open expert review item already exists for this source.",
+            StatusCodes.Status409Conflict, "expert_review_already_open");
+    }
 })
 .RequirePermission(Permission.ManageObligations)
 .WithName("EscalateExpertReviewItem");
+
+api.MapPost("/expert-review-items/{itemId:guid}/assign", async (
+    Guid itemId,
+    AssignExpertReviewRequest request,
+    ExpertReviewQueueService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var item = await service.AssignAsync(itemId, request, tenantContext.UserId, cancellationToken);
+        return item is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Open expert review item was not found.",
+                StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(item);
+    }
+    catch (ExpertReviewValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Expert review assignment invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("AssignExpertReviewItem");
 
 api.MapPost("/expert-review-items/{itemId:guid}/resolve", async (
     Guid itemId,
@@ -3845,6 +4067,32 @@ api.MapPost("/reports/subcontractor-compliance", async (
 })
 .RequirePermission(Permission.ManageReports)
 .WithName("GenerateSubcontractorComplianceReport");
+
+api.MapPost("/reports/labor-compliance", async (
+    LaborComplianceReportRequest request,
+    LaborComplianceReportService service,
+    ITenantContext tenantContext,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var includeSensitive = user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString());
+        var report = await service.GenerateAsync(request, tenantContext.UserId, includeSensitive, cancellationToken);
+        return report is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor report scope was not found.",
+                StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/reports/{report.Id}", report);
+    }
+    catch (LaborComplianceReportException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborReport"] = [exception.Message] },
+            title: "Labor report invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("GenerateLaborComplianceReport");
 
 api.MapGet("/subcontractors", async (
     string? status,
@@ -8685,6 +8933,36 @@ if (app.Environment.IsDevelopment())
 app.Run();
 
 public partial class Program;
+
+internal static class AssistantAuthorization
+{
+    public static bool CanAsk(ClaimsPrincipal user, string? workflowContext)
+    {
+        var required = workflowContext?.Trim().ToLowerInvariant() switch
+        {
+            "obligation" => Permission.ViewObligations,
+            "contract" => Permission.ViewContracts,
+            "evidence" => Permission.ViewEvidence,
+            "cmmc" or "ssp" or "poam" => Permission.ViewCmmc,
+            "labor" => Permission.ViewReports,
+            "subcontractor" => Permission.ViewSubcontractors,
+            _ => (Permission?)null
+        };
+        return required.HasValue && Has(user, required.Value);
+    }
+
+    public static bool CanCreateAction(ClaimsPrincipal user, AssistantDraftActionType actionType) => actionType switch
+    {
+        AssistantDraftActionType.Task => Has(user, Permission.ManageTasks),
+        AssistantDraftActionType.EvidenceRequest => Has(user, Permission.ManageEvidence),
+        AssistantDraftActionType.Note => Has(user, Permission.ManageEvidence),
+        AssistantDraftActionType.ReviewItem => Has(user, Permission.ManageObligations),
+        _ => false
+    };
+
+    private static bool Has(ClaimsPrincipal user, Permission permission) =>
+        user.HasClaim(ApiSecurityExtensions.PermissionClaimType, permission.ToString());
+}
 
 internal static class SimpleReportExportAuthorization
 {

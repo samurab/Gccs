@@ -103,8 +103,8 @@ public sealed class EfLaborClassificationRepository(GccsDbContext db, ICurrentTe
             SourceReference = request.SourceReference!, CreatedAt = now, CreatedByUserId = actorUserId,
             Employee = refs.Employee, Category = refs.Category
         };
-        foreach (var evidenceId in refs.EvidenceIds)
-            entity.EvidenceLinks.Add(new LaborClassificationEvidenceEntity { TenantId = tenantContext.TenantId, AssignmentId = entity.Id, EvidenceItemId = evidenceId });
+        foreach (var link in refs.EvidenceLinks)
+            entity.EvidenceLinks.Add(new LaborClassificationEvidenceEntity { TenantId = tenantContext.TenantId, AssignmentId = entity.Id, EvidenceItemId = link.EvidenceItemId, EvidenceType = link.EvidenceType });
         db.LaborEmployeeAssignments.Add(entity);
         await SaveAssignmentAsync(cancellationToken);
         return ToDto(entity);
@@ -123,8 +123,8 @@ public sealed class EfLaborClassificationRepository(GccsDbContext db, ICurrentTe
         ResetReview(entity);
         db.LaborClassificationEvidence.RemoveRange(entity.EvidenceLinks);
         entity.EvidenceLinks.Clear();
-        foreach (var evidenceId in refs.EvidenceIds)
-            entity.EvidenceLinks.Add(new LaborClassificationEvidenceEntity { TenantId = tenantContext.TenantId, AssignmentId = entity.Id, EvidenceItemId = evidenceId });
+        foreach (var link in refs.EvidenceLinks)
+            entity.EvidenceLinks.Add(new LaborClassificationEvidenceEntity { TenantId = tenantContext.TenantId, AssignmentId = entity.Id, EvidenceItemId = link.EvidenceItemId, EvidenceType = link.EvidenceType });
         await SaveAssignmentAsync(cancellationToken);
         return ToDto(entity);
     }
@@ -221,20 +221,21 @@ public sealed class EfLaborClassificationRepository(GccsDbContext db, ICurrentTe
         AssignmentBaseQuery(tracking).Include(x => x.Employee).Include(x => x.Category)
             .Include(x => x.History).Include(x => x.EvidenceLinks);
 
-    private async Task<(EmployeeEntity Employee, LaborCategoryEntity Category, Guid[] EvidenceIds)> ResolveReferencesAsync(LaborEmployeeAssignmentRequest request, CancellationToken token)
+    private async Task<(EmployeeEntity Employee, LaborCategoryEntity Category, LaborEvidenceLinkRequest[] EvidenceLinks)> ResolveReferencesAsync(LaborEmployeeAssignmentRequest request, CancellationToken token)
     {
         await RequireContractAsync(request.ContractId, token);
         var employee = await db.Employees.SingleOrDefaultAsync(x => x.TenantId == tenantContext.TenantId && x.Id == request.EmployeeId, token)
             ?? throw new LaborClassificationValidationException("The employee was not found for the current tenant.");
         var category = await CategoryQuery(true).SingleOrDefaultAsync(x => x.Id == request.CategoryId && x.ContractId == request.ContractId, token)
             ?? throw new LaborClassificationValidationException("The labor category was not found on the current-tenant contract.");
-        var evidenceIds = request.EvidenceItemIds?.Distinct().ToArray() ?? [];
+        var evidenceLinks = LaborClassificationService.NormalizeEvidenceLinks(request).ToArray();
+        var evidenceIds = evidenceLinks.Select(x => x.EvidenceItemId).ToArray();
         if (evidenceIds.Length > 0)
         {
             var validCount = await db.EvidenceItems.CountAsync(x => x.TenantId == tenantContext.TenantId && evidenceIds.Contains(x.Id), token);
             if (validCount != evidenceIds.Length) throw new LaborClassificationValidationException("Every evidence link must belong to the current tenant.");
         }
-        return (employee, category, evidenceIds);
+        return (employee, category, evidenceLinks);
     }
 
     private async Task RequireContractAsync(Guid contractId, CancellationToken token)
@@ -275,5 +276,6 @@ public sealed class EfLaborClassificationRepository(GccsDbContext db, ICurrentTe
         x.History.OrderBy(item => item.ChangedAt).Select(item => new LaborClassificationHistoryDto(item.Id,
             item.AssignmentId, item.PriorCategoryId, item.PriorCategoryTitle, item.NewCategoryId,
             item.NewCategoryTitle, item.ActorUserId, item.ChangedAt, item.Reason)).ToArray(),
-        x.ReviewStatus, x.ReviewNotes, x.ReviewedByUserId, x.ReviewedAt, x.CreatedAt, x.UpdatedAt);
+        x.ReviewStatus, x.ReviewNotes, x.ReviewedByUserId, x.ReviewedAt, x.CreatedAt, x.UpdatedAt)
+        { EvidenceLinks = x.EvidenceLinks.Select(link => new LaborEvidenceLinkRequest(link.EvidenceItemId, link.EvidenceType)).ToArray() };
 }

@@ -3930,6 +3930,103 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /api/portal/invitations:
+    get:
+      tags: [Portals]
+      summary: List external portal invitations for the current tenant
+      operationId: listExternalPortalInvitations
+      responses:
+        "200": { description: Tenant-scoped invitations., content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ExternalPortalInvitation" } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Portals]
+      summary: Create a scoped, expiring external portal invitation
+      operationId: createExternalPortalInvitation
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ExternalPortalInvitationRequest" } } }
+      responses:
+        "201": { description: Invitation created and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/ExternalPortalInvitation" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/portal/invitations/{invitationId}/resend:
+    parameters: [{ name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      tags: [Portals]
+      summary: Record a resend request for an unexpired, non-revoked invitation without changing scope
+      operationId: resendExternalPortalInvitation
+      responses:
+        "200": { description: Resend recorded and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/ExternalPortalInvitation" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/portal/invitations/{invitationId}/extend:
+    parameters: [{ name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      tags: [Portals]
+      summary: Extend a non-revoked portal invitation
+      operationId: extendExternalPortalInvitation
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ExtendExternalPortalInvitationRequest" } } }
+      responses:
+        "200": { description: Expiration extended and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/ExternalPortalInvitation" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/portal/invitations/{invitationId}/revoke:
+    parameters: [{ name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      tags: [Portals]
+      summary: Revoke an external portal invitation immediately
+      operationId: revokeExternalPortalInvitation
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RevokeExternalPortalInvitationRequest" } } }
+      responses:
+        "200": { description: Invitation revoked and audit logged., content: { application/json: { schema: { $ref: "#/components/schemas/ExternalPortalInvitation" } } } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/portal/invitations/{invitationId}/access-history:
+    parameters: [{ name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Portals]
+      summary: List append-only access decisions for a current-tenant invitation
+      operationId: listExternalPortalAccessHistory
+      responses:
+        "200": { description: Tenant-scoped access history., content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ExternalPortalAccessHistory" } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/external-portal/invitations/{invitationId}/access:
+    parameters:
+      - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: packageId, in: query, required: true, schema: { type: string, format: uuid } }
+      - { name: contractId, in: query, required: false, schema: { type: string, format: uuid } }
+      - { name: download, in: query, required: false, schema: { type: boolean, default: false } }
+    get:
+      tags: [Portals]
+      summary: Validate authenticated read-only portal access for one assigned package and optional contract scope
+      operationId: validateExternalPortalAccess
+      responses:
+        "200": { description: Access granted and recorded., content: { application/json: { schema: { $ref: "#/components/schemas/ExternalPortalAccessResult" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /api/portal/shared-packages:
     get:
       tags: [Portals]
@@ -9524,6 +9621,77 @@ components:
         sharedRecipient: { type: [string, "null"] }
         sharedPurpose: { type: [string, "null"] }
         history: { type: array, items: { type: object } }
+
+    ExternalPortalInvitationRequest:
+      type: object
+      additionalProperties: false
+      required: [email, role, packageIds, contractIds, expiresAt, canDownload, strongAuthenticationRequired]
+      properties:
+        email: { type: string, format: email, maxLength: 320 }
+        role: { type: string, enum: [PrimeReviewer, AuditorReviewer, AdvisorReviewer, PackageRecipient] }
+        packageIds: { type: array, minItems: 1, maxItems: 100, uniqueItems: true, items: { type: string, format: uuid } }
+        contractIds: { type: array, maxItems: 100, uniqueItems: true, items: { type: string, format: uuid } }
+        expiresAt: { type: string, format: date-time }
+        canDownload: { type: boolean }
+        strongAuthenticationRequired: { type: boolean }
+
+    ExtendExternalPortalInvitationRequest:
+      type: object
+      additionalProperties: false
+      required: [expiresAt]
+      properties: { expiresAt: { type: string, format: date-time } }
+
+    RevokeExternalPortalInvitationRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties: { reason: { type: string, minLength: 1, maxLength: 500 } }
+
+    ExternalPortalInvitation:
+      type: object
+      required: [id, tenantId, email, role, packageIds, contractIds, expiresAt, canDownload, strongAuthenticationRequired, status, resendCount, version, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        email: { type: string, format: email }
+        role: { type: string, enum: [PrimeReviewer, AuditorReviewer, AdvisorReviewer, PackageRecipient] }
+        packageIds: { type: array, items: { type: string, format: uuid } }
+        contractIds: { type: array, items: { type: string, format: uuid } }
+        expiresAt: { type: string, format: date-time }
+        canDownload: { type: boolean }
+        strongAuthenticationRequired: { type: boolean }
+        status: { type: string, enum: [Pending, Accepted, Revoked] }
+        externalUserId: { type: [string, "null"], format: uuid }
+        lastAccessedAt: { type: [string, "null"], format: date-time }
+        revokedAt: { type: [string, "null"], format: date-time }
+        revocationReason: { type: [string, "null"] }
+        resendCount: { type: integer, minimum: 0 }
+        lastResentAt: { type: [string, "null"], format: date-time }
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: [string, "null"], format: date-time }
+
+    ExternalPortalAccessResult:
+      type: object
+      required: [allowed, reason]
+      properties:
+        allowed: { type: boolean }
+        reason: { type: string }
+        invitation: { anyOf: [{ $ref: "#/components/schemas/ExternalPortalInvitation" }, { type: "null" }] }
+
+    ExternalPortalAccessHistory:
+      type: object
+      required: [id, invitationId, tenantId, actorUserId, packageId, allowed, resultCode, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        invitationId: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        actorUserId: { type: string, format: uuid }
+        packageId: { type: string, format: uuid }
+        contractId: { type: [string, "null"], format: uuid }
+        allowed: { type: boolean }
+        resultCode: { type: string }
+        occurredAt: { type: string, format: date-time }
 
     SharedPortalPackageRequest:
       type: object

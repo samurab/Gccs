@@ -3,6 +3,7 @@ using System;
 using Gccs.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Gccs.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GccsDbContext))]
-    partial class GccsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912202821_CompleteLaborAndAssistantPersistence")]
+    partial class CompleteLaborAndAssistantPersistence
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4468,197 +4471,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "Status", "SourceType");
 
                     b.ToTable("expert_review_items", "gccs");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExternalPortalAccessHistoryEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("ActorUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("actor_user_id");
-
-                    b.Property<bool>("Allowed")
-                        .HasColumnType("boolean")
-                        .HasColumnName("allowed");
-
-                    b.Property<Guid?>("ContractId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("contract_id");
-
-                    b.Property<Guid>("InvitationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("invitation_id");
-
-                    b.Property<DateTimeOffset>("OccurredAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("occurred_at");
-
-                    b.Property<Guid>("PackageId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("package_id");
-
-                    b.Property<string>("ResultCode")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("result_code");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "ActorUserId", "OccurredAt");
-
-                    b.HasIndex("TenantId", "InvitationId", "OccurredAt");
-
-                    b.ToTable("external_portal_access_history", "gccs");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationContractScopeEntity", b =>
-                {
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<Guid>("InvitationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("invitation_id");
-
-                    b.Property<Guid>("ContractId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("contract_id");
-
-                    b.HasKey("TenantId", "InvitationId", "ContractId");
-
-                    b.HasIndex("TenantId", "ContractId");
-
-                    b.ToTable("external_portal_invitation_contract_scopes", "gccs");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<bool>("CanDownload")
-                        .HasColumnType("boolean")
-                        .HasColumnName("can_download");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by_user_id");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)")
-                        .HasColumnName("email");
-
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_at");
-
-                    b.Property<Guid?>("ExternalUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("external_user_id");
-
-                    b.Property<DateTimeOffset?>("LastAccessedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_accessed_at");
-
-                    b.Property<DateTimeOffset?>("LastResentAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_resent_at");
-
-                    b.Property<int>("ResendCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("resend_count");
-
-                    b.Property<string>("RevocationReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("revocation_reason");
-
-                    b.Property<DateTimeOffset?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("revoked_at");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("role");
-
-                    b.Property<string>("Status")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("status");
-
-                    b.Property<bool>("StrongAuthenticationRequired")
-                        .HasColumnType("boolean")
-                        .HasColumnName("strong_authentication_required");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by_user_id");
-
-                    b.Property<long>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt", "UpdatedAt");
-
-                    b.HasIndex("TenantId", "ExpiresAt");
-
-                    b.HasIndex("TenantId", "Email", "Status");
-
-                    b.ToTable("external_portal_invitations", "gccs");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationPackageScopeEntity", b =>
-                {
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<Guid>("InvitationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("invitation_id");
-
-                    b.Property<Guid>("PackageId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("package_id");
-
-                    b.HasKey("TenantId", "InvitationId", "PackageId");
-
-                    b.HasIndex("TenantId", "PackageId");
-
-                    b.ToTable("external_portal_invitation_package_scopes", "gccs");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExtractionJobEntity", b =>
@@ -12913,80 +12725,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExternalPortalAccessHistoryEntity", b =>
-                {
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationEntity", "Invitation")
-                        .WithMany("AccessHistory")
-                        .HasForeignKey("TenantId", "InvitationId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Invitation");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationContractScopeEntity", b =>
-                {
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.ContractEntity", "Contract")
-                        .WithMany()
-                        .HasForeignKey("TenantId", "ContractId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationEntity", "Invitation")
-                        .WithMany("ContractScopes")
-                        .HasForeignKey("TenantId", "InvitationId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Contract");
-
-                    b.Navigation("Invitation");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationEntity", b =>
-                {
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationPackageScopeEntity", b =>
-                {
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.TenantEntity", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationEntity", "Invitation")
-                        .WithMany("PackageScopes")
-                        .HasForeignKey("TenantId", "InvitationId")
-                        .HasPrincipalKey("TenantId", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Invitation");
-                });
-
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExtractionJobEntity", b =>
                 {
                     b.HasOne("Gccs.Infrastructure.Persistence.Models.ContractDocumentEntity", "SourceDocument")
@@ -14704,15 +14442,6 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                     b.Navigation("SubcontractingReportDataRows");
 
                     b.Navigation("Vendors");
-                });
-
-            modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExternalPortalInvitationEntity", b =>
-                {
-                    b.Navigation("AccessHistory");
-
-                    b.Navigation("ContractScopes");
-
-                    b.Navigation("PackageScopes");
                 });
 
             modelBuilder.Entity("Gccs.Infrastructure.Persistence.Models.ExtractionJobEntity", b =>

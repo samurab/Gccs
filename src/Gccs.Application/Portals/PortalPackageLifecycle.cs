@@ -329,7 +329,7 @@ public sealed class PortalPackageShareEligibilityValidator(
         DateTimeOffset asOf,
         CancellationToken cancellationToken = default)
     {
-        var invitation = await invitationRepository.FindInvitationAsync(invitationId, cancellationToken);
+        var invitation = await invitationRepository.FindInvitationForAccessAsync(invitationId, cancellationToken);
         if (invitation is null ||
             invitation.TenantId != tenantId ||
             invitation.Status == ExternalPortalInvitationStatus.Revoked ||

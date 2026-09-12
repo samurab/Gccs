@@ -118,29 +118,40 @@ public static class DependencyInjection
         services.AddSingleton<ISharedResponsibilityMatrixRepository, FileSharedResponsibilityMatrixRepository>();
         services.AddSingleton<IDataHandlingNoticeRepository, FileDataHandlingNoticeRepository>();
         services.AddSingleton<ISprsScoringRuleRepository, FileSprsScoringRuleRepository>();
-        services.AddScoped<IEsrsApplicabilityRepository>(provider => new EfEsrsApplicabilityRepository(
-            provider.GetRequiredService<GccsDbContext>(),
-            provider.GetRequiredService<ICurrentTenantContext>()));
-        services.AddScoped<ISubcontractingReportDataRepository>(provider => new EfSubcontractingReportDataRepository(
-            provider.GetRequiredService<GccsDbContext>(),
-            provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddSingleton<ISprSchemaProfileRepository, FileSprSchemaProfileRepository>();
         services.AddScoped<SprSchemaProfileService>();
-            services.AddScoped<IEsrsReportPackageRepository>(provider => new EfEsrsReportPackageRepository(
-                provider.GetRequiredService<GccsDbContext>(),
-                provider.GetRequiredService<ICurrentTenantContext>()));
-            services.AddScoped<IPortalPackageLifecycleRepository, EfPortalPackageLifecycleRepository>();
         services.AddSingleton<ISprSubmissionProvider, DisabledSprSubmissionProvider>();
+        services.AddScoped<IEsrsApplicabilityRepository>(_ =>
+            throw new InvalidOperationException("eSRS applicability persistence requires ConnectionStrings:GccsDatabase to be configured."));
+        services.AddScoped<ISubcontractingReportDataRepository>(provider =>
+            new InMemorySubcontractingReportDataRepository(provider.GetRequiredService<ICurrentTenantContext>().TenantId));
+        services.AddScoped<IEsrsReportPackageRepository>(provider =>
+            new InMemoryEsrsReportPackageRepository(provider.GetRequiredService<ICurrentTenantContext>().TenantId));
+        services.AddSingleton<ILaborApplicabilityRepository, InMemoryLaborApplicabilityRepository>();
+        services.AddSingleton<ILaborClassificationRepository, InMemoryLaborClassificationRepository>();
+        services.AddSingleton<IPortalPackageLifecycleRepository, InMemoryPortalPackageLifecycleRepository>();
+        // Factory registrations defer DbContext resolution so test hosts can add a
+        // relational provider after infrastructure registration without making
+        // unrelated no-database hosts fail service-provider validation.
+        services.AddScoped<IEsrsApplicabilityRepository>(provider => new EfEsrsApplicabilityRepository(
+            provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
+        services.AddScoped<ISubcontractingReportDataRepository>(provider => new EfSubcontractingReportDataRepository(
+            provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
+        services.AddScoped<IEsrsReportPackageRepository>(provider => new EfEsrsReportPackageRepository(
+            provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
+        services.AddScoped<IPortalPackageLifecycleRepository>(provider =>
+            new EfPortalPackageLifecycleRepository(provider.GetRequiredService<GccsDbContext>()));
         services.AddScoped<ILaborApplicabilityRepository>(provider => new EfLaborApplicabilityRepository(
             provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddScoped<ILaborClassificationRepository>(provider => new EfLaborClassificationRepository(
+            provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
+        services.AddScoped<ILaborComplianceReportRepository>(provider => new EfLaborComplianceReportRepository(
             provider.GetRequiredService<GccsDbContext>(), provider.GetRequiredService<ICurrentTenantContext>()));
         services.AddSingleton<IAiRetrievalSourceRepository, InMemoryAiRetrievalSourceRepository>();
         services.AddSingleton<IAiOutputReviewRepository, InMemoryAiOutputReviewRepository>();
         services.AddSingleton<IGuardedAssistantRepository, InMemoryGuardedAssistantRepository>();
         services.AddSingleton<IExternalPortalAccessRepository, InMemoryExternalPortalAccessRepository>();
         services.AddSingleton<IPortalPackageRepository, InMemoryPortalPackageRepository>();
-        services.AddSingleton<IPortalPackageLifecycleRepository, InMemoryPortalPackageLifecycleRepository>();
         services.AddSingleton<ITrustArtifactLibraryRepository, InMemoryTrustArtifactLibraryRepository>();
         services.AddSingleton<InMemorySspSectionRepository>();
         services.AddSingleton<InMemorySspExportPackageRepository>();
@@ -368,10 +379,13 @@ public static class DependencyInjection
         var connectionString = configuration?.GetConnectionString("GccsDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
+            services.AddScoped<IGuardedAssistantRepository, EfGuardedAssistantRepository>();
             services.AddScoped<ISyntheticContentApprovalRepository, EfSyntheticContentApprovalRepository>();
             services.AddScoped<IClassifiedNoteRepository, EfClassifiedNoteRepository>();
             services.AddDbContext<GccsDbContext>(options =>
                 options.UseGccsPostgres(connectionString));
+            services.AddScoped<IExternalPortalAccessRepository, EfExternalPortalAccessRepository>();
+            services.AddScoped<IExternalPortalScopeValidator, EfExternalPortalScopeValidator>();
 
             services.AddScoped<ITenantRepository, EfTenantRepository>();
             services.AddScoped<IPlatformTenantProvisioningRepository, EfPlatformTenantProvisioningRepository>();
@@ -456,6 +470,8 @@ public static class DependencyInjection
         }
         else
         {
+            services.AddScoped<ILaborComplianceReportRepository>(_ =>
+                throw new InvalidOperationException("Labor compliance report persistence requires ConnectionStrings:GccsDatabase to be configured."));
             services.AddSingleton<ISspSectionRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());
             services.AddSingleton<ISspSectionLinkValidator, PermissiveSspSectionLinkValidator>();
             services.AddSingleton<ISspNarrativeRepository>(provider => provider.GetRequiredService<InMemorySspSectionRepository>());

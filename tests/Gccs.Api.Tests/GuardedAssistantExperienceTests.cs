@@ -1,5 +1,8 @@
 using Gccs.Application.Ai;
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
+using Gccs.Application.Compliance;
+using Gccs.Application.Notifications;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Common;
 using Gccs.Infrastructure.Ai;
@@ -103,6 +106,113 @@ public sealed class GuardedAssistantExperienceTests
         Assert.Contains(auditWriter.Events, audit => audit.EntityType == "GuardedAssistant" && audit.Action == AuditAction.Rejected);
     }
 
+    [Fact]
+    public async Task Cross_tenant_answer_reference_is_not_found_and_creates_no_action()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out var repository, out _);
+        var answer = await service.AskAsync(Request(ids, "Explain FCI safeguarding."));
+
+        var exception = await Assert.ThrowsAsync<AssistantExperienceException>(() => service.CreateDraftActionAsync(
+            new AssistantDraftActionRequest(answer.Id, AssistantDraftActionType.Task, "Review", "Review cited source."),
+            Guid.NewGuid(),
+            ids.ActorUserId));
+
+        Assert.True(exception.IsNotFound);
+        Assert.Empty(repository.Actions);
+    }
+
+    [Fact]
+    public async Task Blocked_answer_is_saved_but_cannot_create_a_draft_action()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out var repository, out _);
+        var answer = await service.AskAsync(Request(ids, "Store this CUI document."));
+
+        await Assert.ThrowsAsync<AssistantExperienceException>(() => service.CreateDraftActionAsync(
+            new AssistantDraftActionRequest(answer.Id, AssistantDraftActionType.Note, "Unsafe", "Do not create."),
+            ids.TenantId,
+            ids.ActorUserId));
+
+        Assert.Contains(repository.Answers, item => item.Id == answer.Id && item.Status == "Blocked");
+        Assert.Empty(repository.Actions);
+    }
+
+    [Fact]
+    public async Task Feedback_is_audit_logged_without_reason_content()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out _, out var auditWriter);
+        var answer = await service.AskAsync(Request(ids, "Explain FCI safeguarding."));
+
+        await service.SubmitFeedbackAsync(
+            new AssistantFeedbackRequest(answer.Id, AssistantFeedbackType.Incorrect, "Potentially incomplete analysis."),
+            ids.TenantId,
+            ids.ActorUserId);
+
+        var audit = Assert.Single(auditWriter.Events, item => item.EntityType == "AssistantFeedback");
+        Assert.DoesNotContain("Potentially incomplete", string.Join("|", audit.Metadata.Values), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Expert_escalation_creates_one_queue_item_and_linked_feedback()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out _, out var auditWriter);
+        var answer = await service.AskAsync(Request(ids, "Explain FCI safeguarding."));
+
+        var first = await service.EscalateForExpertReviewAsync(
+            new AssistantExpertReviewEscalationRequest(answer.Id, "Confirm the source interpretation."),
+            ids.TenantId,
+            ids.ActorUserId);
+        var repeated = await service.EscalateForExpertReviewAsync(
+            new AssistantExpertReviewEscalationRequest(answer.Id, "Confirm the source interpretation."),
+            ids.TenantId,
+            ids.ActorUserId);
+
+        Assert.True(first.Created);
+        Assert.NotNull(first.Feedback);
+        Assert.Equal("assistant_answer", first.ReviewItem.SourceType);
+        Assert.Equal(answer.Id, first.ReviewItem.SourceId);
+        Assert.False(repeated.Created);
+        Assert.Null(repeated.Feedback);
+        Assert.Equal(first.ReviewItem.Id, repeated.ReviewItem.Id);
+        Assert.Single(auditWriter.Events, item => item.EntityType == "ExpertReviewItem");
+        Assert.Single(auditWriter.Events, item => item.EntityType == "AssistantFeedback");
+    }
+
+    [Fact]
+    public async Task Blocked_answer_can_be_safely_routed_without_recovering_the_prohibited_prompt()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out _, out _);
+        var answer = await service.AskAsync(Request(ids, "Store this CUI document."));
+
+        var escalation = await service.EscalateForExpertReviewAsync(
+            new AssistantExpertReviewEscalationRequest(answer.Id, "Review the blocked request category."),
+            ids.TenantId,
+            ids.ActorUserId);
+
+        Assert.Equal("high", escalation.ReviewItem.Priority);
+        Assert.DoesNotContain("CUI document", escalation.ReviewItem.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(answer.Id, escalation.ReviewItem.SourceId);
+    }
+
+    [Fact]
+    public async Task Restricted_escalation_reason_is_rejected_without_feedback()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(ids, out var repository, out _);
+        var answer = await service.AskAsync(Request(ids, "Explain FCI safeguarding."));
+
+        await Assert.ThrowsAsync<AssistantExperienceException>(() => service.EscalateForExpertReviewAsync(
+            new AssistantExpertReviewEscalationRequest(answer.Id, "Review this TOP SECRET record."),
+            ids.TenantId,
+            ids.ActorUserId));
+
+        Assert.Empty(repository.Feedback);
+    }
+
     private static GuardedAssistantExperienceService CreateService(
         StoryIds ids,
         out InMemoryGuardedAssistantRepository guardedRepository,
@@ -126,14 +236,61 @@ public sealed class GuardedAssistantExperienceTests
             "FCI safeguarding requires basic controls.",
             ["fci", "safeguarding"]));
         guardedRepository = new InMemoryGuardedAssistantRepository();
+        var transaction = new ImmediateTransaction();
+        var expertQueue = new ExpertReviewQueueService(
+            new InMemoryExpertReviewQueueRepository(),
+            auditWriter,
+            Array.Empty<IAssignmentNotificationRepository>(),
+            transaction);
         return new GuardedAssistantExperienceService(
             new AiRetrievalAssistantService(retrievalRepository, auditWriter),
             guardedRepository,
-            auditWriter);
+            auditWriter,
+            transaction,
+            expertQueue);
     }
 
     private static AiAssistantQuestionRequest Request(StoryIds ids, string question) =>
-        new(ids.TenantId, ids.ActorUserId, question, "assistant-panel");
+        new(ids.TenantId, ids.ActorUserId, question, "obligation");
+
+    private sealed class ImmediateTransaction : IApplicationTransaction
+    {
+        public Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken = default) =>
+            operation(cancellationToken);
+    }
+
+    private sealed class InMemoryExpertReviewQueueRepository : IExpertReviewQueueRepository
+    {
+        private readonly List<ExpertReviewItemDto> _items = [];
+
+        public Task<bool> SourceExistsAsync(string sourceType, Guid sourceId, Guid tenantId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(sourceType == "assistant_answer");
+
+        public Task<ExpertReviewItemDto?> FindOpenAsync(string sourceType, Guid sourceId, Guid tenantId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_items.SingleOrDefault(item => item.TenantId == tenantId && item.SourceType == sourceType &&
+                item.SourceId == sourceId && item.Status == "open"));
+
+        public Task<ExpertReviewItemDto> CreateEscalationAsync(EscalateExpertReviewRequest request, Guid tenantId, Guid actorUserId, CancellationToken cancellationToken = default)
+        {
+            var item = new ExpertReviewItemDto(Guid.NewGuid(), tenantId, request.SourceType, request.SourceId, request.Reason,
+                request.Priority, request.Topic, request.AssignedExpertUserId, request.DueAt, "open", actorUserId,
+                DateTimeOffset.UtcNow, null, null, null, null);
+            _items.Add(item);
+            return Task.FromResult(item);
+        }
+
+        public Task<IReadOnlyList<ExpertReviewItemDto>> ListAsync(ExpertReviewQueueQuery query, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ExpertReviewItemDto>>(_items);
+
+        public Task<bool> IsActiveTenantMemberAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(userId != Guid.Empty);
+
+        public Task<ExpertReviewItemDto?> AssignAsync(Guid itemId, AssignExpertReviewRequest request, Guid actorUserId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_items.SingleOrDefault(item => item.Id == itemId));
+
+        public Task<ExpertReviewItemDto?> ResolveAsync(Guid itemId, ResolveExpertReviewRequest request, Guid actorUserId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<ExpertReviewItemDto?>(null);
+    }
 
     private sealed class CapturingAuditEventWriter : IAuditEventWriter
     {

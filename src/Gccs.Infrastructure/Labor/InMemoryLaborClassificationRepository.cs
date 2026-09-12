@@ -140,7 +140,8 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
             null,
             null,
             DateTimeOffset.UtcNow,
-            null);
+            null)
+        { EvidenceLinks = LaborClassificationService.NormalizeEvidenceLinks(request) };
         _assignments.Add(assignment);
         return Task.FromResult(assignment);
     }
@@ -173,7 +174,8 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
             EffectiveStart = request.EffectiveStart,
             EffectiveEnd = request.EffectiveEnd,
             SourceReference = request.SourceReference ?? string.Empty,
-            EvidenceItemIds = request.EvidenceItemIds?.Distinct().ToArray() ?? [],
+            EvidenceItemIds = LaborClassificationService.NormalizeEvidenceLinks(request).Select(x => x.EvidenceItemId).ToArray(),
+            EvidenceLinks = LaborClassificationService.NormalizeEvidenceLinks(request),
             ReviewStatus = LaborClassificationReviewStatus.PendingReview,
             ReviewNotes = null,
             ReviewedByUserId = null,

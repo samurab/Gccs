@@ -565,6 +565,61 @@ public sealed class SharedPortalPackageEntity : AuditedEntity
     public DateTimeOffset? RevokedAt { get; set; }
 }
 
+public sealed class ExternalPortalInvitationEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public ExternalPortalRole Role { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public bool CanDownload { get; set; }
+    public bool StrongAuthenticationRequired { get; set; }
+    public ExternalPortalInvitationStatus Status { get; set; }
+    public Guid? ExternalUserId { get; set; }
+    public DateTimeOffset? LastAccessedAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public string? RevocationReason { get; set; }
+    public int ResendCount { get; set; }
+    public DateTimeOffset? LastResentAt { get; set; }
+    public long Version { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public ICollection<ExternalPortalInvitationPackageScopeEntity> PackageScopes { get; set; } = [];
+    public ICollection<ExternalPortalInvitationContractScopeEntity> ContractScopes { get; set; } = [];
+    public ICollection<ExternalPortalAccessHistoryEntity> AccessHistory { get; set; } = [];
+}
+
+public sealed class ExternalPortalInvitationPackageScopeEntity
+{
+    public Guid TenantId { get; set; }
+    public Guid InvitationId { get; set; }
+    public Guid PackageId { get; set; }
+    public ExternalPortalInvitationEntity? Invitation { get; set; }
+}
+
+public sealed class ExternalPortalInvitationContractScopeEntity
+{
+    public Guid TenantId { get; set; }
+    public Guid InvitationId { get; set; }
+    public Guid ContractId { get; set; }
+    public ExternalPortalInvitationEntity? Invitation { get; set; }
+    public ContractEntity? Contract { get; set; }
+}
+
+public sealed class ExternalPortalAccessHistoryEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid InvitationId { get; set; }
+    public Guid ActorUserId { get; set; }
+    public Guid PackageId { get; set; }
+    public Guid? ContractId { get; set; }
+    public bool Allowed { get; set; }
+    public string ResultCode { get; set; } = string.Empty;
+    public DateTimeOffset OccurredAt { get; set; }
+    public ExternalPortalInvitationEntity? Invitation { get; set; }
+}
+
 public sealed class PortalPackageActivityEntity
 {
     public Guid Id { get; set; }
@@ -856,6 +911,7 @@ public sealed class LaborClassificationEvidenceEntity
     public Guid TenantId { get; set; }
     public Guid AssignmentId { get; set; }
     public Guid EvidenceItemId { get; set; }
+    public LaborEvidenceType EvidenceType { get; set; } = LaborEvidenceType.ClassificationReview;
 
     public LaborEmployeeAssignmentEntity? Assignment { get; set; }
     public EvidenceItemEntity? EvidenceItem { get; set; }

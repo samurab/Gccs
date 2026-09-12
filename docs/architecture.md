@@ -47,7 +47,7 @@ flowchart TB
 
     subgraph client["Authenticated SaaS Workspace"]
         web["React + Vite Web App<br/>apps/web"]
-        uiModules["Company profile<br/>Contract intake<br/>Obligation dashboard<br/>Calendar<br/>Evidence vault<br/>CMMC readiness<br/>Subcontractors<br/>Reports"]
+        uiModules["Company profile<br/>Contract intake<br/>Obligation dashboard<br/>Calendar<br/>Evidence vault<br/>CMMC readiness<br/>Subcontractors<br/>Reports<br/>Guarded assistant"]
     end
 
     subgraph apiBoundary["Backend API Boundary"]
@@ -59,6 +59,7 @@ flowchart TB
 
     subgraph appLayer["Application Layer"]
         useCases["Use cases and DTOs<br/>src/Gccs.Application"]
+        guardedAssistant["Guarded assistant policy<br/>citations, draft status,<br/>review and feedback"]
         ports["Repository, storage,<br/>queue, search, AI,<br/>and external API ports"]
     end
 
@@ -90,7 +91,7 @@ flowchart TB
         far["FAR / DFARS / eCFR sources"]
         cmmc["DoD CMMC and NIST sources"]
         email["Email provider"]
-        futureAi["Future cited AI/RAG service"]
+        futureAi["Planned model/RAG provider"]
     end
 
     owners --> browser --> web
@@ -102,6 +103,7 @@ flowchart TB
     api --> audit
     api --> useCases
     useCases --> ports
+    useCases --> guardedAssistant
     useCases --> domain
     domain --> complianceModel
 
@@ -124,13 +126,17 @@ flowchart TB
     contentRepo -. reviewed source links .-> far
     contentRepo -. reviewed source links .-> cmmc
     notifications -. send .-> email
-    extraction -. future source-backed draft assistance .-> futureAi
+    guardedAssistant -. planned generated-answer provider .-> futureAi
 
     uploadGuard -. blocks intentional customer CUI until CUI-ready enclave exists .-> objectStorage
     audit -. records sensitive actions .-> postgres
 ```
 
 The MVP deployment keeps the product No-CUI / compliance management only. Evidence upload, document intake, AI-assisted extraction, and external integrations must preserve tenant isolation, source traceability, auditability, and data handling controls, and users must remain prevented from uploading CUI until a future approved `CuiReady` posture exists.
+
+## Guarded Assistant Boundary
+
+Current state: **Implemented** for the guarded user experience, deterministic approved-source retrieval, citations, draft/support/review labels, prohibited-request redirection, tenant-scoped answer/feedback/draft-action persistence, context-sensitive RBAC, atomic audit logging, and routing assistant answers into the operational expert-review queue. Assistant escalations create an idempotent open queue item linked to the answer, retain a `NeedsExpertReview` feedback record, expose answer citations to authorized reviewers, validate assignees as active tenant members, queue assignment notifications according to user preferences, and support audited governed dispositions. Resolution persists reviewer, timestamp, decision, and notes on the answer, but `accepted_as_reviewed_draft` remains reviewed draft guidance and is not published into obligations, reports, or governed compliance content. A generated-answer model/RAG provider and promotion of separately approved drafts into operational workflows are **Planned**. Do not claim that the assistant provides legal advice, certification decisions, CUI/classified processing, or autonomous compliance decisions.
 
 Labor applicability is a tenant-scoped contract aggregate. The application service validates explicit SCA/DBA/FAR Part 22 fields and source-backed activation, the EF adapter validates contract/clause/evidence ownership and synchronizes a durable compliance task, and the request transaction commits each applicability mutation with its audit event. Wage determination bytes remain in the shared evidence pipeline rather than creating a second upload boundary.
 
@@ -197,9 +203,21 @@ Rationale: eSRS was decommissioned on February 20, 2026, and its subcontracting 
 - Canonical APIs use `/subcontracting-plan-report-data` and `/subcontracting-plan-reports`; legacy `/esrs` routes and persistence names remain compatibility identifiers.
 - This workflow collects and exports internal preparation data only. FeDril does not submit, verify, or synchronize reports with SAM.gov, determine legal reporting obligations, or provide government approval.
 
+## External Portal Access Boundary
+
+Current state: **Implemented** for durable tenant-scoped invitations, four external roles, approved package and contract scopes, expiration and revocation checks, resend and extension controls, authenticated email/subject binding, configurable strong-authentication claim checks, download permission checks, last-access state, append-only access history, tenant-admin API/UI controls, and atomic invitation/access audit writes when PostgreSQL is configured. **Partially implemented** for external review content: the authenticated external route currently establishes and records the read-only authorization decision, while the Story 34.2 approved-package catalog and review UI remain process-local and are not production portal content routes.
+
+- `ManageUsers` authorizes invitation creation, listing, resend, extension, revocation, and access-history review. These routes always use the authenticated tenant context and tenant-qualified repository queries.
+- External callers use the customer authentication plane and bypass tenant membership only on the explicit read-only portal access route. Tenant identity comes from the durable invitation rather than a client tenant header; normal workspace routes still require active tenant membership and server-provided permissions.
+- Successful access requires the verified token email to match the invitation, binds the first external subject identifier, rechecks expiration/revocation, package scope, optional contract scope, strong-authentication claims when configured, and download permission when requested.
+- Invitations reference only current-tenant, externally eligible package snapshots and current-tenant contracts. Completed unblocked Unclassified/FCI reports, externally approved/shared SSP packages, and approved subcontracting-plan report packages are eligible; CUI, unknown, blocked, draft, cross-tenant, or missing package scopes are rejected.
+- Successful and denied access decisions append tenant-scoped history and sanitized audit metadata. Audit events contain identifiers, result codes, and counts rather than package contents or invitation email addresses.
+- A resend request increments durable delivery-hook metadata without changing scope or expiration and cannot revive expired or revoked access. Provider delivery for external invitations is not yet connected and must not be claimed. Extension requires a new future expiration and cannot revive a revoked invitation. Revocation requires a reason and immediately fails request-time access checks.
+- This access model does not authorize CUI sharing and does not grant any tenant workspace permission to a portal role.
+
 ## External Portal Package Lifecycle Boundary
 
-Current state: **Implemented** for durable shared-package lifecycle records, tenant-admin lifecycle APIs and UI, request-time expiration/revocation checks, automatic expiration processing, scheduled reminder activity, reissue/supersede lineage, tenant-scoped activity reporting, and atomic lifecycle/audit writes when PostgreSQL is configured. **Partially implemented** for the surrounding external portal: invitation and approved-package catalogs from Stories 34.1 and 34.2 still use process-local adapters and have no production external-review route.
+Current state: **Implemented** for durable shared-package lifecycle records, tenant-admin lifecycle APIs and UI, request-time expiration/revocation checks, automatic expiration processing, scheduled reminder activity, reissue/supersede lineage, tenant-scoped activity reporting, and atomic lifecycle/audit writes when PostgreSQL is configured. **Partially implemented** for the surrounding external portal: Story 34.1 invitations are durable, but the Story 34.2 approved-package catalog and review content still use process-local adapters and have no production external-review content route.
 
 - `ManageUsers` authorizes create, list, expire, revoke, supersede, reissue, and archive operations because that permission is limited to tenant Owner/Admin roles. `ViewAuditLog` authorizes the portal activity report.
 - Every tenant administration lookup includes the authenticated tenant id. Missing and cross-tenant package ids return the standard tenant-safe `404` response.
@@ -208,7 +226,7 @@ Current state: **Implemented** for durable shared-package lifecycle records, ten
 - Reissue creates a new active lifecycle record and preserves the predecessor. Active predecessors become superseded; revoked or expired predecessors retain their terminal state and revocation evidence while linking to the replacement.
 - Automatic maintenance records one expiration-reminder activity and changes due active shares to `Expired`. Automatic expiration and its audit event share the relational transaction.
 - Portal access, comment, download, reminder, expiration, supersede, revocation, reissue, and archive activity is append-only and tenant scoped. Lifecycle audit metadata contains identifiers and state only; it does not include package contents.
-- This feature does not authorize sharing CUI. Production external portal enablement remains dependent on durable Story 34.1 invitation identity/authentication and Story 34.2 approved-package source adapters.
+- This feature does not authorize sharing CUI. Production external package review remains dependent on durable Story 34.2 approved-package source adapters and content routes.
 
 ## Planned Services
 

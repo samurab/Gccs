@@ -38,7 +38,11 @@ import { LaborClassificationPanel } from "@/components/LaborClassificationPanel"
 import { EsrsReportDataPanel } from "@/components/EsrsReportDataPanel";
 import { SprReportPackagesPanel } from "@/components/SprReportPackagesPanel";
 import { PortalPackageLifecyclePanel } from "@/components/PortalPackageLifecyclePanel";
+import { ExternalPortalInvitationPanel } from "@/components/ExternalPortalInvitationPanel";
+import { GuardedAssistantPanel } from "@/components/GuardedAssistantPanel";
+import { ExpertReviewQueuePanel } from "@/components/ExpertReviewQueuePanel";
 import type { ClassifiedContent } from "@/lib/api";
+import type { AssistantWorkflowContext } from "@/lib/api";
 import { ControlCoverageMeter } from "@/components/ControlCoverageMeter";
 import { controlCoverageTone } from "@/components/controlCoverage";
 import { DevelopmentTestingContextSelector } from "@/components/development/DevelopmentTestingContextSelector";
@@ -574,6 +578,17 @@ function hasAnyPermission(access: CurrentUserAccess, permissions?: string[]) {
   }
 
   return permissions.some((permission) => access.permissions.includes(permission));
+}
+
+function assistantContextsForRoute(route: WorkspaceRoute): AssistantWorkflowContext[] {
+  switch (route) {
+    case "obligations": return ["obligation"];
+    case "contracts": return ["contract", "labor"];
+    case "evidence": return ["evidence"];
+    case "cmmc": return ["cmmc", "ssp", "poam"];
+    case "subcontractors": return ["subcontractor"];
+    default: return [];
+  }
 }
 
 function defaultCalendarQuery(): CalendarEventQueryParams {
@@ -2868,6 +2883,14 @@ export function App() {
           ) : (
             <DashboardView overview={overview} />
           )}
+          {assistantContextsForRoute(activeRoute).length > 0 &&
+            <GuardedAssistantPanel
+              key={`${access.tenantId}:${access.userId}:${activeRoute}`}
+              contexts={assistantContextsForRoute(activeRoute)}
+              permissions={access.permissions}
+            />}
+          {activeRoute === "obligations" && access.permissions.includes("ViewObligations") &&
+            <ExpertReviewQueuePanel canResolve={access.permissions.includes("ManageObligations")} />}
           {activeRoute === "evidence" && access.permissions.includes("ViewEvidence") &&
             <ClassifiedNotesPanel key={`${currentTenant?.id}:${access.userId}:${classificationRefresh}`} canManage={canManageEvidence} />}
         </WorkspaceState>
@@ -10035,6 +10058,7 @@ function SettingsView({
       />
       {canManageUsers ? (
         <>
+          <ExternalPortalInvitationPanel />
           <PortalPackageLifecyclePanel canManage={canManageUsers} canViewActivity={canViewAuditLog} />
           <section className="members-section" aria-label="Tenant team members">
             <div className="section-heading">

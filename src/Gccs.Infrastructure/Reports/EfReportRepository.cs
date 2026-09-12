@@ -35,7 +35,8 @@ public sealed class EfReportRepository(
                 (report.Type == ReportType.ComplianceStatus ||
                  report.Type == ReportType.CmmcReadiness ||
                  report.Type == ReportType.SprsReadiness ||
-                 report.Type == ReportType.SubcontractorCompliance))
+                 report.Type == ReportType.SubcontractorCompliance ||
+                 report.Type == ReportType.LaborCompliance))
             .OrderByDescending(report => report.GeneratedAt)
             .ThenByDescending(report => report.Id)
             .Take(limit)
@@ -71,7 +72,8 @@ public sealed class EfReportRepository(
                 (candidate.Type == ReportType.ComplianceStatus ||
                  candidate.Type == ReportType.CmmcReadiness ||
                  candidate.Type == ReportType.SprsReadiness ||
-                 candidate.Type == ReportType.SubcontractorCompliance))
+                 candidate.Type == ReportType.SubcontractorCompliance ||
+                 candidate.Type == ReportType.LaborCompliance))
             .Select(candidate => new
             {
                 candidate.Id,
@@ -139,7 +141,8 @@ public sealed class EfReportRepository(
                 (candidate.Type == ReportType.ComplianceStatus ||
                  candidate.Type == ReportType.CmmcReadiness ||
                  candidate.Type == ReportType.SprsReadiness ||
-                 candidate.Type == ReportType.SubcontractorCompliance),
+                 candidate.Type == ReportType.SubcontractorCompliance ||
+                 candidate.Type == ReportType.LaborCompliance),
             cancellationToken);
         if (report is null)
         {

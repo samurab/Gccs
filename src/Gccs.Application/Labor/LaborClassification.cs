@@ -239,9 +239,9 @@ public sealed class LaborClassificationService(
             assignment.EvidenceItemIds,
             assignment.History,
             assignment.ReviewStatus,
-            assignment.ReviewNotes,
+            canViewSensitiveEmployeeData ? assignment.ReviewNotes : null,
             assignment.ReviewedByUserId,
-            assignment.ReviewedAt);
+            assignment.ReviewedAt) { EvidenceLinks = assignment.EvidenceLinks };
     }
 
     public Task<IReadOnlyList<LaborCategoryDto>> ListCategoriesAsync(
@@ -258,7 +258,8 @@ public sealed class LaborClassificationService(
                 assignment.CategoryId, assignment.LaborCategoryTitle, assignment.WorkLocation,
                 assignment.EffectiveStart, assignment.EffectiveEnd, assignment.Status,
                 assignment.SourceReference, assignment.EvidenceItemIds, assignment.History,
-                assignment.ReviewStatus, assignment.ReviewNotes, assignment.ReviewedByUserId, assignment.ReviewedAt))
+                assignment.ReviewStatus, canViewSensitiveEmployeeData ? assignment.ReviewNotes : null,
+                assignment.ReviewedByUserId, assignment.ReviewedAt) { EvidenceLinks = assignment.EvidenceLinks })
             .ToArray();
 
     public Task<IReadOnlyList<LaborEmployeeOptionDto>> ListEmployeesAsync(
@@ -294,6 +295,13 @@ public sealed class LaborClassificationService(
         if (request.EffectiveEnd.HasValue && request.EffectiveEnd < request.EffectiveStart)
         {
             throw new LaborClassificationValidationException("Assignment end date cannot be before start date.");
+        }
+
+        var evidenceLinks = NormalizeEvidenceLinks(request);
+        if (evidenceLinks.Any(link => link.EvidenceItemId == Guid.Empty || !Enum.IsDefined(link.EvidenceType)) ||
+            evidenceLinks.Select(link => link.EvidenceItemId).Distinct().Count() != evidenceLinks.Count)
+        {
+            throw new LaborClassificationValidationException("Each labor evidence link requires one distinct evidence item and a supported evidence type.");
         }
 
         var category = await repository.FindCategoryAsync(request.CategoryId, tenantId, cancellationToken);
@@ -338,8 +346,14 @@ public sealed class LaborClassificationService(
         request with
         {
             WorkLocation = request.WorkLocation?.Trim() ?? string.Empty,
-            SourceReference = string.IsNullOrWhiteSpace(request.SourceReference) ? null : request.SourceReference.Trim()
+            SourceReference = string.IsNullOrWhiteSpace(request.SourceReference) ? null : request.SourceReference.Trim(),
+            EvidenceLinks = NormalizeEvidenceLinks(request)
         };
+
+    public static IReadOnlyList<LaborEvidenceLinkRequest> NormalizeEvidenceLinks(LaborEmployeeAssignmentRequest request) =>
+        request.EvidenceLinks is { Count: > 0 }
+            ? request.EvidenceLinks
+            : (request.EvidenceItemIds ?? []).Select(id => new LaborEvidenceLinkRequest(id, LaborEvidenceType.ClassificationReview)).ToArray();
 
     private static void ValidateCategory(LaborCategoryRequest request)
     {
@@ -480,7 +494,12 @@ public sealed record LaborEmployeeAssignmentRequest(
     DateOnly EffectiveStart,
     DateOnly? EffectiveEnd,
     string? SourceReference,
-    IReadOnlyList<Guid>? EvidenceItemIds = null);
+    IReadOnlyList<Guid>? EvidenceItemIds = null)
+{
+    public IReadOnlyList<LaborEvidenceLinkRequest>? EvidenceLinks { get; init; }
+}
+
+public sealed record LaborEvidenceLinkRequest(Guid EvidenceItemId, LaborEvidenceType EvidenceType);
 
 public sealed record LaborEmployeeAssignmentDto(
     Guid Id,
@@ -503,7 +522,10 @@ public sealed record LaborEmployeeAssignmentDto(
     Guid? ReviewedByUserId,
     DateTimeOffset? ReviewedAt,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt)
+{
+    public IReadOnlyList<LaborEvidenceLinkRequest> EvidenceLinks { get; init; } = [];
+}
 
 public sealed record LaborEmployeeAssignmentViewDto(
     Guid Id,
@@ -524,7 +546,10 @@ public sealed record LaborEmployeeAssignmentViewDto(
     LaborClassificationReviewStatus ReviewStatus,
     string? ReviewNotes,
     Guid? ReviewedByUserId,
-    DateTimeOffset? ReviewedAt);
+    DateTimeOffset? ReviewedAt)
+{
+    public IReadOnlyList<LaborEvidenceLinkRequest> EvidenceLinks { get; init; } = [];
+}
 
 public sealed record LaborEmployeeOptionDto(Guid Id, Guid TenantId, string EmployeeNumber, string Name, string Email);
 

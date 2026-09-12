@@ -3,6 +3,7 @@ using Gccs.Application.Security;
 using Gccs.Infrastructure.Persistence;
 using Gccs.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Gccs.Infrastructure.Compliance;
 
@@ -10,12 +11,46 @@ public sealed class EfExpertReviewQueueRepository(
     GccsDbContext dbContext,
     ICurrentTenantContext tenantContext) : IExpertReviewQueueRepository
 {
+    public Task<bool> SourceExistsAsync(
+        string sourceType,
+        Guid sourceId,
+        Guid tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCurrentTenant(tenantId);
+        return sourceType switch
+        {
+            "suggested_obligation" => dbContext.SuggestedObligations.AsNoTracking()
+                .AnyAsync(item => item.Id == sourceId && item.TenantId == tenantId, cancellationToken),
+            "clause_candidate" => dbContext.Set<ClauseCandidateEntity>().AsNoTracking()
+                .AnyAsync(item => item.Id == sourceId && item.TenantId == tenantId, cancellationToken),
+            "assistant_answer" => dbContext.AssistantAnswers.AsNoTracking()
+                .AnyAsync(item => item.Id == sourceId && item.TenantId == tenantId, cancellationToken),
+            _ => Task.FromResult(false)
+        };
+    }
+
+    public async Task<ExpertReviewItemDto?> FindOpenAsync(
+        string sourceType,
+        Guid sourceId,
+        Guid tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCurrentTenant(tenantId);
+        var item = await dbContext.ExpertReviewItems.AsNoTracking().SingleOrDefaultAsync(
+            candidate => candidate.TenantId == tenantId && candidate.SourceType == sourceType &&
+                candidate.SourceId == sourceId && candidate.Status == "open",
+            cancellationToken);
+        return item is null ? null : ToDto(item);
+    }
+
     public async Task<ExpertReviewItemDto> CreateEscalationAsync(
         EscalateExpertReviewRequest request,
         Guid tenantId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        EnsureCurrentTenant(tenantId);
         var now = DateTimeOffset.UtcNow;
         var entity = new ExpertReviewItemEntity
         {
@@ -35,7 +70,19 @@ public sealed class EfExpertReviewQueueRepository(
 
         await MarkSourceEscalatedAsync(request.SourceType, request.SourceId, tenantId, request.Reason, actorUserId, now, cancellationToken);
         dbContext.ExpertReviewItems.Add(entity);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: "IX_expert_review_items_tenant_id_source_type_source_id"
+            })
+        {
+            throw new ExpertReviewDuplicateException();
+        }
         return ToDto(entity);
     }
 
@@ -77,6 +124,29 @@ public sealed class EfExpertReviewQueueRepository(
             .ToArrayAsync(cancellationToken);
     }
 
+    public Task<bool> IsActiveTenantMemberAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        dbContext.TenantMemberships.AsNoTracking().AnyAsync(
+            membership => membership.TenantId == tenantContext.TenantId && membership.UserId == userId &&
+                membership.Status == Gccs.Domain.Identity.MembershipStatus.Active && membership.User != null &&
+                membership.User.Status == Gccs.Domain.Identity.UserStatus.Active,
+            cancellationToken);
+
+    public async Task<ExpertReviewItemDto?> AssignAsync(
+        Guid itemId,
+        AssignExpertReviewRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var item = await dbContext.ExpertReviewItems.SingleOrDefaultAsync(
+            candidate => candidate.Id == itemId && candidate.TenantId == tenantContext.TenantId && candidate.Status == "open",
+            cancellationToken);
+        if (item is null) return null;
+        item.AssignedExpertUserId = request.AssignedExpertUserId;
+        item.DueAt = request.DueAt;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(item);
+    }
+
     public async Task<ExpertReviewItemDto?> ResolveAsync(
         Guid itemId,
         ResolveExpertReviewRequest request,
@@ -84,7 +154,7 @@ public sealed class EfExpertReviewQueueRepository(
         CancellationToken cancellationToken = default)
     {
         var item = await dbContext.ExpertReviewItems.FirstOrDefaultAsync(
-            candidate => candidate.Id == itemId && candidate.TenantId == tenantContext.TenantId,
+            candidate => candidate.Id == itemId && candidate.TenantId == tenantContext.TenantId && candidate.Status == "open",
             cancellationToken);
         if (item is null)
         {
@@ -97,9 +167,15 @@ public sealed class EfExpertReviewQueueRepository(
         item.ResolvedAt = now;
         item.ResolutionDecision = request.Decision;
         item.ResolutionNotes = request.Notes;
-        await MarkSourceResolvedAsync(item.SourceType, item.SourceId, item.TenantId, request.Decision, actorUserId, now, cancellationToken);
+        await MarkSourceResolvedAsync(item.SourceType, item.SourceId, item.TenantId, request.Decision, request.Notes, actorUserId, now, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(item);
+    }
+
+    private void EnsureCurrentTenant(Guid tenantId)
+    {
+        if (tenantId != tenantContext.TenantId)
+            throw new InvalidOperationException("Expert review repository tenant scope does not match the current tenant.");
     }
 
     private async Task MarkSourceEscalatedAsync(
@@ -124,6 +200,16 @@ public sealed class EfExpertReviewQueueRepository(
                 suggestion.ReviewedAt = now;
             }
         }
+        else if (sourceType == "assistant_answer")
+        {
+            var answer = await dbContext.AssistantAnswers.FirstOrDefaultAsync(
+                item => item.Id == sourceId && item.TenantId == tenantId,
+                cancellationToken);
+            if (answer is not null)
+            {
+                answer.HumanReviewStatus = "queued";
+            }
+        }
         else if (sourceType == "clause_candidate")
         {
             var candidate = await dbContext.Set<ClauseCandidateEntity>().FirstOrDefaultAsync(
@@ -144,6 +230,7 @@ public sealed class EfExpertReviewQueueRepository(
         Guid sourceId,
         Guid tenantId,
         string decision,
+        string notes,
         Guid actorUserId,
         DateTimeOffset now,
         CancellationToken cancellationToken)
@@ -159,6 +246,20 @@ public sealed class EfExpertReviewQueueRepository(
                 suggestion.ReviewReason = decision;
                 suggestion.ReviewedByUserId = actorUserId;
                 suggestion.ReviewedAt = now;
+            }
+        }
+        else if (sourceType == "assistant_answer")
+        {
+            var answer = await dbContext.AssistantAnswers.FirstOrDefaultAsync(
+                item => item.Id == sourceId && item.TenantId == tenantId,
+                cancellationToken);
+            if (answer is not null)
+            {
+                answer.HumanReviewStatus = decision;
+                answer.ReviewedByUserId = actorUserId;
+                answer.ReviewedAt = now;
+                answer.ReviewDecision = decision;
+                answer.ReviewNotes = notes;
             }
         }
     }

@@ -819,6 +819,9 @@ const {
 }));
 
 vi.mock("@/lib/api", () => ({
+  getAssistantExpertReviewItems: vi.fn().mockResolvedValue([]),
+  getGuardedAssistantAnswer: vi.fn(),
+  resolveExpertReviewItem: vi.fn(),
   getClassifiedContent: vi.fn().mockResolvedValue([]),
   getClassifiedContentDetail: vi.fn(),
   getClassificationHistory: vi.fn().mockResolvedValue([]),
@@ -930,6 +933,12 @@ vi.mock("@/lib/api", () => ({
   getPublishedSharedResponsibilityMatrix: getPublishedSharedResponsibilityMatrixMock,
   getPortalPackageActivityReport: getPortalPackageActivityReportMock,
   getSharedPortalPackages: getSharedPortalPackagesMock,
+  getExternalPortalInvitations: vi.fn().mockResolvedValue([]),
+  createExternalPortalInvitation: vi.fn(),
+  resendExternalPortalInvitation: vi.fn(),
+  extendExternalPortalInvitation: vi.fn(),
+  revokeExternalPortalInvitation: vi.fn(),
+  getExternalPortalAccessHistory: vi.fn().mockResolvedValue([]),
   expireSharedPortalPackage: vi.fn(),
   revokeSharedPortalPackage: vi.fn(),
   supersedeSharedPortalPackage: vi.fn(),

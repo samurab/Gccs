@@ -26,7 +26,8 @@ public enum ReportType
     SubcontractorCompliance,
     AuditTrail,
     ExecutiveRiskDashboard,
-    SprsReadiness
+    SprsReadiness,
+    LaborCompliance
 }
 
 public enum ReportStatus

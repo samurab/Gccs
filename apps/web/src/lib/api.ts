@@ -101,6 +101,86 @@ export type CurrentUserAccess = {
   rolePermissionMatrix: Record<string, string[]>;
 };
 
+export type AssistantWorkflowContext = "obligation" | "contract" | "evidence" | "cmmc" | "ssp" | "poam" | "labor" | "subcontractor";
+export type AssistantDraftActionType = "Task" | "EvidenceRequest" | "Note" | "ReviewItem";
+export type AssistantFeedbackType = "Helpful" | "Incorrect" | "MissingSource" | "NeedsExpertReview";
+export type AssistantCitation = {
+  sourceId: string;
+  title: string;
+  sourceType: string;
+  sourceUrl: string | null;
+  tenantRecordReference: string | null;
+  excerptPointer: string;
+  version: string;
+  lastReviewedAt: string | null;
+};
+export type GuardedAssistantAnswer = {
+  id: string;
+  tenantId: string;
+  workflowContext: AssistantWorkflowContext;
+  status: "Draft" | "NeedsReview" | "Blocked" | string;
+  answer: string;
+  citations: AssistantCitation[];
+  supportStatus: "SourceSupported" | "NeedsReview" | "Unsupported" | string;
+  draftLabel: string;
+  requiresReview: boolean;
+  escalationRecommended: boolean;
+  blockedReason: string | null;
+  createdAt: string;
+  humanReviewStatus: string;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  reviewDecision: string | null;
+  reviewNotes: string | null;
+};
+export type AssistantDraftAction = {
+  id: string;
+  tenantId: string;
+  answerId: string;
+  actionType: AssistantDraftActionType;
+  title: string;
+  body: string;
+  status: "Draft";
+  createdByUserId: string;
+  createdAt: string;
+};
+export type AssistantFeedback = {
+  id: string;
+  tenantId: string;
+  answerId: string;
+  actorUserId: string;
+  feedbackType: AssistantFeedbackType;
+  reason: string;
+  createdAt: string;
+};
+export type ExpertReviewItem = {
+  id: string;
+  tenantId: string;
+  sourceType: "clause_candidate" | "suggested_obligation" | "assistant_answer" | string;
+  sourceId: string;
+  reason: string;
+  priority: string;
+  topic: string;
+  assignedExpertUserId: string | null;
+  dueAt: string | null;
+  status: string;
+  createdByUserId: string;
+  createdAt: string;
+  resolvedByUserId: string | null;
+  resolvedAt: string | null;
+  resolutionDecision: string | null;
+  resolutionNotes: string | null;
+};
+export type AssistantExpertReviewEscalation = {
+  reviewItem: ExpertReviewItem;
+  feedback: AssistantFeedback | null;
+  created: boolean;
+};
+export type AssistantExpertReviewQueueItem = {
+  reviewItem: ExpertReviewItem;
+  answer: GuardedAssistantAnswer | null;
+};
+
 export type SharedPortalPackage = {
   id: string;
   tenantId: string;
@@ -133,6 +213,41 @@ export type PortalPackageActivity = {
 export type PortalPackageActivityReport = {
   tenantId: string;
   activities: PortalPackageActivity[];
+};
+
+export type ExternalPortalRole = "PrimeReviewer" | "AuditorReviewer" | "AdvisorReviewer" | "PackageRecipient";
+export type ExternalPortalInvitation = {
+  id: string;
+  tenantId: string;
+  email: string;
+  role: ExternalPortalRole;
+  packageIds: string[];
+  contractIds: string[];
+  expiresAt: string;
+  canDownload: boolean;
+  strongAuthenticationRequired: boolean;
+  status: "Pending" | "Accepted" | "Revoked";
+  externalUserId: string | null;
+  lastAccessedAt: string | null;
+  revokedAt: string | null;
+  revocationReason: string | null;
+  resendCount: number;
+  lastResentAt: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type ExternalPortalAccessHistory = {
+  id: string;
+  invitationId: string;
+  tenantId: string;
+  actorUserId: string;
+  packageId: string;
+  contractId: string | null;
+  allowed: boolean;
+  resultCode: string;
+  occurredAt: string;
 };
 
 export type TenantWorkspace = {
@@ -2278,6 +2393,58 @@ export async function getCurrentUserAccess(): Promise<CurrentUserAccess> {
   return normalizeCurrentUserAccess(await getRequiredJson<CurrentUserAccess>("/api/me/access"));
 }
 
+export function askAssistant(question: string, workflowContext: AssistantWorkflowContext): Promise<ApiMutationResult<GuardedAssistantAnswer>> {
+  return postJsonResult<GuardedAssistantAnswer>("/api/assistant/questions", { question, workflowContext });
+}
+
+export function getGuardedAssistantAnswer(answerId: string): Promise<GuardedAssistantAnswer> {
+  return getRequiredJson<GuardedAssistantAnswer>(`/api/assistant/answers/${answerId}`);
+}
+
+export function createAssistantDraftAction(
+  answerId: string,
+  actionType: AssistantDraftActionType,
+  title: string,
+  body: string
+): Promise<ApiMutationResult<AssistantDraftAction>> {
+  return postJsonResult<AssistantDraftAction>(`/api/assistant/answers/${answerId}/actions`, { actionType, title, body });
+}
+
+export function submitAssistantFeedback(
+  answerId: string,
+  feedbackType: AssistantFeedbackType,
+  reason: string
+): Promise<ApiMutationResult<AssistantFeedback>> {
+  return postJsonResult<AssistantFeedback>(`/api/assistant/answers/${answerId}/feedback`, { feedbackType, reason });
+}
+
+export function escalateAssistantAnswer(
+  answerId: string,
+  reason: string
+): Promise<ApiMutationResult<AssistantExpertReviewEscalation>> {
+  return postJsonResult<AssistantExpertReviewEscalation>(`/api/assistant/answers/${answerId}/expert-review`, { reason });
+}
+
+export function getAssistantExpertReviewItems(): Promise<AssistantExpertReviewQueueItem[]> {
+  return getRequiredJson<AssistantExpertReviewQueueItem[]>("/api/assistant/expert-review-items");
+}
+
+export function resolveExpertReviewItem(
+  itemId: string,
+  decision: string,
+  notes: string
+): Promise<ApiMutationResult<ExpertReviewItem>> {
+  return postJsonResult<ExpertReviewItem>(`/api/expert-review-items/${itemId}/resolve`, { decision, notes });
+}
+
+export function assignExpertReviewItem(
+  itemId: string,
+  assignedExpertUserId: string,
+  dueAt: string | null
+): Promise<ApiMutationResult<ExpertReviewItem>> {
+  return postJsonResult<ExpertReviewItem>(`/api/expert-review-items/${itemId}/assign`, { assignedExpertUserId, dueAt });
+}
+
 export async function getMyTenantWorkspaces(): Promise<TenantWorkspaceList> {
   return getRequiredJson<TenantWorkspaceList>("/api/me/tenants");
 }
@@ -3265,6 +3432,26 @@ export const getSprReportPackages = () =>
 
 export const getSharedPortalPackages = () =>
   getRequiredJson<SharedPortalPackage[]>("/api/portal/shared-packages");
+
+export const getExternalPortalInvitations = () =>
+  getRequiredJson<ExternalPortalInvitation[]>("/api/portal/invitations");
+
+export const createExternalPortalInvitation = (request: {
+  email: string; role: ExternalPortalRole; packageIds: string[]; contractIds: string[];
+  expiresAt: string; canDownload: boolean; strongAuthenticationRequired: boolean;
+}) => postJsonResult<ExternalPortalInvitation>("/api/portal/invitations", request);
+
+export const resendExternalPortalInvitation = (invitationId: string) =>
+  postJsonResult<ExternalPortalInvitation>(`/api/portal/invitations/${invitationId}/resend`, {});
+
+export const extendExternalPortalInvitation = (invitationId: string, expiresAt: string) =>
+  postJsonResult<ExternalPortalInvitation>(`/api/portal/invitations/${invitationId}/extend`, { expiresAt });
+
+export const revokeExternalPortalInvitation = (invitationId: string, reason: string) =>
+  postJsonResult<ExternalPortalInvitation>(`/api/portal/invitations/${invitationId}/revoke`, { reason });
+
+export const getExternalPortalAccessHistory = (invitationId: string) =>
+  getRequiredJson<ExternalPortalAccessHistory[]>(`/api/portal/invitations/${invitationId}/access-history`);
 
 export const getPortalPackageActivityReport = () =>
   getRequiredJson<PortalPackageActivityReport>("/api/portal/shared-packages/activity-report");

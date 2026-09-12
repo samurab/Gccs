@@ -1,246 +1,138 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
+using Gccs.Application.Reports;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
+using Gccs.Domain.Reports;
 
 namespace Gccs.Application.Labor;
 
 public sealed class LaborComplianceReportService(
-    ILaborApplicabilityRepository applicabilityRepository,
-    ILaborClassificationRepository classificationRepository,
-    IAuditEventWriter auditEventWriter)
+    ILaborComplianceReportRepository repository,
+    IAuditEventWriter auditEventWriter,
+    TenantDataHandlingModePolicyService dataHandlingModePolicy,
+    ContentClassificationPolicy classificationPolicy,
+    IApplicationTransaction transaction)
 {
     public const string WorkflowDisclaimer =
-        "This report summarizes FeDril workflow status and source-backed records. It is not a final legal determination.";
+        "Workflow guidance only. This labor report summarizes source-backed records and review status. " +
+        "It is not legal advice, a wage determination, a certification decision, a contracting-officer determination, or a government endorsement.";
 
-    public async Task<LaborDashboardDto> GetDashboardAsync(
+    public Task<LaborDashboardDto?> GetDashboardAsync(
         LaborDashboardQuery query,
+        bool includeSensitiveEmployeeData,
         CancellationToken cancellationToken = default)
     {
-        var obligations = await applicabilityRepository.ListAsync(query.TenantId, query.ContractId, cancellationToken);
-        var assignments = await classificationRepository.ListAssignmentsAsync(query.TenantId, query.ContractId, cancellationToken);
-        var asOfDate = query.AsOfDate ?? DateOnly.FromDateTime(DateTime.UtcNow.Date);
-        var gaps = BuildGaps(obligations, assignments);
-        return new LaborDashboardDto(
-            query.TenantId,
-            query.ContractId,
-            obligations.Select(ToObligationDto).ToArray(),
-            assignments.Select(assignment => ToAssignmentDto(assignment, includeSensitiveEmployeeData: false)).ToArray(),
-            gaps,
-            obligations.Count(obligation => obligation.ReviewTask?.DueAt is { } due && due < asOfDate && obligation.Status == LaborApplicabilityStatus.Active));
+        ValidateQuery(query);
+        return repository.GetDashboardAsync(query, includeSensitiveEmployeeData, cancellationToken);
     }
 
-    public async Task<LaborComplianceReportDto> GenerateAsync(
+    public Task<LaborComplianceReportDto?> GenerateAsync(
         LaborComplianceReportRequest request,
         Guid actorUserId,
-        CancellationToken cancellationToken = default)
-    {
-        if (!request.HasReportPermission)
+        bool includeSensitiveEmployeeData,
+        CancellationToken cancellationToken = default) =>
+        transaction.ExecuteAsync(async transactionCancellationToken =>
         {
-            throw new LaborComplianceReportException("Report permission is required.");
-        }
+            ValidateRequest(request);
+            var classification = await ClassifiedWorkflowValidation.ConfirmAsync(
+                classificationPolicy, request.Classification, TenantDataHandlingWorkflow.Report,
+                actorUserId, transactionCancellationToken);
+            await dataHandlingModePolicy.EnsureAllowedAsync(
+                new TenantDataHandlingModePolicyRequest(TenantDataHandlingWorkflow.Report, ContainsRealCui: false),
+                actorUserId, transactionCancellationToken);
 
-        var obligations = await applicabilityRepository.ListAsync(request.TenantId, request.ContractId, cancellationToken);
-        var categories = await classificationRepository.ListCategoriesAsync(request.TenantId, request.ContractId, cancellationToken);
-        var assignments = await classificationRepository.ListAssignmentsAsync(request.TenantId, request.ContractId, cancellationToken);
-        var report = new LaborComplianceReportDto(
-            Guid.NewGuid(),
-            request.TenantId,
-            request.ContractId,
-            DateTimeOffset.UtcNow,
-            WorkflowDisclaimer,
-            obligations.Select(ToObligationDto).ToArray(),
-            categories.Select(ToCategoryDto).ToArray(),
-            assignments.Select(assignment => ToAssignmentDto(assignment, request.IncludeSensitiveEmployeeData)).ToArray(),
-            BuildGaps(obligations, assignments),
-            obligations
-                .Where(obligation => obligation.WageDeterminationEvidenceItemId.HasValue)
-                .Select(obligation => new LaborEvidenceReferenceDto(obligation.Id, obligation.WageDeterminationEvidenceItemId!.Value, "WageDetermination"))
-                .ToArray());
-        await WriteAuditAsync(report, actorUserId, AuditAction.Created, "Labor compliance report was generated.", cancellationToken);
-        return report;
+            var report = await repository.GenerateAsync(
+                request, actorUserId, includeSensitiveEmployeeData, classification, transactionCancellationToken);
+            if (report is null) return null;
+
+            await auditEventWriter.WriteAsync(
+                report.TenantId, actorUserId, AuditAction.Created, "Report", report.Id.ToString(),
+                "Labor compliance workflow report was generated.",
+                new Dictionary<string, string>
+                {
+                    ["reportType"] = ReportType.LaborCompliance.ToString(),
+                    ["contractId"] = report.Snapshot.ContractId?.ToString() ?? string.Empty,
+                    ["obligations"] = report.Snapshot.Obligations.Count.ToString(),
+                    ["assignments"] = report.Snapshot.Assignments.Count.ToString(),
+                    ["gaps"] = report.Snapshot.Gaps.Count.ToString(),
+                    ["includedSensitiveEmployeeData"] = includeSensitiveEmployeeData.ToString()
+                }, transactionCancellationToken);
+            return report;
+        }, cancellationToken);
+
+    private static void ValidateRequest(LaborComplianceReportRequest request)
+    {
+        ValidateQuery(request.Filters ?? new LaborDashboardQuery(ContractId: request.ContractId));
+        if (request.ContractId.HasValue && request.Filters?.ContractId.HasValue == true &&
+            request.ContractId != request.Filters.ContractId)
+            throw new LaborComplianceReportException("The report contract and dashboard filter contract must match.");
+        if (request.ReviewerNotes?.Length > 2_000)
+            throw new LaborComplianceReportException("Reviewer notes cannot exceed 2,000 characters.");
     }
 
-    public async Task<LaborComplianceReportExportDto> ExportAsync(
-        LaborComplianceReportDto report,
-        Guid actorUserId,
-        CancellationToken cancellationToken = default)
+    private static void ValidateQuery(LaborDashboardQuery query)
     {
-        var export = new LaborComplianceReportExportDto(
-            report.Id,
-            report.TenantId,
-            "labor-compliance-report.csv",
-            "text/csv",
-            DateTimeOffset.UtcNow);
-        await auditEventWriter.WriteAsync(
-            report.TenantId,
-            actorUserId,
-            AuditAction.Exported,
-            "LaborComplianceReport",
-            report.Id.ToString(),
-            "Labor compliance report was exported.",
-            new Dictionary<string, string>
-            {
-                ["contractId"] = report.ContractId?.ToString() ?? string.Empty,
-                ["fileName"] = export.FileName
-            },
-            cancellationToken);
-        return export;
-    }
-
-    private static IReadOnlyList<LaborGapDto> BuildGaps(
-        IReadOnlyList<LaborApplicabilityDto> obligations,
-        IReadOnlyList<LaborEmployeeAssignmentDto> assignments)
-    {
-        var gaps = new List<LaborGapDto>();
-        gaps.AddRange(obligations
-            .Where(obligation => obligation.WageDeterminationEvidenceItemId is null)
-            .Select(obligation => new LaborGapDto(obligation.ContractId, "Missing wage determination evidence", "Evidence")));
-        if (obligations.Any(obligation => obligation.Status == LaborApplicabilityStatus.Active) &&
-            !assignments.Any(assignment => assignment.Status == LaborAssignmentStatus.Active))
-        {
-            gaps.Add(new LaborGapDto(obligations.First().ContractId, "No active employee labor assignments", "Assignment"));
-        }
-
-        return gaps;
-    }
-
-    private static LaborObligationReportDto ToObligationDto(LaborApplicabilityDto obligation) =>
-        new(
-            obligation.Id,
-            obligation.ContractId,
-            obligation.LaborStandard,
-            obligation.SourceClause,
-            obligation.WageDeterminationReference,
-            obligation.PlaceOfPerformance,
-            obligation.Status,
-            obligation.ReviewTask?.DueAt);
-
-    private static LaborCategoryReportDto ToCategoryDto(LaborCategoryDto category) =>
-        new(
-            category.Id,
-            category.ContractId,
-            category.Title,
-            category.WageDeterminationClassification,
-            category.HourlyWage,
-            category.FringeRate,
-            category.SourceReference,
-            category.IsActive);
-
-    private static LaborAssignmentReportDto ToAssignmentDto(
-        LaborEmployeeAssignmentDto assignment,
-        bool includeSensitiveEmployeeData) =>
-        new(
-            assignment.Id,
-            assignment.ContractId,
-            assignment.EmployeeId,
-            includeSensitiveEmployeeData ? assignment.EmployeeName : null,
-            includeSensitiveEmployeeData ? assignment.EmployeeEmail : null,
-            assignment.LaborCategoryTitle,
-            assignment.WorkLocation,
-            assignment.Status,
-            assignment.SourceReference);
-
-    private async Task WriteAuditAsync(
-        LaborComplianceReportDto report,
-        Guid actorUserId,
-        AuditAction action,
-        string summary,
-        CancellationToken cancellationToken)
-    {
-        await auditEventWriter.WriteAsync(
-            report.TenantId,
-            actorUserId,
-            action,
-            "LaborComplianceReport",
-            report.Id.ToString(),
-            summary,
-            new Dictionary<string, string>
-            {
-                ["contractId"] = report.ContractId?.ToString() ?? string.Empty,
-                ["obligations"] = report.Obligations.Count.ToString(),
-                ["assignments"] = report.Assignments.Count.ToString(),
-                ["gaps"] = report.Gaps.Count.ToString()
-            },
-            cancellationToken);
+        if (query.Location?.Length > 240) throw new LaborComplianceReportException("Location cannot exceed 240 characters.");
+        if (query.DueFrom.HasValue && query.DueTo.HasValue && query.DueTo < query.DueFrom)
+            throw new LaborComplianceReportException("Due-to date cannot be before due-from date.");
+        if (!string.IsNullOrWhiteSpace(query.Status) && !Enum.TryParse<LaborDashboardStatus>(query.Status, true, out _))
+            throw new LaborComplianceReportException("Dashboard status must be Active, Inactive, Draft, PendingReview, Reviewed, Rejected, Gap, or Overdue.");
     }
 }
 
-public sealed record LaborDashboardQuery(
-    Guid TenantId,
-    Guid? ContractId = null,
-    DateOnly? AsOfDate = null);
+public interface ILaborComplianceReportRepository
+{
+    Task<LaborDashboardDto?> GetDashboardAsync(LaborDashboardQuery query, bool includeSensitiveEmployeeData, CancellationToken cancellationToken = default);
+    Task<LaborComplianceReportDto?> GenerateAsync(LaborComplianceReportRequest request, Guid actorUserId,
+        bool includeSensitiveEmployeeData, ContentClassificationRequest classification, CancellationToken cancellationToken = default);
+}
 
-public sealed record LaborComplianceReportRequest(
-    Guid TenantId,
-    Guid? ContractId = null,
-    bool IncludeSensitiveEmployeeData = false,
-    bool HasReportPermission = true);
+public enum LaborDashboardStatus { Active, Inactive, Draft, PendingReview, Reviewed, Rejected, Gap, Overdue }
+public enum LaborEvidenceType { WageDetermination, PayrollSupport, FringeDocumentation, ClassificationReview, Training, CorrectiveAction }
 
-public sealed record LaborDashboardDto(
-    Guid TenantId,
-    Guid? ContractId,
-    IReadOnlyList<LaborObligationReportDto> Obligations,
-    IReadOnlyList<LaborAssignmentReportDto> Assignments,
-    IReadOnlyList<LaborGapDto> Gaps,
-    int OverdueItems);
+public sealed record LaborDashboardQuery(Guid? ContractId = null, Guid? EmployeeId = null, Guid? LaborCategoryId = null,
+    string? Location = null, string? Status = null, DateOnly? DueFrom = null, DateOnly? DueTo = null,
+    bool MissingEvidenceOnly = false, DateOnly? AsOfDate = null);
 
-public sealed record LaborComplianceReportDto(
-    Guid Id,
-    Guid TenantId,
-    Guid? ContractId,
-    DateTimeOffset GeneratedAt,
-    string WorkflowDisclaimer,
-    IReadOnlyList<LaborObligationReportDto> Obligations,
-    IReadOnlyList<LaborCategoryReportDto> Categories,
-    IReadOnlyList<LaborAssignmentReportDto> Assignments,
-    IReadOnlyList<LaborGapDto> Gaps,
-    IReadOnlyList<LaborEvidenceReferenceDto> EvidenceReferences);
+public sealed record LaborComplianceReportRequest(Guid? ContractId, string? ReviewerNotes,
+    LaborDashboardQuery? Filters, ContentClassificationRequest? Classification);
 
-public sealed record LaborComplianceReportExportDto(
-    Guid ReportId,
-    Guid TenantId,
-    string FileName,
-    string ContentType,
-    DateTimeOffset ExportedAt);
+public sealed record LaborDashboardDto(Guid TenantId, LaborDashboardQuery Filters,
+    IReadOnlyList<LaborObligationReportDto> Obligations, IReadOnlyList<LaborCategoryReportDto> Categories,
+    IReadOnlyList<LaborAssignmentReportDto> Assignments, IReadOnlyList<LaborGapDto> Gaps,
+    IReadOnlyList<LaborOverdueItemDto> OverdueItems, IReadOnlyDictionary<string, int> EvidenceStatusCounts);
 
-public sealed record LaborObligationReportDto(
-    Guid Id,
-    Guid ContractId,
-    string LaborStandard,
-    string? SourceClause,
-    string? WageDeterminationReference,
-    string PlaceOfPerformance,
-    LaborApplicabilityStatus Status,
-    DateOnly? ReviewDueAt);
+public sealed record LaborComplianceReportDto(Guid Id, Guid TenantId, ReportType Type, ReportStatus Status,
+    string Title, DateTimeOffset GeneratedAt, Guid GeneratedByUserId, LaborComplianceSnapshotDto Snapshot,
+    ContentClassificationDto Classification)
+{
+    public string Disclaimer => ReportArtifactLanguage.For(Type);
+}
 
-public sealed record LaborCategoryReportDto(
-    Guid Id,
-    Guid ContractId,
-    string Title,
-    string WageDeterminationClassification,
-    decimal HourlyWage,
-    decimal FringeRate,
-    string SourceReference,
-    bool IsActive);
+public sealed record LaborComplianceSnapshotDto(DateTimeOffset GeneratedAt, Guid? ContractId, string WorkflowStatus,
+    string WorkflowDisclaimer, string? ReviewerNotes, LaborDashboardQuery Filters,
+    IReadOnlyList<LaborObligationReportDto> Obligations, IReadOnlyList<LaborCategoryReportDto> Categories,
+    IReadOnlyList<LaborAssignmentReportDto> Assignments, IReadOnlyList<LaborGapDto> Gaps,
+    IReadOnlyList<LaborOverdueItemDto> OverdueItems, IReadOnlyList<LaborEvidenceReferenceDto> EvidenceReferences,
+    IReadOnlyDictionary<string, int> EvidenceStatusCounts, bool IncludesSensitiveEmployeeData);
 
-public sealed record LaborAssignmentReportDto(
-    Guid Id,
-    Guid ContractId,
-    Guid EmployeeId,
-    string? EmployeeName,
-    string? EmployeeEmail,
-    string LaborCategoryTitle,
-    string WorkLocation,
-    LaborAssignmentStatus Status,
-    string SourceReference);
+public sealed record LaborObligationReportDto(Guid Id, Guid ContractId, string LaborStandard, string? SourceClause,
+    string? WageDeterminationReference, string PlaceOfPerformance, LaborApplicabilityStatus Status,
+    LaborApplicabilityReviewStatus ReviewStatus, string? ReviewNotes, DateOnly? ReviewDueAt,
+    Guid? WageDeterminationEvidenceItemId);
 
-public sealed record LaborGapDto(
-    Guid ContractId,
-    string Description,
-    string GapType);
+public sealed record LaborCategoryReportDto(Guid Id, Guid ContractId, string Title,
+    string WageDeterminationClassification, decimal HourlyWage, decimal FringeRate, string SourceReference, bool IsActive);
 
-public sealed record LaborEvidenceReferenceDto(
-    Guid SourceRecordId,
-    Guid EvidenceItemId,
-    string EvidenceType);
+public sealed record LaborAssignmentReportDto(Guid Id, Guid ContractId, Guid EmployeeId, string? EmployeeName,
+    string? EmployeeEmail, Guid LaborCategoryId, string LaborCategoryTitle, string WorkLocation,
+    LaborAssignmentStatus Status, LaborClassificationReviewStatus ReviewStatus, string? ReviewNotes,
+    string SourceReference, IReadOnlyList<LaborEvidenceReferenceDto> EvidenceReferences);
+
+public sealed record LaborGapDto(Guid ContractId, Guid? SourceRecordId, string Description, string GapType);
+public sealed record LaborOverdueItemDto(Guid ContractId, Guid SourceRecordId, string ItemType, string Description, DateOnly DueDate);
+public sealed record LaborEvidenceReferenceDto(Guid SourceRecordId, Guid EvidenceItemId, LaborEvidenceType EvidenceType,
+    string Title, string Status);
 
 public sealed class LaborComplianceReportException(string message) : InvalidOperationException(message);
