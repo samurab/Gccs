@@ -2,9 +2,9 @@
 
 Story: PR-7.1 - Deploy Production Through Approved CI/CD.
 
-Deployment status: current approved candidate is awaiting protected production CI/CD execution.
+Deployment status: current approved candidate deployed successfully through the protected production CI/CD path; historical successful deployment evidence is retained below.
 
-Current candidate execution status: `launch-candidate-2026-09-12-1` is approved but not yet deployed.
+Current candidate execution status: `launch-candidate-2026-09-12-1` deployed successfully in production workflow run `34722955925`.
 
 Latest evidence date: 2026-09-12. Historical evidence dates are retained below.
 
@@ -37,14 +37,14 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Approved launch candidate artifact | Passed | Manifest `docs/release/approved-launch-candidate.json` approves tag `launch-candidate-2026-09-12-1` at `4a3c4437952e4642d17cb8476b25496c276a0212`; see `docs/production-readiness-launch-candidate-tag.md`. |
-| Approved production CI/CD path | Ready; exact-candidate execution pending | PR #103 CI run `34522438984`, exact-feature staging run `34522453059`, runtime-main CI run `34523464568`, runtime-main staging run `34523464710`, runtime-main Static Web Apps run `34523464523`, approval PR #104 CI run `34524769535`, approval-main CI run `34525770044`, approval-main staging run `34525769955`, approval-main Static Web Apps run `34525769965`, and protected production run `34526861472` passed. Current candidate `launch-candidate-2026-09-12-1` still requires protected production workflow execution after this launch-candidate gate merges. |
+| Approved production CI/CD path | Passed | PR #106 CI run `34720168027`, exact-feature staging run `34720166907`, runtime-main CI run `34720870949`, runtime-main staging run `34720870952`, runtime-main Static Web Apps run `34720870956`, approval PR #107 CI run `34721467190`, approval-main CI run `34722230876`, approval-main staging run `34722230866`, approval-main Static Web Apps run `34722230869`, and protected production run `34722955925` passed. Current candidate `launch-candidate-2026-09-12-1` completed protected production workflow execution in run `34722955925`. |
 | Production environment configuration | Passed | `infra/terraform/environments/production/main.tf` declares the production contract. Post-deployment live App Service settings were `Production` for both environment keys, development auth was explicitly `false`, authentication authority and audience were configured, and no deployment slots were active. |
-| Production secrets source | Historical path passed; current execution pending | Current candidate `launch-candidate-2026-09-12-1` still requires protected production workflow execution. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
-| Production No-CUI posture validation | Passed | Run `34526861472` validated the production No-CUI deployment guardrails. |
-| Production migrations | Passed | Run `34526861472` generated and applied the idempotent production migration script through approved CI/CD. |
-| Production storage, cache, queue, and background jobs | Passed | Run `34526861472` production health returned `ok` for PostgreSQL, Redis, object storage, and background jobs after API and web deployment. |
-| Production health checks, logs, alerts, and HubSpot sync | Passed for candidate health; historical external-integration evidence retained | Run `34526861472` passed production API and web health checks. Authenticated workflow smoke, alerts, email delivery, and HubSpot writes were not re-executed for this candidate. |
-| Deployment evidence capture | Passed | Artifact `10172116971` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
+| Production secrets source | Passed | Current candidate `launch-candidate-2026-09-12-1` resolved the required production environment secrets in run `34722955925` without exposing their values. The previously exposed Redis credential was invalidated through an alternate-key rotation before deployment. |
+| Production No-CUI posture validation | Passed | Run `34722955925` validated the production No-CUI deployment guardrails. |
+| Production migrations | Passed | Run `34722955925` generated and applied the idempotent production migration script through approved CI/CD. |
+| Production storage, cache, queue, and background jobs | Passed | Run `34722955925` production health returned `ok` for PostgreSQL, Redis, object storage, and background jobs after API and web deployment. |
+| Production health checks, logs, alerts, and HubSpot sync | Passed for candidate health; historical external-integration evidence retained | Run `34722955925` passed production API and web health checks. Authenticated workflow smoke, external alerts, email delivery, and HubSpot writes were not re-executed for this candidate. |
+| Deployment evidence capture | Passed | Artifact `10307022666` records deployment time, runtime tag/SHA, operator, environment, result, health output, and migration script. |
 | Restore rehearsal production-launch dependency | Closed | `PR41-RESTORE-001` is closed by restored-server health evidence and teardown confirmation; claims remain limited to the tested staging point-in-time restore path. |
 
 ## Required Production CI/CD Inputs
@@ -72,10 +72,29 @@ The corrected pattern is a dedicated production workflow with a protected `produ
 | --- | --- | --- |
 | TC-PR-7.1.1 | Passed | Production workflow checks `launch_candidate_tag` against `docs/release/approved-launch-candidate.json`, verifies the tag commit, and checks out that tag. |
 | TC-PR-7.1.2 | Passed | Production deployment path is `.github/workflows/production.yml` using GitHub environment `production`; manual ad hoc deployment remains prohibited. |
-| TC-PR-7.1.3 | Passed for deployment runtime and repository contract | Run `34526861472` passed secrets resolution, migration application, dependency health, and No-CUI checks; workflow and Terraform retain logs/alerts contracts. |
-| TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `10172116971` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
+| TC-PR-7.1.3 | Passed for deployment runtime and repository contract | Run `34722955925` passed secrets resolution, migration application, dependency health, and No-CUI checks; workflow and Terraform retain logs/alerts contracts. |
+| TC-PR-7.1.4 | Passed with candidate-specific artifact | Artifact `10307022666` records deployment time, runtime tag/SHA, operator, environment, result, workflow run URL, health output, and migration script. |
 
 ## Deployment Execution Record
+
+### 2026-09-12 labor, guarded assistant, and external portal deployment
+
+Production workflow run `34722955925` completed successfully at `2026-09-12T22:37:39Z`. Release controls ran from merged approval commit `f2ee17a4ab42fa48daecde7640521dd13be38b9b`; the workflow validated and deployed immutable runtime tag `launch-candidate-2026-09-12-1` at `4a3c4437952e4642d17cb8476b25496c276a0212`.
+
+Run results:
+
+- Approved tag/SHA validation, protected-environment review, No-CUI guardrails, production Terraform validation, and Terraform verification without backend or live changes passed.
+- Production artifacts built, an idempotent migration script was generated, production migrations were applied through approved CI/CD, and production email delivery was configured.
+- The API App Service and Static Web App deployed successfully.
+- Production health returned `ok` for PostgreSQL, Redis, object storage, and background jobs; the production web endpoint returned HTTP 200 during independent post-deployment verification.
+- Evidence artifact `10307022666` records tag `launch-candidate-2026-09-12-1`, runtime SHA `4a3c4437952e4642d17cb8476b25496c276a0212`, environment `production`, data posture `No-CUI / compliance management only`, customer data mode `no-cui-only`, result `deployment-and-health-checks-passed`, health output, and the migration script.
+
+Verification limits and posture:
+
+- This deployment preserves the No-CUI-only posture. It is not a labor determination, CMMC certification, government approval, legal advice, or permission to process CUI.
+- Guarded assistant output remains draft-only and requires human review; no production identity was available for an authenticated tenant workflow smoke test.
+- External identity, alert delivery, email delivery, and HubSpot writes were not re-executed outside the workflow health checks in this evidence update.
+- Terraform was validated but not applied or checked against live drift, and the UI does not have automated screenshot-diff coverage at every viewport.
 
 ### 2026-09-10 SPRS scoring baseline deployment
 
