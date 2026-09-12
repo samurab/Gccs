@@ -4,6 +4,7 @@ using Gccs.Api.Security;
 using Gccs.Api.LocalDevelopment;
 using Gccs.Api;
 using Gccs.Application.Audit;
+using Gccs.Application.Ai;
 using Gccs.Application.Calendar;
 using Gccs.Application.Common;
 using Gccs.Application.Companies;
@@ -13,6 +14,7 @@ using Gccs.Application.Contracts;
 using Gccs.Application.Demo;
 using Gccs.Application.Evidence;
 using Gccs.Application.Identity;
+using Gccs.Application.Labor;
 using Gccs.Application.Marketing;
 using Gccs.Application.NoCui;
 using Gccs.Application.Notifications;
@@ -147,6 +149,8 @@ builder.Services.Configure<ReportExportProcessingOptions>(
     builder.Configuration.GetSection(ReportExportProcessingOptions.SectionName));
 builder.Services.Configure<DueDateReminderProcessingOptions>(
     builder.Configuration.GetSection(DueDateReminderProcessingOptions.SectionName));
+builder.Services.Configure<PortalPackageLifecycleProcessingOptions>(
+    builder.Configuration.GetSection(PortalPackageLifecycleProcessingOptions.SectionName));
 if (builder.Environment.IsDevelopment() &&
     builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
     builder.Configuration.GetValue("Security:DevelopmentAuth:Enabled", false))
@@ -177,6 +181,11 @@ if (builder.Configuration.GetValue("DueDateReminderProcessing:Enabled", true) &&
     !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
 {
     builder.Services.AddHostedService<DueDateReminderWorker>();
+}
+if (builder.Configuration.GetValue("PortalPackageLifecycleProcessing:Enabled", true) &&
+    !string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("GccsDatabase")))
+{
+    builder.Services.AddHostedService<PortalPackageLifecycleWorker>();
 }
 if (builder.Environment.IsDevelopment())
 {
@@ -906,6 +915,163 @@ var api = app.MapGroup("/api")
 var currentUserApi = api.MapGroup("/me")
     .AllowWithoutTenantMembership();
 
+api.MapPortalPackageLifecycleEndpoints();
+api.MapExternalPortalAccessEndpoints();
+
+api.MapPost("/assistant/questions", async (
+    AssistantQuestionApiRequest request,
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!AssistantAuthorization.CanAsk(user, request.WorkflowContext))
+        return ApiProblemDetails.Create(httpContext, "Forbidden", "Assistant access is not available for this workflow context.",
+            StatusCodes.Status403Forbidden, "forbidden");
+    try
+    {
+        var answer = await service.AskAsync(
+            new AiAssistantQuestionRequest(tenantContext.TenantId, tenantContext.UserId, request.Question, request.WorkflowContext),
+            cancellationToken);
+        return Results.Ok(answer);
+    }
+    catch (AssistantExperienceException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(item => item.Key, item => item.Value),
+            title: "Assistant question invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequireAnyPermission(Permission.ViewObligations, Permission.ViewContracts, Permission.ViewEvidence, Permission.ViewCmmc,
+    Permission.ViewSubcontractors, Permission.ViewReports)
+.WithName("AskGuardedAssistant");
+
+api.MapGet("/assistant/answers/{answerId:guid}", async (
+    Guid answerId,
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var answer = await service.GetAnswerAsync(answerId, tenantContext.TenantId, cancellationToken);
+    return answer is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "Assistant answer was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(answer);
+})
+.RequirePermission(Permission.ViewObligations)
+.WithName("GetAssistantAnswerForExpertReview");
+
+api.MapGet("/assistant/expert-review-items", async (
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListExpertReviewQueueAsync(tenantContext.TenantId, cancellationToken)))
+.RequirePermission(Permission.ViewObligations)
+.WithName("ListAssistantExpertReviewItems");
+
+api.MapPost("/assistant/answers/{answerId:guid}/actions", async (
+    Guid answerId,
+    AssistantDraftActionApiRequest request,
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!AssistantAuthorization.CanCreateAction(user, request.ActionType))
+        return ApiProblemDetails.Create(httpContext, "Forbidden", "You do not have permission to create this assistant draft action.",
+            StatusCodes.Status403Forbidden, "forbidden");
+    try
+    {
+        var action = await service.CreateDraftActionAsync(
+            new AssistantDraftActionRequest(answerId, request.ActionType, request.Title, request.Body),
+            tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/assistant/answers/{answerId}/actions/{action.Id}", action);
+    }
+    catch (AssistantExperienceException exception) when (exception.IsNotFound)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "Assistant answer was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    }
+    catch (AssistantExperienceException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(item => item.Key, item => item.Value),
+            title: "Assistant action invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequireAnyPermission(Permission.ManageTasks, Permission.ManageEvidence, Permission.ManageObligations)
+.WithName("CreateAssistantDraftAction");
+
+api.MapPost("/assistant/answers/{answerId:guid}/feedback", async (
+    Guid answerId,
+    AssistantFeedbackApiRequest request,
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var feedback = await service.SubmitFeedbackAsync(
+            new AssistantFeedbackRequest(answerId, request.FeedbackType, request.Reason),
+            tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/assistant/answers/{answerId}/feedback/{feedback.Id}", feedback);
+    }
+    catch (AssistantExperienceException exception) when (exception.IsNotFound)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "Assistant answer was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    }
+    catch (AssistantExperienceException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(item => item.Key, item => item.Value),
+            title: "Assistant feedback invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequireAnyPermission(Permission.ViewObligations, Permission.ViewContracts, Permission.ViewEvidence, Permission.ViewCmmc,
+    Permission.ViewSubcontractors, Permission.ViewReports)
+.WithName("CreateAssistantFeedback");
+
+api.MapPost("/assistant/answers/{answerId:guid}/expert-review", async (
+    Guid answerId,
+    AssistantExpertReviewApiRequest request,
+    GuardedAssistantExperienceService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var escalation = await service.EscalateForExpertReviewAsync(
+            new AssistantExpertReviewEscalationRequest(answerId, request.Reason),
+            tenantContext.TenantId,
+            tenantContext.UserId,
+            cancellationToken);
+        return escalation.Created
+            ? Results.Created($"/api/expert-review-items/{escalation.ReviewItem.Id}", escalation)
+            : Results.Ok(escalation);
+    }
+    catch (AssistantExperienceException exception) when (exception.IsNotFound)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "Assistant answer was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    }
+    catch (AssistantExperienceException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(item => item.Key, item => item.Value),
+            title: "Assistant escalation invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (ExpertReviewDuplicateException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Review already routed",
+            "An open expert review item already exists for this assistant answer. Refresh the queue and retry only after it is resolved.",
+            StatusCodes.Status409Conflict, "expert_review_already_open");
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("EscalateAssistantAnswerForExpertReview");
+
 if (app.Environment.IsDevelopment() &&
     builder.Configuration.GetValue("Security:DevelopmentTesting:Enabled", false) &&
     builder.Configuration.GetValue("Security:DevelopmentAuth:Enabled", false))
@@ -1231,6 +1397,1032 @@ api.MapGet("/contracts/{contractId:guid}", async (
 })
 .RequirePermission(Permission.ViewContracts)
 .WithName("GetContractById");
+
+api.MapGet("/contracts/{contractId:guid}/labor-applicabilities", async (
+    Guid contractId, LaborApplicabilityService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var items = await service.ListForContractAsync(contractId, cancellationToken);
+    return items is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(items);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractLaborApplicabilities");
+
+api.MapPost("/contracts/{contractId:guid}/labor-applicabilities", async (
+    Guid contractId, LaborApplicabilityRequest request, LaborApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.RecordAsync(request with { ContractId = contractId }, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/labor-applicabilities/{created.Id}", created);
+    }
+    catch (LaborApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "Labor applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractLaborApplicability");
+
+api.MapPut("/contracts/{contractId:guid}/labor-applicabilities/{applicabilityId:guid}", async (
+    Guid contractId, Guid applicabilityId, LaborApplicabilityRequest request, LaborApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(contractId, applicabilityId, request, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor applicability record was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (LaborApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "Labor applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (LaborApplicabilityConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Labor applicability conflict", exception.Message,
+            StatusCodes.Status409Conflict, "labor_applicability_conflict");
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractLaborApplicability");
+
+api.MapPatch("/contracts/{contractId:guid}/labor-applicabilities/{applicabilityId:guid}/status", async (
+    Guid contractId, Guid applicabilityId, UpdateLaborApplicabilityStatusRequest request, LaborApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = request.Status switch
+        {
+            LaborApplicabilityStatus.Active => await service.ActivateAsync(contractId, applicabilityId, tenantContext.UserId, cancellationToken),
+            LaborApplicabilityStatus.Inactive => await service.DeactivateAsync(contractId, applicabilityId, tenantContext.UserId, cancellationToken),
+            _ => throw new LaborApplicabilityValidationException("Status transitions support Active or Inactive only.")
+        };
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor applicability record was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (LaborApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "Labor applicability status invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (LaborApplicabilityConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Labor applicability conflict", exception.Message,
+            StatusCodes.Status409Conflict, "labor_applicability_conflict");
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractLaborApplicabilityStatus");
+
+api.MapPost("/contracts/{contractId:guid}/labor-applicabilities/{applicabilityId:guid}/wage-determination/file", async (
+    Guid contractId, Guid applicabilityId, LaborApplicabilityService laborService, EvidenceFileService evidenceFileService,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var applicability = await laborService.FindAsync(contractId, applicabilityId, cancellationToken);
+        if (applicability is null)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The labor applicability record was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        if (!applicability.WageDeterminationEvidenceItemId.HasValue)
+            throw new LaborApplicabilityValidationException(new Dictionary<string, string[]>
+            {
+                ["wageDeterminationEvidenceItemId"] = ["Link contract evidence before uploading a wage determination file."]
+            });
+        if (!httpContext.Request.HasFormContentType)
+            throw new LaborApplicabilityValidationException(new Dictionary<string, string[]> { ["contentType"] = ["Wage determination upload requires multipart/form-data."] });
+
+        var form = await httpContext.Request.ReadFormAsync(cancellationToken);
+        var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
+        if (file is null)
+            throw new LaborApplicabilityValidationException(new Dictionary<string, string[]> { ["file"] = ["A wage determination file is required."] });
+        if (!Enum.TryParse<ContentClassification>(form["classification"], true, out var classification) || !Enum.IsDefined(classification))
+            throw new LaborApplicabilityValidationException(new Dictionary<string, string[]> { ["classification"] = ["An explicit, valid classification is required."] });
+
+        await using var stream = file.OpenReadStream();
+        var uploaded = await evidenceFileService.UploadEvidenceFileAsync(
+            applicability.WageDeterminationEvidenceItemId.Value,
+            new EvidenceUploadFileRequest(file.FileName, file.ContentType, file.Length, stream,
+                bool.TryParse(form["noCuiAttestation"], out var attestation) && attestation,
+                bool.TryParse(form["containsPotentialCui"], out var potentialCui) && potentialCui,
+                new ContentClassificationRequest(classification, Reason: form["classificationReason"].FirstOrDefault())),
+            tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/evidence-items/{applicability.WageDeterminationEvidenceItemId}/download", uploaded);
+    }
+    catch (LaborApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "Wage determination upload invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (NoCuiAcknowledgementRequiredException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "No-CUI acknowledgement required", exception.Message,
+            StatusCodes.Status428PreconditionRequired, "no_cui_acknowledgement_required");
+    }
+    catch (EvidenceItemNotFoundException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", exception.Message,
+            StatusCodes.Status404NotFound, "resource_not_found");
+    }
+    catch (UploadGuardrailValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "Wage determination upload rejected", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (MalwareScanRejectedException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["malwareScan"] = [exception.Message] },
+            title: "Wage determination upload rejected", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (MalwareScanUnavailableException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Malware scanner unavailable", exception.Message,
+            StatusCodes.Status503ServiceUnavailable, "malware_scanner_unavailable");
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["upload"] = [exception.Message] },
+            title: "Wage determination upload rejected", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageEvidence)
+.WithMetadata(new SuppressAtomicMutationTransactionMetadata())
+.WithName("UploadContractLaborWageDeterminationFile");
+
+api.MapGet("/contracts/{contractId:guid}/labor-categories", async (
+    Guid contractId, LaborClassificationService service, ITenantContext tenantContext, CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListCategoriesAsync(tenantContext.TenantId, contractId, cancellationToken)))
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractLaborCategories");
+
+api.MapGet("/labor/dashboard", async (
+    Guid? contractId, Guid? employeeId, Guid? laborCategoryId, string? location, string? status,
+    DateOnly? dueFrom, DateOnly? dueTo, bool? missingEvidenceOnly, DateOnly? asOfDate,
+    LaborComplianceReportService service, ClaimsPrincipal user, HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var includeSensitive = user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString());
+        var dashboard = await service.GetDashboardAsync(new LaborDashboardQuery(
+            contractId, employeeId, laborCategoryId, location, status, dueFrom, dueTo,
+            missingEvidenceOnly ?? false, asOfDate), includeSensitive, cancellationToken);
+        return dashboard is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor dashboard scope was not found.",
+                StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(dashboard);
+    }
+    catch (LaborComplianceReportException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborDashboard"] = [exception.Message] },
+            title: "Labor dashboard filter invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetLaborComplianceDashboard");
+
+api.MapGet("/labor-classification/employees", async (
+    LaborClassificationService service, ITenantContext tenantContext, CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListEmployeesAsync(tenantContext.TenantId, cancellationToken)))
+.RequirePermission(Permission.ViewSensitiveEmployeeData)
+.WithName("ListLaborClassificationEmployees");
+
+api.MapPost("/contracts/{contractId:guid}/labor-categories", async (
+    Guid contractId, LaborCategoryRequest request, LaborClassificationService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateCategoryAsync(request with { ContractId = contractId }, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/contracts/{contractId}/labor-categories/{created.Id}", created);
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborCategory"] = [exception.Message] },
+            title: "Labor category invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractLaborCategory");
+
+api.MapPut("/contracts/{contractId:guid}/labor-categories/{categoryId:guid}", async (
+    Guid contractId, Guid categoryId, LaborCategoryRequest request, LaborClassificationService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateCategoryAsync(categoryId, request with { ContractId = contractId }, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor category was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborCategory"] = [exception.Message] },
+            title: "Labor category invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractLaborCategory");
+
+api.MapPost("/contracts/{contractId:guid}/labor-categories/{categoryId:guid}/deactivate", async (
+    Guid contractId, Guid categoryId, LaborClassificationService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.DeactivateCategoryAsync(categoryId, contractId, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        return updated is null || updated.ContractId != contractId
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor category was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborCategory"] = [exception.Message] },
+            title: "Labor category invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("DeactivateContractLaborCategory");
+
+api.MapGet("/contracts/{contractId:guid}/labor-assignments", async (
+    Guid contractId, LaborClassificationService service, ITenantContext tenantContext, ClaimsPrincipal user,
+    CancellationToken cancellationToken) =>
+{
+    var canViewSensitive = user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString());
+    return Results.Ok(await service.ListAssignmentsAsync(tenantContext.TenantId, contractId, canViewSensitive, cancellationToken));
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractLaborAssignments");
+
+api.MapGet("/contracts/{contractId:guid}/labor-assignments/{assignmentId:guid}", async (
+    Guid contractId, Guid assignmentId, LaborClassificationService service, ITenantContext tenantContext,
+    ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var canViewSensitive = user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString());
+    var assignment = await service.ViewAssignmentAsync(assignmentId, tenantContext.TenantId, canViewSensitive, cancellationToken);
+    return assignment is null || assignment.ContractId != contractId
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor assignment was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(assignment);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("GetContractLaborAssignment");
+
+api.MapPost("/contracts/{contractId:guid}/labor-assignments", async (
+    Guid contractId, LaborEmployeeAssignmentRequest request, LaborClassificationService service,
+    ITenantContext tenantContext, ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.CreateAssignmentAsync(request with { ContractId = contractId }, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        var view = await service.ViewAssignmentAsync(created.Id, tenantContext.TenantId,
+            user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString()), cancellationToken);
+        return Results.Created($"/api/contracts/{contractId}/labor-assignments/{created.Id}", view);
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborAssignment"] = [exception.Message] },
+            title: "Labor assignment invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractLaborAssignment");
+
+api.MapPut("/contracts/{contractId:guid}/labor-assignments/{assignmentId:guid}", async (
+    Guid contractId, Guid assignmentId, LaborEmployeeAssignmentRequest request, LaborClassificationService service,
+    ITenantContext tenantContext, ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAssignmentAsync(assignmentId, request with { ContractId = contractId }, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        if (updated is null) return ApiProblemDetails.Create(httpContext, "Resource not found", "The labor assignment was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.ViewAssignmentAsync(updated.Id, tenantContext.TenantId,
+            user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString()), cancellationToken));
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborAssignment"] = [exception.Message] },
+            title: "Labor assignment invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (LaborClassificationConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Labor assignment conflict", exception.Message,
+            StatusCodes.Status409Conflict, "labor_assignment_conflict");
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractLaborAssignment");
+
+api.MapPost("/contracts/{contractId:guid}/labor-assignments/{assignmentId:guid}/deactivate", async (
+    Guid contractId, Guid assignmentId, LaborClassificationService service, ITenantContext tenantContext,
+    ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.DeactivateAssignmentAsync(assignmentId, contractId, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        if (updated is null || updated.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The labor assignment was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.ViewAssignmentAsync(updated.Id, tenantContext.TenantId,
+            user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString()), cancellationToken));
+    }
+    catch (LaborClassificationConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Labor assignment conflict", exception.Message,
+            StatusCodes.Status409Conflict, "labor_assignment_conflict");
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("DeactivateContractLaborAssignment");
+
+api.MapPost("/contracts/{contractId:guid}/labor-assignments/{assignmentId:guid}/reclassify", async (
+    Guid contractId, Guid assignmentId, LaborReclassificationRequest request, LaborClassificationService service,
+    ITenantContext tenantContext, ClaimsPrincipal user, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ReclassifyAsync(assignmentId, request.NewCategoryId, request.Reason,
+            contractId, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        if (updated is null || updated.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The labor assignment was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.ViewAssignmentAsync(updated.Id, tenantContext.TenantId,
+            user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString()), cancellationToken));
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["reclassification"] = [exception.Message] },
+            title: "Labor reclassification invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (LaborClassificationConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "Labor assignment conflict", exception.Message,
+            StatusCodes.Status409Conflict, "labor_assignment_conflict");
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("ReclassifyContractLaborAssignment");
+
+api.MapPost("/contracts/{contractId:guid}/labor-assignments/{assignmentId:guid}/review", async (
+    Guid contractId, Guid assignmentId, LaborClassificationReviewRequest request,
+    LaborClassificationService service, ITenantContext tenantContext, ClaimsPrincipal user,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.ReviewAssignmentAsync(
+            assignmentId, request, contractId, tenantContext.TenantId, tenantContext.UserId, cancellationToken);
+        if (updated is null || updated.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The labor assignment was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.ViewAssignmentAsync(updated.Id, tenantContext.TenantId,
+            user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString()), cancellationToken));
+    }
+    catch (LaborClassificationValidationException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["classificationReview"] = [exception.Message] },
+            title: "Labor classification review invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("ReviewContractLaborAssignment");
+
+api.MapGet("/contracts/{contractId:guid}/esrs-applicabilities", async (
+    Guid contractId,
+    EsrsApplicabilityService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var items = await service.ListForContractAsync(contractId, cancellationToken);
+    return items is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(items);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractEsrsApplicabilities");
+
+api.MapPost("/contracts/{contractId:guid}/esrs-applicabilities", async (
+    Guid contractId,
+    EsrsApplicabilityRequest request,
+    EsrsApplicabilityService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.ActivateAsync(request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/esrs-applicabilities/{created.Id}", created);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractEsrsApplicability");
+
+api.MapPut("/contracts/{contractId:guid}/esrs-applicabilities/{applicabilityId:guid}", async (
+    Guid contractId,
+    Guid applicabilityId,
+    EsrsApplicabilityRequest request,
+    EsrsApplicabilityService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(applicabilityId, request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SAM.gov SPR applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractEsrsApplicability");
+
+api.MapPatch("/contracts/{contractId:guid}/esrs-applicabilities/{applicabilityId:guid}/status", async (
+    Guid contractId,
+    Guid applicabilityId,
+    UpdateEsrsStatusRequest request,
+    EsrsApplicabilityService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateStatusAsync(contractId, applicabilityId, request.Status, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SAM.gov SPR applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR status invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractEsrsApplicabilityStatus");
+
+api.MapGet("/esrs/schedule-templates", (int fiscalYear) =>
+{
+    try { return Results.Ok(EsrsApplicabilityService.GetDefaultSchedule(fiscalYear)); }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR schedule invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListEsrsScheduleTemplates");
+
+api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-reporting-applicabilities", async (
+    Guid contractId, EsrsApplicabilityService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var items = await service.ListForContractAsync(contractId, cancellationToken);
+    return items is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(items);
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListContractSubcontractingPlanReportingApplicabilities");
+
+api.MapPost("/contracts/{contractId:guid}/subcontracting-plan-reporting-applicabilities", async (
+    Guid contractId, EsrsApplicabilityRequest request, EsrsApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var created = await service.ActivateAsync(request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return created is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", $"Contract '{contractId}' was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/contracts/{contractId}/subcontracting-plan-reporting-applicabilities/{created.Id}", created);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("CreateContractSubcontractingPlanReportingApplicability");
+
+api.MapPut("/contracts/{contractId:guid}/subcontracting-plan-reporting-applicabilities/{applicabilityId:guid}", async (
+    Guid contractId, Guid applicabilityId, EsrsApplicabilityRequest request, EsrsApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateAsync(applicabilityId, request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SAM.gov SPR applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR applicability invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractSubcontractingPlanReportingApplicability");
+
+api.MapPatch("/contracts/{contractId:guid}/subcontracting-plan-reporting-applicabilities/{applicabilityId:guid}/status", async (
+    Guid contractId, Guid applicabilityId, UpdateEsrsStatusRequest request, EsrsApplicabilityService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var updated = await service.UpdateStatusAsync(contractId, applicabilityId, request.Status, tenantContext.UserId, cancellationToken);
+        return updated is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SAM.gov SPR applicability was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(updated);
+    }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR status invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageContracts)
+.WithName("UpdateContractSubcontractingPlanReportingApplicabilityStatus");
+
+api.MapGet("/subcontracting-plan-reports/schedule-templates", (int fiscalYear) =>
+{
+    try { return Results.Ok(EsrsApplicabilityService.GetDefaultSchedule(fiscalYear)); }
+    catch (EsrsApplicabilityValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR schedule invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewContracts)
+.WithName("ListSubcontractingPlanReportScheduleTemplates");
+
+api.MapGet("/contracts/{contractId:guid}/esrs-report-data", async (
+    Guid contractId,
+    SubcontractingReportDataService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The contract was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    return Results.Ok(await service.ListCurrentTenantAsync(new SubcontractingReportDataQuery(ContractId: contractId), cancellationToken));
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("ListContractEsrsReportData");
+
+api.MapGet("/contracts/{contractId:guid}/esrs-report-data/{rowId:guid}", async (
+    Guid contractId,
+    Guid rowId,
+    SubcontractingReportDataService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var row = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+    return row is null || row.ContractId != contractId
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(row);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetContractEsrsReportData");
+
+api.MapPost("/contracts/{contractId:guid}/esrs-report-data", async (
+    Guid contractId,
+    SubcontractingReportDataRowRequest request,
+    SubcontractingReportDataService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        var created = await service.CreateAsync(request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/contracts/{contractId}/esrs-report-data/{created.Id}", created);
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "Subcontracting plan report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("CreateContractEsrsReportData");
+
+api.MapPut("/contracts/{contractId:guid}/esrs-report-data/{rowId:guid}", async (
+    Guid contractId,
+    Guid rowId,
+    SubcontractingReportDataRowRequest request,
+    SubcontractingReportDataService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var existing = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+        if (existing is null || existing.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.UpdateAsync(rowId, request with { ContractId = contractId }, tenantContext.UserId, cancellationToken));
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "Subcontracting plan report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("UpdateContractEsrsReportData");
+
+api.MapPatch("/contracts/{contractId:guid}/esrs-report-data/{rowId:guid}/review", async (
+    Guid contractId,
+    Guid rowId,
+    SubcontractingReportDataReviewRequest request,
+    SubcontractingReportDataService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var existing = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+        if (existing is null || existing.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.UpdateReviewStatusAsync(rowId, request, tenantContext.UserId, cancellationToken));
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "Subcontracting plan report data review invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("ReviewContractEsrsReportData");
+
+api.MapGet("/esrs/report-data/import-template", () =>
+{
+    var template = SubcontractingReportDataService.GetImportTemplate();
+    return Results.File(System.Text.Encoding.UTF8.GetBytes(template.CsvContent), "text/csv", template.FileName);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("DownloadEsrsReportDataImportTemplate");
+
+api.MapPost("/esrs/report-data/import", async (
+    SubcontractingReportDataImportRequest request,
+    SubcontractingReportDataService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try { return Results.Ok(await service.ImportCsvAsync(request.CsvContent, tenantContext.UserId, cancellationToken)); }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "Subcontracting plan report data import invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("ImportEsrsReportData");
+
+api.MapGet("/contracts/{contractId:guid}/esrs-report-data/package-eligibility", async (
+    Guid contractId,
+    EsrsReportType reportType,
+    DateOnly periodStart,
+    DateOnly periodEnd,
+    SubcontractingReportDataService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The contract was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    var rows = await service.ListCurrentTenantAsync(new SubcontractingReportDataQuery(contractId, reportType, periodStart, periodEnd), cancellationToken);
+    var eligible = rows.Count(row => row.IsPackageEligible);
+    return Results.Ok(new { eligible = rows.Count > 0 && eligible == rows.Count, eligibleRows = eligible, blockedRows = rows.Count - eligible });
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetEsrsReportDataPackageEligibility");
+
+// Canonical SAM.gov Subcontracting Plan Reporting routes. Legacy /esrs routes remain available
+// as compatibility aliases for existing clients and persisted identifiers.
+api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data", async (
+    Guid contractId, SubcontractingReportDataService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The contract was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    return Results.Ok(await service.ListCurrentTenantAsync(new SubcontractingReportDataQuery(ContractId: contractId), cancellationToken));
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("ListContractSubcontractingPlanReportData");
+
+api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowId:guid}", async (
+    Guid contractId, Guid rowId, SubcontractingReportDataService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var row = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+    return row is null || row.ContractId != contractId
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(row);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetContractSubcontractingPlanReportData");
+
+api.MapPost("/contracts/{contractId:guid}/subcontracting-plan-report-data", async (
+    Guid contractId, SubcontractingReportDataRowRequest request, SubcontractingReportDataService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        var created = await service.CreateSprAsync(request with { ContractId = contractId }, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/contracts/{contractId}/subcontracting-plan-report-data/{created.Id}", created);
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("CreateContractSubcontractingPlanReportData");
+
+api.MapPut("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowId:guid}", async (
+    Guid contractId, Guid rowId, SubcontractingReportDataRowRequest request, SubcontractingReportDataService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var existing = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+        if (existing is null || existing.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.UpdateSprAsync(rowId, request with { ContractId = contractId }, tenantContext.UserId, cancellationToken));
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR report data invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("UpdateContractSubcontractingPlanReportData");
+
+api.MapPatch("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowId:guid}/review", async (
+    Guid contractId, Guid rowId, SubcontractingReportDataReviewRequest request, SubcontractingReportDataService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var existing = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+        if (existing is null || existing.ContractId != contractId)
+            return ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+        return Results.Ok(await service.UpdateReviewStatusAsync(rowId, request, tenantContext.UserId, cancellationToken));
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR report data review invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("ReviewContractSubcontractingPlanReportData");
+
+api.MapGet("/subcontracting-plan-reports/report-data/import-template", async (
+    SubcontractingReportDataService service, CancellationToken cancellationToken) =>
+{
+    var template = await service.GetSprImportTemplateAsync(cancellationToken);
+    return Results.File(System.Text.Encoding.UTF8.GetBytes(template.CsvContent), "text/csv", template.FileName);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("DownloadSubcontractingPlanReportDataImportTemplate");
+
+api.MapPost("/subcontracting-plan-reports/report-data/import", async (
+    SubcontractingReportDataImportRequest request, SubcontractingReportDataService service,
+    ITenantContext tenantContext, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try { return Results.Ok(await service.ImportSprCsvAsync(request.CsvContent, tenantContext.UserId, cancellationToken)); }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value), title: "SAM.gov SPR report data import invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SubcontractingReportDataReferenceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "One or more linked records were not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("ImportSubcontractingPlanReportData");
+
+api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data/package-eligibility", async (
+    Guid contractId, EsrsReportType reportType, DateOnly periodStart, DateOnly periodEnd,
+    SubcontractingReportDataService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    if (!await service.ContractExistsCurrentTenantAsync(contractId, cancellationToken))
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The contract was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    var rows = await service.ListCurrentTenantAsync(new SubcontractingReportDataQuery(contractId, reportType, periodStart, periodEnd), cancellationToken);
+    var eligible = rows.Count(row => row.IsPackageEligible);
+    return Results.Ok(new { eligible = rows.Count > 0 && eligible == rows.Count, eligibleRows = eligible, blockedRows = rows.Count - eligible });
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetSubcontractingPlanReportDataPackageEligibility");
+
+api.MapGet("/subcontracting-plan-reports/schema-profiles/current", async (
+    SubcontractingReportDataService service, CancellationToken cancellationToken) =>
+    Results.Ok(await service.GetCurrentSchemaProfileAsync(cancellationToken)))
+.RequirePermission(Permission.ViewReports)
+.WithName("GetCurrentSubcontractingPlanReportSchemaProfile");
+
+api.MapGet("/subcontracting-plan-reports/report-data/remediation", async (
+    Guid? contractId, EsrsReportType? reportType, DateOnly? periodStart, DateOnly? periodEnd,
+    SubcontractingReportDataService service, CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListRemediationAsync(
+        new SubcontractingReportDataQuery(contractId, reportType, periodStart, periodEnd), cancellationToken)))
+.RequirePermission(Permission.ViewReports)
+.WithName("ListSubcontractingPlanReportDataRemediation");
+
+api.MapGet("/contracts/{contractId:guid}/subcontracting-plan-report-data/{rowId:guid}/remediation-suggestions", async (
+    Guid contractId, Guid rowId, SubcontractingReportDataService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var row = await service.FindCurrentTenantAsync(rowId, cancellationToken);
+    if (row is null || row.ContractId != contractId)
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The report data row was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    return Results.Ok(await service.GetRemediationSuggestionAsync(rowId, cancellationToken));
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetSubcontractingPlanReportDataRemediationSuggestions");
+
+api.MapGet("/subcontracting-plan-reports/packages", async (
+    EsrsReportPackageService service, CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(cancellationToken)))
+.RequirePermission(Permission.ViewReports)
+.WithName("ListSubcontractingPlanReportPackages");
+
+api.MapGet("/subcontracting-plan-reports/packages/{packageId:guid}", async (
+    Guid packageId, EsrsReportPackageService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    var package = await service.FindAsync(packageId, cancellationToken);
+    return package is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.Ok(package);
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("GetSubcontractingPlanReportPackage");
+
+api.MapPost("/subcontracting-plan-reports/packages", async (
+    EsrsReportPackageGenerateRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var package = await service.GenerateAsync(request, tenantContext.UserId, cancellationToken);
+        return Results.Created($"/api/subcontracting-plan-reports/packages/{package.Id}", package);
+    }
+    catch (SubcontractingReportDataValidationException exception)
+    {
+        return Results.ValidationProblem(exception.Errors.ToDictionary(x => x.Key, x => x.Value),
+            title: "SAM.gov SPR preparation package invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (EsrsReportPackageConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "SPR package conflict", exception.Message,
+            StatusCodes.Status409Conflict, "spr_package_conflict");
+    }
+    catch (EsrsReportPackageException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["package"] = [exception.Message] },
+            title: "SAM.gov SPR preparation package invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("CreateSubcontractingPlanReportPackage");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/approve", async (
+    Guid packageId, EsrsReportPackageReviewRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+    await ReviewSprPackageAsync(packageId, request, service.ApproveAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageReports)
+.WithName("ApproveSubcontractingPlanReportPackage");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/begin-review", async (
+    Guid packageId, EsrsReportPackageReviewRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+    await ReviewSprPackageAsync(packageId, request, service.BeginReviewAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageReports)
+.WithName("BeginReviewSubcontractingPlanReportPackage");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/supersede", async (
+    Guid packageId, EsrsReportPackageReviewRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+    await ReviewSprPackageAsync(packageId, request, service.SupersedeAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageReports)
+.WithName("SupersedeSubcontractingPlanReportPackage");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/archive", async (
+    Guid packageId, EsrsReportPackageReviewRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+    await ReviewSprPackageAsync(packageId, request, service.ArchiveAsync, tenantContext, httpContext, cancellationToken))
+.RequirePermission(Permission.ManageReports)
+.WithName("ArchiveSubcontractingPlanReportPackage");
+
+api.MapGet("/subcontracting-plan-reports/packages/{packageId:guid}/export", async (
+    Guid packageId, SprPackageExportFormat format, EsrsReportPackageService service, ITenantContext tenantContext, HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    if (!Enum.IsDefined(format))
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["format"] = ["Export format must be Html or Json."] },
+            title: "SAM.gov SPR preparation package export invalid", statusCode: StatusCodes.Status400BadRequest);
+    var export = await service.ExportAsync(packageId, format, tenantContext.UserId, cancellationToken);
+    return export is null
+        ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+        : Results.File(System.Text.Encoding.UTF8.GetBytes(export.Content), export.ContentType, export.FileName);
+})
+.RequirePermission(Permission.ExportReports)
+.WithName("ExportSubcontractingPlanReportPackage");
+
+api.MapGet("/subcontracting-plan-reports/packages/{packageId:guid}/manual-submission-receipts", async (
+    Guid packageId, EsrsReportPackageService service, HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    if (await service.FindAsync(packageId, cancellationToken) is null)
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found");
+    return Results.Ok(await service.ListManualSubmissionReceiptsAsync(packageId, cancellationToken));
+})
+.RequirePermission(Permission.ViewReports)
+.WithName("ListSubcontractingPlanReportManualSubmissionReceipts");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/manual-submission-receipts", async (
+    Guid packageId, SprManualSubmissionReceiptRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var receipt = await service.RecordManualSubmissionReceiptAsync(packageId, request, tenantContext.UserId, cancellationToken);
+        return receipt is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/subcontracting-plan-reports/packages/{packageId}/manual-submission-receipts/{receipt.Id}", receipt);
+    }
+    catch (EsrsReportPackageException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["receipt"] = [exception.Message] },
+            title: "Manual SAM.gov receipt invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("CreateSubcontractingPlanReportManualSubmissionReceipt");
+
+api.MapGet("/subcontracting-plan-reports/submission-capability", (EsrsReportPackageService service) =>
+    Results.Ok(service.GetSubmissionCapability()))
+.RequirePermission(Permission.ViewReports)
+.WithName("GetSubcontractingPlanReportSubmissionCapability");
+
+api.MapPost("/subcontracting-plan-reports/packages/{packageId:guid}/submit", async (
+    Guid packageId, SprSubmissionRequest request, EsrsReportPackageService service, ITenantContext tenantContext,
+    HttpContext httpContext, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        await service.SubmitAsync(packageId, request, tenantContext.UserId, cancellationToken);
+        return Results.Accepted();
+    }
+    catch (SprSubmissionUnavailableException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "SAM.gov submission unavailable", exception.Message,
+            StatusCodes.Status409Conflict, "spr_submission_unavailable");
+    }
+    catch (EsrsReportPackageConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "SPR package conflict", exception.Message,
+            StatusCodes.Status409Conflict, "spr_package_conflict");
+    }
+    catch (EsrsReportPackageException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["submission"] = [exception.Message] },
+            title: "SAM.gov submission request invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("SubmitSubcontractingPlanReportPackage");
 
 api.MapGet("/contracts/{contractId:guid}/size-checks", async (
     Guid contractId,
@@ -2394,6 +3586,7 @@ api.MapPost("/expert-review-items", async (
     EscalateExpertReviewRequest request,
     ExpertReviewQueueService service,
     ITenantContext tenantContext,
+    HttpContext httpContext,
     CancellationToken cancellationToken) =>
 {
     try
@@ -2409,9 +3602,48 @@ api.MapPost("/expert-review-items", async (
             detail: exception.Message,
             statusCode: StatusCodes.Status400BadRequest);
     }
+    catch (ExpertReviewSourceNotFoundException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Resource not found", "Expert review source was not found.",
+            StatusCodes.Status404NotFound, "resource_not_found");
+    }
+    catch (ExpertReviewDuplicateException)
+    {
+        return ApiProblemDetails.Create(httpContext, "Review already routed",
+            "An open expert review item already exists for this source.",
+            StatusCodes.Status409Conflict, "expert_review_already_open");
+    }
 })
 .RequirePermission(Permission.ManageObligations)
 .WithName("EscalateExpertReviewItem");
+
+api.MapPost("/expert-review-items/{itemId:guid}/assign", async (
+    Guid itemId,
+    AssignExpertReviewRequest request,
+    ExpertReviewQueueService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var item = await service.AssignAsync(itemId, request, tenantContext.UserId, cancellationToken);
+        return item is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "Open expert review item was not found.",
+                StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(item);
+    }
+    catch (ExpertReviewValidationException exception)
+    {
+        return Results.ValidationProblem(
+            exception.Errors.ToDictionary(error => error.Key, error => error.Value),
+            title: "Expert review assignment invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageObligations)
+.WithName("AssignExpertReviewItem");
 
 api.MapPost("/expert-review-items/{itemId:guid}/resolve", async (
     Guid itemId,
@@ -2773,6 +4005,56 @@ api.MapPost("/reports/cmmc-readiness", async (
 .RequirePermission(Permission.ManageReports)
 .WithName("GenerateCmmcReadinessReport");
 
+api.MapPost("/reports/sprs-readiness", async (
+    Guid assessmentId,
+    SprsReadinessReportRequest request,
+    SprsReadinessReportService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var report = await service.GenerateAsync(
+            assessmentId,
+            request,
+            httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault() ?? string.Empty,
+            tenantContext.UserId,
+            cancellationToken);
+        if (report is not null)
+        {
+            httpContext.Response.Headers["Idempotency-Replayed"] = report.IsReplay ? "true" : "false";
+        }
+        return report is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC assessment '{assessmentId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created($"/api/reports/{report.Id}", report);
+    }
+    catch (Exception exception) when (exception is SprsReadinessReportException or SprsScoreCalculationException)
+    {
+        return Results.ValidationProblem(
+            new Dictionary<string, string[]> { ["sprsReadinessReport"] = [exception.Message] },
+            title: "SPRS readiness report invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (SprsReadinessIdempotencyConflictException exception)
+    {
+        return ApiProblemDetails.Create(
+            httpContext,
+            "Idempotency conflict",
+            exception.Message,
+            StatusCodes.Status409Conflict,
+            "idempotency_conflict");
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("GenerateSprsReadinessReport");
+
 api.MapPost("/reports/subcontractor-compliance", async (
     Guid? contractId,
     ClassifiedWorkflowRequest request,
@@ -2785,6 +4067,32 @@ api.MapPost("/reports/subcontractor-compliance", async (
 })
 .RequirePermission(Permission.ManageReports)
 .WithName("GenerateSubcontractorComplianceReport");
+
+api.MapPost("/reports/labor-compliance", async (
+    LaborComplianceReportRequest request,
+    LaborComplianceReportService service,
+    ITenantContext tenantContext,
+    ClaimsPrincipal user,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var includeSensitive = user.HasClaim(ApiSecurityExtensions.PermissionClaimType, Permission.ViewSensitiveEmployeeData.ToString());
+        var report = await service.GenerateAsync(request, tenantContext.UserId, includeSensitive, cancellationToken);
+        return report is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The labor report scope was not found.",
+                StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Created($"/api/reports/{report.Id}", report);
+    }
+    catch (LaborComplianceReportException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["laborReport"] = [exception.Message] },
+            title: "Labor report invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageReports)
+.WithName("GenerateLaborComplianceReport");
 
 api.MapGet("/subcontractors", async (
     string? status,
@@ -4564,6 +5872,81 @@ api.MapGet("/cmmc/assessments/{assessmentId:guid}/gaps", async (
 })
 .RequirePermission(Permission.ViewCmmc)
 .WithName("GetCmmcReadinessGaps");
+
+api.MapGet("/cmmc/sprs/rule-sets", async (
+    SprsScoringRuleService service,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await service.ListAsync(cancellationToken)))
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListSprsScoringRuleSets");
+
+api.MapGet("/cmmc/assessments/{assessmentId:guid}/sprs-calculations", async (
+    Guid assessmentId,
+    SprsScoreCalculationService service,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var calculations = await service.ListHistoryAsync(assessmentId, cancellationToken);
+        return calculations is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC assessment '{assessmentId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Ok(calculations);
+    }
+    catch (SprsScoreCalculationException exception)
+    {
+        return Results.ValidationProblem(
+            new Dictionary<string, string[]> { ["sprsScoreCalculationHistory"] = [exception.Message] },
+            title: "Draft SPRS calculation history unavailable",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ViewCmmc)
+.WithName("ListSprsScoreCalculations");
+
+api.MapPost("/cmmc/assessments/{assessmentId:guid}/sprs-calculations", async (
+    Guid assessmentId,
+    SprsScoreCalculationRequest request,
+    SprsScoreCalculationService service,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var calculation = await service.CalculateAsync(
+            assessmentId,
+            request,
+            tenantContext.UserId,
+            cancellationToken);
+        return calculation is null
+            ? ApiProblemDetails.Create(
+                httpContext,
+                "Resource not found",
+                $"CMMC assessment '{assessmentId}' was not found.",
+                StatusCodes.Status404NotFound,
+                "resource_not_found")
+            : Results.Created(
+                $"/api/cmmc/assessments/{assessmentId}/sprs-calculations",
+                calculation);
+    }
+    catch (SprsScoreCalculationException exception)
+    {
+        return Results.ValidationProblem(
+            new Dictionary<string, string[]> { ["sprsScoreCalculation"] = [exception.Message] },
+            title: "Draft SPRS score calculation invalid",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+})
+.RequirePermission(Permission.ManageCmmc)
+.WithName("CreateSprsScoreCalculation");
 
 api.MapPost("/cmmc/assessments/{assessmentId:guid}/gaps/{controlId}/poam-item", async (
     Guid assessmentId,
@@ -7406,6 +8789,33 @@ api.MapGet("/tenants/{tenantId:guid}/data-handling-mode/history", async (
 .RequirePermission(Permission.ManageTenant)
 .WithName("ListTenantDataHandlingModeHistory");
 
+static async Task<IResult> ReviewSprPackageAsync(
+    Guid packageId,
+    EsrsReportPackageReviewRequest request,
+    Func<Guid, EsrsReportPackageReviewRequest, Guid, CancellationToken, Task<EsrsReportPackageDto?>> reviewAction,
+    ITenantContext tenantContext,
+    HttpContext httpContext,
+    CancellationToken cancellationToken)
+{
+    try
+    {
+        var package = await reviewAction(packageId, request, tenantContext.UserId, cancellationToken);
+        return package is null
+            ? ApiProblemDetails.Create(httpContext, "Resource not found", "The SPR preparation package was not found.", StatusCodes.Status404NotFound, "resource_not_found")
+            : Results.Ok(package);
+    }
+    catch (EsrsReportPackageException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["review"] = [exception.Message] },
+            title: "SAM.gov SPR package review invalid", detail: exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+    catch (EsrsReportPackageConflictException exception)
+    {
+        return ApiProblemDetails.Create(httpContext, "SPR package conflict", exception.Message,
+            StatusCodes.Status409Conflict, "spr_package_conflict");
+    }
+}
+
 static async Task<IResult> ExecuteSubscriptionTransition(
     ClaimsPrincipal user,
     HttpContext httpContext,
@@ -7523,6 +8933,36 @@ if (app.Environment.IsDevelopment())
 app.Run();
 
 public partial class Program;
+
+internal static class AssistantAuthorization
+{
+    public static bool CanAsk(ClaimsPrincipal user, string? workflowContext)
+    {
+        var required = workflowContext?.Trim().ToLowerInvariant() switch
+        {
+            "obligation" => Permission.ViewObligations,
+            "contract" => Permission.ViewContracts,
+            "evidence" => Permission.ViewEvidence,
+            "cmmc" or "ssp" or "poam" => Permission.ViewCmmc,
+            "labor" => Permission.ViewReports,
+            "subcontractor" => Permission.ViewSubcontractors,
+            _ => (Permission?)null
+        };
+        return required.HasValue && Has(user, required.Value);
+    }
+
+    public static bool CanCreateAction(ClaimsPrincipal user, AssistantDraftActionType actionType) => actionType switch
+    {
+        AssistantDraftActionType.Task => Has(user, Permission.ManageTasks),
+        AssistantDraftActionType.EvidenceRequest => Has(user, Permission.ManageEvidence),
+        AssistantDraftActionType.Note => Has(user, Permission.ManageEvidence),
+        AssistantDraftActionType.ReviewItem => Has(user, Permission.ManageObligations),
+        _ => false
+    };
+
+    private static bool Has(ClaimsPrincipal user, Permission permission) =>
+        user.HasClaim(ApiSecurityExtensions.PermissionClaimType, permission.ToString());
+}
 
 internal static class SimpleReportExportAuthorization
 {

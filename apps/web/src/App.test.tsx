@@ -18,6 +18,7 @@ const {
   contractDocument,
   createCmmcAssessmentMock,
   createCmmcPoamItemMock,
+  createSprsScoreCalculationMock,
   createSubcontractorEvidenceRequestMock,
   createSubcontractorFlowDownMock,
   createSubcontractorMock,
@@ -35,6 +36,8 @@ const {
   getCmmcControlLibraryMock,
   getCmmcControlStatusesMock,
   getCmmcPoamItemsMock,
+  getSprsScoringRuleSetsMock,
+  getSprsScoreCalculationsMock,
   getSubcontractorsMock,
   getSubcontractorEvidenceRequestsMock,
   getSubcontractorFlowDownsMock,
@@ -62,6 +65,8 @@ const {
   getNotificationsMock,
   getObligationAssignmentCandidatesMock,
   getPublishedSharedResponsibilityMatrixMock,
+  getPortalPackageActivityReportMock,
+  getSharedPortalPackagesMock,
   getSharedResponsibilityMatrixAcknowledgementsMock,
   getComplianceOverviewMock,
   getCurrentUserAccessMock,
@@ -93,6 +98,7 @@ const {
   runDueDateRemindersMock,
   revokeTenantInvitationMock,
   generateCmmcReadinessReportMock,
+  generateSprsReadinessReportMock,
   generateComplianceStatusReportMock,
   generateContractClauseObligationsMock,
   generateEvidencePackageMock,
@@ -133,6 +139,7 @@ const {
   createContractDeliverableMock: vi.fn(),
   createCmmcAssessmentMock: vi.fn(),
   createCmmcPoamItemMock: vi.fn(),
+  createSprsScoreCalculationMock: vi.fn(),
   createSubcontractorEvidenceRequestMock: vi.fn(),
   createSubcontractorFlowDownMock: vi.fn(),
   createSubcontractorMock: vi.fn(),
@@ -151,6 +158,8 @@ const {
   getCmmcControlLibraryMock: vi.fn(),
   getCmmcControlStatusesMock: vi.fn(),
   getCmmcPoamItemsMock: vi.fn(),
+  getSprsScoringRuleSetsMock: vi.fn(),
+  getSprsScoreCalculationsMock: vi.fn(),
   getSubcontractorsMock: vi.fn(),
   getSubcontractorEvidenceRequestsMock: vi.fn(),
   getSubcontractorFlowDownsMock: vi.fn(),
@@ -184,8 +193,11 @@ const {
   getNotificationsMock: vi.fn(),
   getObligationAssignmentCandidatesMock: vi.fn(),
   getPublishedSharedResponsibilityMatrixMock: vi.fn(),
+  getPortalPackageActivityReportMock: vi.fn(),
+  getSharedPortalPackagesMock: vi.fn(),
   getSharedResponsibilityMatrixAcknowledgementsMock: vi.fn(),
   generateCmmcReadinessReportMock: vi.fn(),
+  generateSprsReadinessReportMock: vi.fn(),
   generateComplianceStatusReportMock: vi.fn(),
   generateContractClauseObligationsMock: vi.fn(),
   generateEvidencePackageMock: vi.fn(),
@@ -807,6 +819,9 @@ const {
 }));
 
 vi.mock("@/lib/api", () => ({
+  getAssistantExpertReviewItems: vi.fn().mockResolvedValue([]),
+  getGuardedAssistantAnswer: vi.fn(),
+  resolveExpertReviewItem: vi.fn(),
   getClassifiedContent: vi.fn().mockResolvedValue([]),
   getClassifiedContentDetail: vi.fn(),
   getClassificationHistory: vi.fn().mockResolvedValue([]),
@@ -831,6 +846,7 @@ vi.mock("@/lib/api", () => ({
   createTenantInvitation: createTenantInvitationMock,
   createCmmcAssessment: createCmmcAssessmentMock,
   createCmmcPoamItem: createCmmcPoamItemMock,
+  createSprsScoreCalculation: createSprsScoreCalculationMock,
   createSubcontractorEvidenceRequest: createSubcontractorEvidenceRequestMock,
   createSubcontractorFlowDown: createSubcontractorFlowDownMock,
   createSubcontractor: createSubcontractorMock,
@@ -845,6 +861,8 @@ vi.mock("@/lib/api", () => ({
   getCmmcControlLibrary: getCmmcControlLibraryMock,
   getCmmcControlStatuses: getCmmcControlStatusesMock,
   getCmmcPoamItems: getCmmcPoamItemsMock,
+  getSprsScoringRuleSets: getSprsScoringRuleSetsMock,
+  getSprsScoreCalculations: getSprsScoreCalculationsMock,
   getSspSections: vi.fn().mockResolvedValue([]),
   getSspNarratives: vi.fn().mockResolvedValue([]),
   createSspSection: vi.fn(),
@@ -862,7 +880,41 @@ vi.mock("@/lib/api", () => ({
   getApprovedEvidencePackages: getApprovedEvidencePackagesMock,
   getCompanyProfile: getCompanyProfileMock,
   getContractClauses: getContractClausesMock,
+  getContractLaborApplicabilities: vi.fn().mockResolvedValue([]),
+  createLaborApplicability: vi.fn(),
+  updateLaborApplicability: vi.fn(),
+  updateLaborApplicabilityStatus: vi.fn(),
+  uploadLaborWageDetermination: vi.fn(),
+  getContractLaborCategories: vi.fn().mockResolvedValue([]),
+  getContractLaborAssignments: vi.fn().mockResolvedValue([]),
+  getLaborClassificationEmployees: vi.fn().mockResolvedValue([]),
+  createLaborCategory: vi.fn(),
+  deactivateLaborCategory: vi.fn(),
+  createLaborAssignment: vi.fn(),
+  deactivateLaborAssignment: vi.fn(),
+  reclassifyLaborAssignment: vi.fn(),
+  reviewLaborAssignment: vi.fn(),
   getContractDeliverables: getContractDeliverablesMock,
+  getContractEsrsApplicabilities: vi.fn().mockResolvedValue([]),
+  getContractEsrsReportData: vi.fn().mockResolvedValue([]),
+  getContractSubcontractingPlanReportData: vi.fn().mockResolvedValue([]),
+  getCurrentSprSchemaProfile: vi.fn().mockResolvedValue({ version: "1.0", priorFiscalYearsAllowed: 9, categories: [] }),
+  createContractSubcontractingPlanReportData: vi.fn(),
+  updateContractSubcontractingPlanReportData: vi.fn(),
+  reviewContractSubcontractingPlanReportData: vi.fn(),
+  importSubcontractingPlanReportDataCsv: vi.fn(),
+  downloadSubcontractingPlanReportDataTemplate: vi.fn(),
+  getSprReportPackages: vi.fn().mockResolvedValue([]),
+  getSprSubmissionCapability: vi.fn().mockResolvedValue({ enabled: false, reason: "No provider configured." }),
+  getSprManualSubmissionReceipts: vi.fn().mockResolvedValue([]),
+  createSprReportPackage: vi.fn(),
+  reviewSprReportPackage: vi.fn(),
+  createSprManualSubmissionReceipt: vi.fn(),
+  downloadSprReportPackage: vi.fn(),
+  getEsrsScheduleTemplates: vi.fn().mockResolvedValue([]),
+  createEsrsApplicability: vi.fn(),
+  updateEsrsApplicability: vi.fn(),
+  updateEsrsApplicabilityStatus: vi.fn(),
   getContractDocumentExtractionResults: getContractDocumentExtractionResultsMock,
   getContractDocuments: getContractDocumentsMock,
   getContractObligationDetail: getContractObligationDetailMock,
@@ -879,8 +931,22 @@ vi.mock("@/lib/api", () => ({
   getNotifications: getNotificationsMock,
   getObligationAssignmentCandidates: getObligationAssignmentCandidatesMock,
   getPublishedSharedResponsibilityMatrix: getPublishedSharedResponsibilityMatrixMock,
+  getPortalPackageActivityReport: getPortalPackageActivityReportMock,
+  getSharedPortalPackages: getSharedPortalPackagesMock,
+  getExternalPortalInvitations: vi.fn().mockResolvedValue([]),
+  createExternalPortalInvitation: vi.fn(),
+  resendExternalPortalInvitation: vi.fn(),
+  extendExternalPortalInvitation: vi.fn(),
+  revokeExternalPortalInvitation: vi.fn(),
+  getExternalPortalAccessHistory: vi.fn().mockResolvedValue([]),
+  expireSharedPortalPackage: vi.fn(),
+  revokeSharedPortalPackage: vi.fn(),
+  supersedeSharedPortalPackage: vi.fn(),
+  reissueSharedPortalPackage: vi.fn(),
+  archiveSharedPortalPackage: vi.fn(),
   getSharedResponsibilityMatrixAcknowledgements: getSharedResponsibilityMatrixAcknowledgementsMock,
   generateCmmcReadinessReport: generateCmmcReadinessReportMock,
+  generateSprsReadinessReport: generateSprsReadinessReportMock,
   generateComplianceStatusReport: generateComplianceStatusReportMock,
   generateContractClauseObligations: generateContractClauseObligationsMock,
   generateEvidencePackage: generateEvidencePackageMock,
@@ -999,6 +1065,7 @@ describe("App", () => {
     runDueDateRemindersMock.mockReset();
     revokeTenantInvitationMock.mockReset();
     generateCmmcReadinessReportMock.mockReset();
+    generateSprsReadinessReportMock.mockReset();
     generateComplianceStatusReportMock.mockReset();
     generateContractClauseObligationsMock.mockReset();
     generateEvidencePackageMock.mockReset();
@@ -1042,6 +1109,8 @@ describe("App", () => {
     getNotificationsMock.mockReset();
     getObligationAssignmentCandidatesMock.mockReset();
     getPublishedSharedResponsibilityMatrixMock.mockReset();
+    getPortalPackageActivityReportMock.mockReset();
+    getSharedPortalPackagesMock.mockReset();
     getSharedResponsibilityMatrixAcknowledgementsMock.mockReset();
     getTenantInvitationsMock.mockReset();
     getTenantMembersMock.mockReset();
@@ -1118,6 +1187,11 @@ describe("App", () => {
     getAuditLogEntityTypesMock.mockResolvedValue([]);
     exportCuiAuditLogsMock.mockResolvedValue({ data: null, error: null });
     getApprovedEvidencePackagesMock.mockResolvedValue([]);
+    getSharedPortalPackagesMock.mockResolvedValue([]);
+    getPortalPackageActivityReportMock.mockResolvedValue({
+      tenantId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+      activities: []
+    });
     getRecentReportsMock.mockResolvedValue([]);
     getSubcontractorFlowDownsMock.mockResolvedValue([]);
     getSubcontractorEvidenceRequestsMock.mockResolvedValue([]);
@@ -1216,6 +1290,9 @@ describe("App", () => {
     getCmmcControlLibraryMock.mockResolvedValue([]);
     getCmmcControlStatusesMock.mockResolvedValue([]);
     getCmmcPoamItemsMock.mockResolvedValue([]);
+    getSprsScoringRuleSetsMock.mockResolvedValue([]);
+    getSprsScoreCalculationsMock.mockResolvedValue([]);
+    createSprsScoreCalculationMock.mockResolvedValue({ data: null, error: null });
     getSubcontractorsMock.mockResolvedValue([]);
     getCalendarEventsMock.mockResolvedValue([]);
     getContractClausesMock.mockResolvedValue([]);
@@ -3773,6 +3850,193 @@ describe("App", () => {
       })
     );
     expect(await screen.findByText("POA&M item created.")).toBeInTheDocument();
+  });
+
+  it("Story 30.2 calculates and renders a draft SPRS score without mixing reviewer notes into deductions", async () => {
+    const level2Assessment = {
+      ...cmmcAssessment,
+      id: "c302c302-c302-c302-c302-c302c302c302",
+      name: "Level 2 SPRS workspace",
+      level: "Level2",
+      framework: "NistSp800171Revision2"
+    };
+    const ruleSet = {
+      id: "reviewed-rules",
+      version: "2026.09-reviewed",
+      state: "Published",
+      sourceName: "Reviewed methodology",
+      sourceUrl: "https://example.test/sprs",
+      sourceSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      effectiveDate: "2026-01-01",
+      lastReviewedAt: "2026-09-01",
+      owner: "Content owner",
+      reviewer: "Qualified reviewer",
+      reviewDate: "2026-09-01",
+      maximumScore: 110,
+      rules: []
+    };
+    const calculation = {
+      id: "30303030-3030-3030-3030-303030303030",
+      tenantId: level2Assessment.tenantId,
+      assessmentId: level2Assessment.id,
+      ruleSetId: ruleSet.id,
+      ruleSetVersion: ruleSet.version,
+      ruleSetSourceUrl: ruleSet.sourceUrl,
+      ruleSetSourceSha256: ruleSet.sourceSha256,
+      maximumScore: 110,
+      score: 105,
+      totalDeduction: 5,
+      lineItems: [{
+        requirementId: "3.1.1",
+        controlId: "AC.L2-3.1.1",
+        title: "Authorized access",
+        ruleDeduction: 5,
+        appliedDeduction: 5,
+        reason: "control-not-implemented",
+        applicabilityRationale: null,
+        controlStatus: "NotStarted",
+        assessmentResult: "NotMet"
+      }],
+      unresolvedGaps: [{
+        requirementId: "3.1.1",
+        controlId: "AC.L2-3.1.1",
+        title: "Authorized access",
+        reason: "control-not-implemented"
+      }],
+      manualNotes: "Leadership review context.",
+      manualNotesClassification: {
+        classification: "Unclassified",
+        source: "UserSelected",
+        confidence: null,
+        reviewedByUserId: null,
+        reviewedAt: null,
+        reason: "Reviewer selected the classification for draft SPRS calculation notes.",
+        isApprovedDemoContent: false
+      },
+      generatedByUserId: allWorkflowAccess.userId,
+      generatedAt: "2026-09-10T14:00:00Z"
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getCmmcAssessmentsMock.mockResolvedValueOnce([level2Assessment]);
+    getCmmcControlStatusesMock.mockResolvedValueOnce([]);
+    getCmmcPoamItemsMock.mockResolvedValueOnce([]);
+    getSprsScoringRuleSetsMock.mockResolvedValueOnce([ruleSet]);
+    getSprsScoreCalculationsMock.mockResolvedValueOnce([]);
+    createSprsScoreCalculationMock.mockResolvedValueOnce({ data: calculation, error: null });
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.click(await screen.findByRole("link", { name: /cmmc/i }));
+    const workspace = screen.getByRole("region", { name: /draft sprs score calculation/i });
+    await user.type(within(workspace).getByLabelText("Reviewer notes"), "Leadership review context.");
+    await user.click(within(workspace).getByRole("button", { name: /calculate draft score/i }));
+
+    expect(createSprsScoreCalculationMock).toHaveBeenCalledWith(level2Assessment.id, {
+      ruleSetId: ruleSet.id,
+      manualNotes: "Leadership review context.",
+      manualNotesClassification: {
+        classification: "Unclassified",
+        source: "UserSelected",
+        reason: "Reviewer selected the classification for draft SPRS calculation notes."
+      },
+      conditionalDeductionSelections: []
+    });
+    expect(await within(workspace).findByText("Draft score recalculated from the current Level 2 assessment status.")).toBeInTheDocument();
+    expect(within(workspace).getByText("3.1.1 · Authorized access")).toBeInTheDocument();
+    const currentResult = within(screen.getByLabelText("Current draft SPRS calculation"));
+    expect(currentResult.getByText("Leadership review context.")).toBeInTheDocument();
+    expect(currentResult.getByText(/Rule 2026.09-reviewed/)).toBeInTheDocument();
+    expect(within(workspace).getByText("Calculation history (1)")).toBeInTheDocument();
+  });
+
+  it("Story 30.3 generates and renders a draft not-submitted SPRS readiness report", async () => {
+    const level2Assessment = {
+      ...cmmcAssessment,
+      id: "c303c303-c303-c303-c303-c303c303c303",
+      name: "Leadership SPRS review",
+      level: "Level2"
+    };
+    const ruleSet = {
+      id: "reviewed-rules",
+      version: "2026.09-reviewed",
+      state: "Published",
+      sourceName: "Reviewed methodology",
+      sourceUrl: "https://example.test/sprs",
+      sourceSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      effectiveDate: "2026-01-01",
+      lastReviewedAt: "2026-09-01",
+      owner: "Content owner",
+      reviewer: "Qualified reviewer",
+      reviewDate: "2026-09-01",
+      maximumScore: 110,
+      rules: []
+    };
+    const report = {
+      id: "30330330-3303-3033-0330-330330330303",
+      tenantId: level2Assessment.tenantId,
+      type: "SprsReadiness",
+      status: "Complete",
+      title: "SPRS readiness report - Leadership SPRS review",
+      generatedAt: "2026-09-10T15:00:00Z",
+      generatedByUserId: allWorkflowAccess.userId,
+      disclaimer: "Draft readiness tracking only. FeDril has not submitted this score to SPRS.",
+      snapshot: {
+        assessmentId: level2Assessment.id,
+        assessmentName: level2Assessment.name,
+        score: 105,
+        maximumScore: 110,
+        totalDeduction: 5,
+        ruleSetVersion: ruleSet.version,
+        leadershipReviewStatus: "Pending",
+        unresolvedControls: [{
+          requirementId: "3.1.1",
+          title: "Authorized access",
+          evidenceStatus: "Missing",
+          poamItemIds: ["aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"]
+        }]
+      }
+    };
+    getComplianceOverviewMock.mockResolvedValueOnce(overview);
+    getCurrentUserAccessMock.mockResolvedValueOnce(allWorkflowAccess);
+    getTenantInvitationsMock.mockResolvedValueOnce(invitations);
+    getTenantMembersMock.mockResolvedValueOnce(members);
+    getCmmcAssessmentsMock.mockResolvedValueOnce([level2Assessment]);
+    getSprsScoringRuleSetsMock.mockResolvedValueOnce([ruleSet]);
+    generateSprsReadinessReportMock
+      .mockResolvedValueOnce({ data: null, error: "The API could not be reached." })
+      .mockResolvedValueOnce({ data: report, error: null });
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.click(await screen.findByRole("link", { name: /reports/i }));
+    await user.selectOptions(screen.getByLabelText("Workflow classification"), "Unclassified");
+    await user.selectOptions(screen.getByLabelText("Leadership review"), "Pending");
+    await user.type(screen.getByLabelText("Reviewer notes"), "Leadership review context.");
+    await user.click(screen.getByRole("button", { name: "Generate SPRS report" }));
+
+    expect(await screen.findByText("The API could not be reached.")).toBeInTheDocument();
+    const firstIdempotencyKey = generateSprsReadinessReportMock.mock.calls[0]?.[3];
+    await user.click(screen.getByRole("button", { name: "Generate SPRS report" }));
+
+    expect(generateSprsReadinessReportMock).toHaveBeenCalledWith(
+      level2Assessment.id,
+      {
+        ruleSetId: ruleSet.id,
+        reviewerNotes: "Leadership review context.",
+        leadershipReviewStatus: "Pending",
+        conditionalDeductionSelections: []
+      },
+      "Unclassified",
+      expect.any(String)
+    );
+    expect(generateSprsReadinessReportMock.mock.calls[1]?.[3]).toBe(firstIdempotencyKey);
+    expect(await screen.findByText("Draft SPRS readiness report generated. No score was submitted to SPRS.")).toBeInTheDocument();
+    const detail = screen.getByLabelText("Generated report detail");
+    expect(within(detail).getByText(/has not submitted this score to SPRS/i)).toBeInTheDocument();
+    expect(within(detail).getByText("3.1.1 · Authorized access · Evidence Missing · 1 POA&M reference")).toBeInTheDocument();
   });
 
   it("TC-14.1 renders subcontractor profiles and creates a linked subcontractor", async () => {

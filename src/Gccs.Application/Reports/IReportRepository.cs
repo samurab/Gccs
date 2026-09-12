@@ -33,6 +33,23 @@ public interface IReportRepository
         bool includeEvidenceLinks,
         CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null);
 
+    Task<SprsReadinessReportDto> SaveSprsReadinessReportAsync(
+        SprsReadinessSnapshotDto snapshot,
+        string assessmentName,
+        Guid actorUserId,
+        Gccs.Application.Common.ContentClassificationRequest classification,
+        string idempotencyKey,
+        string requestFingerprint,
+        CancellationToken cancellationToken = default);
+
+    Task AcquireSprsReadinessIdempotencyLockAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default);
+
+    Task<ExistingSprsReadinessReportDto?> FindSprsReadinessByIdempotencyKeyAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default);
+
     Task<EvidencePackageReportDto> GenerateEvidencePackageAsync(
         EvidencePackageGenerateRequest request,
         Guid actorUserId,
@@ -48,6 +65,10 @@ public interface IReportRepository
         Guid actorUserId,
         CancellationToken cancellationToken = default, Gccs.Application.Common.ContentClassificationRequest? classification = null);
 }
+
+public sealed record ExistingSprsReadinessReportDto(
+    string RequestFingerprint,
+    SprsReadinessReportDto Report);
 
 public sealed record ComplianceStatusReportDto(
     Guid Id,

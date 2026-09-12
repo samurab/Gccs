@@ -1227,21 +1227,23 @@ It fits the project by turning a calculation into a leadership-ready review arti
 
 The value is informed governance. Customers can review score context, evidence gaps, and remediation priorities before deciding what to submit through official channels.
 
-## 31. eSRS Support
+## 31. SAM.gov Subcontracting Plan Reporting Support
 
-This sprint area starts support for subcontracting-report obligations by identifying when eSRS-related reporting should appear in the compliance calendar.
+This sprint area supports internal preparation of subcontracting-plan reporting records for the SAM.gov SPR workflow that replaced eSRS in February 2026. It does not submit or synchronize reports with SAM.gov.
 
 | Story | Pages, views, or docs added/changed |
 | --- | --- |
-| 31.1 | eSRS applicability fields, source-backed activation validation, report period/due date tracking, calendar/task integration, overdue behavior, and audit logging. |
+| 31.1 | SAM.gov SPR applicability fields, source-backed activation validation, report period/due date tracking, calendar/task integration, overdue behavior, and audit logging. |
+| 31.2 | Tenant-scoped subcontracting report data rows, evidence links, GSA data-dictionary validation, review gating, CSV import, and audit logging. |
+| 31.3 | Immutable internal-review package snapshots and approval lifecycle; no external submission or synchronization. |
 
-### Story 31.1: eSRS Applicability And Reporting Calendar
+### Story 31.1: SAM.gov SPR Applicability And Reporting Calendar
 
-This story lets authorized users mark a contract as eSRS-applicable with report type, period, due date, source clause, and documented rationale. Activated eSRS obligations appear on the compliance calendar, missing source support blocks activation, and overdue status is calculated from due date and task status.
+This story lets authorized users mark a contract as subject to SAM.gov subcontracting plan reporting with report type, period, due date, source clause, and documented rationale. Activated obligations appear on the compliance calendar, missing source support blocks activation, and overdue status is calculated from due date and task status.
 
 It fits the project by extending the contract obligation and calendar model into subcontracting reporting. GCCS already tracks clauses, flow-downs, tasks, and dates; this story uses that foundation for a specific govcon reporting workflow.
 
-The value is missed-deadline prevention. Contracts teams can see eSRS obligations alongside other compliance work and keep reporting responsibilities tied to source-backed contract records.
+The value is missed-deadline prevention. Contracts teams can see SAM.gov SPR obligations alongside other compliance work and keep reporting responsibilities tied to source-backed contract records.
 
 ## 32. Labor Compliance Module
 

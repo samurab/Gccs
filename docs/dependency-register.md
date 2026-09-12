@@ -26,7 +26,7 @@ This register identifies the known GCCS dependencies for local development, test
 | PostgreSQL | Docker image `postgres:17`, host port `15432` | API persistence, migrations, tests with real DB when needed | Yes for local persistence | Default database `gccs`. |
 | Redis | Docker image `redis:8`, host port `16379` | Cache/job placeholder | Required when `LocalDependencies:Enabled=true` | Health checked by API local dependency checks. |
 | Azurite object storage | Docker image `mcr.microsoft.com/azure-storage/azurite:3.35.0`, host port `19000` | Azure Blob-compatible evidence/document storage | Required when local dependency checks are enabled | Private containers are created on first write by the storage adapter. |
-| ClamAV | Docker image `clamav/clamav-debian:stable`, host port `13310` | Malware scanning placeholder | Required when local dependency checks are enabled | Production launch needs real scanner path or accepted exception. |
+| ClamAV | Docker image `clamav/clamav-debian:stable`, host port `13310` | Byte-level malware scanning and real-stack upload verification | Required when local dependency checks are enabled | Local/CI verification does not establish production scanner availability or operations. |
 | Docker Compose | Local developer tool | Local services | Yes for full local stack | Defined in `infra/docker/docker-compose.yml`. |
 
 ## Test And Tooling Dependencies
@@ -59,11 +59,13 @@ This register identifies the known GCCS dependencies for local development, test
 | `ConnectionStrings:AzureStorage` | Local/dev API | Azure Blob-compatible object storage connection. |
 | `Storage:*` | API | Blob endpoint/account, managed identity choice, and private container names. |
 | `LocalDependencies:MalwareScanner:*` | Local/dev API | Malware scanner host and port. |
+| `MalwareScanning:*` | API and real-stack tests | Configures the byte-level ClamAV adapter, timeout, provider name, and upload chunk size. |
 | `InvitationDelivery:*` | API background workers | Shared Azure Communication Services transport, public web URL, retry, and lease settings for invitation and assignment emails. Disabled by default in local development. |
 | `DemoRequests:*` | Public demo intake, follow-up form, API background worker, and optional HubSpot CRM synchronization | Azure Communication Services transport, monitored operations inbox, public web URL, retention, retry/lease settings, a stable 32-character-or-longer follow-up token signing secret, and—when `DemoRequests:HubSpot:Enabled=true`—an HTTPS HubSpot API base URL plus a private-app token with contact and company read/write scopes. Rotating the follow-up signing secret invalidates outstanding follow-up links. |
 | `TaskSearch:CursorSigningKey` | Every API environment | Base64-encoded key containing at least 32 random bytes. The same key must be supplied to every API instance. Rotation first moves the old value to `TaskSearch:PreviousCursorSigningKey`, deploys the new current key, waits at least 15 minutes, and then removes the previous key. |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Production API | Connects ASP.NET Core structured logs, including compatibility observations and collector heartbeats, to the existing Application Insights resource. |
 | `VITE_API_BASE_URL` | Web app | API base URL for frontend calls. |
+| `GCCS_TEST_POSTGRES_CONNECTION` | PostgreSQL integration tests and real-stack CI | Enables relational transaction, rollback, concurrency, and tenant-isolation verification. CI supplies it from its PostgreSQL service. Locally, `tools/test-story-32-1-real-stack.sh` starts the required Docker services and supplies this value. |
 
 ## Source And Compliance Content Dependencies
 
@@ -74,6 +76,7 @@ This register identifies the known GCCS dependencies for local development, test
 | eCFR | 32 CFR Part 170 source reference | Yes as governed source reference | Used for CMMC-related obligations. |
 | DoD CMMC resources | CMMC readiness reference | Yes as source reference | SME review required for customer-facing interpretation. |
 | NIST CSRC | NIST SP 800-171 references | Yes as source reference | Rev. 2/Rev. 3 distinction must remain explicit. |
+| NIST SP 800-171 DoD Assessment Methodology Version 1.2.1 and qualified reviewer | SPRS scoring-rule baseline and readiness reports | Source is checked in; reviewer approval is pending | The rule package remains draft and runtime-unusable until a reviewer distinct from the owner verifies the source hash, all 110 requirements, deductions, conditional and blocking rules, applicability conditions, version, and review metadata. See `docs/sprs-readiness-release-gates.md`. |
 | SBA sources | Size standards, governing rules, certifications context | Identified | Direct integration deferred. |
 | SAM.gov / GSA Entity API | Entity lookup and SAM profile assist | Deferred | Requires credentials/config, provenance, limits, stale-data handling. |
 | NARA CUI Registry | CUI category reference | Identified | MVP must not store CUI; mapping integration deferred. |
@@ -99,3 +102,4 @@ This register identifies the known GCCS dependencies for local development, test
 - Any new dependency that stores, processes, searches, exports, or transmits customer data must be reviewed for tenant isolation, RBAC, audit logging, CUI/data-handling posture, retention, and support impact.
 - Any dependency used for compliance content or AI output must preserve source URL, review metadata, confidence, and customer-facing limitations.
 - Production launch dependencies must appear in this register before launch approval.
+- SPRS readiness promotion must follow `docs/sprs-readiness-release-gates.md`; missing qualified-review or PostgreSQL evidence is not equivalent to a passed gate.

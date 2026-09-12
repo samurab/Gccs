@@ -97,6 +97,12 @@ public sealed class DevelopmentAuthenticationHandler(
             claims.Add(new Claim(PlatformAuthorization.PermissionClaimType, permission));
         }
 
+        foreach (var method in Request.Headers["X-Gccs-Dev-Amr"].FirstOrDefault()?.Split(
+                     ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [])
+        {
+            claims.Add(new Claim("amr", method));
+        }
+
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, Scheme.Name);

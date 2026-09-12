@@ -13,6 +13,7 @@ public enum Permission
 {
     ManageTenant,
     ManageUsers,
+    ViewSensitiveEmployeeData,
     ViewCompanyProfile,
     ManageCompanyProfile,
     ViewContracts,
@@ -67,6 +68,7 @@ public static class RoleCatalog
 
     private static readonly Permission[] AllWorkflowPermissions =
     [
+        Permission.ViewSensitiveEmployeeData,
         Permission.ViewCompanyProfile,
         Permission.ManageCompanyProfile,
         Permission.ViewContracts,
@@ -116,6 +118,7 @@ public static class RoleCatalog
                 .ToHashSet(),
             [ComplianceManager] = new HashSet<Permission>
             {
+                Permission.ViewSensitiveEmployeeData,
                 Permission.ViewCompanyProfile,
                 Permission.ManageCompanyProfile,
                 Permission.ViewContracts,

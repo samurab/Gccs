@@ -1,5 +1,6 @@
 using Gccs.Application.Audit;
 using Gccs.Application.Compliance;
+using Gccs.Application.Common;
 using Gccs.Application.Notifications;
 using Gccs.Application.Security;
 using Gccs.Domain.Audit;
@@ -277,7 +278,7 @@ public sealed class ComplianceContentReviewStateTests
             actorUserId);
         var resolved = await expertQueue.ResolveAsync(
             suggestedEscalation.Id,
-            new ResolveExpertReviewRequest("approve_after_revision", "Expert confirmed interpretation with minor wording edits."),
+            new ResolveExpertReviewRequest("accepted_as_reviewed_draft", "Expert confirmed interpretation with minor wording edits."),
             expertUserId);
         var approved = await suggestedObligationService.ApproveAsync(
             suggestion.Id,
@@ -299,7 +300,7 @@ public sealed class ComplianceContentReviewStateTests
         Assert.Equal("resolved", resolved.Status);
         Assert.Equal(expertUserId, resolved.ResolvedByUserId);
         Assert.NotNull(resolved.ResolvedAt);
-        Assert.Equal("approve_after_revision", resolved.ResolutionDecision);
+        Assert.Equal("accepted_as_reviewed_draft", resolved.ResolutionDecision);
         Assert.Equal("Expert confirmed interpretation with minor wording edits.", resolved.ResolutionNotes);
         Assert.NotNull(approved);
         Assert.Equal("approved", approved.ReviewStatus);
@@ -326,7 +327,8 @@ public sealed class ComplianceContentReviewStateTests
         new(
             new EfExpertReviewQueueRepository(dbContext, new TestTenantContext(tenantId, userId)),
             auditWriter,
-            [notificationRepository]);
+            [notificationRepository],
+            new ImmediateTransaction());
 
     private static GccsDbContext CreateDbContext()
     {
@@ -399,6 +401,12 @@ public sealed class ComplianceContentReviewStateTests
     private sealed record TestTenantContext(Guid TenantId, Guid UserId) : ICurrentTenantContext
     {
         public string UserEmail => "reviewer@example.com";
+    }
+
+    private sealed class ImmediateTransaction : IApplicationTransaction
+    {
+        public Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken = default) =>
+            operation(cancellationToken);
     }
 
     private sealed class CapturingAuditEventWriter : IAuditEventWriter

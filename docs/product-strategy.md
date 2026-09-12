@@ -52,7 +52,7 @@ The MVP should optimize for traceability, task ownership, evidence readiness, an
 The following should be deferred unless pilot customers make them launch blockers:
 
 - Labor compliance module, except lightweight metadata capture.
-- eSRS integration.
+- SAM.gov Subcontracting Plan Reporting preparation (manual submission; no portal synchronization).
 - SSP builder.
 - SPRS score calculator.
 - Full AI assistant.

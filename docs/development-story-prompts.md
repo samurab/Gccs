@@ -5251,8 +5251,8 @@ Implement Story 30.3, "SPRS Readiness Report," from `docs/development-phase-use-
 
 #-----------------------------------------
 
-## 31. eSRS Support
-### Story 31.1: eSRS Applicability And Reporting Calendar
+## 31. SAM.gov Subcontracting Plan Reporting (SPR) Support
+### Story 31.1: SPR Applicability And Reporting Calendar
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5260,16 +5260,16 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 
 > Context:
 >
-> - Epic: eSRS Support
-> - User story: As a contracts manager, I want to identify contracts with eSRS reporting obligations so that required reports appear on the compliance calendar.
+> - Epic: SAM.gov Subcontracting Plan Reporting (SPR) Support
+> - User story: As a contracts manager, I want to identify contracts with SAM.gov SPR obligations so that required reports appear on the compliance calendar.
 > - Acceptance criteria:
-> - Authorized user can mark a contract as eSRS-applicable with report type, period, due date, and source.
-> - eSRS report obligations appear on the compliance calendar.
-> - Missing source clause or rationale blocks activation of an eSRS obligation.
-> - Overdue eSRS tasks are calculated from due date and status.
-> - eSRS applicability changes are audit logged.
+> - Authorized user can mark a contract as SPR-applicable with report type, period, due date, and source.
+> - SPR report obligations appear on the compliance calendar.
+> - Missing source clause or rationale blocks activation of an SPR obligation.
+> - Overdue SPR tasks are calculated from due date and status.
+> - SPR applicability changes are audit logged.
 
-Implement Story 31.1, "eSRS Applicability And Reporting Calendar," from `docs/development-phase-use-cases.md`. Add eSRS applicability fields, source-backed activation validation, reporting period and due-date tracking, calendar/task integration, default ISR/SSR schedule support where applicable, overdue behavior, reminders, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+Implement Story 31.1, "SPR Applicability And Reporting Calendar," from `docs/development-phase-use-cases.md`. Add SAM.gov SPR applicability fields, source-backed activation validation, reporting period and due-date tracking, calendar/task integration, default ISR/SSR schedule support where applicable, overdue behavior, reminders, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
 
 #-----------------------------------------
 ### Story 31.2: Subcontracting Report Data Collection
@@ -5280,8 +5280,8 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 
 > Context:
 >
-> - Epic: eSRS Support
-> - User story: As a contracts manager, I want to collect subcontracting report data so that eSRS package preparation uses documented subcontractor and spend information.
+> - Epic: SAM.gov Subcontracting Plan Reporting (SPR) Support
+> - User story: As a contracts manager, I want to collect subcontracting report data so that SAM.gov SPR package preparation uses documented subcontractor and spend information.
 > - Acceptance criteria:
 > - User can create report data rows linked to subcontractor and contract records.
 > - Validation rejects negative amounts, missing required categories, duplicate rows, and period mismatches.
@@ -5289,10 +5289,12 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 > - Data rows cannot be included in a final package until reviewed or explicitly marked as accepted.
 > - Data row changes are audit logged.
 
-Implement Story 31.2, "Subcontracting Report Data Collection," from `docs/development-phase-use-cases.md`. Add eSRS report data rows linked to contracts, subcontractors, spend/category data, periods, plans, evidence, review states, import template support, validation for bad or duplicate data, package-inclusion gating, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+Implement Story 31.2, "Subcontracting Report Data Collection," from `docs/development-phase-use-cases.md`. Add SAM.gov SPR report data rows linked to contracts, subcontractors, spend/category data, periods, plans, evidence, review states, import template support, reporting role, fiscal year/period, UEI, PIID, conditional subcontract number, documented external eligibility basis, validation for bad or duplicate data, package-inclusion gating, and audit logging. Preserve legacy eSRS routes and internal persistence identifiers only as compatibility aliases. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+
+Schema evolution and legacy remediation extension: resolve the current reviewed, published, effective SPR schema profile server-side; persist profile ID/version/source/definition hash on canonical rows; expose tenant-scoped field-level blockers and non-persisted UEI/PIID suggestions; never silently promote legacy rows; and audit changed field names and readiness transitions when enrichment is saved.
 
 #-----------------------------------------
-### Story 31.3: eSRS Report Package
+### Story 31.3: SAM.gov SPR Report Package
 Prompt:
 You are helping me build a Government Contractor Compliance SaaS application.
 
@@ -5300,16 +5302,16 @@ First, inspect the existing codebase, architecture docs, API contracts, schema/m
 
 > Context:
 >
-> - Epic: eSRS Support
-> - User story: As a contracts manager, I want to prepare an eSRS report package so that internal reviewers can verify data before external submission.
+> - Epic: SAM.gov Subcontracting Plan Reporting (SPR) Support
+> - User story: As a contracts manager, I want to prepare a SAM.gov SPR report package so that internal reviewers can verify data before manual external submission.
 > - Acceptance criteria:
-> - Authorized user can generate an eSRS preparation package for the current tenant.
+> - Authorized user can generate a SAM.gov SPR preparation package for the current tenant.
 > - Package includes contract, period, report type, subcontractor/spend summaries, exceptions, evidence references, and generated date.
-> - Package states that GCCS has not submitted the report to eSRS.
+> - Package states that FeDril has not submitted the report to SAM.gov.
 > - Approved packages include reviewer and approval date.
 > - Package generation and approval are audit logged.
 
-Implement Story 31.3, "eSRS Report Package," from `docs/development-phase-use-cases.md`. Add eSRS preparation package generation, report metadata, subcontractor/spend summaries, exceptions, evidence references, preparation-only/not-submitted language, review workflow, package version/history, permissions, export behavior, and audit logging. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
+Implement Story 31.3, "SAM.gov SPR Report Package," from `docs/development-phase-use-cases.md`. Add SAM.gov SPR preparation package generation, report metadata, subcontractor/spend summaries, exceptions, evidence references, preparation-only/not-submitted language, review workflow, package version/history, permissions, export behavior, and audit logging. Do not claim or implement SAM.gov submission or synchronization without an authorized contractor API. Preserve tenant isolation, server-side RBAC, validation, audit logging, CUI/data-handling guardrails, standard error behavior, source traceability, review metadata, and tenant-scoped data access. Add focused backend and frontend tests where behavior is affected, then run the relevant verification commands and report results.
 
 #-----------------------------------------
 

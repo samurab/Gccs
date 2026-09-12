@@ -76,7 +76,7 @@ Phase 1A is a readiness track inside Phase 1. Its existence does not authorize r
 | --- | --- | --- | --- |
 | SSP builder | `29.1`-`29.3` | Planned | Draft/review workflow; not certification. |
 | SPRS score calculator | `30.1`-`30.3` | Planned | Readiness calculation; not a submission or government record. |
-| eSRS support | `31.1`-`31.3` | Planned | Support/package workflow; does not claim agency submission. |
+| SAM.gov SPR support | `31.1`-`31.3` | Partially implemented | Preparation/package workflow with legacy eSRS compatibility identifiers; does not submit or synchronize with SAM.gov. |
 | Labor compliance module | `32.1`-`32.3` | Planned | Demand-gated; no legal or labor determination. |
 | AI assistant | `33.1`-`33.3` | Planned | Citations, logging, draft-only output, and human review required. |
 | Prime contractor and auditor portals | `34.1`-`34.3` | Planned | Explicitly shared approved snapshots only. |

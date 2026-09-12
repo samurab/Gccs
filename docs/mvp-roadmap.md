@@ -63,7 +63,7 @@ Detailed delivery backlog: `docs/development-phase-use-cases.md`, sections 18-28
 
 - SSP builder.
 - SPRS score calculator.
-- eSRS support.
+- SAM.gov Subcontracting Plan Reporting preparation support.
 - Labor compliance module, if pilot/customer demand justifies it.
 - AI assistant with citations, logging, and human-review guardrails.
 - Prime contractor and auditor portals.

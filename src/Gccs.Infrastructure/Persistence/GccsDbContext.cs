@@ -1,6 +1,9 @@
 using System.Text;
+using Gccs.Application.Ai;
 using Gccs.Application.Compliance;
+using Gccs.Application.Reports;
 using Gccs.Application.Identity;
+using Gccs.Application.Labor;
 using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
@@ -92,6 +95,18 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<ContractSizeCheckEntity> ContractSizeChecks => Set<ContractSizeCheckEntity>();
     public DbSet<SolicitationEntity> Solicitations => Set<SolicitationEntity>();
     public DbSet<ComplianceTaskEntity> ComplianceTasks => Set<ComplianceTaskEntity>();
+    public DbSet<EsrsApplicabilityEntity> EsrsApplicabilities => Set<EsrsApplicabilityEntity>();
+    public DbSet<LaborApplicabilityEntity> LaborApplicabilities => Set<LaborApplicabilityEntity>();
+    public DbSet<SubcontractingReportDataRowEntity> SubcontractingReportDataRows => Set<SubcontractingReportDataRowEntity>();
+    public DbSet<SprReportPackageEntity> SprReportPackages => Set<SprReportPackageEntity>();
+    public DbSet<SprManualSubmissionReceiptEntity> SprManualSubmissionReceipts => Set<SprManualSubmissionReceiptEntity>();
+    public DbSet<SharedPortalPackageEntity> SharedPortalPackages => Set<SharedPortalPackageEntity>();
+    public DbSet<ExternalPortalInvitationEntity> ExternalPortalInvitations => Set<ExternalPortalInvitationEntity>();
+    public DbSet<ExternalPortalInvitationPackageScopeEntity> ExternalPortalInvitationPackageScopes => Set<ExternalPortalInvitationPackageScopeEntity>();
+    public DbSet<ExternalPortalInvitationContractScopeEntity> ExternalPortalInvitationContractScopes => Set<ExternalPortalInvitationContractScopeEntity>();
+    public DbSet<ExternalPortalAccessHistoryEntity> ExternalPortalAccessHistory => Set<ExternalPortalAccessHistoryEntity>();
+    public DbSet<PortalPackageActivityEntity> PortalPackageActivities => Set<PortalPackageActivityEntity>();
+    public DbSet<SubcontractingReportDataEvidenceEntity> SubcontractingReportDataEvidence => Set<SubcontractingReportDataEvidenceEntity>();
     public DbSet<EvidenceItemEntity> EvidenceItems => Set<EvidenceItemEntity>();
     public DbSet<EvidenceRequestEntity> EvidenceRequests => Set<EvidenceRequestEntity>();
     public DbSet<EvidenceFileVersionEntity> EvidenceFileVersions => Set<EvidenceFileVersionEntity>();
@@ -100,6 +115,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<AssessmentEntity> Assessments => Set<AssessmentEntity>();
     public DbSet<ControlAssessmentEntity> ControlAssessments => Set<ControlAssessmentEntity>();
     public DbSet<ControlAssessmentHistoryEntity> ControlAssessmentHistory => Set<ControlAssessmentHistoryEntity>();
+    public DbSet<SprsScoreCalculationEntity> SprsScoreCalculations => Set<SprsScoreCalculationEntity>();
+    public DbSet<SprsScoreCalculationNoteEntity> SprsScoreCalculationNotes => Set<SprsScoreCalculationNoteEntity>();
     public DbSet<PoamItemEntity> PoamItems => Set<PoamItemEntity>();
     public DbSet<ComplianceChecklistInstanceEntity> ComplianceChecklistInstances => Set<ComplianceChecklistInstanceEntity>();
     public DbSet<ComplianceChecklistItemEntity> ComplianceChecklistItems => Set<ComplianceChecklistItemEntity>();
@@ -118,6 +135,10 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<TrainingRecordEntity> TrainingRecords => Set<TrainingRecordEntity>();
     public DbSet<WageDeterminationEntity> WageDeterminations => Set<WageDeterminationEntity>();
     public DbSet<LaborClassificationEntity> LaborClassifications => Set<LaborClassificationEntity>();
+    public DbSet<LaborCategoryEntity> LaborCategories => Set<LaborCategoryEntity>();
+    public DbSet<LaborEmployeeAssignmentEntity> LaborEmployeeAssignments => Set<LaborEmployeeAssignmentEntity>();
+    public DbSet<LaborClassificationHistoryEntity> LaborClassificationHistory => Set<LaborClassificationHistoryEntity>();
+    public DbSet<LaborClassificationEvidenceEntity> LaborClassificationEvidence => Set<LaborClassificationEvidenceEntity>();
     public DbSet<PayrollRecordEntity> PayrollRecords => Set<PayrollRecordEntity>();
     public DbSet<ReportEntity> Reports => Set<ReportEntity>();
     public DbSet<ReportExportEntity> ReportExports => Set<ReportExportEntity>();
@@ -138,6 +159,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
     public DbSet<SspNarrativeSourceEntity> SspNarrativeSources => Set<SspNarrativeSourceEntity>();
     public DbSet<SspExportPackageEntity> SspExportPackages => Set<SspExportPackageEntity>();
     public DbSet<SspExportPackageHistoryEntity> SspExportPackageHistory => Set<SspExportPackageHistoryEntity>();
+    public DbSet<AssistantAnswerEntity> AssistantAnswers => Set<AssistantAnswerEntity>();
+    public DbSet<AssistantDraftActionEntity> AssistantDraftActions => Set<AssistantDraftActionEntity>();
+    public DbSet<AssistantFeedbackEntity> AssistantFeedback => Set<AssistantFeedbackEntity>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -147,6 +171,8 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<AssessmentType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<AssetType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<AuditAction>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AssistantDraftActionType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<AssistantFeedbackType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<BoundaryStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<BreakGlassGrantStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<CertificationStatus>().HaveConversion<string>().HaveMaxLength(64);
@@ -215,8 +241,11 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         configurationBuilder.Properties<SspLinkedRecordType>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SspNarrativeStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<SspNarrativeSourceType>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<SubcontractingReportDataReviewStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantDataPosture>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<InvitationDeliveryStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<LaborApplicabilityStatus>().HaveConversion<string>().HaveMaxLength(64);
+        configurationBuilder.Properties<LaborApplicabilityReviewStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantInvitationStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantOnboardingStatus>().HaveConversion<string>().HaveMaxLength(64);
         configurationBuilder.Properties<TenantOnboardingType>().HaveConversion<string>().HaveMaxLength(64);
@@ -281,10 +310,58 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         ConfigurePeopleAndLabor(modelBuilder);
         ConfigureReports(modelBuilder);
         ConfigureAudit(modelBuilder);
+        ConfigureAssistant(modelBuilder);
         ConfigureFedRamp(modelBuilder);
 
         ConfigureTenantForeignKeys(modelBuilder);
         ApplyPostgresConventions(modelBuilder);
+    }
+
+    private static void ConfigureAssistant(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AssistantAnswerEntity>(entity =>
+        {
+            entity.ToTable("assistant_answers");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.CreatedAt });
+            entity.Property(x => x.WorkflowContext).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Answer).HasMaxLength(20_000).IsRequired();
+            entity.Property(x => x.CitationsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.SupportStatus).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.DraftLabel).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.BlockedReason).HasMaxLength(80);
+            entity.Property(x => x.HumanReviewStatus).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ReviewDecision).HasMaxLength(64);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1_000);
+        });
+
+        modelBuilder.Entity<AssistantDraftActionEntity>(entity =>
+        {
+            entity.ToTable("assistant_draft_actions");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.AnswerId, x.CreatedAt });
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Body).HasMaxLength(4_000).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            entity.HasOne(x => x.Answer).WithMany(x => x.Actions)
+                .HasForeignKey(x => new { x.TenantId, x.AnswerId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AssistantFeedbackEntity>(entity =>
+        {
+            entity.ToTable("assistant_feedback");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.AnswerId, x.CreatedAt });
+            entity.Property(x => x.Reason).HasMaxLength(1_000).IsRequired();
+            entity.HasOne(x => x.Answer).WithMany(x => x.Feedback)
+                .HasForeignKey(x => new { x.TenantId, x.AnswerId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 
     private static void ConfigureFedRamp(ModelBuilder modelBuilder)
@@ -1159,6 +1236,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("contracts");
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.ContractNumber }).IsUnique();
             entity.HasIndex(x => new { x.TenantId, x.Status });
             entity.Property(x => x.ContractNumber).HasMaxLength(120).IsRequired();
@@ -1166,6 +1244,52 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.Property(x => x.AgencyOrPrimeName).HasMaxLength(240).IsRequired();
             entity.Property(x => x.PlaceOfPerformance).HasMaxLength(240).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(1200);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<EsrsApplicabilityEntity>(entity =>
+        {
+            entity.ToTable("esrs_applicabilities");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.DueDate });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.ReportType, x.PeriodStart, x.PeriodEnd }).IsUnique();
+            entity.HasIndex(x => x.TaskId).IsUnique();
+            entity.Property(x => x.ContractType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Agency).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.SubcontractingPlanType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.PrimeOrLowerTierRole).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.SourceClause).HasMaxLength(240);
+            entity.Property(x => x.Rationale).HasMaxLength(2000);
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).IsRequired();
+            entity.HasOne(x => x.Contract).WithMany(x => x.EsrsApplicabilities).HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Task).WithOne().HasForeignKey<EsrsApplicabilityEntity>(x => x.TaskId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborApplicabilityEntity>(entity =>
+        {
+            entity.ToTable("labor_applicabilities", table => table.HasCheckConstraint(
+                "CK_labor_applicabilities_contract_period", "contract_period_end >= contract_period_start"));
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.ContractPeriodEnd });
+            entity.HasIndex(x => x.TaskId).IsUnique().HasFilter("task_id IS NOT NULL");
+            entity.Property(x => x.OtherFarPart22Obligations).HasMaxLength(2_000);
+            entity.Property(x => x.PlaceOfPerformance).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.WageDeterminationReference).HasMaxLength(240);
+            entity.Property(x => x.SourceClause).HasMaxLength(240);
+            entity.Property(x => x.Rationale).HasMaxLength(2_000);
+            entity.Property(x => x.OwnerFunction).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ReviewNotes).HasMaxLength(2_000);
+            entity.Property(x => x.Status).IsConcurrencyToken();
+            entity.HasOne(x => x.Contract).WithMany(x => x.LaborApplicabilities)
+                .HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.SourceContractClause).WithMany().HasForeignKey(x => x.SourceContractClauseId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Task).WithOne().HasForeignKey<LaborApplicabilityEntity>(x => x.TaskId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.WageDeterminationEvidenceItem).WithMany()
+                .HasForeignKey(x => x.WageDeterminationEvidenceItemId).OnDelete(DeleteBehavior.SetNull);
             ConfigureAuditColumns(entity);
         });
 
@@ -1298,6 +1422,9 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.TenantId, x.Status, x.SourceType });
             entity.HasIndex(x => new { x.TenantId, x.AssignedExpertUserId, x.DueAt });
+            entity.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId })
+                .IsUnique()
+                .HasFilter("status = 'open' AND source_type = 'assistant_answer'");
             entity.Property(x => x.SourceType).HasMaxLength(80).IsRequired();
             entity.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
             entity.Property(x => x.Priority).HasMaxLength(40).IsRequired();
@@ -1510,6 +1637,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
                     "CK_evidence_items_effective_expiration_range",
                     "effective_at IS NULL OR expires_at IS NULL OR expires_at >= effective_at"));
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.Status });
             entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });
             entity.Property(x => x.Name).HasMaxLength(240).IsRequired();
@@ -1644,6 +1772,32 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             entity.HasOne(x => x.Control).WithMany().HasForeignKey(x => x.ControlId).OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<SprsScoreCalculationEntity>(entity =>
+        {
+            entity.ToTable("sprs_score_calculations");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.HasIndex(x => new { x.TenantId, x.AssessmentId, x.GeneratedAt });
+            entity.Property(x => x.RuleSetId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.RuleSetVersion).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.RuleSetSourceUrl).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.RuleSetSourceSha256).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.LineItemsJson).HasColumnType("jsonb");
+            entity.Property(x => x.UnresolvedGapsJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.Assessment).WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SprsScoreCalculationNoteEntity>(entity =>
+        {
+            entity.ToTable("sprs_score_calculation_notes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.HasIndex(x => new { x.TenantId, x.CalculationId, x.CreatedAt });
+            entity.Property(x => x.Note).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.ClassificationReason).HasMaxLength(600);
+            entity.HasOne(x => x.Calculation).WithMany(x => x.ReviewerNotes).HasForeignKey(x => x.CalculationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<ControlAssessmentHistoryEntity>(entity =>
         {
             entity.ToTable("control_assessment_history");
@@ -1773,6 +1927,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("subcontractors");
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.Name });
             entity.HasIndex(x => new { x.TenantId, x.Uei });
             entity.Property(x => x.RoleDescription).HasMaxLength(160).HasDefaultValue("").IsRequired();
@@ -1904,6 +2059,7 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
         {
             entity.ToTable("employees");
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.EmployeeNumber }).IsUnique();
             entity.HasIndex(x => new { x.TenantId, x.Email });
             ConfigureAuditColumns(entity);
@@ -1943,6 +2099,78 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
             ConfigureAuditColumns(entity);
         });
 
+        modelBuilder.Entity<LaborCategoryEntity>(entity =>
+        {
+            entity.ToTable("labor_categories", table =>
+            {
+                table.HasCheckConstraint("CK_labor_categories_effective_dates", "effective_end IS NULL OR effective_end >= effective_start");
+                table.HasCheckConstraint("CK_labor_categories_nonnegative_rates", "hourly_wage >= 0 AND fringe_rate >= 0");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.IsActive });
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.WageDeterminationClassification).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.HourlyWage).HasPrecision(12, 2);
+            entity.Property(x => x.FringeRate).HasPrecision(12, 2);
+            entity.Property(x => x.FringeDescription).HasMaxLength(1_000);
+            entity.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+            entity.Property(x => x.SourceReference).HasMaxLength(500).IsRequired();
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborEmployeeAssignmentEntity>(entity =>
+        {
+            entity.ToTable("labor_employee_assignments", table =>
+            {
+                table.HasCheckConstraint("CK_labor_employee_assignments_effective_dates", "effective_end IS NULL OR effective_end >= effective_start");
+                table.HasCheckConstraint("CK_labor_employee_assignments_review_metadata",
+                    "(review_status = 0 AND reviewed_by_user_id IS NULL AND reviewed_at IS NULL) OR " +
+                    "(review_status IN (1, 2) AND review_notes IS NOT NULL AND reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL)");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.EmployeeId, x.ContractId });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.Status });
+            entity.Property(x => x.WorkLocation).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.SourceReference).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ReviewNotes).HasMaxLength(1_000);
+            entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => new { x.TenantId, x.EmployeeId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Category).WithMany(x => x.Assignments).HasForeignKey(x => new { x.TenantId, x.LaborCategoryId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<LaborClassificationHistoryEntity>(entity =>
+        {
+            entity.ToTable("labor_classification_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.AssignmentId, x.ChangedAt });
+            entity.Property(x => x.PriorCategoryTitle).HasMaxLength(240);
+            entity.Property(x => x.NewCategoryTitle).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(1_000).IsRequired();
+            entity.HasOne(x => x.Assignment).WithMany(x => x.History)
+                .HasForeignKey(x => new { x.TenantId, x.AssignmentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LaborClassificationEvidenceEntity>(entity =>
+        {
+            entity.ToTable("labor_classification_evidence");
+            entity.HasKey(x => new { x.TenantId, x.AssignmentId, x.EvidenceItemId });
+            entity.Property(x => x.EvidenceType).IsRequired();
+            entity.HasOne(x => x.Assignment).WithMany(x => x.EvidenceLinks)
+                .HasForeignKey(x => new { x.TenantId, x.AssignmentId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => new { x.TenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<PayrollRecordEntity>(entity =>
         {
             entity.ToTable("payroll_records");
@@ -1957,14 +2185,202 @@ public sealed class GccsDbContext(DbContextOptions<GccsDbContext> options) : DbC
 
     private static void ConfigureReports(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<SubcontractingReportDataRowEntity>(entity =>
+        {
+            entity.ToTable("esrs_report_data_rows", table =>
+            {
+                table.HasCheckConstraint("CK_esrs_report_data_rows_amount_nonnegative", "amount >= 0");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_report_period", "report_period_end >= report_period_start");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_row_period", "row_period_end >= row_period_start AND row_period_start >= report_period_start AND row_period_end <= report_period_end");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_spr_uei", "reporting_entity_uei IS NULL OR (length(reporting_entity_uei) = 12 AND reporting_entity_uei ~ '^[A-Z0-9]{12}$')");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_spr_readiness", "spr_eligibility_confirmed = FALSE OR (reporting_role IS NOT NULL AND reporting_fiscal_year IS NOT NULL AND reporting_period IS NOT NULL AND reporting_entity_uei IS NOT NULL AND prime_contract_piid IS NOT NULL AND spr_eligibility_basis IS NOT NULL)");
+                table.HasCheckConstraint("CK_esrs_report_data_rows_spr_schema", "spr_schema_profile_id IS NULL OR (spr_schema_version IS NOT NULL AND spr_schema_source_url IS NOT NULL AND length(spr_schema_definition_sha256) = 64)");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.ReportType, x.ReportPeriodStart, x.ReportPeriodEnd });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.SubcontractorId, x.ReportType,
+                x.ReportPeriodStart, x.ReportPeriodEnd, x.RowPeriodStart, x.RowPeriodEnd,
+                x.SocioeconomicCategoryKey, x.PlanCategoryKey }).IsUnique();
+            entity.Property(x => x.SocioeconomicCategory).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.SocioeconomicCategoryKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.PlanCategory).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.PlanCategoryKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ReportType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Amount).HasPrecision(14, 2);
+            entity.Property(x => x.SourceReference).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ReportingRole).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.ReportingPeriod).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.ReportingEntityUei).HasMaxLength(12);
+            entity.Property(x => x.PrimeContractPiid).HasMaxLength(64);
+            entity.Property(x => x.SubcontractNumber).HasMaxLength(64);
+            entity.Property(x => x.SprEligibilityBasis).HasMaxLength(500);
+            entity.Property(x => x.SprSchemaProfileId).HasMaxLength(160);
+            entity.Property(x => x.SprSchemaVersion).HasMaxLength(80);
+            entity.Property(x => x.SprSchemaSourceUrl).HasMaxLength(2_000);
+            entity.Property(x => x.SprSchemaDefinitionSha256).HasMaxLength(64);
+            entity.Property(x => x.ReviewerNotes).HasMaxLength(2_000);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Contract).WithMany(x => x.SubcontractingReportDataRows)
+                .HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Subcontractor).WithMany(x => x.ReportDataRows)
+                .HasForeignKey(x => new { x.TenantId, x.SubcontractorId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Reviewer).WithMany()
+                .HasForeignKey(x => x.ReviewedByUserId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SubcontractingReportDataEvidenceEntity>(entity =>
+        {
+            entity.ToTable("esrs_report_data_evidence");
+            entity.HasKey(x => new { x.TenantId, x.ReportDataRowId, x.EvidenceItemId });
+            entity.HasIndex(x => new { x.TenantId, x.EvidenceItemId });
+            entity.HasOne(x => x.ReportDataRow).WithMany(x => x.EvidenceLinks)
+                .HasForeignKey(x => new { x.TenantId, x.ReportDataRowId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.EvidenceItem).WithMany(x => x.SubcontractingReportDataRows)
+                .HasForeignKey(x => new { x.TenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SprReportPackageEntity>(entity =>
+        {
+            entity.ToTable("spr_report_packages");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId, x.ReportType, x.PeriodStart, x.PeriodEnd, x.Version }).IsUnique();
+            entity.Property(x => x.ReportType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsConcurrencyToken();
+            entity.Property(x => x.NotSubmittedDisclaimer).HasMaxLength(1_000).IsRequired();
+            entity.Property(x => x.SnapshotJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.ReviewerName).HasMaxLength(200);
+            entity.Property(x => x.ReviewNotes).HasMaxLength(2_000);
+            entity.HasOne(x => x.Contract).WithMany().HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Reviewer).WithMany().HasForeignKey(x => x.ReviewerUserId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<SprManualSubmissionReceiptEntity>(entity =>
+        {
+            entity.ToTable("spr_manual_submission_receipts");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.PackageId, x.RecordedAt });
+            entity.Property(x => x.ConfirmationReference).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Outcome).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Notes).HasMaxLength(2_000);
+            entity.HasOne(x => x.Package).WithMany(x => x.ManualSubmissionReceipts)
+                .HasForeignKey(x => new { x.TenantId, x.PackageId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.EvidenceItem).WithMany().HasForeignKey(x => new { x.TenantId, x.EvidenceItemId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.SupersedesReceipt).WithMany().HasForeignKey(x => new { x.TenantId, x.SupersedesReceiptId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.RecordedByUser).WithMany().HasForeignKey(x => x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExternalPortalInvitationEntity>(entity =>
+        {
+            entity.ToTable("external_portal_invitations");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.Email, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.ExpiresAt });
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.Role).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsConcurrencyToken();
+            entity.Property(x => x.RevocationReason).HasMaxLength(500);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasOne(x => x.Tenant).WithMany()
+                .HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<ExternalPortalInvitationPackageScopeEntity>(entity =>
+        {
+            entity.ToTable("external_portal_invitation_package_scopes");
+            entity.HasKey(x => new { x.TenantId, x.InvitationId, x.PackageId });
+            entity.HasIndex(x => new { x.TenantId, x.PackageId });
+            entity.HasOne(x => x.Invitation).WithMany(x => x.PackageScopes)
+                .HasForeignKey(x => new { x.TenantId, x.InvitationId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExternalPortalInvitationContractScopeEntity>(entity =>
+        {
+            entity.ToTable("external_portal_invitation_contract_scopes");
+            entity.HasKey(x => new { x.TenantId, x.InvitationId, x.ContractId });
+            entity.HasIndex(x => new { x.TenantId, x.ContractId });
+            entity.HasOne(x => x.Invitation).WithMany(x => x.ContractScopes)
+                .HasForeignKey(x => new { x.TenantId, x.InvitationId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Contract).WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.ContractId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExternalPortalAccessHistoryEntity>(entity =>
+        {
+            entity.ToTable("external_portal_access_history");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.InvitationId, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.ActorUserId, x.OccurredAt });
+            entity.Property(x => x.ResultCode).HasMaxLength(64).IsRequired();
+            entity.HasOne(x => x.Invitation).WithMany(x => x.AccessHistory)
+                .HasForeignKey(x => new { x.TenantId, x.InvitationId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SharedPortalPackageEntity>(entity =>
+        {
+            entity.ToTable("shared_portal_packages");
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.TenantId, x.Id });
+            entity.HasIndex(x => new { x.TenantId, x.InvitationId, x.Version }).IsUnique();
+            entity.HasIndex(x => new { x.TenantId, x.InvitationId, x.PackageId })
+                .IsUnique()
+                .HasFilter("state = 'Active'");
+            entity.HasIndex(x => new { x.TenantId, x.State, x.ExpiresAt });
+            entity.HasIndex(x => new { x.State, x.ReminderAt, x.ReminderSentAt });
+            entity.Property(x => x.State).HasConversion<string>().HasMaxLength(64).IsConcurrencyToken();
+            entity.Property(x => x.RevocationReason).HasMaxLength(500);
+            entity.HasOne<SharedPortalPackageEntity>().WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.SupersedesSharedPackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<SharedPortalPackageEntity>().WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.ReplacementSharedPackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            ConfigureAuditColumns(entity);
+        });
+
+        modelBuilder.Entity<PortalPackageActivityEntity>(entity =>
+        {
+            entity.ToTable("portal_package_activities");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.TenantId, x.OccurredAt });
+            entity.HasIndex(x => new { x.TenantId, x.SharedPackageId, x.ActivityType });
+            entity.Property(x => x.ActivityType).HasConversion<string>().HasMaxLength(64);
+            entity.Property(x => x.Detail).HasMaxLength(500);
+            entity.HasOne(x => x.SharedPackage).WithMany()
+                .HasForeignKey(x => new { x.TenantId, x.SharedPackageId })
+                .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<ReportEntity>(entity =>
         {
             entity.ToTable("reports");
             entity.HasKey(x => x.Id);
             entity.HasAlternateKey(x => new { x.TenantId, x.Id });
             entity.HasIndex(x => new { x.TenantId, x.Type, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.Type, x.IdempotencyKey })
+                .IsUnique()
+                .HasFilter("idempotency_key IS NOT NULL");
             entity.Property(x => x.Status).IsConcurrencyToken();
             entity.Property(x => x.SnapshotJson).HasColumnType("jsonb");
+            entity.Property(x => x.IdempotencyKey).HasMaxLength(128);
+            entity.Property(x => x.RequestFingerprint).HasMaxLength(64);
             entity.Property(x => x.ClassificationReason).HasMaxLength(600);
             entity.Property(x => x.ArchiveReason).HasMaxLength(500);
             ConfigureAuditColumns(entity);

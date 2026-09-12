@@ -101,9 +101,11 @@ public sealed class ContinuousIntegrationBaselineTests
         },
         {
             "Real-stack report RBAC",
-            "Verify report and audit transaction rollback",
+            "Verify report, SPRS calculation, and audit transaction rollback",
             [
                 "ReportPostgresTransactionTests",
+                "LaborApplicabilityWageDeterminationTests",
+                "LaborApplicabilityRealStackTests",
                 "dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj"
             ]
         },
@@ -166,7 +168,7 @@ public sealed class ContinuousIntegrationBaselineTests
         AssertCiStepContains("Frontend validation", "Build frontend workspace", "npm run build:web");
         AssertCiStepContains(
             "Real-stack report RBAC",
-            "Verify report and audit transaction rollback",
+            "Verify report, SPRS calculation, and audit transaction rollback",
             "ReportPostgresTransactionTests");
         AssertCiStepContains(
             "Real-stack report RBAC",

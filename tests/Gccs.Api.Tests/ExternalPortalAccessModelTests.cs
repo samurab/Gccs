@@ -79,9 +79,46 @@ public sealed class ExternalPortalAccessModelTests
         Assert.Equal(5, events.Length);
         Assert.Contains(events, audit => audit.Summary.Contains("created", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(events, audit => audit.Summary.Contains("access was granted", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(events, audit => audit.Summary.Contains("resent", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(events, audit => audit.Summary.Contains("resend", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(events, audit => audit.Summary.Contains("extended", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(events, audit => audit.Summary.Contains("revoked", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Strong_authentication_identity_binding_and_download_permission_fail_closed()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(out _);
+        var invitation = await service.InviteAsync(
+            CreateRequest(ids) with { CanDownload = false }, ids.TenantId, ids.ActorUserId);
+
+        var noMfa = await service.ValidateAccessAsync(new ExternalPortalAccessRequest(
+            invitation.Id, ids.PackageId, ids.ContractId, ids.ActorUserId, "reviewer@example.test", false, DateTimeOffset.UtcNow));
+        var wrongEmail = await service.ValidateAccessAsync(new ExternalPortalAccessRequest(
+            invitation.Id, ids.PackageId, ids.ContractId, ids.ActorUserId, "other@example.test", true, DateTimeOffset.UtcNow));
+        var download = await service.ValidateAccessAsync(new ExternalPortalAccessRequest(
+            invitation.Id, ids.PackageId, ids.ContractId, ids.ActorUserId, "reviewer@example.test", true,
+            DateTimeOffset.UtcNow, RequiresDownloadPermission: true));
+
+        Assert.False(noMfa.Allowed);
+        Assert.False(wrongEmail.Allowed);
+        Assert.False(download.Allowed);
+    }
+
+    [Fact]
+    public async Task Revoked_invitation_cannot_be_resent_extended_or_revoked_again()
+    {
+        var ids = StoryIds.Create();
+        var service = CreateService(out _);
+        var invitation = await service.InviteAsync(CreateRequest(ids), ids.TenantId, ids.ActorUserId);
+        await service.RevokeAsync(invitation.Id, ids.TenantId, "Review withdrawn.", ids.ActorUserId);
+
+        await Assert.ThrowsAsync<ExternalPortalInvitationStateException>(() =>
+            service.ResendAsync(invitation.Id, ids.TenantId, ids.ActorUserId));
+        await Assert.ThrowsAsync<ExternalPortalInvitationStateException>(() =>
+            service.ExtendAsync(invitation.Id, ids.TenantId, DateTimeOffset.UtcNow.AddDays(60), ids.ActorUserId));
+        await Assert.ThrowsAsync<ExternalPortalInvitationStateException>(() =>
+            service.RevokeAsync(invitation.Id, ids.TenantId, "Again.", ids.ActorUserId));
     }
 
     private static ExternalPortalAccessService CreateService(out CapturingAuditEventWriter auditWriter)

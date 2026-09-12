@@ -33,6 +33,8 @@ Candidate-specific evidence:
 
 The existing `PR52-CLAIM-001` drift control remains active. Any later external copy change requires another scoped re-review.
 
+The Story 30.3 SPRS readiness report is a later external-copy and report-surface change. Its engineering controls and unresolved promotion dependencies are recorded in `docs/sprs-readiness-release-gates.md`. This existing review does not approve claims that FeDril submits to SPRS, that the default scoring methodology has qualified approval, or that a readiness report proves compliance, certification, assessment success, or government approval. A new scoped legal or contracting review is planned before that feature is described in broader customer-facing material.
+
 ## Scope
 
 Reviewed customer-facing product copy, onboarding and No-CUI acknowledgement text, upload warnings, report language, support-readiness materials, release-note requirements, pilot-onboarding requirements, and the production-readiness plan.

@@ -824,31 +824,36 @@ Phase 0 and Story 39 are non-software evidence workflows. Their `TC-*` cases are
 - **TC-30.3.4 - Report permissions enforced:** Attempt to generate or view the report as unauthorized roles and verify access is denied.
 - **TC-30.3.5 - Report generation audited:** Generate the report and verify report generation is audit logged.
 
-## 31. eSRS Support
+## 31. SAM.gov Subcontracting Plan Reporting (SPR) Support
 
-### Story 31.1: eSRS Applicability And Reporting Calendar
+### Story 31.1: SPR Applicability And Reporting Calendar
 
-- **TC-31.1.1 - eSRS applicability recorded:** Mark a contract as eSRS-applicable with report type, period, due date, and source and verify persistence.
-- **TC-31.1.2 - Calendar item created:** Activate an eSRS obligation and verify the reporting deadline appears on the compliance calendar.
-- **TC-31.1.3 - Source or rationale required:** Attempt to activate an eSRS obligation without source clause or documented rationale and verify validation fails.
-- **TC-31.1.4 - Overdue eSRS task calculated:** Seed an incomplete past-due eSRS report task and verify overdue status.
-- **TC-31.1.5 - Applicability changes audited:** Create and update eSRS applicability and verify audit events are written.
+- **TC-31.1.1 - SPR applicability recorded:** Mark a contract as SPR-applicable with report type, period, due date, and source and verify persistence.
+- **TC-31.1.2 - Calendar item created:** Activate an SPR obligation and verify the reporting deadline appears on the compliance calendar.
+- **TC-31.1.3 - Source or rationale required:** Attempt to activate an SPR obligation without source clause or documented rationale and verify validation fails.
+- **TC-31.1.4 - Overdue SPR task calculated:** Seed an incomplete past-due SPR report task and verify overdue status.
+- **TC-31.1.5 - Applicability changes audited:** Create and update SPR applicability and verify audit events are written.
 
 ### Story 31.2: Subcontracting Report Data Collection
 
-- **TC-31.2.1 - Report data row created:** Create subcontracting report data linked to contract and subcontractor records and verify required fields persist.
-- **TC-31.2.2 - Report data validation enforced:** Attempt negative amounts, missing socioeconomic category, duplicate rows, and period mismatches and verify validation errors.
+- **TC-31.2.1 - Report data row created:** Create SAM.gov SPR preparation data linked to contract and subcontractor records and verify required identity, period, eligibility, category, amount, and source fields persist.
+- **TC-31.2.2 - Report data validation enforced:** Attempt negative or fractional amounts, missing or invalid socioeconomic category, missing/mismatched UEI or PIID, invalid reporting period, unconfirmed eligibility, duplicate rows, and period mismatches and verify validation errors without writes or audit events.
 - **TC-31.2.3 - Evidence link stored:** Attach supporting evidence to a report data row and verify the link is returned in detail and package preparation.
-- **TC-31.2.4 - Review required for package inclusion:** Attempt to include unreviewed data rows in a final package and verify they are blocked unless explicitly accepted.
+- **TC-31.2.4 - SPR readiness and review required for package inclusion:** Attempt to include legacy/unverified or unreviewed data rows in a final package and verify they are blocked until SPR-ready and reviewed or explicitly accepted.
 - **TC-31.2.5 - Data row changes audited:** Create, update, accept, and reject report data rows and verify audit events.
+- **TC-31.2.6 - Governed schema provenance:** Verify canonical writes resolve a reviewed, published, effective schema profile, persist its version/source/definition hash, and fail closed for draft or invalid profiles.
+- **TC-31.2.7 - Legacy remediation is explicit and tenant-scoped:** Verify legacy rows expose field-level blockers and tenant-resolved suggestions without writes; saving enrichment resets review and audits changed fields/readiness.
 
-### Story 31.3: eSRS Report Package
+### Story 31.3: SAM.gov SPR Report Package
 
-- **TC-31.3.1 - Generate eSRS preparation package:** Generate a package for contract, period, and report type and verify subcontractor/spend summaries, exceptions, evidence references, and generated date.
-- **TC-31.3.2 - Not-submitted language present:** Verify package states that GCCS has not submitted the report to eSRS.
-- **TC-31.3.3 - Package approval metadata complete:** Approve a package and verify reviewer, approval date, package version, and review notes are stored.
+- **TC-31.3.1 - Generate SAM.gov SPR preparation package:** Generate a package for contract, period, and report type and verify subcontractor/spend summaries, exceptions, evidence references, and generated date.
+- **TC-31.3.2 - Not-submitted language present:** Verify package states that FeDril has not submitted the report to SAM.gov.
+- **TC-31.3.3 - Package review metadata complete:** Start review and approve a non-empty package, then verify reviewer, approval date, package version, and review notes are stored; verify an empty exception-only package cannot be approved.
 - **TC-31.3.4 - Package permissions enforced:** Attempt package generation, approval, and viewing with unauthorized roles and verify denial.
 - **TC-31.3.5 - Package generation and approval audited:** Verify package generation, approval, supersede, and archive actions are audit logged.
+- **TC-31.3.6 - Immutable export remains preparation-only:** Export HTML and JSON, verify snapshot schema provenance and not-submitted language remain present, and verify export is permission-gated and audited.
+- **TC-31.3.7 - Manual receipt history is append-only:** Record a user-reported external receipt only for an approved package, link eligible evidence, supersede a prior receipt without mutation, and verify tenant isolation and audit history.
+- **TC-31.3.8 - Direct submission fails closed:** Verify capability reports disabled and the submission route returns `spr_submission_unavailable` while no authorized contractor-facing provider is configured.
 
 ## 32. Labor Compliance Module
 

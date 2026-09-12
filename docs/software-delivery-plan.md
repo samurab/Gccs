@@ -79,7 +79,7 @@ Allowed default MVP data includes company profile metadata, contract metadata, c
 #### Compliance Calendar
 
 - Track SAM renewal, certification renewals, CMMC affirmation, insurance certificates, training, policy reviews, subcontractor expiration dates, contract deliverables, and option period notices.
-- Defer SPRS score calculation, eSRS integration, and wage determination update automation to later phases unless pilot customers make them launch blockers.
+- Defer SPRS score calculation, SAM.gov SPR preparation support, and wage determination update automation to later phases unless pilot customers make them launch blockers. External SAM.gov submission or synchronization is not planned without an approved integration contract.
 - Allow tasks to be linked to obligations, contracts, controls, subcontractors, or evidence.
 - Support due dates, reminders, assignment, status, priority, and audit trail.
 
@@ -301,7 +301,7 @@ Deliverables:
 - SPRS score calculator.
 - CUI data-flow mapping.
 - Labor compliance module.
-- eSRS support.
+- SAM.gov subcontracting plan reporting preparation support (no external submission or synchronization).
 - Prime contractor portal.
 - Auditor read-only portal.
 - AI assistant with citations and human-review guardrails.

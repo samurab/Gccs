@@ -101,6 +101,155 @@ export type CurrentUserAccess = {
   rolePermissionMatrix: Record<string, string[]>;
 };
 
+export type AssistantWorkflowContext = "obligation" | "contract" | "evidence" | "cmmc" | "ssp" | "poam" | "labor" | "subcontractor";
+export type AssistantDraftActionType = "Task" | "EvidenceRequest" | "Note" | "ReviewItem";
+export type AssistantFeedbackType = "Helpful" | "Incorrect" | "MissingSource" | "NeedsExpertReview";
+export type AssistantCitation = {
+  sourceId: string;
+  title: string;
+  sourceType: string;
+  sourceUrl: string | null;
+  tenantRecordReference: string | null;
+  excerptPointer: string;
+  version: string;
+  lastReviewedAt: string | null;
+};
+export type GuardedAssistantAnswer = {
+  id: string;
+  tenantId: string;
+  workflowContext: AssistantWorkflowContext;
+  status: "Draft" | "NeedsReview" | "Blocked" | string;
+  answer: string;
+  citations: AssistantCitation[];
+  supportStatus: "SourceSupported" | "NeedsReview" | "Unsupported" | string;
+  draftLabel: string;
+  requiresReview: boolean;
+  escalationRecommended: boolean;
+  blockedReason: string | null;
+  createdAt: string;
+  humanReviewStatus: string;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  reviewDecision: string | null;
+  reviewNotes: string | null;
+};
+export type AssistantDraftAction = {
+  id: string;
+  tenantId: string;
+  answerId: string;
+  actionType: AssistantDraftActionType;
+  title: string;
+  body: string;
+  status: "Draft";
+  createdByUserId: string;
+  createdAt: string;
+};
+export type AssistantFeedback = {
+  id: string;
+  tenantId: string;
+  answerId: string;
+  actorUserId: string;
+  feedbackType: AssistantFeedbackType;
+  reason: string;
+  createdAt: string;
+};
+export type ExpertReviewItem = {
+  id: string;
+  tenantId: string;
+  sourceType: "clause_candidate" | "suggested_obligation" | "assistant_answer" | string;
+  sourceId: string;
+  reason: string;
+  priority: string;
+  topic: string;
+  assignedExpertUserId: string | null;
+  dueAt: string | null;
+  status: string;
+  createdByUserId: string;
+  createdAt: string;
+  resolvedByUserId: string | null;
+  resolvedAt: string | null;
+  resolutionDecision: string | null;
+  resolutionNotes: string | null;
+};
+export type AssistantExpertReviewEscalation = {
+  reviewItem: ExpertReviewItem;
+  feedback: AssistantFeedback | null;
+  created: boolean;
+};
+export type AssistantExpertReviewQueueItem = {
+  reviewItem: ExpertReviewItem;
+  answer: GuardedAssistantAnswer | null;
+};
+
+export type SharedPortalPackage = {
+  id: string;
+  tenantId: string;
+  packageId: string;
+  invitationId: string;
+  version: number;
+  state: "Active" | "Superseded" | "Expired" | "Revoked" | "Archived";
+  expiresAt: string;
+  reminderAt: string;
+  reminderSentAt: string | null;
+  supersedesSharedPackageId: string | null;
+  replacementSharedPackageId: string | null;
+  replacementPackageId: string | null;
+  revocationReason: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type PortalPackageActivity = {
+  id: string;
+  sharedPackageId: string;
+  tenantId: string;
+  activityType: "Access" | "Comment" | "Download" | "ExpirationReminder" | "Expiration" | "Supersede" | "Revocation" | "Reissue" | "Archive";
+  actorUserId: string;
+  occurredAt: string;
+  detail: string | null;
+};
+
+export type PortalPackageActivityReport = {
+  tenantId: string;
+  activities: PortalPackageActivity[];
+};
+
+export type ExternalPortalRole = "PrimeReviewer" | "AuditorReviewer" | "AdvisorReviewer" | "PackageRecipient";
+export type ExternalPortalInvitation = {
+  id: string;
+  tenantId: string;
+  email: string;
+  role: ExternalPortalRole;
+  packageIds: string[];
+  contractIds: string[];
+  expiresAt: string;
+  canDownload: boolean;
+  strongAuthenticationRequired: boolean;
+  status: "Pending" | "Accepted" | "Revoked";
+  externalUserId: string | null;
+  lastAccessedAt: string | null;
+  revokedAt: string | null;
+  revocationReason: string | null;
+  resendCount: number;
+  lastResentAt: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type ExternalPortalAccessHistory = {
+  id: string;
+  invitationId: string;
+  tenantId: string;
+  actorUserId: string;
+  packageId: string;
+  contractId: string | null;
+  allowed: boolean;
+  resultCode: string;
+  occurredAt: string;
+};
+
 export type TenantWorkspace = {
   membershipId: string;
   tenantId: string;
@@ -943,6 +1092,76 @@ export type CmmcPoamItem = {
 
 export type UpsertCmmcPoamItemRequest = Omit<CmmcPoamItem, "id" | "tenantId" | "assessmentId" | "isOverdue" | "createdAt" | "updatedAt">;
 
+export type SprsScoringRuleSet = {
+  id: string;
+  version: string;
+  state: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceSha256: string | null;
+  effectiveDate: string | null;
+  lastReviewedAt: string | null;
+  owner: string;
+  reviewer: string | null;
+  reviewDate: string | null;
+  maximumScore: number;
+  rules: Array<{
+    requirementId: string;
+    title: string;
+    ruleType: string;
+    conditionalDeductions: Array<{ code: string; deduction: number; when: string }> | null;
+  }>;
+};
+
+export type SprsScoreCalculationLineItem = {
+  requirementId: string;
+  controlId: string | null;
+  title: string;
+  ruleDeduction: number;
+  appliedDeduction: number;
+  reason: string;
+  applicabilityRationale: string | null;
+  controlStatus: string | null;
+  assessmentResult: string | null;
+};
+
+export type SprsUnresolvedGap = {
+  requirementId: string;
+  controlId: string | null;
+  title: string;
+  reason: string;
+};
+
+export type SprsScoreCalculation = {
+  id: string;
+  tenantId: string;
+  assessmentId: string;
+  ruleSetId: string;
+  ruleSetVersion: string;
+  ruleSetSourceUrl: string;
+  ruleSetSourceSha256: string;
+  maximumScore: number;
+  score: number;
+  totalDeduction: number;
+  lineItems: SprsScoreCalculationLineItem[];
+  unresolvedGaps: SprsUnresolvedGap[];
+  manualNotes: string;
+  manualNotesClassification: ContentClassification | null;
+  generatedByUserId: string;
+  generatedAt: string;
+};
+
+export type CreateSprsScoreCalculationRequest = {
+  ruleSetId: string;
+  manualNotes: string | null;
+  conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string }>;
+  manualNotesClassification: {
+    classification: string;
+    source: "UserSelected";
+    reason: string;
+  } | null;
+};
+
 export type SspSectionType = "SystemDescription" | "AuthorizationBoundary" | "Environment" | "Interconnections" | "Users" | "Roles" | "DataTypes" | "CuiHandlingPosture" | "ControlImplementationNarratives" | "InheritedResponsibilities" | "ExternalServiceProviders" | "EvidenceReferences";
 export type SspSectionStatus = "Draft" | "InReview" | "Approved" | "Superseded" | "Archived";
 export type SspLinkedRecordType = "CompanyProfile" | "SystemBoundary" | "Asset" | "CmmcControl" | "ResponsibilityMatrix" | "Policy" | "PoamItem" | "Evidence";
@@ -1396,7 +1615,17 @@ export type ComplianceStatusReport = {
 };
 
 export type CmmcReadinessReport = ComplianceStatusReport;
+export type SprsReadinessReport = ComplianceStatusReport & {
+  isReplay: boolean;
+};
 export type SubcontractorComplianceReport = ComplianceStatusReport;
+
+export type SprsReadinessReportRequest = {
+  ruleSetId: string;
+  reviewerNotes: string | null;
+  leadershipReviewStatus: "Pending" | "Reviewed" | "NeedsChanges" | null;
+  conditionalDeductionSelections: Array<{ requirementId: string; optionCode: string }> | null;
+};
 
 export type EvidencePackageGenerateRequest = {
   title: string;
@@ -1597,6 +1826,134 @@ export type ContractRecord = {
 };
 
 export type UpsertContractRequest = Omit<ContractRecord, "id" | "tenantId" | "createdAt" | "updatedAt">;
+
+export type LaborApplicabilityStatus = "Draft" | "Active" | "Inactive";
+export type LaborApplicabilityReviewStatus = "Draft" | "PendingReview" | "Reviewed" | "Rejected";
+export type LaborApplicability = {
+  id: string; tenantId: string; contractId: string; taskId: string | null;
+  scaApplicable: boolean; dbaApplicable: boolean; otherFarPart22Obligations: string | null;
+  placeOfPerformance: string; contractPeriodStart: string; contractPeriodEnd: string;
+  wageDeterminationReference: string | null; wageDeterminationEvidenceItemId: string | null;
+  sourceContractClauseId: string | null; sourceClause: string | null; rationale: string | null;
+  ownerFunction: string; status: LaborApplicabilityStatus; reviewStatus: LaborApplicabilityReviewStatus;
+  reviewNotes: string | null; reviewedByUserId: string | null; reviewedAt: string | null;
+  reviewTask: { id: string; tenantId: string; contractId: string; title: string; description: string; status: string; dueAt: string | null } | null;
+  createdAt: string; updatedAt: string | null; laborStandard: string;
+};
+export type UpsertLaborApplicabilityRequest = Omit<LaborApplicability,
+  "id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "reviewTask" | "createdAt" | "updatedAt" | "laborStandard">;
+
+export type LaborCategory = {
+  id: string; tenantId: string; contractId: string; title: string;
+  wageDeterminationClassification: string; hourlyWage: number; fringeRate: number;
+  fringeDescription: string; effectiveStart: string; effectiveEnd: string | null;
+  sourceReference: string; isActive: boolean; createdAt: string; updatedAt: string | null;
+};
+export type LaborCategoryRequest = Omit<LaborCategory, "id" | "tenantId" | "isActive" | "createdAt" | "updatedAt">;
+export type LaborClassificationHistory = {
+  id: string; assignmentId: string; priorCategoryId: string | null; priorCategoryTitle: string | null;
+  newCategoryId: string; newCategoryTitle: string; actorUserId: string; changedAt: string; reason: string;
+};
+export type LaborClassificationReviewStatus = "PendingReview" | "Reviewed" | "Rejected";
+export type LaborEmployeeAssignment = {
+  id: string; tenantId: string; contractId: string; employeeId: string;
+  employeeName: string | null; employeeEmail: string | null; categoryId: string;
+  laborCategoryTitle: string; workLocation: string; effectiveStart: string; effectiveEnd: string | null;
+  status: "Active" | "Inactive"; sourceReference: string; evidenceItemIds: string[];
+  history: LaborClassificationHistory[]; reviewStatus: LaborClassificationReviewStatus;
+  reviewNotes: string | null; reviewedByUserId: string | null; reviewedAt: string | null;
+};
+export type LaborEmployeeAssignmentRequest = {
+  employeeId: string; contractId: string; categoryId: string; workLocation: string;
+  effectiveStart: string; effectiveEnd: string | null; sourceReference: string; evidenceItemIds: string[];
+};
+export type LaborEmployeeOption = { id: string; tenantId: string; employeeNumber: string; name: string; email: string };
+
+export type EsrsApplicability = {
+  id: string;
+  tenantId: string;
+  contractId: string;
+  taskId: string;
+  contractType: string;
+  agency: string;
+  subcontractingPlanType: string;
+  primeOrLowerTierRole: string;
+  reportType: "Isr" | "Ssr";
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  sourceClause: string | null;
+  rationale: string | null;
+  status: "Open" | "InProgress" | "Completed" | "Canceled";
+  ownerFunction: string;
+  assignedToUserId: string | null;
+  reviewedByUserId: string;
+  reviewedAt: string;
+  createdAt: string;
+  updatedAt: string | null;
+  isOverdue: boolean;
+};
+
+export type UpsertEsrsApplicabilityRequest = Omit<
+  EsrsApplicability,
+  "id" | "tenantId" | "taskId" | "status" | "reviewedByUserId" | "reviewedAt" | "createdAt" | "updatedAt" | "isOverdue"
+>;
+
+export type EsrsScheduleTemplate = {
+  key: string;
+  reportType: "Isr" | "Ssr";
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  sourceCitation: string;
+  sourceUrl: string;
+  guidance: string;
+};
+
+export type SubcontractingReportDataReviewStatus = "Draft" | "PendingReview" | "Reviewed" | "Accepted" | "Rejected";
+export type SprReportingRole = "PrimeContractor" | "Subcontractor";
+export type SprReportingPeriod = "March31" | "September30" | "Final";
+export type SprSchemaProfile = {
+  id: string; version: string; state: "Draft" | "Approved" | "Published" | "Superseded" | "Retired";
+  sourceName: string; sourceUrl: string; sourcePublishedDate: string | null; effectiveDate: string | null;
+  retiredDate: string | null; lastReviewedAt: string | null; owner: string; reviewer: string | null;
+  reviewDate: string | null; definitionSha256: string; priorFiscalYearsAllowed: number;
+  wholeDollarAmounts: boolean; eligibilityConfirmationRequired: boolean;
+  reportingPeriods: SprReportingPeriod[]; categories: string[];
+};
+export type SubcontractingReportDataRow = {
+  id: string; tenantId: string; contractId: string; subcontractorId: string; reportType: "Isr" | "Ssr";
+  reportPeriodStart: string; reportPeriodEnd: string; rowPeriodStart: string; rowPeriodEnd: string;
+  socioeconomicCategory: string; planCategory: string; amount: number; supportingEvidenceItemIds: string[];
+  sourceReference: string | null; reviewStatus: SubcontractingReportDataReviewStatus;
+  reviewedByUserId: string | null; reviewedAt: string | null; reviewerNotes: string | null;
+  reportingRole: SprReportingRole | null; reportingFiscalYear: number | null; reportingPeriod: SprReportingPeriod | null;
+  reportingEntityUei: string | null; primeContractPiid: string | null; subcontractNumber: string | null;
+  sprEligibilityConfirmed: boolean; sprEligibilityBasis: string | null; sprReadinessStatus: "NeedsVerification" | "Ready";
+  sprSchemaProfileId: string | null; sprSchemaVersion: string | null; sprSchemaSourceUrl: string | null;
+  sprSchemaDefinitionSha256: string | null; sprReadinessBlockers: string[];
+  version: number; createdAt: string; updatedAt: string | null; isPackageEligible: boolean;
+};
+export type UpsertSubcontractingReportDataRowRequest = Omit<SubcontractingReportDataRow,
+  "id" | "tenantId" | "reviewStatus" | "reviewedByUserId" | "reviewedAt" | "reviewerNotes" |
+  "version" | "createdAt" | "updatedAt" | "isPackageEligible" | "sprReadinessStatus" | "sprReadinessBlockers" |
+  "sprSchemaProfileId" | "sprSchemaVersion" | "sprSchemaSourceUrl" | "sprSchemaDefinitionSha256"> & { expectedVersion?: number | null };
+export type SprSchemaReference = { id: string; version: string; sourceUrl: string; definitionSha256: string };
+export type SprReportPackage = {
+  id: string; tenantId: string; contractId: string; reportType: "Isr" | "Ssr"; periodStart: string; periodEnd: string;
+  status: "Draft" | "InReview" | "Approved" | "Superseded" | "Archived"; version: number;
+  notSubmittedDisclaimer: string; reviewerName: string | null; reviewerUserId: string | null;
+  approvedAt: string | null; reviewNotes: string | null; generatedAt: string; updatedAt: string | null;
+  snapshot: { contractId: string; reportType: "Isr" | "Ssr"; periodStart: string; periodEnd: string;
+    rowCount: number; totalSpend: number; spendSummaries: { socioeconomicCategory: string; totalSpend: number; subcontractorCount: number }[];
+    evidenceReferences: { rowId: string; evidenceItemId: string }[]; exceptions: string[]; schemaProfiles: SprSchemaReference[] };
+};
+export type SprManualSubmissionReceipt = {
+  id: string; tenantId: string; packageId: string; submittedAt: string; confirmationReference: string;
+  outcome: "Submitted" | "Accepted" | "Rejected" | "Corrected"; notes: string | null;
+  evidenceItemId: string | null; supersedesReceiptId: string | null; recordedByUserId: string; recordedAt: string;
+};
+export type SprSubmissionCapability = { enabled: boolean; reason: string };
 
 export type ContractDocument = {
   id: string;
@@ -2036,6 +2393,58 @@ export async function getCurrentUserAccess(): Promise<CurrentUserAccess> {
   return normalizeCurrentUserAccess(await getRequiredJson<CurrentUserAccess>("/api/me/access"));
 }
 
+export function askAssistant(question: string, workflowContext: AssistantWorkflowContext): Promise<ApiMutationResult<GuardedAssistantAnswer>> {
+  return postJsonResult<GuardedAssistantAnswer>("/api/assistant/questions", { question, workflowContext });
+}
+
+export function getGuardedAssistantAnswer(answerId: string): Promise<GuardedAssistantAnswer> {
+  return getRequiredJson<GuardedAssistantAnswer>(`/api/assistant/answers/${answerId}`);
+}
+
+export function createAssistantDraftAction(
+  answerId: string,
+  actionType: AssistantDraftActionType,
+  title: string,
+  body: string
+): Promise<ApiMutationResult<AssistantDraftAction>> {
+  return postJsonResult<AssistantDraftAction>(`/api/assistant/answers/${answerId}/actions`, { actionType, title, body });
+}
+
+export function submitAssistantFeedback(
+  answerId: string,
+  feedbackType: AssistantFeedbackType,
+  reason: string
+): Promise<ApiMutationResult<AssistantFeedback>> {
+  return postJsonResult<AssistantFeedback>(`/api/assistant/answers/${answerId}/feedback`, { feedbackType, reason });
+}
+
+export function escalateAssistantAnswer(
+  answerId: string,
+  reason: string
+): Promise<ApiMutationResult<AssistantExpertReviewEscalation>> {
+  return postJsonResult<AssistantExpertReviewEscalation>(`/api/assistant/answers/${answerId}/expert-review`, { reason });
+}
+
+export function getAssistantExpertReviewItems(): Promise<AssistantExpertReviewQueueItem[]> {
+  return getRequiredJson<AssistantExpertReviewQueueItem[]>("/api/assistant/expert-review-items");
+}
+
+export function resolveExpertReviewItem(
+  itemId: string,
+  decision: string,
+  notes: string
+): Promise<ApiMutationResult<ExpertReviewItem>> {
+  return postJsonResult<ExpertReviewItem>(`/api/expert-review-items/${itemId}/resolve`, { decision, notes });
+}
+
+export function assignExpertReviewItem(
+  itemId: string,
+  assignedExpertUserId: string,
+  dueAt: string | null
+): Promise<ApiMutationResult<ExpertReviewItem>> {
+  return postJsonResult<ExpertReviewItem>(`/api/expert-review-items/${itemId}/assign`, { assignedExpertUserId, dueAt });
+}
+
 export async function getMyTenantWorkspaces(): Promise<TenantWorkspaceList> {
   return getRequiredJson<TenantWorkspaceList>("/api/me/tenants");
 }
@@ -2468,6 +2877,14 @@ export async function getCmmcPoamItems(assessmentId: string): Promise<CmmcPoamIt
   return getJson<CmmcPoamItem[]>(`/api/cmmc/assessments/${assessmentId}/poam-items`, []);
 }
 
+export async function getSprsScoringRuleSets(): Promise<SprsScoringRuleSet[]> {
+  return getJson<SprsScoringRuleSet[]>("/api/cmmc/sprs/rule-sets", []);
+}
+
+export async function getSprsScoreCalculations(assessmentId: string): Promise<SprsScoreCalculation[]> {
+  return getJson<SprsScoreCalculation[]>(`/api/cmmc/assessments/${assessmentId}/sprs-calculations`, []);
+}
+
 export async function getSspSections(): Promise<SspSection[]> {
   return getRequiredJson<SspSection[]>("/api/compliance/ssp/sections");
 }
@@ -2897,6 +3314,202 @@ export async function updateContract(
   return putJsonResult<ContractRecord>(`/api/contracts/${contractId}`, request);
 }
 
+export const getContractLaborApplicabilities = (contractId: string) =>
+  getRequiredJson<LaborApplicability[]>(`/api/contracts/${contractId}/labor-applicabilities`);
+
+export const createLaborApplicability = (contractId: string, request: UpsertLaborApplicabilityRequest) =>
+  postJsonResult<LaborApplicability>(`/api/contracts/${contractId}/labor-applicabilities`, request);
+
+export const updateLaborApplicability = (contractId: string, applicabilityId: string, request: UpsertLaborApplicabilityRequest) =>
+  putJsonResult<LaborApplicability>(`/api/contracts/${contractId}/labor-applicabilities/${applicabilityId}`, request);
+
+export const updateLaborApplicabilityStatus = (contractId: string, applicabilityId: string, status: LaborApplicabilityStatus) =>
+  patchJsonResult<LaborApplicability>(`/api/contracts/${contractId}/labor-applicabilities/${applicabilityId}/status`, { status });
+
+export const uploadLaborWageDetermination = (
+  contractId: string, applicabilityId: string, file: File, classification: string,
+  classificationReason: string, noCuiAttestation: boolean
+) => {
+  const form = new FormData();
+  form.set("file", file); form.set("classification", classification);
+  form.set("classificationReason", classificationReason.trim());
+  form.set("noCuiAttestation", String(noCuiAttestation));
+  form.set("containsPotentialCui", String(classification === "Cui"));
+  return postFormResult<EvidenceFileAccess>(`/api/contracts/${contractId}/labor-applicabilities/${applicabilityId}/wage-determination/file`, form);
+};
+
+export const getContractLaborCategories = (contractId: string) =>
+  getRequiredJson<LaborCategory[]>(`/api/contracts/${contractId}/labor-categories`);
+export const createLaborCategory = (contractId: string, request: LaborCategoryRequest) =>
+  postJsonResult<LaborCategory>(`/api/contracts/${contractId}/labor-categories`, request);
+export const deactivateLaborCategory = (contractId: string, categoryId: string) =>
+  postJsonResult<LaborCategory>(`/api/contracts/${contractId}/labor-categories/${categoryId}/deactivate`, {});
+export const getLaborClassificationEmployees = () =>
+  getRequiredJson<LaborEmployeeOption[]>("/api/labor-classification/employees");
+export const getContractLaborAssignments = (contractId: string) =>
+  getRequiredJson<LaborEmployeeAssignment[]>(`/api/contracts/${contractId}/labor-assignments`);
+export const createLaborAssignment = (contractId: string, request: LaborEmployeeAssignmentRequest) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments`, request);
+export const deactivateLaborAssignment = (contractId: string, assignmentId: string) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments/${assignmentId}/deactivate`, {});
+export const reclassifyLaborAssignment = (contractId: string, assignmentId: string, newCategoryId: string, reason: string) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments/${assignmentId}/reclassify`, { newCategoryId, reason });
+export const reviewLaborAssignment = (contractId: string, assignmentId: string, status: Exclude<LaborClassificationReviewStatus, "PendingReview">, notes: string) =>
+  postJsonResult<LaborEmployeeAssignment>(`/api/contracts/${contractId}/labor-assignments/${assignmentId}/review`, { status, notes });
+
+export const getContractEsrsApplicabilities = (contractId: string) =>
+  getRequiredJson<EsrsApplicability[]>(`/api/contracts/${contractId}/subcontracting-plan-reporting-applicabilities`);
+
+export const getEsrsScheduleTemplates = (fiscalYear: number) =>
+  getRequiredJson<EsrsScheduleTemplate[]>(`/api/subcontracting-plan-reports/schedule-templates?fiscalYear=${fiscalYear}`);
+
+export const createEsrsApplicability = (contractId: string, request: UpsertEsrsApplicabilityRequest) =>
+  postJsonResult<EsrsApplicability>(`/api/contracts/${contractId}/subcontracting-plan-reporting-applicabilities`, request);
+
+export const updateEsrsApplicability = (contractId: string, applicabilityId: string, request: UpsertEsrsApplicabilityRequest) =>
+  putJsonResult<EsrsApplicability>(`/api/contracts/${contractId}/subcontracting-plan-reporting-applicabilities/${applicabilityId}`, request);
+
+export const updateEsrsApplicabilityStatus = (contractId: string, applicabilityId: string, status: EsrsApplicability["status"]) =>
+  patchJsonResult<EsrsApplicability>(`/api/contracts/${contractId}/subcontracting-plan-reporting-applicabilities/${applicabilityId}/status`, { status });
+
+export const getContractEsrsReportData = (contractId: string) =>
+  getRequiredJson<SubcontractingReportDataRow[]>(`/api/contracts/${contractId}/esrs-report-data`);
+
+export const getContractSubcontractingPlanReportData = (contractId: string) =>
+  getRequiredJson<SubcontractingReportDataRow[]>(`/api/contracts/${contractId}/subcontracting-plan-report-data`);
+
+export const getCurrentSprSchemaProfile = () =>
+  getRequiredJson<SprSchemaProfile>("/api/subcontracting-plan-reports/schema-profiles/current");
+
+export const createContractEsrsReportData = (contractId: string, request: UpsertSubcontractingReportDataRowRequest) =>
+  postJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/esrs-report-data`, request);
+
+export const createContractSubcontractingPlanReportData = (contractId: string, request: UpsertSubcontractingReportDataRowRequest) =>
+  postJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/subcontracting-plan-report-data`, request);
+
+export const updateContractEsrsReportData = (contractId: string, rowId: string, request: UpsertSubcontractingReportDataRowRequest) =>
+  putJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/esrs-report-data/${rowId}`, request);
+
+export const updateContractSubcontractingPlanReportData = (contractId: string, rowId: string, request: UpsertSubcontractingReportDataRowRequest) =>
+  putJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/subcontracting-plan-report-data/${rowId}`, request);
+
+export const reviewContractEsrsReportData = (contractId: string, rowId: string,
+  status: "Reviewed" | "Accepted" | "Rejected", reviewerNotes: string | null, expectedVersion: number) =>
+  patchJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/esrs-report-data/${rowId}/review`, { status, reviewerNotes, expectedVersion });
+
+export const reviewContractSubcontractingPlanReportData = (contractId: string, rowId: string,
+  status: "Reviewed" | "Accepted" | "Rejected", reviewerNotes: string | null, expectedVersion: number) =>
+  patchJsonResult<SubcontractingReportDataRow>(`/api/contracts/${contractId}/subcontracting-plan-report-data/${rowId}/review`, { status, reviewerNotes, expectedVersion });
+
+export const importEsrsReportDataCsv = (csvContent: string) =>
+  postJsonResult<SubcontractingReportDataRow[]>("/api/esrs/report-data/import", { csvContent });
+
+export const importSubcontractingPlanReportDataCsv = (csvContent: string) =>
+  postJsonResult<SubcontractingReportDataRow[]>("/api/subcontracting-plan-reports/report-data/import", { csvContent });
+
+export async function downloadEsrsReportDataTemplate(): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/esrs/report-data/import-template`, { headers: await getApiHeaders() });
+    if (!response.ok) return { data: null, error: await readErrorMessage(response) };
+    return { data: { blob: await response.blob(), fileName: "subcontracting-report-data-template.csv" }, error: null };
+  } catch { return { data: null, error: "The import template could not be downloaded." }; }
+}
+
+export async function downloadSubcontractingPlanReportDataTemplate(): Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/subcontracting-plan-reports/report-data/import-template`, { headers: await getApiHeaders() });
+    if (!response.ok) return { data: null, error: await readErrorMessage(response) };
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? "sam-gov-spr-report-data-template.csv";
+    return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")) }, error: null };
+  } catch { return { data: null, error: "The SAM.gov SPR import template could not be downloaded." }; }
+}
+
+export const getSprReportPackages = () =>
+  getRequiredJson<SprReportPackage[]>("/api/subcontracting-plan-reports/packages");
+
+export const getSharedPortalPackages = () =>
+  getRequiredJson<SharedPortalPackage[]>("/api/portal/shared-packages");
+
+export const getExternalPortalInvitations = () =>
+  getRequiredJson<ExternalPortalInvitation[]>("/api/portal/invitations");
+
+export const createExternalPortalInvitation = (request: {
+  email: string; role: ExternalPortalRole; packageIds: string[]; contractIds: string[];
+  expiresAt: string; canDownload: boolean; strongAuthenticationRequired: boolean;
+}) => postJsonResult<ExternalPortalInvitation>("/api/portal/invitations", request);
+
+export const resendExternalPortalInvitation = (invitationId: string) =>
+  postJsonResult<ExternalPortalInvitation>(`/api/portal/invitations/${invitationId}/resend`, {});
+
+export const extendExternalPortalInvitation = (invitationId: string, expiresAt: string) =>
+  postJsonResult<ExternalPortalInvitation>(`/api/portal/invitations/${invitationId}/extend`, { expiresAt });
+
+export const revokeExternalPortalInvitation = (invitationId: string, reason: string) =>
+  postJsonResult<ExternalPortalInvitation>(`/api/portal/invitations/${invitationId}/revoke`, { reason });
+
+export const getExternalPortalAccessHistory = (invitationId: string) =>
+  getRequiredJson<ExternalPortalAccessHistory[]>(`/api/portal/invitations/${invitationId}/access-history`);
+
+export const getPortalPackageActivityReport = () =>
+  getRequiredJson<PortalPackageActivityReport>("/api/portal/shared-packages/activity-report");
+
+export const expireSharedPortalPackage = (sharedPackageId: string) =>
+  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/expire`, {});
+
+export const revokeSharedPortalPackage = (sharedPackageId: string, reason: string) =>
+  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/revoke`, { reason });
+
+export const supersedeSharedPortalPackage = (sharedPackageId: string, replacementSharedPackageId: string) =>
+  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/supersede`,
+    { replacementSharedPackageId });
+
+export const reissueSharedPortalPackage = (
+  sharedPackageId: string,
+  replacementPackageId: string,
+  expiresAt: string,
+  expirationReminderDays = 7
+) => postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/reissue`,
+  { replacementPackageId, expiresAt, expirationReminderDays });
+
+export const archiveSharedPortalPackage = (sharedPackageId: string) =>
+  postJsonResult<SharedPortalPackage>(`/api/portal/shared-packages/${sharedPackageId}/archive`, {});
+
+export const getSprSubmissionCapability = () =>
+  getRequiredJson<SprSubmissionCapability>("/api/subcontracting-plan-reports/submission-capability");
+
+export const createSprReportPackage = (contractId: string, reportType: "Isr" | "Ssr", periodStart: string, periodEnd: string) =>
+  postJsonResult<SprReportPackage>("/api/subcontracting-plan-reports/packages",
+    { contractId, reportType, periodStart, periodEnd });
+
+export const reviewSprReportPackage = (packageId: string, action: "begin-review" | "approve" | "supersede" | "archive",
+  reviewerName: string, reviewNotes: string | null) =>
+  postJsonResult<SprReportPackage>(`/api/subcontracting-plan-reports/packages/${packageId}/${action}`, { reviewerName, reviewNotes });
+
+export const getSprManualSubmissionReceipts = (packageId: string) =>
+  getRequiredJson<SprManualSubmissionReceipt[]>(`/api/subcontracting-plan-reports/packages/${packageId}/manual-submission-receipts`);
+
+export const createSprManualSubmissionReceipt = (packageId: string, request: {
+  submittedAt: string; confirmationReference: string; outcome: SprManualSubmissionReceipt["outcome"];
+  notes: string | null; evidenceItemId: string | null; supersedesReceiptId?: string | null;
+}) => postJsonResult<SprManualSubmissionReceipt>(
+  `/api/subcontracting-plan-reports/packages/${packageId}/manual-submission-receipts`, request);
+
+export async function downloadSprReportPackage(packageId: string, format: "Html" | "Json"):
+  Promise<ApiMutationResult<{ blob: Blob; fileName: string }>> {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5062";
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/subcontracting-plan-reports/packages/${packageId}/export?format=${format}`,
+      { headers: await getApiHeaders() });
+    if (!response.ok) return { data: null, error: await readErrorMessage(response) };
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? `sam-gov-spr-package.${format.toLowerCase()}`;
+    return { data: { blob: await response.blob(), fileName: decodeURIComponent(fileName.replace(/"/g, "")) }, error: null };
+  } catch { return { data: null, error: "The SPR preparation package could not be downloaded." }; }
+}
+
 export async function createContractDocument(
   contractId: string,
   request: ContractDocumentUploadRequest
@@ -3124,6 +3737,13 @@ export async function createCmmcPoamItemFromGap(
   );
 }
 
+export async function createSprsScoreCalculation(
+  assessmentId: string,
+  request: CreateSprsScoreCalculationRequest
+): Promise<ApiMutationResult<SprsScoreCalculation>> {
+  return postJsonResult<SprsScoreCalculation>(`/api/cmmc/assessments/${assessmentId}/sprs-calculations`, request);
+}
+
 export async function createSubcontractor(request: UpsertSubcontractorRequest): Promise<ApiMutationResult<Subcontractor>> {
   return postJsonResult<Subcontractor>("/api/subcontractors", request);
 }
@@ -3195,6 +3815,19 @@ export async function generateComplianceStatusReport(classification: string): Pr
 
 export async function generateCmmcReadinessReport(assessmentId: string, classification: string): Promise<ApiMutationResult<CmmcReadinessReport>> {
   return postJsonResult<CmmcReadinessReport>(`/api/reports/cmmc-readiness?assessmentId=${encodeURIComponent(assessmentId)}`, { classification: { classification } });
+}
+
+export async function generateSprsReadinessReport(
+  assessmentId: string,
+  request: SprsReadinessReportRequest,
+  classification: string,
+  idempotencyKey: string
+): Promise<ApiMutationResult<SprsReadinessReport>> {
+  return postJsonResult<SprsReadinessReport>(
+    `/api/reports/sprs-readiness?assessmentId=${encodeURIComponent(assessmentId)}`,
+    { ...request, classification: { classification } },
+    { "Idempotency-Key": idempotencyKey }
+  );
 }
 
 export async function generateSubcontractorComplianceReport(

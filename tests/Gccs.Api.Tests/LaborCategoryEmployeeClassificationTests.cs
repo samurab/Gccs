@@ -12,7 +12,7 @@ public sealed class LaborCategoryEmployeeClassificationTests
     public async Task TC_32_2_1_Create_labor_category_and_employee_assignment()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
+        var service = CreateService(ids, out _);
 
         var category = await service.CreateCategoryAsync(CreateCategory(ids), ids.TenantId, ids.ActorUserId);
         var assignment = await service.CreateAssignmentAsync(CreateAssignment(ids, category.Id), ids.TenantId, ids.ActorUserId);
@@ -33,13 +33,14 @@ public sealed class LaborCategoryEmployeeClassificationTests
     public async Task TC_32_2_2_Assignment_validation_rejects_inactive_missing_source_and_date_conflict()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
+        var service = CreateService(ids, out _);
         var category = await service.CreateCategoryAsync(CreateCategory(ids), ids.TenantId, ids.ActorUserId);
         await service.CreateAssignmentAsync(CreateAssignment(ids, category.Id), ids.TenantId, ids.ActorUserId);
-        await service.DeactivateCategoryAsync(category.Id, ids.ActorUserId);
+        var inactiveCategory = await service.CreateCategoryAsync(CreateCategory(ids) with { Title = "Inactive technician" }, ids.TenantId, ids.ActorUserId);
+        await service.DeactivateCategoryAsync(inactiveCategory.Id, ids.ContractId, ids.TenantId, ids.ActorUserId);
 
         await Assert.ThrowsAsync<LaborClassificationValidationException>(() =>
-            service.CreateAssignmentAsync(CreateAssignment(ids, category.Id) with { EmployeeId = ids.SecondEmployeeId }, ids.TenantId, ids.ActorUserId));
+            service.CreateAssignmentAsync(CreateAssignment(ids, inactiveCategory.Id) with { EmployeeId = ids.SecondEmployeeId }, ids.TenantId, ids.ActorUserId));
 
         var activeCategory = await service.CreateCategoryAsync(CreateCategory(ids) with { Title = "Systems Administrator" }, ids.TenantId, ids.ActorUserId);
         await Assert.ThrowsAsync<LaborClassificationValidationException>(() =>
@@ -52,12 +53,12 @@ public sealed class LaborCategoryEmployeeClassificationTests
     public async Task TC_32_2_3_Sensitive_employee_fields_are_permission_restricted()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
+        var service = CreateService(ids, out _);
         var category = await service.CreateCategoryAsync(CreateCategory(ids), ids.TenantId, ids.ActorUserId);
         var assignment = await service.CreateAssignmentAsync(CreateAssignment(ids, category.Id), ids.TenantId, ids.ActorUserId);
 
-        var hrView = await service.ViewAssignmentAsync(assignment.Id, canViewSensitiveEmployeeData: true);
-        var restrictedView = await service.ViewAssignmentAsync(assignment.Id, canViewSensitiveEmployeeData: false);
+        var hrView = await service.ViewAssignmentAsync(assignment.Id, ids.TenantId, canViewSensitiveEmployeeData: true);
+        var restrictedView = await service.ViewAssignmentAsync(assignment.Id, ids.TenantId, canViewSensitiveEmployeeData: false);
 
         Assert.Equal("Taylor Employee", hrView?.EmployeeName);
         Assert.Equal("taylor@example.test", hrView?.EmployeeEmail);
@@ -71,12 +72,12 @@ public sealed class LaborCategoryEmployeeClassificationTests
     public async Task TC_32_2_4_Classification_history_preserves_prior_new_actor_timestamp_and_reason()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out _);
+        var service = CreateService(ids, out _);
         var original = await service.CreateCategoryAsync(CreateCategory(ids), ids.TenantId, ids.ActorUserId);
         var next = await service.CreateCategoryAsync(CreateCategory(ids) with { Title = "Network Technician III" }, ids.TenantId, ids.ActorUserId);
         var assignment = await service.CreateAssignmentAsync(CreateAssignment(ids, original.Id), ids.TenantId, ids.ActorUserId);
 
-        var reclassified = await service.ReclassifyAsync(assignment.Id, next.Id, "Promotion and revised WD mapping.", ids.ActorUserId);
+        var reclassified = await service.ReclassifyAsync(assignment.Id, next.Id, "Promotion and revised WD mapping.", ids.ContractId, ids.TenantId, ids.ActorUserId);
 
         var history = Assert.Single(reclassified?.History ?? []);
         Assert.Equal(original.Id, history.PriorCategoryId);
@@ -92,13 +93,13 @@ public sealed class LaborCategoryEmployeeClassificationTests
     public async Task TC_32_2_5_Create_update_deactivate_and_reclassify_are_audited()
     {
         var ids = StoryIds.Create();
-        var service = CreateService(out var auditWriter);
+        var service = CreateService(ids, out var auditWriter);
         var original = await service.CreateCategoryAsync(CreateCategory(ids), ids.TenantId, ids.ActorUserId);
         var next = await service.CreateCategoryAsync(CreateCategory(ids) with { Title = "Network Technician III" }, ids.TenantId, ids.ActorUserId);
         var assignment = await service.CreateAssignmentAsync(CreateAssignment(ids, original.Id), ids.TenantId, ids.ActorUserId);
-        await service.UpdateAssignmentAsync(assignment.Id, CreateAssignment(ids, original.Id) with { WorkLocation = "Richmond, VA" }, ids.ActorUserId);
-        await service.DeactivateAssignmentAsync(assignment.Id, ids.ActorUserId);
-        await service.ReclassifyAsync(assignment.Id, next.Id, "Correction after HR review.", ids.ActorUserId);
+        await service.UpdateAssignmentAsync(assignment.Id, CreateAssignment(ids, original.Id) with { WorkLocation = "Richmond, VA" }, ids.TenantId, ids.ActorUserId);
+        await service.DeactivateAssignmentAsync(assignment.Id, ids.ContractId, ids.TenantId, ids.ActorUserId);
+        await service.ReclassifyAsync(assignment.Id, next.Id, "Correction after HR review.", ids.ContractId, ids.TenantId, ids.ActorUserId);
 
         var assignmentEvents = auditWriter.Events.Where(auditEvent => auditEvent.EntityType == "LaborEmployeeAssignment").ToArray();
         Assert.Equal(4, assignmentEvents.Length);
@@ -113,10 +114,13 @@ public sealed class LaborCategoryEmployeeClassificationTests
         });
     }
 
-    private static LaborClassificationService CreateService(out CapturingAuditEventWriter auditWriter)
+    private static LaborClassificationService CreateService(StoryIds ids, out CapturingAuditEventWriter auditWriter)
     {
         auditWriter = new CapturingAuditEventWriter();
-        return new LaborClassificationService(new InMemoryLaborClassificationRepository(), auditWriter);
+        var repository = new InMemoryLaborClassificationRepository();
+        repository.AddEmployee(new LaborEmployeeOptionDto(ids.EmployeeId, ids.TenantId, "E-100", "Taylor Employee", "taylor@example.test"));
+        repository.AddEmployee(new LaborEmployeeOptionDto(ids.SecondEmployeeId, ids.TenantId, "E-200", "Morgan Employee", "morgan@example.test"));
+        return new LaborClassificationService(repository, auditWriter);
     }
 
     private static LaborCategoryRequest CreateCategory(StoryIds ids) =>
@@ -134,8 +138,6 @@ public sealed class LaborCategoryEmployeeClassificationTests
     private static LaborEmployeeAssignmentRequest CreateAssignment(StoryIds ids, Guid categoryId) =>
         new(
             ids.EmployeeId,
-            "Taylor Employee",
-            "taylor@example.test",
             ids.ContractId,
             categoryId,
             "Norfolk, VA",

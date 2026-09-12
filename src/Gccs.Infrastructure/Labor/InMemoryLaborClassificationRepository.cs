@@ -6,6 +6,9 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
 {
     private readonly List<LaborCategoryDto> _categories = [];
     private readonly List<LaborEmployeeAssignmentDto> _assignments = [];
+    private readonly List<LaborEmployeeOptionDto> _employees = [];
+
+    public void AddEmployee(LaborEmployeeOptionDto employee) => _employees.Add(employee);
 
     public Task<LaborCategoryDto> CreateCategoryAsync(
         LaborCategoryRequest request,
@@ -35,10 +38,11 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
     public Task<LaborCategoryDto?> UpdateCategoryAsync(
         Guid categoryId,
         LaborCategoryRequest request,
+        Guid tenantId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var existing = _categories.SingleOrDefault(category => category.Id == categoryId);
+        var existing = _categories.SingleOrDefault(category => category.Id == categoryId && category.TenantId == tenantId);
         if (existing is null)
         {
             return Task.FromResult<LaborCategoryDto?>(null);
@@ -64,10 +68,11 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
     public Task<LaborCategoryDto?> SetCategoryActiveAsync(
         Guid categoryId,
         bool isActive,
+        Guid tenantId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var existing = _categories.SingleOrDefault(category => category.Id == categoryId);
+        var existing = _categories.SingleOrDefault(category => category.Id == categoryId && category.TenantId == tenantId);
         if (existing is null)
         {
             return Task.FromResult<LaborCategoryDto?>(null);
@@ -78,8 +83,8 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
         return Task.FromResult<LaborCategoryDto?>(updated);
     }
 
-    public Task<LaborCategoryDto?> FindCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(_categories.SingleOrDefault(category => category.Id == categoryId));
+    public Task<LaborCategoryDto?> FindCategoryAsync(Guid categoryId, Guid tenantId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_categories.SingleOrDefault(category => category.Id == categoryId && category.TenantId == tenantId));
 
     public Task<IReadOnlyList<LaborCategoryDto>> ListCategoriesAsync(
         Guid tenantId,
@@ -94,19 +99,32 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
         return Task.FromResult<IReadOnlyList<LaborCategoryDto>>(categories);
     }
 
+    public Task<bool> HasActiveAssignmentsAsync(Guid categoryId, Guid tenantId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_assignments.Any(x => x.TenantId == tenantId && x.CategoryId == categoryId && x.Status == LaborAssignmentStatus.Active));
+
+    public Task<bool> WouldInvalidateAssignmentsAsync(Guid categoryId, LaborCategoryRequest request, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        var requestedEnd = request.EffectiveEnd ?? DateOnly.MaxValue;
+        return Task.FromResult(_assignments.Any(x => x.TenantId == tenantId && x.CategoryId == categoryId &&
+            x.Status == LaborAssignmentStatus.Active && (x.ContractId != request.ContractId ||
+            x.EffectiveStart < request.EffectiveStart || (x.EffectiveEnd ?? DateOnly.MaxValue) > requestedEnd)));
+    }
+
     public Task<LaborEmployeeAssignmentDto> CreateAssignmentAsync(
         LaborEmployeeAssignmentRequest request,
         Guid tenantId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var category = _categories.Single(candidate => candidate.Id == request.CategoryId);
+        var category = _categories.Single(candidate => candidate.Id == request.CategoryId && candidate.TenantId == tenantId);
+        var employee = _employees.SingleOrDefault(candidate => candidate.Id == request.EmployeeId && candidate.TenantId == tenantId)
+            ?? throw new LaborClassificationValidationException("The employee was not found for the current tenant.");
         var assignment = new LaborEmployeeAssignmentDto(
             Guid.NewGuid(),
             tenantId,
             request.EmployeeId,
-            request.EmployeeName,
-            request.EmployeeEmail,
+            employee.Name,
+            employee.Email,
             request.ContractId,
             request.CategoryId,
             category.Title,
@@ -115,9 +133,15 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
             request.EffectiveEnd,
             LaborAssignmentStatus.Active,
             request.SourceReference ?? string.Empty,
+            request.EvidenceItemIds?.Distinct().ToArray() ?? [],
             [],
+            LaborClassificationReviewStatus.PendingReview,
+            null,
+            null,
+            null,
             DateTimeOffset.UtcNow,
-            null);
+            null)
+        { EvidenceLinks = LaborClassificationService.NormalizeEvidenceLinks(request) };
         _assignments.Add(assignment);
         return Task.FromResult(assignment);
     }
@@ -125,21 +149,24 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
     public Task<LaborEmployeeAssignmentDto?> UpdateAssignmentAsync(
         Guid assignmentId,
         LaborEmployeeAssignmentRequest request,
+        Guid tenantId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var existing = _assignments.SingleOrDefault(assignment => assignment.Id == assignmentId);
+        var existing = _assignments.SingleOrDefault(assignment => assignment.Id == assignmentId && assignment.TenantId == tenantId);
         if (existing is null)
         {
             return Task.FromResult<LaborEmployeeAssignmentDto?>(null);
         }
 
-        var category = _categories.Single(candidate => candidate.Id == request.CategoryId);
+        var category = _categories.Single(candidate => candidate.Id == request.CategoryId && candidate.TenantId == tenantId);
+        var employee = _employees.SingleOrDefault(candidate => candidate.Id == request.EmployeeId && candidate.TenantId == tenantId)
+            ?? throw new LaborClassificationValidationException("The employee was not found for the current tenant.");
         var updated = existing with
         {
             EmployeeId = request.EmployeeId,
-            EmployeeName = request.EmployeeName,
-            EmployeeEmail = request.EmployeeEmail,
+            EmployeeName = employee.Name,
+            EmployeeEmail = employee.Email,
             ContractId = request.ContractId,
             CategoryId = request.CategoryId,
             LaborCategoryTitle = category.Title,
@@ -147,6 +174,12 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
             EffectiveStart = request.EffectiveStart,
             EffectiveEnd = request.EffectiveEnd,
             SourceReference = request.SourceReference ?? string.Empty,
+            EvidenceItemIds = LaborClassificationService.NormalizeEvidenceLinks(request).Select(x => x.EvidenceItemId).ToArray(),
+            EvidenceLinks = LaborClassificationService.NormalizeEvidenceLinks(request),
+            ReviewStatus = LaborClassificationReviewStatus.PendingReview,
+            ReviewNotes = null,
+            ReviewedByUserId = null,
+            ReviewedAt = null,
             UpdatedAt = DateTimeOffset.UtcNow
         };
         ReplaceAssignment(existing, updated);
@@ -156,10 +189,11 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
     public Task<LaborEmployeeAssignmentDto?> SetAssignmentStatusAsync(
         Guid assignmentId,
         LaborAssignmentStatus status,
+        Guid tenantId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var existing = _assignments.SingleOrDefault(assignment => assignment.Id == assignmentId);
+        var existing = _assignments.SingleOrDefault(assignment => assignment.Id == assignmentId && assignment.TenantId == tenantId);
         if (existing is null)
         {
             return Task.FromResult<LaborEmployeeAssignmentDto?>(null);
@@ -174,11 +208,12 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
         Guid assignmentId,
         Guid newCategoryId,
         string reason,
+        Guid tenantId,
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var existing = _assignments.SingleOrDefault(assignment => assignment.Id == assignmentId);
-        var newCategory = _categories.SingleOrDefault(category => category.Id == newCategoryId);
+        var existing = _assignments.SingleOrDefault(assignment => assignment.Id == assignmentId && assignment.TenantId == tenantId);
+        var newCategory = _categories.SingleOrDefault(category => category.Id == newCategoryId && category.TenantId == tenantId);
         if (existing is null || newCategory is null || !newCategory.IsActive)
         {
             return Task.FromResult<LaborEmployeeAssignmentDto?>(null);
@@ -201,14 +236,41 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
             CategoryId = newCategory.Id,
             LaborCategoryTitle = newCategory.Title,
             History = history,
+            ReviewStatus = LaborClassificationReviewStatus.PendingReview,
+            ReviewNotes = null,
+            ReviewedByUserId = null,
+            ReviewedAt = null,
             UpdatedAt = DateTimeOffset.UtcNow
         };
         ReplaceAssignment(existing, updated);
         return Task.FromResult<LaborEmployeeAssignmentDto?>(updated);
     }
 
-    public Task<LaborEmployeeAssignmentDto?> FindAssignmentAsync(Guid assignmentId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(_assignments.SingleOrDefault(assignment => assignment.Id == assignmentId));
+    public Task<LaborEmployeeAssignmentDto?> ReviewAssignmentAsync(
+        Guid assignmentId,
+        LaborClassificationReviewStatus status,
+        string notes,
+        Guid tenantId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var existing = _assignments.SingleOrDefault(x => x.Id == assignmentId && x.TenantId == tenantId);
+        if (existing is null) return Task.FromResult<LaborEmployeeAssignmentDto?>(null);
+        var now = DateTimeOffset.UtcNow;
+        var updated = existing with
+        {
+            ReviewStatus = status,
+            ReviewNotes = notes,
+            ReviewedByUserId = actorUserId,
+            ReviewedAt = now,
+            UpdatedAt = now
+        };
+        ReplaceAssignment(existing, updated);
+        return Task.FromResult<LaborEmployeeAssignmentDto?>(updated);
+    }
+
+    public Task<LaborEmployeeAssignmentDto?> FindAssignmentAsync(Guid assignmentId, Guid tenantId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_assignments.SingleOrDefault(assignment => assignment.Id == assignmentId && assignment.TenantId == tenantId));
 
     public Task<IReadOnlyList<LaborEmployeeAssignmentDto>> ListAssignmentsAsync(
         Guid tenantId,
@@ -240,6 +302,9 @@ public sealed class InMemoryLaborClassificationRepository : ILaborClassification
             requestedEnd >= assignment.EffectiveStart);
         return Task.FromResult(conflict);
     }
+
+    public Task<IReadOnlyList<LaborEmployeeOptionDto>> ListEmployeesAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<LaborEmployeeOptionDto>>(_employees.Where(x => x.TenantId == tenantId).OrderBy(x => x.Name).ToArray());
 
     private void ReplaceCategory(LaborCategoryDto existing, LaborCategoryDto updated)
     {

@@ -6,6 +6,9 @@ using Gccs.Domain.Labor;
 using Gccs.Domain.People;
 using Gccs.Domain.Reports;
 using Gccs.Domain.Vendors;
+using Gccs.Application.Reports;
+using Gccs.Application.Portals;
+using Gccs.Application.Labor;
 
 namespace Gccs.Infrastructure.Persistence.Models;
 
@@ -47,6 +50,7 @@ public sealed class EvidenceItemEntity : AuditedEntity, IClassifiedContentEntity
     public ICollection<EvidenceVendorEntity> Vendors { get; set; } = [];
     public ICollection<EvidenceEmployeeEntity> Employees { get; set; } = [];
     public ICollection<EvidenceFileVersionEntity> FileVersions { get; set; } = [];
+    public ICollection<SubcontractingReportDataEvidenceEntity> SubcontractingReportDataRows { get; set; } = [];
 }
 
 public sealed class EvidenceRequestEntity : AuditedEntity
@@ -207,6 +211,46 @@ public sealed class ControlAssessmentEntity
     public AssessmentEntity? Assessment { get; set; }
     public ControlEntity? Control { get; set; }
     public ICollection<ControlAssessmentHistoryEntity> History { get; set; } = [];
+}
+
+public sealed class SprsScoreCalculationEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid AssessmentId { get; set; }
+    public string RuleSetId { get; set; } = string.Empty;
+    public string RuleSetVersion { get; set; } = string.Empty;
+    public string RuleSetSourceUrl { get; set; } = string.Empty;
+    public string RuleSetSourceSha256 { get; set; } = string.Empty;
+    public int MaximumScore { get; set; }
+    public int Score { get; set; }
+    public int TotalDeduction { get; set; }
+    public string LineItemsJson { get; set; } = "[]";
+    public string UnresolvedGapsJson { get; set; } = "[]";
+    public Guid GeneratedByUserId { get; set; }
+    public DateTimeOffset GeneratedAt { get; set; }
+
+    public AssessmentEntity? Assessment { get; set; }
+    public ICollection<SprsScoreCalculationNoteEntity> ReviewerNotes { get; set; } = [];
+}
+
+public sealed class SprsScoreCalculationNoteEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid CalculationId { get; set; }
+    public string Note { get; set; } = string.Empty;
+    public ContentClassification Classification { get; set; } = ContentClassification.Unclassified;
+    public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.UserSelected;
+    public decimal? ClassificationConfidence { get; set; }
+    public Guid? ClassificationReviewedByUserId { get; set; }
+    public DateTimeOffset? ClassificationReviewedAt { get; set; }
+    public string? ClassificationReason { get; set; }
+    public bool ClassificationIsApprovedDemoContent { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public SprsScoreCalculationEntity? Calculation { get; set; }
 }
 
 public sealed class ControlAssessmentHistoryEntity
@@ -407,6 +451,186 @@ public sealed class SubcontractorEntity : AuditedEntity
     public ICollection<ContractSubcontractorEntity> Contracts { get; set; } = [];
     public ICollection<SubcontractorEvidenceEntity> EvidenceItems { get; set; } = [];
     public ICollection<SubcontractorEvidenceRequestEntity> EvidenceRequests { get; set; } = [];
+    public ICollection<SubcontractingReportDataRowEntity> ReportDataRows { get; set; } = [];
+}
+
+public sealed class SubcontractingReportDataRowEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContractId { get; set; }
+    public Guid SubcontractorId { get; set; }
+    public EsrsReportType ReportType { get; set; }
+    public DateOnly ReportPeriodStart { get; set; }
+    public DateOnly ReportPeriodEnd { get; set; }
+    public DateOnly RowPeriodStart { get; set; }
+    public DateOnly RowPeriodEnd { get; set; }
+    public string SocioeconomicCategory { get; set; } = string.Empty;
+    public string SocioeconomicCategoryKey { get; set; } = string.Empty;
+    public string PlanCategory { get; set; } = string.Empty;
+    public string PlanCategoryKey { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string SourceReference { get; set; } = string.Empty;
+    public SprReportingRole? ReportingRole { get; set; }
+    public int? ReportingFiscalYear { get; set; }
+    public SprReportingPeriod? ReportingPeriod { get; set; }
+    public string? ReportingEntityUei { get; set; }
+    public string? PrimeContractPiid { get; set; }
+    public string? SubcontractNumber { get; set; }
+    public bool SprEligibilityConfirmed { get; set; }
+    public string? SprEligibilityBasis { get; set; }
+    public string? SprSchemaProfileId { get; set; }
+    public string? SprSchemaVersion { get; set; }
+    public string? SprSchemaSourceUrl { get; set; }
+    public string? SprSchemaDefinitionSha256 { get; set; }
+    public SubcontractingReportDataReviewStatus ReviewStatus { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? ReviewerNotes { get; set; }
+    public int Version { get; set; }
+
+    public ContractEntity? Contract { get; set; }
+    public SubcontractorEntity? Subcontractor { get; set; }
+    public UserEntity? Reviewer { get; set; }
+    public ICollection<SubcontractingReportDataEvidenceEntity> EvidenceLinks { get; set; } = [];
+}
+
+public sealed class SubcontractingReportDataEvidenceEntity
+{
+    public Guid TenantId { get; set; }
+    public Guid ReportDataRowId { get; set; }
+    public Guid EvidenceItemId { get; set; }
+    public SubcontractingReportDataRowEntity? ReportDataRow { get; set; }
+    public EvidenceItemEntity? EvidenceItem { get; set; }
+}
+
+public sealed class SprReportPackageEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContractId { get; set; }
+    public EsrsReportType ReportType { get; set; }
+    public DateOnly PeriodStart { get; set; }
+    public DateOnly PeriodEnd { get; set; }
+    public EsrsReportPackageStatus Status { get; set; }
+    public int Version { get; set; }
+    public string NotSubmittedDisclaimer { get; set; } = string.Empty;
+    public string SnapshotJson { get; set; } = "{}";
+    public string? ReviewerName { get; set; }
+    public Guid? ReviewerUserId { get; set; }
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public string? ReviewNotes { get; set; }
+    public DateTimeOffset GeneratedAt { get; set; }
+
+    public ContractEntity? Contract { get; set; }
+    public UserEntity? Reviewer { get; set; }
+    public ICollection<SprManualSubmissionReceiptEntity> ManualSubmissionReceipts { get; set; } = [];
+}
+
+public sealed class SprManualSubmissionReceiptEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid PackageId { get; set; }
+    public DateTimeOffset SubmittedAt { get; set; }
+    public string ConfirmationReference { get; set; } = string.Empty;
+    public SprManualSubmissionOutcome Outcome { get; set; }
+    public string? Notes { get; set; }
+    public Guid? EvidenceItemId { get; set; }
+    public Guid? SupersedesReceiptId { get; set; }
+    public Guid RecordedByUserId { get; set; }
+    public DateTimeOffset RecordedAt { get; set; }
+
+    public SprReportPackageEntity? Package { get; set; }
+    public EvidenceItemEntity? EvidenceItem { get; set; }
+    public SprManualSubmissionReceiptEntity? SupersedesReceipt { get; set; }
+    public UserEntity? RecordedByUser { get; set; }
+}
+
+public sealed class SharedPortalPackageEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid PackageId { get; set; }
+    public Guid InvitationId { get; set; }
+    public int Version { get; set; }
+    public SharedPortalPackageState State { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset ReminderAt { get; set; }
+    public DateTimeOffset? ReminderSentAt { get; set; }
+    public Guid? SupersedesSharedPackageId { get; set; }
+    public Guid? ReplacementSharedPackageId { get; set; }
+    public Guid? ReplacementPackageId { get; set; }
+    public string? RevocationReason { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+}
+
+public sealed class ExternalPortalInvitationEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public ExternalPortalRole Role { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public bool CanDownload { get; set; }
+    public bool StrongAuthenticationRequired { get; set; }
+    public ExternalPortalInvitationStatus Status { get; set; }
+    public Guid? ExternalUserId { get; set; }
+    public DateTimeOffset? LastAccessedAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public string? RevocationReason { get; set; }
+    public int ResendCount { get; set; }
+    public DateTimeOffset? LastResentAt { get; set; }
+    public long Version { get; set; }
+
+    public TenantEntity? Tenant { get; set; }
+    public ICollection<ExternalPortalInvitationPackageScopeEntity> PackageScopes { get; set; } = [];
+    public ICollection<ExternalPortalInvitationContractScopeEntity> ContractScopes { get; set; } = [];
+    public ICollection<ExternalPortalAccessHistoryEntity> AccessHistory { get; set; } = [];
+}
+
+public sealed class ExternalPortalInvitationPackageScopeEntity
+{
+    public Guid TenantId { get; set; }
+    public Guid InvitationId { get; set; }
+    public Guid PackageId { get; set; }
+    public ExternalPortalInvitationEntity? Invitation { get; set; }
+}
+
+public sealed class ExternalPortalInvitationContractScopeEntity
+{
+    public Guid TenantId { get; set; }
+    public Guid InvitationId { get; set; }
+    public Guid ContractId { get; set; }
+    public ExternalPortalInvitationEntity? Invitation { get; set; }
+    public ContractEntity? Contract { get; set; }
+}
+
+public sealed class ExternalPortalAccessHistoryEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid InvitationId { get; set; }
+    public Guid ActorUserId { get; set; }
+    public Guid PackageId { get; set; }
+    public Guid? ContractId { get; set; }
+    public bool Allowed { get; set; }
+    public string ResultCode { get; set; } = string.Empty;
+    public DateTimeOffset OccurredAt { get; set; }
+    public ExternalPortalInvitationEntity? Invitation { get; set; }
+}
+
+public sealed class PortalPackageActivityEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid SharedPackageId { get; set; }
+    public PortalPackageActivityType ActivityType { get; set; }
+    public Guid ActorUserId { get; set; }
+    public DateTimeOffset OccurredAt { get; set; }
+    public string? Detail { get; set; }
+
+    public SharedPortalPackageEntity? SharedPackage { get; set; }
 }
 
 public sealed class FlowDownClauseEntity : AuditedEntity
@@ -622,6 +846,77 @@ public sealed class LaborClassificationEntity : AuditedEntity
     public Guid? EvidenceItemId { get; set; }
 }
 
+public sealed class LaborCategoryEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContractId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string WageDeterminationClassification { get; set; } = string.Empty;
+    public decimal HourlyWage { get; set; }
+    public decimal FringeRate { get; set; }
+    public string FringeDescription { get; set; } = string.Empty;
+    public string Currency { get; set; } = "USD";
+    public DateOnly EffectiveStart { get; set; }
+    public DateOnly? EffectiveEnd { get; set; }
+    public string SourceReference { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+
+    public ContractEntity? Contract { get; set; }
+    public ICollection<LaborEmployeeAssignmentEntity> Assignments { get; set; } = [];
+}
+
+public sealed class LaborEmployeeAssignmentEntity : AuditedEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid ContractId { get; set; }
+    public Guid LaborCategoryId { get; set; }
+    public string WorkLocation { get; set; } = string.Empty;
+    public DateOnly EffectiveStart { get; set; }
+    public DateOnly? EffectiveEnd { get; set; }
+    public LaborAssignmentStatus Status { get; set; } = LaborAssignmentStatus.Active;
+    public string SourceReference { get; set; } = string.Empty;
+    public LaborClassificationReviewStatus ReviewStatus { get; set; } = LaborClassificationReviewStatus.PendingReview;
+    public string? ReviewNotes { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+
+    public EmployeeEntity? Employee { get; set; }
+    public ContractEntity? Contract { get; set; }
+    public LaborCategoryEntity? Category { get; set; }
+    public ICollection<LaborClassificationHistoryEntity> History { get; set; } = [];
+    public ICollection<LaborClassificationEvidenceEntity> EvidenceLinks { get; set; } = [];
+}
+
+public sealed class LaborClassificationHistoryEntity
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid AssignmentId { get; set; }
+    public Guid? PriorCategoryId { get; set; }
+    public string? PriorCategoryTitle { get; set; }
+    public Guid NewCategoryId { get; set; }
+    public string NewCategoryTitle { get; set; } = string.Empty;
+    public Guid ActorUserId { get; set; }
+    public DateTimeOffset ChangedAt { get; set; }
+    public string Reason { get; set; } = string.Empty;
+
+    public LaborEmployeeAssignmentEntity? Assignment { get; set; }
+}
+
+public sealed class LaborClassificationEvidenceEntity
+{
+    public Guid TenantId { get; set; }
+    public Guid AssignmentId { get; set; }
+    public Guid EvidenceItemId { get; set; }
+    public LaborEvidenceType EvidenceType { get; set; } = LaborEvidenceType.ClassificationReview;
+
+    public LaborEmployeeAssignmentEntity? Assignment { get; set; }
+    public EvidenceItemEntity? EvidenceItem { get; set; }
+}
+
 public sealed class PayrollRecordEntity : AuditedEntity
 {
     public Guid Id { get; set; }
@@ -654,6 +949,8 @@ public sealed class ReportEntity : AuditedEntity, IClassifiedContentEntity, ICon
     public string? StorageUri { get; set; }
     public string SnapshotJson { get; set; } = "{}";
     public string ExportHtml { get; set; } = string.Empty;
+    public string? IdempotencyKey { get; set; }
+    public string? RequestFingerprint { get; set; }
     public ContentClassification Classification { get; set; } = ContentClassification.Unclassified;
     public ContentClassificationSource ClassificationSource { get; set; } = ContentClassificationSource.SystemSuggested;
     public decimal? ClassificationConfidence { get; set; }

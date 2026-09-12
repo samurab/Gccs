@@ -5,6 +5,7 @@ import {
   correctPlatformOwnerInvitation,
   getCurrentUserAccess,
   getEvidencePackage,
+  generateSprsReadinessReport,
   getPlatformAccess,
   getRecentReports,
   getReportArtifact,
@@ -470,6 +471,35 @@ describe("FeDril API client", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ reason: "Original remains authoritative." })
+      })
+    );
+  });
+
+  it("sends the caller-owned idempotency key for SPRS report generation", async () => {
+    vi.stubEnv("DEV", true);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "33333333-3333-3333-3333-333333333330", isReplay: false })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateSprsReadinessReport(
+      "22222222-2222-2222-2222-222222222220",
+      {
+        ruleSetId: "reviewed-rules",
+        reviewerNotes: null,
+        leadershipReviewStatus: "Pending",
+        conditionalDeductionSelections: []
+      },
+      "Unclassified",
+      "sprs-operation-123"
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:5062/api/reports/sprs-readiness?assessmentId=22222222-2222-2222-2222-222222222220",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "Idempotency-Key": "sprs-operation-123" })
       })
     );
   });

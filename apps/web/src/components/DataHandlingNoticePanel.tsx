@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { acknowledgeDataHandlingNotice, getDataHandlingNoticeAcknowledgements, getPublishedDataHandlingNotice, type DataHandlingNotice } from "@/lib/api";
+import { Button } from "@/components/ui";
 
 const workflowLabels: Record<string, string> = {
   Onboarding: "Onboarding",
@@ -74,7 +75,7 @@ export function DataHandlingNoticePanel({ tenantId, mode, workflowContext }: { t
       <h3>{notice.title}</h3><p>Version {notice.version} · {notice.mode}</p><p>{notice.body}</p>
       {accepted ? <p>Current notice acknowledged for this workflow.</p> : <>
         <label><input type="checkbox" checked={checked} disabled={saving} onChange={event => setChecked(event.target.checked)} /> I have read and acknowledge this notice.</label>
-        <button type="button" disabled={!checked || saving} onClick={() => void acknowledge()}>{saving ? "Recording…" : "Acknowledge current notice"}</button>
+        <Button type="button" variant="primary" disabled={!checked || saving} onClick={() => void acknowledge()}>{saving ? "Recording…" : "Acknowledge current notice"}</Button>
       </>}
     </>}
     {status && <p role="status">{status}</p>}

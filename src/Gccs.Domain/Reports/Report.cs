@@ -25,7 +25,9 @@ public enum ReportType
     SamSbaProfile,
     SubcontractorCompliance,
     AuditTrail,
-    ExecutiveRiskDashboard
+    ExecutiveRiskDashboard,
+    SprsReadiness,
+    LaborCompliance
 }
 
 public enum ReportStatus

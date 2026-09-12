@@ -1,4 +1,6 @@
 using Gccs.Application.Audit;
+using Gccs.Application.Common;
+using Gccs.Application.Tenancy;
 using Gccs.Domain.Audit;
 using Gccs.Domain.Cmmc;
 
@@ -8,7 +10,8 @@ public sealed class SprsScoreCalculationService(
     ICmmcAssessmentRepository assessmentRepository,
     ISprsScoringRuleRepository scoringRuleRepository,
     ISprsScoreCalculationHistoryRepository historyRepository,
-    IAuditEventWriter auditEventWriter)
+    IAuditEventWriter auditEventWriter,
+    ContentClassificationPolicy? classificationPolicy = null)
 {
     public async Task<SprsScoreCalculationDto?> CalculateAsync(
         Guid assessmentId,
@@ -16,6 +19,7 @@ public sealed class SprsScoreCalculationService(
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
+        ValidateRequest(request);
         var assessment = await assessmentRepository.FindCurrentTenantAsync(assessmentId, cancellationToken);
         if (assessment is null)
         {
@@ -36,10 +40,15 @@ public sealed class SprsScoreCalculationService(
         var generatedAt = DateTimeOffset.UtcNow;
         var ruleSet = await GetPublishedRuleSetAsync(request.RuleSetId, generatedAt, cancellationToken);
         var normalizedNotes = request.ManualNotes?.Trim() ?? string.Empty;
+        var notesClassification = await ValidateManualNotesAsync(
+            normalizedNotes,
+            request.ManualNotesClassification,
+            actorUserId,
+            cancellationToken);
         var conditionalSelections = NormalizeConditionalSelections(ruleSet, request.ConditionalDeductionSelections);
         var lineItems = CalculateLineItems(ruleSet, statuses, conditionalSelections);
         var totalDeduction = lineItems.Sum(item => item.AppliedDeduction);
-        var score = Math.Max(0, ruleSet.MaximumScore - totalDeduction);
+        var score = ruleSet.MaximumScore - totalDeduction;
         var unresolvedGaps = lineItems
             .Where(item => item.AppliedDeduction > 0)
             .Select(item => new SprsUnresolvedGapDto(
@@ -54,6 +63,7 @@ public sealed class SprsScoreCalculationService(
             assessment.Id,
             ruleSet.Id,
             ruleSet.Version,
+            ruleSet.SourceUrl,
             ruleSet.SourceSha256!,
             ruleSet.MaximumScore,
             score,
@@ -61,6 +71,8 @@ public sealed class SprsScoreCalculationService(
             lineItems,
             unresolvedGaps,
             normalizedNotes,
+            notesClassification,
+            actorUserId,
             generatedAt);
 
         await historyRepository.SaveAsync(calculation, cancellationToken);
@@ -84,6 +96,114 @@ public sealed class SprsScoreCalculationService(
             cancellationToken);
 
         return calculation;
+    }
+
+    public async Task<IReadOnlyList<SprsScoreCalculationDto>?> ListHistoryAsync(
+        Guid assessmentId,
+        CancellationToken cancellationToken = default)
+    {
+        var calculations = await historyRepository.ListCurrentTenantAsync(assessmentId, cancellationToken);
+        if (calculations is null || classificationPolicy is null)
+        {
+            return calculations;
+        }
+
+        try
+        {
+            foreach (var calculation in calculations.Where(item => item.ManualNotesClassification is not null))
+            {
+                await classificationPolicy.EnsureUsableAsync(
+                    calculation.ManualNotesClassification!,
+                    TenantDataHandlingWorkflow.Note,
+                    calculation.GeneratedByUserId,
+                    "SprsScoreCalculationNote",
+                    calculation.Id.ToString(),
+                    cancellationToken);
+            }
+        }
+        catch (Exception exception) when (exception is ContentClassificationValidationException or
+            TenantDataHandlingModeRestrictedException or DataHandlingNoticeValidationException)
+        {
+            throw new SprsScoreCalculationException(exception.Message);
+        }
+
+        return calculations;
+    }
+
+    private static void ValidateRequest(SprsScoreCalculationRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RuleSetId) || request.RuleSetId.Length > 200)
+        {
+            throw new SprsScoreCalculationException("A valid SPRS scoring rule set ID is required.");
+        }
+
+        if (request.ManualNotes?.Length > 2000)
+        {
+            throw new SprsScoreCalculationException("Manual reviewer notes cannot exceed 2,000 characters.");
+        }
+
+        if (request.ConditionalDeductionSelections?.Count > 110 ||
+            request.ConditionalDeductionSelections?.Any(selection =>
+                selection.RequirementId?.Length > 120 || selection.OptionCode?.Length > 120) is true)
+        {
+            throw new SprsScoreCalculationException("Conditional deduction selections exceed the supported scoring-rule limits.");
+        }
+    }
+
+    private async Task<ContentClassificationDto?> ValidateManualNotesAsync(
+        string notes,
+        ContentClassificationRequest? classification,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (notes.Length == 0)
+        {
+            if (classification is not null)
+            {
+                throw new SprsScoreCalculationException("Manual note classification cannot be supplied without manual reviewer notes.");
+            }
+            return null;
+        }
+
+        if (classification is null)
+        {
+            throw new SprsScoreCalculationException("Explicit classification is required for manual reviewer notes.");
+        }
+
+        try
+        {
+            ContentClassificationPolicy.ValidateUserSelection(classification);
+            if (classificationPolicy is not null)
+            {
+                await classificationPolicy.EnsureAllowedAsync(
+                    classification,
+                    TenantDataHandlingWorkflow.Note,
+                    actorUserId,
+                    "SprsScoreCalculationNote",
+                    cancellationToken: cancellationToken);
+            }
+        }
+        catch (ContentClassificationValidationException exception)
+        {
+            throw new SprsScoreCalculationException(exception.Message);
+        }
+        catch (TenantDataHandlingModeRestrictedException exception)
+        {
+            throw new SprsScoreCalculationException(exception.Message);
+        }
+        catch (DataHandlingNoticeValidationException exception)
+        {
+            throw new SprsScoreCalculationException(exception.Message);
+        }
+
+        return new ContentClassificationDto(
+            classification.Classification,
+            classification.Source,
+            classification.Confidence,
+            classification.ReviewedByUserId,
+            classification.ReviewedAt,
+            classification.Reason,
+            classification.IsApprovedDemoContent);
     }
 
     private async Task<SprsScoringRuleSetDto> GetPublishedRuleSetAsync(
@@ -128,6 +248,7 @@ public sealed class SprsScoreCalculationService(
                     deduction,
                     "control-not-assessed",
                     null,
+                    null,
                     null);
             }
 
@@ -160,6 +281,7 @@ public sealed class SprsScoreCalculationService(
                     rule.Deduction,
                     0,
                     "not-applicable",
+                    status.Notes.Trim(),
                     status.Status,
                     status.Result);
             }
@@ -187,6 +309,7 @@ public sealed class SprsScoreCalculationService(
                 rule.Deduction,
                 appliedDeduction,
                 reason,
+                null,
                 status.Status,
                 status.Result);
         }).ToArray();
@@ -269,12 +392,17 @@ public sealed class SprsScoreCalculationService(
 public interface ISprsScoreCalculationHistoryRepository
 {
     Task SaveAsync(SprsScoreCalculationDto calculation, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SprsScoreCalculationDto>?> ListCurrentTenantAsync(
+        Guid assessmentId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record SprsScoreCalculationRequest(
     string RuleSetId,
     string? ManualNotes,
-    IReadOnlyList<SprsConditionalDeductionSelection>? ConditionalDeductionSelections = null);
+    IReadOnlyList<SprsConditionalDeductionSelection>? ConditionalDeductionSelections = null,
+    ContentClassificationRequest? ManualNotesClassification = null);
 
 public sealed record SprsConditionalDeductionSelection(
     string RequirementId,
@@ -286,6 +414,7 @@ public sealed record SprsScoreCalculationDto(
     Guid AssessmentId,
     string RuleSetId,
     string RuleSetVersion,
+    string RuleSetSourceUrl,
     string RuleSetSourceSha256,
     int MaximumScore,
     int Score,
@@ -293,6 +422,8 @@ public sealed record SprsScoreCalculationDto(
     IReadOnlyList<SprsScoreCalculationLineItemDto> LineItems,
     IReadOnlyList<SprsUnresolvedGapDto> UnresolvedGaps,
     string ManualNotes,
+    ContentClassificationDto? ManualNotesClassification,
+    Guid GeneratedByUserId,
     DateTimeOffset GeneratedAt);
 
 public sealed record SprsScoreCalculationLineItemDto(
@@ -302,6 +433,7 @@ public sealed record SprsScoreCalculationLineItemDto(
     int RuleDeduction,
     int AppliedDeduction,
     string Reason,
+    string? ApplicabilityRationale,
     ControlImplementationStatus? ControlStatus,
     AssessmentResult? AssessmentResult);
 

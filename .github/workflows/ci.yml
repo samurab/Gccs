@@ -289,11 +289,11 @@ jobs:
           --startup-project apps/api/Gccs.Api.csproj
           --context GccsDbContext
 
-      - name: Verify report and audit transaction rollback
+      - name: Verify report, SPRS calculation, and audit transaction rollback
         run: >
           dotnet test tests/Gccs.Api.Tests/Gccs.Api.Tests.csproj
           --no-restore
-          --filter "FullyQualifiedName~ReportPostgresTransactionTests|FullyQualifiedName~ContractExtractionPostgresTransactionTests|FullyQualifiedName~FedRampPersistenceTests"
+          --filter "FullyQualifiedName~ReportPostgresTransactionTests|FullyQualifiedName~ContractExtractionPostgresTransactionTests|FullyQualifiedName~FedRampPersistenceTests|FullyQualifiedName~LaborApplicabilityWageDeterminationTests|FullyQualifiedName~LaborApplicabilityRealStackTests"
 
       - name: Run real-stack report authorization tests
         run: npm run test:e2e:real

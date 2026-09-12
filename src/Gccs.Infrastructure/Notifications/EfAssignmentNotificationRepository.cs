@@ -190,34 +190,66 @@ public sealed class EfAssignmentNotificationRepository(GccsDbContext dbContext) 
         Guid actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var exists = await dbContext.NotificationDeliveries.AnyAsync(
+        var notification = await dbContext.NotificationDeliveries.SingleOrDefaultAsync(
             delivery =>
                 delivery.TenantId == tenantId &&
                 delivery.SourceTaskId == expertReviewItemId &&
                 delivery.Category == "expert_review" &&
                 delivery.UserId == assignedUserId,
             cancellationToken);
-        if (exists)
+        var now = DateTimeOffset.UtcNow;
+        if (notification is null)
         {
-            return;
+            notification = new NotificationDeliveryEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                UserId = assignedUserId,
+                SourceTaskId = expertReviewItemId,
+                SourceType = "ExpertReviewItem",
+                LinkUrl = AssignmentNotificationRoutes.Obligations,
+                Category = "expert_review",
+                Status = "Delivered",
+                Placeholder = $"Expert review '{topic}' was assigned to you.",
+                AttemptedAt = now,
+                CreatedAt = now,
+                CreatedByUserId = actorUserId
+            };
+            dbContext.NotificationDeliveries.Add(notification);
         }
 
-        var now = DateTimeOffset.UtcNow;
-        dbContext.NotificationDeliveries.Add(new NotificationDeliveryEntity
+        if (!await dbContext.AssignmentEmailDeliveries.AnyAsync(
+                delivery => delivery.NotificationDeliveryId == notification.Id,
+                cancellationToken))
         {
-            Id = Guid.NewGuid(),
-            TenantId = tenantId,
-            UserId = assignedUserId,
-            SourceTaskId = expertReviewItemId,
-            SourceType = "ExpertReviewItem",
-            LinkUrl = $"/expert-review/{expertReviewItemId}",
-            Category = "expert_review",
-            Status = "Delivered",
-            Placeholder = $"Expert review '{topic}' was assigned to you.",
-            AttemptedAt = now,
-            CreatedAt = now,
-            CreatedByUserId = actorUserId
-        });
+            var recipient = await dbContext.TenantMemberships.AsNoTracking()
+                .Where(membership => membership.TenantId == tenantId && membership.UserId == assignedUserId &&
+                    membership.Status == MembershipStatus.Active && membership.User != null && membership.User.Status == UserStatus.Active)
+                .Select(membership => new { membership.RoleName, membership.User!.Email, membership.User.DisplayName })
+                .SingleOrDefaultAsync(cancellationToken);
+            var preference = await dbContext.NotificationPreferences.AsNoTracking().SingleOrDefaultAsync(
+                candidate => candidate.TenantId == tenantId && candidate.UserId == assignedUserId,
+                cancellationToken);
+            var emailEnabled = preference?.AssignmentNotificationsEnabled ??
+                !string.Equals(recipient?.RoleName, RoleCatalog.Auditor, StringComparison.OrdinalIgnoreCase);
+            if (recipient is not null && emailEnabled && !string.IsNullOrWhiteSpace(recipient.Email))
+            {
+                dbContext.AssignmentEmailDeliveries.Add(new AssignmentEmailDeliveryEntity
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    NotificationDeliveryId = notification.Id,
+                    UserId = assignedUserId,
+                    RecipientEmail = recipient.Email,
+                    RecipientDisplayName = string.IsNullOrWhiteSpace(recipient.DisplayName) ? recipient.Email : recipient.DisplayName,
+                    LinkUrl = AssignmentNotificationRoutes.Obligations,
+                    Status = "Queued",
+                    NextAttemptAt = now,
+                    CreatedAt = now,
+                    CreatedByUserId = actorUserId
+                });
+            }
+        }
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

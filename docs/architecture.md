@@ -47,7 +47,7 @@ flowchart TB
 
     subgraph client["Authenticated SaaS Workspace"]
         web["React + Vite Web App<br/>apps/web"]
-        uiModules["Company profile<br/>Contract intake<br/>Obligation dashboard<br/>Calendar<br/>Evidence vault<br/>CMMC readiness<br/>Subcontractors<br/>Reports"]
+        uiModules["Company profile<br/>Contract intake<br/>Obligation dashboard<br/>Calendar<br/>Evidence vault<br/>CMMC readiness<br/>Subcontractors<br/>Reports<br/>Guarded assistant"]
     end
 
     subgraph apiBoundary["Backend API Boundary"]
@@ -59,6 +59,7 @@ flowchart TB
 
     subgraph appLayer["Application Layer"]
         useCases["Use cases and DTOs<br/>src/Gccs.Application"]
+        guardedAssistant["Guarded assistant policy<br/>citations, draft status,<br/>review and feedback"]
         ports["Repository, storage,<br/>queue, search, AI,<br/>and external API ports"]
     end
 
@@ -90,7 +91,7 @@ flowchart TB
         far["FAR / DFARS / eCFR sources"]
         cmmc["DoD CMMC and NIST sources"]
         email["Email provider"]
-        futureAi["Future cited AI/RAG service"]
+        futureAi["Planned model/RAG provider"]
     end
 
     owners --> browser --> web
@@ -102,6 +103,7 @@ flowchart TB
     api --> audit
     api --> useCases
     useCases --> ports
+    useCases --> guardedAssistant
     useCases --> domain
     domain --> complianceModel
 
@@ -124,13 +126,31 @@ flowchart TB
     contentRepo -. reviewed source links .-> far
     contentRepo -. reviewed source links .-> cmmc
     notifications -. send .-> email
-    extraction -. future source-backed draft assistance .-> futureAi
+    guardedAssistant -. planned generated-answer provider .-> futureAi
 
     uploadGuard -. blocks intentional customer CUI until CUI-ready enclave exists .-> objectStorage
     audit -. records sensitive actions .-> postgres
 ```
 
 The MVP deployment keeps the product No-CUI / compliance management only. Evidence upload, document intake, AI-assisted extraction, and external integrations must preserve tenant isolation, source traceability, auditability, and data handling controls, and users must remain prevented from uploading CUI until a future approved `CuiReady` posture exists.
+
+## Guarded Assistant Boundary
+
+Current state: **Implemented** for the guarded user experience, deterministic approved-source retrieval, citations, draft/support/review labels, prohibited-request redirection, tenant-scoped answer/feedback/draft-action persistence, context-sensitive RBAC, atomic audit logging, and routing assistant answers into the operational expert-review queue. Assistant escalations create an idempotent open queue item linked to the answer, retain a `NeedsExpertReview` feedback record, expose answer citations to authorized reviewers, validate assignees as active tenant members, queue assignment notifications according to user preferences, and support audited governed dispositions. Resolution persists reviewer, timestamp, decision, and notes on the answer, but `accepted_as_reviewed_draft` remains reviewed draft guidance and is not published into obligations, reports, or governed compliance content. A generated-answer model/RAG provider and promotion of separately approved drafts into operational workflows are **Planned**. Do not claim that the assistant provides legal advice, certification decisions, CUI/classified processing, or autonomous compliance decisions.
+
+Labor applicability is a tenant-scoped contract aggregate. The application service validates explicit SCA/DBA/FAR Part 22 fields and source-backed activation, the EF adapter validates contract/clause/evidence ownership and synchronizes a durable compliance task, and the request transaction commits each applicability mutation with its audit event. Wage determination bytes remain in the shared evidence pipeline rather than creating a second upload boundary.
+
+## Labor Category And Employee Classification Boundary
+
+Current state: **Implemented** for tenant-scoped labor categories, employee assignments, wage/fringe/effective-date data, source references, evidence links, sensitive-field redaction, classification review metadata, append-only reclassification history, and atomic mutation/audit persistence. **Do not claim** that these workflow records are legal wage or labor determinations.
+
+- `ViewContracts` authorizes category and redacted assignment reads. `ManageContracts` authorizes category, assignment, reclassification, deactivation, and review mutations. `ViewSensitiveEmployeeData` separately authorizes employee options, names, and email addresses and is limited to Owner, Admin, and Compliance Manager roles.
+- Assignment request contracts accept an employee identifier but not client-asserted names or email addresses. Infrastructure resolves the active current-tenant employee, contract, category, and evidence references.
+- Categories require source references, nonnegative wage and fringe values, and valid effective dates. Assignment creation and reclassification reject missing sources, inactive or cross-contract categories, dates outside the category period, and overlapping active assignments.
+- Tenant-qualified foreign keys prevent cross-tenant contract, employee, category, and evidence links. PostgreSQL additionally enforces nonnegative rate, effective-date, review-metadata, and active-assignment overlap constraints.
+- Reclassification preserves prior and new category identifiers and titles, actor, timestamp, and reason. Assignment edits and reclassification reset reviewer metadata to `PendingReview`; review decisions store the authenticated reviewer and server timestamp.
+- Labor category and assignment mutations share the standard request transaction with append-only audit writes. Audit metadata contains identifiers and workflow state, not employee names or email addresses.
+- The UI exposes loading, empty, validation-error, read-only, sensitive-field-restricted, create, deactivate, reclassify, and review states while retaining the No-CUI warning.
 
 ## Frontend Strategy
 
@@ -161,6 +181,52 @@ Current state: **Implemented** for structured sections, deterministic source-bac
 - `ViewCmmc` authorizes reads and comparisons; `ManageCmmc` authorizes section and narrative mutations. These permissions include the Compliance Manager role and preserve read-only auditor behavior.
 - Deterministic source-backed generation is not represented as AI-assisted. The provider port exists, but the default adapter rejects AI-assisted requests. Enabling a provider requires reviewed provider/model/prompt provenance, data-retention configuration, evaluation evidence, and the same source, classification, review, and audit controls.
 - This feature organizes compliance-management records. It does not certify the tenant, authorize CUI processing, or produce an assessor or government determination.
+
+## SAM.gov Subcontracting Plan Reporting Preparation Boundary
+
+Current state: **Implemented** for tenant-scoped SAM.gov SPR preparation data collection, package-eligibility gating, immutable package snapshots, internal review lifecycle, audited HTML/JSON export, and append-only user-recorded external receipt history. **Do not claim** external SAM.gov submission, verification, or synchronization.
+
+Rationale: eSRS was decommissioned on February 20, 2026, and its subcontracting reporting functions moved to SAM.gov. The canonical product vocabulary and API therefore follow SAM.gov SPR, while legacy identifiers remain compatibility-only. The enforced preparation fields are based on the GSA Functional Data Dictionary version 1.0 dated March 6, 2026. Sources: [SAM.gov eSRS transition](https://sam.gov/esrs), [GSA SPR Functional Data Dictionary](https://www.fsd.gov/gsafsd_sp/en/subcontract-plan-reporting-functional-data-dictionary?id=kb_article_view&sysparm_article=KB0093498).
+
+- `ViewReports` authorizes report-row reads and template download; `ManageReports` authorizes create, edit, import, and review decisions.
+- The server resolves tenant ownership for the contract, contract-linked subcontractor, matching source-backed SPR applicability period, reporting-role UEI, contract PIID, and every evidence reference. Missing or cross-tenant references return the standard not-found contract.
+- Rows and evidence links are durable relational records. Tenant-qualified foreign keys prevent cross-tenant links, and a normalized database unique constraint coordinates duplicate prevention under concurrent writes.
+- Create, edit, import, review, and rejection changes share the relational transaction with append-only audit writes. A failed audit append rolls back the business mutation.
+- Edits clear prior reviewer metadata and return a row to `PendingReview`. Only rows with complete SPR identity and eligibility metadata that are `Reviewed` or explicitly `Accepted` are eligible for final package preparation.
+- CSV import is capped at 2 MB and 1,000 rows, requires the exact versioned header, and applies the same reference, amount, period, duplicate, evidence, and audit rules as manual entry.
+- New rows resolve a source-controlled, reviewed, published, and effective SPR schema profile on the server. The profile governs categories, periods, fiscal-year range, whole-dollar handling, and eligibility confirmation; its ID, version, source URL, and definition SHA-256 are persisted with each row.
+- Legacy rows are never silently promoted. A tenant-scoped remediation projection identifies blocking fields, and a read-only suggestion endpoint resolves PIID and UEI from authoritative tenant records without persisting them. Saving enrichment uses the normal validated update workflow, resets review, and audits changed field names and readiness transitions.
+- Package generation snapshots the eligible rows, spend summaries, evidence references, exceptions, and exact governed schema profile references into durable tenant-scoped JSON. Snapshot content and version are immutable; only explicit lifecycle metadata can change. Lifecycle writes include the expected current status in the relational update so stale concurrent decisions fail without overwriting a completed transition or appending a false audit event.
+- `ManageReports` authorizes generation and lifecycle decisions, `ViewReports` authorizes package and receipt reads, and `ExportReports` authorizes HTML/JSON export at the API boundary. Application request contracts do not accept permission flags or tenant identifiers. Generation, lifecycle changes, exports, and manual receipt records append audit events in the same relational transaction as any associated business write.
+- Manual submission receipts are append-only, may reference eligible current-tenant evidence, and require an approved package. Corrections supersede earlier receipts by reference rather than mutating them. They record user-asserted external activity and are not proof that FeDril submitted or verified anything in SAM.gov.
+- An explicit submission-provider port exists, but the installed adapter is disabled and the capability endpoint reports unavailable. The submit route fails closed with `spr_submission_unavailable`; enabling it requires an authorized contractor-facing SAM.gov integration and a separately reviewed synchronization design.
+- Canonical APIs use `/subcontracting-plan-report-data` and `/subcontracting-plan-reports`; legacy `/esrs` routes and persistence names remain compatibility identifiers.
+- This workflow collects and exports internal preparation data only. FeDril does not submit, verify, or synchronize reports with SAM.gov, determine legal reporting obligations, or provide government approval.
+
+## External Portal Access Boundary
+
+Current state: **Implemented** for durable tenant-scoped invitations, four external roles, approved package and contract scopes, expiration and revocation checks, resend and extension controls, authenticated email/subject binding, configurable strong-authentication claim checks, download permission checks, last-access state, append-only access history, tenant-admin API/UI controls, and atomic invitation/access audit writes when PostgreSQL is configured. **Partially implemented** for external review content: the authenticated external route currently establishes and records the read-only authorization decision, while the Story 34.2 approved-package catalog and review UI remain process-local and are not production portal content routes.
+
+- `ManageUsers` authorizes invitation creation, listing, resend, extension, revocation, and access-history review. These routes always use the authenticated tenant context and tenant-qualified repository queries.
+- External callers use the customer authentication plane and bypass tenant membership only on the explicit read-only portal access route. Tenant identity comes from the durable invitation rather than a client tenant header; normal workspace routes still require active tenant membership and server-provided permissions.
+- Successful access requires the verified token email to match the invitation, binds the first external subject identifier, rechecks expiration/revocation, package scope, optional contract scope, strong-authentication claims when configured, and download permission when requested.
+- Invitations reference only current-tenant, externally eligible package snapshots and current-tenant contracts. Completed unblocked Unclassified/FCI reports, externally approved/shared SSP packages, and approved subcontracting-plan report packages are eligible; CUI, unknown, blocked, draft, cross-tenant, or missing package scopes are rejected.
+- Successful and denied access decisions append tenant-scoped history and sanitized audit metadata. Audit events contain identifiers, result codes, and counts rather than package contents or invitation email addresses.
+- A resend request increments durable delivery-hook metadata without changing scope or expiration and cannot revive expired or revoked access. Provider delivery for external invitations is not yet connected and must not be claimed. Extension requires a new future expiration and cannot revive a revoked invitation. Revocation requires a reason and immediately fails request-time access checks.
+- This access model does not authorize CUI sharing and does not grant any tenant workspace permission to a portal role.
+
+## External Portal Package Lifecycle Boundary
+
+Current state: **Implemented** for durable shared-package lifecycle records, tenant-admin lifecycle APIs and UI, request-time expiration/revocation checks, automatic expiration processing, scheduled reminder activity, reissue/supersede lineage, tenant-scoped activity reporting, and atomic lifecycle/audit writes when PostgreSQL is configured. **Partially implemented** for the surrounding external portal: Story 34.1 invitations are durable, but the Story 34.2 approved-package catalog and review content still use process-local adapters and have no production external-review content route.
+
+- `ManageUsers` authorizes create, list, expire, revoke, supersede, reissue, and archive operations because that permission is limited to tenant Owner/Admin roles. `ViewAuditLog` authorizes the portal activity report.
+- Every tenant administration lookup includes the authenticated tenant id. Missing and cross-tenant package ids return the standard tenant-safe `404` response.
+- Portal request-time access requires a matching shared-package id, invitation id, source package id, `Active` state, and a future expiration timestamp. The review, comment, and download application paths recheck lifecycle access; a worker is not trusted to enforce cutoff.
+- Share and reissue validation resolves the invitation and source package server-side. Revoked/expired/out-of-scope invitations and draft, internal-note, CUI, synthetic-CUI, prohibited, or unknown packages are rejected.
+- Reissue creates a new active lifecycle record and preserves the predecessor. Active predecessors become superseded; revoked or expired predecessors retain their terminal state and revocation evidence while linking to the replacement.
+- Automatic maintenance records one expiration-reminder activity and changes due active shares to `Expired`. Automatic expiration and its audit event share the relational transaction.
+- Portal access, comment, download, reminder, expiration, supersede, revocation, reissue, and archive activity is append-only and tenant scoped. Lifecycle audit metadata contains identifiers and state only; it does not include package contents.
+- This feature does not authorize sharing CUI. Production external package review remains dependent on durable Story 34.2 approved-package source adapters and content routes.
 
 ## Planned Services
 

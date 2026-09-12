@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Net;
 using Gccs.Application.Common;
 using Gccs.Application.Reports;
 using Gccs.Application.Security;
@@ -33,7 +34,9 @@ public sealed class EfReportRepository(
                 report.TenantId == tenantContext.TenantId &&
                 (report.Type == ReportType.ComplianceStatus ||
                  report.Type == ReportType.CmmcReadiness ||
-                 report.Type == ReportType.SubcontractorCompliance))
+                 report.Type == ReportType.SprsReadiness ||
+                 report.Type == ReportType.SubcontractorCompliance ||
+                 report.Type == ReportType.LaborCompliance))
             .OrderByDescending(report => report.GeneratedAt)
             .ThenByDescending(report => report.Id)
             .Take(limit)
@@ -68,7 +71,9 @@ public sealed class EfReportRepository(
                 candidate.TenantId == tenantContext.TenantId &&
                 (candidate.Type == ReportType.ComplianceStatus ||
                  candidate.Type == ReportType.CmmcReadiness ||
-                 candidate.Type == ReportType.SubcontractorCompliance))
+                 candidate.Type == ReportType.SprsReadiness ||
+                 candidate.Type == ReportType.SubcontractorCompliance ||
+                 candidate.Type == ReportType.LaborCompliance))
             .Select(candidate => new
             {
                 candidate.Id,
@@ -135,7 +140,9 @@ public sealed class EfReportRepository(
                 candidate.TenantId == tenantContext.TenantId &&
                 (candidate.Type == ReportType.ComplianceStatus ||
                  candidate.Type == ReportType.CmmcReadiness ||
-                 candidate.Type == ReportType.SubcontractorCompliance),
+                 candidate.Type == ReportType.SprsReadiness ||
+                 candidate.Type == ReportType.SubcontractorCompliance ||
+                 candidate.Type == ReportType.LaborCompliance),
             cancellationToken);
         if (report is null)
         {
@@ -919,6 +926,134 @@ public sealed class EfReportRepository(
             entity.GeneratedByUserId,
             snapshot,
             entity.ExportHtml) { Classification = ClassificationMetadata.Read(entity.CurrentClassification ?? (IClassifiedContentEntity)entity) };
+    }
+
+    public async Task<SprsReadinessReportDto> SaveSprsReadinessReportAsync(
+        SprsReadinessSnapshotDto snapshot,
+        string assessmentName,
+        Guid actorUserId,
+        ContentClassificationRequest classification,
+        string idempotencyKey,
+        string requestFingerprint,
+        CancellationToken cancellationToken = default)
+    {
+        var assessmentBelongsToTenant = await dbContext.Assessments
+            .AsNoTracking()
+            .AnyAsync(
+                assessment => assessment.Id == snapshot.AssessmentId && assessment.TenantId == tenantContext.TenantId,
+                cancellationToken);
+        if (!assessmentBelongsToTenant)
+        {
+            throw new InvalidOperationException("The SPRS readiness snapshot assessment is outside the current tenant.");
+        }
+
+        var generatedAt = snapshot.GeneratedAt;
+        var exportHtml = BuildSprsReadinessHtml(snapshot);
+        var entity = new ReportEntity
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantContext.TenantId,
+            Type = ReportType.SprsReadiness,
+            Title = $"SPRS readiness report - {assessmentName}",
+            Status = ReportStatus.Complete,
+            GeneratedAt = generatedAt,
+            GeneratedByUserId = actorUserId,
+            SnapshotJson = JsonSerializer.Serialize(snapshot, JsonOptions),
+            ExportHtml = exportHtml,
+            IdempotencyKey = idempotencyKey,
+            RequestFingerprint = requestFingerprint,
+            CreatedAt = generatedAt,
+            CreatedByUserId = actorUserId
+        };
+
+        ApplyInitialClassification(entity, classification);
+        dbContext.Reports.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new SprsReadinessReportDto(
+            entity.Id,
+            entity.TenantId,
+            entity.Type,
+            entity.Status,
+            entity.Title,
+            entity.GeneratedAt,
+            entity.GeneratedByUserId,
+            snapshot,
+            entity.ExportHtml)
+        {
+            Classification = ClassificationMetadata.Read(entity.CurrentClassification ?? (IClassifiedContentEntity)entity)
+        };
+    }
+
+    public async Task AcquireSprsReadinessIdempotencyLockAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(
+                dbContext.Database.ProviderName,
+                "Npgsql.EntityFrameworkCore.PostgreSQL",
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var lockScope = $"{tenantContext.TenantId:N}:sprs-readiness:{idempotencyKey}";
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({lockScope}, 0))",
+            cancellationToken);
+    }
+
+    public async Task<ExistingSprsReadinessReportDto?> FindSprsReadinessByIdempotencyKeyAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.Reports
+            .AsNoTracking()
+            .Include(report => report.CurrentClassification)
+            .SingleOrDefaultAsync(
+                report => report.TenantId == tenantContext.TenantId &&
+                    report.Type == ReportType.SprsReadiness &&
+                    report.IdempotencyKey == idempotencyKey,
+                cancellationToken);
+        if (entity is null || string.IsNullOrWhiteSpace(entity.RequestFingerprint))
+        {
+            return null;
+        }
+
+        await EnsureReportUsableAsync(entity.Id, cancellationToken);
+        var snapshot = JsonSerializer.Deserialize<SprsReadinessSnapshotDto>(entity.SnapshotJson, JsonOptions) ??
+            throw new InvalidOperationException("The stored SPRS readiness report snapshot is invalid.");
+        return new ExistingSprsReadinessReportDto(
+            entity.RequestFingerprint,
+            new SprsReadinessReportDto(
+                entity.Id,
+                entity.TenantId,
+                entity.Type,
+                entity.Status,
+                entity.Title,
+                entity.GeneratedAt,
+                entity.GeneratedByUserId,
+                snapshot,
+                entity.ExportHtml,
+                IsReplay: true)
+            {
+                Classification = ClassificationMetadata.Read(
+                    entity.CurrentClassification ?? (IClassifiedContentEntity)entity)
+            });
+    }
+
+    private static string BuildSprsReadinessHtml(SprsReadinessSnapshotDto snapshot)
+    {
+        static string Encode(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
+        var rows = string.Join(string.Empty, snapshot.UnresolvedControls.Select(control =>
+            $"<li><strong>{Encode(control.RequirementId)}</strong> - {Encode(control.Title)}; " +
+            $"evidence {Encode(control.EvidenceStatus)}; POA&amp;M references {control.PoamItemIds.Count}</li>"));
+        return $"""
+            <!doctype html><html><head><meta charset="utf-8"><title>{Encode(snapshot.AssessmentName)} SPRS readiness report</title></head>
+            <body><h1>SPRS readiness report</h1><p><strong>{Encode(snapshot.SubmissionStatement)}</strong></p>
+            <p>Score {snapshot.Score} of {snapshot.MaximumScore}; deductions {snapshot.TotalDeduction}; scoring rule {Encode(snapshot.RuleSetVersion)}.</p>
+            <p>Assessment date {snapshot.AssessmentDate:yyyy-MM-dd}; generated {snapshot.GeneratedAt:O}; status {Encode(snapshot.ArtifactStatus)}.</p>
+            <h2>Unresolved controls</h2><ul>{rows}</ul><p>{Encode(ReportArtifactLanguage.WorkflowGuidanceDisclaimer)}</p></body></html>
+            """;
     }
 
     private static ComplianceStatusReportDto ToDto(ReportEntity entity, ComplianceStatusReportSnapshotDto snapshot) =>
