@@ -240,22 +240,59 @@ namespace Gccs.Infrastructure.Persistence.Migrations
                 table: "labor_employee_assignments",
                 columns: new[] { "tenant_id", "labor_category_id" });
 
-            migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS btree_gist;");
             migrationBuilder.Sql("""
-                ALTER TABLE gccs.labor_employee_assignments
-                ADD CONSTRAINT labor_assignment_no_overlap
-                EXCLUDE USING gist (
-                    tenant_id WITH =,
-                    employee_id WITH =,
-                    contract_id WITH =,
-                    daterange(effective_start, COALESCE(effective_end, 'infinity'::date), '[]') WITH &&
-                ) WHERE (status = 0);
+                CREATE OR REPLACE FUNCTION gccs.enforce_labor_assignment_no_overlap()
+                RETURNS trigger
+                LANGUAGE plpgsql
+                AS $function$
+                BEGIN
+                    IF NEW.status <> 0 THEN
+                        RETURN NEW;
+                    END IF;
+
+                    -- Serialize active assignments for the same tenant, employee, and
+                    -- contract so concurrent inserts cannot both pass the overlap check.
+                    PERFORM pg_advisory_xact_lock(
+                        hashtextextended(
+                            NEW.tenant_id::text || ':' ||
+                            NEW.employee_id::text || ':' ||
+                            NEW.contract_id::text,
+                            0));
+
+                    IF EXISTS (
+                        SELECT 1
+                        FROM gccs.labor_employee_assignments existing
+                        WHERE existing.tenant_id = NEW.tenant_id
+                          AND existing.employee_id = NEW.employee_id
+                          AND existing.contract_id = NEW.contract_id
+                          AND existing.status = 0
+                          AND existing.id <> NEW.id
+                          AND existing.effective_start <= COALESCE(NEW.effective_end, 'infinity'::date)
+                          AND NEW.effective_start <= COALESCE(existing.effective_end, 'infinity'::date)
+                    ) THEN
+                        RAISE EXCEPTION USING
+                            ERRCODE = '23P01',
+                            CONSTRAINT = 'labor_assignment_no_overlap',
+                            MESSAGE = 'labor_assignment_no_overlap';
+                    END IF;
+
+                    RETURN NEW;
+                END;
+                $function$;
+
+                CREATE TRIGGER labor_assignment_no_overlap
+                BEFORE INSERT OR UPDATE OF tenant_id, employee_id, contract_id, effective_start, effective_end, status
+                ON gccs.labor_employee_assignments
+                FOR EACH ROW
+                EXECUTE FUNCTION gccs.enforce_labor_assignment_no_overlap();
                 """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("DROP FUNCTION IF EXISTS gccs.enforce_labor_assignment_no_overlap();");
+
             migrationBuilder.DropTable(
                 name: "labor_classification_evidence",
                 schema: "gccs");
